@@ -1,0 +1,106 @@
+{
+  "id": "aqua",
+  "name": "Aqua",
+  "version": "desktop",
+  "shell": "aqua",
+  "tier": "free",
+  "minAppVersion": 6,
+  "palette": {
+    "bgTop": "#2B3A67",
+    "bgBottom": "#0E1524",
+    "bar": "#1C1C1E",
+    "dock": "#7A2E2E33",
+    "accent": "#0A84FF",
+    "onDark": "#F5F5F7"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.24,
+    "foregroundScale": 1.0,
+    "brandPack": "simple-icons",
+    "brandTreatment": "brandPlate"
+  },
+  "wallpapers": [],
+  "splash": {
+    "style": "bar",
+    "durationMs": 900
+  },
+  "boot": {
+    "tailMs": 650,
+    "lines": [
+      {
+        "kind": "dim",
+        "text": "efiboot loaded from device: Acpi(APP0002,0)/Pci(0x1f,0x2)"
+      },
+      {
+        "kind": "dim",
+        "text": "boot file path: \\System\\Library\\CoreServices\\boot.efi"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "Darwin Kernel Version 24.5.0: Tue Apr 22 19:53:27 PDT 2025"
+      },
+      {
+        "kind": "dim",
+        "text": "AppleACPICPU: ProcessorId=1 LocalApicId=0 Enabled"
+      },
+      {
+        "kind": "ok",
+        "text": "AppleIntelCPUPowerManagement: initialization complete"
+      },
+      {
+        "kind": "ok",
+        "text": "Loaded AppleAHCIDiskDriver"
+      },
+      {
+        "kind": "ok",
+        "text": "IOAccelerator: family matched"
+      },
+      {
+        "kind": "plain",
+        "text": "BSD root: disk3s1s1, major 1, minor 13"
+      },
+      {
+        "kind": "ok",
+        "text": "apfs: mounted Macintosh HD on device root_device"
+      },
+      {
+        "kind": "ok",
+        "text": "Started mDNSResponder"
+      },
+      {
+        "kind": "warn",
+        "text": "Waiting for DSMOS ...",
+        "delayMs": 640
+      },
+      {
+        "kind": "ok",
+        "text": "DSMOS has arrived"
+      },
+      {
+        "kind": "ok",
+        "text": "Started WindowServer"
+      },
+      {
+        "kind": "ok",
+        "text": "Started loginwindow"
+      }
+    ]
+  }
+}

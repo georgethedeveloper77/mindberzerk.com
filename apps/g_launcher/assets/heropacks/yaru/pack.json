@@ -1,0 +1,20 @@
+{
+  "id": "yaru",
+  "name": "Yaru",
+  "note": "Ubuntu 24.04's real icon theme. ~40-60 icons, not 142 — the generator covers the rest.",
+
+  "masked": false,
+
+  "icons": {
+    "com.android.chrome": "chrome.png",
+    "org.mozilla.firefox": "firefox.png",
+    "com.whatsapp": "whatsapp.png",
+    "com.android.settings": "settings.png",
+    "com.google.android.apps.photos": "photos.png",
+    "com.android.camera2": "camera.png",
+    "com.google.android.deskclock": "clock.png",
+    "com.android.vending": "software.png",
+    "com.google.android.apps.docs": "files.png",
+    "com.termux": "terminal.png"
+  }
+}

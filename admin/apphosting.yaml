@@ -1,0 +1,89 @@
+# Firebase App Hosting configuration for admin.mindberzerk.com.
+#
+# THE MOST IMPORTANT LINES IN THIS REPO ARE THE `secret:` ONES BELOW.
+#
+# PACK_SIGNING_KEY is the ed25519 private half whose public counterpart is baked
+# into every shipped APK as PackKeys.ACCEPTED_HEX. If it ever reaches a browser,
+# every pack signature in the ecosystem is worthless and the fix is a Play
+# release plus a key rotation on every device. It is referenced here as a Secret
+# Manager secret, never as a value, and it is read ONLY from server code.
+#
+# Note there is no NEXT_PUBLIC_ prefix on any of these. That prefix is what
+# inlines a value into the client bundle, and it is the single mistake that
+# would make this whole scheme decorative.
+
+runConfig:
+  # A publish signs and uploads several MB. One instance is plenty for a panel
+  # with one user, and it keeps the cost at roughly nothing when idle.
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 20
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # ── server-only secrets ──────────────────────────────────────────────────
+  - variable: PACK_SIGNING_KEY
+    secret: pack-signing-key
+    availability:
+      - RUNTIME
+
+  - variable: R2_ACCESS_KEY_ID
+    secret: r2-access-key-id
+    availability:
+      - RUNTIME
+
+  - variable: R2_SECRET_ACCESS_KEY
+    secret: r2-secret-access-key
+    availability:
+      - RUNTIME
+
+  # Comma-separated Firebase Auth UIDs allowed to sign in.
+  #
+  # AN ALLOWLIST, NOT A ROLE CHECK, and a secret rather than a config value.
+  # This panel can write to the CDN that every installed launcher trusts, so
+  # "who may sign in" is not a setting, it is a credential.
+  - variable: ADMIN_UIDS
+    secret: admin-uids
+    availability:
+      - RUNTIME
+
+  # ── non-secret config ────────────────────────────────────────────────────
+  - variable: R2_ENDPOINT
+    value: https://2df6df2e2ed97a0affaa1d17e48ebb3a.r2.cloudflarestorage.com
+    availability:
+      - RUNTIME
+
+  - variable: R2_BUCKET
+    value: mindberzerk-cdn
+    availability:
+      - RUNTIME
+
+  # The key id written into every manifest and index this panel signs. Must be
+  # a key present in PackKeys.ACCEPTED_HEX in the shipped app, or every pack is
+  # refused with UnknownKey.
+  - variable: PACK_KEY_ID
+    value: mh-2026-07
+    availability:
+      - RUNTIME
+
+  # Client-side Firebase config. Public by design — these identify the project,
+  # they do not authorise anything. Auth is enforced server-side against the
+  # allowlist above.
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: REPLACE_ME
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: REPLACE_ME.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: REPLACE_ME
+    availability:
+      - BUILD
+      - RUNTIME

@@ -1,0 +1,45 @@
+# PHASE C5 — the monorepo, stood up at the moment it finally earns its keep.
+#
+# This was DELIBERATELY DEFERRED through Phases A and B. Melos on day one buys
+# nothing but ceremony when there is one app and no shared code; every "shared"
+# package extracted before a second consumer exists is a guess about what the
+# second consumer will need, and the guess is usually wrong.
+#
+# The trigger set back in Phase A was "the first genuinely shared concern", and
+# billing is it. `g_account` (entitlements, Play Billing, the owned-SKU set) and
+# `g_content` (pack manifests, CDN fetch, verification results as Dart types)
+# are needed identically by G Launcher and G Recovery — Recovery sells its own
+# unlocks and downloads its own OEM guidance through the same pipeline.
+name: mindberzerk
+
+packages:
+  - apps/*
+  - packages/*
+
+command:
+  bootstrap:
+    # Run `melos bootstrap` after any pubspec change. It links the local path
+    # dependencies, which is the only reason apps/g_launcher can `import
+    # package:g_content/...` without publishing anything.
+    runPubGetInParallel: true
+
+scripts:
+  analyze:
+    run: melos exec -- dart analyze .
+    description: Static analysis across every package.
+
+  test:
+    # `--no-select` so a package with no test/ directory is skipped rather than
+    # failing the run. g_content and g_account start empty.
+    run: melos exec --dir-exists=test -- flutter test
+    description: Every Dart test in the workspace.
+
+  gates:
+    # The three guard scripts, run together. They live in apps/g_launcher for
+    # now; move them to the root when a second app needs them.
+    run: |
+      cd apps/g_launcher && \
+      ./scripts/no_snackbars.sh && \
+      ./scripts/no_bare_update.sh && \
+      ./scripts/no_constants.sh
+    description: The exit gates. Must report 0 before any release.

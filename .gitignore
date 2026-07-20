@@ -1,0 +1,54 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+*.jks
+*.keystore
+**/android/app/debug/
+**/android/app/release/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+
+# Backend / admin
+node_modules/
+.wrangler/
+.next/
+.env
+.env.local
+
+# Signing — NEVER commit these
+*.pem
+content-signing-key*
+
+# PHASE C — SIGNED ARTEFACTS ARE BUILD OUTPUT, NOT SOURCE.
+#
+# manifest.json, manifest.sig and index.sig are all derived from content plus a
+# private key. Committing them means the repo carries signatures that go stale
+# the moment anyone edits the content beside them, and a stale signature in git
+# is worse than none: it looks authoritative, verifies against nothing, and the
+# next person assumes the content is what was signed.
+#
+# The signing step regenerates them into backend/dist/ on every publish. The
+# only thing that belongs in git is the authored content and the PUBLIC key.
+backend/dist/
+backend/content/**/manifest.json
+backend/content/**/manifest.sig
+backend/content/**/index.sig
+
+# The private signing key must never come near this repo.
+*.key
+*pack-signing*

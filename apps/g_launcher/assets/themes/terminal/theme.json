@@ -1,0 +1,64 @@
+{
+  "id": "terminal",
+  "name": "Terminal",
+  "version": "type-to-launch",
+  "shell": "tui",
+  "tier": "free",
+  "palette": {
+    "bgTop": "#080D08",
+    "bgBottom": "#080D08",
+    "bar": "#0E1A0E",
+    "dock": "#0E1A0E",
+    "accent": "#FFB000",
+    "onDark": "#C8D8C8"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": false
+  },
+  "boot": {
+    "tailMs": 500,
+    "lines": [
+      {
+        "kind": "dim",
+        "text": "[    0.000000] booting g_launcher tty ..."
+      },
+      {
+        "kind": "ok",
+        "text": "mounted /proc /sys /dev"
+      },
+      {
+        "kind": "ok",
+        "text": "started device stats collector"
+      },
+      {
+        "kind": "ok",
+        "text": "started battery monitor"
+      },
+      {
+        "kind": "ok",
+        "text": "loaded UbuntuMono glyphs"
+      },
+      {
+        "kind": "ok",
+        "text": "reached target multi-user"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "g-tty login: user (automatic)"
+      },
+      {
+        "kind": "plain",
+        "text": "Last login: now on tty1"
+      }
+    ]
+  }
+}

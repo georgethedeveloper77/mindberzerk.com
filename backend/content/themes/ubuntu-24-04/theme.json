@@ -1,0 +1,28 @@
+{
+  "id": "ubuntu-24-04",
+  "name": "Ubuntu",
+  "version": "24.04",
+  "shell": "gnome",
+  "tier": "free",
+  "palette": {
+    "bgTop": "#622A4C",
+    "bgBottom": "#220817",
+    "bar": "#1A171B",
+    "dock": "#BD201B21",
+    "accent": "#E95420",
+    "onDark": "#FFFFFF"
+  },
+  "typography": { "display": "Ubuntu", "mono": "UbuntuMono" },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": { "rows": 5, "cols": 4 }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "heroPack": "yaru",
+    "tint": null
+  },
+  "wallpaper": { "asset": "assets/themes/ubuntu-24-04/wallpaper.webp" },
+  "minAppVersion": 20000
+}

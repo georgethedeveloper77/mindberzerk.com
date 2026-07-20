@@ -1,0 +1,3 @@
+-dontwarn javax.naming.**
+-dontwarn org.bouncycastle.jsse.**
+-dontwarn org.bouncycastle.jcajce.provider.**

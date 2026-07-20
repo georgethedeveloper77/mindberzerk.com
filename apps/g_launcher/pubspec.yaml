@@ -1,0 +1,104 @@
+name: g_launcher
+description: G Launcher — your phone, as a Linux desktop.
+publish_to: "none"
+
+# versionCode MUST exceed whatever is live on Play right now. Check the console.
+# Live is 1; 2 is burned on a rejected release. Hence +6.
+version: 6.0.0+6
+
+# Pub workspace member. Without this the root `workspace:` list rejects it and
+# melos bootstrap fails with a message about resolution mode.
+resolution: workspace
+
+environment:
+  # Bumped for pub workspaces, which need 3.6+. If `dart --version` is below
+  # that, revert this line and pin the old tooling: melos 6.3.2 with melos.yaml.
+  sdk: ^3.6.0
+
+dependencies:
+  battery_plus: ^7.1.0
+
+  # Value equality for lists — BootSpec.lines and the LauncherPrefs collections.
+  # Was only a transitive dependency; promoted to a DIRECT one because
+  # ListEquality is now load-bearing in the engine's ==/hashCode and the boot
+  # layer. Relying on it arriving through another package is how it vanishes in
+  # a future upgrade and the equality quietly falls back to identity.
+  collection: ^1.18.0
+
+  device_info_plus: ^13.2.0
+  firebase_analytics: ^12.4.5
+  firebase_core: ^4.12.1
+  flutter:
+    sdk: flutter
+
+  # State. Plain Riverpod 3 — NO codegen, deliberately. If the boilerplate ever
+  # starts to hurt, that is the moment to add riverpod_generator. Not before.
+  flutter_riverpod: ^3.3.2
+  flutter_svg: ^2.3.0
+  image_picker: ^1.2.3
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  # Native bridge codegen (app list, icon engine). Dev-only — not in the APK.
+  #   dart run pigeon --input pigeons/launcher_api.dart
+  pigeon: ^27.1.2
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/svg/
+    - assets/themes/
+    - assets/brandpacks/simple-icons/
+    - assets/themes/aqua/
+    - assets/themes/ubuntu-24-04/
+    - assets/themes/ubuntu-24-04/wallpapers/
+    - assets/themes/fedora-41/
+    - assets/themes/fedora-41/wallpapers/
+    - assets/heropacks/yaru/
+    - assets/themes/kde-plasma-6/
+    - assets/themes/kde-plasma-6/wallpapers/
+    - assets/themes/arch-hyprland/
+    - assets/themes/arch-hyprland/wallpapers/
+
+    # Terminal ships a theme.json only (no wallpaper). This entry was MISSING,
+    # so the terminal theme was never bundled: selecting it fell back to Ubuntu
+    # and its boot log never played. Flutter asset dirs are non-recursive, so
+    # the parent `assets/themes/` above does not cover it — it needs its own
+    # line.
+    - assets/themes/terminal/
+
+    # The mark that every branded scaffold message carries.
+    - assets/brand/
+
+    # Not a font — the licence text, loaded by LicenseRegistry in main.dart.
+    # The Ubuntu Font Licence requires it to travel with the fonts.
+    - assets/fonts/UBUNTU-FONT-LICENCE-1.0.txt
+
+  # Ubuntu + Ubuntu Mono are what make the Ubuntu theme feel real.
+  #
+  # These family names are load-bearing: they must match theme.json
+  # ("display": "Ubuntu", "mono": "UbuntuMono") EXACTLY. A mismatch does not
+  # error — it silently renders Roboto.
+  #
+  # Run scripts/fetch_fonts.sh to populate assets/fonts/.
+  fonts:
+    - family: Ubuntu
+      fonts:
+        - asset: assets/fonts/Ubuntu-Regular.ttf
+        - asset: assets/fonts/Ubuntu-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Ubuntu-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Ubuntu-Bold.ttf
+          weight: 700
+
+    - family: UbuntuMono
+      fonts:
+        - asset: assets/fonts/UbuntuMono-Regular.ttf
+        - asset: assets/fonts/UbuntuMono-Bold.ttf
+          weight: 700

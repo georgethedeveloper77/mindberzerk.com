@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "updated": "2026-07-13",
+  "themes": [
+    { "id": "ubuntu-24-04", "tier": "free", "url": "themes/ubuntu-24-04/theme.json" }
+  ],
+  "iconPacks": [],
+  "oemGuides": [
+    { "brand": "infinix", "url": "oem-guides/infinix.json" }
+  ]
+}

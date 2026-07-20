@@ -1,0 +1,612 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/prefs_repository.dart';
+import '../../design/branded_message.dart';
+import '../../design/grid_metrics.dart';
+import '../../engine/effective_theme.dart';
+import '../../platform/launcher_api.g.dart';
+import '../search/search_page.dart';
+import 'drawer_actions.dart';
+import 'drawer_pager.dart';
+import 'app_icon.dart';
+import 'drawer_items.dart';
+
+/// The Activities drawer.
+///
+/// Painted from EffectiveTheme, not Material — columns, icon size, label lines
+/// and text scale are all user-settable, and this is where they show up.
+///
+/// Search lives on its OWN page now (the One UI-style [SearchPage]): the drawer
+/// shows the full app grid, and a search bar — positioned top or bottom per the
+/// per-theme `drawerSearchPosition` pref — opens that page. This replaces the old
+/// inline filter; typing, suggestions, and recent searches all belong to the
+/// page, so the drawer stays a clean browsing grid.
+///
+/// ## Performance rules, non-negotiable
+///
+/// This list is 150+ apps with a bitmap each, and it is the surface people judge
+/// the whole launcher on: a drawer that stutters on a fling reads as "this app
+/// is slow", however fast everything else is.
+///
+///  - **Lazy build only.** Never build the full list eagerly. Off-screen tiles
+///    must cost nothing.
+///  - **Never decode an icon on the main isolate.** Icons arrive as PNG bytes
+///    from the NATIVE disk cache (IconCache.kt), which renders on its own two IO
+///    threads and hands back bytes. Decoding one adaptive icon is 2-5ms; on a
+///    40-tile screen that is several dropped frames.
+///  - **Never render an icon in Dart at all.** The recipe engine is native by
+///    design. A Dart path here would duplicate it and lose both cache tiers.
+///
+/// (Absorbed from the retired `features/drawer/README.md`.)
+class AppDrawer extends ConsumerWidget {
+  const AppDrawer({super.key, required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(drawerItemsProvider(theme));
+
+    // Where the search bar sits. null = the theme decides, resolved to bottom
+    // (thumb-reachable, matching the One UI search page); a theme may pin 'top'
+    // for an authentic GNOME feel.
+    final searchAtBottom =
+        (theme.prefs.drawerSearchPosition ?? 'bottom') != 'top';
+
+    // Naming a folder happens HERE, at the drawer, not on the tile that handled
+    // the drop — that tile folds itself away and unmounts. `context` is the
+    // drawer's own, and the drawer only rebuilds (its Element persists), so it
+    // is still valid a frame later.
+    //
+    // Post-framed so the grid settles into its new shape before the sheet slides
+    // over it, and re-checked with `context.mounted` in case the whole drawer
+    // was dismissed in that frame.
+    void onFolderCreated(String folderId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        renameDrawerFolder(
+          context,
+          ref,
+          theme,
+          folderId: folderId,
+          currentName: defaultFolderName,
+        );
+      });
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The user's explicit choice wins; otherwise the screen decides. A fixed
+        // theme constant loses to responsiveness here on purpose — a 5-column
+        // grid that's right on a tablet is cramped on a 392dp phone, and no
+        // theme author can know which one they're on.
+        final columns = theme.prefs.drawerCols ??
+            GridMetrics.drawerColumns(constraints.maxWidth);
+
+        final labelLines =
+            theme.prefs.labelLines ?? GridMetrics.defaultLabelLines;
+
+        final aspect = labelLines > 1 ? 0.70 : 0.78;
+
+        // How the drawer moves. Vertical is the default and the one nobody
+        // notices; paged and cube are the personalization payoff.
+        final style = theme.prefs.drawerScrollStyle ?? 'vertical';
+
+        Widget tileAt(int i) => _tileFor(
+              items[i],
+              theme: theme,
+              labelLines: labelLines,
+              onFolderCreated: onFolderCreated,
+            );
+
+        if (style == 'pages' || style == 'cube') {
+          return Expanded(
+            child: DrawerPager(
+              itemCount: items.length,
+              columns: columns,
+              aspectRatio: aspect,
+              cube: style == 'cube',
+              itemBuilder: (context, i) => tileAt(i),
+            ),
+          );
+        }
+
+        final grid = Expanded(
+          child: GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              childAspectRatio: aspect,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: items.length,
+            // addRepaintBoundaries is on by default and we want it: each icon is
+            // an Image.memory, and without a boundary one icon resolving repaints
+            // the entire visible grid.
+            itemBuilder: (context, i) => tileAt(i),
+          ),
+        );
+
+        final searchBar = _DrawerSearchBar(theme: theme);
+
+        // The drawer paints its OWN backdrop. GNOME's Activities is a
+        // translucent wash over the wallpaper, not an opaque page — you can see
+        // your desktop behind it, which is most of why it reads as GNOME rather
+        // than as "an app list". The shell should mount this full-bleed and add
+        // no chrome of its own (no back arrow: GNOME closes Activities with the
+        // Super key or a swipe, and Android's back gesture already does that
+        // here via the shell's PopScope).
+        return ColoredBox(
+          color: theme.palette.bgBottom.withValues(alpha: 0.92),
+          child: SafeArea(
+            child: Column(
+              children:
+                  searchAtBottom ? [grid, searchBar] : [searchBar, grid],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Activate a tapped tile. Real apps launch natively and record usage;
+/// launcher-owned entries route in-app or hand off to the OS. Kept in one place
+/// so the tiles can't drift apart.
+class _DrawerSearchBar extends StatelessWidget {
+  const _DrawerSearchBar({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final onDark = theme.palette.onDark;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Center(
+        child: ConstrainedBox(
+          // Adwaita's search entry is a centred pill that does not run the full
+          // width of the screen. On a phone that ceiling rarely binds, but it is
+          // what keeps the drawer looking like GNOME on a tablet.
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => SearchPage(theme: theme)),
+            ),
+            child: Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: onDark.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: onDark.withValues(alpha: 0.10)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search,
+                    size: 20,
+                    color: onDark.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Search',
+                    style: TextStyle(
+                      color: onDark.withValues(alpha: 0.6),
+                      fontFamily: theme.typography.display,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The shared label under any drawer tile. Extracted so the launcher entries are
+/// pixel-for-pixel peers of the app tiles, not lookalikes that drift.
+class _TileLabel extends StatelessWidget {
+  const _TileLabel({
+    required this.text,
+    required this.theme,
+    required this.labelLines,
+  });
+
+  final String text;
+  final EffectiveTheme theme;
+  final int labelLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: labelLines,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 12 * theme.textScale,
+        color: theme.palette.onDark,
+        fontFamily: theme.typography.display,
+      ),
+    );
+  }
+}
+
+/// Generates a drawer folder id. Prefixed `df` so it is obvious at a glance in
+/// a prefs dump that this is a DRAWER folder, not a home-screen one.
+/// An app tile. Tap launches, hold opens the menu, and dragging it onto another
+/// app or a folder files it away.
+///
+/// **Why the gesture is split on release.** [LongPressDraggable] consumes the
+/// long press, so a naive `onLongPress` menu would never fire once the tile
+/// became draggable. Rather than demote the menu to a worse trigger, intent is
+/// read on release: if nothing accepted the drop AND the finger never really
+/// travelled, it was a hold, so the menu opens. Move it and it is a drag. This
+/// is what every launcher does; it just usually does it in native code.
+class _AppTile extends ConsumerStatefulWidget {
+  const _AppTile({
+    super.key,
+    required this.entry,
+    required this.theme,
+    required this.labelLines,
+    required this.onFolderCreated,
+  });
+
+  final AppEntry entry;
+  final EffectiveTheme theme;
+  final int labelLines;
+
+  /// Called with the new folder's id when a drop on this tile created one. The
+  /// DRAWER handles it, because this tile is about to unmount (see _mergeWith).
+  final void Function(String folderId) onFolderCreated;
+
+  @override
+  ConsumerState<_AppTile> createState() => _AppTileState();
+}
+
+class _AppTileState extends ConsumerState<_AppTile> {
+  /// Where the tile was when the drag began, so release can measure travel.
+  Offset? _origin;
+
+  /// Below this, a "drag" is really a hold with a shaky thumb. 24dp is the same
+  /// slop Flutter uses to distinguish a tap from a pan.
+  static const _slop = 24.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final entry = widget.entry;
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppIcon(entry: entry, size: theme.iconSizeDp),
+        const SizedBox(height: 6),
+        _TileLabel(
+          text: entry.label,
+          theme: theme,
+          labelLines: widget.labelLines,
+        ),
+      ],
+    );
+
+    return DragTarget<String>(
+      // Cannot fold an app into itself.
+      onWillAcceptWithDetails: (d) => d.data != entry.componentKey,
+      onAcceptWithDetails: (d) => _mergeWith(d.data),
+      builder: (context, candidate, __) {
+        final hovering = candidate.isNotEmpty;
+
+        return LongPressDraggable<String>(
+          data: entry.componentKey,
+          onDragStarted: () {
+            HapticFeedback.mediumImpact();
+            final box = context.findRenderObject() as RenderBox?;
+            _origin = (box != null && box.hasSize)
+                ? box.localToGlobal(Offset.zero)
+                : null;
+          },
+          onDraggableCanceled: (_, offset) {
+            // Nothing accepted it. If it never moved, the user was holding, not
+            // dragging — that is the menu.
+            final from = _origin;
+            if (from == null || (offset - from).distance < _slop) {
+              showDrawerAppMenu(context, ref, widget.theme, widget.entry);
+            }
+          },
+          // The dragged icon must FOLLOW the finger, not sit under it.
+          feedback: Transform.scale(
+            scale: 1.15,
+            child: Material(color: Colors.transparent, child: content),
+          ),
+          childWhenDragging: Opacity(opacity: 0.25, child: content),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _launch(context, ref),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              decoration: BoxDecoration(
+                // The only affordance telling you a drop will land here.
+                color: hovering
+                    ? theme.palette.onDark.withValues(alpha: 0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: content,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Another app was dropped on this one → a new folder holding both, and the
+  /// rename sheet opens straight away.
+  ///
+  /// Naming happens HERE, at the moment of intent. A folder called "Folder" is a
+  /// folder nobody ever renames: the user has just told us these two apps belong
+  /// together, and that is the only moment they know what to call the group.
+  /// Dismissing the sheet is fine — the folder keeps the default name and can be
+  /// renamed later from its long-press menu.
+  void _mergeWith(String sourceKey) {
+    final theme = widget.theme;
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+    // One id, generated once and reused: the edit closure needs it, and so does
+    // the rename sheet that follows. Generating inside the closure would leave
+    // us with no handle on the folder we just made.
+    final id = newDrawerFolderId();
+
+    final before = theme.prefs;
+    final after = DrawerLayout.mergeApps(
+      before,
+      sourceKey,
+      widget.entry.componentKey,
+      newFolderId: () => id,
+      newFolderName: defaultFolderName,
+    );
+
+    // Refused (already filed, or same app). Say so rather than absorbing the
+    // gesture silently.
+    if (identical(before, after)) {
+      if (mounted) context.showMessage('Take that app out of its folder first');
+      return;
+    }
+
+    // The drop already fired a haptic when the drag began; a second one here
+    // reads as a stutter, not as confirmation.
+    notifier.edit(
+      (p) => DrawerLayout.mergeApps(
+        p,
+        sourceKey,
+        widget.entry.componentKey,
+        newFolderId: () => id,
+        newFolderName: defaultFolderName,
+      ),
+    );
+
+    // Hand the new folder UP to the drawer rather than opening the sheet here.
+    //
+    // This tile cannot do it: merging folds BOTH apps away, so the tile that
+    // handled the drop is removed from the list and unmounts on the very next
+    // build. Anything scheduled against its State (a post-frame callback, a
+    // mounted check) is dead by the time it runs — which is exactly why the
+    // rename sheet never appeared. The drawer survives the rebuild, so it owns
+    // the prompt.
+    widget.onFolderCreated(id);
+  }
+
+  /// Passes the icon's on-screen rect to Android so the app-open animation
+  /// expands FROM the icon. Nobody notices it until it is missing, and then
+  /// every launch feels cheap.
+  void _launch(BuildContext context, WidgetRef ref) {
+    final box = context.findRenderObject() as RenderBox?;
+    Rect? bounds;
+    if (box != null && box.hasSize) {
+      bounds = box.localToGlobal(Offset.zero) & box.size;
+    }
+    activateDrawerItem(
+      context,
+      ref,
+      widget.theme,
+      AppDrawerItem(widget.entry),
+      iconBounds: bounds,
+    );
+  }
+
+}
+
+/// A drawer folder: a 2x2 preview of its first four members, its name beneath.
+///
+/// Tap opens it. Drop a loose app on it to file that app away. Hold it for
+/// folder settings (rename / ungroup) — no drag-the-folder gesture, deliberately:
+/// nested folders are a mess nobody wants, and the drawer list is alphabetical
+/// so there is nowhere to drag a folder TO.
+class _FolderTile extends ConsumerWidget {
+  const _FolderTile({
+    super.key,
+    required this.item,
+    required this.theme,
+    required this.labelLines,
+  });
+
+  final FolderDrawerItem item;
+  final EffectiveTheme theme;
+  final int labelLines;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final size = theme.iconSizeDp;
+
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => !item.folder.members.contains(d.data),
+      onAcceptWithDetails: (d) {
+        HapticFeedback.mediumImpact();
+        ref.read(prefsProvider(theme.spec.id).notifier).edit(
+              (p) => DrawerLayout.addToFolder(p, item.folder.id, d.data),
+            );
+      },
+      builder: (context, candidate, __) {
+        final hovering = candidate.isNotEmpty;
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => openDrawerFolder(context, ref, theme, item),
+          onLongPress: () => drawerFolderSettings(context, ref, theme, item),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: size,
+                height: size,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: theme.palette.onDark
+                      .withValues(alpha: hovering ? 0.30 : 0.15),
+                  borderRadius: BorderRadius.circular(
+                    folderCornerRadius(theme, size),
+                  ),
+                ),
+                // A 2x2 preview of the first four. The convention everyone
+                // already knows — do not invent a new folder glyph.
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 2,
+                  crossAxisSpacing: 2,
+                  children: [
+                    for (final m in item.members.take(4))
+                      AppIcon(entry: m, size: size / 2 - 5),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              _TileLabel(
+                text: item.folder.name,
+                theme: theme,
+                labelLines: labelLines,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A launcher-owned drawer entry (Settings, Device Settings) styled as a peer of
+/// the app tiles. Tap-to-activate, no long-press sheet: none of pin / App-info /
+/// uninstall applies to a non-app entry, and an empty sheet is worse than none.
+///
+/// The icon is passed in rather than derived here so each variant keeps its own
+/// treatment (brand mark vs. system glyph) at the call site, where the variant
+/// is already in hand.
+class _ActionTile extends ConsumerWidget {
+  const _ActionTile({
+    super.key,
+    required this.item,
+    required this.theme,
+    required this.labelLines,
+    required this.icon,
+  });
+
+  final DrawerItem item;
+  final EffectiveTheme theme;
+  final int labelLines;
+  final Widget icon;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => activateDrawerItem(context, ref, theme, item),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(height: 6),
+          _TileLabel(text: item.label, theme: theme, labelLines: labelLines),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// One drawer tile.
+///
+/// Factored out of the grid's itemBuilder so the PAGED and CUBE layouts build
+/// identical tiles from the same code. Two copies of this switch would mean a
+/// new DrawerItem variant compiling in one layout and throwing in another.
+Widget _tileFor(
+  DrawerItem drawerItem, {
+  required EffectiveTheme theme,
+  required int labelLines,
+  required void Function(String folderId) onFolderCreated,
+}) {
+            final item = drawerItem;
+            // Sealed: adding a DrawerItem variant breaks this until it's
+            // handled, which is the safety we want.
+            return switch (item) {
+              AppDrawerItem(:final entry) => _AppTile(
+                  onFolderCreated: onFolderCreated,
+                  // Stable identity so a prefs change (a folder created, an
+                  // app pinned) REUSES this element instead of building a new
+                  // one. Without it the whole grid is rebuilt from scratch,
+                  // every AppIcon is recreated, and each one re-requests its
+                  // bitmap from native — which is the flash on merge.
+                  key: ValueKey(entry.componentKey),
+                  entry: entry,
+                  theme: theme,
+                  labelLines: labelLines,
+                ),
+              FolderDrawerItem() => _FolderTile(
+                  key: ValueKey(item.folder.id),
+                  item: item,
+                  theme: theme,
+                  labelLines: labelLines,
+                ),
+              LauncherSettingsItem() => _ActionTile(
+                  key: const ValueKey('launcher-settings'),
+                  item: item,
+                  theme: theme,
+                  labelLines: labelLines,
+                  // The launcher's own settings wear the theme's brand mark
+                  // (Ubuntu → the Ubuntu logo, others → the Mindhunter mark).
+                  icon: LauncherBrandIcon(
+                    theme: theme,
+                    size: theme.iconSizeDp,
+                  ),
+                ),
+              DeviceSettingsItem() => _ActionTile(
+                  key: const ValueKey('device-settings'),
+                  item: item,
+                  theme: theme,
+                  labelLines: labelLines,
+                  // A system handoff, not a branded app: a plain themed gear
+                  // reads as "this leaves the launcher" the way a logo wouldn't.
+                  icon: SizedBox(
+                    width: theme.iconSizeDp,
+                    height: theme.iconSizeDp,
+                    child: Center(
+                      child: Icon(
+                        Icons.settings,
+                        size: theme.iconSizeDp * 0.82,
+                        color: theme.palette.onDark,
+                      ),
+                    ),
+                  ),
+                ),
+            };
+}

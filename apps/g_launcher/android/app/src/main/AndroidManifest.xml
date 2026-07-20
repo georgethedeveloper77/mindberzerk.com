@@ -1,0 +1,149 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      THE fix for "only Samsung apps show up, WhatsApp doesn't".
+
+      Android 11+ filters package visibility. LauncherApps is exempt ONLY while
+      we actually hold the HOME role — and `flutter run` resets the default home
+      app back to the OEM launcher on every reinstall. So in development we ran
+      filtered, and getActivityList() quietly returned 23 preinstalled apps
+      instead of ~130.
+
+      Declaring the intent we care about restores visibility for every app with
+      a LAUNCHER activity.
+
+      This is NOT QUERY_ALL_PACKAGES. It is scoped to launchable apps, needs no
+      Play declaration, and does not go near the §7.6 policy trap. Verify after
+      building:
+
+        grep -r QUERY_ALL_PACKAGES android/app/build/intermediates/merged_manifests/
+
+      That must come back empty. Forever.
+    -->
+    <!-- Normal permissions: auto-granted, no prompt, no Play declaration. -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+    <!--
+      Haptics. HapticFeedback.lightImpact/mediumImpact are used on every launch,
+      every long-press and every drag-to-merge; WITHOUT this they fail silently —
+      no crash, no log, the phone just never buzzes. Normal permission, no prompt.
+    -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      WorkManager reschedules the wallpaper rotation after a reboot through its
+      own boot receiver. The library merges this in itself, so declaring it here
+      is belt-and-braces — but the failure mode if the merge ever changes is
+      invisible (rotation quietly stops after the user's next restart), which is
+      exactly the kind of bug worth spending one line to rule out.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Pulling down the notification shade / quick settings from a gesture.
+      NOTE: on modern Android this permission alone is not enough for a
+      third-party launcher — the shade gestures go through the accessibility
+      service (GestureAccessibilityService). Declared because it is still the
+      documented permission for the API and costs nothing.
+    -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+
+    <!--
+      API 33+. Needed the moment the launcher posts a notification of its own
+      (a backup finished, a theme downloaded). Runtime-prompted, so nothing is
+      requested until there is something to post.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="com.android.vending.BILLING" />
+
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".LauncherApplication"
+        android:label="G Launcher"
+        android:icon="@mipmap/ic_launcher">
+
+        <!--
+          launchMode=singleTask + clearTaskOnLaunch
+              A HOME press while the launcher is already resumed must RESUME,
+              never recreate. The most important pair of lines here for
+              home-press latency.
+
+          excludeFromRecents + stateNotNeeded
+              The launcher is the root of the stack. Not in Recents; the system
+              need not save its state.
+
+          configChanges
+              A rotation or an attached keyboard must not tear down the activity,
+              and with it the illusion of an instant home.
+
+          theme=@style/LauncherTheme
+              Transparent, wallpaper-showing, no window animation. No splash — a
+              launcher that flashes a splash on home press feels broken.
+        -->
+        <activity
+            android:name=".LauncherActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:clearTaskOnLaunch="true"
+            android:excludeFromRecents="true"
+            android:stateNotNeeded="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden|keyboard|navigation|screenLayout|density|uiMode|locale|layoutDirection|fontScale"
+            android:windowSoftInputMode="adjustResize"
+            android:resizeableActivity="true"
+            android:enableOnBackInvokedCallback="true"
+            android:theme="@style/LauncherTheme">
+
+            <!-- Normal app entry, so it is launchable before it is the default. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- The HOME role. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.MONKEY" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Gesture service. Strictly opt-in: declaring it here does NOT enable
+          it. The user must turn it on in Android's accessibility settings, and
+          every gesture that depends on it no-ops (never crashes, never nags)
+          while it is off.
+
+          NOTE for Play: this triggers the accessibility-use declaration in the
+          console. Answer it honestly — "performing gestures the user configured
+          in a launcher" — and link the opt-in screen. Vague answers here get
+          apps pulled.
+        -->
+        <service
+            android:name=".system.GestureAccessibilityService"
+            android:exported="false"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+    </application>
+</manifest>

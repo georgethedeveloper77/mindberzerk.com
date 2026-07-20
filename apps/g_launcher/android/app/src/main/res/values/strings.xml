@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_label">G Launcher gestures</string>
+
+    <!-- Shown verbatim in the system permission screen. Say exactly what it
+         does and nothing else; vagueness here is what makes people refuse. -->
+    <string name="accessibility_description">Lets G Launcher open the notification shade, quick settings, recents, and lock the screen from a gesture. It does not read your screen and it does not watch other apps.</string>
+</resources>

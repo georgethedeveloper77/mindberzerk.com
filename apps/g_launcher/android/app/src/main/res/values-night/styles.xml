@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      values-night/ MUST mirror values/ item-for-item.
+
+      This is the single most common cause of "it's transparent on my phone but
+      black on my tester's". Dark mode swings the resource qualifier, the night
+      styles.xml still carries an opaque template, and the window goes black for
+      exactly the users who have dark mode on — which, for a Linux-desktop
+      launcher, is most of them.
+
+      If you edit values/styles.xml, edit this file in the same commit.
+    -->
+    <style name="LauncherTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowShowWallpaper">true</item>
+
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <style name="LaunchTheme" parent="LauncherTheme" />
+    <style name="NormalTheme" parent="LauncherTheme" />
+
+</resources>

@@ -1,0 +1,13 @@
+{
+  "brand": "infinix",
+  "displayName": "Infinix",
+  "skin": "XOS",
+  "note": "Remote-config so guidance can be fixed without an app release. Feeds the G Recovery Device tab.",
+  "recoveryPaths": [
+    { "step": 1, "title": "XOS Gallery -> Trash",              "retentionDays": 30 },
+    { "step": 2, "title": "File Manager -> Recently deleted",  "retentionDays": 30 },
+    { "step": 3, "title": "WhatsApp -> Media folder",          "note": "Media survives an in-app delete" },
+    { "step": 4, "title": "Google Photos -> Trash",            "retentionDays": 60 },
+    { "step": 5, "title": "Check SD card if inserted" }
+  ]
+}

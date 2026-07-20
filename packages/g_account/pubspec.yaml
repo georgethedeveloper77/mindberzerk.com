@@ -1,0 +1,25 @@
+name: g_account
+description: Entitlements and Play Billing. The owned-SKU set, and nothing that decides what a SKU unlocks.
+publish_to: "none"
+version: 0.1.0
+
+# Pub workspace member. Without this the root `workspace:` list rejects it.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Play Billing. NOT flutter_riverpod: this package is meant to be lifted into
+  # G Recovery, which sells its own unlocks through the same store, and a
+  # state-management dependency baked in here would make that lift a rewrite.
+  # The Riverpod wiring lives in the app, over this.
+  in_app_purchase: ^3.2.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter

@@ -1,0 +1,21 @@
+name: g_content
+description: Pack manifests, CDN catalogue types and verification results, shared across the Mindhunter apps.
+publish_to: "none"
+version: 0.1.0
+
+# Pub workspace member. Without this line the root `workspace:` list rejects it
+# and melos bootstrap fails with a message about resolution mode.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  collection: ^1.18.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter

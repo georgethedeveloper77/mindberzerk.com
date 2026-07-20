@@ -1,0 +1,82 @@
+package com.mindhunter.g_launcher
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.core.view.WindowCompat
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.BasicMessageChannel
+import io.flutter.plugin.common.StringCodec
+
+
+/**
+ * Attaches to the engine warmed in LauncherApplication instead of creating one.
+ * That is what getCachedEngineId() does, and it is the whole point.
+ */
+class LauncherActivity : FlutterActivity() {
+
+    private var homeChannel: BasicMessageChannel<String>? = null
+
+    override fun getCachedEngineId(): String = LauncherApplication.ENGINE_ID
+
+    /**
+     * false — do NOT destroy the engine when this activity finishes. The engine
+     * outlives the activity and belongs to the process.
+     */
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Draw behind the status and nav bars. A desktop shell paints its own
+        // top bar; it cannot do that under a system-reserved inset.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        homeChannel = BasicMessageChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "g_launcher/home_press",
+            StringCodec.INSTANCE,
+        )
+    }
+
+    /**
+     * With launchMode=singleTask, a HOME press while the launcher is already
+     * resumed does not restart the activity — it lands here.
+     *
+     * This is the "press home to go home" behaviour every launcher needs:
+     * close the drawer, dismiss the palette, return to workspace 1. Handle it
+     * in Dart; native just says it happened.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) {
+            homeChannel?.send("home")
+        }
+    }
+
+    /**
+     * Back must never leave the launcher. The system treats a launcher's back
+     * as "do nothing" — Dart decides whether to close a drawer or ignore it.
+     */
+    @Deprecated("Superseded by predictive back; still the reliable path today.")
+    override fun onBackPressed() {
+        // Intentionally empty. Dart handles in-app back via WillPopScope /
+        // PopScope; there is nowhere to go behind a launcher.
+    }
+
+    /**
+     * THE line that lets the system wallpaper show through.
+     *
+     * FlutterActivity renders onto an opaque SurfaceView by default, which paints
+     * black over the wallpaper no matter what the window theme says. Transparent
+     * mode switches it to a translucent surface.
+     *
+     * Costs a little GPU (no more opaque-surface fast path) — the price of being
+     * a launcher rather than an app.
+     */
+    override fun getBackgroundMode(): BackgroundMode = BackgroundMode.transparent
+}

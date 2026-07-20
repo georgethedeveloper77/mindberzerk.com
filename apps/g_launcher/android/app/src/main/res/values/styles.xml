@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      LauncherTheme — the ONE window theme. Named to match
+      android:theme="@style/LauncherTheme" in AndroidManifest.xml.
+
+      Note what is deliberately NOT here: the Flutter template's LaunchTheme →
+      NormalTheme pair. That swap only happens if the activity declares the
+      meta-data `io.flutter.embedding.android.NormalTheme`. We don't, so this
+      single style applies for the entire lifetime of the activity — and the
+      classic launcher bug where the wallpaper flashes and then goes black on
+      first frame (because NormalTheme was left opaque) simply cannot occur.
+      If you ever add that meta-data, you must make BOTH styles translucent.
+
+      LauncherActivity already returns BackgroundMode.transparent, which makes
+      the Flutter *surface* translucent. Necessary but not sufficient: the
+      WINDOW under it is still opaque, and an opaque window over nothing is
+      black. These are the items that actually let the wallpaper through.
+
+        windowIsTranslucent   stop the window compositing an opaque backdrop
+        windowBackground      transparent, not the default black drawable
+        windowShowWallpaper   tell WindowManager to draw the system wallpaper
+                              behind us. The one people miss. Without it a
+                              translucent window shows the black stack behind
+                              it, and live wallpapers — which Flutter can never
+                              draw itself — never appear at all.
+    -->
+    <style name="LauncherTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowShowWallpaper">true</item>
+
+        <!-- No splash. A launcher that flashes a splash on home press feels
+             broken; the wallpaper IS the splash. -->
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+
+        <!-- Edge-to-edge. The shell paints its own top bar; it cannot do that
+             under a system-reserved inset. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <!--
+      Kept ONLY because a stale Flutter template manifest, or a plugin, may still
+      reference these names. They alias LauncherTheme so nothing can accidentally
+      resolve to an opaque default. Safe to delete once you have grepped
+      android/ for them and come back empty.
+    -->
+    <style name="LaunchTheme" parent="LauncherTheme" />
+    <style name="NormalTheme" parent="LauncherTheme" />
+
+</resources>

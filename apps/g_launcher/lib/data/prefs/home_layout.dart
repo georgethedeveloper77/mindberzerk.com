@@ -1,0 +1,338 @@
+import 'launcher_prefs.dart';
+
+/// Every home-screen and folder mutation, as pure functions.
+///
+/// Pure on purpose: drag-and-drop is fiddly, folder merging is fiddlier, and
+/// "I dragged an app onto a folder and lost it" is the kind of bug that makes
+/// people uninstall a launcher and never come back. Pure functions mean all of
+/// this is tested without a phone.
+///
+/// Widgets do gestures. This does state.
+class HomeLayout {
+  const HomeLayout._();
+
+  /// Slot [index] on [page], or null if empty.
+  static HomeItem? itemAt(LauncherPrefs p, int page, int index) {
+    for (final i in p.homeItems) {
+      if (i.page == page && i.index == index) return i;
+    }
+    return null;
+  }
+
+  static AppFolder? folder(LauncherPrefs p, String id) {
+    for (final f in p.folders) {
+      if (f.id == id) return f;
+    }
+    return null;
+  }
+
+  /// First free slot on [page], or null when the page is full.
+  static int? firstFreeSlot(LauncherPrefs p, int page, int capacity) {
+    final taken = {
+      for (final i in p.homeItems)
+        if (i.page == page) i.index,
+    };
+    for (var i = 0; i < capacity; i++) {
+      if (!taken.contains(i)) return i;
+    }
+    return null;
+  }
+
+  /// Already on this page? Home should not silently hold the same app twice.
+  static bool isOnHome(LauncherPrefs p, String componentKey) =>
+      p.homeItems.any((i) => i.componentKey == componentKey);
+
+  static LauncherPrefs addToHome(
+    LauncherPrefs p,
+    String componentKey, {
+    int page = 0,
+    required int capacity,
+  }) {
+    if (isOnHome(p, componentKey)) return p;
+
+    final slot = firstFreeSlot(p, page, capacity);
+    if (slot == null) return p; // page full; caller should say so
+
+    return p.copyWith(
+      homeItems: [
+        ...p.homeItems,
+        HomeItem(page: page, index: slot, componentKey: componentKey),
+      ],
+    );
+  }
+
+  static LauncherPrefs removeFromHome(LauncherPrefs p, int page, int index) {
+    return p.copyWith(
+      homeItems: p.homeItems
+          .where((i) => !(i.page == page && i.index == index))
+          .toList(),
+    );
+  }
+
+  /// Drag a home item to an empty slot. Occupied targets go to [mergeOrSwap].
+  static LauncherPrefs move(
+    LauncherPrefs p, {
+    required int fromPage,
+    required int fromIndex,
+    required int toPage,
+    required int toIndex,
+  }) {
+    final item = itemAt(p, fromPage, fromIndex);
+    if (item == null) return p;
+    if (itemAt(p, toPage, toIndex) != null) return p; // occupied — not our job
+
+    return p.copyWith(
+      homeItems: [
+        for (final i in p.homeItems)
+          if (i.page == fromPage && i.index == fromIndex)
+            HomeItem(
+              page: toPage,
+              index: toIndex,
+              componentKey: i.componentKey,
+              folderId: i.folderId,
+            )
+          else
+            i,
+      ],
+    );
+  }
+
+  /// Dropping one home item onto another.
+  ///
+  /// The classic launcher interaction, and there are three distinct cases —
+  /// getting any of them wrong loses an app:
+  ///   app  onto app    -> NEW folder containing both
+  ///   app  onto folder -> app joins the folder
+  ///   folder onto anything -> refuse. Nested folders are a mess nobody wants,
+  ///                           and merging two folders silently is worse.
+  static LauncherPrefs mergeOrSwap(
+    LauncherPrefs p, {
+    required int fromPage,
+    required int fromIndex,
+    required int toPage,
+    required int toIndex,
+    required String Function() newFolderId,
+    String newFolderName = 'Folder',
+  }) {
+    final source = itemAt(p, fromPage, fromIndex);
+    final target = itemAt(p, toPage, toIndex);
+    if (source == null || target == null) return p;
+    if (source.page == target.page && source.index == target.index) return p;
+
+    // Refuse to drag a folder onto anything.
+    if (source.isFolder) return p;
+
+    final sourceKey = source.componentKey;
+    if (sourceKey == null) return p;
+
+    // app -> folder
+    if (target.isFolder) {
+      final f = folder(p, target.folderId!);
+      if (f == null) return p;
+      if (f.members.contains(sourceKey)) return p;
+
+      return p.copyWith(
+        folders: [
+          for (final x in p.folders)
+            if (x.id == f.id)
+              x.copyWith(members: [...x.members, sourceKey])
+            else
+              x,
+        ],
+        // The app leaves its old slot — it lives in the folder now.
+        homeItems: p.homeItems
+            .where((i) => !(i.page == fromPage && i.index == fromIndex))
+            .toList(),
+      );
+    }
+
+    // app -> app: new folder, in the TARGET's slot. The target does not move,
+    // which is what users expect: you dropped something onto it, so it stays.
+    final targetKey = target.componentKey;
+    if (targetKey == null) return p;
+
+    final id = newFolderId();
+
+    // The dragged app leaves home entirely — it lives in the folder now. Filter
+    // it out first: a collection-for has no `continue`, and trying to skip an
+    // element inline is what broke the build.
+    final remaining =
+        p.homeItems.where((i) => !(i.page == fromPage && i.index == fromIndex));
+
+    return p.copyWith(
+      folders: [
+        ...p.folders,
+        AppFolder(id: id, name: newFolderName, members: [targetKey, sourceKey]),
+      ],
+      homeItems: [
+        for (final i in remaining)
+          if (i.page == toPage && i.index == toIndex)
+            // The folder takes the TARGET's slot. The target does not move —
+            // you dropped something onto it, so it stays put.
+            HomeItem(page: toPage, index: toIndex, folderId: id)
+          else
+            i,
+      ],
+    );
+  }
+
+  static LauncherPrefs renameFolder(LauncherPrefs p, String id, String name) {
+    return p.copyWith(
+      folders: [
+        for (final f in p.folders)
+          if (f.id == id) f.copyWith(name: name) else f,
+      ],
+    );
+  }
+
+  /// Pulling the last-but-one app out must dissolve the folder. A folder holding
+  /// one app is pointless UI, and one holding zero is a ghost that outlives
+  /// every app in it.
+  static LauncherPrefs removeFromFolder(
+    LauncherPrefs p,
+    String folderId,
+    String componentKey, {
+    required int capacity,
+  }) {
+    final f = folder(p, folderId);
+    if (f == null) return p;
+
+    final members = f.members.where((m) => m != componentKey).toList();
+
+    if (members.length >= 2) {
+      return p.copyWith(
+        folders: [
+          for (final x in p.folders)
+            if (x.id == folderId) x.copyWith(members: members) else x,
+        ],
+      );
+    }
+
+    // Dissolve. The folder's slot is inherited by whatever is left, so the
+    // survivor does not vanish off the home screen.
+    final slot = p.homeItems.firstWhere(
+      (i) => i.folderId == folderId,
+      orElse: () => const HomeItem(page: 0, index: 0),
+    );
+
+    final survivors = <HomeItem>[
+      for (final i in p.homeItems)
+        if (i.folderId != folderId) i,
+      if (members.isNotEmpty)
+        HomeItem(
+          page: slot.page,
+          index: slot.index,
+          componentKey: members.first,
+        ),
+    ];
+
+    return p.copyWith(
+      folders: p.folders.where((x) => x.id != folderId).toList(),
+      homeItems: survivors,
+    );
+  }
+
+  /// Apps that vanished (uninstalled) must not linger as dead slots or ghost
+  /// folder members. Call this whenever the app list changes.
+  static LauncherPrefs prune(LauncherPrefs p, Set<String> liveKeys) {
+    final folders = [
+      for (final f in p.folders)
+        f.copyWith(members: f.members.where(liveKeys.contains).toList()),
+    ];
+
+    final aliveFolderIds = {
+      for (final f in folders)
+        if (f.members.length >= 2) f.id,
+    };
+
+    return p.copyWith(
+      folders: folders.where((f) => aliveFolderIds.contains(f.id)).toList(),
+      homeItems: p.homeItems.where((i) {
+        if (i.isFolder) return aliveFolderIds.contains(i.folderId);
+        return liveKeys.contains(i.componentKey);
+      }).toList(),
+      favourites: p.favourites.where(liveKeys.contains).toList(),
+    );
+  }
+
+  // ─── DOCK ──────────────────────────────────────────────────────────────────
+  //
+  // The dock is `favourites`. The field already existed ("componentKeys, dock
+  // order"), already serialises, and `prune()` above already cleans it — no
+  // migration, no schema bump.
+  //
+  // Pure, same as the folder rules, for the same reason with higher stakes: the
+  // dock is now the ONLY app surface on the home screen (authentic decision).
+  // "I pinned an app and it vanished" is the folder bug, but on the one surface
+  // the user cannot avoid.
+
+  static bool isPinned(LauncherPrefs p, String componentKey) =>
+      p.favourites.contains(componentKey);
+
+  /// Appends. Refuses duplicates and refuses to exceed [capacity].
+  ///
+  /// Refusal returns [p] unchanged — the caller compares identity and tells the
+  /// user ("Dock is full"). A silently dropped pin is worse than a refused one.
+  static LauncherPrefs pinToDock(
+    LauncherPrefs p,
+    String componentKey, {
+    required int capacity,
+  }) {
+    if (isPinned(p, componentKey)) return p;
+    if (p.favourites.length >= capacity) return p;
+    return p.copyWith(favourites: [...p.favourites, componentKey]);
+  }
+
+  /// Unpinning the LAST app returns the dock to frequent-apps mode rather than
+  /// leaving it empty — that falls out of [dockKeys] treating an empty
+  /// `favourites` as "untouched". So there is nothing special to do here, and
+  /// the user cannot strand themselves with no way to launch anything.
+  static LauncherPrefs unpinFromDock(LauncherPrefs p, String componentKey) =>
+      p.copyWith(
+        favourites: p.favourites.where((k) => k != componentKey).toList(),
+      );
+
+  /// Drag-reorder within the dock. [to] is the index in the list AFTER the item
+  /// has been removed — the ReorderableListView convention. Getting that wrong
+  /// shifts every downward drag by one, which reads as "the dock ignores me".
+  static LauncherPrefs reorderDock(LauncherPrefs p, int from, int to) {
+    if (from < 0 || from >= p.favourites.length) return p;
+
+    final next = [...p.favourites];
+    final key = next.removeAt(from);
+    next.insert(to.clamp(0, next.length), key);
+
+    return p.copyWith(favourites: next);
+  }
+
+  /// What the dock shows.
+  ///
+  /// **The user pinned nothing → their most-used apps, capped at [defaultLimit]
+  /// (four, out of the box). The user pinned ANYTHING → the dock is theirs,
+  /// entirely, up to [capacity], and stops moving on its own.**
+  ///
+  /// Deliberately not a hybrid. Pins-plus-autofill feels haunted: you pin two
+  /// apps, four you never chose appear beside them, and one silently swaps out
+  /// next week when your usage shifts. Pinning one app means "I am arranging
+  /// this now" — the same contract as HomeGrid's seed layout.
+  ///
+  /// [defaultLimit] bounds ONLY the auto-filled (unpinned) set — the "four
+  /// bigger apps" out-of-box look. Pins are bounded by [capacity], because a
+  /// deliberately-pinned dock is the user's to fill. Omit [defaultLimit] and the
+  /// default set falls back to [capacity], i.e. the old behaviour.
+  static List<String> dockKeys(
+    LauncherPrefs p, {
+    required List<String> frequent,
+    required int capacity,
+    int? defaultLimit,
+  }) {
+    // Pins fill the whole dock: the user asked for these, up to what fits.
+    if (p.favourites.isNotEmpty) {
+      return p.favourites.take(capacity).toList();
+    }
+    // The auto-filled (unpinned) dock is a small, deliberate set — four by
+    // default — not "every frequent app that fits". Never more than `capacity`.
+    final limit = (defaultLimit ?? capacity).clamp(0, capacity);
+    return frequent.take(limit).toList();
+  }
+}

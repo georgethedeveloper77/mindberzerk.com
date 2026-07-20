@@ -1,0 +1,96 @@
+{
+  "id": "fedora-41",
+  "name": "Fedora",
+  "version": "41",
+  "shell": "gnome",
+  "tier": "free",
+  "minAppVersion": 6,
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "palette": {
+    "bgTop": "#3B6EA5",
+    "bgBottom": "#0F2A4A",
+    "bar": "#242424",
+    "dock": "#CC1E1E1E",
+    "accent": "#3584E4",
+    "onDark": "#FFFFFF"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0,
+    "backgroundColor": "#241F31",
+    "monochromeTint": "#3584E4"
+  },
+  "wallpapers": [
+    "assets/themes/fedora-41/wallpapers/fedora_blue.webp"
+  ],
+  "boot": {
+    "tailMs": 650,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.11.4-300.fc41 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "dim",
+        "text": "[    0.000000] Linux version 6.11.4-300.fc41.x86_64"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Relabel all filesystems on SELinux change ...",
+        "delayMs": 640
+      },
+      {
+        "kind": "ok",
+        "text": "Started SELinux Policy"
+      },
+      {
+        "kind": "ok",
+        "text": "Started firewalld - dynamic firewall daemon"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  }
+}

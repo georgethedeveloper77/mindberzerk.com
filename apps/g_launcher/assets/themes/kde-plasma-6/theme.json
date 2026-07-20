@@ -1,0 +1,91 @@
+{
+  "id": "kde-plasma-6",
+  "name": "KDE Plasma",
+  "version": "6",
+  "shell": "plasma",
+  "tier": "free",
+  "minAppVersion": 6,
+  "palette": {
+    "bgTop": "#1B2733",
+    "bgBottom": "#151A1F",
+    "bar": "#31363B",
+    "dock": "#CC2A2E32",
+    "accent": "#3DAEE9",
+    "onDark": "#FCFCFC"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.28,
+    "foregroundScale": 1.0,
+    "backgroundColor": "#31363B"
+  },
+  "wallpapers": [
+    "assets/themes/kde-plasma-6/wallpapers/kde_breeze.webp"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Bluetooth Service"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Simple Desktop Display Manager ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started Simple Desktop Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  }
+}

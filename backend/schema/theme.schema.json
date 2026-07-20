@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThemeSpec",
+  "type": "object",
+  "required": ["id", "name", "version", "shell", "tier", "palette", "layout", "icons"],
+  "properties": {
+    "id":      { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name":    { "type": "string" },
+    "version": { "type": "string" },
+    "shell":   { "enum": ["gnome", "plasma", "tiling", "tui"] },
+    "tier":    { "enum": ["free", "pro"] },
+    "palette": {
+      "type": "object",
+      "required": ["bgTop", "bgBottom", "bar", "dock", "accent"],
+      "additionalProperties": { "type": "string", "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$" }
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "dock":   { "enum": ["left", "bottom", "off"] },
+        "topBar": { "type": "boolean" },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "rows": { "type": "integer", "minimum": 3, "maximum": 8 },
+            "cols": { "type": "integer", "minimum": 3, "maximum": 7 }
+          }
+        }
+      }
+    },
+    "icons": {
+      "type": "object",
+      "properties": {
+        "treatment": { "enum": ["squircle", "circle", "roundedSquare", "none"] },
+        "heroPack":  { "type": ["string", "null"] },
+        "tint":      { "type": ["string", "null"] }
+      }
+    },
+    "minAppVersion": { "type": "integer" }
+  }
+}

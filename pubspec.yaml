@@ -1,0 +1,61 @@
+# The Melos workspace root. PHASE C5.
+#
+# Melos 7 dropped the standalone melos.yaml and moved configuration in here,
+# on top of Dart's own pub workspaces (`resolution: workspace` in each member).
+# That is why `melos bootstrap` said "not within a Melos workspace" with a
+# melos.yaml sitting right there: it was looking for this file.
+#
+# What pub workspaces buy over the old melos.yaml: ONE lockfile and ONE
+# .dart_tool for the whole repo, so g_launcher and g_content cannot silently
+# resolve different versions of collection or riverpod. With three packages
+# that is a nicety; by the time G Recovery, the news app and the editor are all
+# in here it is the difference between a dependency bump taking a minute and
+# taking an afternoon.
+#
+# REQUIRES DART 3.6+. Check with `dart --version` before bootstrapping. If you
+# are below it, pin the old tooling instead and keep melos.yaml:
+#   dart pub global activate melos 6.3.2
+name: mindberzerk
+publish_to: "none"
+
+environment:
+  sdk: ^3.6.0
+
+# Every package in the workspace. Add g_recovery and g_editor here the moment
+# they have a pubspec.yaml of their own; until then they are just directories
+# and listing them fails the bootstrap.
+workspace:
+  - apps/g_launcher
+  - packages/g_content
+  - packages/g_account
+
+dev_dependencies:
+  melos: ^7.0.0
+
+melos:
+  scripts:
+    analyze:
+      run: melos exec -- dart analyze .
+      description: Static analysis across every package.
+
+    test:
+      # --dir-exists=test so a package with no tests is SKIPPED rather than
+      # failing the run. g_content and g_account start empty.
+      run: melos exec --dir-exists=test -- flutter test
+      description: Every Dart test in the workspace.
+
+    gates:
+      # The three guard scripts. They live in apps/g_launcher for now; move
+      # them to the root when a second app needs them.
+      run: |
+        cd apps/g_launcher && \
+        ./scripts/no_snackbars.sh && \
+        ./scripts/no_bare_update.sh && \
+        ./scripts/no_constants.sh
+      description: The exit gates. Must report 0 before any release.
+
+    pigeon:
+      # The schema file was lost once and had to be reconstructed by hand.
+      # Having the regen command in exactly one place, here, is cheap insurance.
+      run: cd apps/g_launcher && dart run pigeon --input pigeons/launcher_api.dart
+      description: Regenerate the native bridge.

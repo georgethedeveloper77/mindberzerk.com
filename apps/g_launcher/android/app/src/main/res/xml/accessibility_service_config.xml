@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Deliberately minimal, and the minimalism is the point.
+
+  NO accessibilityEventTypes  — we receive no events
+  NO packageNames             — we watch no apps
+  NO canRetrieveWindowContent — we cannot read the screen
+
+  This file is what Android summarises to the user in the permission prompt.
+  Every capability we do not request is one fewer scary line in that dialog,
+  and one fewer thing we could be accused of doing.
+
+  All we want is a handle for performGlobalAction().
+-->
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="0"
+    android:description="@string/accessibility_description" />

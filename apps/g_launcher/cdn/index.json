@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "generatedAt": 1784538939,
+  "keyId": "mh-2026-07",
+  "packs": [
+    {
+      "packId": "simple-icons",
+      "packType": "brand",
+      "path": "brandpacks/simple-icons",
+      "version": 2,
+      "minAppVersion": 6,
+      "sizeBytes": 40527,
+      "title": "Simple Icons",
+      "summary": "CC0 brand glyphs for the apps everyone recognises"
+    }
+  ]
+}

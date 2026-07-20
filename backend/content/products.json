@@ -1,0 +1,90 @@
+{
+  "_comment": "Source of truth for Play in-app products. The admin panel reads this to render the storefront's price column, and every sku here MUST exist in Play Console with the same id. An id that differs silently never matches what Play reports as owned, which on-device looks exactly like the user not having bought it.",
+  "formatVersion": 1,
+  "app": "g-launcher",
+  "currency": "USD",
+  "products": [
+    {
+      "sku": "distro_pack_kali",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Kali",
+      "description": "The Kali desktop: dragon wallpapers, the dark blue Kali palette, its own boot log and icon set. One-time purchase, yours forever.",
+      "grants": ["kali-2026"]
+    },
+    {
+      "sku": "distro_pack_arch",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Arch + Hyprland",
+      "description": "Arch with a Hyprland tiling shell: waybar, gaps, a verbose mkinitcpio boot log, and the Arch blue throughout. One-time purchase.",
+      "grants": ["arch-hyprland"]
+    },
+    {
+      "sku": "distro_pack_garuda",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Garuda Dr460nized",
+      "description": "The showpiece. Garuda's dragon palette, blur, and heavy visual treatment across every surface. One-time purchase.",
+      "grants": ["garuda-dr460nized"]
+    },
+    {
+      "sku": "distro_pack_elementary",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "elementary OS",
+      "description": "Pantheon: a clean top bar and a centred magnifying dock, in elementary's soft grey palette. One-time purchase.",
+      "grants": ["elementary-8"]
+    },
+    {
+      "sku": "distro_pack_mint",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Linux Mint",
+      "description": "Cinnamon: a bottom panel, the Mint green palette, and its own wallpapers and boot log. One-time purchase.",
+      "grants": ["mint-22"]
+    },
+    {
+      "sku": "distro_pack_popos",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Pop!_OS",
+      "description": "Pop!_OS with COSMIC: tiling by default, the Pop teal and orange, and System76's boot sequence. One-time purchase.",
+      "grants": ["pop-os-cosmic"]
+    },
+    {
+      "sku": "distro_pack_debian",
+      "type": "managed",
+      "priceUsd": 1.49,
+      "title": "Debian",
+      "description": "Debian: the swirl, the deep red palette, and a plain honest desktop. One-time purchase.",
+      "grants": ["debian-13"]
+    },
+
+    {
+      "sku": "bundle_tiling",
+      "type": "managed",
+      "priceUsd": 3.99,
+      "title": "Tiling collection",
+      "description": "Every tiling desktop: Arch with Hyprland, Garuda Dr460nized, and any tiling distro added later. Cheaper than two on their own.",
+      "grants": ["arch-hyprland", "garuda-dr460nized"]
+    },
+    {
+      "sku": "bundle_classic",
+      "type": "managed",
+      "priceUsd": 3.99,
+      "title": "Classic desktops",
+      "description": "Linux Mint, elementary OS, Debian and Pop!_OS. Four traditional desktops, cheaper than three bought separately.",
+      "grants": ["mint-22", "elementary-8", "debian-13", "pop-os-cosmic"]
+    },
+
+    {
+      "sku": "distro_pack_all",
+      "type": "managed",
+      "priceUsd": 11.99,
+      "title": "Every distro, forever",
+      "description": "All distro packs, including every one released in future. No subscription, no renewals. Buy once and the collection keeps growing.",
+      "grants": ["*"]
+    }
+  ]
+}
