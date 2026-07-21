@@ -6,9 +6,11 @@ import '../data/repositories/app_repository.dart';
 import '../data/repositories/shell_apps.dart';
 import '../design/terminal_tokens.dart';
 import '../engine/effective_theme.dart';
+import '../features/desklets/desklet_surface.dart';
+import '../features/desklets/terminal_commands.dart';
+import '../features/desklets/terminal_matches.dart';
 import '../features/palette/fuzzy.dart';
 import '../features/palette/palette_controller.dart';
-import '../features/settings/settings_screen.dart';
 import '../platform/launcher_api.g.dart';
 import '../system/system_stats.dart';
 
@@ -71,26 +73,30 @@ class _TuiShellState extends ConsumerState<TuiShell> {
     super.dispose();
   }
 
-  /// Launcher-owned commands, checked BEFORE the app matcher.
+  /// Commands are checked BEFORE the app matcher, and that ordering is the
+  /// whole reason `settings` opens ours rather than Android's.
   ///
   /// **This is how you reach G Launcher's settings on a terminal theme at all.**
   /// Every other shell surfaces them as drawer entries — the GNOME grid, the
   /// Kickoff footer, the tiling launcher's list. The terminal has no drawer: it
-  /// fuzzy-matches installed APPS, and a launcher entry is not one, so Settings
-  /// was simply unreachable here. Typing a command is also the most authentic
-  /// possible answer on a shell whose entire premise is typing.
-  static const _commands = <String>{'settings', 'gsettings', 'config', 'prefs'};
-
+  /// fuzzy-matches installed APPS, and a launcher entry is not one. Typing a
+  /// command is also the most authentic possible answer on a shell whose entire
+  /// premise is typing.
+  ///
+  /// The four-name set that used to live here became [TerminalCommands],
+  /// because the terminal now does three different things: navigate
+  /// (`settings`, `themes`), spawn a live pane block (`free`, `df`, `ls`,
+  /// `top`), and manage (`clear`, `help`).
   void _submit() {
-    final query = _controller.text.trim().toLowerCase();
+    final query = _controller.text.trim();
 
-    if (_commands.contains(query)) {
+    // `handles` is `resolve() != null`, the SAME call [TerminalMatches] uses to
+    // decide which row wears the `↵`. One source of truth, so the screen and
+    // the key cannot disagree — which they did before, showing Android's
+    // Settings under the marker while enter opened the launcher's.
+    if (TerminalCommands.handles(query)) {
       _clear();
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => SettingsScreen(theme: widget.theme),
-        ),
-      );
+      TerminalCommands.run(context, ref, widget.theme, query);
       return;
     }
 
@@ -109,6 +115,16 @@ class _TuiShellState extends ConsumerState<TuiShell> {
   @override
   Widget build(BuildContext context) {
     final results = ref.watch(paletteResultsProvider(widget.theme));
+
+    // Watched rather than read off `_controller.text`, so a keystroke rebuilds
+    // this subtree through Riverpod rather than relying on the app matcher
+    // happening to rebuild first.
+    final query = ref.watch(paletteQueryProvider);
+
+    // Does a command own the enter key right now? If so the app list must NOT
+    // also mark a top match: two rows wearing `↵` is the same lie the builtin
+    // rows exist to fix.
+    final commandWins = TerminalCommands.handles(query);
 
     return Scaffold(
       backgroundColor: Term.bg,
@@ -139,13 +155,29 @@ class _TuiShellState extends ConsumerState<TuiShell> {
                     children: [
                       _FastfetchHeader(theme: widget.theme),
                       const SizedBox(height: 18),
+
+                      // PHASE D6 — persistent command output.
+                      //
+                      // ABOVE the prompt and below the fetch header, which is
+                      // where a shell puts what you already ran. New blocks
+                      // append, so the newest sits nearest the prompt.
+                      //
+                      // `page: 0` is correct and not a placeholder: the
+                      // terminal has no workspace pager, so it renders
+                      // workspace 1's pane and nothing else.
+                      DeskletPane(theme: widget.theme, page: 0),
+
                       _Prompt(
                         controller: _controller,
                         focus: _focus,
                         onSubmit: _submit,
                       ),
                       const SizedBox(height: 12),
-                      _Matches(results: results),
+
+                      // Builtins first, the way a shell resolves them.
+                      TerminalMatches(theme: widget.theme, query: query),
+                      _Matches(results: results, demoted: commandWins),
+
                       const SizedBox(height: 16),
                       const _Hint(),
                     ],
@@ -220,6 +252,16 @@ class _FastfetchHeader extends ConsumerWidget {
     final device = ref.watch(deviceInfoProvider).asData?.value;
     final apps = ref.watch(shellAppsProvider(theme));
 
+    // PHASE D1 — uptime now rides the stats snapshot.
+    //
+    // `elapsedRealtimeMillis` is already in every snapshot because it doubles
+    // as the sample clock the network and CPU deltas divide by, so the uptime
+    // row costs nothing extra. This SUPERSEDES the `g_launcher/uptime`
+    // MethodChannel that was once planned and never built — do not add it. The
+    // row was simply absent until now, which is why the fetch block had four
+    // lines instead of five.
+    final stats = ref.watch(systemStatsProvider).asData?.value;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -247,8 +289,8 @@ class _FastfetchHeader extends ConsumerWidget {
               if (device?.deviceModel != null)
                 _FetchRow('device', device!.deviceModel!),
               _FetchRow('apps', '${apps.length} installed'),
-              if (device?.uptimeLabel != null)
-                _FetchRow('uptime', device!.uptimeLabel!),
+              if (stats?.uptime != null)
+                _FetchRow('uptime', formatUptime(stats!.uptime)),
             ],
           ),
         ),
@@ -350,9 +392,17 @@ class _Prompt extends ConsumerWidget {
 
 /// The live match list. Top match gets the wash, the `launch` marker and the `↵`.
 class _Matches extends ConsumerWidget {
-  const _Matches({required this.results});
+  const _Matches({required this.results, this.demoted = false});
 
   final List<Ranked<AppEntry>> results;
+
+  /// A command owns the enter key, so no app row is the top match.
+  ///
+  /// Without this, typing `settings` shows a builtin row with `↵` AND an app
+  /// row with `↵`, and only one of them is true. Demoting is more honest than
+  /// hiding the apps entirely — Android's Settings really is still there and
+  /// still tappable, it just is not what enter does.
+  final bool demoted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -368,7 +418,7 @@ class _Matches extends ConsumerWidget {
         for (var i = 0; i < shown.length; i++)
           _MatchRow(
             ranked: shown[i],
-            isTop: i == 0,
+            isTop: i == 0 && !demoted,
             onTap: () {
               ref.read(appListProvider.notifier).launch(shown[i].item);
               ref.read(paletteQueryProvider.notifier).state = '';
@@ -489,7 +539,10 @@ class _Hint extends StatelessWidget {
         border: Border(top: BorderSide(color: Term.rule)),
       ),
       child: const Text(
-        'type to launch · settings · ↵ opens top match · esc clears',
+        // The ONLY discovery surface before the first keystroke — nobody types
+        // a command they do not know exists. Kept to the six worth knowing;
+        // `help` prints the rest, so this stays short without hiding anything.
+        'free · df · ls · top · settings · themes · help',
         style: TextStyle(
           fontFamily: Term.mono,
           fontSize: 11.5,

@@ -199,13 +199,22 @@ class _AquaShellState extends ConsumerState<AquaShell> {
       children: [
         Column(
           children: [
-            AquaMenuBar(
-              palette: theme.palette,
-              title: theme.spec.name,
-              logo: theme.spec.logo,
-              displayFontFamily: theme.typography.display,
-              onLaunchpad: _openLaunchpad,
-              onSpotlight: _openLaunchpad,
+            // Hidden while Launchpad is open, for the reason written out at
+            // length in gnome_shell: the drawer paints a 0.92 wash, so any
+            // chrome still mounted below it bleeds through at 8% and reads as
+            // dirt rather than as translucency. Opacity rather than an `if`
+            // because this is a Column child and dropping it would reflow the
+            // canvas for a frame, visibly, through that same wash.
+            Opacity(
+              opacity: activitiesOpen ? 0 : 1,
+              child: AquaMenuBar(
+                palette: theme.palette,
+                title: theme.spec.name,
+                logo: theme.spec.logo,
+                displayFontFamily: theme.typography.display,
+                onLaunchpad: _openLaunchpad,
+                onSpotlight: _openLaunchpad,
+              ),
             ),
             Expanded(
               child: GestureLayer(
@@ -228,6 +237,12 @@ class _AquaShellState extends ConsumerState<AquaShell> {
 
         // OUTSIDE the gesture layer. See the class note: a scrub along the dock
         // must not be contested by the shell's swipe handlers.
+        //
+        // Not built at all while Launchpad is open. A Positioned, so this
+        // reflows nothing, and a magnifying dock ghosting through an app grid
+        // is the worst-looking version of this bug: the icons are large and
+        // unevenly sized, so they read as a second broken grid.
+        if (!activitiesOpen)
         Positioned(
           left: 0,
           right: 0,

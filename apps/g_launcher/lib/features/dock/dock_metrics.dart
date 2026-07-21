@@ -1,6 +1,7 @@
 /// Dock geometry, as pure functions. No Flutter imports — testable at every
 /// screen size without a device, including the very tall budget phones this app
 /// is actually for, which is where naive capacity math breaks.
+library;
 
 /// Where the dock lives. Parses `LauncherPrefs.dockSide`.
 enum DockSide {

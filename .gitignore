@@ -52,3 +52,7 @@ backend/content/**/index.sig
 # The private signing key must never come near this repo.
 *.key
 *pack-signing*
+mindberzerk-3eaf5-firebase-adminsdk-fbsvc-388e9a4d01.json
+*firebase-adminsdk*.json
+*service-account*.json
+*serviceAccount*.json

@@ -5,12 +5,12 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart' show ChromeFamily;
 import '../gestures/gesture_actions.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../themes/themes_screen.dart';
-import '../../design/device_preview.dart';
 import 'folders_screen.dart';
 import 'wallpaper_screen.dart';
 
@@ -217,7 +217,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: 'Activities button',
                   subtitle: 'Where the app-grid button sits in the dock',
                   trailing: _Seg(
-                    value: theme.prefs.dockGridButton ?? 'end', // Ubuntu default
+                    value:
+                        theme.prefs.dockGridButton ?? 'end', // Ubuntu default
                     options: const {
                       'start': 'Start',
                       'end': 'End',
@@ -788,7 +789,8 @@ class _SearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = _Skin.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(s.framing.cardInset + 2, 0, s.framing.cardInset + 2, 18),
+      padding: EdgeInsets.fromLTRB(
+          s.framing.cardInset + 2, 0, s.framing.cardInset + 2, 18),
       child: Material(
         color: s.card,
         borderRadius: BorderRadius.circular(s.framing.cardRadius),
@@ -943,8 +945,7 @@ class _ToggleRow extends StatelessWidget {
         onChanged: onChanged,
         thumbColor: WidgetStatePropertyAll(s.onAcc),
         trackColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? s.acc : s.card2,
+          (states) => states.contains(WidgetState.selected) ? s.acc : s.card2,
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
@@ -1616,7 +1617,8 @@ class _DefaultLauncherBanner extends ConsumerWidget {
         if (snap.data != false) return const SizedBox.shrink();
 
         return Container(
-          margin: EdgeInsets.fromLTRB(s.framing.cardInset, 0, s.framing.cardInset, 16),
+          margin: EdgeInsets.fromLTRB(
+              s.framing.cardInset, 0, s.framing.cardInset, 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: s.acc.withValues(alpha: 0.10),
@@ -1732,7 +1734,7 @@ class _GestureServiceCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              _InfoButton(
+              const _InfoButton(
                 title: 'Why an accessibility service?',
                 body: _explainer,
               ),

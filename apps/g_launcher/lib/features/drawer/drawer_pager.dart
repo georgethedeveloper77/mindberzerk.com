@@ -21,6 +21,7 @@ class DrawerPager extends StatefulWidget {
     required this.aspectRatio,
     required this.itemBuilder,
     this.cube = false,
+    this.topPadding = 0,
   });
 
   final int itemCount;
@@ -30,6 +31,15 @@ class DrawerPager extends StatefulWidget {
 
   /// Rotate pages around the vertical axis instead of sliding them.
   final bool cube;
+
+  /// The empty first row, in logical pixels. See the note at its call site in
+  /// app_drawer.
+  ///
+  /// Subtracted from the height BEFORE the row count is derived, which is what
+  /// makes it cost exactly one row per page rather than pushing the last row
+  /// off the bottom of every page. Passing it as padding alone would leave the
+  /// pager still believing it had room for the old row count.
+  final double topPadding;
 
   @override
   State<DrawerPager> createState() => _DrawerPagerState();
@@ -78,7 +88,8 @@ class _DrawerPagerState extends State<DrawerPager> {
         // would divide by zero and show nothing at all.
         final rows = math.max(
           1,
-          ((constraints.maxHeight - vPad * 2 + mainGap) / (tileH + mainGap))
+          ((constraints.maxHeight - vPad * 2 - widget.topPadding + mainGap) /
+                  (tileH + mainGap))
               .floor(),
         );
 
@@ -93,9 +104,11 @@ class _DrawerPagerState extends State<DrawerPager> {
                 itemCount: pageCount,
                 itemBuilder: (context, page) {
                   final grid = Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: hPad,
-                      vertical: vPad,
+                    padding: EdgeInsets.fromLTRB(
+                      hPad,
+                      vPad + widget.topPadding,
+                      hPad,
+                      vPad,
                     ),
                     child: GridView.builder(
                       // The PAGE scrolls, not the grid inside it.

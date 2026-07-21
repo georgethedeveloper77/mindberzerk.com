@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,10 +9,10 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
-import '../../design/device_preview.dart';
 
 /// Folder settings — its own page, because folders grew past a row.
 ///

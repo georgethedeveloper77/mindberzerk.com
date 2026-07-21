@@ -64,8 +64,11 @@ class LauncherActivity : FlutterActivity() {
      */
     @Deprecated("Superseded by predictive back; still the reliable path today.")
     override fun onBackPressed() {
-        // Intentionally empty. Dart handles in-app back via WillPopScope /
-        // PopScope; there is nowhere to go behind a launcher.
+        // super does NOT finish the activity. FlutterActivity.onBackPressed only
+        // sends popRoute over the navigation channel; if Dart's PopScope refuses,
+        // nothing happens, which is exactly "back never leaves the launcher".
+        // Swallowing it here severed the channel instead.
+        super.onBackPressed()
     }
 
     /**

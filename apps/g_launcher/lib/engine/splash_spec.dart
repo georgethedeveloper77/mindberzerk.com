@@ -84,8 +84,7 @@ class SplashSpec {
     return SplashSpec(
       style: SplashStyle.parse(j['style'] as String?),
       logo: j['logo'] as String?,
-      durationMs:
-          (j['durationMs'] as num?)?.toInt() ?? defaultDurationMs,
+      durationMs: (j['durationMs'] as num?)?.toInt() ?? defaultDurationMs,
     );
   }
 

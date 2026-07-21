@@ -31,6 +31,17 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Play Billing and the owned-SKU set. A workspace path dependency, not a
+  # published package: it lives in this repo and G Recovery will depend on the
+  # same copy.
+  #
+  # It resolved WITHOUT this entry, because the pub workspace pulls every member
+  # into one resolution — which is exactly why the analyzer flags it. An import
+  # that works by accident stops working the day the package leaves the
+  # workspace, and that day is the day it becomes genuinely shared.
+  g_account:
+    path: ../../packages/g_account
+
   # State. Plain Riverpod 3 — NO codegen, deliberately. If the boilerplate ever
   # starts to hurt, that is the moment to add riverpod_generator. Not before.
   flutter_riverpod: ^3.3.2

@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics.dart';
@@ -10,23 +14,42 @@ import '../../data/repositories/shell_apps.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/theme_registry.dart';
+import '../../engine/theme_spec.dart';
 import '../drawer/drawer_actions.dart';
-import '../themes/theme_catalog.dart';
+import 'setup_chrome.dart';
 
-/// **Initial setup** — the Linux installer, not an onboarding carousel.
+/// **Initial setup, as a distro installer.** T1.
 ///
-/// **Full bleed.** The desktop you are configuring fills the screen; the
-/// controls float over it in a panel at the bottom. The earlier version put a
-/// small phone in the middle of an empty page, which is a picture of the product
-/// rather than the product. Here, moving the dock moves the dock you are looking
-/// at, edge to edge, and your thumb never leaves the bottom third.
+/// The previous version was a live full-bleed desktop with a translucent panel
+/// of controls floating over it. It read as vibe-coded for a reason that is
+/// worth writing down rather than re-litigating: it had no chrome, so it had no
+/// identity. A preview of the product is not the product, and a panel with no
+/// frame is a form.
 ///
-/// **The home role gets three attempts, not a wall.** Blocking on it holds the
-/// phone hostage; asking once and never again leaves a half-empty drawer with no
-/// explanation. So: first Next opens Android's own picker directly, second Next
-/// warns, third Next lets them through with a banner that follows them. Every
-/// attempt is logged — that funnel is the single most important number the app
-/// has, because an install without the home role never really sees the product.
+/// This is an installer. [SetupInstallerFrame] owns the window, the step rail
+/// and the footer; [SetupSkin] decides which installer, keyed by SHELL, so
+/// choosing the terminal distro at step 3 turns the remaining steps into a
+/// console and choosing Aqua turns them into a centred assistant. That live
+/// re-skin is the single best demonstration the launcher has, and it costs
+/// nothing extra because the theme already applies the moment it is picked.
+///
+/// ─── WHAT SETUP DELIBERATELY DOES NOT DO ───────────────────────────────────
+///
+/// **No "try it first".** Android cannot preview a home screen without the app
+/// holding the home role, so the option would be a promise the launcher cannot
+/// keep. It is shown, disabled, with the reason, rather than hidden: someone
+/// who expects the choice should see that it was considered.
+///
+/// **No fiction about destroying anything.** The frame, the rail, the progress
+/// and the language of an install are all here. The words "erase", "format" and
+/// "partition" are not, and must not be added. A budget-phone user who
+/// half-reads a screen that says "erase disk" will uninstall in a panic, and
+/// they will be right to.
+///
+/// **The install step runs once, ever.** It is the first-run payoff, not a
+/// loading screen: it is not on the theme-switch path, and switching distro in
+/// Settings later shows only the boot log or the splash. See [_stepsFor].
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
 
@@ -34,15 +57,68 @@ class SetupScreen extends ConsumerStatefulWidget {
   ConsumerState<SetupScreen> createState() => _SetupScreenState();
 }
 
-class _SetupScreenState extends ConsumerState<SetupScreen> {
-  static const _welcome = 0;
-  static const _homeStep = 1;
-  static const _lastStep = 5;
+/// The distros offered during setup: whatever is bundled.
+///
+/// There is no curated list here any more, and that is the point. Bundled
+/// implies free (see theme_registry), so the set setup may offer and the set
+/// that ships in the APK are the same set by construction, and a fourth
+/// bundled distro appears in setup with no edit to this file.
+///
+/// The tier is still checked on load rather than assumed. It costs one string
+/// compare and it means a paid theme accidentally left in the APK does not
+/// quietly become free at first run.
+/// One line describing what the desktop looks like, keyed by SHELL.
+///
+/// Keyed by shell for the same reason every other default in the theme layer
+/// is: a new GNOME distro should inherit "top bar, dock down the left" without
+/// authoring anything, and only override where it genuinely differs.
+///
+/// It belongs in theme.json eventually, as a `tagline` beside `name` and
+/// `version`. It is here because adding a ThemeSpec field to ship one sentence
+/// per shell is the wrong order to do things in.
+String _taglineFor(ShellKind shell) => switch (shell) {
+      ShellKind.gnome => 'Top bar, dock down the left, activities overview',
+      ShellKind.plasma => 'Bottom panel, kickoff menu, system tray',
+      ShellKind.tiling => 'No dock. A status bar and a keyboard launcher',
+      ShellKind.tui => 'No desktop at all. A prompt, and commands that stay',
+      ShellKind.aqua => 'Menu bar across the top, magnifying dock below',
+    };
 
-  int _step = _welcome;
+/// The specs behind [bundledThemes], loaded from their assets.
+///
+/// Reads the REAL [ThemeSpec] rather than a catalogue card, because the rows
+/// need `name`, `version`, `tier` and `palette`, and those already exist in
+/// data. A row that says "Ubuntu 24.04 LTS" should be reading 24.04 out of the
+/// theme, not out of a table in Dart that will disagree with it by Christmas.
+final setupDistrosProvider = FutureProvider<List<ThemeSpec>>((ref) async {
+  final out = <ThemeSpec>[];
+  for (final bundled in bundledThemes.values) {
+    try {
+      final raw = await rootBundle.loadString(bundled.assetPath);
+      final spec = ThemeSpec.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      if (spec.tier != 'free') continue;
+      out.add(spec);
+    } catch (_) {
+      // A distro that will not parse is simply not offered. The floor is
+      // guaranteed elsewhere: activeThemeSpecProvider always lands on Ubuntu.
+    }
+  }
+  return out;
+});
+
+class _SetupScreenState extends ConsumerState<SetupScreen>
+    with WidgetsBindingObserver {
+  /// The CURRENT step, held as the enum rather than as an index.
+  ///
+  /// Load-bearing. The step list is derived from the shell and SHRINKS when the
+  /// user picks the terminal at the distro step, so an index would suddenly
+  /// point at a different screen (or off the end) the moment they tapped. The
+  /// enum survives the list changing under it.
+  _SetupStep _step = _SetupStep.welcome;
+
   bool _isDefault = false;
 
-  /// How many times Next has been pressed on the home-role step.
+  /// How many times Continue has been pressed on the home-role step.
   ///
   /// Deliberately NOT persisted: it counts presses within this wizard, and a
   /// user who reinstalls deserves the same three chances rather than inheriting
@@ -53,7 +129,33 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refreshDefaultLauncher();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// THE ONLY MOMENT THE ANSWER CAN HAVE CHANGED.
+  ///
+  /// This fixes a real bug: the launcher kept insisting it was not the home app
+  /// after the user had just made it the home app.
+  ///
+  /// `requestDefaultLauncher` is a void Pigeon method. It fires an intent and
+  /// returns immediately, NOT when the user finishes choosing. So the old
+  /// `await request(); await refresh();` asked the question while Android's
+  /// picker was still on screen, got `false`, and kept the nag for the rest of
+  /// the session. The detection was always correct; the timing was not.
+  ///
+  /// Coming back from the picker is an app RESUME, so that is where the
+  /// re-check belongs. Anywhere else in the app that shows this nag needs the
+  /// same observer for the same reason.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshDefaultLauncher();
   }
 
   Future<void> _refreshDefaultLauncher() async {
@@ -61,11 +163,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     if (mounted) setState(() => _isDefault = ok);
   }
 
+  /// Fire and forget, deliberately.
+  ///
+  /// No re-check here on purpose: see [didChangeAppLifecycleState]. Asking
+  /// straight after this call is what caused the bug, so the call site is left
+  /// with a comment rather than a tempting blank line.
   Future<void> _openHomePicker() async {
     await ref.read(launcherHostApiProvider).requestDefaultLauncher();
-    // The picker is a system dialog; we only learn the outcome by asking again
-    // once we are back.
-    await _refreshDefaultLauncher();
   }
 
   /// The three-strike gate. Returns true when the wizard may advance.
@@ -76,7 +180,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     Analytics.homeRolePrompt(attempt: _homeAttempts, granted: false);
 
     if (_homeAttempts == 1) {
-      // Straight to Android's picker. No dialog of ours in front of it — an
+      // Straight to Android's picker. No dialog of ours in front of it: an
       // interstitial explaining that a prompt is coming is one more thing to
       // dismiss before the thing that matters.
       await _openHomePicker();
@@ -93,22 +197,31 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   Future<void> _next() async {
-    if (_step == _homeStep) {
+    if (_step == _SetupStep.home) {
       final mayPass = await _homeGate();
       if (!mayPass) return;
     }
 
-    if (_step < _lastStep) {
-      setState(() => _step++);
-      return;
+    final steps = _stepsFor(_shell);
+    final i = steps.indexOf(_step);
+    if (i >= 0 && i < steps.length - 1) {
+      setState(() => _step = steps[i + 1]);
     }
-
-    await _finish();
   }
 
+  void _back() {
+    final steps = _stepsFor(_shell);
+    final i = steps.indexOf(_step);
+    if (i > 0) setState(() => _step = steps[i - 1]);
+  }
+
+  ShellKind? get _shell =>
+      ref.read(effectiveThemeProvider).asData?.value.shell;
+
+  /// Called by the install step when its progress completes, never by a button.
   Future<void> _finish() async {
     final themeId =
-        ref.read(selectedThemeIdProvider).asData?.value ?? 'ubuntu-24-04';
+        ref.read(selectedThemeIdProvider).asData?.value ?? fallbackThemeId;
     Analytics.setupComplete(themeId: themeId, granted: _isDefault);
 
     // Hand-off flag first, then the completion that swaps this screen out: the
@@ -121,11 +234,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Widget build(BuildContext context) {
     final theme = ref.watch(effectiveThemeProvider).asData?.value;
 
-    // ChromeScope is normally installed by ThemedScaffold. This screen uses a
-    // bare Scaffold so the preview can run edge to edge behind it, so it has to
-    // provide the chrome itself — otherwise every ChromeScope.of below throws.
-    // Bootstrap while the theme loads, exactly as ThemedScaffold does, so there
-    // is no un-themed flash of a different kind.
+    // ChromeScope is normally installed by ThemedScaffold. This screen builds
+    // its own frame, so it has to provide the chrome itself, otherwise every
+    // ChromeScope.of below throws. Bootstrap while the theme loads, exactly as
+    // ThemedScaffold does, so there is no un-themed flash.
     final chrome = theme == null
         ? ChromeData.bootstrap
         : ChromeData.fromPalette(
@@ -135,242 +247,215 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             family: theme.chromeFamily,
           );
 
+    final skin = theme == null
+        ? SetupSkin.defaultForShell(ShellKind.gnome)
+        : SetupSkin.defaultForShell(theme.shell);
+
     return ChromeScope(
       data: chrome,
       child: Scaffold(
-      // Transparent, like every shell Scaffold: the preview underneath IS the
-      // background, and an opaque scaffold colour would sit on top of it.
         backgroundColor: Colors.transparent,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (theme != null) _Backdrop(theme: theme, step: _step),
-            SafeArea(
-              child: Column(
-                children: [
-                  _Progress(step: _step, total: _lastStep + 1),
-                  const Spacer(),
-                  if (theme != null) _panel(theme),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: theme == null
+                ? null
+                : LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [theme.palette.bgTop, theme.palette.bgBottom],
+                  ),
+          ),
+          child: SafeArea(
+            child: theme == null
+                ? const SizedBox.shrink()
+                : Builder(
+                    builder: (_) {
+                      final steps = _stepsFor(theme.shell);
+                      // The list can shrink under the user (terminal drops four
+                      // steps), so never trust a stale enum: fall back to the
+                      // first step rather than rendering nothing.
+                      final i = steps.indexOf(_step) < 0
+                          ? 0
+                          : steps.indexOf(_step);
+                      final current = steps[i];
 
-  /// The glass panel. Everything you touch lives here, over the live desktop.
-  Widget _panel(EffectiveTheme theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: ColoredBox(
-          // Not a blur: a real backdrop filter on every frame of a live,
-          // animating preview is the one thing here that would actually cost
-          // battery. A heavy translucent fill reads the same and is free.
-          color: theme.palette.bgBottom.withValues(alpha: 0.90),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Builder(
-              builder: (context) {
-                final d = ChromeScope.of(context);
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _body(d, theme),
-                    const SizedBox(height: 14),
-                    if (!_isDefault && _step > _homeStep)
-                      _NagLine(onFix: _openHomePicker),
-                    _Footer(
-                      step: _step,
-                      lastStep: _lastStep,
-                      onBack:
-                          _step == 0 ? null : () => setState(() => _step--),
-                      onNext: _next,
-                    ),
-                  ],
-                );
-              },
-            ),
+                      return SetupInstallerFrame(
+                        skin: skin,
+                        steps: [for (final st in steps) st.label],
+                        step: i,
+                        windowTitle: _windowTitle(theme, skin),
+                        title: _title(current),
+                        subtitle: _subtitle(current),
+                        status: 'Step ${i + 1} of ${steps.length}',
+                        footerNote: !_isDefault && i > steps.indexOf(_SetupStep.home)
+                            ? _NagLine(onFix: _openHomePicker)
+                            : null,
+                        onBack: i == 0 || current == _SetupStep.install
+                            ? null
+                            : _back,
+                        onNext: _next,
+                        nextLabel: switch (current) {
+                          _SetupStep.welcome => 'Get started',
+                          // The step before install, whichever it is: on the
+                          // terminal that is the distro step, not folders.
+                          final st when st == steps[steps.length - 2] =>
+                            'Install',
+                          _ => 'Continue',
+                        },
+                        body: _body(theme, skin, current),
+                      );
+                    },
+                  ),
           ),
         ),
       ),
     );
   }
 
-  Widget _body(ChromeData d, EffectiveTheme theme) => switch (_step) {
-        _welcome => _Copy(
-            d: d,
-            title: 'Welcome to G Launcher',
-            blurb: 'A real Linux desktop in your pocket. Two minutes to set up.',
-          ),
-        _homeStep => _StepHome(
-            d: d,
+  /// "Install Ubuntu". Reads the distro's own name, so a CDN pack titles its
+  /// own installer with no code change.
+  String _windowTitle(EffectiveTheme theme, SetupSkin skin) =>
+      skin.kind == SetupFrameKind.console
+          ? '${theme.spec.name.toLowerCase()}-install'
+          : 'Install ${theme.spec.name}';
+
+  String _title(_SetupStep step) => switch (step) {
+        _SetupStep.welcome => 'Welcome',
+        _SetupStep.home => _isDefault
+            ? 'Home screen set'
+            : (_showHomeWarning ? 'Really skip this?' : 'Home screen'),
+        _SetupStep.distro => 'Choose your desktop',
+        _SetupStep.dock => 'Dock',
+        _SetupStep.drawer => 'App drawer',
+        _SetupStep.folders => 'Folders',
+        _SetupStep.install => 'Installing system',
+      };
+
+  String? _subtitle(_SetupStep step) => switch (step) {
+        _SetupStep.welcome => 'A Linux desktop on your phone.',
+        _SetupStep.home => _isDefault
+            ? 'The rest is how it should look.'
+            : 'Android only hands the full app list to the app holding the '
+                'home role.',
+        _SetupStep.distro => 'More desktops are available later in Settings.',
+        _SetupStep.dock => 'Where your pinned apps live.',
+        _SetupStep.drawer =>
+          'How the full app list is laid out and how it moves.',
+        _SetupStep.folders =>
+          'Group apps automatically. You can undo any of this.',
+        _SetupStep.install => 'This only happens once.',
+      };
+
+  Widget _body(EffectiveTheme theme, SetupSkin skin, _SetupStep step) =>
+      switch (step) {
+        _SetupStep.welcome => _StepWelcome(mono: skin.mono),
+        _SetupStep.home => _StepHome(
             isDefault: _isDefault,
             showWarning: _showHomeWarning,
+            mono: skin.mono,
             onRequest: _openHomePicker,
           ),
-        2 => _StepDistro(d: d),
-        3 => _StepDock(d: d, theme: theme),
-        4 => _StepDrawer(d: d, theme: theme),
-        _ => _StepFolders(d: d, theme: theme),
+        _SetupStep.distro => _StepDistro(mono: skin.mono),
+        _SetupStep.dock => _StepDock(theme: theme, mono: skin.mono),
+        _SetupStep.drawer => _StepDrawer(theme: theme, mono: skin.mono),
+        _SetupStep.folders => _StepFolders(theme: theme, mono: skin.mono),
+        _SetupStep.install =>
+          _StepInstall(theme: theme, skin: skin, onDone: _finish),
       };
 }
 
-/// The live, full-bleed desktop behind the panel.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop({required this.theme, required this.step});
+/// Every step this wizard can show. Which of them it DOES show is
+/// [_stepsFor].
+enum _SetupStep {
+  welcome('Welcome'),
+  home('Home screen'),
+  distro('Desktop'),
+  dock('Dock'),
+  drawer('App drawer'),
+  folders('Folders'),
+  install('Install');
 
-  final EffectiveTheme theme;
-  final int step;
+  const _SetupStep(this.label);
 
-  @override
-  Widget build(BuildContext context) {
-    // The welcome step has no setting to show, so it runs the SPLASH: the same
-    // logo-and-dots the distro plays when it boots. It previews the product and
-    // sets the tone in one screen, instead of asking for a permission over an
-    // empty background.
-    if (step == 0) return _WelcomePulse(theme: theme);
-
-    return DevicePreview(
-      palette: theme.palette,
-      framed: false,
-      mode: switch (step) {
-        4 => DevicePreviewMode.drawer,
-        5 => DevicePreviewMode.folder,
-        _ => DevicePreviewMode.desktop,
-      },
-      dock: theme.dock,
-      gridButton: theme.prefs.dockGridButton ?? 'end',
-      cols: step == 5 ? (theme.prefs.folderCols ?? 4) : theme.drawerCols,
-      rows: theme.prefs.folderRows ?? 3,
-    );
-  }
+  /// The rail label. On the enum so the rail and the switch cannot drift.
+  final String label;
 }
 
-/// The welcome backdrop: the distro's mark over its own gradient, with the
-/// Plymouth dots looping underneath. Deliberately the same visual language as
-/// [SplashSequence] — the first screen and the boot should look like the same
-/// operating system.
-class _WelcomePulse extends StatefulWidget {
-  const _WelcomePulse({required this.theme});
-
-  final EffectiveTheme theme;
-
-  @override
-  State<_WelcomePulse> createState() => _WelcomePulseState();
+/// The steps that make sense for a shell.
+///
+/// ─── THE TERMINAL HAS NO GUI, SO IT HAS NO GUI QUESTIONS ────────────────────
+///
+/// The TUI shell has no dock, no app-grid button, no drawer columns, no scroll
+/// style and no folder grid. Asking about any of them would be asking the user
+/// to configure things that will never appear, and then showing a rail that
+/// counts them. So the terminal installs in four steps and the wizard is
+/// honest about its own length.
+///
+/// Keyed by SHELL, like every other default in the theme layer. A future
+/// GUI-less distro inherits this without authoring anything, and a new
+/// graphical one inherits the full list.
+///
+/// [_SetupStep.welcome], [_SetupStep.home] and [_SetupStep.install] are in
+/// every list: the first two are about Android rather than about the desktop,
+/// and the third is the hand-off to the boot sequence.
+List<_SetupStep> _stepsFor(ShellKind? shell) {
+  if (shell == ShellKind.tui) {
+    return const [
+      _SetupStep.welcome,
+      _SetupStep.home,
+      _SetupStep.distro,
+      _SetupStep.install,
+    ];
+  }
+  return const [
+    _SetupStep.welcome,
+    _SetupStep.home,
+    _SetupStep.distro,
+    _SetupStep.dock,
+    _SetupStep.drawer,
+    _SetupStep.folders,
+    _SetupStep.install,
+  ];
 }
 
-class _WelcomePulseState extends State<_WelcomePulse>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat();
+// ── Steps ────────────────────────────────────────────────────────────────────
 
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+/// Welcome.
+///
+/// ONE row, already selected, and a second that is visibly disabled.
+///
+/// The disabled row is not decoration. "Try it first" is the obvious thing to
+/// want and the obvious thing to offer, and it cannot work: without the home
+/// role Android withholds most of the app list, so a trial mode would show a
+/// half-empty drawer and read as a broken launcher rather than as a preview.
+/// Showing it greyed with the reason answers the question before it is asked.
+/// Hiding it invites someone to add it later without knowing why it went.
+class _StepWelcome extends StatelessWidget {
+  const _StepWelcome({required this.mono});
 
-  @override
-  Widget build(BuildContext context) {
-    final p = widget.theme.palette;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [p.bgTop, p.bgBottom],
-        ),
-      ),
-      child: Align(
-        alignment: const Alignment(0, -0.35),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: p.accent, width: 5),
-              ),
-              child: Center(
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: p.accent),
-                ),
-              ),
-            ),
-            const SizedBox(height: 36),
-            AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) {
-                final t = _c.value;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < 5; i++)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: p.onDark.withValues(
-                            alpha: 0.25 + 0.75 * _pulse(t, i / 5),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static double _pulse(double t, double offset) {
-    final d = (t - offset) % 1.0;
-    return d < 0.25 ? 1.0 - (d / 0.25) : 0.0;
-  }
-}
-
-// ── Step bodies ──────────────────────────────────────────────────────────────
-
-class _Copy extends StatelessWidget {
-  const _Copy({
-    required this.d,
-    required this.title,
-    required this.blurb,
-    this.child,
-  });
-
-  final ChromeData d;
-  final String title;
-  final String blurb;
-  final Widget? child;
+  final bool mono;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(title, style: d.text.display),
-        const SizedBox(height: 6),
-        Text(blurb, style: d.text.body.copyWith(color: d.colors.textMuted)),
-        if (child != null) ...[const SizedBox(height: 14), child!],
+        SetupRow(
+          title: 'Install as your home screen',
+          subtitle: 'Takes about a minute. Nothing is deleted.',
+          selected: true,
+          mono: mono,
+          onTap: () {},
+        ),
+        SetupRow(
+          title: 'Try it first',
+          subtitle:
+              'Not possible on Android: the app list stays hidden until an '
+              'app holds the home role.',
+          selected: false,
+          enabled: false,
+          mono: mono,
+          onTap: () {},
+        ),
       ],
     );
   }
@@ -378,337 +463,466 @@ class _Copy extends StatelessWidget {
 
 class _StepHome extends StatelessWidget {
   const _StepHome({
-    required this.d,
     required this.isDefault,
     required this.showWarning,
+    required this.mono,
     required this.onRequest,
   });
 
-  final ChromeData d;
   final bool isDefault;
   final bool showWarning;
+  final bool mono;
   final VoidCallback onRequest;
 
   @override
   Widget build(BuildContext context) {
-    final c = d.colors;
+    final d = ChromeScope.of(context);
 
     if (isDefault) {
-      return _Copy(
-        d: d,
-        title: "You're all set",
-        blurb: 'G Launcher is your home app. The rest is how it should look.',
-        child: Row(
-          children: [
-            Icon(Icons.check_circle, size: 19, color: c.ok),
-            const SizedBox(width: 9),
-            Text('Home app set', style: d.text.body),
-          ],
-        ),
+      return SetupRow(
+        title: 'G Launcher is your home app',
+        subtitle: 'Change this any time in Android Settings.',
+        selected: true,
+        marker: SetupMarker.check,
+        mono: mono,
+        onTap: () {},
       );
     }
 
-    return _Copy(
-      d: d,
-      title: showWarning ? 'Really skip this?' : 'Make this your home',
-      blurb: showWarning
-          ? 'Without the home role, Android hides most of your apps from the '
-              'drawer and the home button will keep opening your old launcher.'
-          : 'Android only hands the full app list to the app holding the home '
-              'role.',
-      child: ThemedButton(
-        label: showWarning ? 'Set as home app' : 'Choose G Launcher',
-        icon: Icons.home_outlined,
-        onPressed: onRequest,
-        expand: true,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showWarning) ...[
+          Text(
+            'Without the home role the home button keeps opening your old '
+            'launcher, and most of your apps stay hidden from the drawer.',
+            softWrap: true,
+            style: d.text.caption.copyWith(color: d.colors.warn),
+          ),
+          const SizedBox(height: 12),
+        ],
+        ThemedButton(
+          label: showWarning ? 'Set as home app' : 'Choose G Launcher',
+          icon: Icons.home_outlined,
+          expand: true,
+          onPressed: onRequest,
+        ),
+      ],
     );
   }
 }
 
+/// The distro step. Rows, real specs, Ubuntu preselected.
+///
+/// Selecting applies the theme LIVE, which re-skins this screen underneath the
+/// finger: pick the terminal and the wizard becomes a console before the row
+/// has finished highlighting. That is the demo, and it is why this step is
+/// third rather than last.
 class _StepDistro extends ConsumerWidget {
-  const _StepDistro({required this.d});
+  const _StepDistro({required this.mono});
 
-  final ChromeData d;
+  final bool mono;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cards = ref
-        .watch(themeCatalogProvider)
-        .where((c) => c.bundled && c.specId != null)
-        .toList();
-    final active = ref.watch(selectedThemeIdProvider).asData?.value;
+    final specs = ref.watch(setupDistrosProvider).asData?.value ?? const [];
+    final active =
+        ref.watch(selectedThemeIdProvider).asData?.value ?? fallbackThemeId;
 
-    return _Copy(
-      d: d,
-      title: 'Choose your desktop',
-      blurb: 'Tap one — this screen becomes it.',
-      child: Row(
-        children: [
-          for (final card in cards)
-            Expanded(
-              child: _DistroChip(
-                d: d,
-                card: card,
-                selected: card.specId == active,
-                onTap: () {
-                  Analytics.themeSelected(card.specId!);
-                  ref
-                      .read(selectedThemeIdProvider.notifier)
-                      .select(card.specId!);
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DistroChip extends StatelessWidget {
-  const _DistroChip({
-    required this.d,
-    required this.card,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final ChromeData d;
-  final ThemeCard card;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = d.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 7),
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? c.accent : c.line,
-            width: selected ? 1.5 : 1,
+    return Column(
+      children: [
+        for (final spec in specs)
+          SetupRow(
+            title: spec.name,
+            subtitle: _taglineFor(spec.shell),
+            // The pinned version, straight out of theme.json. A distro that
+            // does not version itself (Arch is rolling, Aqua is unversioned on
+            // purpose) shows nothing rather than an empty gap.
+            trailing: spec.version.isEmpty ? null : spec.version,
+            selected: spec.id == active,
+            mono: mono,
+            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+            onTap: () {
+              Analytics.themeSelected(spec.id);
+              ref.read(selectedThemeIdProvider.notifier).select(spec.id);
+            },
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ThemeSwatch(
-              bg: card.preview.bg,
-              bar: card.preview.bar,
-              accent: card.preview.accent,
-              radial: card.preview.radial,
-              selected: selected,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              card.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: d.text.caption.copyWith(
-                color: selected ? c.text : c.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
 class _StepDock extends ConsumerWidget {
-  const _StepDock({required this.d, required this.theme});
+  const _StepDock({required this.theme, required this.mono});
 
-  final ChromeData d;
   final EffectiveTheme theme;
+  final bool mono;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final grid = theme.prefs.dockGridButton ?? 'end';
 
-    return _Copy(
-      d: d,
-      title: 'Your dock',
-      blurb: 'Where pinned apps live.',
-      child: Column(
-        children: [
-          _Seg(
-            d: d,
-            label: 'Dock',
-            value: theme.dock.name,
-            options: const {'left': 'Left', 'bottom': 'Bottom', 'off': 'Off'},
-            onChanged: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
-          ),
-          const SizedBox(height: 11),
-          _Seg(
-            d: d,
-            label: 'App-grid button',
-            value: theme.prefs.dockGridButton ?? 'end',
-            options: const {'start': 'Start', 'end': 'End', 'off': 'Off'},
-            onChanged: (v) =>
-                notifier.edit((p) => p.copyWith(dockGridButton: v)),
-          ),
+    return Column(
+      children: [
+        _Preview(
+          theme: theme,
+          mode: DevicePreviewMode.desktop,
+          gridButton: grid,
+        ),
+        const SizedBox(height: 14),
+        SetupRow(
+          title: 'Down the left edge',
+          subtitle: 'How ${theme.spec.name} ships.',
+          selected: theme.dock == DockSide.left,
+          mono: mono,
+          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'left')),
+        ),
+        SetupRow(
+          title: 'Along the bottom',
+          selected: theme.dock == DockSide.bottom,
+          mono: mono,
+          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'bottom')),
+        ),
+        SetupRow(
+          title: 'No dock',
+          subtitle: 'The drawer is still one swipe away.',
+          selected: theme.dock == DockSide.off,
+          mono: mono,
+          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'off')),
+        ),
+        if (theme.dock != DockSide.off) ...[
+          const SizedBox(height: 8),
+          _MiniLabel(text: 'App grid button'),
+          for (final e in const {
+            'end': 'At the far end of the dock',
+            'start': 'First in the dock',
+            'off': 'Hidden',
+          }.entries)
+            SetupRow(
+              title: e.value,
+              selected: grid == e.key,
+              mono: mono,
+              marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+              onTap: () =>
+                  notifier.edit((p) => p.copyWith(dockGridButton: e.key)),
+            ),
         ],
-      ),
+      ],
     );
   }
 }
 
 class _StepDrawer extends ConsumerWidget {
-  const _StepDrawer({required this.d, required this.theme});
+  const _StepDrawer({required this.theme, required this.mono});
 
-  final ChromeData d;
   final EffectiveTheme theme;
+  final bool mono;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    // Pages, matching the drawer's own fallback. Setup showing 'List'
+    // preselected while the drawer actually came up paged was a lie the
+    // user would only catch after finishing.
+    final style = theme.prefs.drawerScrollStyle ?? 'pages';
 
-    return _Copy(
-      d: d,
-      title: 'App drawer',
-      blurb: 'How many across, and how it moves.',
-      child: Column(
-        children: [
-          _Seg(
-            d: d,
-            label: 'Columns',
-            value: '${theme.drawerCols}',
-            options: const {'3': '3', '4': '4', '5': '5', '6': '6'},
-            onChanged: (v) =>
-                notifier.edit((p) => p.copyWith(drawerCols: int.parse(v))),
+    return Column(
+      children: [
+        _Preview(
+          theme: theme,
+          mode: DevicePreviewMode.drawer,
+          cols: theme.drawerCols,
+        ),
+        const SizedBox(height: 14),
+        _MiniLabel(text: 'Columns'),
+        Row(
+          children: [
+            for (final n in const [3, 4, 5, 6])
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: SetupRow(
+                    title: '$n',
+                    selected: theme.drawerCols == n,
+                    mono: mono,
+                    marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+                    onTap: () =>
+                        notifier.edit((p) => p.copyWith(drawerCols: n)),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _MiniLabel(text: 'How it moves'),
+        // Pages first, because it is the default and the list should read
+        // top-down in the order of likelihood rather than alphabetically.
+        for (final e in const {
+          'pages': ('Pages', 'Swipe sideways. Wraps around at the end.'),
+          'cube': ('Cube', 'The pages are faces of a solid.'),
+          'vertical': ('One long list', 'Scrolls up and down.'),
+        }.entries)
+          SetupRow(
+            title: e.value.$1,
+            subtitle: e.value.$2,
+            selected: style == e.key,
+            mono: mono,
+            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+            onTap: () =>
+                notifier.edit((p) => p.copyWith(drawerScrollStyle: e.key)),
           ),
-          const SizedBox(height: 11),
-          _Seg(
-            d: d,
-            label: 'Scrolls',
-            value: theme.prefs.drawerScrollStyle ?? 'vertical',
-            options: const {
-              'vertical': 'List',
-              'pages': 'Pages',
-              'cube': 'Cube',
-            },
-            onChanged: (v) =>
-                notifier.edit((p) => p.copyWith(drawerScrollStyle: v)),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
 class _StepFolders extends ConsumerWidget {
-  const _StepFolders({required this.d, required this.theme});
+  const _StepFolders({required this.theme, required this.mono});
 
-  final ChromeData d;
   final EffectiveTheme theme;
+  final bool mono;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final d = ChromeScope.of(context);
     final apps = ref.watch(shellAppsProvider(theme));
     final suggestions = FolderSuggestions.propose(apps, theme.prefs);
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
     if (suggestions.isEmpty) {
-      return _Copy(
-        d: d,
-        title: 'Ready',
-        blurb: 'Drag one app onto another in the drawer to make a folder.',
+      return Text(
+        'Nothing worth grouping yet. Drag one app onto another in the drawer '
+        'to make a folder.',
+        softWrap: true,
+        style: d.text.body.copyWith(color: d.colors.textMuted),
       );
     }
 
-    return _Copy(
-      d: d,
-      title: 'Tidy the drawer',
-      blurb: 'We spotted ${suggestions.length} groups worth folding up.',
-      child: Column(
-        children: [
-          ThemedButton(
-            label: 'Create all ${suggestions.length} folders',
-            icon: Icons.auto_awesome_outlined,
-            expand: true,
-            onPressed: () => notifier.edit(
-              (p) => FolderSuggestions.acceptAll(
-                p,
-                suggestions,
-                newFolderId: newDrawerFolderId,
+    // ONE ROW, NOT ONE ROW PER SUGGESTION.
+    //
+    // Listing each proposed folder by name with its app count is the better
+    // screen and it is the one this step should end up as. It needs
+    // FolderSuggestions to expose a name and a member list per suggestion,
+    // which is a change to folder_suggestions.dart and belongs with the
+    // Social / Entertainment / Tools categories rather than being guessed at
+    // here. Until then this is the shape that already worked.
+    return Column(
+      children: [
+        SetupRow(
+          title: 'Create ${suggestions.length} folders',
+          subtitle: 'Grouped by what the apps say they are.',
+          selected: true,
+          marker: SetupMarker.check,
+          mono: mono,
+          onTap: () {},
+        ),
+        const SizedBox(height: 6),
+        ThemedButton(
+          label: 'Create ${suggestions.length} folders',
+          icon: Icons.auto_awesome_outlined,
+          expand: true,
+          onPressed: () => notifier.edit(
+            (p) => FolderSuggestions.acceptAll(
+              p,
+              suggestions,
+              newFolderId: newDrawerFolderId,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Skipping loses nothing. They stay available in Settings, Folders.',
+          softWrap: true,
+          style: d.text.caption.copyWith(color: d.colors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+/// The fake install.
+///
+/// ONCE, EVER. Not on the theme-switch path, not on cold start: this is the
+/// first-run payoff and nothing else. Switching distro later in Settings shows
+/// the boot log or the splash, which are the repeatable ones.
+///
+/// Roughly two and a half seconds. Long enough to land, short enough that it
+/// does not become the third theatrical screen in a row before anyone has
+/// touched the desktop, which is the failure mode: the boot log and the splash
+/// still follow this.
+///
+/// The lines are keyed by SHELL, so a console install talks like pacstrap and a
+/// wizard talks like Ubiquity. Nothing here mentions erasing, formatting or
+/// partitioning, and nothing here ever should.
+class _StepInstall extends StatefulWidget {
+  const _StepInstall({
+    required this.theme,
+    required this.skin,
+    required this.onDone,
+  });
+
+  final EffectiveTheme theme;
+  final SetupSkin skin;
+  final Future<void> Function() onDone;
+
+  @override
+  State<_StepInstall> createState() => _StepInstallState();
+}
+
+class _StepInstallState extends State<_StepInstall> {
+  static const _tickMs = 380;
+
+  Timer? _timer;
+  int _line = 0;
+  late final List<String> _lines = _linesFor(widget.theme.shell);
+
+  static List<String> _linesFor(ShellKind shell) => switch (shell) {
+        ShellKind.tui => const [
+            'mounting /proc /sys /dev',
+            'installing base packages',
+            'reading installed applications',
+            'writing profile',
+            'enabling g-tty autologin',
+            'done',
+          ],
+        ShellKind.aqua => const [
+            'Preparing your desktop',
+            'Applying appearance',
+            'Reading your apps',
+            'Setting up the Dock',
+            'Almost there',
+            'Done',
+          ],
+        _ => const [
+            'Copying desktop files',
+            'Applying theme and icons',
+            'Reading installed applications',
+            'Building the dock',
+            'Configuring folders',
+            'Done',
+          ],
+      };
+
+  @override
+  void initState() {
+    super.initState();
+    // Reduce-motion is honoured by the caller chain elsewhere; here the whole
+    // step is short enough that the honest opt-out is to run it anyway and let
+    // the boot gate behind it handle the long one.
+    _timer = Timer.periodic(const Duration(milliseconds: _tickMs), (t) {
+      if (!mounted) return;
+      if (_line >= _lines.length - 1) {
+        t.cancel();
+        widget.onDone();
+        return;
+      }
+      setState(() => _line++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+    final progress = (_line + 1) / _lines.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 3,
+            backgroundColor: c.line,
+            valueColor: AlwaysStoppedAnimation<Color>(c.accent),
+          ),
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i <= _line; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              _lines[i],
+              softWrap: true,
+              style: d.text.caption.copyWith(
+                color: i == _line ? c.text : c.textMuted,
               ),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            // Honest about the alternative: skipping loses nothing, and the
-            // Folders page can bring them back.
-            'Or skip — they stay available in Settings → Folders.',
-            style: d.text.caption,
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
 // ── Chrome ───────────────────────────────────────────────────────────────────
 
-class _Seg extends StatelessWidget {
-  const _Seg({
-    required this.d,
-    required this.label,
-    required this.value,
-    required this.options,
-    required this.onChanged,
+/// A small framed phone showing the setting being changed.
+///
+/// FRAMED, unlike the old full-bleed backdrop. Once the installer has a window
+/// of its own, a second full-bleed surface behind it fights the frame: you
+/// cannot tell which of the two things on screen you are configuring. A phone
+/// inside the content area is unambiguous, and it is also how every real
+/// installer shows a layout choice.
+class _Preview extends StatelessWidget {
+  const _Preview({
+    required this.theme,
+    required this.mode,
+    this.cols,
+    this.gridButton,
   });
 
-  final ChromeData d;
-  final String label;
-  final String value;
-  final Map<String, String> options;
-  final ValueChanged<String> onChanged;
+  final EffectiveTheme theme;
+  final DevicePreviewMode mode;
+  final int? cols;
+  final String? gridButton;
 
   @override
   Widget build(BuildContext context) {
-    final c = d.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: d.text.label),
-        const SizedBox(height: 7),
-        Row(
-          children: [
-            for (final e in options.entries)
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onChanged(e.key),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: e.key == value ? c.accent : c.surfaceAlt,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      e.value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: d.text.body.copyWith(
-                        color: e.key == value ? c.onAccent : c.text,
-                        fontWeight: e.key == value
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+    return SizedBox(
+      height: 150,
+      child: Center(
+        child: DevicePreview(
+          palette: theme.palette,
+          framed: true,
+          mode: mode,
+          dock: theme.dock,
+          gridButton: gridButton ?? theme.prefs.dockGridButton ?? 'end',
+          cols: cols ?? theme.drawerCols,
+          rows: theme.prefs.folderRows ?? 3,
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _MiniLabel extends StatelessWidget {
+  const _MiniLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: Text(
+          text,
+          style: d.text.label.copyWith(color: d.colors.textMuted),
+        ),
+      ),
     );
   }
 }
@@ -728,93 +942,24 @@ class _NagLine extends StatelessWidget {
     return GestureDetector(
       onTap: onFix,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          children: [
-            Icon(Icons.home_outlined, size: 15, color: c.warn),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'G Launcher is not your home app',
-                style: d.text.caption.copyWith(color: c.warn),
-              ),
-            ),
-            Text(
-              'Fix',
-              style: d.text.caption
-                  .copyWith(color: c.warn, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Progress extends StatelessWidget {
-  const _Progress({required this.step, required this.total});
-
-  final int step;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Row(
         children: [
-          for (var i = 0; i < total; i++)
-            Expanded(
-              child: Container(
-                height: 3,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: i <= step ? c.accent : c.line,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+          Icon(Icons.home_outlined, size: 15, color: c.warn),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'G Launcher is not your home app',
+              softWrap: true,
+              style: d.text.caption.copyWith(color: c.warn),
             ),
+          ),
+          Text(
+            'Fix',
+            style: d.text.caption
+                .copyWith(color: c.warn, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _Footer extends StatelessWidget {
-  const _Footer({
-    required this.step,
-    required this.lastStep,
-    required this.onBack,
-    required this.onNext,
-  });
-
-  final int step;
-  final int lastStep;
-  final VoidCallback? onBack;
-  final VoidCallback onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (onBack != null)
-          ThemedButton(
-            label: 'Back',
-            kind: ThemedButtonKind.text,
-            onPressed: onBack!,
-          ),
-        const Spacer(),
-        ThemedButton(
-          label: switch (step) {
-            0 => 'Get started',
-            final s when s == lastStep => 'Boot the desktop',
-            _ => 'Next',
-          },
-          onPressed: onNext,
-        ),
-      ],
     );
   }
 }

@@ -34,26 +34,27 @@
 import { createHash, generateKeyPairSync, sign, verify, createPublicKey, createPrivateKey } from 'node:crypto';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const FORMAT_VERSION = 1;
-const MANIFEST_NAME = 'manifest.json';
-const SIGNATURE_NAME = 'manifest.sig';
-const KNOWN_TYPES = ['theme', 'brand', 'hero', 'icon'];
+export const FORMAT_VERSION = 1;
+export const MANIFEST_NAME = 'manifest.json';
+export const SIGNATURE_NAME = 'manifest.sig';
+export const KNOWN_TYPES = ['theme', 'brand', 'hero', 'icon'];
 
 // ── ed25519 raw-key helpers ──────────────────────────────────────────────────
 // Node speaks DER/PEM; the app speaks raw 32-byte keys. The DER prefix for an
 // ed25519 key is fixed-length, so slicing it is exact rather than a heuristic.
 const PUB_DER_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
-const PRIV_DER_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+export const PRIV_DER_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 
 const rawToPublicKey = (raw) =>
   createPublicKey({ key: Buffer.concat([PUB_DER_PREFIX, raw]), format: 'der', type: 'spki' });
 
-const rawToPrivateKey = (raw) =>
+export const rawToPrivateKey = (raw) =>
   createPrivateKey({ key: Buffer.concat([PRIV_DER_PREFIX, raw]), format: 'der', type: 'pkcs8' });
 
 // ── path safety, mirroring PackManifest.isSafeRelativePath ───────────────────
-function isSafeRelativePath(p) {
+export function isSafeRelativePath(p) {
   if (!p || p.length > 200) return false;
   if (p.startsWith('/') || p.endsWith('/')) return false;
   if (p.includes('\\') || p.includes('\0')) return false;
@@ -63,12 +64,12 @@ function isSafeRelativePath(p) {
   );
 }
 
-function isSafePackId(id) {
+export function isSafePackId(id) {
   return !!id && id.length <= 64 && !id.startsWith('.') && /^[a-z0-9._-]+$/.test(id);
 }
 
 // ── walking ──────────────────────────────────────────────────────────────────
-function walk(root, dir = root, out = []) {
+export function walk(root, dir = root, out = []) {
   for (const name of readdirSync(dir).sort()) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) walk(root, full, out);
@@ -77,14 +78,14 @@ function walk(root, dir = root, out = []) {
   return out;
 }
 
-const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
+export const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 // ── manifest serialisation ───────────────────────────────────────────────────
 // Files are sorted by path so the same directory always produces the same
 // manifest. Two-space indent, keys in this order, trailing newline: matched by
 // the Kotlin test fixture. Do not reach for JSON.stringify with a replacer and
 // hope — write it out.
-function buildManifest({ packType, packId, version, minAppVersion, keyId, files }) {
+export function buildManifest({ packType, packId, version, minAppVersion, keyId, files }) {
   const entries = files
     .map((f) => `    {"path": "${f.path}", "size": ${f.size}, "sha256": "${f.sha256}"}`)
     .join(',\n');
@@ -132,7 +133,7 @@ function cmdKeygen() {
   console.log('  # then sign with:  --key @$HOME/.mindberzerk/pack-signing.key');
 }
 
-function cmdSign(dir, opts) {
+export function cmdSign(dir, opts) {
   if (!isSafePackId(opts.id)) throw new Error(`unsafe packId '${opts.id}'`);
   if (!KNOWN_TYPES.includes(opts.type)) throw new Error(`unknown packType '${opts.type}'`);
 
@@ -169,7 +170,7 @@ function cmdSign(dir, opts) {
   for (const f of files) console.log(`  ${f.path}  ${f.size}B  ${f.sha256.slice(0, 12)}…`);
 }
 
-function cmdSignIndex(file, opts) {
+export function cmdSignIndex(file, opts) {
   const body = readFileSync(file);
   const parsed = JSON.parse(body.toString('utf8'));
 
@@ -265,7 +266,7 @@ function cmdVerify(dir, opts) {
  * A cryptic hex-length error three steps later is much worse than a sentence
  * saying which key you handed it.
  */
-function readKeyArg(v) {
+export function readKeyArg(v) {
   if (!v || v === true) throw new Error('missing --key');
 
   if (/\.(jks|keystore|p12|pem|der)$/i.test(v)) {
@@ -291,6 +292,20 @@ function readKeyArg(v) {
   }
   return raw;
 }
+
+// ── CLI ──────────────────────────────────────────────────────────────────────
+//
+// Everything above is EXPORTED so other scripts can reuse it. That matters more
+// than it looks: there are already three implementations of this manifest
+// format (this file, admin/src/lib/sign.ts, and PackVerifierTest.kt in Kotlin),
+// and the signature covers exact bytes, so a fourth would be a fourth chance to
+// drift and produce packs that look perfect and fail with BadSignature.
+//
+// The guard means `import` gets the functions and `node sign-pack.mjs` gets the
+// tool. Without it, importing this file would parse argv and exit.
+if (import.meta.url !== pathToFileURL(process.argv[1] ?? '').href) {
+  // Imported as a module. Stop here.
+} else {
 
 // ── arg parsing ──────────────────────────────────────────────────────────────
 //
@@ -337,4 +352,5 @@ try {
 } catch (e) {
   console.error('error: ' + e.message);
   process.exit(1);
+}
 }

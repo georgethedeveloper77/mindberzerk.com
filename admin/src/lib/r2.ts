@@ -69,9 +69,22 @@ export async function putObject(key: string, body: Buffer, contentType: string) 
       Key: key,
       Body: body,
       ContentType: contentType,
-      // No caching for the index: it is small, it is the thing that must be
-      // fresh, and PackDownloader sends an ETag so a repeat fetch is a 304
-      // anyway. Payload files are immutable per version and cache hard.
+      // ── CACHING, AND WHY THE VERSIONED PATH IS LOAD-BEARING ──────────────
+      //
+      // The index is no-cache: it is small, it is the ONE thing that must be
+      // fresh, and PackDownloader sends an ETag so a repeat fetch is a 304.
+      //
+      // Everything else is immutable for a year, which is only safe because a
+      // pack lives at `<type>/<packId>/<version>/…`. Without the version in the
+      // path this is a serious bug: `brandpacks/simple-icons/manifest.sig` is
+      // the same URL for v2 and v3, so an edge would serve the OLD manifest for
+      // a year after publishing. The mixed state is worse than the stale one —
+      // a fresh payload file against a cached old manifest is a hash mismatch,
+      // and PackVerifier correctly reports that as tampering.
+      //
+      // With the version in the path, every object really is immutable, cache
+      // busting is free, and old versions stay reachable so a device that read
+      // the index a minute ago and is mid-download still finds its files.
       CacheControl: key.endsWith('index.json') || key.endsWith('index.sig')
         ? 'no-cache'
         : 'public, max-age=31536000, immutable',

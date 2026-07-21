@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/prefs/launcher_prefs.dart';
 import '../data/prefs/prefs_repository.dart';
+import '../data/prefs/starter_desktop.dart';
 import '../data/repositories/app_repository.dart';
 import '../platform/launcher_api.g.dart' as api;
+import '../system/wallpaper_source.dart';
 import 'layout_resolver.dart';
 import 'theme_engine.dart';
 import 'theme_spec.dart';
@@ -202,28 +204,74 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
 
   await api_.setIconTheme(effective.iconCacheId, effective.icons);
 
-  // First time this theme is used, apply its default wallpaper — the first
-  // entry in the theme's list. ONCE, ever, tracked per theme.
+  // ── WHOSE WALLPAPER IS ON THE SCREEN ────────────────────────
   //
-  // This does re-trigger the provider (we write prefs, prefs is watched), but it
-  // terminates immediately: on the second pass wallpaperInitialized is true and
-  // the branch is skipped. One extra rebuild at first run is a fair price for
-  // never stamping over a wallpaper the user chose.
-  if (!prefs.wallpaperInitialized && spec.wallpapers.isNotEmpty) {
-    final source = spec.wallpapers.first;
-    await api_.setWallpaper(
-      source.startsWith('assets/') ? 'asset:$source' : source,
-      false,
+  // Android has ONE wallpaper; these prefs are per theme. The old code
+  // reconciled that with a per-theme initialised flag, and it could not work.
+  // By the second theme switch that flag is true for BOTH themes, so coming
+  // back to Ubuntu skipped the re-apply and left KDE's wallpaper on screen
+  // under Ubuntu's palette. That is the "the theme's wallpaper does not
+  // always apply" report, and it was never intermittent: it happened every
+  // time after the first visit to a theme.
+  //
+  // So the question changed. Not "has this theme ever applied one" but "is
+  // the wallpaper on screen this theme's", which is a single global fact and
+  // lives above the per-theme store, exactly like selectedThemeId.
+  //
+  // Reads and writes the store DIRECTLY rather than through prefsProvider,
+  // and that is deliberate: prefs is watched by this provider, so writing to
+  // it re-runs the whole thing. The old branch did precisely that and paid a
+  // rebuild for it on every first run. Nobody watches this key, so applying a
+  // wallpaper now costs one write and no rebuild.
+  final store = ref.read(prefsStoreProvider);
+  if (await store.read(wallpaperAppliedForKey) != spec.id) {
+    // The user's choice for THIS theme, else the theme's own first preset.
+    final source = prefs.wallpaperCurrent ??
+        (spec.wallpapers.isNotEmpty ? spec.wallpapers.first : null);
+
+    if (source != null) {
+      await api_.setWallpaper(
+        encodeWallpaperSource(source),
+        prefs.wallpaperLock ?? false,
+      );
+      await store.write(wallpaperAppliedForKey, spec.id);
+    }
+    // Nothing to apply, and the key is deliberately NOT written. A theme that
+    // ships no wallpapers (Aqua, today) leaves the previous one up, and the
+    // moment it gains one over the CDN this branch picks it up rather than
+    // having already marked itself done. The re-check is one prefs read.
+  }
+
+  // PHASE D3 — the distro's authored desktop, laid out ONCE.
+  //
+  // A SEPARATE BRANCH from the wallpaper above, on its own flag, deliberately:
+  // a theme can ship a starter desktop and no wallpapers, or the reverse, and
+  // folding them together would make one silently depend on the other.
+  //
+  // Terminates for the same reason that one does. It writes prefs, prefs is
+  // watched, so this provider re-runs — and on the second pass the flag is true
+  // and the branch is skipped. One extra rebuild at first use of a theme, in
+  // exchange for never re-stamping a desktop the user has since arranged.
+  //
+  // Removing every desklet is a legitimate arrangement, which is why the flag
+  // exists at all rather than testing `prefs.desklets.isEmpty`.
+  if (!prefs.deskletsInitialized) {
+    final seeded = StarterDesktop.apply(
+      prefs,
+      spec.desklets,
+      cols: effective.cols,
+      rows: effective.rows,
+      // Time-based, prefixed, and minted HERE rather than in theme.json — two
+      // people installing the same pack must not end up sharing desklet ids.
+      newId: () => 'dk${DateTime.now().microsecondsSinceEpoch}',
     );
     await ref
         .read(prefsProvider(spec.id).notifier)
-        // .edit, NOT .update. `.update` resolves to the inherited
-        // AsyncNotifier.update, which mutates state but never writes to disk —
-        // so wallpaperInitialized would flip true in memory, then revert on the
-        // next cold start, and the theme would re-stamp its default wallpaper
-        // over the user's choice every launch. This is the exact `.update` trap
-        // no_bare_update.sh exists to catch; it slipped through here.
-        .edit((p) => p.copyWith(wallpaperInitialized: true));
+        // .edit, never .update. See the wallpaper note above: `.update` mutates
+        // state without writing to disk, so the flag would flip in memory and
+        // revert on the next cold start, re-laying the starter desktop over the
+        // user's arrangement on every launch.
+        .edit((p) => seeded.copyWith(deskletsInitialized: true));
   }
 
   return effective;

@@ -4,6 +4,8 @@ import android.app.Application
 import com.mindhunter.g_launcher.apps.LauncherHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackSyncWorker
+import com.mindhunter.g_launcher.pack.PackFlutterApi
+import com.mindhunter.g_launcher.pack.PackHostApi
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor

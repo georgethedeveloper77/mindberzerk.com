@@ -1,5 +1,12 @@
 import { cookies } from 'next/headers';
-import { cert, getApp, getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
+import {
+  applicationDefault,
+  cert,
+  getApp,
+  getApps,
+  initializeApp,
+  type App,
+} from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 
 /**
@@ -7,8 +14,8 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
  *
  * This panel can write to the CDN that every installed launcher trusts, and it
  * holds the ed25519 private key those launchers verify against. It is the
- * highest-value target in the whole ecosystem, and it is a public URL. So the
- * auth here is deliberately more paranoid than a one-user tool would normally
+ * highest-value target in the ecosystem, and it is a public URL. So the auth
+ * here is deliberately more paranoid than a one-user tool would normally
  * justify.
  *
  * ## An allowlist, not a role check
@@ -16,42 +23,87 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
  * There is no sign-up, no invite flow, and no "admin" claim to be granted. A
  * hardcoded set of Firebase UIDs, supplied as a SECRET rather than a config
  * value, because "who may sign in" here is a credential and not a setting.
- * Adding a person is a Secret Manager edit and a redeploy, which is the correct
- * amount of friction for something that can push signed content to every
- * device.
  *
  * ## Why session cookies and not Bearer tokens
  *
- * Next middleware runs on the Edge runtime, which has no Node crypto and
- * therefore cannot run firebase-admin. So the split is:
+ * `proxy.ts` runs on the Edge runtime, which has no Node crypto and therefore
+ * cannot run firebase-admin. So the split is:
  *
- *   middleware  — checks a cookie EXISTS, cheap, no verification. Purely to
- *                 redirect a logged-out browser to /login without a round trip.
+ *   proxy.ts    — checks a cookie EXISTS. Cheap, no verification. Purely to
+ *                 redirect a logged-out browser to /login.
  *   this file   — the real check, in Node, on every route handler and server
  *                 component that touches anything.
  *
- * THE MIDDLEWARE IS NOT A SECURITY BOUNDARY and must never be treated as one.
- * Anything that reads the key or writes to R2 calls [requireAdmin] itself. If
- * you find yourself adding a route and thinking "middleware already covered
- * it", that is the bug.
+ * THE PROXY IS NOT A SECURITY BOUNDARY. Anything that reads the key or writes
+ * to R2 calls [requireAdmin] itself. If you catch yourself thinking "the proxy
+ * already covered it", that is the bug.
  *
  * Session cookies also revoke properly: `revokeRefreshTokens` invalidates them
  * server-side, which a stored ID token does not.
  */
 
-function adminApp() {
+/**
+ * Credentials, in order of preference.
+ *
+ *  1. App Hosting supplies application-default credentials, so in production
+ *     neither env var below exists and this Just Works.
+ *  2. GOOGLE_APPLICATION_CREDENTIALS — a FILE PATH. The right way to do it
+ *     locally, and `applicationDefault()` reads it with no code here at all.
+ *  3. FIREBASE_SERVICE_ACCOUNT — the JSON inline, kept only as a fallback for
+ *     environments where a file cannot be mounted.
+ *
+ * OPTION 3 IS A TRAP AND THE ERROR BELOW EXISTS BECAUSE OF IT. A service
+ * account JSON is multi-line and dotenv reads exactly one line, so pasting it
+ * into .env.local gives you the string "{" and a JSON parse error at position 1
+ * that names neither the variable nor the reason. Prefer option 2.
+ */
+function adminApp(): App {
   if (getApps().length) return getApp();
 
-  // In App Hosting, application-default credentials are present and correct.
-  // Locally they are not, so a service-account JSON in the env is the fallback.
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (raw) {
-    return initializeApp({ credential: cert(JSON.parse(raw)) });
-  }
-  return initializeApp({ credential: applicationDefault() });
-}
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
 
-export const SESSION_COOKIE = '__session';
+  if (raw && raw.startsWith('{')) {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        'FIREBASE_SERVICE_ACCOUNT is not valid JSON. It is almost certainly ' +
+          'multi-line: dotenv reads one line, so the value ends up as "{". ' +
+          'Either flatten it with `jq -c .`, or better, delete it and set ' +
+          'GOOGLE_APPLICATION_CREDENTIALS to the file path instead.',
+      );
+    }
+    if (!parsed.private_key || !parsed.client_email) {
+      throw new Error(
+        'FIREBASE_SERVICE_ACCOUNT parsed but has no private_key/client_email. ' +
+          'That is not a service account key.',
+      );
+    }
+    return initializeApp({ credential: cert(parsed as never) });
+  }
+
+  if (raw && !raw.startsWith('{')) {
+    // Someone put a path in the JSON variable. Accept it rather than failing,
+    // since the intent is unambiguous, but say so once in the log.
+    console.warn(
+      'FIREBASE_SERVICE_ACCOUNT looks like a path, not JSON. Use ' +
+        'GOOGLE_APPLICATION_CREDENTIALS for that; treating it as one anyway.',
+    );
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||= raw;
+  }
+
+  try {
+    return initializeApp({ credential: applicationDefault() });
+  } catch (e) {
+    throw new Error(
+      'No Firebase credentials. In production App Hosting supplies these ' +
+        'automatically; locally, set GOOGLE_APPLICATION_CREDENTIALS to the ' +
+        'path of your service account JSON. Underlying error: ' +
+        (e as Error).message,
+    );
+  }
+}
 
 /**
  * `__session` is not an arbitrary name. Firebase Hosting and App Hosting strip
@@ -59,6 +111,7 @@ export const SESSION_COOKIE = '__session';
  * origin, so any other name works locally and vanishes in production — a
  * failure that looks like "auth randomly stops working once deployed".
  */
+export const SESSION_COOKIE = '__session';
 
 /** UIDs allowed in. Empty set means nobody, which is the right default. */
 function allowedUids(): Set<string> {
@@ -80,9 +133,9 @@ export class NotAuthorised extends Error {
 /**
  * Verify the session cookie and the allowlist. Throws [NotAuthorised].
  *
- * `checkRevoked: true` costs a round trip to Google and is worth it here: it is
- * what makes signing someone out actually sign them out, rather than leaving a
- * valid cookie working until it expires.
+ * `checkRevoked: true` costs a round trip to Google and is worth it: it is what
+ * makes signing someone out actually sign them out, rather than leaving a valid
+ * cookie working until it expires.
  */
 export async function requireAdmin(): Promise<DecodedIdToken> {
   const store = await cookies();

@@ -4,6 +4,7 @@
   "version": "24.04",
   "shell": "gnome",
   "tier": "free",
+  "minAppVersion": 6,
   "palette": {
     "bgTop": "#622A4C",
     "bgBottom": "#220817",
@@ -17,8 +18,8 @@
     "mono": "UbuntuMono"
   },
   "logo": {
-    "light": "assets/svg/ubuntu2410_dark.svg",
-    "dark": "assets/svg/ubuntu2410.svg"
+    "light": "assets/themes/ubuntu-24-04/logo_light.svg",
+    "dark": "assets/themes/ubuntu-24-04/logo_dark.svg"
   },
   "layout": {
     "dock": "left",
@@ -41,11 +42,46 @@
     "assets/themes/ubuntu-24-04/wallpapers/numbat_dark.webp",
     "assets/themes/ubuntu-24-04/wallpapers/noble_light.webp"
   ],
-  "minAppVersion": 6,
   "splash": {
     "style": "dots",
-    "logo": "assets/svg/ubuntu2410.svg",
     "durationMs": 1100
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "fastfetch",
+      "network",
+      "storage",
+      "battery",
+      "notes",
+      "search"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 3,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "showTitle": true
+      }
+    }
   },
   "boot": {
     "tailMs": 700,

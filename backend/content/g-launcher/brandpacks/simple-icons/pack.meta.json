@@ -1,0 +1,9 @@
+{
+  "_comment": "NOT part of the pack. Stripped before signing; it only carries what the manifest and index need and the content itself does not express. Bump `version` on every publish or the device silently refuses it.",
+  "packType": "brand",
+  "version": 3,
+  "minAppVersion": 6,
+  "title": "Simple Icons",
+  "summary": "CC0 brand glyphs for the apps everyone recognises",
+  "sku": null
+}

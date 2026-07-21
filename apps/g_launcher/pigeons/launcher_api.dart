@@ -34,12 +34,18 @@ import 'package:pigeon/pigeon.dart';
 /// types are declared here, and the current build is pinned to:
 ///
 ///   129 AppChangeReason   130 IconTreatment   131 AppEntry
-///   132 AppChangeEvent    133 IconStyle
+///   132 AppChangeEvent    133 IconStyle       134 DeviceStats
+///   135 StatCapabilities
 ///
 /// Enums first, then classes, each group in declaration order. ADD NEW TYPES AT
 /// THE END of their group — inserting one in the middle renumbers everything
 /// after it, and a Dart side talking 132 to a Kotlin side hearing 133 fails in
 /// the least debuggable way possible.
+///
+/// AND NEVER ADD A THIRD ENUM. Enums are numbered before classes, so a new one
+/// would take 131 and push all four classes up by one. Every "enum-shaped"
+/// value here (brandTreatment, netTransport) is a String for exactly that
+/// reason, with unknown values degrading rather than failing to parse.
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/platform/launcher_api.g.dart',
@@ -233,6 +239,168 @@ class IconStyle {
   String? brandTreatment;
 }
 
+/// One live sample of everything the device is willing to tell us.
+///
+/// APPENDED AFTER IconStyle, so this takes codec 134 and every existing id
+/// (129-133) is unmoved. `netTransport` is a String and not an enum for the
+/// reason [IconStyle.brandTreatment] spells out: Pigeon numbers enums BEFORE
+/// classes, so a third enum would take 131 and shove AppEntry, AppChangeEvent
+/// and IconStyle each up by one. There will never be a third enum in this file.
+///
+/// ─── EVERY FIELD IS NULLABLE, AND NULL IS LOAD-BEARING ──────────────────────
+///
+/// `/proc/stat` returns nothing on a Galaxy S22: SELinux tightened proc access
+/// and OEMs tightened further. There is NO permission-free system-wide CPU API
+/// on modern Android — not restricted, absent. Any launcher showing a live CPU
+/// percentage on Android 12+ is showing its own process or a number it invented.
+///
+/// So null means "this device will not tell us", the row is absent, and nothing
+/// renders `--%`. Which sources are absent is device-dependent, which is why
+/// [StatCapabilities] exists as a separate answer.
+///
+/// ─── NATIVE HOLDS NO STATE ──────────────────────────────────────────────────
+///
+/// CPU and network are CUMULATIVE COUNTERS here, not rates. A rate needs two
+/// samples and an interval, and the ticker that owns the interval lives in
+/// Dart. Native reads and returns; the delta arithmetic stays in one tested
+/// place. That is also why [elapsedRealtimeMillis] is non-null: it is both the
+/// uptime row AND the sample clock the deltas divide by, so the rate stays
+/// correct even when a frame is late.
+class DeviceStats {
+  DeviceStats({
+    required this.elapsedRealtimeMillis,
+    this.batteryPercent,
+    this.batteryCharging,
+    this.batteryTempDeciC,
+    this.batteryCurrentMicroA,
+    this.memAvailBytes,
+    this.memTotalBytes,
+    this.storageFreeBytes,
+    this.storageTotalBytes,
+    this.netRxBytes,
+    this.netTxBytes,
+    this.netTransport,
+    this.thermalStatus,
+    this.cpuIdleJiffies,
+    this.cpuTotalJiffies,
+  });
+
+  /// `SystemClock.elapsedRealtime()`. Milliseconds since boot, INCLUDING deep
+  /// sleep, which is what makes it usable as a sample clock across a screen-off
+  /// gap. Never null: if this is unavailable the process is not running.
+  int elapsedRealtimeMillis;
+
+  /// 0-100 from the sticky ACTION_BATTERY_CHANGED broadcast.
+  int? batteryPercent;
+
+  bool? batteryCharging;
+
+  /// TENTHS of a degree Celsius, exactly as Android reports it. Kept in the
+  /// platform's own unit so the conversion happens once, in Dart, at the point
+  /// of display — converting here would round twice.
+  int? batteryTempDeciC;
+
+  /// MICROAMPS, from `BATTERY_PROPERTY_CURRENT_NOW`.
+  ///
+  /// THE SIGN IS NOT PORTABLE. Most OEMs report negative while discharging;
+  /// several Samsung and Xiaomi builds report positive. So Dart displays the
+  /// MAGNITUDE and takes the direction from [batteryCharging], which is the one
+  /// signal that is consistent everywhere. Do not "fix" this by trusting the
+  /// sign.
+  int? batteryCurrentMicroA;
+
+  /// `ActivityManager.MemoryInfo`, NOT `/proc/meminfo`. Same restriction story
+  /// as `/proc/stat`, and this one needs no file read at all.
+  int? memAvailBytes;
+
+  int? memTotalBytes;
+
+  /// `StatFs` on the data partition. No permission, works everywhere.
+  int? storageFreeBytes;
+
+  int? storageTotalBytes;
+
+  /// `TrafficStats` device-wide byte counters since boot. Permission-free.
+  /// Null when the device reports `UNSUPPORTED`, which some emulators do.
+  int? netRxBytes;
+
+  int? netTxBytes;
+
+  /// "wifi" | "cellular" | "ethernet" | "vpn" | "none".
+  ///
+  /// The transport only. NOT the SSID: reading the Wi-Fi network name needs
+  /// location permission on Android 10+, and a launcher that also sells itself
+  /// on privacy does not ask for location to draw a desktop widget.
+  String? netTransport;
+
+  /// `PowerManager.getCurrentThermalStatus()`, 0 (none) to 6 (shutdown).
+  /// API 29+; null below that.
+  int? thermalStatus;
+
+  /// Aggregate `cpu` line of `/proc/stat`, idle+iowait and the grand total.
+  ///
+  /// Present because the READ IS WORTH ATTEMPTING even though it fails on a
+  /// Galaxy: SELinux policy is per-ROM, and the budget Infinix/Tecno/Xiaomi
+  /// devices this launcher targets are frequently laxer than Samsung. Probed
+  /// once at startup rather than fought with on every tick.
+  int? cpuIdleJiffies;
+
+  int? cpuTotalJiffies;
+}
+
+/// Which sources this specific device will actually serve. Codec 135.
+///
+/// A SEPARATE ANSWER FROM A SNAPSHOT OF NULLS, and that distinction is the
+/// whole reason this class exists. A null in [DeviceStats] is ambiguous: it can
+/// mean "this device never provides it" or "not sampled yet" (network and CPU
+/// are rates, so the first tick has no value by construction). Those need
+/// different UI — permanently absent versus pending — and a desklet cannot tell
+/// them apart from the snapshot alone.
+///
+/// Probed ONCE natively and cached for the process. Without it you ship a panel
+/// that is rich on one phone and half-empty on another with no way to know
+/// which, and no way to tell a user's bug report from a platform limit.
+class StatCapabilities {
+  StatCapabilities({
+    required this.battery,
+    required this.batteryDetail,
+    required this.memory,
+    required this.storage,
+    required this.network,
+    required this.networkTransport,
+    required this.thermal,
+    required this.cpu,
+  });
+
+  /// Level and charging state. True on effectively every device.
+  bool battery;
+
+  /// Temperature and current draw. Separate from [battery] because the sticky
+  /// broadcast can carry a level while `BATTERY_PROPERTY_CURRENT_NOW` returns
+  /// nothing, and the detail rows are the ones that make a battery desklet
+  /// worth having at all (Android's own status bar already shows a percentage).
+  bool batteryDetail;
+
+  bool memory;
+
+  bool storage;
+
+  /// `TrafficStats` counters. Independent of [networkTransport]: the counters
+  /// can work while the transport lookup does not, and the reverse.
+  bool network;
+
+  /// `ConnectivityManager` transport lookup. Needs ACCESS_NETWORK_STATE, which
+  /// is a NORMAL permission — auto-granted, no prompt, no Play declaration.
+  bool networkTransport;
+
+  bool thermal;
+
+  /// Almost always false on Android 12+. Kept as an honest field rather than
+  /// dropped, so the answer is "this device says no" instead of "the launcher
+  /// never asked".
+  bool cpu;
+}
+
 // ─── HOST API (Dart calls, Kotlin implements) ────────────────────────────────
 
 /// Implemented by `LauncherHostApiImpl`, constructed in
@@ -361,6 +529,27 @@ abstract class LauncherHostApi {
   /// Reimplementing OS settings screens is how launchers rot: the OEM changes
   /// something and your copy is quietly wrong forever.
   void openAndroidSettings(String action);
+
+  // ─── PHASE D1: device stats ────────────────────────────────────────────────
+
+  /// Which stat sources this device will actually serve.
+  ///
+  /// Probed once natively and cached for the process lifetime, so calling it on
+  /// every desklet mount is free. `@async` because the probe attempts a file
+  /// read and a `StatFs`, and neither belongs on the platform thread even once.
+  @async
+  StatCapabilities getStatCapabilities();
+
+  /// ONE snapshot. No polling, no state, no stream.
+  ///
+  /// Native does not own a timer, deliberately. A native ticker would keep
+  /// running while Dart is paused and would need its own lifecycle plumbing
+  /// duplicating the one Dart already has; and a stream would push at a rate
+  /// no consumer chose. The Dart-side ticker calls this and stops calling it
+  /// when the launcher is not on screen, which is the only reliable way to keep
+  /// a permanently-visible home screen off a budget phone's battery.
+  @async
+  DeviceStats readStats();
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

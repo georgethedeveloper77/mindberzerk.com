@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/billing/entitlements.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/tokens/typography.dart';
 import '../../engine/effective_theme.dart';
+import '../../data/billing/entitlements.dart';
+import '../../data/cdn/pack_repository.dart';
 import 'theme_catalog.dart';
 
 /// The theme storefront. A header, a 2-col grid of mini-desktop preview cards,
@@ -41,8 +42,7 @@ class ThemesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeSpec = ref.watch(effectiveThemeProvider).asData?.value.spec;
-    final cards =
-        ref.watch(themeCatalogProvider).asData?.value ?? const <ThemeCard>[];
+    final cards = ref.watch(themeCatalogProvider).asData?.value ?? const <ThemeCard>[];
     final more = ref.watch(themeMoreProvider);
     final progress = ref.watch(packProgressProvider);
     // Watched here so a price arriving from Play repaints the whole grid at
@@ -68,8 +68,7 @@ class ThemesScreen extends ConsumerWidget {
     /// message that tells nobody anything, and it is the reason `PackResult`
     /// carries a status at all.
     Future<void> download(ThemeCard c, {required bool thenApply}) async {
-      final result =
-          await ref.read(packActionsProvider).install(c.packIdOrSpec);
+      final result = await ref.read(packActionsProvider).install(c.packIdOrSpec);
       if (!context.mounted) return;
 
       switch (result.status) {
@@ -95,8 +94,7 @@ class ThemesScreen extends ConsumerWidget {
           // A signature or hash check failed. NOT retryable, and worth saying
           // plainly rather than dressing up as a network blip — retrying a bad
           // signature produces the same answer and burns someone's data.
-          context
-              .showMessage('${c.name} failed verification and was discarded');
+          context.showMessage('${c.name} failed verification and was discarded');
         default:
           context.showMessage('Could not download ${c.name}, try again');
       }
@@ -269,7 +267,7 @@ class _ThemeCard extends StatelessWidget {
                         // as stalled, which is when people tap again.
                         value: progress! <= 0 ? null : progress,
                         minHeight: 3,
-                        backgroundColor: c.onSurface.withValues(alpha: 0.15),
+                        backgroundColor: c.line,
                         valueColor: AlwaysStoppedAnimation(c.accent),
                       ),
                     ),

@@ -30,10 +30,15 @@ import java.util.concurrent.TimeUnit
  * survives the process, and honours Doze and the metered-network constraint
  * that keeps this off a user's data bundle.
  *
- * ONLY UPDATES WHAT IS ALREADY INSTALLED. It never installs something new: a
+ * ONLY UPDATES WHAT IS ALREADY INSTALLED, plus [PackPaths.bundledPackIds]. A
  * background job that silently adds packs is a background job that silently
- * uses someone's storage. New installs are always a user action, in C2b's
- * storefront.
+ * uses someone's storage, so new installs stay a user action in the storefront.
+ *
+ * The bundled exception is narrow and necessary. `simple-icons` ships in the
+ * APK, so it is not "installed" by the loader's definition, so without this it
+ * would sit at its 39-entry seed set on every device forever and the entire CDN
+ * pipeline would quietly do nothing. Those packs are already on the device and
+ * already in use; the download only makes an existing feature more complete.
  */
 class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
@@ -67,7 +72,11 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
         }
 
         var installedAnything = false
-        for (packId in loader.installedPackIds()) {
+        val toSync = LinkedHashSet<String>().apply {
+            addAll(loader.installedPackIds())
+            addAll(PackPaths.bundledPackIds)
+        }
+        for (packId in toSync) {
             when (val r = downloader.syncPack(packId, index)) {
                 is SyncResult.Installed -> {
                     installedAnything = true
@@ -83,7 +92,15 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
             }
         }
 
-        return if (installedAnything) Result.success() else Result.success()
+        // Success either way. There is nothing to retry: every pack was either
+        // current, absent from the index, or failed for a reason retrying in
+        // thirty seconds would reproduce exactly. The periodic schedule is the
+        // retry.
+        if (installedAnything) {
+            // Nothing to do here today. The hot-swap already happened via
+            // PackChangeNotifier, synchronously, inside the loop.
+        }
+        return Result.success()
     }
 
     /**

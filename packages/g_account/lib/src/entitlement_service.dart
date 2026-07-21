@@ -198,21 +198,28 @@ class EntitlementService {
   }
 }
 
-/// NOTE ON SERVER-SIDE VERIFICATION.
-///
-/// There is none yet. `purchase.verificationData` carries a signed payload that
-/// a backend could check against Google Play Developer API, and until something
-/// does, a rooted device running a billing emulator can report ownership this
-/// app will believe.
-///
-/// That is an accepted trade for now, and worth being explicit about rather
-/// than discovering later: the goods are cosmetic themes delivered from a public
-/// CDN, so the realistic loss is a theme someone could have extracted from the
-/// APK anyway. It would NOT be an acceptable trade for anything with a server
-/// cost per use.
-///
-/// When the admin backend exists, the check belongs there: post
-/// `verificationData.serverVerificationData` plus the product id, verify against
-/// Play, and have the server return the entitlement set. That also removes the
-/// fail-closed cold-start gap, because the server can cache the answer.
-library;
+// ── NOTE ON SERVER-SIDE VERIFICATION ────────────────────────────────────────
+//
+// There is none yet. `purchase.verificationData` carries a signed payload that
+// a backend could check against the Google Play Developer API, and until
+// something does, a rooted device running a billing emulator can report
+// ownership this app will believe.
+//
+// That is an accepted trade for now, and worth being explicit about rather than
+// discovering later: the goods are cosmetic themes delivered from a public CDN,
+// so the realistic loss is a theme someone could have extracted from the APK
+// anyway. It would NOT be an acceptable trade for anything with a server cost
+// per use.
+//
+// When the admin backend exists, the check belongs there: post
+// `verificationData.serverVerificationData` plus the product id, verify against
+// Play, and have the server return the entitlement set. That also removes the
+// fail-closed cold-start gap, because the server can cache the answer.
+//
+// PLAIN `//` COMMENTS, NOT `///`, AND NO `library;`. A `///` block at the end of
+// a file is a dangling doc comment with nothing to document, and adding
+// `library;` after it is a compile error because a library directive must
+// precede every other directive including the imports at the top. This is the
+// fourth time that mistake has landed in this codebase; `layout_resolver.dart`
+// is the pattern when a file genuinely needs a library doc: doc comment,
+// `library;`, then imports, all at the TOP.

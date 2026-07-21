@@ -14,7 +14,6 @@ import '../features/drawer/app_icon.dart';
 import '../features/drawer/drawer_state.dart';
 import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
-import '../features/home/gnome/conky_tile.dart';
 import '../features/home/gnome/desktop_menu.dart';
 import '../features/home/gnome/gnome_dock.dart';
 import '../features/home/gnome/gnome_top_bar.dart';
@@ -147,10 +146,31 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
       children: [
         Column(
           children: [
-            GnomeTopBar(
-              palette: theme.palette,
-              onActivities: _openActivities,
-              displayFontFamily: theme.typography.display,
+            // ── WHY THIS IS AN OPACITY AND NOT AN `if` ──────────────────
+            //
+            // The drawer paints a 0.92 wash, so anything still mounted BELOW
+            // it bleeds through at 8%. On a real device that put the word
+            // "Activities" across the first row of app labels and ghosted the
+            // dock's icons down the left edge: not translucency, just dirt.
+            //
+            // The wash itself is correct and stays. GNOME's overview is
+            // meant to show the wallpaper through it, and the wallpaper is
+            // drawn by WindowManager BENEATH Flutter, so it comes through
+            // whatever we do here. The bug was never the alpha; it was that
+            // the shell's own chrome was sitting between the two.
+            //
+            // Opacity rather than a conditional because this is a Column
+            // child: dropping it would let the workspace canvas grow into the
+            // freed height for one frame, and that reflow is visible through
+            // the very wash we are fixing. The dock and the dots below are
+            // Positioned, so they can simply not be built.
+            Opacity(
+              opacity: activitiesOpen ? 0 : 1,
+              child: GnomeTopBar(
+                palette: theme.palette,
+                onActivities: _openActivities,
+                displayFontFamily: theme.typography.display,
+              ),
             ),
             Expanded(
               child: GestureLayer(
@@ -237,7 +257,12 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         ),
                     ];
 
-                    final showDock = side != DockSide.off || dockRevealed;
+                    // `&& !activitiesOpen`: the dock is the loudest thing
+                    // that was ghosting through the drawer. Positioned, so
+                    // not building it reflows nothing.
+                    final showDock =
+                        (side != DockSide.off || dockRevealed) &&
+                            !activitiesOpen;
 
                     return Stack(
                       children: [
@@ -281,9 +306,10 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                           ),
                         ),
 
-                        const Positioned(
-                            top: 18, right: 18, child: ConkyTile()),
-
+                        // Dots ghost through the drawer too, and a column of
+                        // faint pips down the right edge of an app grid reads
+                        // as a rendering fault rather than as chrome.
+                        if (!activitiesOpen)
                         Positioned(
                           right: 9,
                           top: 0,

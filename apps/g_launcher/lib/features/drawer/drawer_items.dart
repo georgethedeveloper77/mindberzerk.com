@@ -135,13 +135,133 @@ final drawerItemsProvider =
       ),
   ];
 
-  // Apps and the launcher-owned entries, A-to-Z between themselves.
-  final rest = <DrawerItem>[
-    for (final a in apps)
-      if (!folded.contains(a.componentKey)) AppDrawerItem(a),
+  // LAUNCHER ENTRIES ARE PINNED, NOT SORTED.
+  //
+  // This REVERSES the Phase A decision to sort them in alphabetically like any
+  // other app, and the reversal is not a matter of taste — the original does not
+  // survive contact with a real drawer.
+  //
+  // On a test device with 261 apps, "G Launcher Settings" lands under G, some
+  // sixty rows down a four-column grid, and "Device Settings" under D. Someone
+  // hunting for the launcher's settings scrolls to S, finds Android's own
+  // Settings app, and concludes this launcher has none. Reported as "settings
+  // is not appearing", which is exactly what it looks like from the outside.
+  //
+  // These are not apps. They are the launcher's own chrome, and chrome buried
+  // among 261 third-party icons is chrome nobody finds. Same argument that puts
+  // folders first: a thing you made, or a thing this app owns, should not be
+  // scattered through a wall of things you merely installed.
+  //
+  // KDE already reached this conclusion independently — kickoff_drawer keeps
+  // them out of its main list and pins them to its footer. This brings the grid
+  // drawers into line rather than leaving one shell right and three wrong.
+  final launcherEntries = <DrawerItem>[
     const LauncherSettingsItem(),
     const DeviceSettingsItem(),
+  ];
+
+  final appItems = <DrawerItem>[
+    for (final a in apps)
+      if (!folded.contains(a.componentKey)) AppDrawerItem(a),
   ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
-  return [...folders, ...rest];
+  return [...folders, ...launcherEntries, ...appItems];
 });
+
+/// The drawer list, filtered by a query, WITH the launcher entries included.
+///
+/// ─── WHY THIS EXISTS SEPARATELY FROM paletteResultsProvider ─────────────────
+///
+/// That provider ranks `AppEntry`, and a launcher entry is not one. So the rofi
+/// launcher shows Settings on an empty query (it renders [drawerItemsProvider])
+/// and loses it the instant you type, because it switches to the app matcher.
+/// Typing "settings" on Arch could never find G Launcher's settings.
+///
+/// This is the same root cause the terminal shell had, and the terminal only
+/// got fixed because there it was obvious: with no drawer at all, the absence
+/// was total rather than merely intermittent.
+///
+/// A SUBSTRING match, not fuzzy, and that is deliberate. Fuzzy ranking is right
+/// for the palette, where you type two letters and want the best guess. Here the
+/// list is already on screen and the user is narrowing it; results reordering
+/// under a substring they typed reads as the list fighting them. `AppDrawer`'s
+/// own filter made the same call.
+final drawerSearchProvider = Provider.family<List<DrawerItem>,
+    ({EffectiveTheme theme, String query})>((ref, arg) {
+  final items = ref.watch(drawerItemsProvider(arg.theme));
+  final q = arg.query.trim().toLowerCase();
+  if (q.isEmpty) return items;
+
+  return [
+    for (final i in items)
+      if (_matches(i, q)) i,
+  ];
+});
+
+/// The launcher-owned entries a query should surface, in pinned order.
+///
+/// PUBLIC because three surfaces need the same vocabulary and must not each
+/// invent their own: the rofi launcher's typed branch, the GNOME search page,
+/// and any future one. Three private copies of "does 'theme' mean Settings" is
+/// how a search box starts disagreeing with itself between shells.
+///
+/// Empty for an empty query — a caller showing its own pre-typing layout does
+/// not want these injected into it.
+List<DrawerItem> launcherItemsMatching(String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return const [];
+
+  const all = <DrawerItem>[LauncherSettingsItem(), DeviceSettingsItem()];
+  return [
+    for (final i in all)
+      if (_matches(i, q)) i,
+  ];
+}
+
+/// Label first, then the aliases below for the launcher-owned entries.
+///
+/// An app matches on its label and nothing else: inventing synonyms for
+/// third-party apps is how a search box starts surfacing things nobody asked
+/// for. The launcher's own entries are the exception because their labels are
+/// the one thing the user cannot guess — nobody types "G Launcher Settings".
+bool _matches(DrawerItem item, String q) {
+  if (item.label.toLowerCase().contains(q)) return true;
+
+  final aliases = switch (item) {
+    LauncherSettingsItem() => launcherSettingsAliases,
+    DeviceSettingsItem() => deviceSettingsAliases,
+    // Folders match on the name the user gave them, which is already the label.
+    AppDrawerItem() || FolderDrawerItem() => const <String>[],
+  };
+
+  for (final a in aliases) {
+    if (a.contains(q) || q.contains(a)) return true;
+  }
+  return false;
+}
+
+/// Extra words that should find a launcher entry.
+///
+/// "settings" is the obvious one and it already matches by label. These are the
+/// ones that do not: someone looking for the theme picker types "theme", not
+/// "G Launcher Settings", and the theme picker lives one tap inside that screen.
+///
+/// Kept as data next to the items rather than inside a matcher so the terminal's
+/// command table and the drawer search can agree on the vocabulary.
+const launcherSettingsAliases = <String>[
+  'settings',
+  'theme',
+  'themes',
+  'distro',
+  'launcher',
+  'wallpaper',
+  'gestures',
+  'icons',
+];
+
+const deviceSettingsAliases = <String>[
+  'android',
+  'system',
+  'device',
+  'phone',
+];

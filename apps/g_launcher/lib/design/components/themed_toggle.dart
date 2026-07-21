@@ -23,7 +23,7 @@ class ThemedToggle extends StatelessWidget {
       onChanged: onChanged,
       // Explicit colours on every state so the switch never falls through to
       // the host ThemeData.
-      activeColor: c.onAccent, // thumb when on
+      activeThumbColor: c.onAccent, // thumb when on
       activeTrackColor: c.accent,
       inactiveThumbColor: c.textMuted,
       inactiveTrackColor: c.surfaceAlt,

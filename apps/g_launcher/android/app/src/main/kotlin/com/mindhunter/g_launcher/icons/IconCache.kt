@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.LruCache
 import com.mindhunter.g_launcher.apps.AppRepository
+import com.mindhunter.g_launcher.cdn.PackChangeNotifier
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.Executors
@@ -55,6 +56,18 @@ class IconCache(
 
     private val memory = object : LruCache<String, ByteArray>(MEMORY_BUDGET_BYTES) {
         override fun sizeOf(key: String, value: ByteArray): Int = value.size
+    }
+
+    init {
+        // PHASE C2 — the hot-swap. The cache registers ITSELF rather than being
+        // wired up by whoever constructs it, because the cache is the thing that
+        // knows it must invalidate, and a registration living in
+        // LauncherApplication is a line someone deletes during a refactor
+        // without any test noticing.
+        //
+        // Fires on a WorkManager thread. Everything it touches is either
+        // @Synchronized or thread-safe, and the disk sweep goes onto [io].
+        PackChangeNotifier.register { _, packId -> onPackChanged(packId) }
     }
 
     @Volatile
@@ -109,6 +122,36 @@ class IconCache(
             if (bytes != null) memory.put(key, bytes)
             callback(bytes)
         }
+    }
+
+    /**
+     * A verified pack just landed. Drop everything derived from the old one.
+     *
+     * THE DISK TIER IS THE SUBTLE HALF. The cache key includes
+     * `style.fingerprint()`, which carries the pack ID but NOT the pack
+     * VERSION — deliberately, because threading a version through IconStyle
+     * would mean touching all eight of the places a field has to be added and
+     * would change the Pigeon wire format for something no theme author ever
+     * sets. The consequence is that after an update the disk key is unchanged,
+     * so every icon rendered from the old pack keeps being served from disk,
+     * forever, and a brand pack that just gained 3,400 glyphs looks exactly
+     * like a download that never happened.
+     *
+     * Clearing disk here costs a one-off re-render of whatever is on screen,
+     * at most once a day, on a job that already only runs on unmetered power.
+     * That is the correct trade.
+     *
+     * Ignores the packId and clears everything. Being precise would mean
+     * knowing which cached bitmaps came from which layer of the pipeline, and
+     * that information is not kept anywhere — nor should it be, to save one
+     * re-render a day.
+     */
+    fun onPackChanged(packId: String) {
+        // Both resolvers keep the id they were asked for, so an update — same
+        // id, new bytes — needs reload(), not load(). load() would early-return.
+        heroes.reload()
+        brands.reload()
+        clear()
     }
 
     fun clear() {

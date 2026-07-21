@@ -53,8 +53,15 @@ class AppDrawer extends ConsumerWidget {
     // Where the search bar sits. null = the theme decides, resolved to bottom
     // (thumb-reachable, matching the One UI search page); a theme may pin 'top'
     // for an authentic GNOME feel.
-    final searchAtBottom =
-        (theme.prefs.drawerSearchPosition ?? 'bottom') != 'top';
+    // THREE positions now, not two. 'off' hides the bar entirely, for people
+    // who reach search by gesture or by the desktop search desklet.
+    final searchPosition = theme.prefs.drawerSearchPosition ?? 'bottom';
+    final showSearch = searchPosition != 'off';
+
+    // 'off' counts as "not at the top", so the empty first row survives when
+    // the bar is hidden. The gap exists to clear the status bar, and that is
+    // just as true with no search bar as with one at the bottom.
+    final searchAtBottom = searchPosition != 'top';
 
     // Naming a folder happens HERE, at the drawer, not on the tile that handled
     // the drop — that tile folds itself away and unmounts. `context` is the
@@ -93,7 +100,48 @@ class AppDrawer extends ConsumerWidget {
 
         // How the drawer moves. Vertical is the default and the one nobody
         // notices; paged and cube are the personalization payoff.
-        final style = theme.prefs.drawerScrollStyle ?? 'vertical';
+        // PAGES IS THE DEFAULT, and this fallback is what changes it for
+        // everyone rather than only for new installs: the pref is nullable,
+        // and null has always meant "whatever this line says".
+        //
+        // Applying it to existing users was a deliberate call. The alternative
+        // is writing 'vertical' into every existing profile on upgrade, which
+        // freezes them on the layout they never chose and makes the default a
+        // lie for the rest of the app's life.
+        final style = theme.prefs.drawerScrollStyle ?? 'pages';
+
+        // ── THE EMPTY FIRST ROW ─────────────────────────────────────────
+        //
+        // One row of clearance above the grid. Not a reserved SLOT: padding.
+        //
+        // That distinction is the whole design. As a reserved slot it would
+        // have to be skipped by the item indexer, would cost four apps on
+        // every page of a paged drawer, and would need a rule about whether
+        // page two also gets one. As padding it is free, it applies to every
+        // page automatically, and the pager's row count absorbs it because
+        // rows are already derived from the height actually available.
+        //
+        // It exists because the drawer had twelve pixels of top padding, so
+        // on a real device the first row of icons sat jammed under the status
+        // bar with the shell's "Activities" label landing across the labels.
+        // Every drawer worth copying leaves this gap.
+        //
+        // ONLY when the search bar is at the bottom. With search at the top
+        // that row is already occupied by something, and a gap under it would
+        // be a hole rather than breathing room.
+        // HALF a row, not a whole one.
+        //
+        // A full tile height was the literal reading of "an empty first row"
+        // and it is too much on a phone: it reads as the grid having failed to
+        // start rather than as breathing room, and on a paged drawer it cost a
+        // whole row of apps on every page. Measured against the drawer this is
+        // modelled on, the gap there is a little under half a row.
+        //
+        // Still derived from the tile rather than a fixed dp, so it stays
+        // proportional across a 320dp Tecno and a tablet.
+        final tileH =
+            GridMetrics.cellWidthFor(constraints.maxWidth, columns) / aspect;
+        final topGap = searchAtBottom ? tileH * 0.5 : 0.0;
 
         Widget tileAt(int i) => _tileFor(
               items[i],
@@ -102,35 +150,59 @@ class AppDrawer extends ConsumerWidget {
               onFolderCreated: onFolderCreated,
             );
 
+        // Grouping only applies to the list; see LauncherPrefs.drawerGrouping.
+        final groupAz = (theme.prefs.drawerGrouping ?? 'none') == 'az';
+
+        // ── WHY THE PAGED BRANCH NO LONGER RETURNS EARLY ────────────────
+        //
+        // It used to `return Expanded(DrawerPager(...))` from here, which
+        // skipped everything below: the search bar, the SafeArea and the
+        // drawer's own backdrop. So choosing pages or cube silently lost the
+        // search bar, which is the bug that reads as "there is no search on
+        // pages". It also returned a bare Expanded from a LayoutBuilder, with
+        // no Flex above it to give it a flex factor.
+        //
+        // Now every layout produces a `body` and falls through to the one
+        // scaffold at the bottom. A layout can change how the grid MOVES; it
+        // has no business deciding whether the drawer has a search bar.
+        final Widget body;
+
         if (style == 'pages' || style == 'cube') {
-          return Expanded(
+          body = Expanded(
             child: DrawerPager(
               itemCount: items.length,
               columns: columns,
               aspectRatio: aspect,
               cube: style == 'cube',
+              topPadding: topGap,
               itemBuilder: (context, i) => tileAt(i),
             ),
           );
-        }
-
-        final grid = Expanded(
-          child: GridView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              childAspectRatio: aspect,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 16,
+        } else if (groupAz) {
+          body = Expanded(
+            child: _AzList(
+              items: items,
+              theme: theme,
+              columns: columns,
+              aspect: aspect,
+              topGap: topGap,
+              tileBuilder: (item) => _tileFor(
+                item,
+                theme: theme,
+                labelLines: labelLines,
+                onFolderCreated: onFolderCreated,
+              ),
             ),
-            itemCount: items.length,
-            // addRepaintBoundaries is on by default and we want it: each icon is
-            // an Image.memory, and without a boundary one icon resolving repaints
-            // the entire visible grid.
-            itemBuilder: (context, i) => tileAt(i),
-          ),
-        );
+          );
+        } else {
+          body = _plainGrid(
+            items: items,
+            columns: columns,
+            aspect: aspect,
+            topGap: topGap,
+            tileAt: tileAt,
+          );
+        }
 
         final searchBar = _DrawerSearchBar(theme: theme);
 
@@ -145,8 +217,11 @@ class AppDrawer extends ConsumerWidget {
           color: theme.palette.bgBottom.withValues(alpha: 0.92),
           child: SafeArea(
             child: Column(
-              children:
-                  searchAtBottom ? [grid, searchBar] : [searchBar, grid],
+              children: [
+                if (showSearch && !searchAtBottom) searchBar,
+                body,
+                if (showSearch && searchAtBottom) searchBar,
+              ],
             ),
           ),
         );
@@ -609,4 +684,203 @@ Widget _tileFor(
                   ),
                 ),
             };
+}
+
+
+/// The drawer's app list, cut into letter sections.
+///
+/// ─── THE PINNED BLOCK KEEPS NO HEADER ───────────────────────────────────────
+///
+/// `drawerItemsProvider` returns folders, then the launcher's own entries, then
+/// the apps A to Z, and both of the first two blocks are pinned for reasons
+/// written out at length in that file. Sorting them under letters would undo
+/// all of it: "Games" would land under G, sixty rows down, and G Launcher
+/// Settings would be back under G where nobody found it the first time.
+///
+/// So everything that is not an app stays in one unheaded block at the top,
+/// and only the apps are sectioned. The absence of a header is what marks that
+/// block as chrome rather than as content, which is the same signal the folder
+/// block already relies on.
+///
+/// ─── AND WHY A CUSTOMSCROLLVIEW ─────────────────────────────────────────────
+///
+/// A single GridView cannot carry full-width headers between its rows, and a
+/// Column of GridViews would build every section eagerly, which on 261 apps is
+/// the one thing the drawer's performance rules forbid. Slivers give lazy
+/// building AND mixed row shapes, which is exactly the pair this needs.
+class _AzList extends StatelessWidget {
+  const _AzList({
+    required this.items,
+    required this.theme,
+    required this.columns,
+    required this.aspect,
+    required this.topGap,
+    required this.tileBuilder,
+  });
+
+  final List<DrawerItem> items;
+  final EffectiveTheme theme;
+  final int columns;
+  final double aspect;
+  final double topGap;
+  final Widget Function(DrawerItem) tileBuilder;
+
+  /// The section a label belongs to.
+  ///
+  /// Anything that does not start with A to Z lands in '#', which is where a
+  /// music library puts them and where nobody is surprised to find "6amMart"
+  /// or an app whose name starts with an emoji. Case-folded, so "iFixit" and
+  /// "Instagram" share a section rather than sorting into two.
+  static String _sectionOf(String label) {
+    final t = label.trim();
+    if (t.isEmpty) return '#';
+    final c = t[0].toUpperCase();
+    return (c.codeUnitAt(0) >= 65 && c.codeUnitAt(0) <= 90) ? c : '#';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pinned = [
+      for (final i in items)
+        if (i is! AppDrawerItem) i,
+    ];
+    final apps = [
+      for (final i in items)
+        if (i is AppDrawerItem) i,
+    ];
+
+    // Insertion-ordered, and `apps` arrives already sorted A to Z, so the
+    // sections come out in order without a second sort. '#' therefore lands
+    // wherever its first member does, which is the top, matching how a
+    // case-insensitive sort already treats digits and symbols.
+    final sections = <String, List<DrawerItem>>{};
+    for (final a in apps) {
+      sections.putIfAbsent(_sectionOf(a.label), () => <DrawerItem>[]).add(a);
+    }
+
+    final delegate = SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: columns,
+      childAspectRatio: aspect,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 16,
+    );
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        // The empty first row, as padding, exactly as the unsectioned grid
+        // does it. Applied once at the top rather than per section.
+        SliverToBoxAdapter(child: SizedBox(height: 12 + topGap)),
+
+        if (pinned.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: delegate,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => tileBuilder(pinned[i]),
+                childCount: pinned.length,
+              ),
+            ),
+          ),
+
+        for (final e in sections.entries) ...[
+          SliverToBoxAdapter(
+            child: _SectionHeader(letter: e.key, theme: theme),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: delegate,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => tileBuilder(e.value[i]),
+                childCount: e.value.length,
+              ),
+            ),
+          ),
+        ],
+
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+      ],
+    );
+  }
+}
+
+/// One letter, with a hairline running off to the right.
+///
+/// Reads the palette and the theme's display family, never a constant, so the
+/// header is Ubuntu's under Ubuntu and Breeze's under KDE. `no_constants.sh`
+/// would fail it otherwise, and rightly: a section header is chrome, and chrome
+/// that ignores the distro is the one place the whole app forgets what it is.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.letter, required this.theme});
+
+  final String letter;
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = theme.palette.onDark;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+      child: Row(
+        children: [
+          Text(
+            letter,
+            style: TextStyle(
+              fontFamily: theme.typography.display,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: theme.palette.accent,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: ink.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// The unsectioned, unpaged grid: one long scroll.
+///
+/// Pulled out of `build` when the layout branch was rewritten. It used to be
+/// built inline as `final grid = ...` and the paged branch returned BEFORE
+/// reaching it, which is how pages and cube lost the search bar. Three
+/// sibling functions returning a body, and one scaffold consuming it, makes
+/// that class of mistake structural rather than a matter of remembering.
+Widget _plainGrid({
+  required List<DrawerItem> items,
+  required int columns,
+  required double aspect,
+  required double topGap,
+  required Widget Function(int) tileAt,
+}) {
+  return Expanded(
+    child: GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      // fromLTRB, not symmetric: the empty first row is above the grid only.
+      // A matching gap at the bottom would push the last row off the search
+      // bar and read as the list having stopped short.
+      padding: EdgeInsets.fromLTRB(16, 12 + topGap, 16, 12),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        childAspectRatio: aspect,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: items.length,
+      // addRepaintBoundaries is on by default and we want it: each icon is an
+      // Image.memory, and without a boundary one icon resolving repaints the
+      // entire visible grid.
+      itemBuilder: (context, i) => tileAt(i),
+    ),
+  );
 }

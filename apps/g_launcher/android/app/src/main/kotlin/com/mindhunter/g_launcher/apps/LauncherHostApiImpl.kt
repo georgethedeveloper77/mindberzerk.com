@@ -17,6 +17,9 @@ import com.mindhunter.g_launcher.icons.IconCache
 import com.mindhunter.g_launcher.icons.HeroIconResolver
 import com.mindhunter.g_launcher.icons.IconExtractor
 import com.mindhunter.g_launcher.icons.IconRenderer
+import com.mindhunter.g_launcher.DeviceStats
+import com.mindhunter.g_launcher.StatCapabilities
+import com.mindhunter.g_launcher.system.DeviceStatsReader
 import com.mindhunter.g_launcher.system.GestureAccessibilityService
 import com.mindhunter.g_launcher.system.RoleRequester
 import com.mindhunter.g_launcher.system.WallpaperController
@@ -49,6 +52,7 @@ class LauncherHostApiImpl(
     private val repository = AppRepository(appContext)
     private val roles = RoleRequester(appContext)
     private val wallpaper = WallpaperController(appContext)
+    private val stats = DeviceStatsReader(appContext)
 
     private val iconCache = IconCache(
         context = appContext,
@@ -214,6 +218,28 @@ class LauncherHostApiImpl(
         // card; it does not get a crash.
         val service = GestureAccessibilityService.instance ?: return false
         return service.perform(action)
+    }
+
+    // ---- device stats (PHASE D1) -----------------------------------------
+    //
+    // Both go through the SAME single-threaded `io` executor the wallpaper uses,
+    // and that is deliberate rather than incidental: a snapshot touches a file
+    // read and a StatFs, and the one thread this class must never occupy is the
+    // one drawing the home screen. Serialising them behind one executor also
+    // means two desklets mounting at once cannot double-probe.
+
+    override fun getStatCapabilities(callback: (Result<StatCapabilities>) -> Unit) {
+        io.execute {
+            val caps = runCatching { stats.capabilities() }
+            main.post { callback(caps) }
+        }
+    }
+
+    override fun readStats(callback: (Result<DeviceStats>) -> Unit) {
+        io.execute {
+            val snapshot = runCatching { stats.read() }
+            main.post { callback(snapshot) }
+        }
     }
 
     private fun WireStyle.toRenderStyle(): RenderStyle = RenderStyle(

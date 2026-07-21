@@ -5,8 +5,8 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import com.mindhunter.g_launcher.apps.ComponentKey
+import com.mindhunter.g_launcher.cdn.PackPaths
 import org.json.JSONObject
-import java.io.File
 
 /**
  * The difference between "themed" and "authentic".
@@ -30,12 +30,6 @@ class HeroIconResolver(context: Context) {
 
     private val appContext = context.applicationContext
 
-    /**
-     * CDN packs land here. Bundled packs (ubuntu/yaru ships in the APK) are read
-     * from Flutter's asset bundle instead — see [openPackFile].
-     */
-    private val downloadedPacksDir = File(appContext.filesDir, "heropacks")
-
     private data class Pack(
         val id: String,
         /**
@@ -58,6 +52,18 @@ class HeroIconResolver(context: Context) {
         if (packId == loadedId) return
         loadedId = packId
         pack = packId?.let { runCatching { readPack(it) }.getOrNull() }
+    }
+
+    /**
+     * Re-read from disk even when the id is unchanged. PHASE C2: an UPDATE keeps
+     * the same pack id, so [load]'s early return would leave the old artwork
+     * loaded until the process dies. See BrandIconResolver.reload for the long
+     * version; this is the same trap.
+     */
+    @Synchronized
+    fun reload() {
+        val id = loadedId ?: return
+        pack = runCatching { readPack(id) }.getOrNull()
     }
 
     /** True when the pack ships pre-masked square art that we must still shape. */
@@ -118,8 +124,10 @@ class HeroIconResolver(context: Context) {
      * same property the themes themselves have.
      */
     private fun openPackFile(packId: String, filename: String): ByteArray? {
-        val downloaded = File(File(downloadedPacksDir, packId), filename)
-        if (downloaded.exists()) {
+        // PHASE C2: the verified packs root. filesDir/heropacks is gone; see
+        // PackPaths for why an unverified read path next to a verified one is
+        // worse than no read path at all.
+        PackPaths.installedFile(appContext, packId, filename)?.let { downloaded ->
             return runCatching { downloaded.readBytes() }.getOrNull()
         }
 

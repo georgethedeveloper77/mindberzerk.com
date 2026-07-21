@@ -1,0 +1,20 @@
+[
+  {
+    "sku": "bundle_tiling",
+    "title": "Tiling collection",
+    "summary": "Every tiling desktop: Arch with Hyprland, Garuda Dr460nized, and any tiling distro added later.",
+    "grants": ["arch-hyprland", "garuda-dr460nized"]
+  },
+  {
+    "sku": "bundle_classic",
+    "title": "Classic desktops",
+    "summary": "Linux Mint, elementary OS, Debian and Pop!_OS.",
+    "grants": ["mint-22", "elementary-8", "debian-13", "pop-os-cosmic"]
+  },
+  {
+    "sku": "distro_pack_all",
+    "title": "Every distro, forever",
+    "summary": "All distro packs, including every one released in future.",
+    "grants": ["*"]
+  }
+]

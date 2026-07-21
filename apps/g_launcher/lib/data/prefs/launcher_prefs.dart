@@ -23,6 +23,7 @@ class LauncherPrefs {
     this.drawerCols,
     this.drawerSearchPosition,
     this.drawerScrollStyle,
+    this.drawerGrouping,
     this.workspaceCount,
     this.verboseBoot,
     this.iconSizeDp,
@@ -36,6 +37,7 @@ class LauncherPrefs {
     this.homeItems = const [],
     this.folders = const [],
     this.drawerFolders = const [],
+    this.desklets = const [],
     this.dismissedSuggestions = const {},
     this.folderCols,
     this.folderRows,
@@ -43,8 +45,10 @@ class LauncherPrefs {
     this.folderOrderCustom,
     this.wallpapers = const [],
     this.wallpaperLock,
+    this.wallpaperCurrent,
     this.wallpaperRotationMinutes,
     this.wallpaperInitialized = false,
+    this.deskletsInitialized = false,
   });
 
   /// Bumped when the JSON shape changes incompatibly. Read it before parsing;
@@ -90,6 +94,21 @@ class LauncherPrefs {
   /// pages, so they cost nothing at runtime — and they are the kind of thing
   /// people screenshot, which is what makes them worth having at all.
   final String? drawerScrollStyle;
+
+  /// How the drawer's app list is GROUPED. null | 'none' | 'az'.
+  ///
+  /// ─── WHY THIS IS NOT A FOURTH drawerScrollStyle VALUE ──────────────────
+  ///
+  /// It was going to be, and that would have been a bug in the settings UI
+  /// rather than in the code. A-to-Z means letter headers, and letter headers
+  /// need a continuous scroll to sit in: there is nowhere to put "M" on a page
+  /// that turns. So as a fourth value of drawerScrollStyle, picking 'az' would
+  /// have had to silently mean "and also stop being paged", and two of the
+  /// four options in one row would have quietly disabled each other.
+  ///
+  /// Grouping is therefore ORTHOGONAL to layout, and only meaningful when
+  /// drawerScrollStyle is the list. Settings hides this row otherwise.
+  final String? drawerGrouping;
 
   /// How many vertical workspaces the desktop has, 1–5. null = default (3).
   ///
@@ -145,6 +164,23 @@ class LauncherPrefs {
   /// rearrange the home screen, and vice versa.
   final List<AppFolder> drawerFolders;
 
+  /// Desklets placed on the desktop, across every workspace.
+  ///
+  /// PHASE D2. Additive, so [schemaVersion] stays 1 and an older prefs file
+  /// parses unchanged as "no desklets", which is what every existing user has.
+  ///
+  /// FLAT, WITH `page` ON THE RECORD — the same shape [homeItems] already uses,
+  /// and for the same three reasons:
+  ///   * per-workspace content needs no new container type
+  ///   * dropping the workspace count from 5 to 2 HIDES pages 3-5 rather than
+  ///     destroying what is on them, because nothing prunes by page
+  ///   * raising it back restores them intact
+  ///
+  /// Order is meaningful ONLY on the pane surface (the terminal shell), where
+  /// desklets are command output in sequence rather than cards on a grid. On a
+  /// grid surface the order is irrelevant and `col`/`row` carry the position.
+  final List<Desklet> desklets;
+
   /// Folder suggestions the user said no to, by suggestion id.
   ///
   /// Without this, "ignore" means "ask me again on every rebuild", which is how
@@ -191,6 +227,23 @@ class LauncherPrefs {
   /// Opt in, per theme, like everything else here.
   final bool? wallpaperLock;
 
+  /// The wallpaper currently chosen FOR THIS THEME, as an unencoded source.
+  ///
+  /// ─── WHY THIS HAD TO EXIST ─────────────────────────────────────────────
+  ///
+  /// Android's wallpaper is ONE GLOBAL SETTING, but this launcher's prefs are
+  /// per theme. Nothing recorded which wallpaper belonged to which distro, so
+  /// switching Ubuntu to KDE and back left KDE's wallpaper on screen under
+  /// Ubuntu's palette, with nothing to put back.
+  ///
+  /// The old `wallpaperInitialized` flag could not fix that: it answers "has
+  /// this theme ever applied one", which is true for both themes by the second
+  /// switch, so the re-apply was skipped exactly when it was needed.
+  ///
+  /// Null means this theme has no user choice yet, and its own first preset is
+  /// used instead.
+  final String? wallpaperCurrent;
+
   /// null = no rotation. Android's WorkManager floor is 15 minutes; anything
   /// smaller is silently clamped, so do not offer "every 5 minutes" in the UI
   /// and quietly lie.
@@ -204,6 +257,15 @@ class LauncherPrefs {
   /// wallpaper is a theme people uninstall.
   final bool wallpaperInitialized;
 
+  /// Has this theme's STARTER DESKTOP been laid out yet?
+  ///
+  /// Per theme, and ONCE, for exactly the reason [wallpaperInitialized] is:
+  /// choosing Arch should lay out a waybar-ish desktop the first time, and must
+  /// never re-stamp it over an arrangement the user has since made. Removing
+  /// every desklet is a legitimate arrangement, so "the list is empty" cannot
+  /// stand in for this flag.
+  final bool deskletsInitialized;
+
   LauncherPrefs copyWith({
     String? dockSide,
     String? dockGridButton,
@@ -213,6 +275,7 @@ class LauncherPrefs {
     int? drawerCols,
     String? drawerSearchPosition,
     String? drawerScrollStyle,
+    String? drawerGrouping,
     int? workspaceCount,
     bool? verboseBoot,
     double? iconSizeDp,
@@ -226,6 +289,7 @@ class LauncherPrefs {
     List<HomeItem>? homeItems,
     List<AppFolder>? folders,
     List<AppFolder>? drawerFolders,
+    List<Desklet>? desklets,
     Set<String>? dismissedSuggestions,
     int? folderCols,
     int? folderRows,
@@ -233,8 +297,10 @@ class LauncherPrefs {
     bool? folderOrderCustom,
     List<String>? wallpapers,
     bool? wallpaperLock,
+    String? wallpaperCurrent,
     int? wallpaperRotationMinutes,
     bool? wallpaperInitialized,
+    bool? deskletsInitialized,
   }) {
     return LauncherPrefs(
       dockSide: dockSide ?? this.dockSide,
@@ -245,6 +311,7 @@ class LauncherPrefs {
       drawerCols: drawerCols ?? this.drawerCols,
       drawerSearchPosition: drawerSearchPosition ?? this.drawerSearchPosition,
       drawerScrollStyle: drawerScrollStyle ?? this.drawerScrollStyle,
+      drawerGrouping: drawerGrouping ?? this.drawerGrouping,
       workspaceCount: workspaceCount ?? this.workspaceCount,
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
@@ -265,9 +332,12 @@ class LauncherPrefs {
       folderOrderCustom: folderOrderCustom ?? this.folderOrderCustom,
       wallpapers: wallpapers ?? this.wallpapers,
       wallpaperLock: wallpaperLock ?? this.wallpaperLock,
+      wallpaperCurrent: wallpaperCurrent ?? this.wallpaperCurrent,
       wallpaperRotationMinutes:
           wallpaperRotationMinutes ?? this.wallpaperRotationMinutes,
+      desklets: desklets ?? this.desklets,
       wallpaperInitialized: wallpaperInitialized ?? this.wallpaperInitialized,
+      deskletsInitialized: deskletsInitialized ?? this.deskletsInitialized,
     );
   }
 
@@ -281,6 +351,7 @@ class LauncherPrefs {
     bool drawerCols = false,
     bool drawerSearchPosition = false,
     bool drawerScrollStyle = false,
+    bool drawerGrouping = false,
     bool folderCols = false,
     bool folderRows = false,
     bool folderShape = false,
@@ -302,6 +373,13 @@ class LauncherPrefs {
       drawerCols: drawerCols ? null : this.drawerCols,
       drawerSearchPosition:
           drawerSearchPosition ? null : this.drawerSearchPosition,
+      // BUG FIX (D2): this line did not exist, so EVERY call to clearing() —
+      // whatever it was clearing — silently reset the drawer scroll style back
+      // to null. A field omitted from this method is not "left alone", it is
+      // dropped, because the constructor defaults it.
+      drawerScrollStyle:
+          drawerScrollStyle ? null : this.drawerScrollStyle,
+      drawerGrouping: drawerGrouping ? null : this.drawerGrouping,
       workspaceCount: workspaceCount ? null : this.workspaceCount,
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
@@ -315,6 +393,7 @@ class LauncherPrefs {
       homeItems: homeItems,
       folders: folders,
       drawerFolders: drawerFolders,
+      desklets: desklets,
       dismissedSuggestions: dismissedSuggestions,
       folderCols: folderCols ? null : this.folderCols,
       folderRows: folderRows ? null : this.folderRows,
@@ -323,8 +402,13 @@ class LauncherPrefs {
           folderOrderCustom ? null : this.folderOrderCustom,
       wallpapers: wallpapers,
       wallpaperLock: wallpaperLock,
+      // Pass-through, not clearable. A field OMITTED from this method is
+      // dropped rather than preserved, which is how drawerScrollStyle was
+      // once silently reset by every unrelated clear.
+      wallpaperCurrent: wallpaperCurrent,
       wallpaperRotationMinutes: wallpaperRotationMinutes,
       wallpaperInitialized: wallpaperInitialized,
+      deskletsInitialized: deskletsInitialized,
     );
   }
 
@@ -337,6 +421,7 @@ class LauncherPrefs {
         if (cols != null) 'cols': cols,
         if (drawerCols != null) 'drawerCols': drawerCols,
         if (drawerScrollStyle != null) 'drawerScrollStyle': drawerScrollStyle,
+        if (drawerGrouping != null) 'drawerGrouping': drawerGrouping,
         if (drawerSearchPosition != null)
           'drawerSearchPosition': drawerSearchPosition,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
@@ -352,6 +437,7 @@ class LauncherPrefs {
         'homeItems': homeItems.map((e) => e.toJson()).toList(),
         'folders': folders.map((e) => e.toJson()).toList(),
         'drawerFolders': drawerFolders.map((e) => e.toJson()).toList(),
+        'desklets': desklets.map((e) => e.toJson()).toList(),
         'dismissedSuggestions': dismissedSuggestions.toList(),
         if (folderCols != null) 'folderCols': folderCols,
         if (folderRows != null) 'folderRows': folderRows,
@@ -359,9 +445,11 @@ class LauncherPrefs {
         if (folderOrderCustom != null) 'folderOrderCustom': folderOrderCustom,
         'wallpapers': wallpapers,
         if (wallpaperLock != null) 'wallpaperLock': wallpaperLock,
+        if (wallpaperCurrent != null) 'wallpaperCurrent': wallpaperCurrent,
         if (wallpaperRotationMinutes != null)
           'wallpaperRotationMinutes': wallpaperRotationMinutes,
         'wallpaperInitialized': wallpaperInitialized,
+        'deskletsInitialized': deskletsInitialized,
       };
 
   static LauncherPrefs fromJson(Map<String, dynamic> j) {
@@ -380,6 +468,7 @@ class LauncherPrefs {
       drawerCols: (j['drawerCols'] as num?)?.toInt(),
       drawerSearchPosition: j['drawerSearchPosition'] as String?,
       drawerScrollStyle: j['drawerScrollStyle'] as String?,
+      drawerGrouping: j['drawerGrouping'] as String?,
       workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
@@ -404,6 +493,9 @@ class LauncherPrefs {
       drawerFolders: ((j['drawerFolders'] as List?) ?? const [])
           .map((e) => AppFolder.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
+      desklets: ((j['desklets'] as List?) ?? const [])
+          .map((e) => Desklet.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
       dismissedSuggestions: ((j['dismissedSuggestions'] as List?) ?? const [])
           .map((e) => e as String)
           .toSet(),
@@ -415,9 +507,11 @@ class LauncherPrefs {
           .map((e) => e as String)
           .toList(),
       wallpaperLock: j['wallpaperLock'] as bool?,
+      wallpaperCurrent: j['wallpaperCurrent'] as String?,
       wallpaperRotationMinutes:
           (j['wallpaperRotationMinutes'] as num?)?.toInt(),
       wallpaperInitialized: j['wallpaperInitialized'] as bool? ?? false,
+      deskletsInitialized: j['deskletsInitialized'] as bool? ?? false,
     );
   }
 
@@ -451,6 +545,7 @@ class LauncherPrefs {
         other.drawerCols == drawerCols &&
         other.drawerSearchPosition == drawerSearchPosition &&
         other.drawerScrollStyle == drawerScrollStyle &&
+        other.drawerGrouping == drawerGrouping &&
         other.workspaceCount == workspaceCount &&
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
@@ -465,6 +560,7 @@ class LauncherPrefs {
         const ListEquality<AppFolder>().equals(other.folders, folders) &&
         const ListEquality<AppFolder>()
             .equals(other.drawerFolders, drawerFolders) &&
+        const ListEquality<Desklet>().equals(other.desklets, desklets) &&
         const SetEquality<String>()
             .equals(other.dismissedSuggestions, dismissedSuggestions) &&
         other.folderCols == folderCols &&
@@ -473,8 +569,10 @@ class LauncherPrefs {
         other.folderOrderCustom == folderOrderCustom &&
         const ListEquality<String>().equals(other.wallpapers, wallpapers) &&
         other.wallpaperLock == wallpaperLock &&
+        other.wallpaperCurrent == wallpaperCurrent &&
         other.wallpaperRotationMinutes == wallpaperRotationMinutes &&
-        other.wallpaperInitialized == wallpaperInitialized;
+        other.wallpaperInitialized == wallpaperInitialized &&
+        other.deskletsInitialized == deskletsInitialized;
   }
 
   @override
@@ -487,6 +585,7 @@ class LauncherPrefs {
         drawerCols,
         drawerSearchPosition,
         drawerScrollStyle,
+        drawerGrouping,
         workspaceCount,
         verboseBoot,
         iconSizeDp,
@@ -500,14 +599,21 @@ class LauncherPrefs {
         const ListEquality<HomeItem>().hash(homeItems),
         const ListEquality<AppFolder>().hash(folders),
         const ListEquality<AppFolder>().hash(drawerFolders),
+        const ListEquality<Desklet>().hash(desklets),
         const SetEquality<String>().hash(dismissedSuggestions),
         folderCols,
         folderRows,
         folderShape,
+        // BUG FIX (D2): folderOrderCustom was in operator== but missing here,
+        // so two prefs differing only in it compared unequal yet hashed equal.
+        // Legal, but the asymmetry is exactly what bites in a Set or a Map key.
+        folderOrderCustom,
         const ListEquality<String>().hash(wallpapers),
         wallpaperLock,
+        wallpaperCurrent,
         wallpaperRotationMinutes,
         wallpaperInitialized,
+        deskletsInitialized,
       ]);
 }
 
@@ -593,4 +699,171 @@ class AppFolder {
   @override
   int get hashCode =>
       Object.hash(id, name, const ListEquality<String>().hash(members));
+}
+
+/// One desklet placed on the desktop.
+///
+/// PHASE D2. "Desklet" and not "widget", deliberately: `Widget` already means
+/// two things here (Flutter's, and Android's `AppWidget`), and a third meaning
+/// in the same codebase guarantees a confusing hour later. Cinnamon calls these
+/// desklets, KDE calls them plasmoids, and the Linux vocabulary happens to fit
+/// the product.
+///
+/// ─── WHY col/row/span AND NOT A FLAT SLOT INDEX ─────────────────────────────
+///
+/// [HomeItem] uses a single `index` because an app occupies exactly one cell.
+/// A desklet occupies a RECTANGLE, and a flat index cannot express one: a
+/// 2x2 tile starting at index 7 covers 7, 8, and two cells a row below whose
+/// indices depend on the column count, which changes per theme. So position is
+/// (col, row) and size is (spanX, spanY), and every occupancy test is a
+/// rectangle overlap.
+///
+/// ─── WHY kind IS A STRING ───────────────────────────────────────────────────
+///
+/// Same contract as `ShellKind.parse`, `brandTreatment` and `BootLineKind`: a
+/// kind this build does not recognise must render as ABSENT, never crash and
+/// NEVER be silently deleted. A CDN theme can offer a desklet a shipped APK has
+/// never heard of, and an older app must round-trip that placement untouched so
+/// it reappears after an update. An enum could not do that.
+class Desklet {
+  const Desklet({
+    required this.id,
+    required this.kind,
+    required this.page,
+    this.col = 0,
+    this.row = 0,
+    this.spanX = 1,
+    this.spanY = 1,
+    this.config = const {},
+  });
+
+  /// Stable across moves and resizes. Not derived from position, because the
+  /// position is the thing that changes.
+  final String id;
+
+  /// Registry key, e.g. "clock", "monitor", "fastfetch". Unknown values survive
+  /// a round trip and simply do not draw.
+  final String kind;
+
+  /// Which workspace. Same convention as [HomeItem.page].
+  final int page;
+
+  /// Top-left cell on the desktop grid.
+  ///
+  /// IGNORED ON THE PANE SURFACE (the terminal shell), where desklets are
+  /// persistent command output in list order rather than positioned cards.
+  /// Precisely the way `dockSide` is already ignored under the Aqua shell: the
+  /// record is shared, the renderer is not.
+  final int col;
+  final int row;
+
+  /// Size in cells, always >= 1. Clamped against the kind's limits AND the grid
+  /// on every write; see `DeskletLayout`.
+  final int spanX;
+  final int spanY;
+
+  /// Per-kind settings. FREE-FORM FROM DAY ONE, and that is a deliberate cost
+  /// decision rather than laziness.
+  ///
+  /// Placements are persisted user data, so adding a typed field later is a
+  /// migration and a schema bump; adding a key to an already-free-form map is
+  /// nothing. The first two desklets need it immediately anyway (a clock wants
+  /// `format` and `showSeconds`, a note is ENTIRELY config), so "add it when
+  /// something needs it" resolves to "add it now".
+  ///
+  /// Validated and CLAMPED ON READ, never on write — the same rule
+  /// `SplashSpec.durationMs` and `IconSizing.parseScale` follow. Unknown keys
+  /// are ignored and absent keys fall to the kind's default, so a config key
+  /// written by a newer build degrades instead of failing to parse.
+  final Map<String, Object?> config;
+
+  bool get isPointLike => spanX == 1 && spanY == 1;
+
+  /// Half-open on both axes: a desklet at col 2 with spanX 2 covers 2 and 3,
+  /// and [right] is 4. Off-by-one here is an overlap bug that only shows up as
+  /// two tiles drawn on top of each other.
+  int get right => col + spanX;
+  int get bottom => row + spanY;
+
+  bool overlaps(Desklet other) {
+    if (other.page != page) return false;
+    return col < other.right &&
+        other.col < right &&
+        row < other.bottom &&
+        other.row < bottom;
+  }
+
+  Desklet copyWith({
+    int? page,
+    int? col,
+    int? row,
+    int? spanX,
+    int? spanY,
+    Map<String, Object?>? config,
+  }) =>
+      Desklet(
+        id: id,
+        kind: kind,
+        page: page ?? this.page,
+        col: col ?? this.col,
+        row: row ?? this.row,
+        spanX: spanX ?? this.spanX,
+        spanY: spanY ?? this.spanY,
+        config: config ?? this.config,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'page': page,
+        'col': col,
+        'row': row,
+        'spanX': spanX,
+        'spanY': spanY,
+        // Omitted when empty: most desklets never carry config, and writing
+        // `"config": {}` on every one of them bloats a file that is read on
+        // every theme resolve.
+        if (config.isNotEmpty) 'config': config,
+      };
+
+  /// Tolerant by design. A missing span or position reads as the safe minimum
+  /// rather than throwing, because this parses content that may have been
+  /// authored in an admin panel or shipped in a CDN starter desktop, and one
+  /// bad field must not take the whole desktop down.
+  static Desklet fromJson(Map<String, dynamic> j) => Desklet(
+        id: j['id'] as String,
+        kind: j['kind'] as String,
+        page: (j['page'] as num?)?.toInt() ?? 0,
+        col: (j['col'] as num?)?.toInt() ?? 0,
+        row: (j['row'] as num?)?.toInt() ?? 0,
+        spanX: (j['spanX'] as num?)?.toInt() ?? 1,
+        spanY: (j['spanY'] as num?)?.toInt() ?? 1,
+        config: ((j['config'] as Map?) ?? const {})
+            .map((k, v) => MapEntry(k as String, v as Object?)),
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Desklet &&
+          other.id == id &&
+          other.kind == kind &&
+          other.page == page &&
+          other.col == col &&
+          other.row == row &&
+          other.spanX == spanX &&
+          other.spanY == spanY &&
+          const MapEquality<String, Object?>().equals(other.config, config);
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        kind,
+        page,
+        col,
+        row,
+        spanX,
+        spanY,
+        const MapEquality<String, Object?>().hash(config),
+      );
 }

@@ -5,8 +5,8 @@ import android.graphics.Color
 import android.graphics.Path
 import androidx.core.graphics.PathParser
 import com.mindhunter.g_launcher.apps.ComponentKey
+import com.mindhunter.g_launcher.cdn.PackPaths
 import org.json.JSONObject
-import java.io.File
 
 /**
  * The HEAD of the icon pipeline: a brand glyph for the apps everyone recognises.
@@ -71,9 +71,6 @@ class BrandIconResolver(context: Context) {
 
     private val appContext = context.applicationContext
 
-    /** CDN packs land here; bundled ones come out of Flutter's asset bundle. */
-    private val downloadedPacksDir = File(appContext.filesDir, "brandpacks")
-
     private data class Pack(
         val id: String,
         val viewBox: Float,
@@ -92,6 +89,25 @@ class BrandIconResolver(context: Context) {
         if (packId == loadedId) return
         loadedId = packId
         pack = packId?.let { runCatching { readPack(it) }.getOrNull() }
+    }
+
+    /**
+     * Re-read the pack from disk EVEN IF the id has not changed.
+     *
+     * PHASE C2, and the reason it exists is the whole point of the CDN work.
+     * When the downloader installs a newer `simple-icons`, the id is identical —
+     * that is what an update means — so [load] takes its early return and this
+     * resolver keeps serving the 39 glyphs it parsed at process start. The pack
+     * with 3,449 of them sits on disk, fully verified, doing nothing until the
+     * user force-stops the launcher.
+     *
+     * That failure is invisible: it looks exactly like the download not having
+     * happened. Called from IconCache.onPackChanged.
+     */
+    @Synchronized
+    fun reload() {
+        val id = loadedId ?: return
+        pack = runCatching { readPack(id) }.getOrNull()
     }
 
     /**
@@ -167,8 +183,11 @@ class BrandIconResolver(context: Context) {
      * property the themes and hero packs have.
      */
     private fun openPackFile(packId: String, filename: String): ByteArray? {
-        val downloaded = File(File(downloadedPacksDir, packId), filename)
-        if (downloaded.exists()) {
+        // PHASE C2: the verified packs root, NOT filesDir/brandpacks. That old
+        // directory had no writer and no verification; reading from it once a
+        // downloader existed would have been a second route into the icon
+        // pipeline that skips PackVerifier entirely. See PackPaths.
+        PackPaths.installedFile(appContext, packId, filename)?.let { downloaded ->
             return runCatching { downloaded.readBytes() }.getOrNull()
         }
 

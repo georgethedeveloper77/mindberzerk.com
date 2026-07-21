@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cdn.mindberzerk.com/schema/theme.schema.json",
+  "title": "G Launcher theme",
+  "$comment": "PHASE D7. Written AFTER the shape shipped, so it documents what exists rather than what was planned. Its job is not documentation: it is catching the add-a-field-in-seven-of-eight-places failure that has already cost two evenings. See docs/theme_authoring.md for the checklists.",
+
+  "type": "object",
+  "required": ["id", "name", "shell", "palette"],
+
+  "$comment_strict": "additionalProperties is FALSE throughout, and that is a deliberate difference from the runtime parser. The app is tolerant on purpose: an unknown key from a newer CDN theme must be ignored, never fatal, because a downgrade must not black-screen someone's home screen. This schema runs in CI against OUR OWN themes, where the same tolerance would silently swallow a typo. `splsh` is not forward compatibility, it is a broken splash nobody notices for a month.",
+  "additionalProperties": false,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "$comment": "Stored in prefs as the per-theme key and used in the icon cache id. NEVER rename a shipped id: it orphans every override and every desklet placement a user has made under it. Version the id instead (ubuntu-24-04.v2) when the icon block changes."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+
+    "shell": {
+      "enum": ["gnome", "plasma", "tiling", "tui", "aqua"],
+      "$comment": "A DESKTOP ENVIRONMENT, not a distro. Most new distros are a palette plus a wallpaper plus a boot log on top of one of these, which is why adding Kali or Mint costs no Dart."
+    },
+
+    "tier": {
+      "enum": ["free", "pro"],
+      "$comment": "Presentation only. Real entitlement is resolved natively against the signed index (CdnIndex.isUnlocked); a theme cannot unlock itself by claiming free."
+    },
+
+    "minAppVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "$comment": "The theme registry falls BACK to Ubuntu rather than throwing when this is not met, so an old client meeting a new pack degrades instead of breaking."
+    },
+
+    "chromeFamily": {
+      "enum": ["adwaita", "breeze", "aqua", "generic"],
+      "$comment": "Omit to inherit ChromeFamily.defaultForShell. Only set it when a distro's chrome genuinely differs from its shell family."
+    },
+
+    "palette": { "$ref": "#/$defs/palette" },
+    "typography": { "$ref": "#/$defs/typography" },
+    "logo": { "$ref": "#/$defs/logo" },
+    "layout": { "$ref": "#/$defs/layout" },
+    "icons": { "$ref": "#/$defs/icons" },
+    "splash": { "$ref": "#/$defs/splash" },
+    "boot": { "$ref": "#/$defs/boot" },
+    "desklets": { "$ref": "#/$defs/desklets" },
+
+    "wallpapers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assetPath" },
+      "$comment": "The FIRST entry is applied once, on first use of the theme, and never again (LauncherPrefs.wallpaperInitialized). Order matters for that reason alone."
+    },
+
+    "wallpaper": {
+      "type": "object",
+      "$comment": "LEGACY single-wallpaper form. Still parsed so a theme already on someone's phone keeps working. Do not author new themes with it.",
+      "additionalProperties": false,
+      "properties": { "asset": { "$ref": "#/$defs/assetPath" } }
+    }
+  },
+
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+      "$comment": "#RRGGBB or #AARRGGBB. Alpha FIRST, matching Android, not last as CSS does it. Getting that backwards produces a theme that looks fine until something translucent renders."
+    },
+
+    "assetPath": {
+      "type": "string",
+      "pattern": "^assets/.+",
+      "$comment": "Repo-relative. A path not under assets/ will not be bundled, and Flutter asset directories are NOT recursive: adding assets/themes/foo/ to a theme means adding it to pubspec.yaml too. That exact omission shipped a terminal theme that silently fell back to Ubuntu."
+    },
+
+    "palette": {
+      "type": "object",
+      "required": ["bgTop", "bgBottom", "bar", "dock", "accent", "onDark"],
+      "additionalProperties": false,
+      "properties": {
+        "bgTop": { "$ref": "#/$defs/color" },
+        "bgBottom": {
+          "allOf": [{ "$ref": "#/$defs/color" }],
+          "$comment": "Load-bearing beyond the wallpaper gradient: it is the boot-log canvas, the splash background and the drop-shadow colour every bare desklet uses. A wrong value here shows up as a boot screen that does not look like this distro."
+        },
+        "bar": { "$ref": "#/$defs/color" },
+        "dock": { "$ref": "#/$defs/color" },
+        "accent": { "$ref": "#/$defs/color" },
+        "onDark": { "$ref": "#/$defs/color" }
+      }
+    },
+
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display": {
+          "type": "string",
+          "$comment": "Must match a family declared in pubspec.yaml EXACTLY. Bundled today: Ubuntu, UbuntuMono. An unknown family does not throw; Flutter silently substitutes, which is why a typo here is invisible until someone looks closely."
+        },
+        "mono": { "type": "string" }
+      }
+    },
+
+    "logo": {
+      "type": "object",
+      "required": ["light", "dark"],
+      "additionalProperties": false,
+      "$comment": "TWO variants, named for the SURFACE they sit on, not for their own colour. `light` is drawn as authored on a light surface; `dark` is tinted to palette.onDark. Getting the naming backwards is the usual mistake.",
+      "properties": {
+        "light": { "$ref": "#/$defs/assetPath" },
+        "dark": { "$ref": "#/$defs/assetPath" }
+      }
+    },
+
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dock": { "enum": ["left", "bottom", "off"] },
+        "topBar": { "type": "boolean" },
+        "grid": {
+          "type": "object",
+          "additionalProperties": false,
+          "$comment": "The DESKTOP grid, which under the authentic decision holds desklets and never app icons. Defaults to 5x4 when omitted, which is why the terminal theme can leave it out entirely.",
+          "properties": {
+            "rows": { "type": "integer", "minimum": 1, "maximum": 12 },
+            "cols": { "type": "integer", "minimum": 1, "maximum": 12 }
+          }
+        },
+        "iconScale": {
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.4,
+          "$comment": "CLAMPED to this range by IconSizing.parseScale at runtime. Enforced here so an author is told rather than silently corrected."
+        }
+      }
+    },
+
+    "icons": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Passed straight to native. The launcher never renders icons in Dart. ADDING A FIELD HERE TOUCHES EIGHT PLACES and missing two of them fails SILENTLY (works once, then serves stale bitmaps forever) - the checklist is in docs/theme_authoring.md.",
+      "properties": {
+        "treatment": {
+          "enum": ["circle", "squircle", "roundedSquare", "square", "teardrop", "original"]
+        },
+        "cornerRadius": { "type": "number", "minimum": 0, "maximum": 0.5 },
+        "foregroundScale": { "type": "number", "minimum": 0.4, "maximum": 1.2 },
+        "backgroundColor": {
+          "oneOf": [{ "$ref": "#/$defs/color" }, { "type": "null" }],
+          "$comment": "null is MEANINGFUL and not the same as absent-by-accident: it means keep the app's own adaptive background layer."
+        },
+        "monochromeTint": {
+          "oneOf": [{ "$ref": "#/$defs/color" }, { "type": "null" }]
+        },
+        "backgroundGradientEnd": {
+          "oneOf": [{ "$ref": "#/$defs/color" }, { "type": "null" }],
+          "$comment": "Requires backgroundColor, which is the near end. Set without it, the renderer keeps the app's own background and ignores this."
+        },
+        "gradientAngle": { "type": "number", "minimum": 0, "maximum": 360 },
+        "heroPack": { "type": "string" },
+        "brandPack": { "type": "string" },
+        "brandTreatment": {
+          "type": "string",
+          "$comment": "A STRING, NOT AN ENUM, in the wire format, because Pigeon numbers enums before classes and a third enum would renumber every class in launcher_api.dart. Kept a string here too so the schema does not promise something the codec cannot deliver. Known values: brandPlate, themePlate; unknown degrades to brandPlate."
+        }
+      }
+    },
+
+    "splash": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "style": { "enum": ["dots", "bar", "spinner", "text", "none"] },
+        "logo": { "$ref": "#/$defs/assetPath" },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 1500,
+          "$comment": "CLAMPED to 400-1500 by SplashSpec's constructor. A CDN theme cannot decide your desktop takes eight seconds to appear."
+        }
+      }
+    },
+
+    "boot": {
+      "type": "object",
+      "required": ["lines"],
+      "additionalProperties": false,
+      "properties": {
+        "tailMs": { "type": "integer", "minimum": 0, "maximum": 3000 },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["kind", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": ["ok", "warn", "fail", "plain", "dim", "grub", "grubSelected", "blank"],
+                "$comment": "An unknown kind degrades to `plain` at runtime rather than failing to parse. Enumerated here so a typo in OUR themes is caught rather than silently flattened."
+              },
+              "text": { "type": "string" },
+              "delayMs": { "type": "integer", "minimum": 0, "maximum": 2000 }
+            }
+          }
+        }
+      }
+    },
+
+    "desklets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "offers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kindId" },
+          "$comment": "Which kinds this distro exposes in the picker, in picker order. An empty or absent list falls back to the shipping set, so a theme predating this block does not get an empty picker."
+        },
+        "starter": {
+          "type": "array",
+          "$comment": "The desktop laid out the FIRST time this theme is chosen, and never again. No ids: they are minted on apply, so two installs of the same pack cannot share one.",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "$ref": "#/$defs/kindId" },
+              "page": { "type": "integer", "minimum": 0, "maximum": 4 },
+              "col": { "type": "integer", "minimum": 0 },
+              "row": { "type": "integer", "minimum": 0 },
+              "spanX": { "type": "integer", "minimum": 1 },
+              "spanY": { "type": "integer", "minimum": 1 },
+              "config": {
+                "type": "object",
+                "$comment": "Free-form, per kind. Validated and clamped on READ, so an unknown key is ignored rather than fatal."
+              }
+            }
+          }
+        },
+        "skins": {
+          "type": "object",
+          "$comment": "Per-kind override, MERGED over DeskletSkin.defaultFor(shell, kind). Partial is the point: a theme that wants a bigger clock writes timeSize and inherits everything else.",
+          "additionalProperties": { "$ref": "#/$defs/skin" }
+        }
+      }
+    },
+
+    "skin": {
+      "type": "object",
+      "$comment": "surface/font/accent are structural and constrained. Everything else is a free-form prop read with a fallback (num_/flag/text), so additionalProperties stays open here on purpose - this is the one place in the schema where a new key must not need a schema edit.",
+      "properties": {
+        "surface": { "enum": ["bare", "card", "panel", "terminal"] },
+        "font": { "enum": ["display", "mono"] },
+        "accent": { "type": "boolean" }
+      }
+    },
+
+    "kindId": {
+      "enum": [
+        "clock", "monitor", "fastfetch", "network", "storage",
+        "battery", "notes", "search",
+        "free", "df", "ls", "uptime"
+      ],
+      "$comment": "ENUMERATED ON PURPOSE, even though the runtime keeps unknown kinds rather than deleting them. A typo (`clcok`) would otherwise vanish from the picker silently, which is exactly the failure class this file exists to catch. ADDING A KIND MEANS UPDATING THIS LIST - see the checklist in docs/theme_authoring.md."
+    }
+  }
+}

@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-
 /// The theme storefront's data — one entry per distro the gallery shows.
 ///
 /// **PHASE C: this is now CDN-backed, and the swap happened exactly where the
@@ -38,6 +34,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// a dock, a couple of tiles — is a few bytes, always current, and honest about
 /// what the theme actually changes.
 library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/cdn/pack_repository.dart';
+import '../../platform/pack_api.g.dart';
+
 
 enum PreviewLayout {
   /// Ubuntu: left dock of dots + two offset tiles.
@@ -312,6 +315,25 @@ final themeCatalogProvider = FutureProvider<List<ThemeCard>>((ref) async {
 
   return merged;
 });
+
+/// Bundled themes only, resolved SYNCHRONOUSLY.
+///
+/// Exists for initial setup, which asks "choose your desktop" before the user
+/// has a desktop. Two reasons it does not use [themeCatalogProvider]:
+///
+///  1. That provider is async, so the distro row would be empty for a frame or
+///     two on a cold first run. An empty row in a wizard step whose entire
+///     content is that row reads as a broken screen, and it is the FIRST screen
+///     anyone sees.
+///  2. Setup has no business offering downloads. Everything here is already in
+///     the APK and applies instantly, which is what makes the step feel like a
+///     switch rather than a purchase.
+///
+/// Filtered the same way setup filtered it before the CDN swap: bundled, and
+/// carrying a real ThemeSpec id to select.
+final bundledThemeCardsProvider = Provider<List<ThemeCard>>(
+  (ref) => _floorCards.where((c) => c.bundled && c.specId != null).toList(),
+);
 
 /// A catalogue theme with no floor entry.
 ///

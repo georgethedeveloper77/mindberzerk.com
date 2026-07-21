@@ -9,6 +9,8 @@ import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../drawer/app_icon.dart';
+import '../drawer/drawer_actions.dart';
+import '../drawer/drawer_items.dart';
 
 /// The drawer search page — the One UI layout, dressed in the active theme.
 ///
@@ -240,14 +242,81 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   // ── While typing: live app results ──────────────────────────────────────────
   Widget _results(BuildContext context, ChromeData d) {
     final results = ref.watch(visibleAppsProvider(_query));
-    if (results.isEmpty) {
+
+    // The launcher's OWN entries, which [visibleAppsProvider] cannot return
+    // because it ranks AppEntry and a launcher entry is not one.
+    //
+    // This was the third surface with the same blind spot, after the rofi
+    // launcher and the terminal: searching "settings" here found Android's
+    // Settings app and never G Launcher's. Worse for the theme picker, which
+    // nobody knows to look for under "G Launcher Settings" — hence the aliases
+    // in drawer_items, shared so the three surfaces cannot drift.
+    final launcherHits = launcherItemsMatching(_query);
+
+    if (results.isEmpty && launcherHits.isEmpty) {
       return Center(
         child: Text(
-          'No apps match "$_query"',
+          'Nothing matches "$_query"',
           style: d.text.body.copyWith(color: d.colors.textMuted),
         ),
       );
     }
+
+    // A SEPARATE SECTION rather than cells mixed into the app grid, and that is
+    // deliberate on two counts. The grid is typed to AppEntry all the way down
+    // (_AppCell, onTap, the usage recording), so mixing would mean threading a
+    // sealed type through the whole page for two rows. And a launcher entry is
+    // not an app: giving it its own heading says so, the same way the drawer
+    // now pins these above the app list rather than sorting them into it.
+    if (launcherHits.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+            child: Text(
+              'Launcher',
+              style: d.text.body.copyWith(
+                color: d.colors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          for (final item in launcherHits)
+            _LauncherHit(
+              item: item,
+              theme: widget.theme,
+              onTap: () {
+                // Reuses the drawer's own router, so this page cannot drift
+                // from what tapping the same entry does in the drawer.
+                ref.read(recentSearchesProvider.notifier).record(_query);
+                activateDrawerItem(context, ref, widget.theme, item);
+              },
+            ),
+          if (results.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 2),
+              child: Text(
+                'Apps',
+                style: d.text.body.copyWith(
+                  color: d.colors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          Expanded(child: _appGrid(context, d, results)),
+        ],
+      );
+    }
+
+    return _appGrid(context, d, results);
+  }
+
+  Widget _appGrid(
+    BuildContext context,
+    ChromeData d,
+    List<AppEntry> results,
+  ) {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -618,6 +687,79 @@ class _BarIcon extends StatelessWidget {
       icon: Icon(icon, color: color),
       tooltip: tooltip,
       onPressed: onTap,
+    );
+  }
+}
+
+/// One launcher-owned entry in the search results.
+///
+/// A ROW, not a grid cell. The app results are a four-across grid of icons;
+/// these are two entries at most and would look stranded in one. A row also
+/// carries a subtitle, which is where the answer to "why is this here" goes
+/// when someone searched for "theme" and got something called Settings.
+class _LauncherHit extends StatelessWidget {
+  const _LauncherHit({
+    required this.item,
+    required this.theme,
+    required this.onTap,
+  });
+
+  final DrawerItem item;
+  final EffectiveTheme theme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    // Sealed, so adding a launcher entry later stops this compiling until it is
+    // handled here too. Apps and folders never reach this widget.
+    final (icon, subtitle) = switch (item) {
+      LauncherSettingsItem() => (
+          // The theme's own brand mark, matching the drawer tile so the same
+          // entry looks like itself wherever it turns up.
+          LauncherBrandIcon(theme: theme, size: 30),
+          'Themes, layout, gestures, icons',
+        ),
+      DeviceSettingsItem() => (
+          Icon(Icons.settings, size: 26, color: c.textMuted),
+          'Opens Android settings',
+        ),
+      AppDrawerItem() || FolderDrawerItem() => (
+          const SizedBox.shrink(),
+          '',
+        ),
+    };
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            SizedBox(width: 34, height: 34, child: Center(child: icon)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.label, style: d.text.body.copyWith(color: c.text)),
+                  if (subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: d.text.body.copyWith(
+                        color: c.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.textFaint),
+          ],
+        ),
+      ),
     );
   }
 }

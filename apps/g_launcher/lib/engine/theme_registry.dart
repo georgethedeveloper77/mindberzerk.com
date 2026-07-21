@@ -1,7 +1,7 @@
-/// PHASE 5.
+/// PHASE 5, revised in T1.
 ///
 /// Holds every theme available to this install:
-///   - bundled  (assets/themes/… — Ubuntu ships in the APK as the fallback)
+///   - bundled  (assets/themes/… — ships in the APK, and is ALWAYS free)
 ///   - installed (downloaded packs on disk)
 ///   - available (in the CDN root manifest, not yet downloaded)
 ///
@@ -12,6 +12,34 @@
 ///
 /// Rule: the launcher must ALWAYS render. A corrupt or missing theme falls back
 /// to Ubuntu silently. A user with a broken home screen has a bricked phone.
+///
+/// ─── BUNDLED IMPLIES FREE ───────────────────────────────────────────────────
+///
+/// Not a convention, a security property. A paid distro sitting in the APK is
+/// one boolean flip from being unlocked, and `tier` in a bundled theme.json is
+/// a string in a file anyone can read. Paid distros therefore arrive over the
+/// CDN, where the entitlement is checked before the bytes are handed over, and
+/// the admin panel owns tier for exactly the packs it can actually enforce it
+/// on.
+///
+/// It also means initial setup needs no curated list of its own: the distros
+/// setup offers ARE the bundled ones, and the two can never drift apart.
+///
+/// ─── WHY THESE THREE ────────────────────────────────────────────────────────
+///
+/// They demonstrate the RANGE, rather than being three distros that happen to
+/// be free:
+///
+///   ubuntu-24-04   a full desktop with a dock down the left  (gnome)
+///   kde-plasma-6   a full desktop with a bottom panel and a start menu
+///                  (plasma) — immediately legible to anyone who has used
+///                  Windows, which on a budget Android phone is the second
+///                  most familiar metaphor there is
+///   terminal       no desktop at all (tui)
+///
+/// Arch is deliberately NOT here despite being the most screenshot-worthy of
+/// the set: no dock, no icons and launch-by-typing is a hard first experience,
+/// and it is one of the strongest things there is to sell. Aqua likewise.
 library;
 
 /// One theme that ships inside the APK: an id and the asset holding its
@@ -27,41 +55,36 @@ class BundledTheme {
 /// never be removed from [bundledThemes] without breaking the promise above.
 const fallbackThemeId = 'ubuntu-24-04';
 
-/// Every bundled theme, by id.
+/// Every bundled theme, by id. All free, by the rule above.
 ///
 /// This is the seam the CDN work plugs into. Installed (downloaded) packs and
-/// the remote manifest merge on top later; the SHAPE the rest of the app reads,
-/// id -> a resolvable ThemeSpec source, does not change. For now every source
-/// is a local asset.
+/// the remote manifest merge on top; the SHAPE the rest of the app reads,
+/// id -> a resolvable ThemeSpec source, does not change.
+///
+/// `fedora-41`, `arch-hyprland` and `aqua` USED TO BE HERE and were moved out
+/// to the CDN when the free/paid line was drawn. Removing them from this map is
+/// what takes them out of the APK; their `assets/themes/<id>/` directories and
+/// their `pubspec.yaml` entries go with them, and a stale selection pointing at
+/// one now resolves to Ubuntu through [bundledAssetFor] until the pack is
+/// downloaded. That fallback is why removing them is safe.
 const bundledThemes = <String, BundledTheme>{
   'ubuntu-24-04': BundledTheme(
     'ubuntu-24-04',
     'assets/themes/ubuntu-24-04/theme.json',
   ),
-  'fedora-41': BundledTheme(
-    'fedora-41',
-    'assets/themes/fedora-41/theme.json',
-  ),
   'kde-plasma-6': BundledTheme(
     'kde-plasma-6',
     'assets/themes/kde-plasma-6/theme.json',
-  ),
-  'arch-hyprland': BundledTheme(
-    'arch-hyprland',
-    'assets/themes/arch-hyprland/theme.json',
   ),
   'terminal': BundledTheme(
     'terminal',
     'assets/themes/terminal/theme.json',
   ),
-  'aqua': BundledTheme(
-    'aqua',
-    'assets/themes/aqua/theme.json',
-  ),
 };
 
 /// Resolve an id to its bundled theme.json asset path, falling back to Ubuntu
-/// when the id is unknown: a stale selection, a CDN id this build predates, or
-/// a typo. A null id (nothing selected yet) also resolves to Ubuntu.
+/// when the id is unknown: a stale selection, a CDN id this build predates, a
+/// pack that has not downloaded yet, or a typo. A null id (nothing selected
+/// yet) also resolves to Ubuntu.
 String bundledAssetFor(String? id) =>
     (bundledThemes[id] ?? bundledThemes[fallbackThemeId]!).assetPath;

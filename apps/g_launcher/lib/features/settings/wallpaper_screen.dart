@@ -9,6 +9,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
+import '../../system/wallpaper_source.dart';
 
 /// Rotation intervals we are willing to offer.
 ///
@@ -59,7 +60,23 @@ class WallpaperScreen extends ConsumerWidget {
       // stash, so calling it on every apply cannot lose the original.
       await api.stashWallpaper();
 
-      final ok = await api.setWallpaper(_encode(source), applyToLock);
+      final ok = await api.setWallpaper(
+        encodeWallpaperSource(source),
+        applyToLock,
+      );
+
+      // Remember WHICH one, and that this theme now owns the screen.
+      //
+      // Without these two writes the choice is invisible to everything else:
+      // effective_theme would stamp the theme's first preset back over it on
+      // the next switch, and nothing would know a user choice had ever been
+      // made. The second write is the same global key effective_theme reads.
+      if (ok) {
+        await notifier.edit((p) => p.copyWith(wallpaperCurrent: source));
+        await ref
+            .read(prefsStoreProvider)
+            .write(wallpaperAppliedForKey, theme.spec.id);
+      }
       if (!context.mounted) return;
       // Single-string message through the branded scaffold — the ecosystem
       // convention. Failure reads as failure from the words, not a tone enum.
@@ -188,8 +205,14 @@ class WallpaperScreen extends ConsumerWidget {
   ///   assets/…  -> "asset:…"   bundled
   ///   https://… -> unchanged   CDN, downloaded and cached natively
   ///   anything else            a file/content URI from the user's gallery
-  static String _encode(String source) =>
-      source.startsWith('assets/') ? 'asset:$source' : source;
+  /// Moved to `system/wallpaper_source.dart`, and CORRECTED on the way.
+  ///
+  /// The version that lived here attached a scheme to bundled assets and to
+  /// nothing else, so a photo from the gallery reached native as a bare path
+  /// with no scheme and was silently ignored. It also existed in a second
+  /// copy inside effective_theme, which is how one of them stayed wrong.
+  @Deprecated('Use encodeWallpaperSource from system/wallpaper_source.dart')
+  static String _encode(String source) => encodeWallpaperSource(source);
 }
 
 /// "Put my wallpaper back", shown ONLY when a stash actually exists.

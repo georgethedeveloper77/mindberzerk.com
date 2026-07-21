@@ -3,6 +3,7 @@ import 'dart:ui';
 import '../design/icon_sizing.dart';
 import '../platform/launcher_api.g.dart' as api;
 import 'boot_spec.dart';
+import 'desklet_skin.dart';
 import 'splash_spec.dart';
 
 /// A distro, as data.
@@ -28,6 +29,7 @@ class ThemeSpec {
     this.logo,
     this.boot,
     this.splash,
+    this.desklets = const DeskletThemeBlock(),
   }) : _chromeFamily = chromeFamily;
 
   final String id;
@@ -97,6 +99,19 @@ class ThemeSpec {
   /// a sequence — see home_screen, which plays one or the other.
   final SplashSpec? splash;
 
+  /// What this distro puts on its desktop, and how it draws it. PHASE D3.
+  ///
+  /// Three things in one block, and they are three different concerns wearing
+  /// the same roof only because they are all authored together:
+  ///   * `offers`  which desklet kinds appear in this distro's picker
+  ///   * `starter` the desktop laid out the first time the theme is chosen
+  ///   * `skins`   per-kind look, merged over the shell family default
+  ///
+  /// Never null, so no caller needs a `?? const DeskletThemeBlock()`. A theme
+  /// with no block gets shell defaults for everything, which is the same
+  /// promise `boot` and `splash` make with their `defaultForShell`.
+  final DeskletThemeBlock desklets;
+
   static ThemeSpec fromJson(Map<String, dynamic> json) {
     final icons = (json['icons'] as Map?)?.cast<String, dynamic>() ?? const {};
 
@@ -138,6 +153,9 @@ class ThemeSpec {
       ),
       splash: SplashSpec.fromJson(
         (json['splash'] as Map?)?.cast<String, dynamic>(),
+      ),
+      desklets: DeskletThemeBlock.fromJson(
+        (json['desklets'] as Map?)?.cast<String, dynamic>(),
       ),
       // Explicit override only. A null here (key absent, or an unknown value
       // from a newer CDN theme) lets the ThemeSpec.chromeFamily getter fall
