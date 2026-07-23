@@ -1,9 +1,18 @@
 import 'server-only';
 
 import { deleteObject, getObject, putObject } from './r2';
-import { isSafePackId, isSafeSku, type IndexPack } from './sign';
-import type { AppId } from './catalogue';
-import type { LiveIndex } from './catalogue';
+import { type IndexPack } from './sign';
+import type { AppId, LiveIndex } from './catalogue';
+import {
+  validateDraft,
+  type ThemeDraft,
+  type ThemeSpecJson,
+} from './theme-spec';
+
+// The shape, serializer and validators live in the client-safe schema module so
+// the builder UI and this server layer can never sign different bytes than the
+// preview shows. Re-exported so existing `from '@/lib/themes'` imports still work.
+export * from './theme-spec';
 
 /**
  * ITEM 1 - free themes as editable data.
@@ -53,92 +62,6 @@ import type { LiveIndex } from './catalogue';
 // is never fetched by a device (devices read index.json + listed pack paths
 // only) and never collides with the signed `index.json`.
 const draftsKey = (app: AppId) => `${app}/admin/theme-drafts.json`;
-
-// ── the draft shape ──────────────────────────────────────────────────────────
-
-export type ShellName = 'gnome' | 'plasma' | 'tiling' | 'tui' | 'aqua';
-export type ChromeName = 'adwaita' | 'breeze' | 'aqua' | 'generic';
-export type TierName = 'free' | 'pro';
-export type DockName = 'left' | 'bottom' | 'off';
-
-export interface ThemePaletteJson {
-  bgTop: string;
-  bgBottom: string;
-  bar: string;
-  dock: string;
-  accent: string;
-  onDark: string;
-}
-
-export interface ThemeTypographyJson {
-  display?: string | null;
-  mono?: string | null;
-}
-
-export interface ThemeLayoutJson {
-  dock: DockName;
-  topBar: boolean;
-  /** Optional: a shell with no icon grid (the terminal) omits it, and
-   *  ThemeLayout.fromJson defaults rows/cols to 5/4 when absent. */
-  grid?: { rows: number; cols: number };
-  iconScale?: number;
-}
-
-/**
- * The theme.json body: every field ThemeSpec.fromJson reads, no more.
- *
- * `palette` is REQUIRED because fromJson does `json['palette'] as Map` with no
- * fallback and throws on absence. Everything else has a Dart-side default, so it
- * is optional here and omitted from the payload when unset.
- *
- * `icons`, `logo`, `boot`, `splash`, `desklets` are PASS-THROUGH. The panel does
- * not need to understand their internals to store and re-emit them; it needs
- * that only to draw form fields, which is items 2 and 3. Carrying them opaque
- * means a real bundled theme.json pasted over a seed keeps its authored boot log
- * and splash untouched, and a seed that omits them lets the app fall back to
- * BootSpec/SplashSpec.defaultForShell, which is the documented graceful path.
- */
-export interface ThemeSpecJson {
-  id: string;
-  name: string;
-  version: string; // DISPLAY string, e.g. '24.04'. Not the pack's integer version.
-  shell: ShellName;
-  tier: TierName;
-  chromeFamily?: ChromeName | null;
-  palette: ThemePaletteJson;
-  typography?: ThemeTypographyJson | null;
-  layout: ThemeLayoutJson;
-  icons?: Record<string, unknown> | null;
-  logo?: unknown; // string | {light,dark} | null
-  wallpapers: string[];
-  minAppVersion: number;
-  boot?: unknown;
-  splash?: unknown;
-  desklets?: unknown;
-
-  /** Set on a seed still carrying preview-derived colours. Cleared once a real
-   *  theme.json is pasted in. Advisory only; never emitted to the payload. */
-  seededFromPreview?: boolean;
-}
-
-export interface ThemeDraft {
-  /** The pack id / specId, e.g. 'ubuntu-24-04'. Also the draft's key. */
-  id: string;
-  /** Index + card title, e.g. 'Ubuntu'. */
-  title: string;
-  /** Index summary line, e.g. '24.04 · GNOME'. */
-  summary: string;
-  /** Play product id that unlocks it, or null for free. Matches isSafeSku. */
-  sku: string | null;
-  /** True for the three that ship in the APK. Informational for the UI. */
-  bundled: boolean;
-  /** Monotonic integer pack version. Bumped on publish, never reused. */
-  packVersion: number;
-  /** The theme.json body. */
-  spec: ThemeSpecJson;
-  /** Unix seconds of the last draft write, for the listing's sort/label. */
-  updatedAt: number;
-}
 
 // ── storage ──────────────────────────────────────────────────────────────────
 
@@ -223,113 +146,6 @@ export async function ensureSeeded(app: AppId): Promise<ThemeDraft[]> {
   }
   if (changed) await writeMap(app, map);
   return Object.values(map).sort((a, b) => a.id.localeCompare(b.id));
-}
-
-// ── the canonical theme.json serializer ──────────────────────────────────────
-
-/**
- * The exact bytes that become the `theme.json` payload inside a theme pack.
- *
- * Fixed key order and two-space indent so identical content always produces
- * identical bytes, which keeps the manifest sha256 stable across re-publishes.
- * Only keys ThemeSpec.fromJson reads are emitted; optional blocks are dropped
- * when unset so a free theme's payload stays as lean as its bundled original.
- *
- * `seededFromPreview` is stripped: it is an editor hint, not part of the theme.
- */
-export function canonicalThemeJson(spec: ThemeSpecJson): string {
-  const out: Record<string, unknown> = {};
-  out.id = spec.id;
-  out.name = spec.name;
-  if (spec.version) out.version = spec.version;
-  out.shell = spec.shell;
-  out.tier = spec.tier;
-  if (spec.chromeFamily) out.chromeFamily = spec.chromeFamily;
-
-  out.palette = {
-    bgTop: spec.palette.bgTop,
-    bgBottom: spec.palette.bgBottom,
-    bar: spec.palette.bar,
-    dock: spec.palette.dock,
-    accent: spec.palette.accent,
-    onDark: spec.palette.onDark,
-  };
-
-  if (spec.typography && (spec.typography.display || spec.typography.mono)) {
-    const t: Record<string, string> = {};
-    if (spec.typography.display) t.display = spec.typography.display;
-    if (spec.typography.mono) t.mono = spec.typography.mono;
-    out.typography = t;
-  }
-
-  out.layout = {
-    dock: spec.layout.dock,
-    topBar: spec.layout.topBar,
-    ...(spec.layout.grid
-      ? { grid: { rows: spec.layout.grid.rows, cols: spec.layout.grid.cols } }
-      : {}),
-    ...(spec.layout.iconScale != null ? { iconScale: spec.layout.iconScale } : {}),
-  };
-
-  if (spec.icons && Object.keys(spec.icons).length) out.icons = spec.icons;
-  if (spec.logo != null) out.logo = spec.logo;
-  // Omit at their parse-time defaults so a generated theme.json diffs cleanly
-  // against a hand-authored one: fromJson reads absent wallpapers as [] and
-  // absent minAppVersion as 0, so emitting them adds noise, not meaning.
-  if (spec.wallpapers && spec.wallpapers.length) out.wallpapers = spec.wallpapers;
-  if (spec.minAppVersion) out.minAppVersion = spec.minAppVersion;
-  if (spec.boot != null) out.boot = spec.boot;
-  if (spec.splash != null) out.splash = spec.splash;
-  if (spec.desklets != null) out.desklets = spec.desklets;
-
-  return JSON.stringify(out, null, 2) + '\n';
-}
-
-// ── validation, failing at edit time so publish never sees a bad draft ────────
-
-const HEX = /^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-const SHELLS: ShellName[] = ['gnome', 'plasma', 'tiling', 'tui', 'aqua'];
-
-function colourProblem(label: string, v: string): string | null {
-  return HEX.test(v) ? null : `${label} '${v}' is not #RRGGBB or #AARRGGBB`;
-}
-
-/** Everything the device or the signer would reject, caught here first. */
-export function validateDraft(draft: ThemeDraft): string[] {
-  const p: string[] = [];
-  const s = draft.spec;
-
-  if (!isSafePackId(draft.id)) p.push(`id '${draft.id}' is not a safe pack id`);
-  if (draft.id !== s.id) p.push(`draft id '${draft.id}' != spec.id '${s.id}'`);
-  if (!draft.title.trim()) p.push('title is empty');
-  if (draft.sku != null && !isSafeSku(draft.sku)) p.push(`sku '${draft.sku}' is unsafe`);
-  if (!Number.isInteger(draft.packVersion) || draft.packVersion < 1) {
-    p.push('packVersion must be an integer >= 1');
-  }
-
-  if (!s.name.trim()) p.push('spec.name is empty');
-  if (!SHELLS.includes(s.shell)) p.push(`shell '${s.shell}' is unknown`);
-  if (s.tier !== 'free' && s.tier !== 'pro') p.push(`tier '${s.tier}' is unknown`);
-
-  if (!s.palette) {
-    // The one field with no Dart fallback; its absence throws at parse.
-    p.push('palette is required (ThemeSpec.fromJson throws without it)');
-  } else {
-    for (const [k, v] of Object.entries(s.palette)) {
-      const problem = colourProblem(`palette.${k}`, v as string);
-      if (problem) p.push(problem);
-    }
-  }
-
-  if (s.minAppVersion != null && (!Number.isInteger(s.minAppVersion) || s.minAppVersion < 0)) {
-    p.push('minAppVersion must be a non-negative integer');
-  }
-  if (s.layout?.iconScale != null && (s.layout.iconScale < 0.7 || s.layout.iconScale > 1.4)) {
-    // Mirrors IconSizing.parseScale so a slider the app will silently clamp is
-    // flagged here instead of quietly changing on the device.
-    p.push('layout.iconScale must be within 0.7-1.4');
-  }
-  return p;
 }
 
 // ── the listing merge (pure) ─────────────────────────────────────────────────

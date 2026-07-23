@@ -46,12 +46,21 @@ enum SetupFrameKind {
   assistant,
 }
 
+/// How a frame shows where you are.
+///
+/// Ubuntu's CURRENT installer (the Flutter one, 23.04 onward) dropped
+/// Ubiquity's left rail for a row of dots along the bottom — the screenshot
+/// everyone recognises today is dots. Calamares kept its sidebar. So progress
+/// style is a skin property keyed by shell like everything else here, not a
+/// single hardcoded frame decision.
+enum SetupProgress { rail, dots, none }
+
 /// How one distro draws its installer.
 class SetupSkin {
   const SetupSkin({
     required this.kind,
     required this.mono,
-    this.showRail = true,
+    this.progress = SetupProgress.dots,
   });
 
   final SetupFrameKind kind;
@@ -61,39 +70,44 @@ class SetupSkin {
   /// a typeface: the theme owns that, and `no_constants.sh` polices it.
   final bool mono;
 
-  /// The wizard's step rail. Costs about a quarter of a 320dp screen, which is
-  /// expensive and worth it: it is the single most recognisable part of a Linux
-  /// installer, and without it the wizard is just a form.
-  final bool showRail;
+  /// Rail, dots, or nothing. The console shows its own [n/total] counter in
+  /// the prompt line, and the assistant deliberately never tells you how many
+  /// steps remain, so both use [SetupProgress.none].
+  final SetupProgress progress;
 
   static SetupSkin defaultForShell(ShellKind shell) => switch (shell) {
-        // Ubiquity. Fedora would inherit this and be right, which is the point.
+        // The modern Ubuntu installer: floating window, centred title, dots.
+        // Fedora would inherit this and be right, which is the point.
         ShellKind.gnome => const SetupSkin(
             kind: SetupFrameKind.wizard,
             mono: false,
+            progress: SetupProgress.dots,
           ),
-        // Calamares is structurally the same wizard, so KDE inherits it. It is
-        // unreachable from setup today (KDE is a paid pack) and is here so the
-        // switch is exhaustive rather than defaulted.
+        // Calamares KEPT the sidebar, so KDE keeps the rail. It is unreachable
+        // from setup today (KDE applies instantly as a bundled theme) and is
+        // here so the switch is exhaustive rather than defaulted.
         ShellKind.plasma => const SetupSkin(
             kind: SetupFrameKind.wizard,
             mono: false,
+            progress: SetupProgress.rail,
           ),
         // A tiling distro installs from a TTY. So does this.
         ShellKind.tiling => const SetupSkin(
             kind: SetupFrameKind.console,
             mono: true,
+            progress: SetupProgress.none,
           ),
         ShellKind.tui => const SetupSkin(
             kind: SetupFrameKind.console,
             mono: true,
+            progress: SetupProgress.none,
           ),
-        // Centred, sparse, one action. No rail: the Setup Assistant never shows
-        // you how many steps are left, which is the whole feeling of it.
+        // Centred, sparse, one action. No progress at all: the Setup Assistant
+        // never shows you how many steps are left, which is the whole feeling.
         ShellKind.aqua => const SetupSkin(
             kind: SetupFrameKind.assistant,
             mono: false,
-            showRail: false,
+            progress: SetupProgress.none,
           ),
       };
 }
@@ -303,8 +317,9 @@ class SetupInstallerFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = ChromeScope.of(context);
+    final c = d.colors;
 
-    return Column(
+    final column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _titleBar(d),
@@ -312,7 +327,8 @@ class SetupInstallerFrame extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (skin.kind == SetupFrameKind.wizard && skin.showRail)
+              if (skin.kind == SetupFrameKind.wizard &&
+                  skin.progress == SetupProgress.rail)
                 _Rail(steps: steps, step: step),
               Expanded(child: _content(d)),
             ],
@@ -320,6 +336,27 @@ class SetupInstallerFrame extends StatelessWidget {
         ),
         _footer(d),
       ],
+    );
+
+    // The console IS the screen and the assistant is deliberately bare, but
+    // the wizard is a WINDOW: the modern Ubuntu installer floats a rounded
+    // card over the wallpaper, and that floating card is most of what makes
+    // the screenshot recognisable. Margins clear Android's own status bar the
+    // same way the shells do — the wallpaper shows through around it because
+    // the scaffold behind this frame is transparent.
+    if (skin.kind != SetupFrameKind.wizard) return column;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        10,
+        MediaQuery.viewPaddingOf(context).top + 10,
+        10,
+        10 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(color: c.surface, child: column),
+      ),
     );
   }
 
@@ -341,18 +378,18 @@ class SetupInstallerFrame extends StatelessWidget {
       return const SizedBox(height: 18);
     }
 
-    // TRANSPARENT, not a filled strip.
-    //
-    // Same rule gnome_top_bar.dart already follows: Android's own status bar is
-    // sitting right there with the clock, the battery and the signal, and a
-    // second opaque bar underneath it reads as two title bars stacked. The
-    // window title stays, because "Install Ubuntu" is the line that tells you
-    // what this screen is. The chrome around it goes.
+    // CENTRED, like the reference: "Welcome to Ubuntu" sits in the middle of
+    // the window's top edge with a hairline under it. No close button — a
+    // launcher's setup has nowhere to close TO (there is no other home screen
+    // behind it once the role is granted), and a decorative X that does
+    // nothing would be worse than none.
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.centerLeft,
-      child: Text(windowTitle, style: d.text.caption.copyWith(color: c.text)),
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.line)),
+      ),
+      child: Text(windowTitle, style: d.text.body.copyWith(color: c.text)),
     );
   }
 
@@ -388,6 +425,7 @@ class SetupInstallerFrame extends StatelessWidget {
 
   Widget _footer(ChromeData d) {
     final c = d.colors;
+    final dots = skin.progress == SetupProgress.dots;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
@@ -402,7 +440,22 @@ class SetupInstallerFrame extends StatelessWidget {
           ],
           Row(
             children: [
-              if (status != null)
+              if (onBack != null) ...[
+                ThemedButton(
+                  label: 'Back',
+                  kind: ThemedButtonKind.text,
+                  onPressed: onBack!,
+                ),
+                const SizedBox(width: 6),
+              ],
+              // Dots take the middle, the reference layout. Without dots the
+              // slot carries the console-style status line instead; both are
+              // Expanded so the Next button always sits at the trailing edge.
+              if (dots)
+                Expanded(
+                    child:
+                        Center(child: _Dots(count: steps.length, step: step)))
+              else if (status != null)
                 Expanded(
                   child: Text(
                     status!,
@@ -412,19 +465,41 @@ class SetupInstallerFrame extends StatelessWidget {
                 )
               else
                 const Spacer(),
-              if (onBack != null) ...[
-                ThemedButton(
-                  label: 'Back',
-                  kind: ThemedButtonKind.text,
-                  onPressed: onBack!,
-                ),
-                const SizedBox(width: 6),
-              ],
               ThemedButton(label: nextLabel, onPressed: onNext),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The bottom progress dots — the modern Ubuntu installer's step indicator.
+/// Filled accent for the current step, hollow line-colour for the rest, no
+/// numbers: the reference never counts steps out loud.
+class _Dots extends StatelessWidget {
+  const _Dots({required this.count, required this.step});
+
+  final int count;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < count; i++)
+          Container(
+            width: i == step ? 9 : 7,
+            height: i == step ? 9 : 7,
+            margin: const EdgeInsets.symmetric(horizontal: 3.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i == step ? c.accent : c.line,
+            ),
+          ),
+      ],
     );
   }
 }

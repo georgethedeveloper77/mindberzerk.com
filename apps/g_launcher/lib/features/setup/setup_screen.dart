@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics.dart';
-import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
@@ -119,6 +118,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// enum survives the list changing under it.
   _SetupStep _step = _SetupStep.welcome;
 
+  /// Folders step: ON BY DEFAULT. The suggested folders (Games first among
+  /// them) are created when the user advances past the step unless they
+  /// untick it — creation is the default outcome, not a button they must
+  /// find. Cleared folders remain available later in Settings > Folders.
+  bool _createFolders = true;
+
   bool _isDefault = false;
 
   /// How many times Continue has been pressed on the home-role step.
@@ -205,6 +210,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       if (!mayPass) return;
     }
 
+    // Leaving the folders step with the toggle still on creates the suggested
+    // folders. On advance, not on a button: the default outcome should not
+    // require finding a button, and unticking the row is the opt-out.
+    // Best-effort like the desktop seeding — a grouping failure must never
+    // block setup.
+    if (_step == _SetupStep.folders && _createFolders) {
+      try {
+        final theme = ref.read(effectiveThemeProvider).asData?.value;
+        if (theme != null) {
+          final apps = ref.read(shellAppsProvider(theme));
+          final suggestions = FolderSuggestions.propose(apps, theme.prefs);
+          if (suggestions.isNotEmpty) {
+            await ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                  (p) => FolderSuggestions.acceptAll(
+                    p,
+                    suggestions,
+                    newFolderId: newDrawerFolderId,
+                  ),
+                );
+          }
+        }
+      } catch (e, s) {
+        debugPrint('setup: creating suggested folders failed: $e\n$s');
+      }
+    }
+
     final steps = _stepsFor(_shell);
     final i = steps.indexOf(_step);
     if (i >= 0 && i < steps.length - 1) {
@@ -247,75 +278,34 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     await ref.read(setupCompletedProvider.notifier).complete();
   }
 
-  /// Lay out the first desktop, once, at the end of setup.
+  /// Apply the chosen distro's authored starter desklets, once, at the end of
+  /// setup. A no-op until a theme ships a `desklets.starter` block — and this
+  /// is the only place `StarterDesktop.apply` is wired in, so without this
+  /// call an authored block would never take effect.
   ///
-  /// Two steps, in order:
-  ///   1. Apply whatever starter desklets the chosen distro authored in its
-  ///      theme.json (`desklets.starter`). A no-op until a theme ships one.
-  ///   2. If that left a GRAPHICAL desktop empty, drop the default Glance tile
-  ///      on the right — the combined time / date / cpu / ram card that grows
-  ///      as it is resized. The terminal has no grid to place on, so it keeps
-  ///      its bare prompt.
-  ///
-  /// Runs exactly once (the install step calls it once), and only ever touches
-  /// the just-chosen theme's prefs, so it can never rearrange a desktop the
-  /// user has already arranged on some other distro.
+  /// The old Glance-tile fallback (seed a default widget onto any empty
+  /// graphical desktop) was REMOVED deliberately: a fresh desktop now comes up
+  /// clean, and widgets are something the user adds, not something the
+  /// installer leaves behind. Only content a distro explicitly authors gets
+  /// placed.
   Future<void> _seedFirstDesktop() async {
     final theme = ref.read(effectiveThemeProvider).asData?.value;
     if (theme == null) return;
 
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
-    // A counter guards against two placements minted in the same microsecond
-    // sharing an id — the starter block plus the Glance fallback could.
     var n = 0;
     String newId() => 'dk${DateTime.now().microsecondsSinceEpoch}_${n++}';
 
-    await notifier.edit((p) {
-      var out = StarterDesktop.apply(
+    await notifier.edit(
+      (p) => StarterDesktop.apply(
         p,
         theme.spec.desklets,
         cols: theme.cols,
         rows: theme.rows,
         newId: newId,
-      );
-
-      final graphical = theme.shell != ShellKind.tui;
-      if (graphical && out.desklets.isEmpty) {
-        // Flush right: col = cols - 2 for a 2-wide tile. placeAt REFUSES rather
-        // than relocating (returns the same object), which is right for an
-        // authored position; if a very narrow grid cannot host it there, let
-        // the packer choose rather than seed nothing.
-        final col = (theme.cols - 2).clamp(0, theme.cols);
-        var seeded = DeskletLayout.placeAt(
-          out,
-          kindId: 'glance',
-          page: 0,
-          col: col,
-          row: 0,
-          cols: theme.cols,
-          rows: theme.rows,
-          newId: newId,
-          spanX: 2,
-          spanY: 2,
-        );
-        if (identical(seeded, out)) {
-          seeded = DeskletLayout.place(
-            out,
-            kindId: 'glance',
-            page: 0,
-            cols: theme.cols,
-            rows: theme.rows,
-            newId: newId,
-            spanX: 2,
-            spanY: 2,
-          );
-        }
-        out = seeded;
-      }
-
-      return out;
-    });
+      ),
+    );
   }
 
   @override
@@ -407,13 +397,20 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 
   /// "Install Ubuntu". Reads the distro's own name, so a CDN pack titles its
   /// own installer with no code change.
-  String _windowTitle(EffectiveTheme theme, SetupSkin skin) => skin.kind ==
-          SetupFrameKind.console
-      ? ref.t('setup.window.console', {'name': theme.spec.name.toLowerCase()})
-      : ref.t('setup.window.install', {'name': theme.spec.name});
+  String _windowTitle(EffectiveTheme theme, SetupSkin skin) {
+    if (skin.kind == SetupFrameKind.console) {
+      return ref
+          .t('setup.window.console', {'name': theme.spec.name.toLowerCase()});
+    }
+    // The reference titles its first page "Welcome to Ubuntu" and only later
+    // pages "Install ...", so the window title tracks the step.
+    return _step == _SetupStep.welcome
+        ? ref.t('setup.window.welcome', {'name': theme.spec.name})
+        : ref.t('setup.window.install', {'name': theme.spec.name});
+  }
 
   String _title(_SetupStep step) => switch (step) {
-        _SetupStep.welcome => ref.t('setup.title.welcome'),
+        _SetupStep.welcome => ref.t('setup.welcome.chooseLanguage'),
         _SetupStep.distro => ref.t('setup.title.distro'),
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
@@ -422,7 +419,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       };
 
   String? _subtitle(_SetupStep step) => switch (step) {
-        _SetupStep.welcome => ref.t('setup.subtitle.welcome'),
+        // The reference has no line under "Choose your language:".
+        _SetupStep.welcome => null,
         _SetupStep.distro => ref.t('setup.subtitle.distro'),
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
@@ -441,7 +439,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.distro => _StepDistro(mono: skin.mono),
         _SetupStep.dock => _StepDock(theme: theme, mono: skin.mono),
         _SetupStep.drawer => _StepDrawer(theme: theme, mono: skin.mono),
-        _SetupStep.folders => _StepFolders(theme: theme, mono: skin.mono),
+        _SetupStep.folders => _StepFolders(
+            theme: theme,
+            mono: skin.mono,
+            createFolders: _createFolders,
+            onCreateFoldersChanged: (v) => setState(() => _createFolders = v),
+          ),
         _SetupStep.install =>
           _StepInstall(theme: theme, skin: skin, onDone: _finish),
       };
@@ -500,19 +503,19 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
-/// Welcome: the whole opening screen, the way Ubuntu's installer opens on the
-/// language chooser and nothing else.
+/// Welcome: the whole opening screen, matching the modern Ubuntu installer's
+/// first page — the distro mark, then "Choose your language:" over a bordered
+/// SCROLLABLE list of native language names, active one in the accent colour.
 ///
-/// Language leads and applies LIVE (like the distro step), so the wizard
-/// re-skins in the chosen language under the finger. Every surface reads from
-/// the chrome, so this is Ubuntu orange, KDE Breeze blue, or a mono console line
-/// depending on the distro, never a hardcoded colour.
+/// The list scrolls inside a fixed-height box (like the reference) rather than
+/// growing the page, because the language count is data: `kBundledLocales` can
+/// grow to dozens of Google-Translate-backed languages without this screen
+/// changing shape. Selection applies LIVE, so the wizard re-titles itself in
+/// the chosen language under the finger.
 ///
-/// Below the picker sits the one thing a launcher has to settle before anything
-/// else works: the home role. Its button, confirmation and warning used to be a
-/// separate step; folding them here keeps the installer to a single opening
-/// page. The three-strike gate still lives on the state and fires from the
-/// footer's action, so this widget only renders the control.
+/// Below the box sits the one thing a launcher must settle before anything
+/// else works: the home role. The three-strike gate still lives on the state
+/// and fires from the footer's action; this widget only renders the control.
 class _StepWelcome extends ConsumerWidget {
   const _StepWelcome({
     required this.mono,
@@ -529,6 +532,7 @@ class _StepWelcome extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
+    final theme = ref.watch(effectiveThemeProvider).asData?.value;
     final i18n = ref.watch(i18nProvider);
     // Preselect what is on screen: the explicit choice, else the device
     // language the app booted with.
@@ -537,16 +541,53 @@ class _StepWelcome extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _MiniLabel(text: ref.t('setup.welcome.language')),
-        for (final l in localesForDisplay())
-          SetupRow(
-            title: l.nativeName,
-            subtitle: l.englishName == l.nativeName ? null : l.englishName,
-            selected: l.code == activeCode,
-            mono: mono,
-            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-            onTap: () => ref.read(i18nProvider.notifier).select(l),
+        // The distro mark, centred like the reference's Ubuntu wordmark. A
+        // typeset mark (accent block + name in the display face) rather than
+        // the SVG logo for now: wiring LauncherBrandIcon here needs
+        // app_icon.dart in hand to match its constructor, and a wrong guess
+        // renders nothing. Swap-in point is exactly this block.
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 18),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 34, height: 34, color: d.colors.accent),
+                const SizedBox(width: 10),
+                Text(
+                  theme?.spec.name ?? 'G Launcher',
+                  style: d.text.display.copyWith(fontSize: 30),
+                ),
+              ],
+            ),
           ),
+        ),
+
+        // The language box: bordered, rounded, fixed height, SCROLLABLE.
+        // Plain text rows — the reference has no radios and no cards, just
+        // names, with the active one in the accent colour.
+        Container(
+          height: 288,
+          decoration: BoxDecoration(
+            border: Border.all(color: d.colors.line),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              children: [
+                for (final l in localesForDisplay())
+                  _LanguageLine(
+                    label: l.nativeName,
+                    active: l.code == activeCode,
+                    mono: mono,
+                    onTap: () => ref.read(i18nProvider.notifier).select(l),
+                  ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 18),
         if (isDefault)
           SetupRow(
@@ -582,6 +623,43 @@ class _StepWelcome extends ConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// One language name in the welcome box. Text-only, the reference's idiom:
+/// active = accent + a shade heavier, everything else = plain text colour.
+/// The console skin keeps its cursor: a `>` at the active line.
+class _LanguageLine extends StatelessWidget {
+  const _LanguageLine({
+    required this.label,
+    required this.active,
+    required this.mono,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final bool mono;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final base = mono ? d.text.label : d.text.body;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Text(
+          mono ? '${active ? '> ' : '  '}$label' : label,
+          style: base.copyWith(
+            color: active ? d.colors.accent : d.colors.text,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -755,17 +833,26 @@ class _StepDrawer extends ConsumerWidget {
 }
 
 class _StepFolders extends ConsumerWidget {
-  const _StepFolders({required this.theme, required this.mono});
+  const _StepFolders({
+    required this.theme,
+    required this.mono,
+    required this.createFolders,
+    required this.onCreateFoldersChanged,
+  });
 
   final EffectiveTheme theme;
   final bool mono;
+
+  /// The default-on toggle, owned by the wizard state so that _next can read
+  /// it when the user advances (the moment creation actually happens).
+  final bool createFolders;
+  final ValueChanged<bool> onCreateFoldersChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
     final apps = ref.watch(shellAppsProvider(theme));
     final suggestions = FolderSuggestions.propose(apps, theme.prefs);
-    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
     if (suggestions.isEmpty) {
       return Text(
@@ -775,36 +862,23 @@ class _StepFolders extends ConsumerWidget {
       );
     }
 
-    // ONE ROW, NOT ONE ROW PER SUGGESTION.
+    // A TOGGLE, ON BY DEFAULT, applied when the user advances — not a button.
     //
-    // Listing each proposed folder by name with its app count is the better
-    // screen and it is the one this step should end up as. It needs
-    // FolderSuggestions to expose a name and a member list per suggestion,
-    // which is a change to folder_suggestions.dart and belongs with the
-    // Social / Entertainment / Tools categories rather than being guessed at
-    // here. Until then this is the shape that already worked.
+    // Games leads the naming because it is the suggestion engine's first
+    // claim (threshold 3, claimed before publishers) and the folder people
+    // recognise instantly. Per-suggestion rows with names and member lists
+    // remain the better screen and still need folder_suggestions.dart to
+    // expose them; until then the toggle covers the whole proposed set.
     return Column(
       children: [
         SetupRow(
-          title: 'Create ${suggestions.length} folders',
-          subtitle: 'Grouped by what the apps say they are.',
-          selected: true,
+          title: 'Create ${suggestions.length} folders — Games first',
+          subtitle: 'Grouped by what the apps say they are. Created when you '
+              'continue; untick to skip.',
+          selected: createFolders,
           marker: SetupMarker.check,
           mono: mono,
-          onTap: () {},
-        ),
-        const SizedBox(height: 6),
-        ThemedButton(
-          label: 'Create ${suggestions.length} folders',
-          icon: Icons.auto_awesome_outlined,
-          expand: true,
-          onPressed: () => notifier.edit(
-            (p) => FolderSuggestions.acceptAll(
-              p,
-              suggestions,
-              newFolderId: newDrawerFolderId,
-            ),
-          ),
+          onTap: () => onCreateFoldersChanged(!createFolders),
         ),
         const SizedBox(height: 6),
         Text(

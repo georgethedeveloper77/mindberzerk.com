@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
@@ -14,8 +15,8 @@ import '../home/workspaces/workspace_controller.dart';
 import '../themes/themes_screen.dart';
 import 'device_pages.dart';
 import 'folders_screen.dart';
+import 'language_settings.dart';
 import 'wallpaper_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Settings — Phase B, B1.
 ///
@@ -239,6 +240,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     trailing: const _Chevron(),
                     onTap: () =>
                         _openSection(context, 'Gestures', _gesturesSection),
+                  ),
+                ),
+              ],
+            ),
+
+            // ── LANGUAGE ──────────────────────────────────────────────────
+            // Global, not per-distro: language is a property of the user, not
+            // the skin. Its own group rather than a row under System, because
+            // "System" here means Android settings and reset.
+            _Group(
+              label: ref.t('settings.language.title'),
+              rows: [
+                _FilterRow(
+                  const ['language', 'idioma', 'locale', 'translate', 'lugha'],
+                  _Row(
+                    icon: Icons.language_outlined,
+                    accent: true,
+                    title: ref.t('settings.language.title'),
+                    subtitle:
+                        ref.watch(i18nProvider).selectedLocale?.nativeName ??
+                            ref.t('settings.language.system'),
+                    trailing: const _Chevron(),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const LanguageSettingsPage(),
+                      ),
+                    ),
                   ),
                 ),
               ],

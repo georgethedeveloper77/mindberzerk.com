@@ -71,22 +71,24 @@ env:
   # they do not authorise anything. Auth is enforced server-side against the
   # allowlist above.
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: REPLACE_ME
+    value: AIzaSyBoeQ6d_RSXqfAMSye7KKS56NrnvZpH-vE
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: REPLACE_ME.firebaseapp.com
+    value: mindberzerk-3eaf5.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
 
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: REPLACE_ME
+    value: mindberzerk-3eaf5
     availability:
       - BUILD
       - RUNTIME
 
   - variable: GCP_PROJECT
     value: mindberzerk-3eaf5
+    availability:
+      - RUNTIME
