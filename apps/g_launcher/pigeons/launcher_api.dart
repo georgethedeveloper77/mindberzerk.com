@@ -401,6 +401,89 @@ class StatCapabilities {
   bool cpu;
 }
 
+// ─── PHASE D-widgets: third-party AppWidget providers ────────────────────────
+
+/// One installed third-party AppWidget provider, as returned by
+/// `AppWidgetManager.getInstalledProviders()`.
+///
+/// ADDED AT THE END OF THE CLASS GROUP → codec id 136. It carries METADATA only,
+/// never the preview bitmap: a device can have dozens of providers, and pushing
+/// a PNG for each across the bridge on every picker open is the kind of payload
+/// that makes a budget phone stutter. Previews are pulled lazily, one at a time,
+/// through [LauncherHostApi.getWidgetPreview] as the list scrolls — the same
+/// memory-then-render discipline `getIcon` already follows.
+///
+/// Every "enum-shaped" value here is an int, deliberately, because a new enum
+/// would renumber the whole codec (see the header). [resizeMode] is Android's
+/// bitmask (0 none, 1 horizontal, 2 vertical, 3 both); [category] is its
+/// widgetCategory bitmask (1 home screen, 2 keyguard, 4 searchbox).
+class WidgetProviderInfo {
+  WidgetProviderInfo({
+    required this.providerKey,
+    required this.packageName,
+    required this.appLabel,
+    required this.label,
+    required this.minWidthDp,
+    required this.minHeightDp,
+    required this.minResizeWidthDp,
+    required this.minResizeHeightDp,
+    required this.targetCellWidth,
+    required this.targetCellHeight,
+    required this.resizeMode,
+    required this.category,
+    required this.configurable,
+    required this.hasPreviewImage,
+  });
+
+  /// `ComponentName.flattenToString()` — the stable id the host will bind and
+  /// inflate against later. The grouping key on the Dart side is [packageName];
+  /// this is the per-provider identity.
+  String providerKey;
+
+  /// The owning app's package. What the Dart side groups by, so "Adblock
+  /// Browser" shows once with a count rather than four loose rows.
+  String packageName;
+
+  /// The owning app's display label, resolved via PackageManager. The section
+  /// header in the picker ("Adblock Browser").
+  String appLabel;
+
+  /// The widget's OWN label ("Battery status", "Dual clock"). May equal the app
+  /// label for single-widget apps.
+  String label;
+
+  /// Minimum footprint, already converted to dp on the native side so Dart
+  /// never has to know the device density. Used to pick an initial cell span.
+  int minWidthDp;
+  int minHeightDp;
+
+  /// How small the user may resize it. Equal to the min size when the provider
+  /// is not resizable in that axis.
+  int minResizeWidthDp;
+  int minResizeHeightDp;
+
+  /// Android 12+ target cells (0 on older devices / unset). A hint for the
+  /// initial span that is already expressed in grid units rather than dp.
+  int targetCellWidth;
+  int targetCellHeight;
+
+  /// Android's resize bitmask: 0 none, 1 horizontal, 2 vertical, 3 both.
+  int resizeMode;
+
+  /// widgetCategory bitmask: 1 home screen, 2 keyguard, 4 searchbox. The picker
+  /// shows only providers advertising the home-screen bit.
+  int category;
+
+  /// Has a configuration Activity that must run when it is first placed. The
+  /// host has to launch it before the widget is usable (the host slice's job);
+  /// the picker only needs to know it exists.
+  bool configurable;
+
+  /// Whether `previewImage` is set, so the Dart side knows a real preview is
+  /// worth requesting rather than falling straight back to the app icon.
+  bool hasPreviewImage;
+}
+
 // ─── HOST API (Dart calls, Kotlin implements) ────────────────────────────────
 
 /// Implemented by `LauncherHostApiImpl`, constructed in
@@ -550,6 +633,59 @@ abstract class LauncherHostApi {
   /// a permanently-visible home screen off a budget phone's battery.
   @async
   DeviceStats readStats();
+
+  // ─── PHASE D-widgets: third-party AppWidget enumeration ────────────────────
+
+  /// Every installed home-screen AppWidget provider, grouped by app on the Dart
+  /// side. METADATA ONLY — no bitmaps (see [WidgetProviderInfo]).
+  ///
+  /// `@async` because it walks PackageManager to resolve each app label, which
+  /// is the same cold-package-manager cost that put `getInstalledApps` on this
+  /// list. This does NOT run a host and needs no BIND_APPWIDGET permission;
+  /// enumerating providers and hosting one live are separate capabilities, and
+  /// only the second needs the host.
+  @async
+  List<WidgetProviderInfo> getInstalledWidgetProviders();
+
+  /// The preview for ONE provider, rendered to a PNG at the requested size.
+  /// Null when the provider vanished or has neither a preview image nor an icon.
+  ///
+  /// Pulled lazily as the picker scrolls, one provider at a time, so the list
+  /// opens instantly and previews fill in — never a wall of bitmaps shipped up
+  /// front. [providerKey] is the flattened ComponentName from
+  /// [WidgetProviderInfo.providerKey].
+  @async
+  Uint8List? getWidgetPreview(String providerKey, int widthPx, int heightPx);
+
+  // ─── PHASE D-widgets: hosting (live placement) ─────────────────────────────
+
+  /// Allocate + bind + configure a live AppWidget, returning its host widget id
+  /// — or null if the user cancelled the bind-permission dialog or the config
+  /// screen. This is the ONE call that can pop system UI: a launcher is not a
+  /// signed system app, so `bindAppWidgetIdIfAllowed` almost always returns
+  /// false and Android's consent dialog runs, and a provider with a config
+  /// Activity runs that too. `@async` because it holds until those results come
+  /// back through the Activity.
+  ///
+  /// The returned id is DEVICE-LOCAL and non-portable: it is stored on the
+  /// desklet's config for THIS install only, never in a starter or a CDN pack.
+  @async
+  int? addWidget(String providerKey);
+
+  /// Release a hosted widget id when its desklet is removed. Deletes the host
+  /// allocation so the id is not leaked for the life of the install.
+  void removeWidget(int widgetId);
+
+  /// Tell the provider its new footprint after a resize, in dp, so its
+  /// RemoteViews re-lays-out (a wide clock shows seconds, a tall calendar shows
+  /// more rows). Without this the view keeps its placed layout and just scales.
+  void updateWidgetSize(
+    int widgetId,
+    int minWidthDp,
+    int minHeightDp,
+    int maxWidthDp,
+    int maxHeightDp,
+  );
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

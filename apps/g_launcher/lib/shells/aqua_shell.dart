@@ -226,7 +226,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
                   behavior: HitTestBehavior.translucent,
                   onLongPress: () {
                     HapticFeedback.mediumImpact();
-                    showDesktopMenu(context, theme);
+                    showDesktopMenu(context, ref, theme);
                   },
                   child: WorkspaceCanvas(controller: _pages, count: count),
                 ),

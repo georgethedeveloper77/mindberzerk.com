@@ -1,19 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/prefs/setup_state.dart';
 import 'design/theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
+import 'i18n/i18n.dart';
 
-class GLauncherApp extends StatelessWidget {
+class GLauncherApp extends ConsumerWidget {
   const GLauncherApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The active language. Watching it here means a change in the language step
+    // (or Settings) rebuilds MaterialApp with the new locale, which flips text
+    // direction for RTL languages and re-resolves every ref.t below it.
+    final i18n = ref.watch(i18nProvider);
+
     return MaterialApp(
       title: 'G Launcher',
       debugShowCheckedModeBanner: false,
+
+      // ── LANGUAGE ────────────────────────────────────────────────────────
+      //
+      // Our own copy comes from the JSON system (ref.t / context.t). These
+      // three lines are the FRAMEWORK half: they localise Material's built-in
+      // strings and, more importantly, set the text direction so an Arabic or
+      // Hebrew user gets a right-to-left layout for free. supportedLocales must
+      // list every bundled language or Material falls back to the first one.
+      locale: i18n.locale,
+      supportedLocales: [for (final l in kBundledLocales) l.locale],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
 
       // House theme. This is for Settings / Themes / dialogs ONLY — the desktop
       // shells do not use it. They are painted from the active ThemeSpec.

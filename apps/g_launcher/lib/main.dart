@@ -9,6 +9,7 @@ import 'app.dart';
 import 'bootstrap.dart';
 import 'data/prefs/prefs_repository.dart';
 import 'firebase_options.dart';
+import 'i18n/i18n.dart';
 
 Future<void> main() async {
   bootstrap();
@@ -21,10 +22,17 @@ Future<void> main() async {
   // and then flickers into the user's real settings a frame later.
   final sharedPrefs = await SharedPreferences.getInstance();
 
+  // Language is resolved here for the same reason: the saved locale (or the
+  // device match) plus its strings are loaded before the first frame, so the
+  // installer's first screen is already in the right language rather than
+  // flashing English and then swapping.
+  final initialI18n = await loadInitialI18n();
+
   runApp(
     ProviderScope(
       overrides: [
         prefsStoreProvider.overrideWithValue(SharedPrefsStore(sharedPrefs)),
+        i18nProvider.overrideWith(() => I18nController(initialI18n)),
       ],
       child: const GLauncherApp(),
     ),

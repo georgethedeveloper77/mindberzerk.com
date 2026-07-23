@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics.dart';
+import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
+import '../../data/prefs/starter_desktop.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/components/components.dart';
@@ -16,6 +18,7 @@ import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_registry.dart';
 import '../../engine/theme_spec.dart';
+import '../../i18n/i18n.dart';
 import '../drawer/drawer_actions.dart';
 import 'setup_chrome.dart';
 
@@ -197,7 +200,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   }
 
   Future<void> _next() async {
-    if (_step == _SetupStep.home) {
+    if (_step == _SetupStep.welcome) {
       final mayPass = await _homeGate();
       if (!mayPass) return;
     }
@@ -215,8 +218,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     if (i > 0) setState(() => _step = steps[i - 1]);
   }
 
-  ShellKind? get _shell =>
-      ref.read(effectiveThemeProvider).asData?.value.shell;
+  ShellKind? get _shell => ref.read(effectiveThemeProvider).asData?.value.shell;
 
   /// Called by the install step when its progress completes, never by a button.
   Future<void> _finish() async {
@@ -224,10 +226,96 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         ref.read(selectedThemeIdProvider).asData?.value ?? fallbackThemeId;
     Analytics.setupComplete(themeId: themeId, granted: _isDefault);
 
+    // Furnish the first desktop BEFORE it is ever shown, so a fresh install
+    // reads as a set-up desktop rather than a blank one. This is also the only
+    // place `StarterDesktop.apply` is wired in — without it, an authored
+    // `desklets.starter` block in a theme.json would never take effect.
+    //
+    // BEST-EFFORT, and never allowed to block completion. A desktop that comes
+    // up empty is recoverable (add from the picker); a setup that never finishes
+    // because furnishing threw is not. So a failure here is swallowed and the
+    // wizard still hands off to the desktop.
+    try {
+      await _seedFirstDesktop();
+    } catch (e, s) {
+      debugPrint('setup: seeding first desktop failed: $e\n$s');
+    }
+
     // Hand-off flag first, then the completion that swaps this screen out: the
     // desktop mounts fresh and reads the flag on that very build.
     ref.read(firstRunBootPendingProvider.notifier).state = true;
     await ref.read(setupCompletedProvider.notifier).complete();
+  }
+
+  /// Lay out the first desktop, once, at the end of setup.
+  ///
+  /// Two steps, in order:
+  ///   1. Apply whatever starter desklets the chosen distro authored in its
+  ///      theme.json (`desklets.starter`). A no-op until a theme ships one.
+  ///   2. If that left a GRAPHICAL desktop empty, drop the default Glance tile
+  ///      on the right — the combined time / date / cpu / ram card that grows
+  ///      as it is resized. The terminal has no grid to place on, so it keeps
+  ///      its bare prompt.
+  ///
+  /// Runs exactly once (the install step calls it once), and only ever touches
+  /// the just-chosen theme's prefs, so it can never rearrange a desktop the
+  /// user has already arranged on some other distro.
+  Future<void> _seedFirstDesktop() async {
+    final theme = ref.read(effectiveThemeProvider).asData?.value;
+    if (theme == null) return;
+
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+    // A counter guards against two placements minted in the same microsecond
+    // sharing an id — the starter block plus the Glance fallback could.
+    var n = 0;
+    String newId() => 'dk${DateTime.now().microsecondsSinceEpoch}_${n++}';
+
+    await notifier.edit((p) {
+      var out = StarterDesktop.apply(
+        p,
+        theme.spec.desklets,
+        cols: theme.cols,
+        rows: theme.rows,
+        newId: newId,
+      );
+
+      final graphical = theme.shell != ShellKind.tui;
+      if (graphical && out.desklets.isEmpty) {
+        // Flush right: col = cols - 2 for a 2-wide tile. placeAt REFUSES rather
+        // than relocating (returns the same object), which is right for an
+        // authored position; if a very narrow grid cannot host it there, let
+        // the packer choose rather than seed nothing.
+        final col = (theme.cols - 2).clamp(0, theme.cols);
+        var seeded = DeskletLayout.placeAt(
+          out,
+          kindId: 'glance',
+          page: 0,
+          col: col,
+          row: 0,
+          cols: theme.cols,
+          rows: theme.rows,
+          newId: newId,
+          spanX: 2,
+          spanY: 2,
+        );
+        if (identical(seeded, out)) {
+          seeded = DeskletLayout.place(
+            out,
+            kindId: 'glance',
+            page: 0,
+            cols: theme.cols,
+            rows: theme.rows,
+            newId: newId,
+            spanX: 2,
+            spanY: 2,
+          );
+        }
+        out = seeded;
+      }
+
+      return out;
+    });
   }
 
   @override
@@ -274,33 +362,38 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                       // The list can shrink under the user (terminal drops four
                       // steps), so never trust a stale enum: fall back to the
                       // first step rather than rendering nothing.
-                      final i = steps.indexOf(_step) < 0
-                          ? 0
-                          : steps.indexOf(_step);
+                      final i =
+                          !steps.contains(_step) ? 0 : steps.indexOf(_step);
                       final current = steps[i];
 
                       return SetupInstallerFrame(
                         skin: skin,
-                        steps: [for (final st in steps) st.label],
+                        steps: [
+                          for (final st in steps) ref.t('setup.step.${st.name}')
+                        ],
                         step: i,
                         windowTitle: _windowTitle(theme, skin),
                         title: _title(current),
                         subtitle: _subtitle(current),
-                        status: 'Step ${i + 1} of ${steps.length}',
-                        footerNote: !_isDefault && i > steps.indexOf(_SetupStep.home)
-                            ? _NagLine(onFix: _openHomePicker)
-                            : null,
+                        status: ref.t('setup.status', {
+                          'n': '${i + 1}',
+                          'total': '${steps.length}',
+                        }),
+                        footerNote:
+                            !_isDefault && i > steps.indexOf(_SetupStep.welcome)
+                                ? _NagLine(onFix: _openHomePicker)
+                                : null,
                         onBack: i == 0 || current == _SetupStep.install
                             ? null
                             : _back,
                         onNext: _next,
                         nextLabel: switch (current) {
-                          _SetupStep.welcome => 'Get started',
+                          _SetupStep.welcome => ref.t('setup.next.getStarted'),
                           // The step before install, whichever it is: on the
                           // terminal that is the distro step, not folders.
                           final st when st == steps[steps.length - 2] =>
-                            'Install',
-                          _ => 'Continue',
+                            ref.t('setup.next.install'),
+                          _ => ref.t('setup.next.continue'),
                         },
                         body: _body(theme, skin, current),
                       );
@@ -314,45 +407,35 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 
   /// "Install Ubuntu". Reads the distro's own name, so a CDN pack titles its
   /// own installer with no code change.
-  String _windowTitle(EffectiveTheme theme, SetupSkin skin) =>
-      skin.kind == SetupFrameKind.console
-          ? '${theme.spec.name.toLowerCase()}-install'
-          : 'Install ${theme.spec.name}';
+  String _windowTitle(EffectiveTheme theme, SetupSkin skin) => skin.kind ==
+          SetupFrameKind.console
+      ? ref.t('setup.window.console', {'name': theme.spec.name.toLowerCase()})
+      : ref.t('setup.window.install', {'name': theme.spec.name});
 
   String _title(_SetupStep step) => switch (step) {
-        _SetupStep.welcome => 'Welcome',
-        _SetupStep.home => _isDefault
-            ? 'Home screen set'
-            : (_showHomeWarning ? 'Really skip this?' : 'Home screen'),
-        _SetupStep.distro => 'Choose your desktop',
-        _SetupStep.dock => 'Dock',
-        _SetupStep.drawer => 'App drawer',
-        _SetupStep.folders => 'Folders',
-        _SetupStep.install => 'Installing system',
+        _SetupStep.welcome => ref.t('setup.title.welcome'),
+        _SetupStep.distro => ref.t('setup.title.distro'),
+        _SetupStep.dock => ref.t('setup.title.dock'),
+        _SetupStep.drawer => ref.t('setup.title.drawer'),
+        _SetupStep.folders => ref.t('setup.title.folders'),
+        _SetupStep.install => ref.t('setup.title.install'),
       };
 
   String? _subtitle(_SetupStep step) => switch (step) {
-        _SetupStep.welcome => 'A Linux desktop on your phone.',
-        _SetupStep.home => _isDefault
-            ? 'The rest is how it should look.'
-            : 'Android only hands the full app list to the app holding the '
-                'home role.',
-        _SetupStep.distro => 'More desktops are available later in Settings.',
-        _SetupStep.dock => 'Where your pinned apps live.',
-        _SetupStep.drawer =>
-          'How the full app list is laid out and how it moves.',
-        _SetupStep.folders =>
-          'Group apps automatically. You can undo any of this.',
-        _SetupStep.install => 'This only happens once.',
+        _SetupStep.welcome => ref.t('setup.subtitle.welcome'),
+        _SetupStep.distro => ref.t('setup.subtitle.distro'),
+        _SetupStep.dock => ref.t('setup.subtitle.dock'),
+        _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
+        _SetupStep.folders => ref.t('setup.subtitle.folders'),
+        _SetupStep.install => ref.t('setup.subtitle.install'),
       };
 
   Widget _body(EffectiveTheme theme, SetupSkin skin, _SetupStep step) =>
       switch (step) {
-        _SetupStep.welcome => _StepWelcome(mono: skin.mono),
-        _SetupStep.home => _StepHome(
+        _SetupStep.welcome => _StepWelcome(
+            mono: skin.mono,
             isDefault: _isDefault,
             showWarning: _showHomeWarning,
-            mono: skin.mono,
             onRequest: _openHomePicker,
           ),
         _SetupStep.distro => _StepDistro(mono: skin.mono),
@@ -368,7 +451,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 /// [_stepsFor].
 enum _SetupStep {
   welcome('Welcome'),
-  home('Home screen'),
   distro('Desktop'),
   dock('Dock'),
   drawer('App drawer'),
@@ -395,21 +477,19 @@ enum _SetupStep {
 /// GUI-less distro inherits this without authoring anything, and a new
 /// graphical one inherits the full list.
 ///
-/// [_SetupStep.welcome], [_SetupStep.home] and [_SetupStep.install] are in
-/// every list: the first two are about Android rather than about the desktop,
+/// [_SetupStep.welcome] and [_SetupStep.install] are in every list: the first
+/// is language plus the home role (both about Android rather than the desktop),
 /// and the third is the hand-off to the boot sequence.
 List<_SetupStep> _stepsFor(ShellKind? shell) {
   if (shell == ShellKind.tui) {
     return const [
       _SetupStep.welcome,
-      _SetupStep.home,
       _SetupStep.distro,
       _SetupStep.install,
     ];
   }
   return const [
     _SetupStep.welcome,
-    _SetupStep.home,
     _SetupStep.distro,
     _SetupStep.dock,
     _SetupStep.drawer,
@@ -420,93 +500,87 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
-/// Welcome.
+/// Welcome: the whole opening screen, the way Ubuntu's installer opens on the
+/// language chooser and nothing else.
 ///
-/// ONE row, already selected, and a second that is visibly disabled.
+/// Language leads and applies LIVE (like the distro step), so the wizard
+/// re-skins in the chosen language under the finger. Every surface reads from
+/// the chrome, so this is Ubuntu orange, KDE Breeze blue, or a mono console line
+/// depending on the distro, never a hardcoded colour.
 ///
-/// The disabled row is not decoration. "Try it first" is the obvious thing to
-/// want and the obvious thing to offer, and it cannot work: without the home
-/// role Android withholds most of the app list, so a trial mode would show a
-/// half-empty drawer and read as a broken launcher rather than as a preview.
-/// Showing it greyed with the reason answers the question before it is asked.
-/// Hiding it invites someone to add it later without knowing why it went.
-class _StepWelcome extends StatelessWidget {
-  const _StepWelcome({required this.mono});
-
-  final bool mono;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SetupRow(
-          title: 'Install as your home screen',
-          subtitle: 'Takes about a minute. Nothing is deleted.',
-          selected: true,
-          mono: mono,
-          onTap: () {},
-        ),
-        SetupRow(
-          title: 'Try it first',
-          subtitle:
-              'Not possible on Android: the app list stays hidden until an '
-              'app holds the home role.',
-          selected: false,
-          enabled: false,
-          mono: mono,
-          onTap: () {},
-        ),
-      ],
-    );
-  }
-}
-
-class _StepHome extends StatelessWidget {
-  const _StepHome({
+/// Below the picker sits the one thing a launcher has to settle before anything
+/// else works: the home role. Its button, confirmation and warning used to be a
+/// separate step; folding them here keeps the installer to a single opening
+/// page. The three-strike gate still lives on the state and fires from the
+/// footer's action, so this widget only renders the control.
+class _StepWelcome extends ConsumerWidget {
+  const _StepWelcome({
+    required this.mono,
     required this.isDefault,
     required this.showWarning,
-    required this.mono,
     required this.onRequest,
   });
 
+  final bool mono;
   final bool isDefault;
   final bool showWarning;
-  final bool mono;
   final VoidCallback onRequest;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
-
-    if (isDefault) {
-      return SetupRow(
-        title: 'G Launcher is your home app',
-        subtitle: 'Change this any time in Android Settings.',
-        selected: true,
-        marker: SetupMarker.check,
-        mono: mono,
-        onTap: () {},
-      );
-    }
+    final i18n = ref.watch(i18nProvider);
+    // Preselect what is on screen: the explicit choice, else the device
+    // language the app booted with.
+    final activeCode = i18n.selectedCode ?? i18n.translations.code;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showWarning) ...[
-          Text(
-            'Without the home role the home button keeps opening your old '
-            'launcher, and most of your apps stay hidden from the drawer.',
-            softWrap: true,
-            style: d.text.caption.copyWith(color: d.colors.warn),
+        _MiniLabel(text: ref.t('setup.welcome.language')),
+        for (final l in localesForDisplay())
+          SetupRow(
+            title: l.nativeName,
+            subtitle: l.englishName == l.nativeName ? null : l.englishName,
+            selected: l.code == activeCode,
+            mono: mono,
+            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+            onTap: () => ref.read(i18nProvider.notifier).select(l),
           ),
-          const SizedBox(height: 12),
+        const SizedBox(height: 18),
+        if (isDefault)
+          SetupRow(
+            title: ref.t('setup.welcome.homeSet'),
+            subtitle: ref.t('setup.welcome.homeSetSub'),
+            selected: true,
+            marker: SetupMarker.check,
+            mono: mono,
+            onTap: () {},
+          )
+        else ...[
+          if (showWarning) ...[
+            Text(
+              ref.t('setup.welcome.homeWarn'),
+              softWrap: true,
+              style: d.text.caption.copyWith(color: d.colors.warn),
+            ),
+            const SizedBox(height: 12),
+          ],
+          ThemedButton(
+            label: showWarning
+                ? ref.t('setup.welcome.setHome')
+                : ref.t('setup.welcome.chooseHome'),
+            icon: Icons.home_outlined,
+            expand: true,
+            onPressed: onRequest,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ref.t('setup.welcome.homeHelper'),
+            softWrap: true,
+            style: d.text.caption.copyWith(color: d.colors.textMuted),
+          ),
         ],
-        ThemedButton(
-          label: showWarning ? 'Set as home app' : 'Choose G Launcher',
-          icon: Icons.home_outlined,
-          expand: true,
-          onPressed: onRequest,
-        ),
       ],
     );
   }
@@ -596,7 +670,7 @@ class _StepDock extends ConsumerWidget {
         ),
         if (theme.dock != DockSide.off) ...[
           const SizedBox(height: 8),
-          _MiniLabel(text: 'App grid button'),
+          const _MiniLabel(text: 'App grid button'),
           for (final e in const {
             'end': 'At the far end of the dock',
             'start': 'First in the dock',
@@ -638,7 +712,7 @@ class _StepDrawer extends ConsumerWidget {
           cols: theme.drawerCols,
         ),
         const SizedBox(height: 14),
-        _MiniLabel(text: 'Columns'),
+        const _MiniLabel(text: 'Columns'),
         Row(
           children: [
             for (final n in const [3, 4, 5, 6])
@@ -658,7 +732,7 @@ class _StepDrawer extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        _MiniLabel(text: 'How it moves'),
+        const _MiniLabel(text: 'How it moves'),
         // Pages first, because it is the default and the list should read
         // top-down in the order of likelihood rather than alphabetically.
         for (final e in const {
@@ -695,8 +769,7 @@ class _StepFolders extends ConsumerWidget {
 
     if (suggestions.isEmpty) {
       return Text(
-        'Nothing worth grouping yet. Drag one app onto another in the drawer '
-        'to make a folder.',
+        'Nothing worth grouping yet. Drag one app onto another in the drawer to make a folder.',
         softWrap: true,
         style: d.text.body.copyWith(color: d.colors.textMuted),
       );

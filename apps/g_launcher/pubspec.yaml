@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+6
+version: 6.0.0+7
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -48,11 +48,30 @@ dependencies:
   flutter_svg: ^2.3.0
   image_picker: ^1.2.3
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
+  in_app_update: ^5.0.0
+
+  # The SDK localization delegates that app.dart imports (Material/Widgets/
+  # Cupertino built-in strings + RTL text direction for ar). NOT the pub
+  # package "flutter_localization" (no s) — that is an unrelated third-party
+  # library and its presence here once masked this one being missing.
+  flutter_localizations:
+    sdk: flutter
+
+flutter_gen:
+  assets:
+    exclude:
+      - assets/themes/**
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+
+  # Powers tool/i18n_extract.dart (string extraction for translation).
+  # Dev-only: analysis machinery has no business in the app's resolution.
+  analyzer: ^12.1.0
 
   # Native bridge codegen (app list, icon engine). Dev-only — not in the APK.
   #   dart run pigeon --input pigeons/launcher_api.dart
@@ -62,26 +81,29 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/svg/
+    # Non-recursive: this covers files sitting directly in assets/themes/ and
+    # nothing inside its subdirectories. Every theme directory needs its own
+    # line below, which is the trap that once left the terminal unbundled.
+    - assets/i18n/
     - assets/themes/
-    - assets/brandpacks/simple-icons/
-    - assets/themes/aqua/
+
     - assets/themes/ubuntu-24-04/
     - assets/themes/ubuntu-24-04/wallpapers/
-    - assets/themes/fedora-41/
-    - assets/themes/fedora-41/wallpapers/
-    - assets/heropacks/yaru/
+
     - assets/themes/kde-plasma-6/
     - assets/themes/kde-plasma-6/wallpapers/
-    - assets/themes/arch-hyprland/
-    - assets/themes/arch-hyprland/wallpapers/
 
-    # Terminal ships a theme.json only (no wallpaper). This entry was MISSING,
-    # so the terminal theme was never bundled: selecting it fell back to Ubuntu
-    # and its boot log never played. Flutter asset dirs are non-recursive, so
-    # the parent `assets/themes/` above does not cover it — it needs its own
-    # line.
+    # Terminal ships a theme.json only: the TUI shell paints a flat canvas, so
+    # a wallpaper would never be visible. The missing wallpapers/ line here is
+    # correct, not an oversight.
     - assets/themes/terminal/
+
+    # Fedora, Arch and Aqua USED TO BE HERE. They are CDN packs now, because
+    # bundled implies free (see theme_registry). Their directories were removed
+    # from the repo; leaving these lines behind is what broke the build.
+
+    - assets/brandpacks/simple-icons/
+    - assets/heropacks/yaru/
 
     # The mark that every branded scaffold message carries.
     - assets/brand/
@@ -89,7 +111,6 @@ flutter:
     # Not a font — the licence text, loaded by LicenseRegistry in main.dart.
     # The Ubuntu Font Licence requires it to travel with the fonts.
     - assets/fonts/UBUNTU-FONT-LICENCE-1.0.txt
-
   # Ubuntu + Ubuntu Mono are what make the Ubuntu theme feel real.
   #
   # These family names are load-bearing: they must match theme.json

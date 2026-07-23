@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/desklet_layout.dart';
-import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
@@ -93,7 +92,10 @@ class TerminalCommands {
   /// command: someone reading this row has already typed three letters and
   /// wants to know whether enter will do the thing they meant.
   static String describe(String name) => switch (name) {
-        'settings' || 'gsettings' || 'config' || 'prefs' =>
+        'settings' ||
+        'gsettings' ||
+        'config' ||
+        'prefs' =>
           'G Launcher Settings',
         'themes' || 'distro' => 'Switch distro',
         'free' => 'Memory, live',

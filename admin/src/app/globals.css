@@ -1,26 +1,137 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * PHASE C5 — the token system.
+ *
+ * WHAT WAS HERE BEFORE was create-next-app's boilerplate: a light/dark pair of
+ * --background and --foreground, `font-family: Arial` on the body, and
+ * --font-geist-sans / --font-geist-mono pointing at variables NOTHING SET,
+ * because layout.tsx never called next/font. So every `font-sans` in the app
+ * resolved to Arial and every `font-mono` to the browser default. That is why
+ * the panel reads like an unstyled document; layout.tsx now wires the fonts.
+ *
+ * DARK ONLY, deliberately. This panel is one person's tool and it is looked at
+ * next to a phone running a dark launcher. Supporting both modes would double
+ * every colour decision to serve a mode nobody uses, so `color-scheme` is
+ * pinned and there are no `dark:` variants anywhere in the app.
+ *
+ * Tailwind v4: these are not CSS variables that components read by hand. The
+ * --color-* namespace GENERATES utilities, so `--color-surface-1` is what makes
+ * `bg-surface-1`, `text-surface-1` and `border-surface-1` exist. Add a token
+ * here and the utility appears; there is no config file to edit.
+ */
+@theme {
+  /* Surfaces, darkest to lightest. 0 is the page, 1 is a card, 2 is a control,
+     3 is a control that is hovered or pressed. Four steps is enough; a fifth
+     always ends up indistinguishable from the one above it. */
+  --color-surface-0: #0c0e11;
+  --color-surface-1: #14171c;
+  --color-surface-2: #1b1f26;
+  --color-surface-3: #232830;
+
+  /* Hairlines. `line` divides things that are different, `line-soft` divides
+     rows of the same thing — a table with `line` between every row reads as a
+     grid of boxes rather than a list. */
+  --color-line: #272d36;
+  --color-line-soft: #1d222a;
+
+  /* Text, three levels and no more. Anything dimmer than ink-3 fails contrast
+     on this background. */
+  --color-ink: #e8ebef;
+  --color-ink-2: #aeb6c1;
+  --color-ink-3: #79818d;
+
+  /* Ubuntu orange, because the flagship product is a Linux desktop emulator and
+     the panel sits next to it all day. Used for the active nav item, the one
+     primary button per screen, and nothing else. */
+  --color-accent: #e95420;
+  --color-accent-ink: #1a0c05;
+  --color-accent-dim: #3a1a0e;
+
+  /* Status. These carry meaning, so they never decorate. */
+  --color-ok: #3fb950;
+  --color-ok-dim: #16281b;
+  --color-warn: #d29922;
+  --color-warn-dim: #2b2211;
+  --color-bad: #f85149;
+  --color-bad-dim: #2d1512;
+  --color-info: #4c8dff;
+  --color-info-dim: #131f33;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Ubuntu, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", "JetBrains Mono",
+    "Ubuntu Mono", Menlo, Consolas, monospace;
+
+  /* Two sizes Tailwind does not ship, and a dashboard needs both. `data` is the
+     table and card-body size: 14px is too loose once a row has six columns.
+     `micro` is for ids, versions and units, which are read as glyph shapes
+     rather than words and survive being small. */
+  --text-data: 0.8125rem;
+  --text-data--line-height: 1.35rem;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+
+  --radius-card: 12px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    color-scheme: dark;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-surface-0);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Visible focus is not optional. The default ring is nearly invisible on
+     these surfaces, so it is replaced rather than removed. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  /* iOS Safari zooms the page when a font-size under 16px is focused, and never
+     zooms back. Every input in this panel is therefore 16px on a phone and
+     drops to the data size only once there is a keyboard. */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+  @media (min-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: var(--text-data);
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/**
+ * Tabular figures. Columns of numbers that are not tabular jitter as they
+ * change width, and a dashboard is mostly columns of numbers.
+ */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * Hides scrollbars on the horizontally-scrolling section nav, which on a phone
+ * is a row of chips that must not carry a visible bar under them.
+ */
+@utility no-bar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

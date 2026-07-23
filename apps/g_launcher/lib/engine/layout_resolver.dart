@@ -97,8 +97,11 @@ abstract final class LayoutResolver {
   /// new should read it.
   static const defaultIconSizeDp = 52.0;
 
-  /// Two lines so a long name wraps ("Secure Folder") instead of truncating to
-  /// "Secure Fold…". Mirrors GridMetrics.defaultLabelLines.
+  /// TWO lines, so long app names wrap instead of truncating. Mirrors
+  /// GridMetrics.defaultLabelLines, and MUST keep mirroring it: the drawer
+  /// sizes its cells from GridMetrics and the home grid from here, so a
+  /// disagreement makes two grids on the same phone use different row heights
+  /// for the same setting. If you change this, change that one to match.
   static const defaultLabelLines = 2;
 
   static const defaultTextScale = 1.0;

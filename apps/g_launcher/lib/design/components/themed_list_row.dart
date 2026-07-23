@@ -119,7 +119,24 @@ class ThemedSectionHeader extends StatelessWidget {
         GSpace.lg,
         GSpace.sm,
       ),
-      child: Text(text.toUpperCase(), style: d.text.label),
+      // SENTENCE CASE, not upper.
+      //
+      // `label` still carries the small size and the letter spacing, and both
+      // suit an uppercase caption, which is why this shouted for so long. But
+      // neither GNOME nor KDE uppercases a section heading: that is an iOS and
+      // One UI convention, and it was one of the two things making this chrome
+      // read as a phone app wearing Ubuntu's orange. The other was the icon
+      // circle on every row.
+      //
+      // Muted rather than faint, because a heading that is quieter than the
+      // rows beneath it stops grouping them.
+      child: Text(
+        text,
+        style: d.text.label.copyWith(
+          color: d.colors.textMuted,
+          letterSpacing: 0,
+        ),
+      ),
     );
   }
 }

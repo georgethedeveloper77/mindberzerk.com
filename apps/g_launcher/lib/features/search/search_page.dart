@@ -84,7 +84,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _submit() {
     final q = _query.trim();
     if (q.isEmpty) return;
-    final results = ref.read(visibleAppsProvider(q));
+    final results =
+        ref.read(visibleAppsProvider((query: q, theme: widget.theme)));
     ref.read(recentSearchesProvider.notifier).record(q);
     if (results.isNotEmpty) {
       ref.read(appListProvider.notifier).launch(results.first);
@@ -241,7 +242,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   // ── While typing: live app results ──────────────────────────────────────────
   Widget _results(BuildContext context, ChromeData d) {
-    final results = ref.watch(visibleAppsProvider(_query));
+    final results =
+        ref.watch(visibleAppsProvider((query: _query, theme: widget.theme)));
 
     // The launcher's OWN entries, which [visibleAppsProvider] cannot return
     // because it ranks AppEntry and a launcher entry is not one.

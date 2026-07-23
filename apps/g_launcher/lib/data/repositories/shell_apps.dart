@@ -40,9 +40,16 @@ final shellAppsProvider =
   // budget phones carry. The empty-set fast path skips the allocation entirely
   // for the overwhelmingly common "nothing hidden" case.
   //
-  // NOTE: this is the SHELL/drawer/home surface. Hidden apps stay fully
-  // launchable by the terminal palette and by search — hiding is "off my home",
-  // not "uninstalled". Those paths read `appListProvider` directly, not this.
+  // NOTE: this is the SHELL/drawer/home surface, and it removes hidden apps
+  // unconditionally — there is no query here to admit one against.
+  //
+  // The old note here said hidden apps "stay fully launchable by the terminal
+  // palette and by search". That is no longer true as written, and the change
+  // was deliberate: reachable on ANY typing meant two letters brought a hidden
+  // app back in front of whoever it was hidden from. The rule now lives in
+  // `HiddenApps.admits` and is the same on every search surface — a hidden app
+  // is never ranked, and is admitted only when the query is its whole name.
+  // See `hidden_apps.dart` for why that strictness is the feature.
   final hidden = theme.prefs.hiddenApps;
   final visible = hidden.isEmpty
       ? apps

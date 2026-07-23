@@ -20,8 +20,13 @@ import '../tokens/typography.dart';
 /// *desktop*, not a settings screen. So the chrome layer DERIVES a full chrome
 /// colour set from those six. A theme author never writes `surface` or
 /// `textMuted`; they fall out of the palette the theme already ships. That
-/// keeps the "a new distro is minimal JSON, no code" promise intact — add
+/// keeps the "a new distro is minimal JSON, no code" promise intact: add
 /// Pop!_OS as a palette and its Settings screen is themed for free.
+///
+/// T1 CHANGED WHAT "THEMED" MEANS HERE, and it is worth reading [_neutral]
+/// before changing it back. Surfaces are neutral greys now, not tinted with
+/// the wallpaper, because that is what the desktops being imitated actually
+/// do. The accent still comes through untouched.
 ///
 /// Flow of truth: EffectiveTheme -> ChromeData.fromPalette -> ChromeScope ->
 /// primitives read ChromeScope.of(context). The primitives never touch
@@ -54,12 +59,14 @@ class ChromeColors {
     required this.danger,
   });
 
-  /// Page background behind cards. The distro's darker wallpaper stop, so the
-  /// Settings screen sits in the same aubergine / navy / black the desktop
-  /// does instead of a neutral grey that reads as "generic Android app".
+  /// Page background behind cards. A NEUTRAL grey at Adwaita's page lightness,
+  /// carrying a trace of the distro's hue. See [_neutral] for why this stopped
+  /// being the wallpaper's own colour.
   final Color bg;
 
-  /// The chrome's top bar / app bar. Literally the distro's system-bar colour.
+  /// The chrome's header bar. Deliberately the SAME value as [surface], the way
+  /// Adwaita's header bar is: separated from the page by a hairline, not by a
+  /// step in lightness.
   final Color bar;
 
   /// Card / list surface, one step up from [bg].
@@ -104,16 +111,25 @@ class ChromeColors {
   /// (Ubuntu cards stay faintly aubergine) instead of dropping to neutral grey.
   factory ChromeColors.fromPalette(ThemePalette p) {
     final ink = p.onDark;
+
+    // `onDark` is the colour chosen to read on this theme's chrome, so its own
+    // luminance IS that chrome's brightness, read backwards. Light ink means a
+    // dark surface. Same trick LauncherBrandIcon already uses to pick which
+    // logo variant to draw, and it needs no new theme field.
+    final darkChrome = ink.computeLuminance() > 0.5;
+
     return ChromeColors(
-      bg: p.bgBottom,
-      bar: p.bar,
-      // 5.5% / 10% toward the ink: just enough separation to read as a raised
-      // card on the page without inventing a second hue.
-      surface: Color.lerp(p.bgBottom, ink, 0.055)!,
-      surfaceAlt: Color.lerp(p.bgBottom, ink, 0.10)!,
+      bg: _neutral(p.bgBottom, darkChrome ? 0.115 : 0.965),
+      // Adwaita's header bar is the SAME value as its cards, separated from
+      // the page by a hairline rather than by a step in lightness. Was
+      // `p.bar`, the desktop's system-bar colour, which is a different surface
+      // doing a different job.
+      bar: _neutral(p.bgBottom, darkChrome ? 0.188 : 1.0),
+      surface: _neutral(p.bgBottom, darkChrome ? 0.188 : 1.0),
+      surfaceAlt: _neutral(p.bgBottom, darkChrome ? 0.255 : 0.925),
       text: ink,
       // Opacity ramps rather than fixed greys, so muted text keeps the ink's
-      // hue. Under a warm-white ink this reads warmer; that's intended.
+      // hue. Under a warm-white ink this reads warmer; that is intended.
       textMuted: ink.withValues(alpha: 0.64),
       textFaint: ink.withValues(alpha: 0.40),
       line: ink.withValues(alpha: 0.09),
@@ -128,6 +144,42 @@ class ChromeColors {
       warn: _warn,
       danger: _danger,
     );
+  }
+
+  /// A palette colour, drained of hue and pinned to an Adwaita lightness step.
+  ///
+  /// ─── WHY THE CHROME STOPPED BEING AUBERGINE ─────────────────────────────
+  ///
+  /// Surfaces used to be `p.bgBottom` nudged toward the ink, so Ubuntu's
+  /// Settings came out purple, Fedora's navy, KDE's slate. That was a
+  /// deliberate choice and it was the wrong one, for a reason that only shows
+  /// up when you put the screen next to the thing it is imitating: REAL Ubuntu
+  /// Settings is neutral dark grey. So is Fedora's. So is KDE's. Adwaita and
+  /// Breeze both carry structure in greys and reserve the accent for STATE,
+  /// and a settings screen tinted with the wallpaper reads as a themed app
+  /// rather than as a system one.
+  ///
+  /// SATURATION IS NOT ZEROED, THOUGH. A trace of the distro's hue survives,
+  /// capped at 6%, which is below the threshold where anyone would call it
+  /// purple and above the point where every distro's chrome is byte-identical.
+  /// Ubuntu's greys stay faintly warm, KDE's faintly cool. Zeroing it outright
+  /// was the other option and it makes the six themes indistinguishable
+  /// anywhere the accent is not on screen.
+  ///
+  /// The accent still comes straight through, unmodified. That is the whole
+  /// point: greys carry the structure, the accent carries the state, and the
+  /// distro is legible from one switch and one selection highlight.
+  ///
+  /// Lightness steps are Adwaita's own: roughly #1e1e1e page, #303030 card in
+  /// dark; #f6f6f6 page, #ffffff card in light. Light is handled even though
+  /// every bundled theme is currently dark, because a CDN pack with a pale
+  /// palette would otherwise get white text on white cards.
+  static Color _neutral(Color base, double lightness) {
+    final hsl = HSLColor.fromColor(base);
+    return hsl
+        .withSaturation((hsl.saturation * 0.12).clamp(0.0, 0.06))
+        .withLightness(lightness)
+        .toColor();
   }
 
   /// The bootstrap floor — house chrome, used ONLY while

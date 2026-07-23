@@ -8,11 +8,14 @@ import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart' show ChromeFamily;
+import '../../system/system_stats.dart';
 import '../gestures/gesture_actions.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../themes/themes_screen.dart';
+import 'device_pages.dart';
 import 'folders_screen.dart';
 import 'wallpaper_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Settings — Phase B, B1.
 ///
@@ -68,23 +71,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Live, not the push-time snapshot — every control reflects its edit at once.
     final theme =
         ref.watch(effectiveThemeProvider).asData?.value ?? widget.theme;
-    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-    final api = ref.read(launcherHostApiProvider);
+    ref.read(prefsProvider(theme.spec.id).notifier);
+    ref.read(launcherHostApiProvider);
     final workspaces = ref.watch(workspaceCountProvider);
     final q = _query.trim();
+
+    // Read once, here, and handed down. Watching the stream inside each row
+    // would give one ticker four subscribers for one value each.
+    final devices = ref.watch(deviceCategoriesProvider);
+    final stats = ref.watch(systemStatsProvider).asData?.value;
 
     // ThemedScaffold paints the background from the derived chrome and installs
     // the ChromeScope every widget below reads. No app bar: the large title
     // lives in the list, so we pass no title and keep the top status-bar inset.
+    // ── WHY THIS NOW PASSES A TITLE ─────────────────────────────────────
+    //
+    // It passed `body:` only, so ThemedScaffold built NO app bar and the page
+    // wore a large left-aligned `_Title` inside the list instead. That is an
+    // iOS large-title pattern, and it is why the centred Adwaita header bar
+    // added to ThemedScaffold changed the section pages and left this one
+    // looking exactly as before: there was no bar here to restyle.
+    //
+    // The scaffold's own inset handling comes with the bar, so the manual
+    // viewPadding on the list goes with the title.
     return ThemedScaffold(
+      title: 'Settings',
       body: ListView(
-        padding: EdgeInsets.only(
-          top: MediaQuery.viewPaddingOf(context).top,
-          bottom: 28,
-        ),
+        padding: const EdgeInsets.only(top: 8, bottom: 28),
         children: [
-          const _Title('Settings'),
-
           _SearchField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _query = v),
@@ -92,456 +106,162 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const _DefaultLauncherBanner(),
 
-          // ── Personalize ────────────────────────────────────────────────
-          _Group(
-            label: 'Personalize',
-            query: q,
-            rows: [
-              _FilterRow(
-                const ['theme', 'distro', 'desktop look', 'appearance'],
-                _Row(
-                  icon: Icons.palette_outlined,
-                  accent: true, // leads with the distro accent
-                  title: 'Theme',
-                  subtitle: 'The whole desktop look',
-                  trailing: _Value(theme.spec.name),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const ThemesScreen(),
-                    ),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const ['icon shape', 'circle', 'squircle', 'rounded'],
-                _Row(
-                  icon: Icons.category_outlined,
-                  title: 'Icon shape',
-                  subtitle: _shapeLong(theme.prefs.iconTreatment),
-                  trailing: _Value(_shapeShort(theme.prefs.iconTreatment)),
-                  onTap: () => _showShapeSheet(context, notifier, theme),
-                ),
-              ),
-              _FilterRow(
-                const ['icon pack', 'icons', 'adaptive', 'yaru'],
-                _Row(
-                  icon: Icons.grid_view_outlined,
-                  title: 'Icon pack',
-                  // Honest: the runtime engine already themes every app
-                  // adaptively. Hand-authored hero packs are the not-yet part.
-                  subtitle: 'Adaptive — every app covered',
-                  trailing: const _Value('Adaptive'),
-                  onTap: () =>
-                      context.showMessage('Custom icon packs are coming'),
-                ),
-              ),
-              _FilterRow(
-                const ['wallpaper', 'background', 'photo', 'rotation'],
-                _Row(
-                  icon: Icons.image_outlined,
-                  title: 'Wallpaper',
-                  subtitle: 'Presets, your photos, rotation',
-                  trailing: const _Chevron(),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => WallpaperScreen(theme: theme),
-                    ),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const [
-                  'verbose boot',
-                  'boot',
-                  'boot log',
-                  'startup',
-                  'systemd',
-                  'terminal',
-                ],
-                _ToggleRow(
-                  icon: Icons.terminal,
-                  title: 'Verbose boot',
-                  // Off = the quick splash. On = the full [  OK  ] scroll every
-                  // time the shell opens, themed to this distro.
-                  subtitle: 'Play the full Linux boot log on every launch',
-                  // null = off; the toggle reads and writes an explicit bool.
-                  value: theme.prefs.verboseBoot ?? false,
-                  onChanged: (v) =>
-                      notifier.edit((p) => p.copyWith(verboseBoot: v)),
-                ),
-              ),
-            ],
-          ),
-
-          // A LIVE PREVIEW, not another list row.
+          // ── LANDING, OR A FLAT FILTERED LIST ──────────────────────────
           //
-          // Dock side, the app-grid button and the drawer width are spatial
-          // settings, and a row that says "Dock position — Left" makes you
-          // apply it and back out to find out what changed. Setup shows the
-          // same picture from the same widget; Settings should not be the
-          // poorer of the two just because it came first.
+          // The screen was one list of about twenty rows across six groups.
+          // Long enough that nobody scrolled it, and with no room for the
+          // per-setting previews.
           //
-          // Hidden while searching: a preview is not a search result, and it
-          // would sit above a filtered list looking like one.
-          if (q.isEmpty) _LayoutPreview(theme: theme),
-
-          // ── Layout ─────────────────────────────────────────────────────
-          _Group(
-            label: 'Layout',
-            query: q,
-            rows: [
-              _FilterRow(
-                const ['dock', 'dock position', 'left', 'bottom'],
-                _Row(
-                  icon: Icons.dashboard_outlined,
-                  accent: true,
-                  title: 'Dock position',
-                  trailing: _Seg(
-                    // theme.dock is already the effective value (pref or default).
-                    value: theme.dock.name,
-                    options: const {
-                      'left': 'Left',
-                      'bottom': 'Bottom',
-                      'off': 'Off',
-                    },
-                    onChanged: (v) =>
-                        notifier.edit((p) => p.copyWith(dockSide: v)),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const ['activities', 'grid button', 'app button', 'dock'],
-                _Row(
-                  icon: Icons.apps_outlined,
-                  accent: true,
-                  title: 'Activities button',
-                  subtitle: 'Where the app-grid button sits in the dock',
-                  trailing: _Seg(
-                    value:
-                        theme.prefs.dockGridButton ?? 'end', // Ubuntu default
-                    options: const {
-                      'start': 'Start',
-                      'end': 'End',
-                      'off': 'Off',
-                    },
-                    onChanged: (v) =>
-                        notifier.edit((p) => p.copyWith(dockGridButton: v)),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                // Relabeled from "Home grid". The authentic-desktop decision
-                // removed home-screen app icons, so "Home grid" implied an
-                // icon grid that no longer exists. This rows × columns is the
-                // desktop's placement grid — where widgets / conky tiles snap
-                // once WidgetHost lands. The old "home grid" search term is kept
-                // so anyone looking for the previous name still finds this.
-                const [
-                  'desktop grid',
-                  'home grid',
-                  'rows',
-                  'columns',
-                  'grid size',
-                  'widgets',
-                ],
-                _Row(
-                  icon: Icons.grid_view_outlined,
-                  accent: true,
-                  title: 'Desktop grid',
-                  subtitle: 'Rows × columns',
-                  trailing: _ChipValue(
-                    label: '${theme.rows} × ${theme.cols}',
-                    preview: DevicePreview(
-                      palette: theme.palette,
-                      mode: DevicePreviewMode.desktop,
-                      dock: theme.dock,
-                      gridButton: theme.prefs.dockGridButton ?? 'end',
-                    ),
-                  ),
-                  onTap: () => _showGridSheet(context, notifier, theme),
-                ),
-              ),
-              _FilterRow(
-                const ['workspaces', 'pages', 'desktops', 'swipe'],
-                _Row(
-                  icon: Icons.dashboard_customize_outlined,
-                  accent: true,
-                  title: 'Workspaces',
-                  subtitle: 'Vertical desktops you swipe between',
-                  trailing: _Value('$workspaces'),
-                  onTap: () => _showStepperSheet(
-                    context,
-                    title: 'Workspaces',
-                    value: workspaces,
-                    min: WorkspaceCount.min,
-                    max: WorkspaceCount.max,
-                    onChanged: (v) =>
-                        ref.read(workspaceCountProvider.notifier).set(v),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const ['drawer columns', 'app drawer', 'columns'],
-                _Row(
-                  icon: Icons.view_column_outlined,
-                  accent: true,
-                  title: 'Drawer columns',
-                  trailing: _ChipValue(
-                    label: '${theme.drawerCols}',
-                    preview: DevicePreview(
-                      palette: theme.palette,
-                      mode: DevicePreviewMode.drawer,
-                      cols: theme.drawerCols,
-                    ),
-                  ),
-                  onTap: () => _showStepperSheet(
-                    context,
-                    title: 'Drawer columns',
-                    value: theme.drawerCols,
-                    min: 3,
-                    max: 8,
-                    onChanged: (v) =>
-                        notifier.edit((p) => p.copyWith(drawerCols: v)),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const [
-                  'drawer scroll',
-                  'scroll',
-                  'pages',
-                  'cube',
-                  'swipe drawer',
-                  'paged drawer',
-                ],
-                _Row(
-                  icon: Icons.view_carousel_outlined,
-                  accent: true,
-                  title: 'Drawer scrolls',
-                  subtitle: 'One long list, or paged',
-                  // Inline segments, not a sheet: this is three options that
-                  // change instantly and are worth trying against each other.
-                  // Making someone open a sheet to compare them is the friction
-                  // that stops anyone discovering the cube at all.
-                  trailing: _Seg(
-                    value: theme.prefs.drawerScrollStyle ?? 'vertical',
-                    options: const {
-                      'vertical': 'List',
-                      'pages': 'Pages',
-                      'cube': 'Cube',
-                    },
-                    onChanged: (v) => notifier.edit(
-                      (p) => p.copyWith(drawerScrollStyle: v),
-                    ),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const [
-                  'folders',
-                  'folder',
-                  'grouping',
-                  'group apps',
-                  'suggestions',
-                  'games folder',
-                ],
-                _Row(
-                  icon: Icons.folder_outlined,
-                  accent: true,
-                  title: 'Folders',
-                  subtitle: 'Grid, shape, and suggested groups',
-                  trailing: _ChipValue(
-                    preview: DevicePreview(
-                      palette: theme.palette,
-                      mode: DevicePreviewMode.folder,
-                      cols: theme.prefs.folderCols ?? 4,
-                      rows: theme.prefs.folderRows ?? 3,
-                    ),
-                    chevron: true,
-                  ),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => FoldersScreen(theme: theme),
-                    ),
-                  ),
-                ),
-              ),
-              _FilterRow(
-                const ['app drawer style', 'drawer style', 'activities grid'],
-                _Row(
-                  icon: Icons.view_agenda_outlined,
-                  accent: true,
-                  title: 'App drawer style',
-                  trailing: const _Value('Activities grid'),
-                  onTap: () =>
-                      context.showMessage('More drawer styles are coming'),
-                ),
-              ),
-              _FilterRow(
-                const ['icon size', 'size', 'bigger', 'smaller'],
-                _Row(
-                  icon: Icons.photo_size_select_large_outlined,
-                  accent: true,
-                  title: 'Icon size',
-                  trailing: _Value(_iconSizeLabel(theme.iconSizeDp)),
-                  onTap: () => _showSliderSheet(
-                    context,
-                    title: 'Icon size',
-                    value: theme.iconSizeDp,
-                    min: 36,
-                    max: 72,
-                    format: (v) => '${v.round()} dp',
-                    onCommit: (v) =>
-                        notifier.edit((p) => p.copyWith(iconSizeDp: v)),
-                  ),
-                ),
-              ),
-              if (theme.icons.treatment.name == 'roundedSquare')
+          // SEARCH IS WHY THIS IS A BRANCH AND NOT A ROUTER. With a query
+          // typed, every section is mounted flat and `_Group` filters them
+          // exactly as before, so a search still reaches a row three taps
+          // deep. Hiding rows behind sub-pages WITHOUT this would have made
+          // the search box quietly less useful, which is the usual price of
+          // splitting a settings screen and the one worth not paying.
+          if (q.isNotEmpty) ...[
+            ..._appearanceSection(context, ref, theme, workspaces, q),
+            ..._desktopSection(context, ref, theme, workspaces, q),
+            ..._applicationsSection(context, ref, theme, workspaces, q),
+            ..._gesturesSection(context, ref, theme, workspaces, q),
+            ..._systemSection(context, ref, theme, workspaces, q),
+          ] else ...[
+            // ── THE DISTRO ────────────────────────────────────────────────
+            //
+            // Its own group, above everything. It is the setting that changes
+            // every other setting on this screen, and grouping it with
+            // wallpaper and icons undersells it. The label carries the version,
+            // so the header doubles as the answer to "which Ubuntu is this".
+            _Group(
+              label: theme.spec.version.isEmpty
+                  ? theme.spec.name
+                  : '${theme.spec.name} ${theme.spec.version}',
+              rows: [
                 _FilterRow(
-                  const ['corner roundness', 'corners', 'rounded'],
+                  const ['distro', 'theme', 'desktop', 'switch'],
                   _Row(
-                    icon: Icons.rounded_corner_outlined,
+                    icon: Icons.desktop_windows_outlined,
                     accent: true,
-                    title: 'Corner roundness',
-                    trailing:
-                        _Value('${(theme.icons.cornerRadius * 200).round()}%'),
-                    onTap: () => _showSliderSheet(
-                      context,
-                      title: 'Corner roundness',
-                      value: theme.icons.cornerRadius,
-                      min: 0,
-                      max: 0.5,
-                      format: (v) => '${(v * 200).round()}%',
-                      onCommit: (v) =>
-                          notifier.edit((p) => p.copyWith(cornerRadius: v)),
+                    title: 'Change desktop',
+                    subtitle: 'Settings below are stored per distro',
+                    trailing: const _Chevron(),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ThemesScreen(),
+                      ),
                     ),
                   ),
                 ),
-              _FilterRow(
-                const ['top bar', 'status bar', 'gnome bar'],
-                _ToggleRow(
-                  icon: Icons.web_asset_outlined,
-                  accent: true,
-                  title: 'Top bar',
-                  value: theme.topBar,
-                  onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
-          // ── Labels ─────────────────────────────────────────────────────
-          _Group(
-            label: 'Labels',
-            query: q,
-            rows: [
-              _FilterRow(
-                const ['wrap', 'app names', 'labels', 'truncate'],
-                _ToggleRow(
-                  icon: Icons.wrap_text,
-                  title: 'Wrap long app names',
-                  subtitle: 'Two lines instead of truncating',
-                  value: theme.labelLines > 1,
-                  onChanged: (v) =>
-                      notifier.edit((p) => p.copyWith(labelLines: v ? 2 : 1)),
-                ),
+            // ── DEVICE ────────────────────────────────────────────────────
+            //
+            // Built from `deviceCategoriesProvider`, so a phone that will not
+            // report a figure has no row for it. Bluetooth, Notifications,
+            // Sound and Privacy are absent entirely: there is nothing
+            // permission-free to read for any of them, and a category that can
+            // only link out is a link, not a settings page.
+            //
+            // Each row carries its own VALUE, and that is what stops this
+            // reading as a menu. "Wi-Fi", "72%", "42G free" are readable
+            // without tapping anything, the way a desktop settings sidebar is.
+            if (devices.isNotEmpty)
+              _Group(
+                label: 'Device',
+                rows: [
+                  for (final d in devices)
+                    _FilterRow(
+                      [d.label.toLowerCase(), ...d.keywords],
+                      _Row(
+                        icon: d.icon,
+                        accent: true,
+                        title: d.label,
+                        trailing: _ValueChevron(text: d.valueFor(stats)),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(builder: (_) => d.page),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              _FilterRow(
-                const ['text size', 'font size', 'labels'],
-                _Row(
-                  icon: Icons.format_size,
-                  title: 'Text size',
-                  trailing: _Value('${(theme.textScale * 100).round()}%'),
-                  onTap: () => _showSliderSheet(
-                    context,
-                    title: 'Text size',
-                    value: theme.textScale,
-                    min: 0.8,
-                    max: 1.4,
-                    format: (v) => '${(v * 100).round()}%',
-                    onCommit: (v) =>
-                        notifier.edit((p) => p.copyWith(textScale: v)),
-                  ),
-                ),
-              ),
-            ],
-          ),
 
-          // ── Gestures ───────────────────────────────────────────────────
-          const _GestureServiceCard(),
-          _Group(
-            label: 'Gestures',
-            query: q,
-            rows: [
-              for (final g in Gesture.values)
+            _Group(
+              label: 'Desktop',
+              rows: [
                 _FilterRow(
-                  [g.label.toLowerCase(), 'gesture', 'swipe'],
-                  _GestureRow(theme: theme, gesture: g),
-                ),
-            ],
-          ),
-
-          // ── System (hands off to Android) ──────────────────────────────
-          _Group(
-            label: 'System — opens Android settings',
-            query: q,
-            rows: [
-              _FilterRow(
-                const ['default launcher', 'home app', 'set default'],
-                _Row(
-                  icon: Icons.home_outlined,
-                  title: 'Set as default launcher',
-                  trailing: const _SysBadge(),
-                  onTap: api.requestDefaultLauncher,
-                ),
-              ),
-              _FilterRow(
-                const ['notifications', 'access', 'permissions'],
-                _Row(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications & access',
-                  trailing: const _SysBadge(),
-                  onTap: () => api.openAndroidSettings(
-                    'android.settings.APP_NOTIFICATION_SETTINGS',
+                  const ['appearance', 'wallpaper', 'icons', 'boot', 'labels'],
+                  _Row(
+                    icon: Icons.palette_outlined,
+                    accent: true,
+                    title: 'Appearance',
+                    trailing: const _Chevron(),
+                    onTap: () => _openSection(
+                      context,
+                      'Appearance',
+                      _appearanceSection,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                _FilterRow(
+                  const ['dock', 'grid', 'workspaces', 'widgets', 'desktop'],
+                  _Row(
+                    icon: Icons.layers_outlined,
+                    accent: true,
+                    title: 'Desktop and dock',
+                    trailing: const _Chevron(),
+                    onTap: () => _openSection(
+                      context,
+                      'Desktop and dock',
+                      _desktopSection,
+                    ),
+                  ),
+                ),
+                _FilterRow(
+                  const ['apps', 'drawer', 'folders', 'search', 'columns'],
+                  _Row(
+                    icon: Icons.apps_outlined,
+                    accent: true,
+                    title: 'Applications',
+                    trailing: const _Chevron(),
+                    onTap: () => _openSection(
+                      context,
+                      'Applications',
+                      _applicationsSection,
+                    ),
+                  ),
+                ),
+                _FilterRow(
+                  const ['gestures', 'swipe', 'accessibility'],
+                  _Row(
+                    icon: Icons.gesture_outlined,
+                    accent: true,
+                    title: 'Gestures',
+                    trailing: const _Chevron(),
+                    onTap: () =>
+                        _openSection(context, 'Gestures', _gesturesSection),
+                  ),
+                ),
+              ],
+            ),
 
-          // ── Maintenance ────────────────────────────────────────────────
-          _Group(
-            label: 'Maintenance',
-            query: q,
-            rows: [
-              _FilterRow(
-                const ['rebuild icon cache', 'icons', 'stale', 'cache'],
-                _Row(
-                  icon: Icons.refresh,
-                  title: 'Rebuild icon cache',
-                  subtitle: 'If icons look wrong or stale',
-                  trailing: const _Chevron(),
-                  onTap: () async {
-                    await api.clearIconCache();
-                    if (context.mounted) {
-                      context.showMessage('Icon cache cleared');
-                    }
-                  },
+            _Group(
+              label: 'System',
+              rows: [
+                _FilterRow(
+                  const ['system', 'android', 'reset', 'about', 'default'],
+                  _Row(
+                    icon: Icons.info_outline,
+                    accent: true,
+                    title: 'System',
+                    subtitle: 'Android settings, maintenance, reset',
+                    trailing: const _Chevron(),
+                    onTap: () =>
+                        _openSection(context, 'System', _systemSection),
+                  ),
                 ),
-              ),
-              _FilterRow(
-                ['reset', 'defaults', theme.spec.name.toLowerCase()],
-                _Row(
-                  icon: Icons.settings_backup_restore,
-                  title: 'Reset ${theme.spec.name} settings',
-                  // Per-theme, per §5.3 — resetting Ubuntu must not touch KDE.
-                  subtitle: 'Layout, icon shape and hidden apps',
-                  trailing: const _Chevron(),
-                  onTap: () => _confirmReset(context, notifier, theme),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -679,27 +399,12 @@ class _Skin {
 // Structure
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _Title extends StatelessWidget {
-  const _Title(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = _Skin.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: s.tx,
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
-        ),
-      ),
-    );
-  }
-}
+// `_Title` LIVED HERE and is gone. It was a 28px, w700, left-aligned page
+// heading rendered as the first item of the list: the iOS large-title pattern,
+// and the loudest of the three things making this screen read as a phone app
+// wearing Ubuntu's orange. The landing page now passes a title to
+// ThemedScaffold and gets the same flat centred header bar every other chrome
+// screen already had.
 
 /// A group label above a rounded card whose rows are divided by a hairline.
 /// Empty groups render nothing — which is also how search hides a whole section.
@@ -873,8 +578,24 @@ class _Row extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            _IconCircle(icon: icon, accent: accent),
-            const SizedBox(width: 14),
+            // ── ICONS ON THE LANDING PAGE, NONE INSIDE A SECTION ──────
+            //
+            // GNOME puts icons in the settings SIDEBAR and almost never on the
+            // rows within a page. An accent circle on every row is an iOS and
+            // One UI convention, and together with the large title it was the
+            // main reason this chrome read as a phone app wearing Ubuntu's
+            // orange rather than as a desktop settings app.
+            //
+            // A scope rather than a parameter, deliberately: the rows were
+            // sliced verbatim out of the old build method and all 30 of them
+            // pass `icon:`. Threading a flag through every one would have meant
+            // editing all 30, which is exactly the retyping this refactor kept
+            // avoiding. `_SectionPage` sets it false for its whole subtree and
+            // nothing else has to know.
+            if (_RowIcons.of(context)) ...[
+              _IconCircle(icon: icon, accent: accent),
+              const SizedBox(width: 14),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -920,6 +641,7 @@ class _ToggleRow extends StatelessWidget {
     required this.onChanged,
     this.subtitle,
     this.accent = false,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -929,20 +651,34 @@ class _ToggleRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
+  /// DIMMED AND INERT, NOT ABSENT.
+  ///
+  /// A setting that only applies in some other mode ("Group A to Z" needs the
+  /// list layout) is shown greyed with the reason in its own subtitle rather
+  /// than hidden. Hiding it means someone who has read about the feature
+  /// concludes it does not exist in this build; greying it teaches the rule at
+  /// a glance and says where to go for it.
+  ///
+  /// Both the row tap AND the switch have to go inert. Killing only one leaves
+  /// a control that half-works, which is worse than either.
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     final s = _Skin.of(context);
-    return _Row(
+    final row = _Row(
       icon: icon,
       accent: accent,
       title: title,
       subtitle: subtitle,
-      onTap: () => onChanged(!value),
+      onTap: enabled ? () => onChanged(!value) : null,
       // WidgetStateProperty, not the activeColor churn — the stable Material-3
       // surface. Track fills with the distro accent when on.
       trailing: Switch(
         value: value,
-        onChanged: onChanged,
+        // Null disables it. Material greys the thumb and track itself, so the
+        // colours below still apply in the enabled case only.
+        onChanged: enabled ? onChanged : null,
         thumbColor: WidgetStatePropertyAll(s.onAcc),
         trackColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected) ? s.acc : s.card2,
@@ -950,6 +686,11 @@ class _ToggleRow extends StatelessWidget {
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
     );
+
+    // One Opacity over the whole row, so the label, the subtitle, the icon
+    // circle and the switch all fade together. Dimming only the switch would
+    // read as a rendering glitch rather than as a disabled setting.
+    return enabled ? row : Opacity(opacity: 0.45, child: row);
   }
 }
 
@@ -1592,7 +1333,7 @@ Future<void> _confirmReset(
         'Your ${theme.spec.name} layout, icon shape and hidden apps go back to '
         'the theme defaults. Other themes are untouched.',
     confirmLabel: 'Reset',
-    cancelLabel: 'Cancel',
+    cancelLabel: context.t('common.cancel'),
   );
   if (ok == true) notifier.resetAll();
 }
@@ -1676,14 +1417,7 @@ class _GestureServiceCard extends ConsumerWidget {
   /// gesture list taxes everyone forever to reassure the few who ask. So the
   /// card states the offer in one line and the reasoning goes one tap away.
   static const _explainer =
-      'Android only lets a launcher pull down the shade, open quick settings, '
-      'show recents or lock the screen through an accessibility service.\n\n'
-      'The next screen warns that G Launcher can "observe your actions". That '
-      'is the standard wording for every app that uses this API.\n\n'
-      'G Launcher does not read your screen and does not watch other apps. It '
-      'asks only for the ability to perform the gestures you set here.\n\n'
-      'Gestures that do not need it — Activities, launching an app, showing '
-      'the dock — work either way.';
+      'Android only lets a launcher pull down the shade, open quick settings, show recents or lock the screen through an accessibility service.\n\nThe next screen warns that G Launcher can "observe your actions". That is the standard wording for every app that uses this API.\n\nG Launcher does not read your screen and does not watch other apps. It asks only for the ability to perform the gestures you set here.\n\nGestures that do not need it — Activities, launching an app, showing the dock — work either way.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1818,3 +1552,729 @@ String _iconSizeLabel(double dp) => switch (dp) {
       < 64 => 'Large',
       _ => 'Huge',
     };
+
+/// Appearance: the distro, its artwork, and how text reads.
+///
+/// Sliced VERBATIM out of the old single build method. The rows, their
+/// `_FilterRow` keywords and their order are byte-identical to what shipped;
+/// only where they are mounted changed. That was the whole risk in this
+/// refactor: a row that loses its keywords stops being findable by search and
+/// nothing fails, so nothing here was retyped.
+List<Widget> _appearanceSection(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  int workspaces,
+  String q,
+) {
+  // Derived here rather than passed, so the signature never has to name the
+  // Pigeon host API type, which this file does not import.
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  ref.read(launcherHostApiProvider);
+
+  return [
+    // ── Personalize ────────────────────────────────────────────────
+    _Group(
+      label: 'Personalize',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['theme', 'distro', 'desktop look', 'appearance'],
+          _Row(
+            icon: Icons.palette_outlined,
+            accent: true, // leads with the distro accent
+            title: 'Theme',
+            subtitle: 'The whole desktop look',
+            trailing: _Value(theme.spec.name),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ThemesScreen(),
+              ),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const ['icon shape', 'circle', 'squircle', 'rounded'],
+          _Row(
+            icon: Icons.category_outlined,
+            title: 'Icon shape',
+            subtitle: _shapeLong(theme.prefs.iconTreatment),
+            trailing: _Value(_shapeShort(theme.prefs.iconTreatment)),
+            onTap: () => _showShapeSheet(context, notifier, theme),
+          ),
+        ),
+        const _FilterRow(
+          ['icon pack', 'icons', 'adaptive', 'yaru'],
+          _Row(
+            icon: Icons.grid_view_outlined,
+            title: 'Icon pack',
+            // A status row, not a promise: the runtime engine already themes
+            // every installed app adaptively, so this states what is already
+            // true. It stays tap-inert until downloadable hero packs ship, at
+            // which point this row grows a picker. No forward-looking copy until
+            // then.
+            subtitle: 'Adaptive — every app covered',
+            trailing: _Value('Adaptive'),
+          ),
+        ),
+        _FilterRow(
+          const ['wallpaper', 'background', 'photo', 'rotation'],
+          _Row(
+            icon: Icons.image_outlined,
+            title: 'Wallpaper',
+            subtitle: 'Presets, your photos, rotation',
+            trailing: const _Chevron(),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WallpaperScreen(theme: theme),
+              ),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const [
+            'verbose boot',
+            'boot',
+            'boot log',
+            'startup',
+            'systemd',
+            'terminal',
+          ],
+          _ToggleRow(
+            icon: Icons.terminal,
+            title: 'Verbose boot',
+            // Off = the quick splash. On = the full [  OK  ] scroll every
+            // time the shell opens, themed to this distro.
+            subtitle: 'Play the full Linux boot log on every launch',
+            // null = off; the toggle reads and writes an explicit bool.
+            value: theme.prefs.verboseBoot ?? false,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(verboseBoot: v)),
+          ),
+        ),
+      ],
+    ),
+
+    // A LIVE PREVIEW, not another list row.
+    //
+    // Dock side, the app-grid button and the drawer width are spatial
+    // settings, and a row that says "Dock position — Left" makes you
+    // apply it and back out to find out what changed. Setup shows the
+    // same picture from the same widget; Settings should not be the
+    // poorer of the two just because it came first.
+    //
+    // Hidden while searching: a preview is not a search result, and it
+    // would sit above a filtered list looking like one.
+    // ── Labels ─────────────────────────────────────────────────────
+    _Group(
+      label: 'Icons and bar',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['icon size', 'size', 'bigger', 'smaller'],
+          _Row(
+            icon: Icons.photo_size_select_large_outlined,
+            accent: true,
+            title: 'Icon size',
+            trailing: _Value(_iconSizeLabel(theme.iconSizeDp)),
+            onTap: () => _showSliderSheet(
+              context,
+              title: 'Icon size',
+              value: theme.iconSizeDp,
+              min: 36,
+              max: 72,
+              format: (v) => '${v.round()} dp',
+              onCommit: (v) => notifier.edit((p) => p.copyWith(iconSizeDp: v)),
+            ),
+          ),
+        ),
+        if (theme.icons.treatment.name == 'roundedSquare')
+          _FilterRow(
+            const ['corner roundness', 'corners', 'rounded'],
+            _Row(
+              icon: Icons.rounded_corner_outlined,
+              accent: true,
+              title: 'Corner roundness',
+              trailing: _Value('${(theme.icons.cornerRadius * 200).round()}%'),
+              onTap: () => _showSliderSheet(
+                context,
+                title: 'Corner roundness',
+                value: theme.icons.cornerRadius,
+                min: 0,
+                max: 0.5,
+                format: (v) => '${(v * 200).round()}%',
+                onCommit: (v) =>
+                    notifier.edit((p) => p.copyWith(cornerRadius: v)),
+              ),
+            ),
+          ),
+        _FilterRow(
+          const ['top bar', 'status bar', 'gnome bar'],
+          _ToggleRow(
+            icon: Icons.web_asset_outlined,
+            accent: true,
+            title: 'Top bar',
+            value: theme.topBar,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
+          ),
+        ),
+      ],
+    ),
+    _Group(
+      label: 'Labels',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['wrap', 'app names', 'labels', 'truncate'],
+          _ToggleRow(
+            icon: Icons.wrap_text,
+            title: 'Wrap long app names',
+            // Reversed default. One line is now the default, because two
+            // costs a whole ROW of grid height on every page to
+            // accommodate the one app in twenty whose name wraps: on a
+            // 412dp phone a paged drawer fits six rows at one line and
+            // five at two. The setting stays for the people who would
+            // rather read "Secure Folder" than "Secure Fold…".
+            subtitle: 'Two lines instead of one',
+            value: theme.labelLines > 1,
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(labelLines: v ? 2 : 1)),
+          ),
+        ),
+        _FilterRow(
+          const ['text size', 'font size', 'labels'],
+          _Row(
+            icon: Icons.format_size,
+            title: 'Text size',
+            trailing: _Value('${(theme.textScale * 100).round()}%'),
+            onTap: () => _showSliderSheet(
+              context,
+              title: 'Text size',
+              value: theme.textScale,
+              min: 0.8,
+              max: 1.4,
+              format: (v) => '${(v * 100).round()}%',
+              onCommit: (v) => notifier.edit((p) => p.copyWith(textScale: v)),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Desktop and drawer: dock, grid, workspaces, drawer layout.
+///
+/// Sliced VERBATIM out of the old single build method. The rows, their
+/// `_FilterRow` keywords and their order are byte-identical to what shipped;
+/// only where they are mounted changed. That was the whole risk in this
+/// refactor: a row that loses its keywords stops being findable by search and
+/// nothing fails, so nothing here was retyped.
+/// Desktop and dock: where things sit, not what they look like.
+/// Sliced VERBATIM out of the old Layout group. Every `_FilterRow`, its
+/// keywords and its order are untouched; only which group they sit in
+/// changed. A row that loses its keywords stops being findable by search
+/// and nothing fails, so nothing here was retyped.
+List<Widget> _desktopSection(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  int workspaces,
+  String q,
+) {
+  // Derived here rather than passed, so the signature never has to name the
+  // Pigeon host API type, which this file does not import.
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  ref.read(launcherHostApiProvider);
+
+  return [
+    if (q.isEmpty) _LayoutPreview(theme: theme),
+
+    // ── Layout ─────────────────────────────────────────────────────
+    _Group(
+      label: 'Layout',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['dock', 'dock position', 'left', 'bottom'],
+          _Row(
+            icon: Icons.dashboard_outlined,
+            accent: true,
+            title: 'Dock position',
+            trailing: _Seg(
+              // theme.dock is already the effective value (pref or default).
+              value: theme.dock.name,
+              options: const {
+                'left': 'Left',
+                'bottom': 'Bottom',
+                'off': 'Off',
+              },
+              onChanged: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const ['activities', 'grid button', 'app button', 'dock'],
+          _Row(
+            icon: Icons.apps_outlined,
+            accent: true,
+            title: 'Activities button',
+            subtitle: 'Where the app-grid button sits in the dock',
+            trailing: _Seg(
+              value: theme.prefs.dockGridButton ?? 'end', // Ubuntu default
+              options: const {
+                'start': 'Start',
+                'end': 'End',
+                'off': 'Off',
+              },
+              onChanged: (v) =>
+                  notifier.edit((p) => p.copyWith(dockGridButton: v)),
+            ),
+          ),
+        ),
+        _FilterRow(
+          // Relabeled from "Home grid". The authentic-desktop decision
+          // removed home-screen app icons, so "Home grid" implied an
+          // icon grid that no longer exists. This rows × columns is the
+          // desktop's placement grid — where widgets / conky tiles snap
+          // once WidgetHost lands. The old "home grid" search term is kept
+          // so anyone looking for the previous name still finds this.
+          const [
+            'desktop grid',
+            'home grid',
+            'rows',
+            'columns',
+            'grid size',
+            'widgets',
+          ],
+          _Row(
+            icon: Icons.grid_view_outlined,
+            accent: true,
+            title: 'Desktop grid',
+            subtitle: 'Rows × columns',
+            trailing: _ChipValue(
+              label: '${theme.rows} × ${theme.cols}',
+              preview: DevicePreview(
+                palette: theme.palette,
+                mode: DevicePreviewMode.desktop,
+                dock: theme.dock,
+                gridButton: theme.prefs.dockGridButton ?? 'end',
+              ),
+            ),
+            onTap: () => _showGridSheet(context, notifier, theme),
+          ),
+        ),
+        _FilterRow(
+          const ['workspaces', 'pages', 'desktops', 'swipe'],
+          _Row(
+            icon: Icons.dashboard_customize_outlined,
+            accent: true,
+            title: 'Workspaces',
+            subtitle: 'Vertical desktops you swipe between',
+            trailing: _Value('$workspaces'),
+            onTap: () => _showStepperSheet(
+              context,
+              title: 'Workspaces',
+              value: workspaces,
+              min: WorkspaceCount.min,
+              max: WorkspaceCount.max,
+              onChanged: (v) =>
+                  ref.read(workspaceCountProvider.notifier).set(v),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Applications: the app drawer and its folders.
+/// Sliced VERBATIM out of the old Layout group. Every `_FilterRow`, its
+/// keywords and its order are untouched; only which group they sit in
+/// changed. A row that loses its keywords stops being findable by search
+/// and nothing fails, so nothing here was retyped.
+List<Widget> _applicationsSection(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  int workspaces,
+  String q,
+) {
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  // Read for symmetry with the other sections; the drawer rows write prefs
+  // rather than calling native. Kept so the four builders have one shape.
+  // ignore: unused_local_variable
+  final api = ref.read(launcherHostApiProvider);
+
+  return [
+    _Group(
+      label: 'App drawer',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['drawer columns', 'app drawer', 'columns'],
+          _Row(
+            icon: Icons.view_column_outlined,
+            accent: true,
+            title: 'Drawer columns',
+            trailing: _ChipValue(
+              label: '${theme.drawerCols}',
+              preview: DevicePreview(
+                palette: theme.palette,
+                mode: DevicePreviewMode.drawer,
+                cols: theme.drawerCols,
+              ),
+            ),
+            onTap: () => _showStepperSheet(
+              context,
+              title: 'Drawer columns',
+              value: theme.drawerCols,
+              min: 3,
+              max: 8,
+              onChanged: (v) => notifier.edit((p) => p.copyWith(drawerCols: v)),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const [
+            'drawer scroll',
+            'scroll',
+            'pages',
+            'cube',
+            'swipe drawer',
+            'paged drawer',
+          ],
+          _Row(
+            icon: Icons.view_carousel_outlined,
+            accent: true,
+            title: 'Drawer scrolls',
+            subtitle: 'One long list, or paged',
+            // Inline segments, not a sheet: this is three options that
+            // change instantly and are worth trying against each other.
+            // Making someone open a sheet to compare them is the friction
+            // that stops anyone discovering the cube at all.
+            trailing: _Seg(
+              value: theme.prefs.drawerScrollStyle ?? 'pages',
+              options: const {
+                'vertical': 'List',
+                'pages': 'Pages',
+                'cube': 'Cube',
+              },
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(drawerScrollStyle: v),
+              ),
+            ),
+          ),
+        ),
+
+        // ── GROUPING, AND WHY IT IS A SEPARATE ROW ──────────────────
+        //
+        // A-to-Z needs letter headings, and letter headings need a
+        // continuous scroll to sit in: there is nowhere to put "M" on a
+        // page that turns. As a fourth value of the row above, choosing
+        // it would have had to silently also mean "stop being paged",
+        // and two options in one control would have disabled each other.
+        //
+        // SHOWN DISABLED rather than hidden when the layout is paged.
+        // Hiding it means someone who read about the feature concludes
+        // it does not exist; disabling it with the reason attached
+        // teaches the rule in one glance.
+        _FilterRow(
+          const ['a to z', 'az', 'alphabet', 'grouping', 'sections'],
+          _ToggleRow(
+            icon: Icons.sort_by_alpha,
+            title: 'Group A to Z',
+            subtitle: (theme.prefs.drawerScrollStyle ?? 'pages') == 'vertical'
+                ? 'Letter headings down the list'
+                : 'Only on the list layout',
+            value: (theme.prefs.drawerGrouping ?? 'none') == 'az',
+            enabled: (theme.prefs.drawerScrollStyle ?? 'pages') == 'vertical',
+            onChanged: (v) => notifier.edit(
+              (p) => p.copyWith(drawerGrouping: v ? 'az' : 'none'),
+            ),
+          ),
+        ),
+
+        // Three positions, not two. 'off' hides the bar for people who
+        // reach search by gesture or by the desktop search desklet; the
+        // drawer keeps its empty first row either way, because that gap
+        // clears the status bar rather than the search field.
+        _FilterRow(
+          const ['search', 'search bar', 'search position'],
+          _Row(
+            icon: Icons.search,
+            accent: true,
+            title: 'Search bar',
+            subtitle: 'Where the drawer\'s search sits',
+            trailing: _Seg(
+              value: theme.prefs.drawerSearchPosition ?? 'bottom',
+              options: const {
+                'top': 'Top',
+                'bottom': 'Bottom',
+                'off': 'Off',
+              },
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(drawerSearchPosition: v),
+              ),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const [
+            'folders',
+            'folder',
+            // The hidden-apps section lives on the Folders page, so the words
+            // people actually search for have to surface THIS row. Without
+            // them, typing "hidden" in Settings finds nothing and the feature
+            // looks absent.
+            'hide',
+            'hidden',
+            'hidden apps',
+            'hide app',
+            'social',
+            'grouping',
+            'group apps',
+            'suggestions',
+            'games folder',
+          ],
+          _Row(
+            icon: Icons.folder_outlined,
+            accent: true,
+            title: 'Apps and folders',
+            subtitle: 'Grid, shape, and suggested groups',
+            trailing: _ChipValue(
+              preview: DevicePreview(
+                palette: theme.palette,
+                mode: DevicePreviewMode.folder,
+                cols: theme.prefs.folderCols ?? 4,
+                rows: theme.prefs.folderRows ?? 3,
+              ),
+              chevron: true,
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => FoldersScreen(theme: theme),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Gestures, plus the accessibility opt-in card they need.
+///
+/// Sliced VERBATIM out of the old single build method. The rows, their
+/// `_FilterRow` keywords and their order are byte-identical to what shipped;
+/// only where they are mounted changed. That was the whole risk in this
+/// refactor: a row that loses its keywords stops being findable by search and
+/// nothing fails, so nothing here was retyped.
+List<Widget> _gesturesSection(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  int workspaces,
+  String q,
+) {
+  // Derived here rather than passed, so the signature never has to name the
+  // Pigeon host API type, which this file does not import.
+  ref.read(prefsProvider(theme.spec.id).notifier);
+  ref.read(launcherHostApiProvider);
+
+  return [
+    // ── Gestures ───────────────────────────────────────────────────
+    const _GestureServiceCard(),
+    _Group(
+      label: 'Gestures',
+      query: q,
+      rows: [
+        for (final g in Gesture.values)
+          _FilterRow(
+            [g.label.toLowerCase(), 'gesture', 'swipe'],
+            _GestureRow(theme: theme, gesture: g),
+          ),
+      ],
+    ),
+  ];
+}
+
+/// System hand-offs to Android, and maintenance.
+///
+/// Sliced VERBATIM out of the old single build method. The rows, their
+/// `_FilterRow` keywords and their order are byte-identical to what shipped;
+/// only where they are mounted changed. That was the whole risk in this
+/// refactor: a row that loses its keywords stops being findable by search and
+/// nothing fails, so nothing here was retyped.
+List<Widget> _systemSection(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  int workspaces,
+  String q,
+) {
+  // Derived here rather than passed, so the signature never has to name the
+  // Pigeon host API type, which this file does not import.
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  final api = ref.read(launcherHostApiProvider);
+
+  return [
+    // ── System (hands off to Android) ──────────────────────────────
+    _Group(
+      label: 'System — opens Android settings',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['default launcher', 'home app', 'set default'],
+          _Row(
+            icon: Icons.home_outlined,
+            title: 'Set as default launcher',
+            trailing: const _SysBadge(),
+            onTap: api.requestDefaultLauncher,
+          ),
+        ),
+        _FilterRow(
+          const ['notifications', 'access', 'permissions'],
+          _Row(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications & access',
+            trailing: const _SysBadge(),
+            onTap: () => api.openAndroidSettings(
+              'android.settings.APP_NOTIFICATION_SETTINGS',
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    // ── Maintenance ────────────────────────────────────────────────
+    _Group(
+      label: 'Maintenance',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['rebuild icon cache', 'icons', 'stale', 'cache'],
+          _Row(
+            icon: Icons.refresh,
+            title: 'Rebuild icon cache',
+            subtitle: 'If icons look wrong or stale',
+            trailing: const _Chevron(),
+            onTap: () async {
+              await api.clearIconCache();
+              if (context.mounted) {
+                context.showMessage('Icon cache cleared');
+              }
+            },
+          ),
+        ),
+        _FilterRow(
+          ['reset', 'defaults', theme.spec.name.toLowerCase()],
+          _Row(
+            icon: Icons.settings_backup_restore,
+            title: 'Reset ${theme.spec.name} settings',
+            // Per-theme, per §5.3 — resetting Ubuntu must not touch KDE.
+            subtitle: 'Layout, icon shape and hidden apps',
+            trailing: const _Chevron(),
+            onTap: () => _confirmReset(context, notifier, theme),
+          ),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Push one section as its own page.
+typedef _SectionBuilder = List<Widget> Function(
+  BuildContext,
+  WidgetRef,
+  EffectiveTheme,
+  int,
+  String,
+);
+
+void _openSection(
+  BuildContext context,
+  String title,
+  _SectionBuilder builder,
+) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => _SectionPage(title: title, builder: builder),
+    ),
+  );
+}
+
+/// A section on its own page.
+///
+/// Re-reads the theme rather than receiving it. The pushed route lives outside
+/// the parent's build, so a snapshot passed in would go stale the moment a
+/// control on THIS page changed something, and every row here changes
+/// something. `q` is empty by construction: search happens on the landing page
+/// and never lands you here.
+class _SectionPage extends ConsumerWidget {
+  const _SectionPage({required this.title, required this.builder});
+
+  final String title;
+  final _SectionBuilder builder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(effectiveThemeProvider).asData?.value;
+    if (theme == null) return const SizedBox.shrink();
+    final workspaces = ref.watch(workspaceCountProvider);
+
+    return ThemedScaffold(
+      title: title,
+      body: _RowIcons(
+        show: false,
+        child: ListView(
+          padding: const EdgeInsets.only(top: 8, bottom: 28),
+          children: builder(context, ref, theme, workspaces, ''),
+        ),
+      ),
+    );
+  }
+}
+
+/// A value and a disclosure arrow, for a row that both reports and navigates.
+///
+/// The value is what makes the Device group a settings sidebar rather than a
+/// menu. Absent when the figure has not landed yet, which is the same rule the
+/// desklets follow: a device that will not answer shows a bare chevron rather
+/// than a placeholder.
+class _ValueChevron extends StatelessWidget {
+  const _ValueChevron({this.text});
+
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _Skin.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (text != null) ...[
+          Text(text!, style: TextStyle(color: s.mut, fontSize: 13)),
+          const SizedBox(width: 8),
+        ],
+        Icon(Icons.chevron_right, size: 20, color: s.mut),
+      ],
+    );
+  }
+}
+
+/// Whether a [_Row] draws its leading icon circle.
+///
+/// True everywhere by default, so the landing page and the flat search results
+/// keep their icons with no wrapper. [_SectionPage] sets it false, which is the
+/// GNOME split: icons in the sidebar, none on the rows inside a page.
+class _RowIcons extends InheritedWidget {
+  const _RowIcons({required this.show, required super.child});
+
+  final bool show;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_RowIcons>()?.show ?? true;
+
+  @override
+  bool updateShouldNotify(_RowIcons oldWidget) => oldWidget.show != show;
+}

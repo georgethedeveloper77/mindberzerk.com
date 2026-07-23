@@ -361,6 +361,21 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       installedVersion: p.installedVersion,
     );
 
+/// The catalogue floor: what the Themes screen shows before the CDN index has
+/// ever been read, and what it falls back to offline.
+///
+/// ─── THESE MUST AGREE WITH theme_registry.bundledThemes ─────────────────────
+///
+/// `bundled: true` means the theme.json is IN THE APK. Three of these claimed
+/// it and were wrong: Aqua, Arch and Fedora kept `bundled: true` and a
+/// `specId` after their asset directories were deleted, and every card here
+/// defaults to `CardStatus.bundled`, so the screen offered to apply them.
+/// `bundledAssetFor` resolves an unknown id to Ubuntu, so tapping Aqua
+/// silently applied Ubuntu: no error, no message, just the wrong desktop.
+///
+/// The rule, so it cannot drift again: a card is `bundled` if and only if its
+/// id is a key in `bundledThemes`. Everything else is `available` and arrives
+/// over the CDN, which is also the free/paid line (bundled implies free).
 const _floorCards = <ThemeCard>[
       ThemeCard(
         id: 'ubuntu',
@@ -395,28 +410,6 @@ const _floorCards = <ThemeCard>[
         ),
       ),
       ThemeCard(
-        id: 'aqua',
-        name: 'Aqua',
-        version: 'desktop · magnifying dock',
-        tag: 'Aqua',
-        // FREE, and deliberately so. This is the headline draw — the theme that
-        // gets the screenshot shared — and monetisation lives in the long-tail
-        // distro packs instead. Same reasoning that keeps Ubuntu and Terminal
-        // free: the free tier has to be complete enough to be worth talking
-        // about.
-        tier: ThemeTier.free,
-        specId: 'aqua',
-        bundled: true,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF2B3A67), Color(0xFF0E1524)],
-          bar: Color(0xFF1C1C1E),
-          layout: PreviewLayout.dockMagnified,
-          dockBg: Color(0x7A2E2E33),
-          accent: Color(0xFF0A84FF),
-          icons: [Color(0xFF0A84FF), Color(0xFF32D74B), Color(0xFFFF9F0A)],
-        ),
-      ),
-      ThemeCard(
         id: 'kde-plasma-6',
         name: 'KDE Plasma',
         version: '6 · Breeze',
@@ -433,55 +426,43 @@ const _floorCards = <ThemeCard>[
           icons: [Color(0xFF3DAEE9), Color(0xFF1D99F3), Color(0xFF27AE60)],
         ),
       ),
-      ThemeCard(
-        id: 'fedora-41',
-        name: 'Fedora',
-        version: '41 · GNOME',
-        tag: 'GNOME',
-        tier: ThemeTier.free,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF2B2D42), Color(0xFF1B1C29)],
-          bar: Color(0xFF3C6EB4),
-          layout: PreviewLayout.iconsCentered,
-          icons: [Color(0xFF3C6EB4), Color(0xFF79DBFD), Color(0xFF5E5E63)],
-        ),
-      ),
-      ThemeCard(
-        id: 'arch-hyprland',
-        name: 'Arch',
-        version: '+ Hyprland',
-        tag: 'Tiling',
-        tier: ThemeTier.pro,
-        specId: 'arch-hyprland',
-        bundled: true,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF0F1419), Color(0xFF05080B)],
-          bar: Color(0xFF1793D1),
-          layout: PreviewLayout.iconsLeft,
-          icons: [Color(0xFF1793D1), Color(0xFF33CCCC)],
-          corner: '[hyprland]',
-        ),
-      ),
-      ThemeCard(
-        id: 'pop-os-cosmic',
-        name: 'Pop!_OS',
-        version: '22.04 · COSMIC',
-        tag: 'COSMIC',
-        tier: ThemeTier.pro,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF2D2A2E), Color(0xFF161416)],
-          bar: Color(0xFF48B9C7),
-          layout: PreviewLayout.iconsLeft,
-          icons: [Color(0xFF48B9C7), Color(0xFFFFA630)],
-        ),
-      ),
+      // The paid distros (Kali, Garuda, Pop!_OS) live ONLY in themeMoreProvider
+      // below, as coming-soon rows, until three things ship together: their
+      // theme packs on the CDN, the Play billing loop, and the render bridge
+      // that lets a downloaded theme.json actually paint. Until then a real card
+      // could only dead-end: `available` installs a pack that does not exist,
+      // `locked` opens a purchase for a theme that cannot render. A coming-soon
+      // row promises nothing it cannot keep, which is the only honest state for
+      // a distro that is real but not yet buildable end to end.
+      //
+      // Aqua, Fedora and Arch were removed here for the same reason: they were
+      // `pro/available` grid cards with no pack, no SKU and no render path, so
+      // every tap produced "needs to be purchased first" with nowhere to buy.
     ];
 
+/// The coming-soon teaser. Every entry taps to a "coming soon" message and
+/// starts no download and no purchase, so this list is safe to ship before the
+/// CDN, billing and render paths exist. The three `pro` entries are the locked
+/// paid lineup and match the Play product ids already created
+/// (distro_kali, distro_garuda_dragonized, distro_pop_cosmic); Mint is a planned
+/// free add. Nothing here can dead-end because nothing here promises a button.
 final themeMoreProvider = Provider<List<ThemeMoreEntry>>((ref) => const [
       ThemeMoreEntry(
         name: 'Kali Linux',
         subtitle: 'Dragon · undercover mode',
         swatch: [Color(0xFFA80030), Color(0xFF5E0019)],
+        pro: true,
+      ),
+      ThemeMoreEntry(
+        name: 'Garuda Dr460nized',
+        subtitle: 'Neon · Dragonized',
+        swatch: [Color(0xFFB44BE8), Color(0xFF5E1E8C)],
+        pro: true,
+      ),
+      ThemeMoreEntry(
+        name: 'Pop!_OS',
+        subtitle: '22.04 · COSMIC',
+        swatch: [Color(0xFF48B9C7), Color(0xFF1F6F79)],
         pro: true,
       ),
       ThemeMoreEntry(

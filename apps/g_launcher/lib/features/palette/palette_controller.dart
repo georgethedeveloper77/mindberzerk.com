@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../data/prefs/hidden_apps.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../data/usage/usage_repository.dart';
@@ -30,10 +31,35 @@ final paletteResultsProvider =
 
   if (query.isEmpty) return const [];
 
+  // ── HIDDEN APPS ────────────────────────────────────────────────────────────
+  //
+  // `shellAppsProvider` has ALREADY removed them, so the palette used to be the
+  // one surface where hiding actually held — and it held too hard: a hidden app
+  // was unreachable from the terminal even by typing its full name, which on the
+  // flagship "type two letters and hit enter" screen reads as the app being
+  // gone. So the hidden ones are put back as candidates here, and
+  // [HiddenApps.admits] decides. It admits nothing on a partial query, which is
+  // what keeps `ti` from surfacing a hidden TikTok in a rofi box the whole point
+  // of which is that it is fast and public.
+  //
+  // The re-add is skipped entirely when nothing is hidden, so the common case
+  // costs one Set.isEmpty per keystroke.
+  final hiddenPrefs = theme.prefs;
+  final candidates = hiddenPrefs.hiddenApps.isEmpty
+      ? apps
+      : [
+          ...apps,
+          for (final a in ref.watch(appListProvider).asData?.value ??
+              const <AppEntry>[])
+            if (hiddenPrefs.hiddenApps.contains(a.componentKey) &&
+                HiddenApps.admits(hiddenPrefs, a, query))
+              a,
+        ];
+
   // Usage-first, alphabetical tail. O(n) with a rank map, not a sort-by-indexOf
   // (which is O(n²) and runs on every keystroke).
   final order = {for (var i = 0; i < frequent.length; i++) frequent[i]: i};
-  final sorted = [...apps]..sort((a, b) {
+  final sorted = [...candidates]..sort((a, b) {
       final ia = order[a.componentKey] ?? 1 << 30;
       final ib = order[b.componentKey] ?? 1 << 30;
       if (ia != ib) return ia.compareTo(ib);

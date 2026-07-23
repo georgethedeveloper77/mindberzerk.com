@@ -1,11 +1,17 @@
 package com.mindhunter.g_launcher.apps
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import com.mindhunter.g_launcher.WidgetProviderInfo
+import java.io.ByteArrayOutputStream
 import com.mindhunter.g_launcher.AppChangeEvent
 import com.mindhunter.g_launcher.AppChangeReason
 import com.mindhunter.g_launcher.AppEntry
@@ -24,6 +30,7 @@ import com.mindhunter.g_launcher.system.GestureAccessibilityService
 import com.mindhunter.g_launcher.system.RoleRequester
 import com.mindhunter.g_launcher.system.WallpaperController
 import com.mindhunter.g_launcher.system.WallpaperWorker
+import com.mindhunter.g_launcher.widgets.WidgetHostController
 import java.util.concurrent.Executors
 
 // Pigeon generates its own IconStyle/IconTreatment in the root package; the
@@ -43,6 +50,7 @@ import com.mindhunter.g_launcher.icons.IconTreatment as RenderTreatment
 class LauncherHostApiImpl(
     context: Context,
     private val flutterApi: LauncherFlutterApi,
+    private val widgetHost: WidgetHostController,
 ) : LauncherHostApi {
 
     private val appContext = context.applicationContext
@@ -240,6 +248,131 @@ class LauncherHostApiImpl(
             val snapshot = runCatching { stats.read() }
             main.post { callback(snapshot) }
         }
+    }
+
+    // ---- app widgets (enumeration only; hosting is a later slice) ---------
+    //
+    // getInstalledProviders() needs neither a running AppWidgetHost nor the
+    // BIND_APPWIDGET permission — enumerating providers and hosting one live are
+    // separate Android capabilities, and only the second needs the host. Both
+    // calls run on the SAME `io` executor as the app list and the stats, for the
+    // same reason: resolving app labels walks PackageManager cold, and decoding a
+    // preview bitmap is disk + draw, and neither may touch the thread painting
+    // the home screen.
+
+    override fun getInstalledWidgetProviders(
+        callback: (Result<List<WidgetProviderInfo>>) -> Unit,
+    ) {
+        io.execute {
+            val result = runCatching {
+                val awm =
+                    appContext.getSystemService(Context.APPWIDGET_SERVICE) as AppWidgetManager
+                val pm = appContext.packageManager
+                val density = appContext.resources.displayMetrics.density
+                fun toDp(px: Int): Long = (px / density).toLong()
+
+                awm.installedProviders.mapNotNull { info ->
+                    // category bit 1 == WIDGET_CATEGORY_HOME_SCREEN. A keyguard-
+                    // only or searchbox provider is not a desktop widget, and
+                    // offering it would place something that will not draw here.
+                    if (info.widgetCategory and 1 == 0) return@mapNotNull null
+
+                    val pkg = info.provider.packageName
+                    val appLabel = runCatching {
+                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                    }.getOrDefault(pkg)
+                    val label =
+                        info.loadLabel(pm)?.toString() ?: info.provider.shortClassName
+
+                    WidgetProviderInfo(
+                        providerKey = info.provider.flattenToString(),
+                        packageName = pkg,
+                        appLabel = appLabel,
+                        label = label,
+                        minWidthDp = toDp(info.minWidth),
+                        minHeightDp = toDp(info.minHeight),
+                        minResizeWidthDp = toDp(info.minResizeWidth),
+                        minResizeHeightDp = toDp(info.minResizeHeight),
+                        targetCellWidth =
+                            if (Build.VERSION.SDK_INT >= 31) info.targetCellWidth.toLong() else 0L,
+                        targetCellHeight =
+                            if (Build.VERSION.SDK_INT >= 31) info.targetCellHeight.toLong() else 0L,
+                        resizeMode = info.resizeMode.toLong(),
+                        category = info.widgetCategory.toLong(),
+                        configurable = info.configure != null,
+                        hasPreviewImage = info.previewImage != 0,
+                    )
+                }.sortedBy { it.appLabel.lowercase() }
+            }
+            main.post { callback(result) }
+        }
+    }
+
+    override fun getWidgetPreview(
+        providerKey: String,
+        widthPx: Long,
+        heightPx: Long,
+        callback: (Result<ByteArray?>) -> Unit,
+    ) {
+        io.execute {
+            val bytes: ByteArray? = runCatching {
+                val awm =
+                    appContext.getSystemService(Context.APPWIDGET_SERVICE) as AppWidgetManager
+                val info = awm.installedProviders
+                    .firstOrNull { it.provider.flattenToString() == providerKey }
+                // Preview image first, the app's own widget icon as the honest
+                // fallback. Null only when the provider vanished mid-scroll.
+                val drawable = info?.loadPreviewImage(appContext, 0)
+                    ?: info?.loadIcon(appContext, 0)
+                    ?: return@runCatching null
+
+                val w = widthPx.toInt().coerceAtLeast(1)
+                val h = heightPx.toInt().coerceAtLeast(1)
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+                drawable.setBounds(0, 0, w, h)
+                drawable.draw(canvas)
+                ByteArrayOutputStream().use { bos ->
+                    bmp.compress(Bitmap.CompressFormat.PNG, 100, bos)
+                    bos.toByteArray()
+                }
+            }.getOrNull()
+            main.post { callback(Result.success(bytes)) }
+        }
+    }
+
+    // ---- app widgets (hosting) -------------------------------------------
+    //
+    // These delegate to the shared WidgetHostController, which owns the
+    // AppWidgetHost and the Activity-result flow. addWidget can pop the system
+    // bind dialog and a provider's config Activity, so its callback is resolved
+    // by the controller on the main thread once those return — Pigeon is called
+    // on the main thread, so no re-post is needed.
+
+    override fun addWidget(providerKey: String, callback: (Result<Long?>) -> Unit) {
+        widgetHost.addWidget(providerKey) { id ->
+            callback(Result.success(id?.toLong()))
+        }
+    }
+
+    override fun removeWidget(widgetId: Long) {
+        widgetHost.removeWidget(widgetId.toInt())
+    }
+
+    override fun updateWidgetSize(
+        widgetId: Long,
+        minWidthDp: Long,
+        minHeightDp: Long,
+        maxWidthDp: Long,
+        maxHeightDp: Long,
+    ) {
+        widgetHost.updateSize(
+            widgetId.toInt(),
+            minWidthDp.toInt(),
+            minHeightDp.toInt(),
+            maxWidthDp.toInt(),
+            maxHeightDp.toInt(),
+        )
     }
 
     private fun WireStyle.toRenderStyle(): RenderStyle = RenderStyle(

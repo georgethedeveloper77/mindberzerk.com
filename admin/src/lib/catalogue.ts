@@ -32,8 +32,21 @@ import {
  * So: read, merge, bump, sign, write.
  */
 
-export const APPS = ['g-launcher', 'g-recovery'] as const;
-export type AppId = (typeof APPS)[number];
+/**
+ * PHASE C5 — APPS MOVED, and this is a re-export so nothing importing it broke.
+ *
+ * The nav is a client component and needs the app list. This module is
+ * `server-only`, so importing `AppId` from here into a client component fails
+ * the build — correctly, since it would drag the R2 client into the browser
+ * bundle. The list therefore lives in `lib/registry.ts`, which has no such
+ * marker, and is re-exported here so every existing `from '@/lib/catalogue'`
+ * still resolves.
+ *
+ * DO NOT re-declare APPS below. Two lists in two files drift, and the failure is
+ * a nav item that links to a 404 for one app only.
+ */
+export { APPS, type AppId } from './registry';
+import type { AppId } from './registry';
 
 export interface LiveIndex {
   generatedAt: number;

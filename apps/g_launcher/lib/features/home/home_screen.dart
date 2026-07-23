@@ -15,6 +15,7 @@ import '../../shells/tui_shell.dart';
 import '../boot/boot_controller.dart';
 import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
+import '../desklets/desklet_edit.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -28,6 +29,20 @@ import '../boot/splash_sequence.dart';
 /// `bootControllerProvider.notifier.play(...)` — cold start and theme switch do
 /// that here (gated on the per-theme `verboseBoot` pref); first-run onboarding
 /// does it once, explicitly, from its own flow.
+///
+/// ─── HOW EDIT MODE IS ENTERED AND LEFT ──────────────────────────────────────
+///
+/// Long-pressing a desklet turns on edit mode (desklet_surface): the tile shows
+/// its resize and remove handles, and the dashed add-grid appears across the
+/// desktop, which is signal enough that the desktop is being arranged. There is
+/// no "Editing workspace" bar — the way out is the system BACK gesture, wired
+/// here once so it works on every shell. Edit mode also disables workspace
+/// swiping while it is on, so back doubling as its exit is the single thing a
+/// user needs to know, and it is the gesture they already reach for.
+///
+/// The [PopScope] lives in a thin [Consumer] so only it rebuilds when edit mode
+/// toggles; the shell subtree below is passed through as a captured child and is
+/// not rebuilt.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -110,7 +125,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 monoFontFamily: t.typography.mono ?? 'UbuntuMono',
               ),
               monoFontFamily: t.spec.typography.mono ?? 'UbuntuMono',
-              child: shell,
+              // BACK leaves edit mode. Only this Consumer rebuilds when edit
+              // toggles; the shell is a captured child and is not rebuilt.
+              child: Consumer(
+                child: shell,
+                builder: (context, ref, child) {
+                  final editing = ref.watch(deskletEditProvider).active;
+                  return PopScope(
+                    canPop: !editing,
+                    onPopInvokedWithResult: (didPop, _) {
+                      if (!didPop && editing) {
+                        ref.read(deskletEditProvider.notifier).exit();
+                      }
+                    },
+                    child: child!,
+                  );
+                },
+              ),
             ),
           );
         },

@@ -12,6 +12,7 @@ import '../../engine/effective_theme.dart';
 // theme_spec into a file that also sees dock metrics is an ambiguous-import
 // error that reads as if neither declaration exists.
 import '../../engine/theme_spec.dart' show ThemePalette;
+import '../../platform/launcher_api.g.dart' as api;
 import 'desklet_edit.dart';
 
 /// One desklet, while the desktop is being edited. PHASE D4.
@@ -192,7 +193,18 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                   palette: p,
                   selected: selected,
                   lifted: _moving || _resizing,
-                  child: widget.child,
+                  // IGNORE POINTERS ON THE TILE CONTENT WHILE EDITING.
+                  //
+                  // EditableDesklet only ever renders in edit mode, so the tile
+                  // itself must not be interactive here — the editor owns tap
+                  // (select), pan (move) and the handles. Without this a hosted
+                  // AppWidget (an AndroidView / PlatformView) claims the touch
+                  // and eats the drag, so you cannot move a widget around the
+                  // screen; a note or search tile would also swallow the tap
+                  // that is meant to select it. Ignoring pointers on the child
+                  // hands every gesture to the surrounding GestureDetector and
+                  // the handles, which is exactly what edit mode wants.
+                  child: IgnorePointer(child: widget.child),
                 ),
               ),
             ),
@@ -229,6 +241,15 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                   onTap: () {
                     HapticFeedback.mediumImpact();
                     ref.read(deskletEditProvider.notifier).select(null);
+                    // A hosted AppWidget owns a native allocation; release it or
+                    // it leaks for the life of the install. Other kinds are pure
+                    // Dart and have nothing to free.
+                    if (_d.kind == 'appwidget') {
+                      final id = _d.config['widgetId'];
+                      if (id is int) {
+                        api.LauncherHostApi().removeWidget(id);
+                      }
+                    }
                     _edit((prefs) => DeskletLayout.remove(prefs, _d.id));
                   },
                   child: _Handle(palette: p, icon: Icons.close, danger: true),

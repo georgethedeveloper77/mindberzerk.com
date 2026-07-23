@@ -238,14 +238,7 @@ class _FastfetchHeader extends ConsumerWidget {
 
   /// The mockup's logo, character for character. Keep the raw string — an
   /// escaped one is unreadable and someone will "fix" the backslashes.
-  static const _logo = r'''
-  .--.
- |o_o |
- |:_/ |
-//   \ \
-(|     | )
-/'\_   _/`\
-\___)=(___/''';
+  static const _logo = '  .--.\n |o_o |\n |:_/ |\n//   \\ \\\n(|     | )\n/\'\\_   _/`\\\n\\___)=(___/';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

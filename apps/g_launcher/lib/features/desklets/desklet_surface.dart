@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/desklet_layout.dart';
@@ -9,7 +10,9 @@ import 'desklet_edit.dart';
 import 'desklet_editor.dart';
 import 'desklet_picker.dart';
 import 'kinds/clock_desklet.dart';
+import 'kinds/appwidget_desklet.dart';
 import 'kinds/control_desklets.dart';
+import 'kinds/glance_desklet.dart';
 import 'kinds/pane_desklets.dart';
 import 'kinds/stat_desklets.dart';
 
@@ -30,6 +33,9 @@ Widget? buildDesklet(
   DeskletSkin skin,
 ) {
   return switch (desklet.kind) {
+    'glance' => GlanceDesklet(theme: theme, desklet: desklet, skin: skin),
+    'appwidget' =>
+      AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
     'clock' => ClockDesklet(theme: theme, desklet: desklet, skin: skin),
     'monitor' => MonitorDesklet(theme: theme, desklet: desklet, skin: skin),
     'fastfetch' => FastfetchDesklet(theme: theme, desklet: desklet, skin: skin),
@@ -148,15 +154,55 @@ class DeskletSurfaceView extends ConsumerWidget {
                             child: _Tile(theme: theme, desklet: d),
                           ),
                         )
-                      : Padding(
-                          padding: const EdgeInsets.all(gutter / 2),
-                          child: _Tile(theme: theme, desklet: d),
-                        ),
+                      : _ResizableTile(theme: theme, desklet: d),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// A desklet at rest, that a long press turns into an editable one. PHASE D4+.
+///
+/// ─── HOLD-TO-RESIZE WITHOUT A MENU ──────────────────────────────────────────
+///
+/// The whole resize machinery already exists ([EditableDesklet] draws the
+/// handle and drives the tested [DeskletLayout.resize]); the only thing missing
+/// was a way to reach it from the desktop other than the long-press MENU's
+/// Widgets action. So a held press on the tile itself enters edit mode and
+/// selects THIS tile, which is exactly the state in which its resize handle is
+/// already showing. One gesture, no sheet, and everything downstream is the
+/// path the Add button already used.
+///
+/// [HitTestBehavior.translucent] so a desklet that owns an `onTap` — the note
+/// opens its editor, the search tile opens the drawer — keeps it. A long press
+/// and a tap are different gestures; the inner tap wins its arena and this wins
+/// the long-press arena, so neither eats the other.
+///
+/// The edit-mode EXIT is the system BACK gesture (handled shell-side), so
+/// entering edit mode from here always has a way back out.
+class _ResizableTile extends ConsumerWidget {
+  const _ResizableTile({required this.theme, required this.desklet});
+
+  final EffectiveTheme theme;
+  final Desklet desklet;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        final edit = ref.read(deskletEditProvider.notifier);
+        edit.enter();
+        edit.select(desklet.id);
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(DeskletSurfaceView.gutter / 2),
+        child: _Tile(theme: theme, desklet: desklet),
+      ),
     );
   }
 }
@@ -172,6 +218,18 @@ class _Tile extends StatelessWidget {
     final skin = theme.spec.desklets.skinFor(theme.shell, desklet.kind);
     final child = buildDesklet(theme, desklet, skin);
     if (child == null) return const SizedBox.shrink();
+
+    // ─── A HOSTED WIDGET FILLS ITS CELL; IT IS NOT SCALE-TO-FIT ──────────────
+    //
+    // Every DRAWN desklet is authored at a natural size, so the FittedBox below
+    // measures it UNBOUNDED and scales the result to fit. A hosted AppWidget is
+    // a PlatformView with no intrinsic size: handed unbounded constraints, its
+    // `SizedBox.expand` expands into infinity and asserts. So it takes the
+    // bounded cell directly, which is also the correct behaviour — a widget
+    // should occupy the rectangle you gave it, not be shrunk to its content.
+    if (desklet.kind == 'appwidget') {
+      return SizedBox.expand(child: child);
+    }
 
     // FittedBox rather than a scroll view or a clip.
     //

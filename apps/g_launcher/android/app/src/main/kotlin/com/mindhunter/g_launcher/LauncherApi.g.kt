@@ -796,6 +796,155 @@ data class StatCapabilities (
     return "StatCapabilities(battery=$battery, batteryDetail=$batteryDetail, memory=$memory, storage=$storage, network=$network, networkTransport=$networkTransport, thermal=$thermal, cpu=$cpu)"
   }
 }
+
+/**
+ * One installed third-party AppWidget provider, as returned by
+ * `AppWidgetManager.getInstalledProviders()`.
+ *
+ * ADDED AT THE END OF THE CLASS GROUP → codec id 136. It carries METADATA only,
+ * never the preview bitmap: a device can have dozens of providers, and pushing
+ * a PNG for each across the bridge on every picker open is the kind of payload
+ * that makes a budget phone stutter. Previews are pulled lazily, one at a time,
+ * through [LauncherHostApi.getWidgetPreview] as the list scrolls — the same
+ * memory-then-render discipline `getIcon` already follows.
+ *
+ * Every "enum-shaped" value here is an int, deliberately, because a new enum
+ * would renumber the whole codec (see the header). [resizeMode] is Android's
+ * bitmask (0 none, 1 horizontal, 2 vertical, 3 both); [category] is its
+ * widgetCategory bitmask (1 home screen, 2 keyguard, 4 searchbox).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class WidgetProviderInfo (
+  /**
+   * `ComponentName.flattenToString()` — the stable id the host will bind and
+   * inflate against later. The grouping key on the Dart side is [packageName];
+   * this is the per-provider identity.
+   */
+  val providerKey: String,
+  /**
+   * The owning app's package. What the Dart side groups by, so "Adblock
+   * Browser" shows once with a count rather than four loose rows.
+   */
+  val packageName: String,
+  /**
+   * The owning app's display label, resolved via PackageManager. The section
+   * header in the picker ("Adblock Browser").
+   */
+  val appLabel: String,
+  /**
+   * The widget's OWN label ("Battery status", "Dual clock"). May equal the app
+   * label for single-widget apps.
+   */
+  val label: String,
+  /**
+   * Minimum footprint, already converted to dp on the native side so Dart
+   * never has to know the device density. Used to pick an initial cell span.
+   */
+  val minWidthDp: Long,
+  val minHeightDp: Long,
+  /**
+   * How small the user may resize it. Equal to the min size when the provider
+   * is not resizable in that axis.
+   */
+  val minResizeWidthDp: Long,
+  val minResizeHeightDp: Long,
+  /**
+   * Android 12+ target cells (0 on older devices / unset). A hint for the
+   * initial span that is already expressed in grid units rather than dp.
+   */
+  val targetCellWidth: Long,
+  val targetCellHeight: Long,
+  /** Android's resize bitmask: 0 none, 1 horizontal, 2 vertical, 3 both. */
+  val resizeMode: Long,
+  /**
+   * widgetCategory bitmask: 1 home screen, 2 keyguard, 4 searchbox. The picker
+   * shows only providers advertising the home-screen bit.
+   */
+  val category: Long,
+  /**
+   * Has a configuration Activity that must run when it is first placed. The
+   * host has to launch it before the widget is usable (the host slice's job);
+   * the picker only needs to know it exists.
+   */
+  val configurable: Boolean,
+  /**
+   * Whether `previewImage` is set, so the Dart side knows a real preview is
+   * worth requesting rather than falling straight back to the app icon.
+   */
+  val hasPreviewImage: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): WidgetProviderInfo {
+      val providerKey = pigeonVar_list[0] as String
+      val packageName = pigeonVar_list[1] as String
+      val appLabel = pigeonVar_list[2] as String
+      val label = pigeonVar_list[3] as String
+      val minWidthDp = pigeonVar_list[4] as Long
+      val minHeightDp = pigeonVar_list[5] as Long
+      val minResizeWidthDp = pigeonVar_list[6] as Long
+      val minResizeHeightDp = pigeonVar_list[7] as Long
+      val targetCellWidth = pigeonVar_list[8] as Long
+      val targetCellHeight = pigeonVar_list[9] as Long
+      val resizeMode = pigeonVar_list[10] as Long
+      val category = pigeonVar_list[11] as Long
+      val configurable = pigeonVar_list[12] as Boolean
+      val hasPreviewImage = pigeonVar_list[13] as Boolean
+      return WidgetProviderInfo(providerKey, packageName, appLabel, label, minWidthDp, minHeightDp, minResizeWidthDp, minResizeHeightDp, targetCellWidth, targetCellHeight, resizeMode, category, configurable, hasPreviewImage)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      providerKey,
+      packageName,
+      appLabel,
+      label,
+      minWidthDp,
+      minHeightDp,
+      minResizeWidthDp,
+      minResizeHeightDp,
+      targetCellWidth,
+      targetCellHeight,
+      resizeMode,
+      category,
+      configurable,
+      hasPreviewImage,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as WidgetProviderInfo
+    return LauncherApiPigeonUtils.deepEquals(this.providerKey, other.providerKey) && LauncherApiPigeonUtils.deepEquals(this.packageName, other.packageName) && LauncherApiPigeonUtils.deepEquals(this.appLabel, other.appLabel) && LauncherApiPigeonUtils.deepEquals(this.label, other.label) && LauncherApiPigeonUtils.deepEquals(this.minWidthDp, other.minWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minHeightDp, other.minHeightDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeWidthDp, other.minResizeWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeHeightDp, other.minResizeHeightDp) && LauncherApiPigeonUtils.deepEquals(this.targetCellWidth, other.targetCellWidth) && LauncherApiPigeonUtils.deepEquals(this.targetCellHeight, other.targetCellHeight) && LauncherApiPigeonUtils.deepEquals(this.resizeMode, other.resizeMode) && LauncherApiPigeonUtils.deepEquals(this.category, other.category) && LauncherApiPigeonUtils.deepEquals(this.configurable, other.configurable) && LauncherApiPigeonUtils.deepEquals(this.hasPreviewImage, other.hasPreviewImage)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.providerKey)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.packageName)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.appLabel)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.label)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.minWidthDp)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.minHeightDp)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.minResizeWidthDp)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.minResizeHeightDp)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.targetCellWidth)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.targetCellHeight)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.resizeMode)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.category)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.configurable)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.hasPreviewImage)
+    return result
+  }
+  override fun toString(): String {
+    return "WidgetProviderInfo(providerKey=$providerKey, packageName=$packageName, appLabel=$appLabel, label=$label, minWidthDp=$minWidthDp, minHeightDp=$minHeightDp, minResizeWidthDp=$minResizeWidthDp, minResizeHeightDp=$minResizeHeightDp, targetCellWidth=$targetCellWidth, targetCellHeight=$targetCellHeight, resizeMode=$resizeMode, category=$category, configurable=$configurable, hasPreviewImage=$hasPreviewImage)"
+  }
+}
 private open class LauncherApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -834,6 +983,11 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
           StatCapabilities.fromList(it)
         }
       }
+      136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          WidgetProviderInfo.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -865,6 +1019,10 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
       }
       is StatCapabilities -> {
         stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is WidgetProviderInfo -> {
+        stream.write(136)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1012,6 +1170,51 @@ interface LauncherHostApi {
    * a permanently-visible home screen off a budget phone's battery.
    */
   fun readStats(callback: (Result<DeviceStats>) -> Unit)
+  /**
+   * Every installed home-screen AppWidget provider, grouped by app on the Dart
+   * side. METADATA ONLY — no bitmaps (see [WidgetProviderInfo]).
+   *
+   * `@async` because it walks PackageManager to resolve each app label, which
+   * is the same cold-package-manager cost that put `getInstalledApps` on this
+   * list. This does NOT run a host and needs no BIND_APPWIDGET permission;
+   * enumerating providers and hosting one live are separate capabilities, and
+   * only the second needs the host.
+   */
+  fun getInstalledWidgetProviders(callback: (Result<List<WidgetProviderInfo>>) -> Unit)
+  /**
+   * The preview for ONE provider, rendered to a PNG at the requested size.
+   * Null when the provider vanished or has neither a preview image nor an icon.
+   *
+   * Pulled lazily as the picker scrolls, one provider at a time, so the list
+   * opens instantly and previews fill in — never a wall of bitmaps shipped up
+   * front. [providerKey] is the flattened ComponentName from
+   * [WidgetProviderInfo.providerKey].
+   */
+  fun getWidgetPreview(providerKey: String, widthPx: Long, heightPx: Long, callback: (Result<ByteArray?>) -> Unit)
+  /**
+   * Allocate + bind + configure a live AppWidget, returning its host widget id
+   * — or null if the user cancelled the bind-permission dialog or the config
+   * screen. This is the ONE call that can pop system UI: a launcher is not a
+   * signed system app, so `bindAppWidgetIdIfAllowed` almost always returns
+   * false and Android's consent dialog runs, and a provider with a config
+   * Activity runs that too. `@async` because it holds until those results come
+   * back through the Activity.
+   *
+   * The returned id is DEVICE-LOCAL and non-portable: it is stored on the
+   * desklet's config for THIS install only, never in a starter or a CDN pack.
+   */
+  fun addWidget(providerKey: String, callback: (Result<Long?>) -> Unit)
+  /**
+   * Release a hosted widget id when its desklet is removed. Deletes the host
+   * allocation so the id is not leaked for the life of the install.
+   */
+  fun removeWidget(widgetId: Long)
+  /**
+   * Tell the provider its new footprint after a resize, in dp, so its
+   * RemoteViews re-lays-out (a wide clock shows seconds, a tall calendar shows
+   * more rows). Without this the view keeps its placed layout and just scales.
+   */
+  fun updateWidgetSize(widgetId: Long, minWidthDp: Long, minHeightDp: Long, maxWidthDp: Long, maxHeightDp: Long)
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -1394,6 +1597,106 @@ interface LauncherHostApi {
                 reply.reply(LauncherApiPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledWidgetProviders$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getInstalledWidgetProviders{ result: Result<List<WidgetProviderInfo>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.getWidgetPreview$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val providerKeyArg = args[0] as String
+            val widthPxArg = args[1] as Long
+            val heightPxArg = args[2] as Long
+            api.getWidgetPreview(providerKeyArg, widthPxArg, heightPxArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.addWidget$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val providerKeyArg = args[0] as String
+            api.addWidget(providerKeyArg) { result: Result<Long?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.removeWidget$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val widgetIdArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              api.removeWidget(widgetIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.updateWidgetSize$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val widgetIdArg = args[0] as Long
+            val minWidthDpArg = args[1] as Long
+            val minHeightDpArg = args[2] as Long
+            val maxWidthDpArg = args[3] as Long
+            val maxHeightDpArg = args[4] as Long
+            val wrapped: List<Any?> = try {
+              api.updateWidgetSize(widgetIdArg, minWidthDpArg, minHeightDpArg, maxWidthDpArg, maxHeightDpArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

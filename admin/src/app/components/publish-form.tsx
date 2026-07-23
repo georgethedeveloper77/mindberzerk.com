@@ -13,7 +13,7 @@ interface PublishedPack {
 }
 
 /**
- * PHASE C4 — publishing, from a phone or a laptop.
+ * PHASE C4 — publishing, from a phone or a laptop. PHASE C5 — on the tokens.
  *
  * ## Two inputs, because mobile browsers cannot do directories
  *
@@ -33,6 +33,13 @@ interface PublishedPack {
  * version produces content every device refuses silently, and the guard is here
  * as well as server-side because catching it before the upload saves a minute
  * and catching it after saves an afternoon.
+ *
+ * ## C5 changed nothing but the classes
+ *
+ * Colours now come from the token layer, and the per-input `text-base sm:text-sm`
+ * dance is gone because globals.css sets it for every input in the panel — iOS
+ * Safari zooms the page when a font under 16px takes focus and never zooms back,
+ * so that rule belongs in one place rather than on every field.
  */
 export function PublishForm({
   app,
@@ -167,18 +174,22 @@ export function PublishForm({
 
   const ready = fileCount > 0 && packId && version && !versionTooLow && !busy;
 
+  const fileInput =
+    'block w-full text-data text-ink-3 file:mr-3 file:rounded-lg file:border-0 ' +
+    'file:bg-surface-3 file:px-3 file:py-2 file:text-data file:text-ink';
+
   return (
-    <div className="mt-4 space-y-4">
+    <div className="space-y-3">
       {/* Source */}
-      <section className="rounded-xl border border-neutral-900 bg-neutral-900/40 p-4">
+      <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
         {supportsDir && (
-          <div className="mb-3 flex rounded-lg bg-neutral-900 p-0.5 text-sm">
+          <div className="mb-3 flex rounded-lg bg-surface-2 p-0.5 text-data">
             {(['dir', 'zip'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={`flex-1 rounded-md px-3 py-1.5 transition ${
-                  mode === m ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500'
+                  mode === m ? 'bg-surface-3 text-ink' : 'text-ink-3'
                 }`}
               >
                 {m === 'dir' ? 'Folder' : 'Zip'}
@@ -196,7 +207,7 @@ export function PublishForm({
             webkitdirectory=""
             directory=""
             multiple
-            className="block w-full text-sm text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-sm file:text-neutral-200"
+            className={fileInput}
           />
         ) : (
           <>
@@ -205,20 +216,19 @@ export function PublishForm({
               type="file"
               accept=".zip,application/zip"
               onChange={onPickZip}
-              className="block w-full text-sm text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-800 file:px-3 file:py-2 file:text-sm file:text-neutral-200"
+              className={fileInput}
             />
             {!supportsDir && (
-              <p className="mt-2 text-[11px] leading-relaxed text-neutral-500">
+              <p className="mt-2 text-micro leading-relaxed text-ink-3">
                 This browser cannot pick folders, so zip the pack directory
-                first. A wrapping folder inside the zip is fine — it is stripped
-                on the server.
+                first. A wrapping folder inside the zip is stripped on the server.
               </p>
             )}
           </>
         )}
 
         {fileCount > 0 && (
-          <p className="mt-2.5 font-mono text-[11px] text-neutral-500">
+          <p className="mt-2.5 font-mono text-micro text-ink-3 tnum">
             {mode === 'zip'
               ? zipFile?.name
               : `${fileCount} file${fileCount === 1 ? '' : 's'}`}{' '}
@@ -228,15 +238,15 @@ export function PublishForm({
       </section>
 
       {/* Metadata */}
-      <section className="space-y-3 rounded-xl border border-neutral-900 bg-neutral-900/40 p-4">
+      <section className="space-y-3 rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Pack id" value={packId} onChange={setPackId} mono />
           <div>
-            <label className="block text-xs text-neutral-400">Type</label>
+            <label className="block text-micro text-ink-3">Type</label>
             <select
               value={packType}
               onChange={(e) => setPackType(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base sm:text-sm"
+              className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
             >
               <option value="theme">theme</option>
               <option value="brand">brand</option>
@@ -260,21 +270,20 @@ export function PublishForm({
       </section>
 
       {versionTooLow && published && (
-        <p className="rounded-xl border border-amber-900/60 bg-amber-950/30 px-3 py-2.5 text-xs leading-relaxed text-amber-300">
-          v{published.version} is already published. A device refuses a pack
-          whose version does not increase, and it does so silently — nothing
-          errors, the pack just never arrives. Use {published.version + 1} or
-          higher.
+        <p className="rounded-card border border-warn/40 bg-warn-dim px-3 py-2 text-data leading-relaxed text-warn">
+          v{published.version} is already published. A device refuses a pack whose
+          version does not increase, and it does so silently. Use{' '}
+          {published.version + 1} or higher.
         </p>
       )}
 
       {result && (
-        <p className="whitespace-pre-line rounded-xl border border-emerald-900/60 bg-emerald-950/30 px-3 py-2.5 font-mono text-xs leading-relaxed text-emerald-300">
+        <p className="whitespace-pre-line rounded-card border border-ok/40 bg-ok-dim px-3 py-2 font-mono text-micro leading-relaxed text-ok">
           {result}
         </p>
       )}
       {error && (
-        <p className="rounded-xl border border-red-900/60 bg-red-950/40 px-3 py-2.5 text-xs leading-relaxed text-red-300">
+        <p className="rounded-card border border-bad/40 bg-bad-dim px-3 py-2 text-data leading-relaxed text-bad">
           {error}
         </p>
       )}
@@ -285,7 +294,7 @@ export function PublishForm({
         <button
           onClick={onSubmit}
           disabled={!ready}
-          className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg transition hover:bg-white disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
+          className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
         >
           {busy ? 'Signing and uploading…' : 'Sign and publish'}
         </button>
@@ -309,7 +318,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-xs text-neutral-400">{label}</label>
+      <label className="block text-micro text-ink-3">{label}</label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -317,9 +326,7 @@ function Field({
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        // text-base on mobile, not text-sm: iOS Safari zooms the whole page when
-        // focusing an input under 16px, and it never zooms back out.
-        className={`mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base sm:text-sm ${
+        className={`mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 ${
           mono ? 'font-mono' : ''
         }`}
       />

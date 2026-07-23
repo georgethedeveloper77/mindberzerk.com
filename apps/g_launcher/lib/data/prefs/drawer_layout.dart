@@ -125,6 +125,68 @@ class DrawerLayout {
     );
   }
 
+  /// Drop folder [sourceId] onto folder [targetId] → one folder holding both
+  /// sets of members.
+  ///
+  /// **The target's name survives, and the source's is discarded.** Same rule as
+  /// [mergeApps]: the target is the thing that stayed put, so it reads as the
+  /// one that absorbed the other. Naming the result after the dragged folder
+  /// would mean the folder under your finger renamed itself when something
+  /// landed on it, which nobody expects.
+  ///
+  /// Member order is target-first, then the source's in its own order, with
+  /// duplicates dropped. Duplicates should be impossible — an app lives in at
+  /// most one folder — but a prefs file written by a newer build could contain
+  /// them, and silently doubling an app inside a folder is the sort of bug that
+  /// survives for months because it reads as a rendering glitch.
+  ///
+  /// Refuses to merge a folder into itself, and refuses when either id fails to
+  /// resolve, returning [p] unchanged so the caller can compare by identity.
+  static LauncherPrefs mergeFolders(
+    LauncherPrefs p,
+    String sourceId,
+    String targetId,
+  ) {
+    if (sourceId == targetId) return p;
+
+    final source = folder(p, sourceId);
+    final target = folder(p, targetId);
+    if (source == null || target == null) return p;
+
+    final seen = <String>{};
+    final members = <String>[
+      for (final k in [...target.members, ...source.members])
+        if (seen.add(k)) k,
+    ];
+
+    return p.copyWith(
+      drawerFolders: [
+        for (final x in p.drawerFolders)
+          if (x.id == targetId)
+            x.copyWith(members: members)
+          // The source is DELETED, not emptied. An empty folder is a ghost;
+          // `prune` would sweep it eventually, and doing it here means the
+          // drawer never renders the intermediate state.
+          else if (x.id != sourceId)
+            x,
+      ],
+    );
+  }
+
+  /// Drop a folder onto a LOOSE app → the app joins the folder.
+  ///
+  /// The mirror of dropping an app onto a folder, and it resolves the same way
+  /// on purpose: whichever direction you drag, a folder plus an app is that
+  /// folder with one more app in it. The alternative — the folder somehow
+  /// becoming a member of something — is the nested-folder mess the drawer
+  /// deliberately does not have.
+  static LauncherPrefs absorbApp(
+    LauncherPrefs p,
+    String folderId,
+    String componentKey,
+  ) =>
+      addToFolder(p, folderId, componentKey);
+
   /// "Ungroup" — every member returns to the list at once.
   static LauncherPrefs dissolve(LauncherPrefs p, String folderId) =>
       p.copyWith(

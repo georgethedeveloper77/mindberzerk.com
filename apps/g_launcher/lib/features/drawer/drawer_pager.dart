@@ -93,6 +93,31 @@ class _DrawerPagerState extends State<DrawerPager> {
               .floor(),
         );
 
+        // ── SPEND THE LEFTOVER, DO NOT DUMP IT ──────────────────────────
+        //
+        // The row count is FLOORED, and it has to be: rounding up would slice
+        // the last row at the page boundary, which is the one thing a paged
+        // grid must never do. But flooring leaves up to one full row of height
+        // unused, and all of it collected at the bottom as a hole between the
+        // last row and the page dots. On a 4-column phone that gap was over a
+        // whole row tall and read as the page having failed to fill.
+        //
+        // So the slack is spread back into the row spacing instead. Capped,
+        // because a page of four rows floating a long way apart looks as wrong
+        // as one crowded at the top; past the cap the remainder is centred,
+        // which splits it top and bottom rather than leaving it all below.
+        final usedH = rows * tileH + (rows - 1) * mainGap;
+        final slack =
+            (constraints.maxHeight - vPad * 2 - widget.topPadding - usedH)
+                .clamp(0.0, double.infinity);
+
+        const maxGap = 30.0;
+        final spread = rows > 1
+            ? (mainGap + slack / (rows - 1)).clamp(mainGap, maxGap)
+            : mainGap;
+        final absorbed = rows > 1 ? (spread - mainGap) * (rows - 1) : 0.0;
+        final centre = (slack - absorbed) / 2;
+
         final perPage = rows * widget.columns;
         final pageCount = (widget.itemCount / perPage).ceil();
 
@@ -106,9 +131,9 @@ class _DrawerPagerState extends State<DrawerPager> {
                   final grid = Padding(
                     padding: EdgeInsets.fromLTRB(
                       hPad,
-                      vPad + widget.topPadding,
+                      vPad + widget.topPadding + centre,
                       hPad,
-                      vPad,
+                      vPad + centre,
                     ),
                     child: GridView.builder(
                       // The PAGE scrolls, not the grid inside it.
@@ -119,7 +144,7 @@ class _DrawerPagerState extends State<DrawerPager> {
                         crossAxisCount: widget.columns,
                         childAspectRatio: widget.aspectRatio,
                         crossAxisSpacing: crossGap,
-                        mainAxisSpacing: mainGap,
+                        mainAxisSpacing: spread,
                       ),
                       itemCount: math.min(
                         perPage,

@@ -70,11 +70,52 @@ class DeskletKind {
 
 /// Every kind this build knows. Order is the picker order.
 ///
-/// The seven grid kinds below are the D5 shipping set, and all seven read from
-/// sources that need NO runtime permission. Permissions only start at calendar
-/// events, Wi-Fi SSID, media controls and weather, none of which are here.
+/// The grid kinds below read from sources that need NO runtime permission.
+/// Permissions only start at calendar events, Wi-Fi SSID, media controls and
+/// weather, none of which are here.
 class DeskletKinds {
   const DeskletKinds._();
+
+  /// A hosted third-party Android AppWidget (RemoteViews from another app).
+  ///
+  /// NOT a kind you pick from the desklet menu — it is minted when you tap a
+  /// provider in the picker's App widgets list, and its config carries the
+  /// device-local `widgetId` the host allocated plus the provider's min size.
+  /// Generous span limits; the initial span comes from the provider's own
+  /// minimum footprint, not from [defaultSpanX]/[defaultSpanY].
+  ///
+  /// Deliberately absent from the picker's offer list (desklet_picker's
+  /// fallback), so it never appears among the drawn-in-Dart desklets — it is
+  /// only ever created through the hosting path.
+  static const appWidget = DeskletKind(
+    id: 'appwidget',
+    label: 'App widget',
+    minSpanX: 1,
+    minSpanY: 1,
+    maxSpanX: 5,
+    maxSpanY: 5,
+    defaultSpanX: 2,
+    defaultSpanY: 2,
+  );
+
+  /// The combined default desktop tile. Time + date, and stat rows that appear
+  /// as it is resized taller: cpu/ram at spanY 2, network at 3, disk/temp at 4.
+  ///
+  /// This is what the first-install starter drops on the right side, and it is
+  /// why a fresh desktop reads as furnished rather than empty. The tiering lives
+  /// in the widget (it keys off [Desklet.spanY]); this entry only bounds the
+  /// resize. Default spanY is 2, so the tile ships showing time, date, cpu and
+  /// ram — cpu absent on the many devices that will not report it.
+  static const glance = DeskletKind(
+    id: 'glance',
+    label: 'Glance',
+    minSpanX: 2,
+    minSpanY: 1,
+    maxSpanX: 3,
+    maxSpanY: 4,
+    defaultSpanX: 2,
+    defaultSpanY: 2,
+  );
 
   /// Big, and the proof of the skin layer: it looks radically different on all
   /// five shells, which is what makes it the right first kind to build.
@@ -243,6 +284,8 @@ class DeskletKinds {
   );
 
   static const all = <DeskletKind>[
+    glance,
+    appWidget,
     clock,
     monitor,
     fastfetch,

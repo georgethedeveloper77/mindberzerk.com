@@ -2,7 +2,9 @@ import 'dart:ui' show Rect;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../prefs/hidden_apps.dart';
 
 /// No codegen. Plain Riverpod 3.
 ///
@@ -62,9 +64,30 @@ class _AppListSink implements LauncherFlutterApi {
 ///
 /// Suspended apps stay visible (greyed, per Android convention). Hiding them
 /// makes users think the app was uninstalled.
+///
+/// ─── WHY THIS TOOK A THEME ──────────────────────────────────────────────────
+///
+/// It used to be keyed by the query alone, and read `appListProvider` straight,
+/// which meant HIDDEN APPS CAME BACK THE MOMENT YOU TYPED. That was a defensible
+/// reading of "hiding is off my drawer, not uninstalled" right up until it
+/// wasn't: typing two letters is not a deliberate act of retrieval, and an app
+/// you hid appearing under `ti` in front of someone else is the whole reason
+/// the setting exists.
+///
+/// Hidden apps are PER THEME, so the rule needs the theme, so the family key is
+/// now a record. Records have structural equality in Dart, which is what makes
+/// them safe as a Riverpod family key — the same (query, theme) pair resolves to
+/// the same provider rather than a new one per keystroke.
+///
+/// [HiddenApps.forSearch] owns the admission rule. Do not reimplement it here.
+typedef VisibleAppsKey = ({String query, EffectiveTheme theme});
+
 final visibleAppsProvider =
-    Provider.family<List<AppEntry>, String>((ref, query) {
-  final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+    Provider.family<List<AppEntry>, VisibleAppsKey>((ref, key) {
+  final all = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+  final query = key.query;
+
+  final apps = HiddenApps.forSearch(all, key.theme.prefs, query);
   if (query.isEmpty) return apps;
 
   final q = query.toLowerCase();

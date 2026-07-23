@@ -27,9 +27,16 @@ abstract final class GridMetrics {
     return 8; // big tablets
   }
 
-  /// Two lines by default. Wrapping costs one row of height per grid line and
-  /// buys the entire label. "Secure Fold…" is not a name, it's a shrug.
-  static const defaultLabelLines = 2;
+  /// ONE line by default. This reverses the earlier call, and the earlier
+  /// reasoning ("Secure Fold…" is not a name, it's a shrug) was right about the
+  /// label and wrong about the price.
+  ///
+  /// The price is a whole ROW of grid height on every page, paid to accommodate
+  /// roughly one app in twenty. Measured on a 412dp phone, a paged drawer fits
+  /// SIX rows at one line and FIVE at two. Trading a sixth of the drawer for a
+  /// truncation nobody hits often is the wrong side of that trade, and the
+  /// people who disagree have a toggle in Settings.
+  static const defaultLabelLines = 1;
 
   /// Icon size for a given width and column count, label space allowed for.
   /// 16dp outer padding each side, 8dp between columns — matching the drawer's

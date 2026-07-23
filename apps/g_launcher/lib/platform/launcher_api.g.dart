@@ -716,6 +716,153 @@ class StatCapabilities {
   }
 }
 
+/// One installed third-party AppWidget provider, as returned by
+/// `AppWidgetManager.getInstalledProviders()`.
+///
+/// ADDED AT THE END OF THE CLASS GROUP → codec id 136. It carries METADATA only,
+/// never the preview bitmap: a device can have dozens of providers, and pushing
+/// a PNG for each across the bridge on every picker open is the kind of payload
+/// that makes a budget phone stutter. Previews are pulled lazily, one at a time,
+/// through [LauncherHostApi.getWidgetPreview] as the list scrolls — the same
+/// memory-then-render discipline `getIcon` already follows.
+///
+/// Every "enum-shaped" value here is an int, deliberately, because a new enum
+/// would renumber the whole codec (see the header). [resizeMode] is Android's
+/// bitmask (0 none, 1 horizontal, 2 vertical, 3 both); [category] is its
+/// widgetCategory bitmask (1 home screen, 2 keyguard, 4 searchbox).
+class WidgetProviderInfo {
+  WidgetProviderInfo({
+    required this.providerKey,
+    required this.packageName,
+    required this.appLabel,
+    required this.label,
+    required this.minWidthDp,
+    required this.minHeightDp,
+    required this.minResizeWidthDp,
+    required this.minResizeHeightDp,
+    required this.targetCellWidth,
+    required this.targetCellHeight,
+    required this.resizeMode,
+    required this.category,
+    required this.configurable,
+    required this.hasPreviewImage,
+  });
+
+  /// `ComponentName.flattenToString()` — the stable id the host will bind and
+  /// inflate against later. The grouping key on the Dart side is [packageName];
+  /// this is the per-provider identity.
+  String providerKey;
+
+  /// The owning app's package. What the Dart side groups by, so "Adblock
+  /// Browser" shows once with a count rather than four loose rows.
+  String packageName;
+
+  /// The owning app's display label, resolved via PackageManager. The section
+  /// header in the picker ("Adblock Browser").
+  String appLabel;
+
+  /// The widget's OWN label ("Battery status", "Dual clock"). May equal the app
+  /// label for single-widget apps.
+  String label;
+
+  /// Minimum footprint, already converted to dp on the native side so Dart
+  /// never has to know the device density. Used to pick an initial cell span.
+  int minWidthDp;
+
+  int minHeightDp;
+
+  /// How small the user may resize it. Equal to the min size when the provider
+  /// is not resizable in that axis.
+  int minResizeWidthDp;
+
+  int minResizeHeightDp;
+
+  /// Android 12+ target cells (0 on older devices / unset). A hint for the
+  /// initial span that is already expressed in grid units rather than dp.
+  int targetCellWidth;
+
+  int targetCellHeight;
+
+  /// Android's resize bitmask: 0 none, 1 horizontal, 2 vertical, 3 both.
+  int resizeMode;
+
+  /// widgetCategory bitmask: 1 home screen, 2 keyguard, 4 searchbox. The picker
+  /// shows only providers advertising the home-screen bit.
+  int category;
+
+  /// Has a configuration Activity that must run when it is first placed. The
+  /// host has to launch it before the widget is usable (the host slice's job);
+  /// the picker only needs to know it exists.
+  bool configurable;
+
+  /// Whether `previewImage` is set, so the Dart side knows a real preview is
+  /// worth requesting rather than falling straight back to the app icon.
+  bool hasPreviewImage;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      providerKey,
+      packageName,
+      appLabel,
+      label,
+      minWidthDp,
+      minHeightDp,
+      minResizeWidthDp,
+      minResizeHeightDp,
+      targetCellWidth,
+      targetCellHeight,
+      resizeMode,
+      category,
+      configurable,
+      hasPreviewImage,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static WidgetProviderInfo decode(Object result) {
+    result as List<Object?>;
+    return WidgetProviderInfo(
+      providerKey: result[0]! as String,
+      packageName: result[1]! as String,
+      appLabel: result[2]! as String,
+      label: result[3]! as String,
+      minWidthDp: result[4]! as int,
+      minHeightDp: result[5]! as int,
+      minResizeWidthDp: result[6]! as int,
+      minResizeHeightDp: result[7]! as int,
+      targetCellWidth: result[8]! as int,
+      targetCellHeight: result[9]! as int,
+      resizeMode: result[10]! as int,
+      category: result[11]! as int,
+      configurable: result[12]! as bool,
+      hasPreviewImage: result[13]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! WidgetProviderInfo || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(providerKey, other.providerKey) && _deepEquals(packageName, other.packageName) && _deepEquals(appLabel, other.appLabel) && _deepEquals(label, other.label) && _deepEquals(minWidthDp, other.minWidthDp) && _deepEquals(minHeightDp, other.minHeightDp) && _deepEquals(minResizeWidthDp, other.minResizeWidthDp) && _deepEquals(minResizeHeightDp, other.minResizeHeightDp) && _deepEquals(targetCellWidth, other.targetCellWidth) && _deepEquals(targetCellHeight, other.targetCellHeight) && _deepEquals(resizeMode, other.resizeMode) && _deepEquals(category, other.category) && _deepEquals(configurable, other.configurable) && _deepEquals(hasPreviewImage, other.hasPreviewImage);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'WidgetProviderInfo(providerKey: $providerKey, packageName: $packageName, appLabel: $appLabel, label: $label, minWidthDp: $minWidthDp, minHeightDp: $minHeightDp, minResizeWidthDp: $minResizeWidthDp, minResizeHeightDp: $minResizeHeightDp, targetCellWidth: $targetCellWidth, targetCellHeight: $targetCellHeight, resizeMode: $resizeMode, category: $category, configurable: $configurable, hasPreviewImage: $hasPreviewImage)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -745,6 +892,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is StatCapabilities) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
+    }    else if (value is WidgetProviderInfo) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -769,6 +919,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DeviceStats.decode(readValue(buffer)!);
       case 135:
         return StatCapabilities.decode(readValue(buffer)!);
+      case 136:
+        return WidgetProviderInfo.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1258,6 +1410,129 @@ class LauncherHostApi {
     )
     ;
     return pigeonVar_replyValue! as DeviceStats;
+  }
+
+  /// Every installed home-screen AppWidget provider, grouped by app on the Dart
+  /// side. METADATA ONLY — no bitmaps (see [WidgetProviderInfo]).
+  ///
+  /// `@async` because it walks PackageManager to resolve each app label, which
+  /// is the same cold-package-manager cost that put `getInstalledApps` on this
+  /// list. This does NOT run a host and needs no BIND_APPWIDGET permission;
+  /// enumerating providers and hosting one live are separate capabilities, and
+  /// only the second needs the host.
+  Future<List<WidgetProviderInfo>> getInstalledWidgetProviders() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledWidgetProviders$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<WidgetProviderInfo>();
+  }
+
+  /// The preview for ONE provider, rendered to a PNG at the requested size.
+  /// Null when the provider vanished or has neither a preview image nor an icon.
+  ///
+  /// Pulled lazily as the picker scrolls, one provider at a time, so the list
+  /// opens instantly and previews fill in — never a wall of bitmaps shipped up
+  /// front. [providerKey] is the flattened ComponentName from
+  /// [WidgetProviderInfo.providerKey].
+  Future<Uint8List?> getWidgetPreview(String providerKey, int widthPx, int heightPx) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getWidgetPreview$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[providerKey, widthPx, heightPx]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as Uint8List?;
+  }
+
+  /// Allocate + bind + configure a live AppWidget, returning its host widget id
+  /// — or null if the user cancelled the bind-permission dialog or the config
+  /// screen. This is the ONE call that can pop system UI: a launcher is not a
+  /// signed system app, so `bindAppWidgetIdIfAllowed` almost always returns
+  /// false and Android's consent dialog runs, and a provider with a config
+  /// Activity runs that too. `@async` because it holds until those results come
+  /// back through the Activity.
+  ///
+  /// The returned id is DEVICE-LOCAL and non-portable: it is stored on the
+  /// desklet's config for THIS install only, never in a starter or a CDN pack.
+  Future<int?> addWidget(String providerKey) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.addWidget$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[providerKey]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as int?;
+  }
+
+  /// Release a hosted widget id when its desklet is removed. Deletes the host
+  /// allocation so the id is not leaked for the life of the install.
+  Future<void> removeWidget(int widgetId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.removeWidget$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[widgetId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Tell the provider its new footprint after a resize, in dp, so its
+  /// RemoteViews re-lays-out (a wide clock shows seconds, a tall calendar shows
+  /// more rows). Without this the view keeps its placed layout and just scales.
+  Future<void> updateWidgetSize(int widgetId, int minWidthDp, int minHeightDp, int maxWidthDp, int maxHeightDp) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.updateWidgetSize$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[widgetId, minWidthDp, minHeightDp, maxWidthDp, maxHeightDp]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }
 

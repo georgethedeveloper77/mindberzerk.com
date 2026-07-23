@@ -6,6 +6,7 @@ import '../../engine/effective_theme.dart';
 import '../home/workspaces/workspace_controller.dart';
 import 'desklet_edit.dart';
 import 'desklet_picker.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The bar that says the desktop is being edited. PHASE D4.
 ///
@@ -80,7 +81,7 @@ class DeskletEditBar extends ConsumerWidget {
                 ref.read(deskletEditProvider.notifier).exit();
               },
               child: Text(
-                'Done',
+                context.t('common.done'),
                 style: TextStyle(
                   fontFamily: theme.typography.display,
                   color: p.onDark,

@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
+import '../../platform/launcher_api.g.dart';
 import '../drawer/drawer_actions.dart';
+import '../drawer/app_icon.dart';
 import '../drawer/drawer_items.dart';
 
 /// Folder settings — its own page, because folders grew past a row.
@@ -50,7 +54,10 @@ class FoldersScreen extends ConsumerWidget {
     final rows = theme.prefs.folderRows ?? 3;
 
     return ThemedScaffold(
-      title: 'Folders',
+      // "Apps and folders", because hiding an app landed here and the page
+      // stopped being only about folders. Naming it after half its contents is
+      // how a setting becomes unfindable.
+      title: 'Apps and folders',
       body: ListView(
         children: [
           // The folder itself, drawn at the current settings. Columns, rows and
@@ -160,6 +167,29 @@ class FoldersScreen extends ConsumerWidget {
                 onTap: () => notifier.edit(DrawerLayout.resetFolderOrder),
               ),
           ],
+
+          // ── Hidden apps ────────────────────────────────────────────────
+          //
+          // This lives HERE rather than in its own Settings group for one
+          // practical reason: hiding is done from the drawer's long-press menu,
+          // and UNHIDING cannot be, because a hidden app is not in the drawer to
+          // long-press. Without this section the action is one-way, which is the
+          // worst possible shape for a setting that removes things.
+          const ThemedSectionHeader('Hidden apps'),
+
+          _HiddenAppsRow(theme: theme),
+
+          ThemedListRow(
+            icon: Icons.manage_search,
+            title: 'Find hidden apps by name',
+            subtitle: 'Only when you type the whole name',
+            trailing: ThemedToggle(
+              value: HiddenApps.searchable(theme.prefs),
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(hiddenAppsSearchable: v),
+              ),
+            ),
+          ),
 
           // ── Suggestions ────────────────────────────────────────────────
           if (suggestions.isNotEmpty) ...[
@@ -323,10 +353,15 @@ class _SuggestionRow extends StatelessWidget {
         children: [
           Row(
             children: [
+              // Exhaustive switch, not a ternary: a ternary silently gave the
+              // new Social kind the publisher icon, which is the failure mode
+              // where adding a case looks like it worked.
               Icon(
-                suggestion.kind == SuggestionKind.games
-                    ? Icons.sports_esports_outlined
-                    : Icons.business_outlined,
+                switch (suggestion.kind) {
+                  SuggestionKind.games => Icons.sports_esports_outlined,
+                  SuggestionKind.social => Icons.forum_outlined,
+                  SuggestionKind.publisher => Icons.business_outlined,
+                },
                 size: 20,
                 color: c.accent,
               ),
@@ -437,6 +472,141 @@ class _Btn extends StatelessWidget {
           // still look like a stepper at its limit.
           color: enabled ? c.text : c.textFaint,
         ),
+      ),
+    );
+  }
+}
+
+/// The hidden set, and the only way back out of it.
+///
+/// Reads [appListProvider] rather than [shellAppsProvider], and it has to:
+/// shellApps is where hidden apps are FILTERED OUT, so asking it for the hidden
+/// ones returns nothing and the row would honestly report "0 hidden" on a phone
+/// with twenty. That is the sort of bug that reads as the feature not saving.
+class _HiddenAppsRow extends ConsumerWidget {
+  const _HiddenAppsRow({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+    final keys = theme.prefs.hiddenApps;
+
+    // Resolved against the live app list, so an app hidden and then uninstalled
+    // does not sit in this list as a name with nothing behind it.
+    final hidden = [
+      for (final a in all)
+        if (keys.contains(a.componentKey)) a,
+    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+
+    return ThemedListRow(
+      icon: Icons.visibility_off_outlined,
+      title: 'Hidden apps',
+      subtitle: hidden.isEmpty
+          ? 'Hold an app in the drawer to hide it'
+          : '${hidden.length} hidden',
+      enabled: hidden.isNotEmpty,
+      trailing: hidden.isEmpty
+          ? null
+          : const Icon(Icons.chevron_right, size: 18),
+      onTap: hidden.isEmpty ? null : () => _show(context, ref, hidden),
+    );
+  }
+
+  void _show(BuildContext context, WidgetRef ref, List<AppEntry> hidden) {
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+    ThemedSheet.show<void>(
+      context,
+      title: 'Hidden apps',
+      isScrollControlled: true,
+      builder: (sheet) => Consumer(
+        builder: (ctx, r, __) {
+          // Live inside the sheet: unhiding must remove the row under your
+          // finger, or the only feedback is the count on the page behind.
+          final live = r.watch(effectiveThemeProvider).asData?.value ?? theme;
+          final keys = live.prefs.hiddenApps;
+          final rows = [
+            for (final a in hidden)
+              if (keys.contains(a.componentKey)) a,
+          ];
+
+          if (rows.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Text(
+                'Nothing is hidden.',
+                style: ChromeScope.of(ctx).text.caption,
+              ),
+            );
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.5,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: rows.length,
+                  itemBuilder: (_, i) {
+                    final a = rows[i];
+                    final c = ChromeScope.of(ctx).colors;
+
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => notifier.edit(
+                        (p) => HiddenApps.unhide(p, a.componentKey),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: Row(
+                          children: [
+                            AppIcon(entry: a, size: 32),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                a.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: ChromeScope.of(ctx).text.body,
+                              ),
+                            ),
+                            // "Unhide", spelled out. An eye glyph alone is
+                            // ambiguous about which state it is describing —
+                            // the current one or the one you get by tapping.
+                            Text(
+                              'Unhide',
+                              style: ChromeScope.of(ctx)
+                                  .text
+                                  .caption
+                                  .copyWith(color: c.accent),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                child: ThemedButton(
+                  label: 'Unhide all',
+                  kind: ThemedButtonKind.text,
+                  expand: true,
+                  onPressed: () {
+                    Navigator.pop(sheet);
+                    notifier.edit(HiddenApps.unhideAll);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

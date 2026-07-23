@@ -303,7 +303,6 @@ class SetupInstallerFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = ChromeScope.of(context);
-    final c = d.colors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -467,9 +466,7 @@ class _Rail extends StatelessWidget {
                   // Three states, not two: done reads differently from pending,
                   // which is what makes the rail a progress indicator rather
                   // than a table of contents.
-                  color: i == step
-                      ? c.text
-                      : (i < step ? c.textMuted : c.line),
+                  color: i == step ? c.text : (i < step ? c.textMuted : c.line),
                 ),
               ),
             ),

@@ -94,6 +94,17 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
     final c = data.colors;
     return AppBar(
       backgroundColor: c.bar,
+      // A HEADER BAR, NOT AN APP BAR.
+      //
+      // Adwaita centres its title and separates the bar from the content with a
+      // hairline rather than with elevation or a shadow. Material's default is
+      // a left-aligned title on a raised surface, and left-aligned was the
+      // third thing making these screens read as Android rather than as a
+      // desktop settings app.
+      centerTitle: true,
+      // `Border` is a ShapeBorder, so the hairline rides the bar's own shape
+      // and needs no `bottom:` PreferredSize wrapper eating toolbar height.
+      shape: Border(bottom: BorderSide(color: c.line, width: 0.5)),
       // Kill Material 3's surface tint + elevation overlay so the bar is
       // exactly the palette's bar colour, not bar-plus-a-lavender-wash.
       surfaceTintColor: Colors.transparent,

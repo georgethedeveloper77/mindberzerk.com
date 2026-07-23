@@ -212,7 +212,7 @@ class BootSpec {
         return const BootSpec(lines: [
           BootLine(BootLineKind.plain, ':: running early hook [udev]'),
           BootLine(BootLineKind.plain, ':: running hook [keymap]'),
-          BootLine(BootLineKind.plain, ":: mounting '/dev/sda2' on real root"),
+          BootLine(BootLineKind.plain, ':: mounting \'/dev/sda2\' on real root'),
           BootLine(BootLineKind.blank, ''),
           BootLine(BootLineKind.dim, '[    0.000000] Linux version 6.9.7-arch1-1'),
           BootLine(BootLineKind.dim, '[    0.412001] systemd[1]: systemd 256 running'),
@@ -234,7 +234,7 @@ class BootSpec {
           tailMs: 650,
           lines: [
             BootLine(BootLineKind.dim, 'efiboot loaded from device: Acpi(APP0002,0)'),
-            BootLine(BootLineKind.dim, r'boot file path: \System\Library\CoreServices\boot.efi'),
+            BootLine(BootLineKind.dim, 'boot file path: \\System\\Library\\CoreServices\\boot.efi'),
             BootLine(BootLineKind.blank, ''),
             BootLine(BootLineKind.plain, 'Darwin Kernel Version 24.5.0'),
             BootLine(BootLineKind.dim, 'AppleACPICPU: ProcessorId=1 LocalApicId=0 Enabled'),

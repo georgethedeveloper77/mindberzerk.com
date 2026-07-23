@@ -20,14 +20,28 @@ import 'launcher_prefs.dart';
 /// **What we will and will not guess.** Games are a real signal — Android
 /// actually tells us, via the manifest category and the legacy game flag.
 /// Publisher clusters are a real signal too: `com.google.android.*` is Google's
-/// by construction, not by inference. Banking, "social", "productivity" and the
-/// rest have NO system category behind them; guessing those means a curated
-/// package list that is wrong for half the world and stale in six months, so we
-/// do not promise them. A user who wants a Banking folder drags two apps
-/// together, which already works.
+/// by construction, not by inference.
+///
+/// **Social is the one exception, and it is a narrow one.** Android DOES have
+/// `CATEGORY_SOCIAL`, so unlike Banking there is a system signal to start from.
+/// It is just a weak one: declaring a category is optional and most of the apps
+/// people actually mean by "social" declare nothing, so the category alone
+/// produces a folder with three apps in it and everyone's chat apps left
+/// outside. The category is therefore backed by an EXPLICIT package list of
+/// apps that are unambiguously social — see [socialPackages] — and nothing
+/// else is inferred. That list is a liability we accept for one folder; it is
+/// not a precedent for guessing the rest.
+///
+/// Banking, "productivity", "finance" and the rest still have no system
+/// category and no defensible list, so we do not promise them. A user who wants
+/// a Banking folder drags two apps together, which already works.
 enum SuggestionKind {
   /// Everything Android considers a game.
   games,
+
+  /// Messaging and social apps. See [FolderSuggestions.socialPackages] for
+  /// exactly how far we are willing to guess.
+  social,
 
   /// Apps sharing a publisher prefix — the Google block, the Samsung block.
   publisher,
@@ -84,9 +98,75 @@ class FolderSuggestions {
   /// constant lives in the Android SDK and this file is pure Dart.
   static const int categoryGame = 0;
 
+  /// `ApplicationInfo.CATEGORY_SOCIAL`. Same mirroring, same reason.
+  ///
+  /// Do not "tidy" these into an enum ordered by name: the values are the
+  /// platform's, and getting one wrong files every photo app under Social with
+  /// no error anywhere.
+  static const int categorySocial = 4;
+
   /// Below this a folder costs more than it saves: opening a folder to reach one
   /// of three apps is worse than scrolling past three apps.
   static const int gamesThreshold = 3;
+
+  /// Social uses the same floor as games: two chat apps in a folder is worse
+  /// than two chat apps in the list.
+  static const int socialThreshold = 3;
+
+  /// Apps that ARE social, listed rather than inferred.
+  ///
+  /// **Package names, not labels.** Labels are localised, renamed by OEMs and
+  /// duplicated ("Messages" is four different apps), so matching on them would
+  /// be wrong in a different language every time. Package names are stable.
+  ///
+  /// Deliberately absent: YouTube and YouTube Kids (video, and filing them under
+  /// Social means someone's kid's app moves on first run for no reason), Gmail
+  /// and every SMS app (they are the phone's own furniture, and hiding Messages
+  /// in a folder is exactly the "the launcher swallowed my app" complaint), and
+  /// anything dating — a Tinder icon appearing inside a folder called Social on
+  /// a shared phone is a consequence this feature should not be able to cause.
+  ///
+  /// This list will go stale. That is fine and expected: staleness here means a
+  /// new app is not auto-filed, which is the harmless direction. It should
+  /// eventually ship as CDN data next to the brand pack so it can be corrected
+  /// without a release — until then, additive edits here are cheap.
+  static const Set<String> socialPackages = {
+    // Messaging
+    'org.telegram.messenger',
+    'org.telegram.plus',
+    'com.whatsapp',
+    'com.whatsapp.w4b',
+    'org.thoughtcrime.securesms', // Signal
+    'com.facebook.orca', // Messenger
+    'com.facebook.mlite',
+    'jp.naver.line.android',
+    'com.viber.voip',
+    'com.imo.android.imoim',
+    'com.imo.android.imoimbeta',
+    'com.tencent.mm', // WeChat
+    'com.kakao.talk',
+    'com.discord',
+    'com.skype.raider',
+
+    // Networks
+    'com.instagram.android',
+    'com.instagram.barcelona', // Threads
+    'com.zhiliaoapp.musically', // TikTok
+    'com.ss.android.ugc.trill', // TikTok, some regions
+    'com.zhiliaoapp.musically.go',
+    'com.twitter.android', // X
+    'com.facebook.katana',
+    'com.facebook.lite',
+    'com.snapchat.android',
+    'com.pinterest',
+    'com.reddit.frontpage',
+    'com.linkedin.android',
+    'com.tumblr',
+    'com.vkontakte.android',
+    'tv.twitch.android.app',
+    'org.joinmastodon.android',
+    'xyz.blueskyweb.app',
+  };
 
   /// Publisher groups need to be bigger to earn their place, because they are
   /// the ones that can go wrong in bulk — a "Google" folder of four is a tidy
@@ -153,10 +233,37 @@ class FolderSuggestions {
       ));
     }
 
+    // ── Social ───────────────────────────────────────────────────────────────
+    // The curated list OR the system category, and the list first: a phone
+    // whose OEM tags nothing still gets a correct Social folder, and a phone
+    // whose OEM tags generously does not get its camera in one.
+    //
+    // Games are excluded before we look. Discord is arguably both, and a game
+    // that also chats belongs with the games — that is the folder its owner
+    // opens.
+    final gameKeys = games.toSet();
+    final social = [
+      for (final a in loose)
+        if (!gameKeys.contains(a.componentKey) &&
+            (socialPackages.contains(a.packageName) ||
+                a.category == categorySocial))
+          a.componentKey,
+    ];
+    if (social.length >= socialThreshold) {
+      out.add(FolderSuggestion(
+        id: 'social',
+        name: 'Social',
+        kind: SuggestionKind.social,
+        componentKeys: social,
+      ));
+    }
+
     // ── Publisher clusters ───────────────────────────────────────────────────
-    // A game already proposed for the Games folder is not offered again under
-    // its publisher; one app, one suggestion, or accepting both would fight.
-    final claimed = games.toSet();
+    // A game or a social app already proposed is not offered again under its
+    // publisher; one app, one suggestion, or accepting both would fight. This
+    // matters more with Social in play: without it Meta's block would try to
+    // claim WhatsApp, Instagram and Messenger back out of the Social folder.
+    final claimed = {...gameKeys, ...social};
     final byVendor = <String, List<String>>{};
     for (final a in loose) {
       if (claimed.contains(a.componentKey)) continue;
@@ -236,6 +343,40 @@ class FolderSuggestions {
       next = accept(next, s, newFolderId: newFolderId);
     }
     return next;
+  }
+
+  /// The folders a fresh install should simply HAVE.
+  ///
+  /// ─── WHY THIS IS NOT `acceptAll(propose(...))` ─────────────────────────────
+  ///
+  /// Auto-creating publisher folders on first run is the exact failure the rest
+  /// of this file is written to avoid: a stranger's phone opening with its
+  /// Google apps already swept into a folder nobody asked for. Games and Social
+  /// are different — they are the two folders people make by hand within the
+  /// first week, they are named the same way in every launcher, and both are
+  /// backed by something better than a prefix. So those two are created, the
+  /// rest are still only ever offered.
+  ///
+  /// Called once, at the end of initial setup, where it is visible and
+  /// reversible: the setup step says what it is about to do and the user can
+  /// ungroup either folder in two taps afterwards. Do NOT call it on every
+  /// launch — a folder the user dissolved must stay dissolved, and the only
+  /// thing stopping this from rebuilding it is that it is never asked again.
+  static const Set<SuggestionKind> defaultKinds = {
+    SuggestionKind.games,
+    SuggestionKind.social,
+  };
+
+  static LauncherPrefs createDefaults(
+    LauncherPrefs p,
+    List<AppEntry> apps, {
+    required String Function() newFolderId,
+  }) {
+    final wanted = [
+      for (final s in propose(apps, p))
+        if (defaultKinds.contains(s.kind)) s,
+    ];
+    return acceptAll(p, wanted, newFolderId: newFolderId);
   }
 
   /// Never offer this group again.

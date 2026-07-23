@@ -1,0 +1,933 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/prefs_repository.dart';
+import '../../data/repositories/app_repository.dart';
+import '../../data/repositories/shell_apps.dart';
+import '../../design/components/components.dart';
+import '../../engine/effective_theme.dart';
+import '../../platform/launcher_api.g.dart';
+import 'app_icon.dart';
+import 'drawer_actions.dart';
+import 'drawer_items.dart';
+import 'package:g_launcher/i18n/i18n.dart';
+
+/// An open drawer folder, full screen, over a blurred desktop.
+///
+/// ─── WHY THIS REPLACED THE BOTTOM SHEET ─────────────────────────────────────
+///
+/// A folder used to open as a [ThemedSheet] docked to the bottom of the screen.
+/// The folder's name sat in a small header row competing with an Ungroup
+/// button, the grid was pinned to the bottom edge under your thumb, and the
+/// thing you had just opened looked like a settings panel rather than like the
+/// folder you tapped.
+///
+/// ─── AND WHY THERE ARE NO SHEETS *INSIDE* IT EITHER ─────────────────────────
+///
+/// The first version of this screen kept reaching for [ThemedSheet] whenever it
+/// needed a second surface: rename, add apps, the member long-press menu. Three
+/// Android modal bottom sheets sliding up over a desktop metaphor. That is the
+/// same category error the bottom-sheet folder was, one level down — the sheet
+/// is the nearest primitive to hand on Android, so every secondary surface
+/// becomes one, and the launcher stops looking like the desktop it imitates.
+///
+/// A real desktop has three answers here and none of them is a bottom sheet:
+///
+///   1. **Rename happens IN PLACE.** Click the name, it becomes an editable
+///      field, press Enter. GNOME Files, Finder and Explorer all do this. It
+///      also removes an entire modal route from the path, which is strictly
+///      less that can go wrong.
+///   2. **Adding apps is a centred DIALOG** ([ThemedDialog], a centred card),
+///      not a panel climbing up from the bottom edge.
+///   3. **Long-press is a CONTEXT MENU at the pointer**, the way a right-click
+///      menu appears where you clicked, rather than 400px away at the bottom of
+///      the screen.
+///
+/// ─── CHROME ─────────────────────────────────────────────────────────────────
+///
+/// This screen INSTALLS its own [ChromeScope], the way [ThemedScaffold] does
+/// for every settings page. It is a bare route, so without one everything
+/// inside it — and every dialog and menu opened from it, since those capture
+/// the chrome before pushing — falls back to [ChromeData.bootstrap] and renders
+/// in house colours over a themed desktop. `ChromeScope.of` degrades rather
+/// than throwing, which is the right call and also why this class of mistake is
+/// invisible until someone looks at it on a non-default theme.
+///
+/// The folder's own furniture (the blur tint, the panel, the big name) still
+/// reads [EffectiveTheme.palette] directly, because that furniture belongs to
+/// the DESKTOP layer, not the chrome layer: it sits on the wallpaper, not on a
+/// settings page. The chrome is installed for the dialogs and menus.
+///
+/// ─── THE MATERIAL ───────────────────────────────────────────────────────────
+///
+/// This is a ROUTE, and a route has no Scaffold. [ThemedListRow] draws ink, so
+/// the context menu needs a Material ancestor — the same trap the desktop
+/// long-press bar and KickoffDrawer both hit.
+Future<void> showFolderOverlay(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  FolderDrawerItem item,
+) {
+  return Navigator.of(context).push(
+    PageRouteBuilder<void>(
+      // Non-opaque: the drawer stays mounted and visible behind the blur, which
+      // is what makes this read as the folder opening ON the drawer rather than
+      // as a new screen replacing it.
+      opaque: false,
+      barrierColor: null,
+      barrierDismissible: false,
+      transitionDuration: const Duration(milliseconds: 220),
+      reverseTransitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (_, __, ___) => _FolderOverlay(
+        theme: theme,
+        folderId: item.folder.id,
+      ),
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        // Fade plus a small scale-up. Scaling from 0.92 rather than from
+        // nothing keeps it feeling like the tile expanding; a full zoom from
+        // zero reads as a popup and costs more frames on the budget phones this
+        // ships to.
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.92, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _FolderOverlay extends ConsumerStatefulWidget {
+  const _FolderOverlay({required this.theme, required this.folderId});
+
+  final EffectiveTheme theme;
+  final String folderId;
+
+  @override
+  ConsumerState<_FolderOverlay> createState() => _FolderOverlayState();
+}
+
+class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
+  final _pages = PageController();
+  int _page = 0;
+
+  /// In-place rename state. Null means "not editing"; non-null means the title
+  /// IS a text field. Held here rather than inside the title widget so that
+  /// committing can be triggered from anywhere on the screen — tapping the
+  /// backdrop mid-rename should SAVE, not discard.
+  TextEditingController? _renaming;
+  final _renameFocus = FocusNode();
+
+  /// The auto-close below fires from `build`, and `build` can run more than
+  /// once before the scheduled callback lands. Without this the pop is queued
+  /// twice and the second one takes the DRAWER's route down with it — a folder
+  /// dissolving would close the app drawer, which reads as the launcher
+  /// crashing back to the desktop.
+  bool _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages.addListener(() {
+      final p = (_pages.page ?? 0).round();
+      if (p != _page && mounted) setState(() => _page = p);
+    });
+    // Losing focus commits, so tapping elsewhere behaves like every
+    // rename-in-place field on a desktop: the edit is kept, not thrown away.
+    _renameFocus.addListener(() {
+      if (!_renameFocus.hasFocus && _renaming != null) _commitRename();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    _renameFocus.dispose();
+    _renaming?.dispose();
+    super.dispose();
+  }
+
+  void _startRename(String current) {
+    setState(() {
+      _renaming = TextEditingController(text: current)
+        ..selection =
+            TextSelection(baseOffset: 0, extentOffset: current.length);
+    });
+    // Focus AFTER the field exists, or the request lands on nothing.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _renameFocus.requestFocus();
+    });
+  }
+
+  void _commitRename() {
+    final controller = _renaming;
+    if (controller == null) return;
+
+    final name = controller.text;
+    setState(() => _renaming = null);
+    controller.dispose();
+
+    // A blank name is refused by DrawerLayout.rename rather than stored, so
+    // clearing the field and pressing Enter simply keeps the old name.
+    ref
+        .read(prefsProvider(widget.theme.spec.id).notifier)
+        .edit((p) => DrawerLayout.rename(p, widget.folderId, name));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Live theme, not the push-time snapshot: renaming, adding an app or
+    // changing the folder grid must all land under your finger rather than on
+    // the next open.
+    final theme =
+        ref.watch(effectiveThemeProvider).asData?.value ?? widget.theme;
+
+    final live = ref
+        .watch(drawerItemsProvider(theme))
+        .whereType<FolderDrawerItem>()
+        .where((f) => f.folder.id == widget.folderId)
+        .firstOrNull;
+
+    // Dissolved while open — the last-but-one member was pulled out, or the
+    // Ungroup button was hit. Close rather than sit here rendering a folder
+    // that no longer exists.
+    if (live == null) {
+      if (!_closing) {
+        _closing = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+        });
+      }
+      return const SizedBox.shrink();
+    }
+
+    final palette = theme.palette;
+    final cols = theme.prefs.folderCols ?? 4;
+    final rows = theme.prefs.folderRows ?? 3;
+    final perPage = math.max(1, cols * rows);
+    final pageCount = math.max(1, (live.members.length / perPage).ceil());
+
+    // The unnamed folder reads as a placeholder, exactly like an empty text
+    // field: the name is still "Folder" in storage, but showing it in full ink
+    // implies someone chose it. Muted ink says "this is waiting for you".
+    final unnamed = live.folder.name.trim() == defaultFolderName;
+
+    // Derived exactly as ThemedScaffold derives it, so a dialog opened from
+    // here is indistinguishable from one opened out of Settings.
+    final chrome = ChromeData.fromPalette(
+      theme.palette,
+      typography: theme.typography,
+      textScale: theme.textScale,
+      family: theme.chromeFamily,
+    );
+
+    return ChromeScope(
+      data: chrome,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          children: [
+            // ── The backdrop ────────────────────────────────────────────────
+            // Tapping anywhere off the panel closes, which is the gesture
+            // people try first and the reason the panel needs no close button.
+            // Mid-rename it COMMITS instead, because a field losing focus is a
+            // save everywhere else on a desktop.
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (_renaming != null) {
+                    _commitRename();
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: ColoredBox(
+                    // Not opaque: the wallpaper and the drawer stay legible
+                    // through it, which is the whole effect. Tinted with the
+                    // distro's own deep background so a light theme dims toward
+                    // its own colour rather than toward black.
+                    color: palette.bgBottom.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            ),
+
+            SafeArea(
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+
+                  _Title(
+                    theme: theme,
+                    name: live.folder.name,
+                    unnamed: unnamed,
+                    controller: _renaming,
+                    focus: _renameFocus,
+                    onStartRename: () => _startRename(live.folder.name),
+                    onCommit: _commitRename,
+                  ),
+
+                  const Spacer(),
+
+                  _Actions(
+                    theme: theme,
+                    onAdd: () => _addApps(theme, live),
+                    onUngroup: () {
+                      // Pop FIRST. Dissolving rebuilds this widget with no
+                      // folder to show; the auto-close above would handle it,
+                      // but popping here runs the exit animation instead of
+                      // blinking the panel out a frame early.
+                      Navigator.pop(context);
+                      ref
+                          .read(prefsProvider(theme.spec.id).notifier)
+                          .edit(
+                            (p) => DrawerLayout.dissolve(p, live.folder.id),
+                          );
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  _Panel(
+                    theme: theme,
+                    members: live.members,
+                    folderId: live.folder.id,
+                    cols: cols,
+                    rows: rows,
+                    perPage: perPage,
+                    pageCount: pageCount,
+                    controller: _pages,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (pageCount > 1)
+                    _Dots(count: pageCount, page: _page, color: palette.onDark),
+
+                  const Spacer(flex: 3),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Add loose apps to this folder, several at a time, in a CENTRED DIALOG.
+  ///
+  /// A dialog rather than a sheet because this is a desktop metaphor and a
+  /// desktop puts a chooser in the middle of the screen. [ThemedDialog] already
+  /// captures and re-provides the chrome across the route boundary, so it
+  /// inherits the scope installed above.
+  ///
+  /// Multi-select rather than one at a time, because the reason anyone opens
+  /// this is that they have four apps to file, and a chooser that closes after
+  /// each one turns that into four round trips.
+  ///
+  /// Only LOOSE apps are offered. An app already in another folder is not shown
+  /// at all rather than shown and refused: [DrawerLayout.addToFolder] declines
+  /// to move an app between folders on purpose, and offering a choice that will
+  /// be rejected is worse than not offering it.
+  void _addApps(EffectiveTheme theme, FolderDrawerItem folder) {
+    final apps = ref.read(shellAppsProvider(theme));
+    final folded = DrawerLayout.foldedKeys(theme.prefs);
+    final loose = [
+      for (final a in apps)
+        if (!folded.contains(a.componentKey)) a,
+    ];
+
+    final chosen = <String>{};
+
+    ThemedDialog.show<void>(
+      context,
+      title: loose.isEmpty ? 'Nothing to add' : 'Add to ${folder.folder.name}',
+      content: loose.isEmpty
+          ? const Text('Every app is already in a folder.')
+          : SizedBox(
+              // A dialog child is UNBOUNDED vertically, so the list must be
+              // given a height or the ListView inside has nothing to lay out
+              // against. This is the shape of mistake that produces a
+              // five-figure overflow rather than a slightly wrong box.
+              width: double.maxFinite,
+              height: math.min(MediaQuery.sizeOf(context).height * 0.45, 420),
+              child: StatefulBuilder(
+                builder: (ctx, setDialogState) => ListView.builder(
+                  itemCount: loose.length,
+                  itemBuilder: (_, i) {
+                    final a = loose[i];
+                    final on = chosen.contains(a.componentKey);
+                    final d = ChromeScope.of(ctx);
+
+                    // Hand-built rather than a ThemedListRow, because the row
+                    // needs the app's REAL icon on the left and
+                    // ThemedListRow's only leading slot is an IconData.
+                    // Colours and type still come from the chrome, so it reads
+                    // as a peer of every other row.
+                    return InkWell(
+                      onTap: () => setDialogState(() {
+                        if (on) {
+                          chosen.remove(a.componentKey);
+                        } else {
+                          chosen.add(a.componentKey);
+                        }
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            AppIcon(entry: a, size: 30),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                a.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: d.text.body,
+                              ),
+                            ),
+                            Icon(
+                              on
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              size: 20,
+                              color: on ? d.colors.accent : d.colors.textFaint,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+      actionsBuilder: (dialogCtx) => [
+        ThemedButton(
+          label: loose.isEmpty ? 'Close' : context.t('common.cancel'),
+          kind: ThemedButtonKind.text,
+          onPressed: () => Navigator.of(dialogCtx).pop(),
+        ),
+        if (loose.isNotEmpty)
+          ThemedButton(
+            label: 'Add',
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              if (chosen.isEmpty) return;
+              // ONE edit, not one per app. Each `edit` is a write and a
+              // rebuild; folding the whole selection into a single transform
+              // means the drawer animates once.
+              ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
+                var next = p;
+                for (final k in chosen) {
+                  next = DrawerLayout.addToFolder(next, folder.folder.id, k);
+                }
+                return next;
+              });
+            },
+          ),
+      ],
+    );
+  }
+}
+
+/// The folder's name, large and centred — and, while editing, the field itself.
+///
+/// The two states are the same size and the same position on purpose. A rename
+/// control that jumps somewhere else when you activate it makes you find your
+/// place again; leaving the text exactly where it was is what makes this read
+/// as editing the thing rather than filling in a form about it.
+class _Title extends StatelessWidget {
+  const _Title({
+    required this.theme,
+    required this.name,
+    required this.unnamed,
+    required this.controller,
+    required this.focus,
+    required this.onStartRename,
+    required this.onCommit,
+  });
+
+  final EffectiveTheme theme;
+  final String name;
+  final bool unnamed;
+  final TextEditingController? controller;
+  final FocusNode focus;
+  final VoidCallback onStartRename;
+  final VoidCallback onCommit;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+
+    final style = TextStyle(
+      fontFamily: theme.typography.display,
+      fontSize: 34,
+      fontWeight: FontWeight.w700,
+      height: 1.1,
+      color: palette.onDark,
+    );
+
+    if (controller != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: TextField(
+          controller: controller,
+          focusNode: focus,
+          textAlign: TextAlign.center,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => onCommit(),
+          style: style,
+          cursorColor: palette.accent,
+          // Single line, always. An unbounded field in a Column with a Spacer
+          // either side is exactly how a text field grows without limit.
+          maxLines: 1,
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: palette.accent, width: 2),
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: palette.onDark.withValues(alpha: 0.30),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onStartRename,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Text(
+          unnamed ? 'Folder name' : name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: unnamed
+              ? style.copyWith(color: palette.onDark.withValues(alpha: 0.45))
+              : style,
+        ),
+      ),
+    );
+  }
+}
+
+/// The two verbs a folder owns, as glyph buttons above the panel.
+class _Actions extends StatelessWidget {
+  const _Actions({
+    required this.theme,
+    required this.onAdd,
+    required this.onUngroup,
+  });
+
+  final EffectiveTheme theme;
+  final VoidCallback onAdd;
+  final VoidCallback onUngroup;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Right-aligned and inset to the panel's own margin, so the buttons sit
+      // over the panel's top-right corner rather than floating loose.
+      padding: const EdgeInsets.only(right: 28),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _GlyphButton(
+            theme: theme,
+            icon: Icons.folder_off_outlined,
+            semantic: 'Ungroup this folder',
+            onTap: onUngroup,
+          ),
+          const SizedBox(width: 18),
+          _GlyphButton(
+            theme: theme,
+            icon: Icons.add,
+            semantic: 'Add apps to this folder',
+            onTap: onAdd,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlyphButton extends StatelessWidget {
+  const _GlyphButton({
+    required this.theme,
+    required this.icon,
+    required this.semantic,
+    required this.onTap,
+  });
+
+  final EffectiveTheme theme;
+  final IconData icon;
+  final String semantic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final onDark = theme.palette.onDark;
+
+    return Semantics(
+      button: true,
+      label: semantic,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: onDark.withValues(alpha: 0.55)),
+          ),
+          child: Icon(icon, size: 20, color: onDark),
+        ),
+      ),
+    );
+  }
+}
+
+/// The rounded panel holding the grid, paged when the members do not fit.
+class _Panel extends StatelessWidget {
+  const _Panel({
+    required this.theme,
+    required this.members,
+    required this.folderId,
+    required this.cols,
+    required this.rows,
+    required this.perPage,
+    required this.pageCount,
+    required this.controller,
+  });
+
+  final EffectiveTheme theme;
+  final List<AppEntry> members;
+  final String folderId;
+  final int cols;
+  final int rows;
+  final int perPage;
+  final int pageCount;
+  final PageController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+
+    // The tile is icon + gap + one line of label. Derived from the live icon
+    // size rather than fixed, so the folder still fits itself when the icon
+    // size setting changes — the same lesson the device preview taught.
+    final tileH = theme.iconSizeDp + 34;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          // Lifted off the blurred backdrop rather than transparent, or the
+          // grid reads as floating loose on the wallpaper and the label text
+          // fights whatever photo is behind it.
+          color: palette.bgBottom.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(34),
+          border: Border.all(color: palette.onDark.withValues(alpha: 0.08)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        child: SizedBox(
+          height: rows * tileH,
+          child: PageView.builder(
+            controller: controller,
+            // One page of members always fits by construction, so the page
+            // itself never scrolls — which is what keeps the horizontal swipe
+            // unambiguous.
+            itemCount: pageCount,
+            itemBuilder: (_, page) {
+              final start = page * perPage;
+              final count = math.min(perPage, members.length - start);
+
+              return GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisExtent: tileH,
+                  crossAxisSpacing: 4,
+                ),
+                itemCount: count,
+                itemBuilder: (_, i) => _MemberTile(
+                  theme: theme,
+                  entry: members[start + i],
+                  folderId: folderId,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MemberTile extends ConsumerStatefulWidget {
+  const _MemberTile({
+    required this.theme,
+    required this.entry,
+    required this.folderId,
+  });
+
+  final EffectiveTheme theme;
+  final AppEntry entry;
+  final String folderId;
+
+  @override
+  ConsumerState<_MemberTile> createState() => _MemberTileState();
+}
+
+class _MemberTileState extends ConsumerState<_MemberTile> {
+  /// Where the finger went down, so the context menu can open THERE.
+  Offset _down = Offset.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final entry = widget.entry;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (d) => _down = d.globalPosition,
+      onLongPressStart: (d) => _down = d.globalPosition,
+      onTap: () {
+        // Close first: coming back from an app to a folder still hanging open
+        // over the drawer is not where anyone expects to land.
+        Navigator.pop(context);
+        launchDrawerApp(ref, entry);
+      },
+      onLongPress: () => showFolderMemberMenu(
+        context,
+        ref,
+        theme,
+        at: _down,
+        folderId: widget.folderId,
+        entry: entry,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIcon(entry: entry, size: theme.iconSizeDp),
+          const SizedBox(height: 6),
+          Text(
+            entry.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: theme.typography.display,
+              fontSize: 12,
+              color: theme.palette.onDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A context menu anchored where the finger went down.
+///
+/// ─── THIS IS THE POINT OF "NOT ANDROID SHEETS" ──────────────────────────────
+///
+/// These three actions used to arrive as a bottom sheet: you hold an icon in
+/// the middle of the screen and a panel climbs up from the bottom edge, 400px
+/// away from the thing you are acting on. That is an Android convention and it
+/// is the wrong one for a desktop metaphor — a right-click menu appears AT the
+/// pointer, which is why you can hit it without moving your hand and why it is
+/// never ambiguous which item it belongs to.
+///
+/// Positioned by hand rather than with `showMenu`, because Material's popup
+/// menu brings its own theme, its own item widgets and its own elevation model,
+/// and each of those would have to be overridden back to the chrome. A
+/// [Positioned] card built from [ThemedListRow]s is less code and is themed by
+/// construction.
+///
+/// The card is CLAMPED to the screen and flips above the finger when there is
+/// no room below. A menu opened near the bottom of a folder grid would
+/// otherwise hang off the edge, and the item you wanted is the one that fell
+/// off.
+void showFolderMemberMenu(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme, {
+  required Offset at,
+  required String folderId,
+  required AppEntry entry,
+}) {
+  HapticFeedback.mediumImpact();
+
+  // Captured before pushing, exactly as ThemedSheet and ThemedDialog do: the
+  // menu's route is not a descendant of this screen's scope.
+  final chrome = ChromeScope.of(context);
+  final notifier = ref.read(appListProvider.notifier);
+  final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
+
+  const width = 236.0;
+  const rowH = 52.0;
+  const pad = 12.0;
+
+  showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Dismiss',
+    // Barely there. A context menu is not a modal — what is behind it must stay
+    // readable, because the entire reason the menu is at the pointer is so you
+    // can still see the thing you are acting on.
+    // theme-exempt: a scrim is not chrome. It is a neutral dim over whatever
+    // wallpaper happens to be behind, and tinting it with the distro's palette
+    // would make a light theme's scrim tint the photo underneath it.
+    barrierColor: const Color(0x33000000), // theme-exempt: neutral scrim
+    transitionDuration: const Duration(milliseconds: 120),
+    pageBuilder: (ctx, _, __) {
+      final size = MediaQuery.sizeOf(ctx);
+      final canUninstall = !entry.isSystem && !entry.isWorkProfile;
+      final rowCount = canUninstall ? 3 : 2;
+      final height = rowCount * rowH + pad;
+
+      // Clamp into the screen with an 8px margin, so it never kisses an edge.
+      final left = (at.dx - width / 2).clamp(8.0, size.width - width - 8);
+      // Prefer BELOW the finger; flip above when there is no room, the way
+      // every context menu on every platform does.
+      final below = at.dy + 12;
+      final top = below + height > size.height - 8
+          ? (at.dy - height - 12).clamp(8.0, size.height - height - 8)
+          : below;
+
+      return ChromeScope(
+        data: chrome,
+        child: Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: top,
+              width: width,
+              child: Material(
+                color: chrome.colors.surface,
+                elevation: 8,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: pad / 2),
+                    ThemedListRow(
+                      icon: Icons.folder_off_outlined,
+                      title: 'Remove from folder',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        prefs.edit(
+                          (p) => DrawerLayout.removeFromFolder(
+                            p,
+                            folderId,
+                            entry.componentKey,
+                          ),
+                        );
+                      },
+                    ),
+                    ThemedListRow(
+                      icon: Icons.info_outline,
+                      title: 'App info',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        notifier.openInfo(entry);
+                      },
+                    ),
+                    // System apps cannot be uninstalled. A button that silently
+                    // does nothing is worse than no button.
+                    if (canUninstall)
+                      ThemedListRow(
+                        icon: Icons.delete_outline,
+                        title: 'Uninstall',
+                        danger: true,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          notifier.uninstall(entry);
+                        },
+                      ),
+                    const SizedBox(height: pad / 2),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+    transitionBuilder: (_, animation, __, child) {
+      final curved =
+          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      // Grows from its top edge, so it reads as coming out of what you held
+      // rather than as appearing over it.
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.90, end: 1).animate(curved),
+          alignment: Alignment.topCenter,
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+class _Dots extends StatelessWidget {
+  const _Dots({
+    required this.count,
+    required this.page,
+    required this.color,
+  });
+
+  final int count;
+  final int page;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          Container(
+            width: 7,
+            height: 7,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: i == page ? 0.90 : 0.30),
+            ),
+          ),
+      ],
+    );
+  }
+}

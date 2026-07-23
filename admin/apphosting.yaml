@@ -87,3 +87,6 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  - variable: GCP_PROJECT
+    value: mindberzerk-3eaf5

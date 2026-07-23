@@ -184,14 +184,25 @@ class _SplashSequenceState extends State<SplashSequence>
       width: size,
       height: size,
       child: asset.endsWith('.svg')
-          ? SvgPicture.asset(asset, width: size, height: size)
+          ? SvgPicture.asset(
+              asset,
+              width: size,
+              height: size,
+              // TINTED, matching LauncherBrandIcon. A splash paints on the
+              // distro's darkest colour, so the dark-surface logo variant has
+              // to be knocked out to onDark or it renders as dark ink on dark
+              // ground. LauncherBrandIcon already did this and this did not,
+              // which is why the mark is legible in the drawer and invisible
+              // on the splash: same asset, two readers, one rule.
+              colorFilter: ColorFilter.mode(widget.onDark, BlendMode.srcIn),
+            )
           : Image.asset(
               asset,
               width: size,
               height: size,
+              color: widget.onDark,
+              colorBlendMode: BlendMode.srcIn,
               filterQuality: FilterQuality.medium,
-              // A theme whose logo file is missing must still show a splash,
-              // not a red error box on the first thing the user sees.
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
     );

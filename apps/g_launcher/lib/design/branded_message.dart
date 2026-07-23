@@ -394,7 +394,7 @@ class _LogoChip extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Image.asset(
-        'assets/brand/mindhunter_mark.png',
+        'assets/brand/mindhunter_mark.webp',
         width: 16,
         height: 16,
         filterQuality: FilterQuality.medium,

@@ -18,6 +18,11 @@ class LauncherActivity : FlutterActivity() {
 
     private var homeChannel: BasicMessageChannel<String>? = null
 
+    /// The process-wide AppWidget host, owned by LauncherApplication. Binding and
+    /// configuring a widget need an Activity, so this Activity lends itself to
+    /// the host while it is alive.
+    private val widgetHost get() = (application as LauncherApplication).widgetHost
+
     override fun getCachedEngineId(): String = LauncherApplication.ENGINE_ID
 
     /**
@@ -32,6 +37,39 @@ class LauncherActivity : FlutterActivity() {
         // Draw behind the status and nav bars. A desktop shell paints its own
         // top bar; it cannot do that under a system-reserved inset.
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // Lend this Activity to the widget host for the bind/config result flow.
+        widgetHost.attachActivity(this)
+    }
+
+    /**
+     * The host must be listening for its views to receive RemoteViews updates.
+     * Tied to start/stop so a backgrounded launcher stops updating hosted
+     * widgets, which is the whole reason AppWidgetHost has this pair.
+     */
+    override fun onStart() {
+        super.onStart()
+        widgetHost.startListening()
+    }
+
+    override fun onStop() {
+        widgetHost.stopListening()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        widgetHost.detachActivity(this)
+        super.onDestroy()
+    }
+
+    /**
+     * The bind-permission dialog and a provider's config Activity both come back
+     * here. Hand them to the host first; it returns true when it consumed one.
+     */
+    @Deprecated("Superseded by the Activity Result APIs; still the reliable path with a warmed engine.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (widgetHost.onActivityResult(requestCode, resultCode)) return
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

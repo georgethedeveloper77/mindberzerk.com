@@ -110,7 +110,7 @@ class AppIcon extends ConsumerWidget {
 String launcherBrandAsset(String themeSpecId) {
   return switch (themeSpecId) {
     'ubuntu-24-04' => 'assets/svg/ubuntu2410.svg',
-    _ => 'assets/brand/mindhunter_mark.png',
+    _ => 'assets/brand/mindhunter_mark.webp',
   };
 }
 
@@ -184,7 +184,7 @@ class LauncherBrandIcon extends StatelessWidget {
     }
 
     final Widget fallback = Image.asset(
-      'assets/brand/mindhunter_mark.png',
+      'assets/brand/mindhunter_mark.webp',
       width: size,
       height: size,
       color: onDark,

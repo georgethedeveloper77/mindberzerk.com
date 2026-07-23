@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/home_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
@@ -13,8 +14,9 @@ import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
 import '../../platform/launcher_api.g.dart';
 import '../settings/settings_screen.dart';
-import 'app_icon.dart';
 import 'drawer_items.dart';
+import 'folder_overlay.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Everything a drawer DOES, independent of how it looks.
 ///
@@ -196,6 +198,30 @@ void showDrawerAppMenu(
             notifier.openInfo(entry);
           },
         ),
+
+        // Hide it from THIS theme's drawer. Per-theme, like the set it writes
+        // to: an app hidden under Ubuntu is still in KDE's drawer, because
+        // hiding is "off my desktop", not "gone from the phone".
+        //
+        // The message is doing real work, not decoration. A hidden app is not
+        // in the drawer to long-press, so the ONLY way back is the Apps and
+        // folders page — and a user who just hid their first app has no reason
+        // to know that exists. Naming it is the difference between a reversible
+        // action and one that feels permanent. Single string, per the
+        // convention.
+        ThemedListRow(
+          icon: Icons.visibility_off_outlined,
+          title: 'Hide app',
+          subtitle: 'Unhide it under Apps and folders',
+          onTap: () {
+            Navigator.pop(sheet);
+            prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
+            if (host.mounted) {
+              host.showMessage('${entry.label} hidden');
+            }
+          },
+        ),
+
         // System apps cannot be uninstalled. A button that silently does
         // nothing is worse than no button.
         if (!entry.isSystem && !entry.isWorkProfile)
@@ -213,230 +239,37 @@ void showDrawerAppMenu(
   );
 }
 
-/// The open folder.
+/// Open a folder.
 ///
-/// The header IS the controls: tap the name to rename it in place, hit the
-/// button on the right to ungroup. No settings rows underneath — a folder holds
-/// two verbs, and burying them in a list below the apps made you scroll past
-/// the contents to reach them.
+/// ─── THE BODY OF THIS MOVED, AND ON PURPOSE ─────────────────────────────────
 ///
-/// Reads the folder LIVE out of prefs on every build rather than trusting the
-/// [FolderDrawerItem] captured at open time — otherwise removing an app leaves
-/// the sheet showing it until you close and reopen, and the sheet lies.
+/// This used to draw the folder itself: a bottom [ThemedSheet] with a header
+/// row, an Ungroup button and a grid. That was some 160 lines of layout living
+/// in the file that owns the drawer's VERBS, which is how a folder ends up
+/// looking like a settings panel — the sheet was the nearest primitive to hand,
+/// so the folder became one.
+///
+/// The presentation now lives in `folder_overlay.dart` and this is the seam
+/// again: every shell, the drawer, the search page and the folder settings
+/// sheet all call this, and none of them needs to know that opening a folder
+/// now pushes a full-screen route rather than a sheet. Changing the
+/// presentation a second time is one file.
 void openDrawerFolder(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
   FolderDrawerItem item,
 ) {
-  ThemedSheet.show<void>(
-    context,
-    isScrollControlled: true,
-    builder: (sheet) => Consumer(
-      builder: (ctx, r, __) {
-        final items = r.watch(drawerItemsProvider(theme));
-        final matches = items
-            .whereType<FolderDrawerItem>()
-            .where((f) => f.folder.id == item.folder.id)
-            .toList();
-        final live = matches.isEmpty ? null : matches.first;
-
-        // Dissolved while open (the last-but-one app was pulled out). Close
-        // rather than sit here showing a folder that no longer exists.
-        if (live == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (Navigator.canPop(sheet)) Navigator.pop(sheet);
-          });
-          return const SizedBox.shrink();
-        }
-
-        final d = ChromeScope.of(ctx);
-        final cols = theme.prefs.folderCols ?? 4;
-        final rows = theme.prefs.folderRows ?? 3;
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header: name (tap to rename) + ungroup ──────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 2, 12, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        Navigator.pop(sheet);
-                        renameDrawerFolder(
-                          context,
-                          ref,
-                          theme,
-                          folderId: live.folder.id,
-                          currentName: live.folder.name,
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              live.folder.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: d.text.title,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // The only hint that the name is tappable. Without it
-                          // renaming becomes a hidden gesture.
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 15,
-                            color: d.colors.textMuted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ThemedButton(
-                    label: 'Ungroup',
-                    icon: Icons.folder_off_outlined,
-                    kind: ThemedButtonKind.text,
-                    onPressed: () {
-                      Navigator.pop(sheet);
-                      r.read(prefsProvider(theme.spec.id).notifier).edit(
-                            (p) => DrawerLayout.dissolve(p, live.folder.id),
-                          );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Apps ────────────────────────────────────────────────────────
-            // Height derived from the row count rather than fixed, so "3 rows"
-            // means three rows on any screen; past that the folder scrolls.
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: rows * (theme.iconSizeDp + 34),
-              ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  childAspectRatio: 0.78,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 14,
-                ),
-                itemCount: live.members.length,
-                itemBuilder: (_, i) {
-                  final m = live.members[i];
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      Navigator.pop(sheet);
-                      launchDrawerApp(r, m);
-                    },
-                    // Hold for the app's own menu, which inside a folder gains
-                    // "Remove from folder" — the one action that only exists
-                    // here. Previously this REMOVED the app outright on hold,
-                    // with no menu and no way back; a destructive action with
-                    // no confirmation and no undo does not belong on a gesture.
-                    onLongPress: () => _folderMemberMenu(
-                      ctx,
-                      r,
-                      theme,
-                      folderId: live.folder.id,
-                      entry: m,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppIcon(entry: m, size: theme.iconSizeDp),
-                        const SizedBox(height: 6),
-                        Text(
-                          m.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: d.colors.text,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        );
-      },
-    ),
-  );
+  showFolderOverlay(context, ref, theme, item);
 }
 
-/// The long-press menu for an app INSIDE a folder.
-///
-/// Same shape as the drawer's app menu, plus the one action that only makes
-/// sense in here. Pin/uninstall stay available: being in a folder does not stop
-/// an app being an app.
-void _folderMemberMenu(
-  BuildContext context,
-  WidgetRef ref,
-  EffectiveTheme theme, {
-  required String folderId,
-  required AppEntry entry,
-}) {
-  HapticFeedback.mediumImpact();
-  final notifier = ref.read(appListProvider.notifier);
-
-  ThemedSheet.show<void>(
-    context,
-    builder: (sheet) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ThemedListRow(
-          icon: Icons.folder_off_outlined,
-          title: 'Remove from folder',
-          subtitle: 'Back to the drawer; the app stays installed',
-          onTap: () {
-            Navigator.pop(sheet);
-            ref.read(prefsProvider(theme.spec.id).notifier).edit(
-                  (p) => DrawerLayout.removeFromFolder(
-                    p,
-                    folderId,
-                    entry.componentKey,
-                  ),
-                );
-          },
-        ),
-        ThemedListRow(
-          icon: Icons.info_outline,
-          title: 'App info',
-          onTap: () {
-            Navigator.pop(sheet);
-            notifier.openInfo(entry);
-          },
-        ),
-        if (!entry.isSystem && !entry.isWorkProfile)
-          ThemedListRow(
-            icon: Icons.delete_outline,
-            title: 'Uninstall',
-            onTap: () {
-              Navigator.pop(sheet);
-              notifier.uninstall(entry);
-            },
-          ),
-        const SizedBox(height: 8),
-      ],
-    ),
-  );
-}
+// The folder-member long-press menu USED TO LIVE HERE.
+//
+// It was a ThemedSheet, and it is now a context menu anchored at the finger
+// (see `showFolderMemberMenu` in folder_overlay.dart). It is deleted rather
+// than kept "in case", because its only caller was the folder body that moved,
+// and leaving a second implementation of "remove from folder" behind is exactly
+// how two paths drift until one of them is subtly wrong.
 
 /// Folder settings from a long-press, without opening the folder first.
 void drawerFolderSettings(
@@ -556,7 +389,7 @@ void renameDrawerFolder(
               ),
             ),
             const SizedBox(height: 20),
-            ThemedButton(label: 'Save', onPressed: commit, expand: true),
+            ThemedButton(label: context.t('common.save'), onPressed: commit, expand: true),
           ],
         ),
       );

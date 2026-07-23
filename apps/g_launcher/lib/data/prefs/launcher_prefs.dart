@@ -33,6 +33,7 @@ class LauncherPrefs {
     this.textScale,
     this.gestures = const {},
     this.hiddenApps = const {},
+    this.hiddenAppsSearchable,
     this.favourites = const [],
     this.homeItems = const [],
     this.folders = const [],
@@ -144,6 +145,19 @@ class LauncherPrefs {
 
   // --- content ---
   final Set<String> hiddenApps; // componentKeys
+
+  /// Whether a hidden app may still be reached by TYPING ITS WHOLE NAME.
+  ///
+  /// null means the default, which is `true` — see `HiddenApps.searchable`, the
+  /// one place that decision is written down. Hiding is "off my drawer", not
+  /// "uninstalled", so the app stays launchable for the person who knows it is
+  /// there; turning this off is the stronger promise, that the name produces
+  /// nothing at all.
+  ///
+  /// Per theme like [hiddenApps] itself, because the two only make sense
+  /// together: a hidden set with a global search rule would mean hiding an app
+  /// in Ubuntu quietly changed how KDE's search behaved.
+  final bool? hiddenAppsSearchable;
 
   /// The dock's pinned apps, in dock order.
   ///
@@ -285,6 +299,7 @@ class LauncherPrefs {
     double? textScale,
     Map<String, String>? gestures,
     Set<String>? hiddenApps,
+    bool? hiddenAppsSearchable,
     List<String>? favourites,
     List<HomeItem>? homeItems,
     List<AppFolder>? folders,
@@ -321,6 +336,8 @@ class LauncherPrefs {
       textScale: textScale ?? this.textScale,
       gestures: gestures ?? this.gestures,
       hiddenApps: hiddenApps ?? this.hiddenApps,
+      hiddenAppsSearchable:
+          hiddenAppsSearchable ?? this.hiddenAppsSearchable,
       favourites: favourites ?? this.favourites,
       homeItems: homeItems ?? this.homeItems,
       folders: folders ?? this.folders,
@@ -358,6 +375,7 @@ class LauncherPrefs {
     bool folderOrderCustom = false,
     bool workspaceCount = false,
     bool verboseBoot = false,
+    bool hiddenAppsSearchable = false,
     bool iconSizeDp = false,
     bool iconTreatment = false,
     bool cornerRadius = false,
@@ -389,6 +407,8 @@ class LauncherPrefs {
       textScale: textScale ? null : this.textScale,
       gestures: gestures,
       hiddenApps: hiddenApps,
+      hiddenAppsSearchable:
+          hiddenAppsSearchable ? null : this.hiddenAppsSearchable,
       favourites: favourites,
       homeItems: homeItems,
       folders: folders,
@@ -433,6 +453,8 @@ class LauncherPrefs {
         if (textScale != null) 'textScale': textScale,
         'gestures': gestures,
         'hiddenApps': hiddenApps.toList(),
+        if (hiddenAppsSearchable != null)
+          'hiddenAppsSearchable': hiddenAppsSearchable,
         'favourites': favourites,
         'homeItems': homeItems.map((e) => e.toJson()).toList(),
         'folders': folders.map((e) => e.toJson()).toList(),
@@ -481,6 +503,7 @@ class LauncherPrefs {
       hiddenApps: ((j['hiddenApps'] as List?) ?? const [])
           .map((e) => e as String)
           .toSet(),
+      hiddenAppsSearchable: j['hiddenAppsSearchable'] as bool?,
       favourites: ((j['favourites'] as List?) ?? const [])
           .map((e) => e as String)
           .toList(),
@@ -555,6 +578,7 @@ class LauncherPrefs {
         other.textScale == textScale &&
         const MapEquality<String, String>().equals(other.gestures, gestures) &&
         const SetEquality<String>().equals(other.hiddenApps, hiddenApps) &&
+        other.hiddenAppsSearchable == hiddenAppsSearchable &&
         const ListEquality<String>().equals(other.favourites, favourites) &&
         const ListEquality<HomeItem>().equals(other.homeItems, homeItems) &&
         const ListEquality<AppFolder>().equals(other.folders, folders) &&
@@ -595,6 +619,7 @@ class LauncherPrefs {
         textScale,
         const MapEquality<String, String>().hash(gestures),
         const SetEquality<String>().hash(hiddenApps),
+        hiddenAppsSearchable,
         const ListEquality<String>().hash(favourites),
         const ListEquality<HomeItem>().hash(homeItems),
         const ListEquality<AppFolder>().hash(folders),

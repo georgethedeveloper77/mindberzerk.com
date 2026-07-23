@@ -10,6 +10,7 @@ import '../../../engine/desklet_spec.dart';
 import '../../../engine/effective_theme.dart';
 import '../../drawer/drawer_state.dart';
 import '../desklet_frame.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The two kinds that are controls rather than readouts. PHASE D5.
 ///
@@ -128,7 +129,7 @@ class NotesDesklet extends ConsumerWidget {
             const SizedBox(height: 4),
             ThemedListRow(
               icon: Icons.check,
-              title: 'Save',
+              title: context.t('common.save'),
               onTap: () => save(sheet),
             ),
           ],

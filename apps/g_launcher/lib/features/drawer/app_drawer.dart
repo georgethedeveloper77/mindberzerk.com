@@ -12,6 +12,7 @@ import '../search/search_page.dart';
 import 'drawer_actions.dart';
 import 'drawer_pager.dart';
 import 'app_icon.dart';
+import 'drawer_drag.dart';
 import 'drawer_items.dart';
 
 /// The Activities drawer.
@@ -376,15 +377,19 @@ class _AppTileState extends ConsumerState<_AppTile> {
       ],
     );
 
-    return DragTarget<String>(
-      // Cannot fold an app into itself.
-      onWillAcceptWithDetails: (d) => d.data != entry.componentKey,
-      onAcceptWithDetails: (d) => _mergeWith(d.data),
+    return DragTarget<DrawerDrag>(
+      onWillAcceptWithDetails: (d) => switch (d.data) {
+        // Cannot fold an app into itself.
+        AppDrag(:final componentKey) => componentKey != entry.componentKey,
+        // A folder dropped on a loose app always has somewhere to go.
+        FolderDrag() => true,
+      },
+      onAcceptWithDetails: (d) => _accept(d.data),
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
-        return LongPressDraggable<String>(
-          data: entry.componentKey,
+        return LongPressDraggable<DrawerDrag>(
+          data: AppDrag(entry.componentKey),
           onDragStarted: () {
             HapticFeedback.mediumImpact();
             final box = context.findRenderObject() as RenderBox?;
@@ -424,6 +429,32 @@ class _AppTileState extends ConsumerState<_AppTile> {
         );
       },
     );
+  }
+
+  /// Something was dropped on this app. What that means depends on what it was.
+  ///
+  /// The switch is exhaustive over [DrawerDrag], which is the whole reason the
+  /// payload stopped being a String: when folders became draggable this file
+  /// stopped compiling until the folder case was answered, instead of silently
+  /// treating a folder id as a component key and filing a folder into itself.
+  void _accept(DrawerDrag drag) {
+    switch (drag) {
+      case AppDrag(:final componentKey):
+        _mergeWith(componentKey);
+      case FolderDrag(:final folderId):
+        // A folder dragged onto a loose app: the app joins the folder. The
+        // mirror of dropping the app on the folder, and it must resolve the
+        // same way — whichever direction the user drags, a folder plus an app
+        // is that folder with one more app in it.
+        HapticFeedback.mediumImpact();
+        ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+              (p) => DrawerLayout.absorbApp(
+                p,
+                folderId,
+                widget.entry.componentKey,
+              ),
+            );
+    }
   }
 
   /// Another app was dropped on this one → a new folder holding both, and the
@@ -505,10 +536,27 @@ class _AppTileState extends ConsumerState<_AppTile> {
 /// A drawer folder: a 2x2 preview of its first four members, its name beneath.
 ///
 /// Tap opens it. Drop a loose app on it to file that app away. Hold it for
-/// folder settings (rename / ungroup) — no drag-the-folder gesture, deliberately:
-/// nested folders are a mess nobody wants, and the drawer list is alphabetical
-/// so there is nowhere to drag a folder TO.
-class _FolderTile extends ConsumerWidget {
+/// folder settings (rename / ungroup).
+///
+/// ─── FOLDERS ARE NOW DRAGGABLE, AND THE OLD NOTE HERE WAS WRONG ─────────────
+///
+/// This carried a comment explaining that a folder deliberately could not be
+/// dragged, for two reasons: nested folders are a mess, and an alphabetical
+/// list gives you nowhere to drag one TO.
+///
+/// The first reason is real and still holds — dropping a folder on a folder
+/// MERGES them, it does not nest them, and there is no code path that puts a
+/// folder inside a folder. The second was a non-sequitur: dragging a folder
+/// onto another folder is not about position, so the list being alphabetical
+/// never had anything to do with it. Combining two folders you made by hand is
+/// the obvious next thing to want after making them, and the gesture is already
+/// in the user's fingers from merging two apps.
+///
+/// Dragging brings the release-intent problem with it. [LongPressDraggable]
+/// consumes the long press, so the settings sheet had to move off `onLongPress`
+/// and onto the same read-intent-on-release trick [_AppTile] uses: nothing
+/// accepted the drop AND the finger never really moved, so it was a hold.
+class _FolderTile extends ConsumerStatefulWidget {
   const _FolderTile({
     super.key,
     required this.item,
@@ -521,27 +569,71 @@ class _FolderTile extends ConsumerWidget {
   final int labelLines;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FolderTile> createState() => _FolderTileState();
+}
+
+class _FolderTileState extends ConsumerState<_FolderTile> {
+  Offset? _origin;
+
+  /// Same 24dp as [_AppTileState]. Named separately rather than shared because
+  /// they are the same NUMBER, not the same decision — if one tile ever wants a
+  /// different slop, a shared constant would make that look like a bug.
+  static const _slop = 24.0;
+
+  /// Something was dropped on this folder.
+  void _accept(DrawerDrag drag) {
+    final theme = widget.theme;
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    HapticFeedback.mediumImpact();
+
+    switch (drag) {
+      case AppDrag(:final componentKey):
+        notifier.edit(
+          (p) => DrawerLayout.addToFolder(p, widget.item.folder.id, componentKey),
+        );
+      case FolderDrag(:final folderId):
+        // THIS folder is the target, so THIS folder's name survives and the
+        // dragged one disappears. See DrawerLayout.mergeFolders for why the
+        // target wins: the thing that stayed put is the thing that absorbed.
+        final before = theme.prefs;
+        final after = DrawerLayout.mergeFolders(
+          before,
+          folderId,
+          widget.item.folder.id,
+        );
+        if (identical(before, after)) return;
+
+        notifier.edit(
+          (p) => DrawerLayout.mergeFolders(p, folderId, widget.item.folder.id),
+        );
+        if (mounted) {
+          context.showMessage('Merged into ${widget.item.folder.name}');
+        }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final item = widget.item;
     final size = theme.iconSizeDp;
 
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (d) => !item.folder.members.contains(d.data),
-      onAcceptWithDetails: (d) {
-        HapticFeedback.mediumImpact();
-        ref.read(prefsProvider(theme.spec.id).notifier).edit(
-              (p) => DrawerLayout.addToFolder(p, item.folder.id, d.data),
-            );
+    return DragTarget<DrawerDrag>(
+      onWillAcceptWithDetails: (d) => switch (d.data) {
+        // Already in here: nothing to do, and highlighting would promise
+        // something that will not happen.
+        AppDrag(:final componentKey) =>
+          !item.folder.members.contains(componentKey),
+        // Cannot merge a folder into itself.
+        FolderDrag(:final folderId) => folderId != item.folder.id,
       },
+      onAcceptWithDetails: (d) => _accept(d.data),
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => openDrawerFolder(context, ref, theme, item),
-          onLongPress: () => drawerFolderSettings(context, ref, theme, item),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        final content = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               Container(
                 width: size,
                 height: size,
@@ -566,13 +658,42 @@ class _FolderTile extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 6),
-              _TileLabel(
-                text: item.folder.name,
-                theme: theme,
-                labelLines: labelLines,
-              ),
-            ],
+            const SizedBox(height: 6),
+            _TileLabel(
+              text: item.folder.name,
+              theme: theme,
+              labelLines: widget.labelLines,
+            ),
+          ],
+        );
+
+        return LongPressDraggable<DrawerDrag>(
+          data: FolderDrag(item.folder.id),
+          onDragStarted: () {
+            HapticFeedback.mediumImpact();
+            final box = context.findRenderObject() as RenderBox?;
+            _origin = (box != null && box.hasSize)
+                ? box.localToGlobal(Offset.zero)
+                : null;
+          },
+          onDraggableCanceled: (_, offset) {
+            // Nothing accepted the drop. If the finger never really travelled
+            // it was a hold, which is the settings sheet — the trigger the
+            // draggable took away.
+            final from = _origin;
+            if (from == null || (offset - from).distance < _slop) {
+              drawerFolderSettings(context, ref, theme, item);
+            }
+          },
+          feedback: Transform.scale(
+            scale: 1.15,
+            child: Material(color: Colors.transparent, child: content),
+          ),
+          childWhenDragging: Opacity(opacity: 0.25, child: content),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => openDrawerFolder(context, ref, theme, item),
+            child: content,
           ),
         );
       },

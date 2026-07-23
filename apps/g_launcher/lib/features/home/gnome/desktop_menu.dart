@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../design/branded_message.dart';
 import '../../../design/components/components.dart';
 import '../../../engine/effective_theme.dart';
+import '../../desklets/desklet_picker.dart';
 import '../../settings/settings_screen.dart';
 import '../../settings/wallpaper_screen.dart';
 import '../../themes/themes_screen.dart';
+import '../workspaces/workspace_controller.dart';
 
 /// The desktop long-press menu — GNOME's "right-click the desktop", mobile
 /// shaped.
@@ -26,9 +28,16 @@ import '../../themes/themes_screen.dart';
 /// bar's own context would tear the new route down with it. That shell context
 /// also sits under the shell's ChromeScope (installed in home_screen), so the
 /// bar is captured and re-provided across the route boundary below.
-Future<void> showDesktopMenu(BuildContext context, EffectiveTheme theme) {
+///
+/// Takes a [WidgetRef] because Widgets opens the picker (a provider read for the
+/// active workspace, and the picker itself writes placements). The shells that
+/// call this are ConsumerStatefulWidgets and already hold a ref.
+Future<void> showDesktopMenu(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+) {
   final navigator = Navigator.of(context);
-  final host = context; // outlives the bar; safe for showMessage post-pop
   // ChromeScope does not cross a route boundary on its own — capture it here
   // and re-provide it inside the route, the same trick ThemedSheet uses.
   final chrome = ChromeScope.of(context);
@@ -67,14 +76,27 @@ Future<void> showDesktopMenu(BuildContext context, EffectiveTheme theme) {
               _Action(
                 icon: Icons.widgets_outlined,
                 label: 'Widgets',
-                // WidgetHost.kt is still a stub. Say so plainly rather than
-                // open a dead screen — the same honesty rule the whole app runs
-                // on.
+                // ── STRAIGHT TO THE PICKER ──────────────────────────────
+                //
+                // This used to enter desklet edit mode and surface an "Editing
+                // workspace" bar with an Add button on it — two steps and a bar
+                // to reach a screen. Adding a widget is a single intent, so it
+                // now opens the widget picker directly. Resizing an existing
+                // desklet is the OTHER gesture (long-press the tile), and it no
+                // longer needs a bar either.
+                //
+                // Pop the menu FIRST, then push on the shell's Navigator via
+                // the captured shell context — the picker captures ChromeScope
+                // from it, and the menu's own route is dead by the time the
+                // push lands.
                 onTap: () {
                   Navigator.pop(routeContext);
-                  if (host.mounted) {
-                    host.showMessage('Widgets are coming soon');
-                  }
+                  showDeskletPicker(
+                    context,
+                    ref,
+                    theme,
+                    page: ref.read(activeWorkspaceProvider),
+                  );
                 },
               ),
               _Action(

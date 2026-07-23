@@ -6,6 +6,8 @@ import com.mindhunter.g_launcher.cdn.PackHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackSyncWorker
 import com.mindhunter.g_launcher.pack.PackFlutterApi
 import com.mindhunter.g_launcher.pack.PackHostApi
+import com.mindhunter.g_launcher.widgets.WidgetHostController
+import com.mindhunter.g_launcher.widgets.WidgetPlatformViewFactory
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -41,6 +43,11 @@ class LauncherApplication : Application() {
     lateinit var engine: FlutterEngine
         private set
 
+    /// The AppWidget host, exposed so LauncherActivity can attach itself for the
+    /// bind/config Activity results and drive startListening/stopListening.
+    lateinit var widgetHost: WidgetHostController
+        private set
+
     private lateinit var hostApi: LauncherHostApiImpl
     private lateinit var packApi: PackHostApiImpl
 
@@ -55,9 +62,23 @@ class LauncherApplication : Application() {
 
         val messenger = engine.dartExecutor.binaryMessenger
 
-        hostApi = LauncherHostApiImpl(this, LauncherFlutterApi(messenger))
+        // The AppWidget host, created here because it outlives any Activity.
+        // LauncherActivity attaches for the Activity-result flow and the
+        // listening lifecycle; the impl and the PlatformView factory both talk
+        // to this one instance.
+        widgetHost = WidgetHostController(this)
+
+        hostApi = LauncherHostApiImpl(this, LauncherFlutterApi(messenger), widgetHost)
         LauncherHostApi.setUp(messenger, hostApi)
         hostApi.start()
+
+        // The PlatformView that embeds a hosted AppWidgetHostView. Registered on
+        // the warmed engine here so an `AndroidView(viewType: 'g_launcher/widget')`
+        // in Dart resolves. Rendering still happens only once an Activity is up.
+        engine.platformViewsController.registry.registerViewFactory(
+            WidgetPlatformViewFactory.VIEW_TYPE,
+            WidgetPlatformViewFactory(widgetHost),
+        )
 
         // PHASE C — a SECOND host API on the same messenger, deliberately.
         // Pigeon keys handlers by channel name, so two APIs coexist without
