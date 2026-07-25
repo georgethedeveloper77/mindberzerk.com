@@ -46,7 +46,12 @@ function sectionsFor(app: string): Section[] {
     // Launcher-only screens. Listing them under G Recovery would promise
     // something the app does not have.
     ...(app === 'g-launcher'
-      ? [{ label: 'Themes' }, { label: 'Icons', href: `/apps/${app}/icons` }]
+      ? [
+          { label: 'Themes', href: `/apps/${app}/themes` },
+          { label: 'Distros', href: `/apps/${app}/distros/builder` },
+          { label: 'Icons', href: `/apps/${app}/icons` },
+          { label: 'Registry', href: `/apps/${app}/registry` },
+        ]
       : []),
     // G Recovery's product is per-brand OEM recovery guidance, not packs. The
     // section is shown disabled so the nav reflects the real app before it is

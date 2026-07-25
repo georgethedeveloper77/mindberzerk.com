@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { APPS, type AppId } from '@/lib/catalogue';
 import { readDraft } from '@/lib/themes';
 import { blankDraft, type ThemeDraft } from '@/lib/theme-spec';
-import { requireAdmin } from '@/lib/admin';
+import { adminGate } from '@/app/components/admin-gate';
+import { Shell } from '@/app/components/shell';
 import { ThemeBuilder } from '@/components/theme-builder/ThemeBuilder';
 
 /**
@@ -19,7 +20,8 @@ export default async function ThemeBuilderPage({
   params: Promise<{ app: string }>;
   searchParams: Promise<{ id?: string }>;
 }) {
-  await requireAdmin();
+  const gate = await adminGate();
+  if (gate) return gate;
 
   const { app } = await params;
   const { id } = await searchParams;
@@ -28,5 +30,9 @@ export default async function ThemeBuilderPage({
 
   const initial: ThemeDraft = id ? (await readDraft(appId, id)) ?? blankDraft(id) : blankDraft();
 
-  return <ThemeBuilder app={appId} initial={initial} />;
+  return (
+    <Shell app={appId}>
+      <ThemeBuilder app={appId} initial={initial} />
+    </Shell>
+  );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { C, ConsoleStyle } from '@/components/theme-builder/console';
+import { C } from '@/components/theme-builder/console';
+import { BuilderShell, useToast } from '@/components/console';
 import { Section, Field, TextInput, NumberInput, Toggle } from '@/components/theme-builder/primitives';
 import { AppGrid, type Assignment } from './AppGrid';
 import { publishHeroPackAction } from '@/app/apps/[app]/icons/actions';
@@ -23,7 +24,7 @@ export function IconPackBuilder({ app }: { app: string }) {
   const [entries, setEntries] = React.useState<{ pkg: string; label: string }[]>(() => [...COMMON_APPS]);
   const [assignments, setAssignments] = React.useState<Record<string, Assignment>>({});
   const [publishing, setPublishing] = React.useState(false);
-  const [toast, setToast] = React.useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const toast = useToast();
 
   const setM = (p: Partial<typeof meta>) => setMeta((m) => ({ ...m, ...p }));
 
@@ -75,24 +76,28 @@ export function IconPackBuilder({ app }: { app: string }) {
         fd.append(`icon:${o.file}`, a.blob, o.file);
       }
       const res = await publishHeroPackAction(fd);
-      setToast(
-        res.ok
-          ? { kind: 'ok', msg: `Published ${meta.id} v${res.version}` }
-          : { kind: 'err', msg: res.error },
-      );
+      if (res.ok) toast.success(`Published ${meta.id} v${res.version}`);
+      else toast.error(res.error);
     } catch (e) {
-      setToast({ kind: 'err', msg: (e as Error).message });
+      toast.error((e as Error).message);
     } finally {
       setPublishing(false);
-      window.setTimeout(() => setToast(null), 3200);
     }
   }
 
   const count = order.length;
 
   return (
-    <div className="tb-root tb-scroll" style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: C.mono }}>
-      <ConsoleStyle />
+    <BuilderShell
+      crumbs={[{ label: 'Apps', href: '/' }, { label: app, href: `/apps/${app}/packs` }, { label: 'Icons', href: `/apps/${app}/icons/builder` }, { label: meta.id || 'new' }]}
+      title="Icon pack builder"
+      meta={valid ? `✓ ${count} ${count === 1 ? 'icon' : 'icons'}` : `✗ ${problems.length} to fix`}
+      actions={
+        <button type="button" className="tb-btn" disabled={!valid || publishing} onClick={publish} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
+          {publishing ? 'publishing…' : `publish ${count} ${count === 1 ? 'icon' : 'icons'}`}
+        </button>
+      }
+    >
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -103,55 +108,7 @@ export function IconPackBuilder({ app }: { app: string }) {
         }}
       />
 
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          padding: '12px 20px',
-          background: 'rgba(8,13,8,0.82)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          borderBottom: `1px solid ${C.line}`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <span style={{ width: 15, height: 15, borderRadius: 4, background: C.orange, flexShrink: 0 }} />
-          <span style={{ fontFamily: C.sans, fontWeight: 500, fontSize: 14, color: C.inkStrong }}>icon pack builder</span>
-          <span style={{ color: C.faint, fontSize: 13 }}>/ {app}</span>
-          <span style={{ color: C.faint, fontSize: 13 }}>/</span>
-          <span style={{ color: C.ink, fontSize: 13 }}>{meta.id || 'new'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 11.5, color: valid ? C.green : C.red }}>
-            {valid ? `✓ ${count} ${count === 1 ? 'icon' : 'icons'}` : `✗ ${problems.length} to fix`}
-          </span>
-          <button
-            type="button"
-            className="tb-btn"
-            disabled={!valid || publishing}
-            onClick={publish}
-            style={{
-              fontFamily: C.mono,
-              fontWeight: 700,
-              fontSize: 12.5,
-              color: '#1A1200',
-              background: C.amber,
-              border: 'none',
-              borderRadius: 7,
-              padding: '8px 16px',
-            }}
-          >
-            {publishing ? 'publishing…' : `publish ${count} ${count === 1 ? 'icon' : 'icons'}`}
-          </button>
-        </div>
-      </header>
 
-      <main style={{ maxWidth: 1180, margin: '0 auto', padding: '18px 20px 80px' }}>
         <div className="ib-grid">
           <div>
             <Section title="pack" hint="a hero pack is icons mapped to app packages">
@@ -194,31 +151,8 @@ export function IconPackBuilder({ app }: { app: string }) {
             <GeneratedPack json={packJson} problems={problems} />
           </div>
         </div>
-      </main>
 
-      {toast ? (
-        <div
-          role="status"
-          style={{
-            position: 'fixed',
-            right: 20,
-            bottom: 20,
-            zIndex: 50,
-            fontFamily: C.mono,
-            fontSize: 13,
-            color: toast.kind === 'ok' ? C.green : C.red,
-            background: C.raised,
-            border: `1px solid ${toast.kind === 'ok' ? C.green : C.red}`,
-            borderRadius: 8,
-            padding: '10px 14px',
-            maxWidth: 380,
-            boxShadow: '0 12px 30px -12px rgba(0,0,0,0.7)',
-          }}
-        >
-          {toast.msg}
-        </div>
-      ) : null}
-    </div>
+    </BuilderShell>
   );
 }
 

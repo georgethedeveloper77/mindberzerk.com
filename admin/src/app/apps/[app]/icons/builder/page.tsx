@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { APPS, type AppId } from '@/lib/catalogue';
-import { requireAdmin } from '@/lib/admin';
+import { adminGate } from '@/app/components/admin-gate';
+import { Shell } from '@/app/components/shell';
 import { IconPackBuilder } from '@/components/icon-builder/IconPackBuilder';
 
 export default async function IconPackBuilderPage({
@@ -9,8 +10,13 @@ export default async function IconPackBuilderPage({
 }: {
   params: Promise<{ app: string }>;
 }) {
-  await requireAdmin();
+  const gate = await adminGate();
+  if (gate) return gate;
   const { app } = await params;
   if (!APPS.includes(app as AppId)) notFound();
-  return <IconPackBuilder app={app as AppId} />;
+  return (
+    <Shell app={app as AppId}>
+      <IconPackBuilder app={app as AppId} />
+    </Shell>
+  );
 }

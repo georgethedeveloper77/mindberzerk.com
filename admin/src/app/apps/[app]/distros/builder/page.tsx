@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { APPS, type AppId } from '@/lib/catalogue';
-import { requireAdmin } from '@/lib/admin';
+import { adminGate } from '@/app/components/admin-gate';
+import { Shell } from '@/app/components/shell';
 import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
 
 export default async function DistroWorkspacePage({
@@ -9,8 +10,13 @@ export default async function DistroWorkspacePage({
 }: {
   params: Promise<{ app: string }>;
 }) {
-  await requireAdmin();
+  const gate = await adminGate();
+  if (gate) return gate;
   const { app } = await params;
   if (!APPS.includes(app as AppId)) notFound();
-  return <DistroWorkspace app={app as AppId} />;
+  return (
+    <Shell app={app as AppId}>
+      <DistroWorkspace app={app as AppId} />
+    </Shell>
+  );
 }

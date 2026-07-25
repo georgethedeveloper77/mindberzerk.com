@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { C, ConsoleStyle } from '@/components/theme-builder/console';
+import { C } from '@/components/theme-builder/console';
+import { BuilderShell, useToast } from '@/components/console';
 import { Field, TextInput } from '@/components/theme-builder/primitives';
 import { saveRegistry } from '@/app/apps/[app]/registry/actions';
 import { blankApp, validateApp, STARTER_APPS, type RegistryApp } from '@/lib/app-registry';
@@ -11,7 +12,7 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
   const [query, setQuery] = React.useState('');
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
   const [saving, setSaving] = React.useState(false);
-  const [toast, setToast] = React.useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const toast = useToast();
 
   const q = query.trim().toLowerCase();
   const invalidCount = apps.reduce((n, a) => n + (validateApp(a, apps).length ? 1 : 0), 0);
@@ -47,8 +48,8 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
     setSaving(true);
     const res = await saveRegistry(app, apps);
     setSaving(false);
-    setToast(res.ok ? { kind: 'ok', msg: `Saved ${apps.length} apps` } : { kind: 'err', msg: res.error });
-    window.setTimeout(() => setToast(null), 3000);
+    if (res.ok) toast.success(`Saved ${apps.length} apps`);
+    else toast.error(res.error);
   }
 
   function matches(a: RegistryApp): boolean {
@@ -57,47 +58,22 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
   }
 
   return (
-    <div className="tb-root tb-scroll" style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: C.mono }}>
-      <ConsoleStyle />
-
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          padding: '12px 20px',
-          background: 'rgba(8,13,8,0.86)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          borderBottom: `1px solid ${C.line}`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 15, height: 15, borderRadius: 4, background: C.orange }} />
-          <span style={{ fontFamily: C.sans, fontWeight: 500, fontSize: 14, color: C.inkStrong }}>app registry</span>
-          <span style={{ color: C.faint, fontSize: 13 }}>/ {app}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 11.5, color: valid ? C.dim : C.red }}>
-            {apps.length} apps · {publishers} publishers{valid ? '' : ` · ${invalidCount} to fix`}
-          </span>
-          <button
-            type="button"
-            className="tb-btn"
-            disabled={!valid || saving}
-            onClick={save}
-            style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: '#1A1200', background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}
-          >
-            {saving ? 'saving…' : 'save'}
-          </button>
-        </div>
-      </header>
-
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '18px 20px 80px' }}>
+    <BuilderShell
+      crumbs={[{ label: 'Apps', href: '/' }, { label: app, href: `/apps/${app}/packs` }, { label: 'Registry' }]}
+      title="App registry"
+      meta={`${apps.length} apps · ${publishers} publishers${valid ? '' : ` · ${invalidCount} to fix`}`}
+      actions={
+        <button
+          type="button"
+          className="tb-btn"
+          disabled={!valid || saving}
+          onClick={save}
+          style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}
+        >
+          {saving ? 'saving…' : 'save'}
+        </button>
+      }
+    >
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
           <input
             className="tb-input"
@@ -201,16 +177,6 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
           The publisher field is the one that answers same-publisher questions (Tryst and Fructa) in data rather than in code.
           Stored unsigned, the same way site content is; it never reaches a device through the pack pipeline.
         </div>
-      </main>
-
-      {toast ? (
-        <div
-          role="status"
-          style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 50, fontFamily: C.mono, fontSize: 13, color: toast.kind === 'ok' ? C.green : C.red, background: C.raised, border: `1px solid ${toast.kind === 'ok' ? C.green : C.red}`, borderRadius: 8, padding: '10px 14px', maxWidth: 400, boxShadow: '0 12px 30px -12px rgba(0,0,0,0.7)' }}
-        >
-          {toast.msg}
-        </div>
-      ) : null}
-    </div>
+    </BuilderShell>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { C, ConsoleStyle } from './console';
+import { C } from './console';
+import { BuilderShell, useToast } from '@/components/console';
 import { Section } from './primitives';
 import {
   MetaEditor,
@@ -25,7 +26,7 @@ import {
 export function ThemeBuilder({ app, initial }: { app: string; initial: ThemeDraft }) {
   const [draft, setDraft] = React.useState<ThemeDraft>(initial);
   const [saving, setSaving] = React.useState(false);
-  const [toast, setToast] = React.useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const toast = useToast();
 
   const setDraftFields = (p: Partial<ThemeDraft>) => setDraft((d) => ({ ...d, ...p }));
   const setSpec = (p: Partial<ThemeSpecJson>) => setDraft((d) => ({ ...d, spec: { ...d.spec, ...p } }));
@@ -43,21 +44,21 @@ export function ThemeBuilder({ app, initial }: { app: string; initial: ThemeDraf
     setSaving(true);
     const res = await saveThemeDraft(app, draft);
     setSaving(false);
-    setToast(res.ok ? { kind: 'ok', msg: `Saved ${draft.id}` } : { kind: 'err', msg: res.error ?? 'Save failed' });
-    window.setTimeout(() => setToast(null), 2800);
+    if (res.ok) toast.success(`Saved ${draft.id}`);
+    else toast.error(res.error ?? 'Save failed');
   }
 
   return (
-    <div
-      className="tb-root tb-scroll"
-      style={{
-        background: C.bg,
-        color: C.ink,
-        minHeight: '100vh',
-        fontFamily: C.mono,
-      }}
+    <BuilderShell
+      crumbs={[{ label: 'Apps', href: '/' }, { label: app, href: `/apps/${app}/packs` }, { label: 'Themes', href: `/apps/${app}/themes/builder` }, { label: draft.id || 'new' }]}
+      title="Theme builder"
+      meta={valid ? '✓ valid' : `✗ ${problems.length} to fix`}
+      actions={
+        <button type="button" className="tb-btn" disabled={!valid || saving} onClick={save} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
+          {saving ? 'saving…' : 'save draft'}
+        </button>
+      }
     >
-      <ConsoleStyle />
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -68,57 +69,7 @@ export function ThemeBuilder({ app, initial }: { app: string; initial: ThemeDraf
         }}
       />
 
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          padding: '12px 20px',
-          background: 'rgba(8,13,8,0.82)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          borderBottom: `1px solid ${C.line}`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <span style={{ width: 15, height: 15, borderRadius: 4, background: C.orange, flexShrink: 0 }} />
-          <span style={{ fontFamily: C.sans, fontWeight: 500, fontSize: 14, color: C.inkStrong }}>
-            theme builder
-          </span>
-          <span style={{ color: C.faint, fontSize: 13 }}>/ {app}</span>
-          <span style={{ color: C.faint, fontSize: 13 }}>/</span>
-          <span style={{ color: C.ink, fontSize: 13 }}>{draft.id || 'new'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 11.5, color: valid ? C.green : C.red }}>
-            {valid ? '✓ valid' : `✗ ${problems.length} to fix`}
-          </span>
-          <button
-            type="button"
-            className="tb-btn"
-            disabled={!valid || saving}
-            onClick={save}
-            style={{
-              fontFamily: C.mono,
-              fontWeight: 700,
-              fontSize: 12.5,
-              color: '#1A1200',
-              background: C.amber,
-              border: 'none',
-              borderRadius: 7,
-              padding: '8px 16px',
-            }}
-          >
-            {saving ? 'saving…' : 'save draft'}
-          </button>
-        </div>
-      </header>
 
-      <main style={{ maxWidth: 1180, margin: '0 auto', padding: '18px 20px 80px' }}>
         <div className="tb-grid">
           <div>
             <Section title="theme" hint="identity, fonts, and the storefront card">
@@ -145,30 +96,7 @@ export function ThemeBuilder({ app, initial }: { app: string; initial: ThemeDraf
             <GeneratedJson draft={draft} />
           </div>
         </div>
-      </main>
 
-      {toast ? (
-        <div
-          role="status"
-          style={{
-            position: 'fixed',
-            right: 20,
-            bottom: 20,
-            zIndex: 50,
-            fontFamily: C.mono,
-            fontSize: 13,
-            color: toast.kind === 'ok' ? C.green : C.red,
-            background: C.raised,
-            border: `1px solid ${toast.kind === 'ok' ? C.green : C.red}`,
-            borderRadius: 8,
-            padding: '10px 14px',
-            maxWidth: 360,
-            boxShadow: '0 12px 30px -12px rgba(0,0,0,0.7)',
-          }}
-        >
-          {toast.msg}
-        </div>
-      ) : null}
-    </div>
+    </BuilderShell>
   );
 }

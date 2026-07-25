@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { Field, TextInput } from '@/components/theme-builder/primitives';
-import { isValidPackage } from '@/lib/hero-pack';
+import { fileNameFor, isValidPackage } from '@/lib/hero-pack';
 
 export interface Assignment {
   file: string;
@@ -11,28 +11,33 @@ export interface Assignment {
   url: string;
 }
 
-/** Draw any uploaded image (PNG, WebP, or an SVG with an intrinsic size) into a
- *  192px square, centred and contained, and hand back a PNG blob. Matches the
- *  "fitted to a 192 square, written as PNG" rule the device pipeline expects. */
-export function rasterizeTo192(file: File): Promise<Blob> {
+/**
+ * Encode an uploaded image as PNG, KEEPING ITS SOURCE DIMENSIONS.
+ *
+ * icon-pack.ts is explicit: renderHero draws hero art at native size and applies
+ * no keyline resize, so the panel must NOT shrink art to a fixed square. That
+ * uniformly shrinks correctly-drawn icons. A PNG upload passes through as-is; a
+ * non-PNG (WebP, SVG with an intrinsic size, JPEG) is redrawn at its own natural
+ * size and re-encoded, preserving resolution and transparency.
+ */
+export function toPng(file: File): Promise<Blob> {
+  if (file.type === 'image/png') return Promise.resolve(file);
   return new Promise((resolve, reject) => {
     const src = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
       const canvas = document.createElement('canvas');
-      canvas.width = 192;
-      canvas.height = 192;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         URL.revokeObjectURL(src);
         reject(new Error('Canvas is unavailable'));
         return;
       }
-      const scale = Math.min(192 / img.width, 192 / img.height) || 1;
-      const w = img.width * scale;
-      const h = img.height * scale;
-      ctx.clearRect(0, 0, 192, 192);
-      ctx.drawImage(img, (192 - w) / 2, (192 - h) / 2, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(src);
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode PNG'))), 'image/png');
     };
@@ -85,9 +90,9 @@ function AppTile(props: {
     setBusy(true);
     setErr(false);
     try {
-      const blob = await rasterizeTo192(file);
+      const blob = await toPng(file);
       if (props.assignment) URL.revokeObjectURL(props.assignment.url);
-      props.onAssign({ file: `${props.pkg}.png`, blob, url: URL.createObjectURL(blob) });
+      props.onAssign({ file: fileNameFor(props.pkg), blob, url: URL.createObjectURL(blob) });
     } catch {
       setErr(true);
     } finally {

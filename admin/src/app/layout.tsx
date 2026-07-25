@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { ToastProvider } from '@/components/console';
 
 /**
  * THE FONTS WERE NEVER LOADED. globals.css referenced --font-geist-sans and
@@ -47,7 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* Colours come from globals.css, not from utilities here: the body is the
           one element that must be painted before any CSS-in-JS or route chunk
           arrives, or the first paint is white on a dark panel. */}
-      <body className="min-h-[100dvh] antialiased">{children}</body>
+      <body className="min-h-[100dvh] antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }
