@@ -57,6 +57,22 @@ export interface LiveIndex {
   exists: boolean;
   /** True when the file is there but did not parse. Do NOT merge into this. */
   corrupt: boolean;
+  /**
+   * Why the bucket could not be read at all, or null.
+   *
+   * A THIRD STATE, separate from `exists` and `corrupt`, because it means
+   * something different from both and the difference is destructive.
+   *
+   *   exists: false     nothing published yet. Merging into it is correct.
+   *   corrupt: true     something is there and unreadable. Refuse.
+   *   unreachable       we have NO IDEA what is there. Refuse, harder.
+   *
+   * Collapsing this into `exists: false` is the dangerous version: a publish
+   * would then merge the new pack into an empty catalogue and overwrite a live
+   * index holding every other pack, because a credential expired. See the guard
+   * in api/publish/pack/route.ts.
+   */
+  unreachable: string | null;
 }
 
 export async function readLiveIndex(app: AppId): Promise<LiveIndex> {
@@ -67,9 +83,20 @@ export async function readLiveIndex(app: AppId): Promise<LiveIndex> {
     entitlements: [],
     exists: false,
     corrupt: false,
+    unreachable: null,
   };
 
-  const bytes = await getObject(`${app}/${INDEX_NAME}`);
+  // WRAPPED, because `getObject` rethrows anything that is not a missing key.
+  // Every page in the panel calls this, none of them caught it, and a single
+  // expired R2 credential therefore took out the whole console with a stack
+  // trace instead of a sentence. A read failure is a fact about the bucket, not
+  // an exception the caller asked for.
+  let bytes: Buffer | null;
+  try {
+    bytes = await getObject(`${app}/${INDEX_NAME}`);
+  } catch (e) {
+    return { ...empty, unreachable: (e as Error).message || 'The bucket could not be read.' };
+  }
   if (!bytes) return empty;
 
   try {
@@ -81,18 +108,26 @@ export async function readLiveIndex(app: AppId): Promise<LiveIndex> {
       entitlements: Array.isArray(parsed.entitlements) ? parsed.entitlements : [],
       exists: true,
       corrupt: false,
+      unreachable: null,
     };
   } catch {
     // Present but unparseable. Returning `empty` here would look like a first
     // publish and quietly wipe the catalogue, so it is flagged instead and the
     // caller refuses. Someone has to look at the bucket.
-    return { ...empty, exists: true, corrupt: true };
+    return { ...empty, exists: true, corrupt: true, unreachable: null };
   }
 }
 
 /** Is the live index signed? An unsigned one is refused by every device. */
 export async function indexIsSigned(app: AppId): Promise<boolean> {
-  return (await getObject(`${app}/${INDEX_SIGNATURE_NAME}`)) !== null;
+  // False on an unreachable bucket, deliberately. The caller renders "unsigned",
+  // which beside the unreachable banner reads as unknown; throwing here would
+  // undo the whole point of the guard above one line after it.
+  try {
+    return (await getObject(`${app}/${INDEX_SIGNATURE_NAME}`)) !== null;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -686,6 +686,46 @@ abstract class LauncherHostApi {
     int maxWidthDp,
     int maxHeightDp,
   );
+
+  // ─── THIRD-PARTY ICON PACKS ────────────────────────────────────────────────
+  //
+  // Icon Pack Studio exports, and every Nova/ADW-format pack on Play. Read from
+  // the installed APK's own resources; nothing is downloaded and nothing is
+  // ours.
+  //
+  // METHODS ONLY, NO NEW CLASS, and that is why the return type is a plain map
+  // rather than the `IconPack { packageName, label }` it obviously wants to be.
+  // Pigeon assigns codec ids to classes POSITIONALLY, and ids 129-134 in this
+  // schema are baked into a shipped APK on one side and a Kotlin data class on
+  // the other. Appending a class here would be safe today and a trap the first
+  // time someone inserts one above it. A map costs one destructure at the call
+  // site and cannot go wrong.
+  //
+  // DELIBERATELY NOT PART OF `IconStyle`. That type is THEME CONTENT, authored
+  // in a theme.json and delivered over the CDN. A third-party pack names an APK
+  // that happens to be installed on ONE device; no distro could fill it in even
+  // if it wanted to. See the note on `IconCache.systemIconPack`.
+
+  /// Installed icon packs: package name -> user-visible label.
+  ///
+  /// `@async` because it is several `queryIntentActivities` calls plus a label
+  /// load each, and the picker opening is not worth a main-thread stall.
+  ///
+  /// Returns EMPTY, never an error, when nothing is installed. Note that an
+  /// empty result is also what a missing `<queries>` declaration produces, so if
+  /// this is empty on a phone that plainly has icon packs, check the manifest
+  /// before this code.
+  @async
+  Map<String, String> installedIconPacks();
+
+  /// Select a pack, or null to stop using one.
+  ///
+  /// `@async` because selecting one PARSES `appfilter.xml` out of the pack's
+  /// APK, which for a large pack is thousands of entries. On the main thread
+  /// that is a visible freeze on the home screen at the exact moment the user
+  /// taps a radio button.
+  @async
+  void setIconPack(String? packageName);
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

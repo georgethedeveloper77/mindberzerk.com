@@ -83,6 +83,46 @@
         <intent>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
         </intent>
+
+        <!--
+          ICON PACKS. Icon Pack Studio exports, and every Nova/ADW-format pack
+          on Play, declare one of these actions on an activity.
+
+          WITHOUT THIS BLOCK THE FEATURE IS INVISIBLE, NOT BROKEN. Package
+          visibility filters queryIntentActivities on Android 11+, so
+          IconPackDiscovery.list() returns an EMPTY LIST with no error and no log
+          line — on a phone with forty icon packs installed. It reads as "the
+          user has none", which is the hardest kind of bug to be told about,
+          because the person reporting it just thinks the launcher does not
+          support icon packs.
+
+          Still scoped, still not QUERY_ALL_PACKAGES: this reveals apps that
+          advertise themselves as icon themes and nothing else.
+
+          MUST MATCH IconPackDiscovery.THEME_ACTIONS. An action there and not
+          here supports a pack in code that can never be seen at runtime.
+        -->
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.anddoes.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.teslacoilsw.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="ch.deletescape.lawnchair.ICONPACK" />
+        </intent>
+        <intent>
+            <action android:name="com.gau.go.launcherex.theme" />
+        </intent>
+        <intent>
+            <action android:name="org.adw.launcher.icons.ACTION_PICK_ICON" />
+        </intent>
     </queries>
 
     <application

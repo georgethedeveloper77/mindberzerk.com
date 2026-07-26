@@ -55,4 +55,4 @@ backend/content/**/index.sig
 mindberzerk-3eaf5-firebase-adminsdk-fbsvc-388e9a4d01.json
 *firebase-adminsdk*.json
 *service-account*.json
-*serviceAccount*.json
+*serviceAccount*.jsonfirebase-debug.log

@@ -1534,6 +1534,58 @@ class LauncherHostApi {
     )
     ;
   }
+
+  /// Installed icon packs: package name -> user-visible label.
+  ///
+  /// `@async` because it is several `queryIntentActivities` calls plus a label
+  /// load each, and the picker opening is not worth a main-thread stall.
+  ///
+  /// Returns EMPTY, never an error, when nothing is installed. Note that an
+  /// empty result is also what a missing `<queries>` declaration produces, so if
+  /// this is empty on a phone that plainly has icon packs, check the manifest
+  /// before this code.
+  Future<Map<String, String>> installedIconPacks() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.installedIconPacks$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as Map<Object?, Object?>).cast<String, String>();
+  }
+
+  /// Select a pack, or null to stop using one.
+  ///
+  /// `@async` because selecting one PARSES `appfilter.xml` out of the pack's
+  /// APK, which for a large pack is thousands of entries. On the main thread
+  /// that is a visible freeze on the home screen at the exact moment the user
+  /// taps a radio button.
+  Future<void> setIconPack(String? packageName) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
 }
 
 /// Implemented in Dart by `AppList`. Native pushes the *full* list on every

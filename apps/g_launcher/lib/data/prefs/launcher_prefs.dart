@@ -28,6 +28,8 @@ class LauncherPrefs {
     this.verboseBoot,
     this.iconSizeDp,
     this.iconTreatment,
+    this.iconPackId,
+    this.systemIconPack,
     this.cornerRadius,
     this.labelLines,
     this.textScale,
@@ -130,6 +132,59 @@ class LauncherPrefs {
   // --- icons ---
   /// The user's shape choice. Overrides the theme's treatment entirely.
   final String? iconTreatment; // matches api.IconTreatment names
+
+  /// The hero icon pack to draw with, overriding the theme's own `heroPack`.
+  /// null = the theme decides, which is the out-of-box behaviour.
+  ///
+  /// ─── WHY THIS EXISTS AS A SEPARATE SETTING ────────────────────────────────
+  ///
+  /// Because icon packs are sold separately from distros. `icons_pop_cosmic` is
+  /// its own Play product precisely so someone can run the Kali desktop with
+  /// Pop!_OS icons, and `ThemeSpec.icons.heroPack` cannot express that: it is
+  /// authored by whoever made the theme, so buying an icon pack would do
+  /// nothing until the theme's author happened to name it. A pack that cannot
+  /// be applied is a refund.
+  ///
+  /// PER-THEME, like everything else in this file, and that is the right shape
+  /// rather than an accident of where it landed. "Kali desktop, Pop icons" is a
+  /// statement about the Kali desktop; switching to Garuda and back should
+  /// return you to it, not carry it along.
+  ///
+  /// This is an id, NOT a path. `EffectiveTheme.resolve` substitutes it into the
+  /// `IconStyle` it hands native, and it MUST also be folded into
+  /// `iconCacheId` — a change to the pack that does not change the cache key is
+  /// invisible: the correct icons render once for anything not already cached
+  /// and every previously-seen app keeps its old bitmap forever. That failure
+  /// looks exactly like the setting being unwired, which is why it costs a day
+  /// to find.
+  final String? iconPackId;
+
+  /// A THIRD-PARTY icon pack installed as its own APK: Icon Pack Studio
+  /// exports, and every Nova/ADW-format pack on Play. Null = none.
+  ///
+  /// ─── NOT THE SAME FIELD AS [iconPackId], AND NOT A DUPLICATE ──────────────
+  ///
+  /// [iconPackId] names a hero pack that arrived over the CDN: content this
+  /// ecosystem authored, signed and possibly sold. This names an APK that
+  /// happens to be installed on this one device and was authored by a stranger.
+  /// They resolve through completely different code (one is `IconStyle.heroPack`
+  /// handed to the renderer, the other is `IconPackResolver` reading another
+  /// app's resources), and a user can reasonably have both — a pack from Play
+  /// for the apps it covers, the distro's hero art for the rest.
+  ///
+  /// ─── WHY IT IS NOT IN [api.IconStyle] ─────────────────────────────────────
+  ///
+  /// IconStyle is theme CONTENT: it is authored in a theme.json and delivered
+  /// over the CDN. No distro could fill this in even if it wanted to, because
+  /// the answer is a package name that exists on one phone. It is pushed to
+  /// native separately, by `setIconPack`.
+  ///
+  /// PER-THEME, like everything else in this file, and deliberately the same
+  /// scoping as [iconPackId]. Two icon-pack settings with opposite scope would
+  /// be genuinely confusing, and "Ubuntu with Yaru, Kali with Whicons" is a
+  /// reasonable thing to want.
+  final String? systemIconPack;
+
   final double? cornerRadius;
 
   // --- labels ---
@@ -294,6 +349,8 @@ class LauncherPrefs {
     bool? verboseBoot,
     double? iconSizeDp,
     String? iconTreatment,
+    String? iconPackId,
+    String? systemIconPack,
     double? cornerRadius,
     int? labelLines,
     double? textScale,
@@ -331,6 +388,8 @@ class LauncherPrefs {
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
       iconTreatment: iconTreatment ?? this.iconTreatment,
+      iconPackId: iconPackId ?? this.iconPackId,
+      systemIconPack: systemIconPack ?? this.systemIconPack,
       cornerRadius: cornerRadius ?? this.cornerRadius,
       labelLines: labelLines ?? this.labelLines,
       textScale: textScale ?? this.textScale,
@@ -378,6 +437,8 @@ class LauncherPrefs {
     bool hiddenAppsSearchable = false,
     bool iconSizeDp = false,
     bool iconTreatment = false,
+    bool iconPackId = false,
+    bool systemIconPack = false,
     bool cornerRadius = false,
     bool labelLines = false,
     bool textScale = false,
@@ -402,6 +463,8 @@ class LauncherPrefs {
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
       iconTreatment: iconTreatment ? null : this.iconTreatment,
+      iconPackId: iconPackId ? null : this.iconPackId,
+      systemIconPack: systemIconPack ? null : this.systemIconPack,
       cornerRadius: cornerRadius ? null : this.cornerRadius,
       labelLines: labelLines ? null : this.labelLines,
       textScale: textScale ? null : this.textScale,
@@ -448,6 +511,8 @@ class LauncherPrefs {
         if (verboseBoot != null) 'verboseBoot': verboseBoot,
         if (iconSizeDp != null) 'iconSizeDp': iconSizeDp,
         if (iconTreatment != null) 'iconTreatment': iconTreatment,
+        if (iconPackId != null) 'iconPackId': iconPackId,
+        if (systemIconPack != null) 'systemIconPack': systemIconPack,
         if (cornerRadius != null) 'cornerRadius': cornerRadius,
         if (labelLines != null) 'labelLines': labelLines,
         if (textScale != null) 'textScale': textScale,
@@ -495,6 +560,8 @@ class LauncherPrefs {
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
       iconTreatment: j['iconTreatment'] as String?,
+      iconPackId: j['iconPackId'] as String?,
+      systemIconPack: j['systemIconPack'] as String?,
       cornerRadius: (j['cornerRadius'] as num?)?.toDouble(),
       labelLines: (j['labelLines'] as num?)?.toInt(),
       textScale: (j['textScale'] as num?)?.toDouble(),
@@ -573,6 +640,8 @@ class LauncherPrefs {
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
         other.iconTreatment == iconTreatment &&
+        other.iconPackId == iconPackId &&
+        other.systemIconPack == systemIconPack &&
         other.cornerRadius == cornerRadius &&
         other.labelLines == labelLines &&
         other.textScale == textScale &&
@@ -614,6 +683,8 @@ class LauncherPrefs {
         verboseBoot,
         iconSizeDp,
         iconTreatment,
+        iconPackId,
+        systemIconPack,
         cornerRadius,
         labelLines,
         textScale,

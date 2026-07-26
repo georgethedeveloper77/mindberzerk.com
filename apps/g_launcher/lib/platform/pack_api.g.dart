@@ -663,6 +663,65 @@ class PackHostApi {
     )
     ;
   }
+
+  /// The raw `theme.json` of an installed theme pack, or null when the pack is
+  /// not on disk (never downloaded, uninstalled, or its files were swept).
+  ///
+  /// Returns the BYTES AS TEXT and parses nothing. Dart already owns
+  /// `ThemeSpec.fromJson`, and a second parser in Kotlin is a second thing to
+  /// keep in step with the schema — the exact drift that made the icon
+  /// `IconStyle` data class a hand-written twin of the Pigeon one.
+  ///
+  /// Signature verification is NOT repeated here. The pack was verified when it
+  /// installed; re-verifying on every theme resolve would put an ed25519 check
+  /// on the home screen's critical path for no additional guarantee, since the
+  /// file lives in app-private storage.
+  Future<String?> readInstalledTheme(String themeId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.readInstalledTheme$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[themeId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Absolute path to an installed pack's file directory, or null.
+  ///
+  /// Dart needs this because a downloaded theme's wallpapers and logo are FILES,
+  /// not bundled assets: `AssetImage('wall.jpg')` on an installed theme resolves
+  /// to nothing and renders an empty box with no error. `ThemeSource` turns this
+  /// directory into the right ImageProvider per asset.
+  ///
+  /// Pack files are BARE FILENAMES by construction (`PackPaths.installedFile`
+  /// refuses separators), so joining is always one `/` and never a traversal.
+  Future<String?> installedPackDir(String packId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.installedPackDir$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
 }
 
 abstract class PackFlutterApi {

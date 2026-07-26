@@ -5,6 +5,7 @@ import '../platform/launcher_api.g.dart' as api;
 import 'boot_spec.dart';
 import 'desklet_skin.dart';
 import 'splash_spec.dart';
+import 'theme_source.dart';
 
 /// A distro, as data.
 ///
@@ -30,6 +31,7 @@ class ThemeSpec {
     this.boot,
     this.splash,
     this.desklets = const DeskletThemeBlock(),
+    this.source = const ThemeSource.bundled(),
   }) : _chromeFamily = chromeFamily;
 
   final String id;
@@ -111,6 +113,50 @@ class ThemeSpec {
   /// with no block gets shell defaults for everything, which is the same
   /// promise `boot` and `splash` make with their `defaultForShell`.
   final DeskletThemeBlock desklets;
+
+  /// Where this theme's FILES live: the APK's asset bundle, or an installed
+  /// pack directory.
+  ///
+  /// NOT PARSED FROM JSON, and it must never be. It is not a property the
+  /// author of a theme knows or gets to assert — the same authored `theme.json`
+  /// is bundled in one build and downloaded in the next. It is set by whoever
+  /// LOADED the file, which is the only code that can possibly know the answer,
+  /// and that is `theme_engine.dart`.
+  ///
+  /// Defaults to bundled so every existing construction site, test and fixture
+  /// compiles and behaves exactly as before.
+  final ThemeSource source;
+
+  /// Same theme, told where it came from. Used by the loader immediately after
+  /// [fromJson], which cannot know.
+  ThemeSpec withSource(ThemeSource source) => ThemeSpec(
+        id: id,
+        name: name,
+        version: version,
+        shell: shell,
+        tier: tier,
+        palette: palette,
+        typography: typography,
+        layout: layout,
+        icons: icons,
+        wallpapers: wallpapers,
+        minAppVersion: minAppVersion,
+        // The PRIVATE override, not the resolved getter. Passing
+        // `chromeFamily` would bake the shell default into the field, so a
+        // theme that named no family would come out the other side asserting
+        // one — and a later change to `defaultForShell` would then be ignored
+        // for every theme that had been through here.
+        chromeFamily: _chromeFamily,
+        logo: logo,
+        boot: boot,
+        splash: splash,
+        desklets: desklets,
+        source: source,
+      );
+
+  /// Resolve one of this theme's own asset paths (a wallpaper, a logo) to
+  /// something openable. Shorthand for `source.asset(path)`.
+  ThemeAsset asset(String path) => source.asset(path);
 
   static ThemeSpec fromJson(Map<String, dynamic> json) {
     final icons = (json['icons'] as Map?)?.cast<String, dynamic>() ?? const {};

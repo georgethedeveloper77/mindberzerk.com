@@ -21,8 +21,33 @@ import { NextResponse, type NextRequest } from 'next/server';
  * export as well would silently do nothing.
  */
 export default function proxy(request: NextRequest) {
-  const hasCookie = request.cookies.has('__session');
   const { pathname } = request.nextUrl;
+
+  // ── /admin/* → /* ─────────────────────────────────────────────────────────
+  //
+  // A CONVENIENCE REDIRECT, NOT A BASE PATH, and the difference is the point.
+  //
+  // The Next app's project directory is `admin/`, so typing /admin is the
+  // natural reflex, and it 404s because a project directory is not a URL
+  // segment. The panel is served at the root of admin.mindberzerk.com.
+  //
+  // The alternative was `basePath: '/admin'` in next.config.ts, which was
+  // rejected: the host is ALREADY `admin.`, so every URL would read
+  // admin.mindberzerk.com/admin/…, and basePath quietly changes the asset
+  // prefix, the cookie path the session route writes, and what `pathname` means
+  // inside this very function. That is three subtle breakages to buy a
+  // redundant path segment.
+  //
+  // The prefix is stripped rather than the request being sent to `/`, so a
+  // pasted deep link like /admin/apps/g-launcher/commerce lands where it meant
+  // to. This runs BEFORE the auth check so /admin/login resolves too.
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.slice('/admin'.length) || '/';
+    return NextResponse.redirect(url);
+  }
+
+  const hasCookie = request.cookies.has('__session');
 
   if (!hasCookie && pathname !== '/login') {
     const url = request.nextUrl.clone();

@@ -45,7 +45,23 @@ class IconCache(
         val MEMORY_BUDGET_BYTES: Int = (Runtime.getRuntime().maxMemory() / 8).toInt()
     }
 
-    private val diskDir = File(context.applicationContext.cacheDir, "icons").apply { mkdirs() }
+    // Held because the picker queries the package manager on demand, long after
+    // construction. The constructor parameter is not a property, so a method
+    // cannot reach it.
+    private val appContext = context.applicationContext
+
+    private val diskDir = File(appContext.cacheDir, "icons").apply { mkdirs() }
+
+    /**
+     * Third-party icon packs (Icon Pack Studio, Nova-format packs from Play).
+     *
+     * CONSTRUCTED HERE rather than injected, unlike the other four collaborators,
+     * and that is deliberate. Those are passed in because they are shared: the
+     * extractor and renderer are used by more than one caller. This one has
+     * exactly one consumer, so injecting it would mean editing whoever builds
+     * the cache to hand over an object only the cache ever touches.
+     */
+    private val iconPacks = IconPackResolver(appContext)
 
     /**
      * Two threads, not one: a fling can request 20 icons at once and a single
@@ -77,6 +93,23 @@ class IconCache(
     private var style: IconStyle = IconStyle(treatment = IconTreatment.ROUNDED_SQUARE)
 
     /**
+     * The user's chosen third-party icon pack, by package name. Null = none.
+     *
+     * DELIBERATELY NOT A FIELD ON [IconStyle], and the reason is worth stating
+     * because putting it there is the obvious move. IconStyle is THEME CONTENT:
+     * it arrives from a theme.json over the CDN, and adding a field to it means
+     * the eight-place ritual plus a Pigeon wire change. But a third-party pack
+     * is not content a distro can author — it names an APK that happens to be
+     * installed on ONE device. A theme could not fill it in even if it wanted
+     * to, so it does not belong in the theme's payload.
+     *
+     * It is a device-level choice, so it lives beside the style rather than
+     * inside it, and reaches the cache key on its own.
+     */
+    @Volatile
+    private var systemIconPack: String? = null
+
+    /**
      * Memory is dropped; disk is NOT. Switching back to a theme you have used
      * before then costs a disk read rather than 200 re-renders.
      *
@@ -101,6 +134,71 @@ class IconCache(
         heroes.load(style.heroPack)
         brands.load(style.brandPack)
         memory.evictAll()
+    }
+
+    /**
+     * Select a third-party icon pack, or null to stop using one.
+     *
+     * The same early return as [setTheme], for the same reason: this will be
+     * called on every settings emit once it is wired to prefs, and dropping the
+     * memory tier because the user moved the dock is exactly the bug the guard
+     * above documents.
+     *
+     * DISK IS NOT SWEPT, and does not need to be. The pack name is part of
+     * [cacheKey], so entries rendered under a different pack simply are not
+     * looked up. Switching back to a pack you used before is then a disk read
+     * rather than a re-render, which is the same property switching themes has.
+     */
+    fun setSystemIconPack(packageName: String?) {
+        if (packageName == systemIconPack) return
+
+        // LOAD BEFORE FLIPPING THE FIELD. The order is the whole correctness of
+        // this method and it is not the order you write first.
+        //
+        // `systemIconPack` is part of [cacheKey], and `get` runs on a DIFFERENT
+        // thread pool from this call. Flip the field first and there is a window
+        // where a concurrent icon request computes the NEW cache key while
+        // `iconPacks` still holds the OLD pack — it renders without the new
+        // artwork and writes that bitmap to disk under the new key. The icon is
+        // then permanently wrong for that app, and only for whichever apps
+        // happened to be on screen at the moment of the switch, which is as
+        // close to unreproducible as this codebase gets.
+        //
+        // Loading first closes it: `load` and `resolve` are both @Synchronized,
+        // so a request arriving mid-load blocks until the pack is ready, and
+        // until the field flips it is still keying against the old pack it is
+        // correctly using.
+        iconPacks.load(packageName)
+        systemIconPack = packageName
+        memory.evictAll()
+    }
+
+    /** Installed packs, for the picker. Queries the package manager; not hot. */
+    fun installedIconPacks(): List<InstalledIconPack> = IconPackDiscovery.list(appContext)
+
+    /**
+     * A pack APK was installed, updated or removed. Re-read and drop derived
+     * bitmaps.
+     *
+     * An UPDATE keeps the package name, so [IconPackResolver.load] would early-
+     * return and keep serving drawables from a Resources handle opened against
+     * the previous APK. Same trap as a CDN pack update, arriving through Play
+     * instead. Wire this to a PACKAGE_REPLACED receiver when one exists.
+     */
+    fun onIconPackAppChanged() {
+        // TWO EARLY RETURNS, both load-bearing, because the natural caller is
+        // the launcher's app-change watcher and that fires for EVERY app on the
+        // device. Play auto-updates a dozen at once; without these, an unrelated
+        // overnight update would clear the icon disk cache a dozen times and
+        // every icon on the phone would re-render in the morning.
+        //
+        //   1. nobody selected a pack, which is almost everyone: free.
+        //   2. the selected pack's APK did not change: free, one binder call.
+        //
+        // Only a pack that genuinely changed reaches `clear()`.
+        if (systemIconPack == null) return
+        if (!iconPacks.reloadIfChanged()) return
+        clear()
     }
 
     /** Callback fires on an IO thread. Marshal to main yourself. */
@@ -169,17 +267,30 @@ class IconCache(
             return runCatching { file.readBytes() }.getOrNull()
         }
 
-        // THREE LAYERS, MOST SPECIFIC FIRST. Each miss is normal, not an error.
+        // FOUR LAYERS, MOST SPECIFIC FIRST. Each miss is normal, not an error.
         //
-        //   1. hero      — hand-drawn FOR this distro. "Yaru's Firefox."
-        //   2. brand     — CC0 glyph, same under every theme. "Firefox."
-        //   3. generator — re-masks the app's own icon. Always succeeds, so the
+        //   1. icon pack — a third-party pack the user installed and CHOSE.
+        //   2. hero      — hand-drawn FOR this distro. "Yaru's Firefox."
+        //   3. brand     — CC0 glyph, same under every theme. "Firefox."
+        //   4. generator — re-masks the app's own icon. Always succeeds, so the
         //                  grid never has a hole in it.
         //
         // Hero above brand is the whole point of hero packs: when a distro has
         // bothered to draw an icon, that is the more specific answer than a
         // silhouette shared with every other theme.
-        val bitmap = renderHero(componentKey, sizePx)
+        //
+        // THE USER'S PACK SITS ABOVE ALL OF IT, because picking one is the most
+        // explicit statement anyone makes about their icons. Everything below is
+        // an inference — the distro's taste, a brand's identity, or a guess at
+        // reshaping the app's own art. A person who went to Play, installed a
+        // pack and selected it has said what they want.
+        //
+        // The layers below still fill the gaps, so a pack covering 300 apps does
+        // not leave the other hundred bare. If that mixing ever reads as
+        // incoherent, moving `renderIconPack` below `renderHero` is the one-line
+        // change, and it is a taste call rather than a correctness one.
+        val bitmap = renderIconPack(componentKey, sizePx)
+            ?: renderHero(componentKey, sizePx)
             ?: renderBrand(componentKey, sizePx)
             ?: renderGenerated(componentKey, sizePx)
             ?: return null
@@ -196,6 +307,20 @@ class IconCache(
         }
 
         return bytes
+    }
+
+    /**
+     * A drawable straight out of the user's chosen pack.
+     *
+     * Rendered through [IconRenderer.renderHero] with `applyMask = false`,
+     * because that is precisely what this art is: final, already-shaped
+     * artwork with its own silhouette and transparency. Masking it would slice
+     * the corners off a shape the pack's author chose. The two cases are the
+     * same case, so they share the code rather than growing a near-duplicate.
+     */
+    private fun renderIconPack(componentKey: String, sizePx: Int): Bitmap? {
+        val drawable = iconPacks.resolve(componentKey) ?: return null
+        return renderer.renderHero(drawable, style, sizePx, false)
     }
 
     private fun renderHero(componentKey: String, sizePx: Int): Bitmap? {
@@ -228,7 +353,13 @@ class IconCache(
     }
 
     private fun cacheKey(componentKey: String, token: Long, sizePx: Int): String {
-        val raw = "$componentKey|$token|$themeId|$sizePx|${style.fingerprint()}"
+        // systemIconPack is in the key for the same reason themeId is: change it
+        // and every bitmap derived from the old one must stop being found.
+        // Leaving it out would be the classic version of this bug — the setting
+        // appears to work for apps nobody has scrolled past yet, and every app
+        // already in the cache keeps its old icon forever.
+        val raw = "$componentKey|$token|$themeId|$sizePx|${style.fingerprint()}" +
+            "|${systemIconPack ?: "-"}"
         val digest = MessageDigest.getInstance("SHA-1").digest(raw.toByteArray())
         return digest.joinToString("") { "%02x".format(it) }
     }

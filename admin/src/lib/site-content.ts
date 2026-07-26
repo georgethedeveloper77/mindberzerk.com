@@ -79,10 +79,29 @@ export interface SiteState {
   exists: boolean;
   /** Present but unparseable. Refuse to overwrite, same rule as the index. */
   corrupt: boolean;
+  /**
+   * Why the bucket could not be read, or absent. Distinct from `exists: false`
+   * for the same reason it is on LiveIndex: one means "nothing published", the
+   * other means "we do not know", and only the first is safe to write over.
+   */
+  unreachable?: string;
 }
 
 export async function readSiteContent(): Promise<SiteState> {
-  const bytes = await getObject(CONTENT_KEY);
+  // Same guard as readLiveIndex, for the same reason: this is called from a
+  // page, and `getObject` rethrows anything that is not a missing key, so a
+  // credential problem rendered as a stack trace where a sentence belonged.
+  let bytes: Buffer | null;
+  try {
+    bytes = await getObject(CONTENT_KEY);
+  } catch (e) {
+    return {
+      content: seed(),
+      exists: false,
+      corrupt: false,
+      unreachable: (e as Error).message || 'The bucket could not be read.',
+    };
+  }
   if (!bytes) return { content: seed(), exists: false, corrupt: false };
   try {
     const parsed = JSON.parse(bytes.toString('utf8')) as Partial<SiteContent>;

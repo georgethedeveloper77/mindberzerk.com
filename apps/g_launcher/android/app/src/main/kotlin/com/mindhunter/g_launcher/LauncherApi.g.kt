@@ -1215,6 +1215,27 @@ interface LauncherHostApi {
    * more rows). Without this the view keeps its placed layout and just scales.
    */
   fun updateWidgetSize(widgetId: Long, minWidthDp: Long, minHeightDp: Long, maxWidthDp: Long, maxHeightDp: Long)
+  /**
+   * Installed icon packs: package name -> user-visible label.
+   *
+   * `@async` because it is several `queryIntentActivities` calls plus a label
+   * load each, and the picker opening is not worth a main-thread stall.
+   *
+   * Returns EMPTY, never an error, when nothing is installed. Note that an
+   * empty result is also what a missing `<queries>` declaration produces, so if
+   * this is empty on a phone that plainly has icon packs, check the manifest
+   * before this code.
+   */
+  fun installedIconPacks(callback: (Result<Map<String, String>>) -> Unit)
+  /**
+   * Select a pack, or null to stop using one.
+   *
+   * `@async` because selecting one PARSES `appfilter.xml` out of the pack's
+   * APK, which for a large pack is thousands of entries. On the main thread
+   * that is a visible freeze on the home screen at the exact moment the user
+   * taps a radio button.
+   */
+  fun setIconPack(packageName: String?, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -1697,6 +1718,43 @@ interface LauncherHostApi {
               LauncherApiPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.installedIconPacks$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.installedIconPacks{ result: Result<Map<String, String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconPack$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packageNameArg = args[0] as String?
+            api.setIconPack(packageNameArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(LauncherApiPigeonUtils.wrapResult(null))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

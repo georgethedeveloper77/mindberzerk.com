@@ -52,6 +52,32 @@ object PackPaths {
     }
 
     /**
+     * An INSTALLED pack's directory, or null when nothing is installed there.
+     *
+     * The companion to [installedFile], and it exists for the render bridge:
+     * Dart needs the directory itself, not a file inside it, because a
+     * downloaded theme's wallpapers and logo are FILES rather than bundled
+     * assets. `AssetImage("wall.jpg")` against an installed theme resolves to
+     * nothing and paints an empty box with no error, so `ThemeSource` needs a
+     * real path to build a `FileImage` from.
+     *
+     * Same packId re-check as [installedFile] and for the same reason: this
+     * joins a caller-supplied id into a path, and the caller here is a theme id
+     * that arrived from Dart prefs. Handing an unchecked id to `File(root, id)`
+     * would put a traversal primitive in the one object whose entire job is
+     * knowing where verified content lives.
+     *
+     * Returns null rather than a non-existent File, so "not installed" and
+     * "installed" are distinguishable without a second `isDirectory` call at
+     * every call site.
+     */
+    fun installedDir(context: Context, packId: String): File? {
+        if (!PackManifest.isSafePackId(packId)) return null
+        val d = File(root(context), packId)
+        return if (d.isDirectory) d else null
+    }
+
+    /**
      * Pack ids that ship inside the APK and whose CDN copy supersedes them.
      *
      * THE FIRST-UPGRADE PROBLEM THIS SOLVES: `PackSyncWorker` only updates what

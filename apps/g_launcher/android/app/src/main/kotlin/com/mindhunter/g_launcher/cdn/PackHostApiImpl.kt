@@ -73,6 +73,16 @@ class PackHostApiImpl(
     @Volatile
     private var ownedSkus: Set<String> = emptySet()
 
+    private companion object {
+        /**
+         * The one filename a theme pack must contain. Named once rather than
+         * inlined: the publish route, the flat-path gate in the panel and this
+         * are three places that have to agree on it, and two of them are in
+         * another language and another repository.
+         */
+        const val THEME_FILE = "theme.json"
+    }
+
     /** packId -> cancel flag for an in-flight download. */
     private val inFlight = ConcurrentHashMap<String, AtomicBoolean>()
 
@@ -246,6 +256,65 @@ class PackHostApiImpl(
         CdnConfig.writeOverride(packsRoot, url)
         Unit
     }
+
+    // ── the render bridge ────────────────────────────────────────────────────
+    //
+    // Everything above this line gets content ONTO the device. These two read it
+    // back, and without them the entire pipeline was a no-op from the user's
+    // side: `activeThemeSpecProvider` in Dart only ever knew how to open a
+    // BUNDLED asset, so a theme pack could be authored, signed, uploaded,
+    // downloaded, verified and installed, and the phone would still render
+    // Ubuntu. Nothing reported it, because nothing was wrong; Dart simply never
+    // asked what was on disk.
+
+    /**
+     * The raw `theme.json` of an installed theme pack, or null.
+     *
+     * TEXT, NOT A PARSED OBJECT. `ThemeSpec.fromJson` already exists in Dart and
+     * is the contract; a second parser here would be a second thing to keep in
+     * step with the schema, which is exactly how `IconRenderer.IconStyle` ended
+     * up a hand-written twin of the Pigeon one. Every field this returns is one
+     * Dart already knows how to read, including fields added after this build
+     * shipped.
+     *
+     * NOT RE-VERIFIED, deliberately. `ThemeAssetLoader` checks the signature
+     * once, at install, and only writes into the packs root after it passes.
+     * Re-verifying here would put an ed25519 check on the home screen's resolve
+     * path on every theme switch, for a file in app-private storage that nothing
+     * else can write, buying no additional guarantee.
+     *
+     * Null covers every failure without distinguishing them, and that is right:
+     * not installed, uninstalled since, files swept, unreadable. Dart falls back
+     * to bundled Ubuntu in all four cases, which is the launcher's absolute rule
+     * that it must always render.
+     */
+    override fun readInstalledTheme(themeId: String, callback: (Result<String?>) -> Unit) =
+        onIo(callback) {
+            // If ThemeAssetLoader ever grows a theme-reading accessor, delegate
+            // to it rather than keeping this. PackPaths is the documented single
+            // owner of on-disk layout, so going through it is correct today.
+            PackPaths.installedFile(appContext, themeId, THEME_FILE)
+                ?.let { runCatching { it.readText() }.getOrNull() }
+        }
+
+    /**
+     * Where an installed pack's files are, or null.
+     *
+     * A theme's wallpapers and logo are FILES once downloaded, and Dart cannot
+     * open them without this. Pack contents are flat BARE FILENAMES by
+     * construction (see [PackPaths.installedFile], which refuses separators), so
+     * Dart joins with one slash and can never produce a traversal from a
+     * theme.json path.
+     *
+     * ON [io] rather than answered inline, even though it is one `isDirectory`.
+     * That call is a stat, this executor is where every other disk touch in this
+     * class lives, and a "cheap" main-thread stat on a cold filesystem is the
+     * kind of thing that shows up as jank on a Tecno and nowhere else.
+     */
+    override fun installedPackDir(packId: String, callback: (Result<String?>) -> Unit) =
+        onIo(callback) {
+            PackPaths.installedDir(appContext, packId)?.absolutePath
+        }
 
     fun shutdown() = io.shutdown()
 

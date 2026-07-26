@@ -229,6 +229,46 @@ abstract class PackHostApi {
   /// it. Called once after Remote Config resolves.
   @async
   void setCdnBaseUrl(String url);
+
+  // ─── THE RENDER BRIDGE ─────────────────────────────────────────────────────
+  //
+  // Everything above this line downloads content. These two read it back, and
+  // without them the whole panel publishes into a void: `activeThemeSpecProvider`
+  // only ever knew how to open a bundled asset, so a verified, installed,
+  // paid-for Kali pack sat on disk and the phone kept rendering Ubuntu.
+  //
+  // TWO METHODS RATHER THAN ONE RETURNING A SMALL CLASS, deliberately. A new
+  // Pigeon class appended here would be safe (ids are positional and this would
+  // land last), but "safe if appended" is a rule someone has to remember at 1am
+  // and two plain methods need no rule at all. The cost is one extra round trip
+  // per theme SWITCH, which is not a hot path.
+
+  /// The raw `theme.json` of an installed theme pack, or null when the pack is
+  /// not on disk (never downloaded, uninstalled, or its files were swept).
+  ///
+  /// Returns the BYTES AS TEXT and parses nothing. Dart already owns
+  /// `ThemeSpec.fromJson`, and a second parser in Kotlin is a second thing to
+  /// keep in step with the schema — the exact drift that made the icon
+  /// `IconStyle` data class a hand-written twin of the Pigeon one.
+  ///
+  /// Signature verification is NOT repeated here. The pack was verified when it
+  /// installed; re-verifying on every theme resolve would put an ed25519 check
+  /// on the home screen's critical path for no additional guarantee, since the
+  /// file lives in app-private storage.
+  @async
+  String? readInstalledTheme(String themeId);
+
+  /// Absolute path to an installed pack's file directory, or null.
+  ///
+  /// Dart needs this because a downloaded theme's wallpapers and logo are FILES,
+  /// not bundled assets: `AssetImage('wall.jpg')` on an installed theme resolves
+  /// to nothing and renders an empty box with no error. `ThemeSource` turns this
+  /// directory into the right ImageProvider per asset.
+  ///
+  /// Pack files are BARE FILENAMES by construction (`PackPaths.installedFile`
+  /// refuses separators), so joining is always one `/` and never a traversal.
+  @async
+  String? installedPackDir(String packId);
 }
 
 @FlutterApi()

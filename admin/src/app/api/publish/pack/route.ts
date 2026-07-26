@@ -199,6 +199,30 @@ export async function POST(request: Request) {
   // ── the live catalogue, before anything is written ─────────────────────────
   const live = await readLiveIndex(app);
 
+  // THE HARDEST REFUSAL IN THIS FILE, and it guards the most expensive mistake.
+  //
+  // `readLiveIndex` no longer throws on a read failure — every page in the panel
+  // called it and none caught it, so one expired credential took out the whole
+  // console. But a soft read failure here is a different animal: the merge below
+  // would take an EMPTY catalogue as its base and the write at the end would
+  // replace a live index holding every other pack with one holding this pack
+  // alone. Every installed launcher would then see the rest of the store vanish,
+  // because a token rolled.
+  //
+  // `unreachable` is a separate flag from `exists` for exactly this line. "There
+  // is nothing published" is safe to merge into. "We could not find out" is not.
+  if (live.unreachable) {
+    return NextResponse.json(
+      {
+        error:
+          `Could not read ${app}/${INDEX_NAME}: ${live.unreachable}. ` +
+          'Refusing to publish, because merging into a catalogue we could not read ' +
+          'would overwrite it with this pack alone.',
+      },
+      { status: 503 },
+    );
+  }
+
   if (live.corrupt) {
     // Present but unparseable. Merging into it is impossible and treating it as
     // absent would wipe every other pack from the store. Someone has to look.

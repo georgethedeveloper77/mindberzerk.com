@@ -21,19 +21,51 @@ export type Listing = Record<string, boolean>;
 
 const keyFor = (app: AppId) => `${app}/admin/listing.json`;
 
-export async function readListing(app: AppId): Promise<Listing> {
-  const bytes = await getObject(keyFor(app));
-  if (!bytes) return {};
+/**
+ * The listing flags, plus whether we actually managed to read them.
+ *
+ * TWO FUNCTIONS OVER ONE RESULT, because readers and writers need opposite
+ * behaviour from the same failure. A page rendering a toggle should degrade to
+ * "everything listed" and show a banner. [setListed] must NOT: it merges into
+ * what it read, so a soft-failed read would hand it an empty object and the
+ * write would erase every other pack's flag.
+ */
+export async function readListingResult(
+  app: AppId,
+): Promise<{ listing: Listing; unreachable: string | null }> {
+  let bytes: Buffer | null;
+  try {
+    bytes = await getObject(keyFor(app));
+  } catch (e) {
+    return { listing: {}, unreachable: (e as Error).message || 'The bucket could not be read.' };
+  }
+  if (!bytes) return { listing: {}, unreachable: null };
   try {
     const parsed = JSON.parse(bytes.toString('utf8'));
-    return parsed && typeof parsed === 'object' ? (parsed as Listing) : {};
+    return {
+      listing: parsed && typeof parsed === 'object' ? (parsed as Listing) : {},
+      unreachable: null,
+    };
   } catch {
-    return {};
+    // Unparseable is treated as empty rather than fatal: the flags are a
+    // presentation nicety, and every pack defaulting to listed is the safe
+    // reading of a broken file.
+    return { listing: {}, unreachable: null };
   }
 }
 
+export async function readListing(app: AppId): Promise<Listing> {
+  return (await readListingResult(app)).listing;
+}
+
 export async function setListed(app: AppId, packId: string, listed: boolean): Promise<void> {
-  const current = await readListing(app);
+  // The read-before-write guard. Without it, one expired credential turns a
+  // single toggle into "unhide everything", because the merge base came back
+  // empty and the write is unconditional.
+  const { listing: current, unreachable } = await readListingResult(app);
+  if (unreachable) {
+    throw new Error(`Cannot change listing: the bucket could not be read (${unreachable}).`);
+  }
   if (listed) delete current[packId];
   else current[packId] = false;
   await putObject(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/prefs/launcher_prefs.dart';
@@ -100,7 +102,25 @@ class EffectiveTheme {
         foregroundScale: themeIcons.foregroundScale,
         backgroundColor: themeIcons.backgroundColor,
         monochromeTint: themeIcons.monochromeTint,
-        heroPack: themeIcons.heroPack,
+        // ─── THE ICON PACK OVERRIDE ────────────────────────────────────────
+        //
+        // The user's pack beats the distro's, and this one line is what makes
+        // a standalone icon pack a product rather than a promise.
+        //
+        // `icons_pop_cosmic` is its own Play SKU precisely so someone can run
+        // the Kali desktop with Pop!_OS icons. Without this, the only thing
+        // that could ever name a hero pack was `ThemeSpec.icons.heroPack` —
+        // authored by whoever made the THEME. So buying an icon pack downloaded
+        // it, verified it, installed it, and changed nothing on screen unless
+        // the theme's author had happened to name it. That is a refund.
+        //
+        // NO SEPARATE CACHE-KEY LINE IS NEEDED, and that is worth stating
+        // because the eight-place ritual conditions you to add one. `heroPack`
+        // is ALREADY in `iconCacheId` below; overriding its VALUE here changes
+        // that string for free. Adding `prefs.iconPackId` to `iconCacheId` as
+        // well would be harmless but redundant, and it would imply the two can
+        // differ, which is exactly the confusion this comment exists to stop.
+        heroPack: prefs.iconPackId ?? themeIcons.heroPack,
         // Distro-authored, no user override. Someone who wants flat icons picks
         // a flat theme; a "disable gradients" toggle would fight the distro's
         // own look for no gain.
@@ -203,6 +223,24 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   final api_ = ref.read(launcherHostApiProvider);
 
   await api_.setIconTheme(effective.iconCacheId, effective.icons);
+
+  // ── THE THIRD-PARTY ICON PACK ───────────────────────────────────────────
+  //
+  // A SECOND PUSH RATHER THAN A FIELD ON IconStyle, because IconStyle is theme
+  // content that arrives over the CDN and this names an APK installed on one
+  // device. See the note on `LauncherPrefs.systemIconPack`.
+  //
+  // PUSHED ON EVERY EMIT, which is every prefs write, and that is fine BECAUSE
+  // of the guard in `IconCache.setSystemIconPack`: it compares against what it
+  // already holds and returns immediately when nothing changed. Without that
+  // guard this line would re-parse a pack's appfilter.xml every time the user
+  // nudged the drawer columns.
+  //
+  // NOT AWAITED ALONGSIDE setIconTheme in a Future.wait: selecting a pack parses
+  // thousands of XML entries natively, and the desktop must not wait on that to
+  // repaint its palette. The icons arrive when they arrive; the theme is
+  // instant.
+  unawaited(api_.setIconPack(prefs.systemIconPack));
 
   // ── WHOSE WALLPAPER IS ON THE SCREEN ────────────────────────
   //

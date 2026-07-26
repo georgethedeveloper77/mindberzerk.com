@@ -598,6 +598,33 @@ interface PackHostApi {
    * it. Called once after Remote Config resolves.
    */
   fun setCdnBaseUrl(url: String, callback: (Result<Unit>) -> Unit)
+  /**
+   * The raw `theme.json` of an installed theme pack, or null when the pack is
+   * not on disk (never downloaded, uninstalled, or its files were swept).
+   *
+   * Returns the BYTES AS TEXT and parses nothing. Dart already owns
+   * `ThemeSpec.fromJson`, and a second parser in Kotlin is a second thing to
+   * keep in step with the schema — the exact drift that made the icon
+   * `IconStyle` data class a hand-written twin of the Pigeon one.
+   *
+   * Signature verification is NOT repeated here. The pack was verified when it
+   * installed; re-verifying on every theme resolve would put an ed25519 check
+   * on the home screen's critical path for no additional guarantee, since the
+   * file lives in app-private storage.
+   */
+  fun readInstalledTheme(themeId: String, callback: (Result<String?>) -> Unit)
+  /**
+   * Absolute path to an installed pack's file directory, or null.
+   *
+   * Dart needs this because a downloaded theme's wallpapers and logo are FILES,
+   * not bundled assets: `AssetImage('wall.jpg')` on an installed theme resolves
+   * to nothing and renders an empty box with no error. `ThemeSource` turns this
+   * directory into the right ImageProvider per asset.
+   *
+   * Pack files are BARE FILENAMES by construction (`PackPaths.installedFile`
+   * refuses separators), so joining is always one `/` and never a traversal.
+   */
+  fun installedPackDir(packId: String, callback: (Result<String?>) -> Unit)
 
   companion object {
     /** The codec used by PackHostApi. */
@@ -752,6 +779,46 @@ interface PackHostApi {
                 reply.reply(PackApiPigeonUtils.wrapError(error))
               } else {
                 reply.reply(PackApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.readInstalledTheme$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val themeIdArg = args[0] as String
+            api.readInstalledTheme(themeIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PackApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(PackApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.installedPackDir$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packIdArg = args[0] as String
+            api.installedPackDir(packIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PackApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(PackApiPigeonUtils.wrapResult(data))
               }
             }
           }

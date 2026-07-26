@@ -261,3 +261,75 @@ export function blankDraft(id = ''): ThemeDraft {
     },
   };
 }
+
+// ── reading a theme.json back ────────────────────────────────────────────────
+
+/**
+ * A theme.json, read for the ONE question the flat-path gate asks: which files
+ * does this theme reference?
+ *
+ * DELIBERATELY NOT A FULL PARSER. `canonicalThemeJson` writes; this reads, and
+ * the only reader is `flat-check.ts`, which needs the asset references and
+ * nothing else. Validating every field here would mean a second, weaker copy of
+ * `ThemeSpec.fromJson` that drifts from the Dart one and starts refusing packs
+ * the device would have rendered perfectly.
+ *
+ * So the rule is: unknown shapes are IGNORED, never rejected. A newer theme.json
+ * carrying a block this build has never heard of parses fine and simply
+ * contributes no assets, which matches how the app treats the same file.
+ *
+ * The `error` arm exists only for input that is not a JSON object at all.
+ */
+export interface ParsedTheme {
+  id: string;
+  /** Every file path the theme references: wallpapers, logo, splash logo. */
+  assets: string[];
+}
+
+export function parseTheme(value: unknown): ParsedTheme | { error: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { error: 'theme.json is not a JSON object' };
+  }
+  const j = value as Record<string, unknown>;
+
+  const assets: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === 'string' && v.trim()) assets.push(v.trim());
+  };
+
+  // wallpapers: the current shape.
+  if (Array.isArray(j.wallpapers)) for (const w of j.wallpapers) push(w);
+
+  // wallpaper.asset: the old single-wallpaper shape. Still read by
+  // ThemeSpec._wallpapers on device, so a theme using it is not malformed and
+  // its path still has to be flat.
+  const legacy = j.wallpaper;
+  if (legacy && typeof legacy === 'object') {
+    push((legacy as Record<string, unknown>).asset);
+  }
+
+  // logo: a bare string, or { light, dark }.
+  const logo = j.logo;
+  if (typeof logo === 'string') {
+    push(logo);
+  } else if (logo && typeof logo === 'object') {
+    const l = logo as Record<string, unknown>;
+    push(l.light);
+    push(l.dark);
+  }
+
+  // splash.logo, when a splash block names artwork rather than a built-in
+  // style. Guarded rather than assumed: a splash with no logo key contributes
+  // nothing and costs nothing.
+  const splash = j.splash;
+  if (splash && typeof splash === 'object') {
+    push((splash as Record<string, unknown>).logo);
+  }
+
+  // De-duplicated, because a theme naming the same wallpaper twice would
+  // otherwise report the same fix twice.
+  return {
+    id: typeof j.id === 'string' ? j.id : '',
+    assets: [...new Set(assets)],
+  };
+}

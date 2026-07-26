@@ -72,6 +72,19 @@ class LauncherHostApiImpl(
     )
 
     private val watcher = AppChangeWatcher(appContext, repository) { reason, apps ->
+        // An icon pack IS an installed app, so its install, update or removal
+        // already arrives here for free. Hooking it is what makes an UPDATED
+        // pack take effect, rather than the resolver serving drawables from a
+        // Resources handle opened against the previous APK until the process
+        // dies — the same trap the CDN resolvers have, arriving through Play.
+        //
+        // SAFE TO CALL ON EVERY APP CHANGE, and that is a property of the
+        // callee, not of this line. This watcher fires for every app on the
+        // device and Play auto-updates a dozen at once; `onIconPackAppChanged`
+        // returns immediately unless a pack is selected AND its APK actually
+        // changed. Read its comment before making this call conditional here —
+        // the guard is deliberately on the side that has the information.
+        iconCache.onIconPackAppChanged()
         main.post { flutterApi.onAppsChanged(AppChangeEvent(reason, apps)) { } }
     }
 
@@ -151,6 +164,50 @@ class LauncherHostApiImpl(
     override fun clearIconCache(callback: (Result<Unit>) -> Unit) {
         iconCache.clear()
         callback(Result.success(Unit))
+    }
+
+    // ---- third-party icon packs ------------------------------------------
+
+    /**
+     * Installed Nova/ADW-format packs, package name to label.
+     *
+     * ON [io], NOT THE MAIN THREAD. It is seven `queryIntentActivities` calls
+     * plus a label load per result, each of which is binder IPC into the package
+     * manager. Individually trivial, collectively a stutter on the screen the
+     * user just opened.
+     *
+     * AN EMPTY MAP IS A VALID ANSWER and is never reported as an error, because
+     * "no icon packs installed" is the common case. Worth knowing while
+     * debugging: an empty map is ALSO what a missing `<queries>` entry produces
+     * on Android 11+, silently. Check the manifest before this method.
+     */
+    override fun installedIconPacks(callback: (Result<Map<String, String>>) -> Unit) {
+        io.execute {
+            val packs = runCatching {
+                iconCache.installedIconPacks().associate { it.packageName to it.label }
+            }.getOrDefault(emptyMap())
+            main.post { callback(Result.success(packs)) }
+        }
+    }
+
+    /**
+     * Select a pack, or null for none.
+     *
+     * ALSO ON [io], and for a stronger reason than the method above: selecting a
+     * pack parses `appfilter.xml` out of the pack's APK, which for a large pack
+     * is thousands of XML entries. That is a visible freeze on the home screen
+     * at the moment the user taps a radio button, which is the worst possible
+     * moment for one.
+     *
+     * The reply is deliberately sent AFTER the parse rather than immediately, so
+     * Dart can leave a spinner up and know when the grid is safe to repaint. The
+     * bitmaps are still rendered lazily by the cache after that.
+     */
+    override fun setIconPack(packageName: String?, callback: (Result<Unit>) -> Unit) {
+        io.execute {
+            runCatching { iconCache.setSystemIconPack(packageName) }
+            main.post { callback(Result.success(Unit)) }
+        }
     }
 
     // ---- system ----------------------------------------------------------
