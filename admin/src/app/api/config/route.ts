@@ -4,7 +4,7 @@ import { NotAuthorised, requireAdmin } from '@/lib/auth';
 import { writeRemoteConfigKey } from '@/lib/remote-config';
 
 /**
- * PHASE C11 — write one Remote Config key.
+ * PHASE C11 - write one Remote Config key.
  *
  * Thin on purpose: all the safety (allowlist, per-key validation, ETag
  * compare-and-swap) lives in `writeRemoteConfigKey`. This handler is auth plus

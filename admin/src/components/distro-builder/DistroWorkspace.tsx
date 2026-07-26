@@ -7,7 +7,7 @@ import { Section, Field, TextInput, NumberInput, SelectInput, Toggle } from '@/c
 import { PaletteEditor, LayoutEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
-import { AppGrid, type Assignment } from '@/components/icon-builder/AppGrid';
+import { AppGrid, type Assignment } from './AppGrid';
 import { publishDistroAction } from '@/app/apps/[app]/distros/actions';
 import {
   blankDraft,
@@ -321,7 +321,7 @@ export function DistroWorkspace({ app }: { app: string }) {
 
             {tab === 'icons' ? (
               <>
-                <Section title="icon pack" hint={hasIcons ? `${order.length} assigned` : 'optional — a distro can ship with no icon pack'}>
+                <Section title="icon pack" hint={hasIcons ? `${order.length} assigned` : 'optional - a distro can ship with no icon pack'}>
                   <Field label="icon pack name">
                     <TextInput value={iconName} placeholder={`${spec.name || 'Kali'} icons`} mono={false} onChange={setIconName} />
                   </Field>
@@ -424,11 +424,11 @@ function PricingTab(props: {
       </Section>
 
       <Section title="how each product unlocks" hint="the entitlement this publish writes">
-        <Unlock label={props.themePackId || '<distro>-theme'} by={props.free ? ['free'] : [props.distroSku ?? '—']} />
+        <Unlock label={props.themePackId || '<distro>-theme'} by={props.free ? ['free'] : [props.distroSku ?? '-']} />
         {props.hasIcons ? (
           <Unlock
             label={props.iconPackId || '<distro>-icons'}
-            by={props.free ? ['free'] : [props.iconsSku ?? '—', props.distroSku ?? '—']}
+            by={props.free ? ['free'] : [props.iconsSku ?? '-', props.distroSku ?? '-']}
           />
         ) : null}
         <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, marginTop: 8 }}>

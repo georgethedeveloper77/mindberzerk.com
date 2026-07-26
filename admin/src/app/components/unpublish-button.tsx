@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
- * PHASE C6 — pulling a pack, with the confirmation inline.
+ * PHASE C6 - pulling a pack, with the confirmation inline.
  *
  * Two taps rather than a modal. A dialog on a phone covers the thing you are
  * about to act on, which is exactly the context you want while deciding, and

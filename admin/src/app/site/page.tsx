@@ -8,7 +8,7 @@ import { Banner, Card, PageHead, when } from '@/app/components/ui';
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C12 — site content.
+ * PHASE C12 - site content.
  *
  * Lives at /site, not under an app: it is the PUBLISHER's page, describing every
  * app, so nesting it under g-launcher would be wrong. The shell renders with no

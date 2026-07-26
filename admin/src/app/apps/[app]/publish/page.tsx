@@ -10,7 +10,7 @@ import { PublishForm } from '@/app/components/publish-form';
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 — publishing, now per app.
+ * PHASE C5 - publishing, now per app.
  *
  * Same page as before with the app read from the segment instead of hardcoded.
  * It stays a separate route rather than living under the pack list: on a phone

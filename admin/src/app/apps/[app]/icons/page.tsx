@@ -10,7 +10,7 @@ import { Banner, Card, Chip, Grid, PageHead, Stat, Table, Td, Th, Tr, bytes } fr
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C8 — the icon builder.
+ * PHASE C8 - the icon builder.
  *
  * ## What this is not
  *
@@ -41,7 +41,7 @@ export default async function IconsPage({
   const hero = live.packs.filter((p) => p.packType === 'hero');
   const brand = live.packs.filter((p) => p.packType === 'brand');
 
-  // A hero pack barely larger than its pack.json has no images beside it — the
+  // A hero pack barely larger than its pack.json has no images beside it - the
   // yaru case, where `heroPack: "yaru"` resolves to nothing and every app falls
   // through to the generator with no error anywhere. The threshold is a proxy
   // (a real pack of even a few PNGs clears it comfortably), not a hard fact.

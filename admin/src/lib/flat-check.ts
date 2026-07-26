@@ -1,6 +1,9 @@
 import 'server-only';
 
-import { parseTheme } from './theme-spec';
+// The RESOLVER, not the writer's schema. `theme-spec.ts` describes the file
+// the builder emits; this needs what the device's parser makes of it, which
+// is the same question this gate asks about asset paths.
+import { parseTheme } from './theme-resolve';
 import type { PackFile } from './sign';
 
 /**

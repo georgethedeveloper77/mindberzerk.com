@@ -27,7 +27,7 @@ export function ListToggle({
     if (!res.ok) setOn(!next); // revert
   }
 
-  const label = disabled ? 'Bundled — always available' : on ? 'Listed' : 'Hidden';
+  const label = disabled ? 'Bundled - always available' : on ? 'Listed' : 'Hidden';
   return (
     <button
       type="button"

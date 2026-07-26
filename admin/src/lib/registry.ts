@@ -1,12 +1,12 @@
 /**
- * PHASE C5 — the app registry.
+ * PHASE C5 - the app registry.
  *
  * NO `server-only` HERE, AND THAT IS THE WHOLE POINT. `catalogue.ts` is marked
  * server-only because it reads R2, so a client component that imports `AppId`
  * from it fails the build. The nav is a client component and needs to know what
  * apps exist, so the list lives here and catalogue.ts re-exports it:
  *
- *   // lib/catalogue.ts — replace the two lines that declare APPS
+ *   // lib/catalogue.ts - replace the two lines that declare APPS
  *   export { APPS, type AppId } from './registry';
  *
  * Two lists in two files would drift, and the failure mode is a nav item that
@@ -19,7 +19,7 @@
  * only ones a route may resolve.
  *
  * `managed: false` means Mindberzerk publishes it but it is administered
- * elsewhere — its own Firebase project, its own store listing, no packs here.
+ * elsewhere - its own Firebase project, its own store listing, no packs here.
  * Tryst and Fructa are listed so the publisher site and any cross-promotion read
  * one registry, and so the overview tells the truth about what exists rather
  * than only what this panel happens to touch.

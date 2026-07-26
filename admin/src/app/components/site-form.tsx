@@ -19,12 +19,12 @@ interface Content {
 }
 
 /**
- * PHASE C12 — editing site content.
+ * PHASE C12 - editing site content.
  *
  * ## The featured row is order plus visibility, nothing else
  *
  * Each registry app is a row. A checkbox includes it, the arrows order it, and
- * that is the whole model — no names or blurbs are edited here because they live
+ * that is the whole model - no names or blurbs are edited here because they live
  * in the registry and the site resolves them. This is what stops the site and
  * the panel drifting into two descriptions of the same app.
  *

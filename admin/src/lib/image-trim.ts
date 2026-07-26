@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PHASE C8 — normalising uploaded art into a hero PNG, in the browser.
+ * PHASE C8 - normalising uploaded art into a hero PNG, in the browser.
  *
  * ## This is deliberately minimal, because renderHero is
  *
@@ -20,8 +20,8 @@
  *
  * No native dependency in the App Hosting build, raw art never leaves the
  * machine, and the preview is the actual output bytes rather than a guess at
- * what the server would do. The cost — the browser's PNG encoder, so two
- * browsers produce byte-different files — does not matter here: the manifest
+ * what the server would do. The cost - the browser's PNG encoder, so two
+ * browsers produce byte-different files - does not matter here: the manifest
  * hashes whatever is uploaded, and nothing compares bytes across sessions.
  */
 

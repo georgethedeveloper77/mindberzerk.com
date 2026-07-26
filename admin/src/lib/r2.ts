@@ -9,7 +9,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 /**
- * PHASE C4 — R2, through the S3 API.
+ * PHASE C4 - R2, through the S3 API.
  *
  * `import 'server-only'` again, first line, for the same reason as sign.ts: the
  * credentials here can rewrite the CDN every installed launcher reads.
@@ -78,7 +78,7 @@ export async function putObject(key: string, body: Buffer, contentType: string) 
       // pack lives at `<type>/<packId>/<version>/…`. Without the version in the
       // path this is a serious bug: `brandpacks/simple-icons/manifest.sig` is
       // the same URL for v2 and v3, so an edge would serve the OLD manifest for
-      // a year after publishing. The mixed state is worse than the stale one —
+      // a year after publishing. The mixed state is worse than the stale one -
       // a fresh payload file against a cached old manifest is a hash mismatch,
       // and PackVerifier correctly reports that as tampering.
       //

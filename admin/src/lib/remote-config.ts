@@ -1,12 +1,12 @@
 import 'server-only';
 
 /**
- * PHASE C11 — Remote Config, scoped to what the launcher actually reads.
+ * PHASE C11 - Remote Config, scoped to what the launcher actually reads.
  *
  * ## Token minting is self-contained here, on purpose
  *
  * This needs a Google OAuth access token for the Remote Config REST API.
- * `auth.ts` handles SESSION verification — the admin's Google sign-in — which is
+ * `auth.ts` handles SESSION verification - the admin's Google sign-in - which is
  * a different credential: the user's identity, not the service's. Rather than
  * assume auth.ts exposes a service-token helper it may not have, this mints its
  * own via `google-auth-library`, already present transitively, which picks up
@@ -19,8 +19,8 @@ import 'server-only';
  * An earlier mock of this screen had six feature gates and three kill switches.
  * Reading the source, the launcher consumes exactly ONE Remote Config value:
  * `cdn_base_url`, read on the Flutter side and written to a file for the
- * headless worker (`CdnConfig`). The gates in the mock — `drawer_cube_enabled`,
- * `verbose_boot_default` and the rest — are per-theme prefs stored on device.
+ * headless worker (`CdnConfig`). The gates in the mock - `drawer_cube_enabled`,
+ * `verbose_boot_default` and the rest - are per-theme prefs stored on device.
  * There is no RC key behind them, so a panel toggle would write a parameter
  * nothing fetches and report a change that never happens.
  *
@@ -126,12 +126,12 @@ const RC_SCOPE = 'https://www.googleapis.com/auth/firebase.remoteconfig';
  * An OAuth access token for the service account, scoped to Remote Config.
  *
  * `google-auth-library` resolves Application Default Credentials, which on App
- * Hosting is the runtime service account — no key file. That account needs the
+ * Hosting is the runtime service account - no key file. That account needs the
  * Firebase Remote Config Admin role, granted once in IAM.
  *
  * A MISSING CREDENTIAL THROWS A CLEAN MESSAGE, not a bare ReferenceError. The
  * earlier cut referenced this function without defining it, so the config page
- * surfaced "accessToken is not defined" — a JS internal leaking to an admin. The
+ * surfaced "accessToken is not defined" - a JS internal leaking to an admin. The
  * message here names the actual fix instead.
  */
 async function accessToken(): Promise<string> {
@@ -208,8 +208,8 @@ export async function readRemoteConfig(): Promise<RcState> {
  *
  * READ, MERGE, WRITE, exactly like the index: the whole template is fetched,
  * the one parameter is replaced, and the lot is put back with the ETag. Writing
- * only the changed parameter is not an option the API offers — a publish
- * replaces the whole template — so anything not carried across is deleted, which
+ * only the changed parameter is not an option the API offers - a publish
+ * replaces the whole template - so anything not carried across is deleted, which
  * is why foreign keys are read and re-sent untouched.
  */
 export async function writeRemoteConfigKey(

@@ -23,7 +23,7 @@ import {
 } from '@/lib/sign';
 
 /**
- * PHASE C4 — POST a pack, get it signed, uploaded and listed.
+ * PHASE C4 - POST a pack, get it signed, uploaded and listed.
  *
  * This is the route the whole panel exists for. Everything else is a form.
  *
@@ -58,7 +58,7 @@ const META_SKIP = 'pack.meta.json';
 
 export async function POST(request: Request) {
   // FIRST LINE OF THE HANDLER, ALWAYS. The middleware does not verify anything
-  // — it cannot, it runs on Edge — and /api is excluded from it anyway so that
+  // - it cannot, it runs on Edge - and /api is excluded from it anyway so that
   // an auth failure here returns 401 JSON rather than a redirect to an HTML
   // login page, which at the caller looks like a parse error.
   try {
@@ -179,7 +179,7 @@ export async function POST(request: Request) {
     }
     // manifest.json and manifest.sig are OUTPUT. Accepting them as input would
     // let a stale manifest from a previous publish ride along and then be
-    // overwritten — or worse, not be, if the signing step ever changed.
+    // overwritten - or worse, not be, if the signing step ever changed.
       if (path === 'manifest.json' || path === 'manifest.sig') continue;
       if (path === META_SKIP) continue;
 
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
 
   // THE HARDEST REFUSAL IN THIS FILE, and it guards the most expensive mistake.
   //
-  // `readLiveIndex` no longer throws on a read failure — every page in the panel
+  // `readLiveIndex` no longer throws on a read failure - every page in the panel
   // called it and none caught it, so one expired credential took out the whole
   // console. But a soft read failure here is a different animal: the merge below
   // would take an EMPTY catalogue as its base and the write at the end would

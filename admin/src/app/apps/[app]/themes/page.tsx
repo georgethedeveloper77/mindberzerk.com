@@ -11,7 +11,7 @@ import { ListToggle } from '@/components/theme-list/ListToggle';
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE B (panel) — the inventory the storefront is assembled from.
+ * PHASE B (panel) - the inventory the storefront is assembled from.
  *
  * Everything the panel can act on in one list: the three bundled free themes
  * (Ubuntu, KDE, Terminal) that ship in the APK, any drafts, and any theme packs
@@ -113,7 +113,7 @@ export default async function ThemesPage({ params }: { params: Promise<{ app: st
                   ))}
                 </span>
               </Td>
-              <Td num>{r.publishedVersion ?? r.draftVersion ?? '—'}</Td>
+              <Td num>{r.publishedVersion ?? r.draftVersion ?? '-'}</Td>
               <Td>
                 <ListToggle app={appId} packId={r.id} initial={isListed(listing, r.id)} disabled={r.bundled} />
               </Td>

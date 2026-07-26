@@ -12,7 +12,7 @@ import 'server-only';
  * ZERO active purchase options while its six siblings have one each, which
  * means the sku resolves to nothing at the billing client, `unlocked` comes
  * back false forever, and the pack shows a price nobody can pay. There is no
- * error anywhere in that chain — not on the device, not in the index, not in
+ * error anywhere in that chain - not on the device, not in the index, not in
  * the panel. It reads to a user as "the buy button does nothing".
  *
  * This file is the join that makes that visible.

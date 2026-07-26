@@ -4,6 +4,7 @@ import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { Field, TextInput } from '@/components/theme-builder/primitives';
 import { fileNameFor, isValidPackage } from '@/lib/hero-pack';
+import { renderHeroIcon } from '@/lib/image-trim';
 
 export interface Assignment {
   file: string;
@@ -12,42 +13,30 @@ export interface Assignment {
 }
 
 /**
- * Encode an uploaded image as PNG, KEEPING ITS SOURCE DIMENSIONS.
+ * MOVED HERE from `components/icon-builder/`, which is gone.
  *
- * icon-pack.ts is explicit: renderHero draws hero art at native size and applies
- * no keyline resize, so the panel must NOT shrink art to a fixed square. That
- * uniformly shrinks correctly-drawn icons. A PNG upload passes through as-is; a
- * non-PNG (WebP, SVG with an intrinsic size, JPEG) is redrawn at its own natural
- * size and re-encoded, preserving resolution and transparency.
+ * The distro workspace was the only other consumer, so the grid lives beside
+ * it now rather than in a shared folder holding one file for one caller.
+ *
+ * ─── THE IMAGE PATH CHANGED WITH THE MOVE ───────────────────────────────────
+ *
+ * This file used to carry its own `toPng`, which kept each upload's SOURCE
+ * dimensions on the grounds that `renderHero` applies no keyline resize. That
+ * read the rule backwards. The keyline rule is about not insetting art to ~60%
+ * inside its canvas; it says nothing about resolution or squareness, and
+ * `renderHeroIcon` does not inset either — it fits the source to the canvas
+ * EDGE, preserving aspect and centring, with transparent padding on the short
+ * axis.
+ *
+ * Keeping source dimensions meant a 512px export stayed 512, a Canva download
+ * stayed whatever Canva felt like, and a screenshot someone dragged in stayed
+ * 4000px, all inside a pack whose whole delivery argument is that the full
+ * 3,449-icon brand set fits in 3.5MB. It also handed the renderer non-square
+ * bitmaps for a square draw.
+ *
+ * So this now uses the same `renderHeroIcon` the icon builder uses. One image
+ * path, one canvas size, one place to change it.
  */
-export function toPng(file: File): Promise<Blob> {
-  if (file.type === 'image/png') return Promise.resolve(file);
-  return new Promise((resolve, reject) => {
-    const src = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const w = img.naturalWidth || img.width;
-      const h = img.naturalHeight || img.height;
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        URL.revokeObjectURL(src);
-        reject(new Error('Canvas is unavailable'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(src);
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode PNG'))), 'image/png');
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(src);
-      reject(new Error('Could not read that image'));
-    };
-    img.src = src;
-  });
-}
 
 export function AppGrid(props: {
   entries: { pkg: string; label: string }[];
@@ -90,9 +79,16 @@ function AppTile(props: {
     setBusy(true);
     setErr(false);
     try {
-      const blob = await toPng(file);
+      // renderHeroIcon hands back the object URL it already made, so this must
+      // NOT create a second one. Two URLs for one blob means the revoke below
+      // frees the wrong handle and the preview goes blank on the next replace.
+      const rendered = await renderHeroIcon(file);
       if (props.assignment) URL.revokeObjectURL(props.assignment.url);
-      props.onAssign({ file: fileNameFor(props.pkg), blob, url: URL.createObjectURL(blob) });
+      props.onAssign({
+        file: fileNameFor(props.pkg),
+        blob: rendered.blob,
+        url: rendered.url,
+      });
     } catch {
       setErr(true);
     } finally {

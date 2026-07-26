@@ -54,6 +54,33 @@ class PackProgressNotifier extends Notifier<Map<String, double>> {
   }
 }
 
+/// Moves every time a pack lands. Part of the Dart icon cache key.
+///
+/// ─── WHY A COUNTER AND NOT SOMETHING MORE PRECISE ───────────────────────────
+///
+/// A hero or brand pack keeps its id across an update — that is what an update
+/// is — so nothing in `EffectiveTheme.iconCacheId` changes when one installs,
+/// and no Riverpod key moves. Meanwhile `IconCache.onPackChanged` has just
+/// wiped native's memory AND disk tiers, because the pack id is in its key but
+/// the pack VERSION is not. So native is ready to draw the new artwork and Dart
+/// never asks, and the launcher shows the old icons until the process dies.
+///
+/// BUMPED ON EVERY INSTALL, including theme packs that cannot affect icons.
+/// That looks over-eager and is exactly right: native clears its caches on every
+/// install too, so after any pack lands every icon has to be re-rendered
+/// regardless. Being cleverer here would make Dart and native disagree about
+/// when a re-render is needed, which is the whole class of bug this counter
+/// exists to end.
+final iconPackGenerationProvider =
+    NotifierProvider<IconPackGeneration, int>(IconPackGeneration.new);
+
+class IconPackGeneration extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state = state + 1;
+}
+
 /// The catalogue, merged with what is on disk.
 ///
 /// ─── SOMETHING MUST WATCH THIS, OR THE WIRE IS NOT CONNECTED ────────────────
@@ -94,6 +121,10 @@ class PackCatalogue extends AsyncNotifier<List<PackInfo>> {
 
   void _onInstalled(String packId, int version) {
     ref.read(packProgressProvider.notifier).done(packId);
+
+    // Re-render every icon. See [iconPackGenerationProvider] for why this is
+    // unconditional rather than limited to icon-bearing pack types.
+    ref.read(iconPackGenerationProvider.notifier).bump();
 
     // Re-read what is installed, so the card flips from Get to Installed.
     ref.invalidateSelf();

@@ -17,7 +17,7 @@ export interface BundleDraft {
 }
 
 /**
- * PHASE C6 — the bundle editor.
+ * PHASE C6 - the bundle editor.
  *
  * ## The whole array is sent, every time
  *

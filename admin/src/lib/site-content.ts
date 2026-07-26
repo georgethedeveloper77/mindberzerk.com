@@ -4,7 +4,7 @@ import { getObject, putObject } from './r2';
 import { REGISTRY, type AppMeta } from './registry';
 
 /**
- * PHASE C12 — the publisher site's content, as JSON this panel writes.
+ * PHASE C12 - the publisher site's content, as JSON this panel writes.
  *
  * ## Why site content is its own track, not a pack
  *
@@ -127,7 +127,7 @@ export async function readSiteContent(): Promise<SiteState> {
  * Validate against the registry and write.
  *
  * The one real rule: a featured id must be a real registry app, and it must have
- * a store link if it is live — the site links a featured card to the store, so a
+ * a store link if it is live - the site links a featured card to the store, so a
  * live app with no link is a card that goes nowhere. A planned app with no link
  * is fine; its card says "coming soon" and does not link.
  */

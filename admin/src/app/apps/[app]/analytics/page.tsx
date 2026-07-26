@@ -9,14 +9,14 @@ import { Banner, Card, Grid, PageHead, Stat, Table, Td, Th, Tr } from '@/app/com
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C9 — analytics.
+ * PHASE C9 - analytics.
  *
  * ## What this page is, and is not
  *
  * It is NOT the Firebase console rebuilt. Active users, retention overview and
  * raw event counts are rendered well there and are one link away. This page
- * shows only the two questions the console cannot express — the setup funnel by
- * step, and retention split by first distro — and both come from the BigQuery
+ * shows only the two questions the console cannot express - the setup funnel by
+ * step, and retention split by first distro - and both come from the BigQuery
  * export.
  *
  * ## When the export is off, it says so
@@ -87,11 +87,11 @@ export default async function AnalyticsPage({
       <Grid cols={4}>
         <Stat
           label="Setup completion"
-          value={funnel.connected ? `${completeRate}%` : '—'}
+          value={funnel.connected ? `${completeRate}%` : '-'}
           tone={funnel.connected ? 'plain' : 'plain'}
         />
-        <Stat label="Reached setup" value={funnel.connected ? funnelTop.toLocaleString() : '—'} />
-        <Stat label="Completed" value={funnel.connected ? funnelEnd.toLocaleString() : '—'} />
+        <Stat label="Reached setup" value={funnel.connected ? funnelTop.toLocaleString() : '-'} />
+        <Stat label="Completed" value={funnel.connected ? funnelEnd.toLocaleString() : '-'} />
         <Stat
           label="Export"
           value={funnel.connected ? 'connected' : 'off'}
@@ -147,13 +147,13 @@ export default async function AnalyticsPage({
                     <Td mono>{r.distro}</Td>
                     <Td num>{r.cohort.toLocaleString()}</Td>
                     <Td num dim>
-                      {r.d1 || '—'}
+                      {r.d1 || '-'}
                     </Td>
                     <Td num dim>
-                      {r.d7 || '—'}
+                      {r.d7 || '-'}
                     </Td>
                     <Td num dim>
-                      {r.d30 || '—'}
+                      {r.d30 || '-'}
                     </Td>
                   </Tr>
                 ))}

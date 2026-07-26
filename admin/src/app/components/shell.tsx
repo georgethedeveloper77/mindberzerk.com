@@ -6,7 +6,7 @@ import { signOut } from '@/lib/firebase-client';
 import { MANAGED, appName } from '@/lib/registry';
 
 /**
- * PHASE C5 — the frame, now multi-app.
+ * PHASE C5 - the frame, now multi-app.
  *
  * ## What changed and why
  *
@@ -41,6 +41,10 @@ function sectionsFor(app: string): Section[] {
     { label: 'Packs', href: `/apps/${app}/packs` },
     { label: 'Publish', href: `/apps/${app}/publish` },
     { label: 'Bundles', href: `/apps/${app}/bundles` },
+    // Not launcher-only: any app that sells a pack has the same three systems
+    // to keep in step (signed index, listing flags, Play), and the same way of
+    // being wrong about it.
+    { label: 'Commerce', href: `/apps/${app}/commerce` },
     { label: 'Config', href: `/apps/${app}/config` },
     { label: 'Analytics', href: `/apps/${app}/analytics` },
     // Launcher-only screens. Listing them under G Recovery would promise

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 /**
- * PHASE C5 — the primitives every screen is built from.
+ * PHASE C5 - the primitives every screen is built from.
  *
  * NO `'use client'`. Nothing here holds state, so these stay server components
  * and cost zero JavaScript. The moment one of them needs an event handler it

@@ -3,7 +3,7 @@ import 'server-only';
 import { createHash, createPrivateKey, sign as nodeSign } from 'node:crypto';
 
 /**
- * PHASE C4 — pack and index signing, server-side.
+ * PHASE C4 - pack and index signing, server-side.
  *
  * `import 'server-only'` IS THE LOAD-BEARING FIRST LINE. It makes the build fail
  * if any client component ever imports this module, however indirectly. Without
@@ -145,7 +145,7 @@ export function signPack(opts: {
   const seen = new Set<string>();
   for (const f of files) {
     if (!isSafeRelativePath(f.path)) {
-      throw new Error(`unsafe path '${f.path}' — the device will refuse this pack`);
+      throw new Error(`unsafe path '${f.path}' - the device will refuse this pack`);
     }
     // A duplicate path would let the manifest describe one file twice with two
     // different hashes: one to satisfy the check, one to describe what lands.

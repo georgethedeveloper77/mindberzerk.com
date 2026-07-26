@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
+import { Breadcrumb } from '@/components/console/breadcrumb';
 import { Shell } from '@/app/components/shell';
 import { Banner, Card, Chip, Grid, PageHead, Stat, Table, Td, Th, Tr } from '@/app/components/ui';
 import { commerceReport, worstTone, type SkuRow } from '@/lib/commerce';
@@ -52,6 +53,13 @@ export default async function CommercePage({
 
   return (
     <Shell app={app} subtitle={report.packageName ?? 'no package name'}>
+      <Breadcrumb
+        items={[
+          { label: appName(app), href: `/apps/${app}/packs` },
+          { label: 'Commerce' },
+        ]}
+      />
+
       {report.indexError && (
         <Banner tone="bad">
           The CDN bucket could not be read, so the catalogue side of every row is missing

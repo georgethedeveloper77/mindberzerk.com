@@ -10,7 +10,7 @@ import { Banner, Card, Chip, KV, PageHead, Table, Td, Th, Tr } from '@/app/compo
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C11 — Remote Config.
+ * PHASE C11 - Remote Config.
  *
  * ## Why this screen is small, and why that is correct
  *
@@ -88,11 +88,11 @@ export default async function ConfigPage({
 
           <div className="mt-3 grid gap-3 sm:mt-4 lg:grid-cols-[1fr_1fr]">
             <Card title="Template" >
-              <KV k="Version" v={state.versionNumber ?? '—'} />
-              <KV k="Last edited by" v={state.updatedBy ?? '—'} />
+              <KV k="Version" v={state.versionNumber ?? '-'} />
+              <KV k="Last edited by" v={state.updatedBy ?? '-'} />
               <KV
                 k="At"
-                v={state.updateTime ? state.updateTime.slice(0, 19).replace('T', ' ') : '—'}
+                v={state.updateTime ? state.updateTime.slice(0, 19).replace('T', ' ') : '-'}
               />
               <KV k="Shared across" v="all 5 apps in the project" />
             </Card>
@@ -119,7 +119,7 @@ export default async function ConfigPage({
                     <Tr key={f.key}>
                       <Td mono>{f.key}</Td>
                       <Td mono dim>
-                        {f.value ?? '—'}
+                        {f.value ?? '-'}
                       </Td>
                     </Tr>
                   ))}

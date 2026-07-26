@@ -4,7 +4,7 @@ import { NotAuthorised, requireAdmin } from '@/lib/auth';
 import { writeSiteContent, type SiteContent } from '@/lib/site-content';
 
 /**
- * PHASE C12 — publish site content.
+ * PHASE C12 - publish site content.
  *
  * Unsigned, and on its own track: it writes site/content.json and touches
  * nothing about the pack index or its signature. All validation (featured ids

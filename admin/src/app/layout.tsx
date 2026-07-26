@@ -11,7 +11,7 @@ import { ToastProvider } from '@/components/console';
  *
  * next/font self-hosts at build time: no request to Google at runtime, no CLS,
  * and nothing to fetch on a phone. If a build ever runs without network access,
- * delete these two and drop the `var(--font-geist-*)` entries from globals.css —
+ * delete these two and drop the `var(--font-geist-*)` entries from globals.css -
  * the stacks behind them are complete on their own.
  */
 const sans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });

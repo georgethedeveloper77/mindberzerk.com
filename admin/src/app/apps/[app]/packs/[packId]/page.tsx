@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { adminGate } from '@/app/components/admin-gate';
 import { readLiveIndex } from '@/lib/catalogue';
 import { hasSignature, readManifest, readPackJson } from '@/lib/pack-content';
-import { isAppId } from '@/lib/registry';
-import { absolutePaths, parseTheme, toCss } from '@/lib/theme-spec';
+import { appName, isAppId } from '@/lib/registry';
+import { absolutePaths, parseTheme, toCss } from '@/lib/theme-resolve';
+import { Breadcrumb } from '@/components/console/breadcrumb';
 import { Shell } from '@/app/components/shell';
 import { UnpublishButton } from '@/app/components/unpublish-button';
 import {
@@ -26,13 +27,13 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 — what is actually inside a published pack.
+ * PHASE C5 - what is actually inside a published pack.
  *
  * ## Why this exists before the builder
  *
  * The theme builder is blocked: a bundled theme and a downloaded one cannot
  * share a file format until every asset path is relative to the pack root. This
- * page is the half that is not blocked, and it is the half worth having first —
+ * page is the half that is not blocked, and it is the half worth having first -
  * it reads a pack back out of the bucket and reports what the launcher's parser
  * WILL DO with it, including every fallback it takes silently.
  *
@@ -85,6 +86,14 @@ export default async function PackPage({
 
   return (
     <Shell app={app} subtitle={`${app} / ${pack.path}`}>
+      <Breadcrumb
+        items={[
+          { label: appName(app), href: `/apps/${app}/packs` },
+          { label: 'Packs', href: `/apps/${app}/packs` },
+          { label: pack.packId },
+        ]}
+      />
+
       {!manifest && (
         <Banner tone="bad">
           No manifest.json at this path. The index advertises the pack, so every
@@ -128,7 +137,7 @@ export default async function PackPage({
 
       <Grid cols={4}>
         <Stat label="Version" value={pack.version} sub={`min app ${pack.minAppVersion}`} />
-        <Stat label="Files" value={manifest?.files.length ?? '—'} sub={bytes(pack.sizeBytes)} />
+        <Stat label="Files" value={manifest?.files.length ?? '-'} sub={bytes(pack.sizeBytes)} />
         <Stat
           label="Signature"
           value={signed ? 'valid' : 'missing'}
@@ -153,11 +162,11 @@ export default async function PackPage({
               {/* theme.json's `version` is a DISPLAY string like "24.04". The
                   pack version above is the monotonic integer the device
                   compares. Two different things with one name. */}
-              <KV k="Distro version" v={theme.version || '—'} />
+              <KV k="Distro version" v={theme.version || '-'} />
               <KV k="Dock" v={`${theme.layout.dock}${theme.layout.topBar ? ' + top bar' : ''}`} />
               <KV k="Grid" v={`${theme.layout.cols} x ${theme.layout.rows}`} />
               <KV k="Icon scale" v={theme.layout.iconScale.toFixed(2)} />
-              <KV k="Fonts" v={`${theme.typography.display ?? '—'} / ${theme.typography.mono ?? '—'}`} />
+              <KV k="Fonts" v={`${theme.typography.display ?? '-'} / ${theme.typography.mono ?? '-'}`} />
               <KV k="Wallpapers" v={theme.wallpapers.length} />
               <KV k="Desklets" v={`${theme.desklets.starter.length} placed, ${theme.desklets.offers.length} offered`} />
             </Card>
@@ -192,10 +201,10 @@ export default async function PackPage({
                       : "the app's own"
                   }
                 />
-                <KV k="Hero pack" v={theme.icons.heroPack ?? '—'} />
-                <KV k="Brand pack" v={theme.icons.brandPack ?? '—'} />
-                <KV k="Brand treatment" v={theme.icons.brandTreatment ?? '—'} />
-                <KV k="Monochrome tint" v={theme.icons.monochromeTint ?? '—'} />
+                <KV k="Hero pack" v={theme.icons.heroPack ?? '-'} />
+                <KV k="Brand pack" v={theme.icons.brandPack ?? '-'} />
+                <KV k="Brand treatment" v={theme.icons.brandTreatment ?? '-'} />
+                <KV k="Monochrome tint" v={theme.icons.monochromeTint ?? '-'} />
               </Card>
             </div>
           </div>

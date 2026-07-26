@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /**
- * PHASE C5 — the token system.
+ * PHASE C5 - the token system.
  *
  * WHAT WAS HERE BEFORE was create-next-app's boilerplate: a light/dark pair of
  * --background and --foreground, `font-family: Arial` on the body, and
@@ -30,7 +30,7 @@
   --color-surface-3: #232830;
 
   /* Hairlines. `line` divides things that are different, `line-soft` divides
-     rows of the same thing — a table with `line` between every row reads as a
+     rows of the same thing - a table with `line` between every row reads as a
      grid of boxes rather than a list. */
   --color-line: #272d36;
   --color-line-soft: #1d222a;

@@ -96,6 +96,39 @@ async function writeMap(app: AppId, map: DraftMap): Promise<void> {
   );
 }
 
+/**
+ * Drafts, plus whether the bucket could be read at all.
+ *
+ * ─── WHY THIS IS A SECOND FUNCTION AND NOT A CHANGE TO [readMap] ────────────
+ *
+ * [readMap] is the merge base for [writeDraft], [deleteDraft] and
+ * [ensureSeeded]. It must keep throwing, because a soft failure there hands a
+ * writer an empty map and the next save replaces every draft in the bucket with
+ * the one being edited. The same hazard `setListed` has, with more to lose.
+ *
+ * A PAGE needs the opposite. Throwing there means the whole screen dies in the
+ * error boundary over a credential problem, which is what /themes has been
+ * doing. So readers get a result and writers get an exception, from one
+ * underlying read.
+ *
+ * `unreachable` is separate from an empty list on purpose. "No drafts yet" and
+ * "we could not find out" look identical on screen and are not the same fact,
+ * and conflating them is how the panel spent an afternoon reporting zero packs
+ * on a bucket it simply could not open.
+ */
+export async function readAllDraftsSafe(
+  app: AppId,
+): Promise<{ drafts: ThemeDraft[]; unreachable: string | null }> {
+  try {
+    return { drafts: await readAllDrafts(app), unreachable: null };
+  } catch (e) {
+    return {
+      drafts: [],
+      unreachable: (e as Error).message || 'The bucket could not be read.',
+    };
+  }
+}
+
 export async function readAllDrafts(app: AppId): Promise<ThemeDraft[]> {
   const map = await readMap(app);
   return Object.values(map).sort((a, b) => a.id.localeCompare(b.id));

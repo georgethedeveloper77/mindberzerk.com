@@ -4,7 +4,7 @@ import { getObject } from './r2';
 import type { AppId } from './registry';
 
 /**
- * PHASE C5 — reading a published pack back out of the bucket.
+ * PHASE C5 - reading a published pack back out of the bucket.
  *
  * The index says a pack exists. This says what is inside it. Everything here is
  * a plain GET against the versioned path, so it is safe to call on a page: the

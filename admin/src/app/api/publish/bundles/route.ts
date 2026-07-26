@@ -14,7 +14,7 @@ import {
 } from '@/lib/sign';
 
 /**
- * PHASE C6 — bundles, which is the entitlements half of the index.
+ * PHASE C6 - bundles, which is the entitlements half of the index.
  *
  * ## Why this is a separate route from publishing a pack
  *

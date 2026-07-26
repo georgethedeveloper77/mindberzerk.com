@@ -185,7 +185,7 @@ function Terminal({
     { c: 'rgba(200,216,200,0.5)', t: '────────────────────' },
     { c: onDark, t: 'os   G Launcher' },
     { c: onDark, t: `de   ${spec.shell}` },
-    { c: onDark, t: `ver  ${spec.version || '—'}` },
+    { c: onDark, t: `ver  ${spec.version || '-'}` },
   ];
   return (
     <div style={{ padding: '14px 12px', fontSize: 11, lineHeight: 1.7 }}>

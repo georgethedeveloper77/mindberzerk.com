@@ -8,7 +8,7 @@ import { signIn } from '@/lib/firebase-client';
  * The only page reachable without a session.
  *
  * A CLIENT COMPONENT, and it has to be: Firebase's popup sign-in needs a
- * browser. It holds nothing sensitive — the NEXT_PUBLIC_ config identifies the
+ * browser. It holds nothing sensitive - the NEXT_PUBLIC_ config identifies the
  * project and authorises nothing, and the ID token it produces is posted once
  * to /api/auth/session and never stored.
  *

@@ -1,5 +1,5 @@
 /**
- * PHASE C8 — hero packs, matching the launcher's actual reader.
+ * PHASE C8 - hero packs, matching the launcher's actual reader.
  *
  * ## This is now READ OFF THE SOURCE, not guessed
  *
@@ -11,7 +11,7 @@
  *   - per-icon `{ file, masked, scale }` objects (it reads a flat
  *     packageName -> filename string map)
  *   - a `scale`, per-icon or pack-level          (renderHero draws at a
- *     hardcoded 1.0f and ignores foregroundScale — there is no scale to set)
+ *     hardcoded 1.0f and ignores foregroundScale - there is no scale to set)
  *   - `.webp` filenames                          (the convention is `.png`)
  *
  * The real shape, from HeroIconResolver:
@@ -98,7 +98,7 @@ export function fileNameFor(pkg: string): string {
  * desktop theme wholesale changes almost nothing on the devices that matter.
  *
  * The launcher has no app-icon grid, so the only icons a user sees are the dock
- * and the first drawer page — roughly the 25 to 40 slots below.
+ * and the first drawer page - roughly the 25 to 40 slots below.
  */
 export const CORE_PACKAGES: { pkg: string; label: string; hints: string[] }[] = [
   { pkg: 'com.android.dialer', label: 'Phone', hints: ['phone', 'dialer', 'call'] },
@@ -131,7 +131,7 @@ export const CORE_PACKAGES: { pkg: string; label: string; hints: string[] }[] = 
 /**
  * Guess a package from a file name. A guess, never an assignment: it fills the
  * field and the row stays flagged until confirmed. A wrong mapping is invisible
- * on device — the icon simply never appears and the generator covers it.
+ * on device - the icon simply never appears and the generator covers it.
  */
 export function guessPackage(fileName: string): string | null {
   const stem = fileName

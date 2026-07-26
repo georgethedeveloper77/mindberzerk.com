@@ -27,7 +27,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 — the catalogue for one app.
+ * PHASE C5 - the catalogue for one app.
  *
  * ## The route moved
  *
@@ -42,7 +42,7 @@ export const dynamic = 'force-dynamic';
  * The previous version rendered cards below `md` and a table above it, which is
  * two copies of every field and two places to forget one. The table wrapper
  * scrolls horizontally instead, so a phone scrolls the row rather than the page
- * and the pack id — the one column you actually need — stays pinned at the left
+ * and the pack id - the one column you actually need - stays pinned at the left
  * where it is readable.
  *
  * ## The filter costs no JavaScript
@@ -218,7 +218,7 @@ export default async function PacksPage({
         </Card>
 
         <Card title="Index">
-          <KV k="generatedAt" v={live.generatedAt || '—'} />
+          <KV k="generatedAt" v={live.generatedAt || '-'} />
           <KV k="Key id" v={live.keyId} />
           <KV k="Signature" v={signed ? 'present' : 'missing'} />
           <KV k="Prefix" v={`${app}/`} />

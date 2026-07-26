@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createSession, NotAuthorised, revokeSession, SESSION_COOKIE } from '@/lib/auth';
 
 /**
- * PHASE C4 — exchange a Firebase ID token for a session cookie.
+ * PHASE C4 - exchange a Firebase ID token for a session cookie.
  *
  * The client signs in with the Firebase JS SDK, gets an ID token, and posts it
  * here exactly once. From then on the browser holds an httpOnly cookie and the

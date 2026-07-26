@@ -4,7 +4,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 /**
- * PHASE C4 — the browser half of sign-in, and NOTHING ELSE.
+ * PHASE C4 - the browser half of sign-in, and NOTHING ELSE.
  *
  * The only job here is producing an ID token to post to /api/auth/session. It
  * holds no credentials worth having: the NEXT_PUBLIC_ config identifies the

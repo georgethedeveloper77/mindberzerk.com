@@ -10,7 +10,7 @@ import { Banner, Card, Chip, Empty, Grid, PageHead, Stat, Table, Td, Th, Tr } fr
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C6 — who owns what.
+ * PHASE C6 - who owns what.
  *
  * ## The screen answers one question the pack list cannot
  *
@@ -104,7 +104,7 @@ export default async function BundlesPage({
                     <Td mono>{p.packId}</Td>
                     <Td>{p.sku ? <Chip tone="warn">{p.sku}</Chip> : <Chip tone="ok">free</Chip>}</Td>
                     <Td mono dim>
-                      {via.length === 0 ? '—' : via.map((e) => e.sku).join(', ')}
+                      {via.length === 0 ? '-' : via.map((e) => e.sku).join(', ')}
                     </Td>
                     <Td>
                       {!p.sku ? (

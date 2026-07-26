@@ -9,7 +9,7 @@ import {
 } from './sign';
 
 /**
- * PHASE C4 — reading what is actually deployed.
+ * PHASE C4 - reading what is actually deployed.
  *
  * ## The rule this file exists to enforce
  *
@@ -22,7 +22,7 @@ import {
  *  1. `generatedAt` must strictly increase or every device that has already
  *     synced silently ignores the new index. Deriving it from the live value is
  *     the only way to be sure, because the panel does not know what else has
- *     published — `tools/publish-index.sh` exists and you will use it.
+ *     published - `tools/publish-index.sh` exists and you will use it.
  *  2. A publish is additive. If the panel rebuilt the index from its own idea of
  *     the catalogue, anything published by the CLI, by a second admin, or by an
  *     older deploy would be silently DROPPED. Devices would then see those packs
@@ -33,11 +33,11 @@ import {
  */
 
 /**
- * PHASE C5 — APPS MOVED, and this is a re-export so nothing importing it broke.
+ * PHASE C5 - APPS MOVED, and this is a re-export so nothing importing it broke.
  *
  * The nav is a client component and needs the app list. This module is
  * `server-only`, so importing `AppId` from here into a client component fails
- * the build — correctly, since it would drag the R2 client into the browser
+ * the build - correctly, since it would drag the R2 client into the browser
  * bundle. The list therefore lives in `lib/registry.ts`, which has no such
  * marker, and is re-exported here so every existing `from '@/lib/catalogue'`
  * still resolves.
@@ -144,8 +144,8 @@ export function upsertPack(packs: IndexPack[], next: IndexPack): IndexPack[] {
 /**
  * The next `generatedAt`.
  *
- * Normally "now". But if the live index somehow carries a FUTURE timestamp —
- * a machine with a wrong clock published once — then "now" would be lower and
+ * Normally "now". But if the live index somehow carries a FUTURE timestamp -
+ * a machine with a wrong clock published once - then "now" would be lower and
  * every device would refuse the new index while reporting nothing. So take
  * whichever is greater and move on, rather than publishing something that
  * silently does not apply.

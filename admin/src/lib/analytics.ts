@@ -1,15 +1,15 @@
 import 'server-only';
 
 /**
- * PHASE C9 — analytics, read from the BigQuery export.
+ * PHASE C9 - analytics, read from the BigQuery export.
  *
  * ## The honest boundary this file draws
  *
  * The Firebase console renders active users, retention curves and event counts
  * well, and this panel does NOT rebuild those. GA4 for Firebase is aggregated
  * and sampled in the console, caps at 500 event names, and has no per-user
- * drill-down. The questions this ecosystem keeps asking — the setup funnel by
- * attempt number, retention split by first distro, theme adoption over time —
+ * drill-down. The questions this ecosystem keeps asking - the setup funnel by
+ * attempt number, retention split by first distro, theme adoption over time -
  * are exactly the ones the console cannot answer and the raw export can.
  *
  * So this file queries the export for those, and for everything else the
@@ -28,7 +28,7 @@ import 'server-only';
  * These are `SELECT`s against a partitioned export table with a date bound on
  * every query, so a scan is one day to ninety days of one app's events, not the
  * whole history. The client library is loaded dynamically so a deploy without
- * the dependency, or without the export, still builds and runs — the panel's
+ * the dependency, or without the export, still builds and runs - the panel's
  * other phases must not be held hostage to analytics being configured.
  */
 
@@ -132,7 +132,7 @@ export interface FunnelStep {
  * The first-run setup funnel, by the step names the launcher logs.
  *
  * `setup_home_role` carries an `attempt` parameter, so this also breaks the home
- * step out by attempt number — the whole reason the three-strike flow was built
+ * step out by attempt number - the whole reason the three-strike flow was built
  * was to find out whether attempts two and three are worth their friction, and
  * that answer is a GROUP BY the console cannot express.
  */

@@ -19,7 +19,7 @@ import { INDEX_NAME, INDEX_SIGNATURE_NAME, signIndex } from '@/lib/sign';
 const BUNDLED_PACK_IDS = new Set(['simple-icons', 'yaru']);
 
 /**
- * PHASE C6 — pulling a release.
+ * PHASE C6 - pulling a release.
  *
  * Until now a bad pack could only be replaced, never removed: the panel could
  * publish v4 over v3, but nothing could take the pack out of the store. This

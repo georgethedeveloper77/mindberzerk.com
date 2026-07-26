@@ -8,12 +8,12 @@ import { Card, Chip, Empty, Grid, PageHead, Stat, Table, Td, Th, Tr } from '@/ap
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C13 — G Recovery, PLACEHOLDER ONLY.
+ * PHASE C13 - G Recovery, PLACEHOLDER ONLY.
  *
  * Pure design, no functionality. Nothing here reads a bucket or writes anything;
  * every number is a dash and every row is illustrative. It exists so opening
- * G Recovery shows the SHAPE of what it will be — per-brand OEM recovery
- * guidance, delivered by remote config to a budget-phone install base — rather
+ * G Recovery shows the SHAPE of what it will be - per-brand OEM recovery
+ * guidance, delivered by remote config to a budget-phone install base - rather
  * than a blank app section.
  *
  * When the app is real, this becomes a reader over whatever store holds the
@@ -34,11 +34,11 @@ export default async function GuidesPage({
   // Illustrative only. The real list comes from the install base once the app
   // ships; these are the OEMs G Recovery's traffic actually skews toward.
   const brands = [
-    { brand: 'Infinix', share: '26%', guides: '—' },
-    { brand: 'Tecno', share: '21%', guides: '—' },
-    { brand: 'Xiaomi / Redmi', share: '19%', guides: '—' },
-    { brand: 'Samsung', share: '17%', guides: '—' },
-    { brand: 'Oppo / realme', share: '9%', guides: '—' },
+    { brand: 'Infinix', share: '26%', guides: '-' },
+    { brand: 'Tecno', share: '21%', guides: '-' },
+    { brand: 'Xiaomi / Redmi', share: '19%', guides: '-' },
+    { brand: 'Samsung', share: '17%', guides: '-' },
+    { brand: 'Oppo / realme', share: '9%', guides: '-' },
   ];
 
   return (
@@ -50,8 +50,8 @@ export default async function GuidesPage({
       />
 
       <Grid cols={4}>
-        <Stat label="Brands covered" value="—" />
-        <Stat label="Guides published" value="—" />
+        <Stat label="Brands covered" value="-" />
+        <Stat label="Guides published" value="-" />
         <Stat label="Delivery" value="remote config" />
         <Stat label="State" value="not built" tone="warn" />
       </Grid>

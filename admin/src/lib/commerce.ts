@@ -89,7 +89,7 @@ export async function commerceReport(app: AppId): Promise<CommerceReport> {
   //
   // THE R2 HALF IS WRAPPED AND PLAY'S IS NOT, because they fail differently.
   // `listPlayProducts` already returns a result object and never throws, while
-  // `getObject` RETHROWS anything that is not a missing key — so bad R2
+  // `getObject` RETHROWS anything that is not a missing key - so bad R2
   // credentials propagate out of `readLiveIndex`, out of this function, and
   // into the error boundary, blanking a whole page because one of its three
   // inputs was unreachable. That is precisely the failure this screen exists to

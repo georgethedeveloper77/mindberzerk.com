@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * PHASE C4 — a redirect, NOT a security boundary.
+ * PHASE C4 - a redirect, NOT a security boundary.
  *
  * READ THIS BEFORE ADDING A ROUTE.
  *
@@ -17,7 +17,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * NAMED proxy.ts, NOT middleware.ts. Next 16 renamed the convention; the old
  * name still runs but warns, and it will stop working. The file must be a
- * DEFAULT export, unlike `middleware` which was a named one — keeping the named
+ * DEFAULT export, unlike `middleware` which was a named one - keeping the named
  * export as well would silently do nothing.
  */
 export default function proxy(request: NextRequest) {
@@ -66,7 +66,7 @@ export default function proxy(request: NextRequest) {
 
 export const config = {
   // /api is deliberately EXCLUDED. Those routes do their own verification and
-  // must return 401 JSON, not a 307 to an HTML login page — a redirect there
+  // must return 401 JSON, not a 307 to an HTML login page - a redirect there
   // turns an auth failure into a confusing parse error at the caller.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * PHASE C-polish — the error boundary every page falls back to.
+ * PHASE C-polish - the error boundary every page falls back to.
  *
  * A page's R2 or Remote Config read can throw: a missing credential, a network
  * blip, a service account without a role. Before this, that crashed to Next's
- * default error page — a stack trace on a white background, which on a phone
+ * default error page - a stack trace on a white background, which on a phone
  * standing somewhere is useless. This catches it, names the likely cause, and
  * offers retry, because most of these are transient.
  *

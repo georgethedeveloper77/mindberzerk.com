@@ -1,7 +1,7 @@
 import { NotAuthorised, requireAdmin } from '@/lib/auth';
 
 /**
- * PHASE C-polish — one place for the auth gate.
+ * PHASE C-polish - one place for the auth gate.
  *
  * Every page and route repeated the same try/requireAdmin/catch NotAuthorised
  * block, thirteen times, each free to drift. This centralises the PAGE variant:
@@ -10,7 +10,7 @@ import { NotAuthorised, requireAdmin } from '@/lib/auth';
  * rather than being swallowed as "not authorised".
  *
  * Routes keep their own inline block, because a route must answer 401 JSON, not
- * render HTML — a shared helper that returned different types for the two cases
+ * render HTML - a shared helper that returned different types for the two cases
  * would be worse than the duplication.
  *
  * Usage at the top of a server page:

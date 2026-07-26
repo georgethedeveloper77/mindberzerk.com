@@ -11,9 +11,10 @@ import {
   isPackageName,
 } from '@/lib/icon-pack';
 import { renderHeroIcon } from '@/lib/image-trim';
+import { iconsSkuFor, skuProblems } from '@/lib/skus';
 
 /**
- * PHASE C8 — the hero pack builder, corrected to the launcher's reader.
+ * PHASE C8 - the hero pack builder, corrected to the launcher's reader.
  *
  * ## What changed after reading HeroIconResolver / IconRenderer
  *
@@ -65,12 +66,18 @@ export function IconBuilder({
   const [name, setName] = useState('');
   const [minAppVersion, setMinAppVersion] = useState('6');
   const [masked, setMasked] = useState(false);
+  const [sku, setSku] = useState('');
   const [plate, setPlate] = useState('#E95420');
   const [radius, setRadius] = useState(22); // preview only, percent
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+
+  // Advisory, never blocking: a shape Play would refuse is worth saying loudly,
+  // but this builder does not get to decide what a valid product ID is. The
+  // signing route's `isSafeSku` is the gate, and Play is the final word.
+  const skuIssues = sku.trim() === '' ? [] : skuProblems(sku.trim(), 'icons');
 
   const existing = publishedVersion[packId];
   const version = existing ? existing + 1 : 1;
@@ -158,7 +165,14 @@ export function IconBuilder({
     body.set('minAppVersion', minAppVersion);
     body.set('title', name || packId);
     body.set('summary', `${entries.length} hero icons`);
-    body.set('sku', '');
+    // WAS HARDCODED EMPTY, which meant every icon pack this builder has ever
+    // published was free, permanently and silently. `icons_kali`,
+    // `icons_garuda` and `icons_pop_cosmic` exist in Play Console and could not
+    // be attached to anything, so the standalone icon-pack product had a price
+    // in the store and no pack behind it.
+    //
+    // Blank still means free, which is correct and is the common case.
+    body.set('sku', sku.trim());
 
     for (const e of entries) {
       if (!e.blob) continue;
@@ -228,6 +242,49 @@ export function IconBuilder({
               className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
             />
           </div>
+        </div>
+
+        {/* ── PRICE ────────────────────────────────────────────────────────
+            Blank is free, and free is the common case: the bundled packs and
+            every hero pack that ships with a free distro carry no SKU.
+
+            The suggestion button exists because a Play product ID is PERMANENT.
+            Play never releases one for reuse, so a typo here is a store listing
+            you live with, and `icons_<slug>` is the convention the signed index,
+            `isSafeSku` and the commerce page all already assume. */}
+        <div className="mt-3">
+          <label className="block text-micro text-ink-3">
+            Play product ID <span className="text-ink-3/60">· blank means free</span>
+          </label>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <input
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              placeholder="icons_kali"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+            />
+            {packId && !sku && (
+              <button
+                onClick={() => setSku(iconsSkuFor(packId))}
+                className="shrink-0 rounded-lg border border-line bg-surface-2 px-2.5 py-2 text-data text-ink-2 transition hover:bg-surface-3"
+              >
+                {iconsSkuFor(packId)}
+              </button>
+            )}
+          </div>
+          {skuIssues.map((p) => (
+            <p key={p} className="mt-1 text-micro text-warn">
+              {p}
+            </p>
+          ))}
+          {sku.trim() !== '' && skuIssues.length === 0 && (
+            <p className="mt-1 text-micro text-ink-3">
+              Nothing installs this pack until the product is active in Play. Check
+              it on the Commerce page after publishing.
+            </p>
+          )}
         </div>
 
         {/* masked is the one real switch the format has */}

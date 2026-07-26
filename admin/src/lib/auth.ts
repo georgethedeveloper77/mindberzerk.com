@@ -10,7 +10,7 @@ import {
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 
 /**
- * PHASE C4 — the front door.
+ * PHASE C4 - the front door.
  *
  * This panel can write to the CDN that every installed launcher trusts, and it
  * holds the ed25519 private key those launchers verify against. It is the
@@ -29,9 +29,9 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
  * `proxy.ts` runs on the Edge runtime, which has no Node crypto and therefore
  * cannot run firebase-admin. So the split is:
  *
- *   proxy.ts    — checks a cookie EXISTS. Cheap, no verification. Purely to
+ *   proxy.ts    - checks a cookie EXISTS. Cheap, no verification. Purely to
  *                 redirect a logged-out browser to /login.
- *   this file   — the real check, in Node, on every route handler and server
+ *   this file   - the real check, in Node, on every route handler and server
  *                 component that touches anything.
  *
  * THE PROXY IS NOT A SECURITY BOUNDARY. Anything that reads the key or writes
@@ -47,9 +47,9 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
  *
  *  1. App Hosting supplies application-default credentials, so in production
  *     neither env var below exists and this Just Works.
- *  2. GOOGLE_APPLICATION_CREDENTIALS — a FILE PATH. The right way to do it
+ *  2. GOOGLE_APPLICATION_CREDENTIALS - a FILE PATH. The right way to do it
  *     locally, and `applicationDefault()` reads it with no code here at all.
- *  3. FIREBASE_SERVICE_ACCOUNT — the JSON inline, kept only as a fallback for
+ *  3. FIREBASE_SERVICE_ACCOUNT - the JSON inline, kept only as a fallback for
  *     environments where a file cannot be mounted.
  *
  * OPTION 3 IS A TRAP AND THE ERROR BELOW EXISTS BECAUSE OF IT. A service
@@ -108,7 +108,7 @@ function adminApp(): App {
 /**
  * `__session` is not an arbitrary name. Firebase Hosting and App Hosting strip
  * every cookie except one called exactly this before the request reaches the
- * origin, so any other name works locally and vanishes in production — a
+ * origin, so any other name works locally and vanishes in production - a
  * failure that looks like "auth randomly stops working once deployed".
  */
 export const SESSION_COOKIE = '__session';
@@ -157,7 +157,7 @@ export async function requireAdmin(): Promise<DecodedIdToken> {
     // ADMIN_UIDS unset means the secret is missing, not that everyone is an
     // admin. Fail closed and say so in the log, because the alternative is a
     // misconfigured deploy silently becoming an open panel.
-    console.error('ADMIN_UIDS is empty — refusing all access');
+    console.error('ADMIN_UIDS is empty - refusing all access');
     throw new NotAuthorised('Not authorised');
   }
   if (!allowed.has(decoded.uid)) {
@@ -174,7 +174,7 @@ export async function createSession(idToken: string, maxAgeMs: number) {
 
   // Verify BEFORE minting, including the allowlist. Without this the endpoint
   // would happily issue a session cookie to any valid Firebase user in the
-  // project, and the allowlist would only be enforced on the next request —
+  // project, and the allowlist would only be enforced on the next request -
   // which is one refactor away from not being enforced at all.
   const decoded = await auth.verifyIdToken(idToken, true);
   if (!allowedUids().has(decoded.uid)) {

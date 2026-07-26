@@ -22,7 +22,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 — the overview, and the entry point.
+ * PHASE C5 - the overview, and the entry point.
  *
  * ## Every number here is read from the bucket
  *
@@ -38,10 +38,22 @@ export const dynamic = 'force-dynamic';
  *
  * ## Reading both apps must not let one break the other
  *
- * `readLiveIndex` reaches R2, so a missing credential or a network blip throws.
- * Each app is read inside its own catch and renders as `unreachable` rather than
- * taking the whole page down — the overview is the page you load to find out
- * something is wrong, so it has to survive things being wrong.
+ * `readLiveIndex` reaches R2, so a missing credential or a network blip has to
+ * be survivable: the overview is the page you load to find out something is
+ * wrong, so it has to work while things are wrong.
+ *
+ * ## The catch is no longer where that happens, and this page regressed on it
+ *
+ * `readLiveIndex` used to THROW on a read failure and the try/catch below was
+ * the only thing standing between one bad credential and a dead panel. It now
+ * returns `unreachable` instead, so every other screen degrades rather than
+ * dying - and this page, which had been correctly shouting "could not read the
+ * bucket", quietly stopped. The catch never fired again, `error` was always
+ * null, and an unreadable bucket started rendering as the `none` chip: the exact
+ * same thing a fresh bucket with nothing published shows.
+ *
+ * So the flag is read explicitly below. The try/catch stays as a backstop for
+ * `indexIsSigned` and for anything that starts throwing later.
  */
 
 interface AppRow {
@@ -57,7 +69,10 @@ async function readApp(id: AppId): Promise<AppRow> {
     // Only ask about the signature when there is an index to sign. A bucket with
     // no index for an app that has not shipped is the normal case, not a fault.
     const signed = live.exists ? await indexIsSigned(id) : false;
-    return { id, live, signed, error: null };
+    // `unreachable` rather than null: the read failing is now reported, not
+    // thrown, and treating it as success turns "we cannot see the bucket" into
+    // "the bucket is empty".
+    return { id, live, signed, error: live.unreachable };
   } catch (e) {
     return { id, live: null, signed: false, error: (e as Error).message };
   }
@@ -84,6 +99,11 @@ export default async function OverviewPage() {
   const corrupt = rows.filter((r) => r.live?.corrupt);
   const unreachable = rows.filter((r) => r.error);
 
+  // Not "some app failed" but "we learned nothing at all", which is when the
+  // aggregate figures stop meaning anything. One app unreachable out of two
+  // still gives a real number for the other.
+  const blind = unreachable.length === rows.length && rows.length > 0;
+
   return (
     <Shell>
       {corrupt.map((r) => (
@@ -99,9 +119,14 @@ export default async function OverviewPage() {
           it and keeps the catalogue it already had. Republish to regenerate both.
         </Banner>
       ))}
+      {/* `bad`, not `warn`. It was a warning when a failed read took the page
+          down anyway and you could not miss it. Now that every screen degrades
+          politely, this banner is the only thing distinguishing an empty panel
+          from a blind one, and every number below it is a zero it invented. */}
       {unreachable.map((r) => (
-        <Banner key={r.id} tone="warn">
-          {r.id}: could not read the bucket. {r.error}
+        <Banner key={r.id} tone="bad">
+          {r.id}: could not read the bucket, so every figure below is a default
+          rather than a measurement. {r.error}
         </Banner>
       ))}
 
@@ -111,10 +136,19 @@ export default async function OverviewPage() {
         actions={<Button href="/apps/g-launcher/publish" variant="primary">Publish</Button>}
       />
 
+      {/* A dash, not a zero, when the bucket did not answer. "0 packs, 0 B,
+          never" beside a red banner reads as a real measurement of an empty
+          store, and it is the reading that cost an afternoon: the panel looked
+          like a fresh install rather than a broken credential. */}
       <Grid cols={4}>
-        <Stat label="Packs live" value={packs} sub={`${paid} paid`} />
-        <Stat label="On the CDN" value={bytes(size)} />
-        <Stat label="Last publish" value={when(lastPublish)} />
+        <Stat
+          label="Packs live"
+          value={blind ? '\u2014' : packs}
+          sub={blind ? 'bucket unreachable' : `${paid} paid`}
+          tone={blind ? 'warn' : 'plain'}
+        />
+        <Stat label="On the CDN" value={blind ? '\u2014' : bytes(size)} />
+        <Stat label="Last publish" value={blind ? '\u2014' : when(lastPublish)} />
         <Stat
           label="Index signed"
           value={`${rows.filter((r) => r.signed).length}/${rows.filter((r) => r.live?.exists).length || 0}`}
@@ -154,10 +188,10 @@ export default async function OverviewPage() {
                     </span>
                   </Td>
                   <Td mono dim>
-                    {meta.pkg ?? '—'}
+                    {meta.pkg ?? '-'}
                   </Td>
-                  <Td num>{r.live?.packs.length ?? '—'}</Td>
-                  <Td num>{size ? bytes(size) : '—'}</Td>
+                  <Td num>{r.live?.packs.length ?? '-'}</Td>
+                  <Td num>{size ? bytes(size) : '-'}</Td>
                   <Td>
                     {r.error ? (
                       <Chip tone="warn">unreachable</Chip>
@@ -200,7 +234,7 @@ export default async function OverviewPage() {
               <Tr key={a.id}>
                 <Td>{a.name}</Td>
                 <Td mono dim>
-                  {a.pkg ?? '—'}
+                  {a.pkg ?? '-'}
                 </Td>
                 <Td>
                   <Chip tone={a.state === 'live' ? 'ok' : a.state === 'planned' ? 'plain' : 'info'}>
@@ -217,12 +251,12 @@ export default async function OverviewPage() {
 
         <Card title="Signing and delivery">
           <KV k="Bucket" v={process.env.R2_BUCKET ?? 'mindberzerk-cdn'} />
-          <KV k="Key id" v={rows[0]?.live?.keyId ?? process.env.PACK_KEY_ID ?? '—'} />
+          <KV k="Key id" v={rows[0]?.live?.keyId ?? process.env.PACK_KEY_ID ?? '-'} />
           <KV
             k="Bundles"
             v={rows.reduce((n, r) => n + (r.live?.entitlements.length ?? 0), 0)}
           />
-          <KV k="generatedAt" v={lastPublish || '—'} />
+          <KV k="generatedAt" v={lastPublish || '-'} />
         </Card>
       </div>
     </Shell>

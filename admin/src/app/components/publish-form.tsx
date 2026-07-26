@@ -13,13 +13,13 @@ interface PublishedPack {
 }
 
 /**
- * PHASE C4 — publishing, from a phone or a laptop. PHASE C5 — on the tokens.
+ * PHASE C4 - publishing, from a phone or a laptop. PHASE C5 - on the tokens.
  *
  * ## Two inputs, because mobile browsers cannot do directories
  *
  * `webkitdirectory` is unsupported on iOS Safari and Android Chrome. It does not
  * error; the picker just offers individual files and the tree is silently lost,
- * which for a pack is fatal — the relative paths ARE part of the signed manifest
+ * which for a pack is fatal - the relative paths ARE part of the signed manifest
  * and the device resolves `wallpapers/bg.webp` by exactly that string.
  *
  * So the mode is chosen by capability, not by preference, and defaults to zip on
@@ -37,7 +37,7 @@ interface PublishedPack {
  * ## C5 changed nothing but the classes
  *
  * Colours now come from the token layer, and the per-input `text-base sm:text-sm`
- * dance is gone because globals.css sets it for every input in the panel — iOS
+ * dance is gone because globals.css sets it for every input in the panel - iOS
  * Safari zooms the page when a font under 16px takes focus and never zooms back,
  * so that rule belongs in one place rather than on every field.
  */

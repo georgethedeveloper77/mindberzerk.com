@@ -11,12 +11,12 @@ interface ManagedKey {
 }
 
 /**
- * PHASE C11 — editing managed Remote Config keys.
+ * PHASE C11 - editing managed Remote Config keys.
  *
  * ## One key at a time, with the ETag from the page
  *
  * Each row publishes independently, carrying the template ETag the page read.
- * If the template moved since — someone edited it in the console — the write
+ * If the template moved since - someone edited it in the console - the write
  * returns 409 and this shows "reload", rather than silently overwriting their
  * change. That is the whole reason the value is not just a fire-and-forget PUT.
  *
