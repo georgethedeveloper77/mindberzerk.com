@@ -10,7 +10,28 @@ const key = (app: AppId) => `${app}/admin/registry.json`;
 export async function loadRegistry(app: string): Promise<RegistryApp[]> {
   await requireAdmin();
   if (!APPS.includes(app as AppId)) return [];
-  const bytes = await getObject(key(app as AppId));
+
+  // ── READS DEGRADE, BECAUSE THE WRITE NOW GUARDS ITSELF ───────────────────
+  //
+  // This used to let the exception through, and that was right at the time: the
+  // editor sends the WHOLE array back, so a read that failed to an empty list
+  // would put an empty editor in front of someone and the next save would erase
+  // every app in the registry. A dead screen cannot overwrite anything.
+  //
+  // `saveRegistry` now reads before writing and refuses when that read fails,
+  // so the wipe is impossible from the other end. With that guard in place the
+  // throw only buys a crashed page, and crashing the registry editor because a
+  // credential expired is the strictly worse of the two.
+  //
+  // The page should still show a banner. Until it reads `loadRegistrySafe`, an
+  // unreachable bucket looks like an empty registry, which is misleading but no
+  // longer destructive.
+  let bytes: Buffer | null;
+  try {
+    bytes = await getObject(key(app as AppId));
+  } catch {
+    return [];
+  }
   if (!bytes) return [];
   try {
     const parsed = JSON.parse(bytes.toString('utf8'));

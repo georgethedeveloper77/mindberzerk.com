@@ -36,33 +36,108 @@ interface Section {
   href?: string;
 }
 
-function sectionsFor(app: string): Section[] {
+interface Group {
+  label: string;
+  sections: Section[];
+}
+
+/**
+ * GROUPED, because ten flat links is a list you scan rather than a nav you use.
+ *
+ * The rail grew one entry at a time and ended up as an undifferentiated column
+ * where Packs, Commerce and Registry all looked equally likely to be the thing
+ * you wanted. Three groups is the smallest split that actually carries meaning,
+ * and each answers a different question:
+ *
+ *   Content   what is in the bucket, and how do I put something there
+ *   Store     what does it cost, and can anyone actually buy it
+ *   App       everything that configures the app rather than its content
+ *
+ * The headings are labels, not links. A heading you can click competes with the
+ * items under it and neither reads as the target.
+ */
+function groupsFor(app: string): Group[] {
   return [
-    { label: 'Packs', href: `/apps/${app}/packs` },
-    { label: 'Publish', href: `/apps/${app}/publish` },
-    { label: 'Bundles', href: `/apps/${app}/bundles` },
-    // Not launcher-only: any app that sells a pack has the same three systems
-    // to keep in step (signed index, listing flags, Play), and the same way of
-    // being wrong about it.
-    { label: 'Commerce', href: `/apps/${app}/commerce` },
-    { label: 'Config', href: `/apps/${app}/config` },
-    { label: 'Analytics', href: `/apps/${app}/analytics` },
-    // Launcher-only screens. Listing them under G Recovery would promise
-    // something the app does not have.
-    ...(app === 'g-launcher'
-      ? [
-          { label: 'Themes', href: `/apps/${app}/themes` },
-          { label: 'Distros', href: `/apps/${app}/distros/builder` },
-          { label: 'Icons', href: `/apps/${app}/icons` },
-          { label: 'Registry', href: `/apps/${app}/registry` },
-        ]
-      : []),
-    // G Recovery's product is per-brand OEM recovery guidance, not packs. The
-    // section is shown disabled so the nav reflects the real app before it is
-    // built. A placeholder page lives at /apps/g-recovery/guides.
-    ...(app === 'g-recovery'
-      ? [{ label: 'Guides', href: `/apps/${app}/guides` }]
-      : []),
+    {
+      // Not a group heading with one item under it: this is the landing, and
+      // giving it a heading would imply siblings it does not have.
+      label: '',
+      sections: [{ label: 'Overview', href: `/apps/${app}` }],
+    },
+    {
+      label: 'Content',
+      sections: [
+        // Launcher-only. Listing these under G Recovery would promise something
+        // the app does not have.
+        //
+        // THEMES IS GONE FROM HERE, and that is the point rather than an
+        // omission. A theme and a distro were the same artifact behind two
+        // names, so the rail offered two entries that led to two views of one
+        // list, and "where is Ubuntu" had two answers.
+        //
+        // Distros points at the INVENTORY, not at the builder. It used to link
+        // straight to `/distros/builder`, so the nav's only route into distros
+        // was a blank new-distro form and there was nowhere to see what already
+        // existed. The builder is reached from a card.
+        ...(app === 'g-launcher'
+          ? [
+              { label: 'Distros', href: `/apps/${app}/distros` },
+              { label: 'Icons', href: `/apps/${app}/icons` },
+            ]
+          : []),
+        // G Recovery's product is per-brand OEM recovery guidance, not packs.
+        ...(app === 'g-recovery'
+          ? [{ label: 'Guides', href: `/apps/${app}/guides` }]
+          : []),
+
+        // Upload pack was called "Publish" and sat second, which read as the
+        // normal way to work. It is the escape hatch: the only route that can
+        // publish a pack type no builder covers, which is not hypothetical,
+        // because `simple-icons` is a brand pack of 3,449 glyphs and nothing
+        // builds brand packs. It is also the only way in for a pack authored
+        // outside the panel. It belongs beside the things it creates.
+        { label: 'Upload pack', href: `/apps/${app}/publish` },
+      ],
+    },
+    {
+      // ── PACKS IS NOT A PEER OF DISTROS AND ICONS ─────────────────────────
+      //
+      // It is their SUPERSET, and sitting in the same group implied otherwise.
+      // Everything on the CDN is a pack; `packType` says which kind. Distros
+      // filters to `theme`, Icons filters to `hero`/`brand`/`icon`, and this
+      // shows all of them plus the delivery detail neither product view has:
+      // the bucket path, the version, the signed manifest, the file list and
+      // every sha256.
+      //
+      // It also holds two things that exist nowhere else: Unpublish, and
+      // `simple-icons` itself, which is a brand pack of 3,449 glyphs that no
+      // builder creates and therefore appears on no product screen.
+      //
+      // So: its own group, and named for what it is. Three products above, one
+      // substrate below.
+      label: 'Delivery',
+      sections: [{ label: 'CDN objects', href: `/apps/${app}/packs` }],
+    },
+    {
+      label: 'Store',
+      sections: [
+        // Not launcher-only: any app that sells a pack has the same three
+        // systems to keep in step (signed index, listing flags, Play), and the
+        // same way of being wrong about it.
+        { label: 'Commerce', href: `/apps/${app}/commerce` },
+        { label: 'Bundles', href: `/apps/${app}/bundles` },
+      ],
+    },
+    {
+      label: 'App',
+      sections: [
+        { label: 'Config', href: `/apps/${app}/config` },
+        { label: 'Analytics', href: `/apps/${app}/analytics` },
+        ...(app === 'g-launcher'
+          ? [{ label: 'Registry', href: `/apps/${app}/registry` }]
+          : []),
+      ],
+    },
   ];
 }
 
@@ -86,8 +161,22 @@ export function Shell({
     router.refresh();
   }
 
-  const sections = app ? sectionsFor(app) : [];
-  const active = (href: string) => pathname === href;
+  const groups = app ? groupsFor(app) : [];
+  const sections = groups.flatMap((g) => g.sections);
+
+  /**
+   * PREFIX MATCH, not equality, and this was a real bug.
+   *
+   * With `pathname === href`, opening a pack detail at
+   * `/apps/g-launcher/packs/kali-theme` highlighted NOTHING in the rail: the
+   * only screens that ever lit up were the top level of each section. The one
+   * moment you most want to know where you are is two levels deep.
+   *
+   * The trailing slash matters. A bare `startsWith` would light `/packs` for a
+   * hypothetical `/packs-archive`, which is the classic version of this fix
+   * going slightly wrong.
+   */
+  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <div className="md:flex">
@@ -142,30 +231,42 @@ export function Shell({
                 </Link>
 
                 {isCurrent && (
-                  <div className="mt-0.5 ml-3 border-l border-line-soft pl-2">
-                    {sections.map((s) =>
-                      s.href ? (
-                        <Link
-                          key={s.label}
-                          href={s.href}
-                          className={`block rounded-md px-2.5 py-1 text-data transition ${
-                            active(s.href)
-                              ? 'bg-surface-3 text-ink'
-                              : 'text-ink-2 hover:bg-surface-2'
-                          }`}
-                        >
-                          {s.label}
-                        </Link>
-                      ) : (
-                        <span
-                          key={s.label}
-                          className="block cursor-default px-2.5 py-1 text-data text-ink-3/60"
-                          title="Not built yet"
-                        >
-                          {s.label}
-                        </span>
-                      ),
-                    )}
+                  <div className="mt-1 ml-3 border-l border-line-soft pl-2">
+                    {groups.map((g) => (
+                      <div key={g.label} className="mb-2 last:mb-0">
+                        {/* A blank label is the ungrouped case (Overview). It
+                            renders no heading rather than an empty one, which
+                            would leave a stray gap above the first item. */}
+                        {g.label && (
+                          <div className="px-2.5 pb-0.5 text-micro uppercase tracking-wider text-ink-3/70">
+                            {g.label}
+                          </div>
+                        )}
+                        {g.sections.map((s) =>
+                          s.href ? (
+                            <Link
+                              key={s.label}
+                              href={s.href}
+                              className={`block rounded-md px-2.5 py-1 text-data transition ${
+                                active(s.href)
+                                  ? 'bg-surface-3 text-ink'
+                                  : 'text-ink-2 hover:bg-surface-2'
+                              }`}
+                            >
+                              {s.label}
+                            </Link>
+                          ) : (
+                            <span
+                              key={s.label}
+                              className="block cursor-default px-2.5 py-1 text-data text-ink-3/60"
+                              title="Not built yet"
+                            >
+                              {s.label}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -173,9 +274,13 @@ export function Shell({
           })}
         </nav>
 
+        {/* mb-10 clears Next's dev indicator, which is fixed to the bottom-left
+            and sat directly on top of this button. It cost nothing in
+            production and made Sign out untappable in development, which is
+            where this panel is used most. */}
         <button
           onClick={out}
-          className="mt-3 rounded-lg px-2.5 py-1.5 text-left text-data text-ink-3 transition hover:text-ink"
+          className="mt-3 mb-10 rounded-lg px-2.5 py-1.5 text-left text-data text-ink-3 transition hover:text-ink md:mb-10"
         >
           Sign out
         </button>

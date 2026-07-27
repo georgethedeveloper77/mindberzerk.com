@@ -62,16 +62,17 @@ export type ShellName = 'gnome' | 'plasma' | 'tiling' | 'tui' | 'aqua';
 export type ChromeName = 'adwaita' | 'breeze' | 'aqua' | 'generic';
 export type DockName = 'left' | 'bottom' | 'off';
 
-/** Every treatment Dart's `_treatment` recognises. */
-export const TREATMENTS = [
-  'roundedSquare',
-  'squircle',
-  'circle',
-  'square',
-  'teardrop',
-  'original',
-] as const;
-export type TreatmentName = (typeof TREATMENTS)[number];
+/**
+ * Every treatment Dart's `_treatment` recognises.
+ *
+ * RE-EXPORTED from `theme-spec`, not restated. That module is client-safe and
+ * the builder's picker reads it, so if this file kept its own copy the reader
+ * and the writer could drift, and the symptom would be the panel reporting a
+ * treatment as degraded that its own dropdown had just offered.
+ */
+export { ICON_TREATMENTS as TREATMENTS } from './theme-spec';
+import { ICON_TREATMENTS as TREATMENT_LIST } from './theme-spec';
+export type TreatmentName = (typeof TREATMENT_LIST)[number];
 
 export const BOOT_KINDS = [
   'ok',
@@ -413,7 +414,7 @@ export function parseTheme(value: unknown): ResolvedTheme | { error: string } {
     ? rawTreatment
     : 'roundedSquare';
   if (rawTreatment !== null && !isTreatment(rawTreatment)) {
-    note('degraded', 'icons.treatment', `'${rawTreatment}' is not one of ${TREATMENTS.join(', ')}, so roundedSquare applies.`);
+    note('degraded', 'icons.treatment', `'${rawTreatment}' is not one of ${TREATMENT_LIST.join(', ')}, so roundedSquare applies.`);
   }
 
   const icons: ResolvedIcons = {
@@ -644,7 +645,7 @@ function isChrome(v: string | null): v is ChromeName {
 }
 
 function isTreatment(v: string | null): v is TreatmentName {
-  return v !== null && (TREATMENTS as readonly string[]).includes(v);
+  return v !== null && (TREATMENT_LIST as readonly string[]).includes(v);
 }
 
 function isBootKind(v: string | null): v is BootKind {

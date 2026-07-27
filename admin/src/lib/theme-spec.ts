@@ -23,7 +23,37 @@ export const CHROMES: ChromeName[] = ['adwaita', 'breeze', 'aqua', 'generic'];
 export const DOCKS: DockName[] = ['left', 'bottom', 'off'];
 
 /** The IconStyle fields the app reads. Kept loose where item 3 will add a form. */
-export const ICON_TREATMENTS = ['roundedSquare', 'squircle', 'circle', 'none'] as const;
+/**
+ * Every treatment the DEVICE recognises, in the order the picker should offer.
+ *
+ * ─── THIS LIST WAS WRONG, IN BOTH DIRECTIONS ────────────────────────────────
+ *
+ * It read `['roundedSquare', 'squircle', 'circle', 'none']`. Dart's `_treatment`
+ * accepts `circle, squircle, square, teardrop, original, roundedSquare` and has
+ * no `none`.
+ *
+ * So the builder offered a value that does not exist, which the parser silently
+ * degraded to roundedSquare: you picked "none", the JSON said "none", the panel
+ * agreed, and the phone drew rounded squares. And it hid three treatments that
+ * do exist, so `square`, `teardrop` and `original` were unreachable from the UI
+ * and could only be set by hand-editing a theme.json.
+ *
+ * `original` is worth having in the picker on its own: it is the only way to
+ * say "leave the app's own icon shape alone", which is what a distro shipping a
+ * complete hero pack wants.
+ *
+ * SOURCE OF TRUTH: `_treatment` in `lib/engine/theme_spec.dart`. `theme-resolve`
+ * imports this rather than keeping a second copy, so the reader and the writer
+ * cannot disagree about what is offerable.
+ */
+export const ICON_TREATMENTS = [
+  'roundedSquare',
+  'squircle',
+  'circle',
+  'square',
+  'teardrop',
+  'original',
+] as const;
 export type IconTreatment = (typeof ICON_TREATMENTS)[number];
 
 export interface ThemePaletteJson {
@@ -262,3 +292,167 @@ export function blankDraft(id = ''): ThemeDraft {
   };
 }
 
+
+// ── importing an existing theme.json ─────────────────────────────────────────
+
+/**
+ * Read a published or hand-written `theme.json` back into an editable draft.
+ *
+ * The exact inverse of [canonicalThemeJson]: that writes the authored file, this
+ * reads it. Together they let a theme round-trip through the builder without
+ * changing what the device renders.
+ *
+ * ─── IT DOES NOT USE THE RESOLVER, AND THAT IS THE WHOLE DESIGN ─────────────
+ *
+ * `theme-resolve.ts` answers "what will the device draw", filling every absent
+ * key with the default Dart would apply. Importing through it would be a
+ * disaster in slow motion: a theme that authored no `icons` block would come
+ * back with `treatment: roundedSquare, cornerRadius: 0.22`, look unchanged in
+ * the preview, and RE-EXPORT those values as though the author had chosen them.
+ * The next time the app's default changed, every theme ever opened in the
+ * builder would be pinned to the old one.
+ *
+ * That is not hypothetical. `DeskletSkin` carries a long comment about exactly
+ * this bug: its parse manufactured a `surface` for a key the theme never wrote,
+ * and a theme asking for a bigger clock silently turned GNOME's bare clock into
+ * a card. The fix there was to make absence representable. The same rule holds
+ * here.
+ *
+ * So: ABSENT STAYS ABSENT. Only keys actually present are copied. The four
+ * blocks typed `unknown` on [ThemeSpecJson] (`logo`, `boot`, `splash`,
+ * `desklets`) pass through byte-for-byte, so a boot log this build has never
+ * heard of survives an edit to the palette.
+ *
+ * ─── THE REQUIRED FIELDS ────────────────────────────────────────────────────
+ *
+ * `id`, `name`, `palette` and `layout` are non-optional on [ThemeSpecJson]
+ * because the builder needs something to render. When the file omits one, it is
+ * filled from [blankDraft] and a note says so, rather than the import failing:
+ * a half-written theme is the normal reason to open a builder.
+ */
+export function importTheme(
+  value: unknown,
+): { spec: ThemeSpecJson; notes: string[] } | { error: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { error: 'That file is not a JSON object.' };
+  }
+  const j = value as Record<string, unknown>;
+  const notes: string[] = [];
+
+  const base = blankDraft().spec;
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const num = (v: unknown) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  const obj = (v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : undefined;
+
+  const id = str(j.id);
+  if (!id) notes.push('No `id`. The device casts this to a non-null String and throws, so the theme would never load; set one before publishing.');
+
+  const name = str(j.name);
+  if (!name) notes.push('No `name`.');
+
+  const shell = str(j.shell);
+  if (shell && !SHELLS.includes(shell as ShellName)) {
+    notes.push(`Shell '${shell}' is not one this build knows, so it was left as ${base.shell}. Check the spelling before assuming the panel is out of date.`);
+  }
+
+  const paletteRaw = obj(j.palette);
+  if (!paletteRaw) notes.push('No `palette`. The device throws on an absent palette, so this one is the blank default.');
+
+  const layoutRaw = obj(j.layout) ?? {};
+  const gridRaw = obj(layoutRaw.grid);
+  if (!gridRaw && (layoutRaw.rows !== undefined || layoutRaw.cols !== undefined)) {
+    notes.push('`layout.rows`/`layout.cols` are at the top level, where nothing reads them. The parser only looks at `layout.grid`, so the grid has been left at its default.');
+  }
+
+  const tier = str(j.tier);
+  const chrome = str(j.chromeFamily);
+  if (chrome && !CHROMES.includes(chrome as ChromeName)) {
+    notes.push(`Chrome family '${chrome}' is unknown and was dropped, so the shell default applies.`);
+  }
+
+  const wallpapers = Array.isArray(j.wallpapers)
+    ? j.wallpapers.filter((w): w is string => typeof w === 'string')
+    : [];
+  if (Array.isArray(j.wallpapers) && wallpapers.length !== j.wallpapers.length) {
+    notes.push('Some `wallpapers` entries were not strings and were dropped. On the device one such entry throws and loses the whole theme.');
+  }
+  if (!Array.isArray(j.wallpapers) && obj(j.wallpaper)) {
+    const legacy = str(obj(j.wallpaper)!.asset);
+    if (legacy) {
+      wallpapers.push(legacy);
+      notes.push('Converted the old single `wallpaper.asset` shape into `wallpapers`.');
+    }
+  }
+
+  const spec: ThemeSpecJson = {
+    id: id ?? base.id,
+    name: name ?? base.name,
+    version: str(j.version) ?? '',
+    shell: (shell && SHELLS.includes(shell as ShellName) ? shell : base.shell) as ShellName,
+    tier: (tier === 'free' || tier === 'pro' ? tier : base.tier) as TierName,
+    palette: {
+      bgTop: str(paletteRaw?.bgTop) ?? base.palette.bgTop,
+      bgBottom: str(paletteRaw?.bgBottom) ?? base.palette.bgBottom,
+      bar: str(paletteRaw?.bar) ?? base.palette.bar,
+      dock: str(paletteRaw?.dock) ?? base.palette.dock,
+      accent: str(paletteRaw?.accent) ?? base.palette.accent,
+      onDark: str(paletteRaw?.onDark) ?? base.palette.onDark,
+    },
+    layout: {
+      dock: (DOCKS as string[]).includes(str(layoutRaw.dock) ?? '')
+        ? (str(layoutRaw.dock) as DockName)
+        : base.layout.dock,
+      topBar:
+        typeof layoutRaw.topBar === 'boolean' ? layoutRaw.topBar : base.layout.topBar,
+      grid: {
+        rows: num(gridRaw?.rows) ?? base.layout.grid?.rows ?? 5,
+        cols: num(gridRaw?.cols) ?? base.layout.grid?.cols ?? 4,
+      },
+      // Absent stays absent: `canonicalThemeJson` only emits iconScale when it
+      // is non-null, so importing a theme without one and re-exporting must not
+      // introduce it.
+      ...(num(layoutRaw.iconScale) !== undefined
+        ? { iconScale: num(layoutRaw.iconScale) }
+        : {}),
+    },
+    wallpapers,
+    minAppVersion: Math.trunc(num(j.minAppVersion) ?? 0),
+  };
+
+  if (chrome && CHROMES.includes(chrome as ChromeName)) {
+    spec.chromeFamily = chrome as ChromeName;
+  }
+
+  const typo = obj(j.typography);
+  if (typo && (str(typo.display) || str(typo.mono))) {
+    spec.typography = { display: str(typo.display), mono: str(typo.mono) };
+  }
+
+  const icons = obj(j.icons);
+  if (icons) spec.icons = icons as IconStyleJson;
+
+  // Straight through. These are `unknown` on ThemeSpecJson precisely so a block
+  // this build does not model survives an edit to something else.
+  if (j.logo != null) spec.logo = j.logo;
+  if (j.boot != null) spec.boot = j.boot;
+  if (j.splash != null) spec.splash = j.splash;
+  if (j.desklets != null) spec.desklets = j.desklets;
+
+  // Keys nothing reads. Usually a typo, occasionally a field from a newer
+  // build, and either way worth naming: the device ignores both silently.
+  const known = new Set([
+    'id', 'name', 'version', 'shell', 'tier', 'chromeFamily', 'palette',
+    'typography', 'layout', 'icons', 'logo', 'wallpapers', 'wallpaper',
+    'minAppVersion', 'boot', 'splash', 'desklets',
+  ]);
+  const unknownKeys = Object.keys(j).filter((k) => !known.has(k));
+  if (unknownKeys.length) {
+    notes.push(`Ignored ${unknownKeys.length} key(s) nothing reads: ${unknownKeys.join(', ')}. A typo and a field from a newer build look the same here.`);
+  }
+
+  return { spec, notes };
+}

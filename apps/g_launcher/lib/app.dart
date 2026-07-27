@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/prefs/setup_state.dart';
+import 'data/repositories/pack_bridge.dart';
 import 'design/theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
@@ -77,6 +78,25 @@ class _Root extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ── THE PACK BRIDGE ──────────────────────────────────────────────────
+    //
+    // Watched for its construction, not its value: this is what calls
+    // `PackFlutterApi.setUp`, and Riverpod providers are lazy, so without a
+    // watcher the registration never happens and every `onPackInstalled` fires
+    // into nowhere. A pack would download, verify and install correctly, and
+    // the desktop would not repaint until the process died — indistinguishable
+    // from the download having failed.
+    //
+    // HERE rather than in a storefront screen, and here rather than in
+    // `GLauncherApp`. A store screen is not always open, and `PackSyncWorker`
+    // installs in the background while the launcher is foregrounded. `_Root`
+    // outlives both setup and the desktop, so the channel is live from the
+    // first frame to the last.
+    //
+    // Deliberately not awaited or branched on. If it ever threw, a broken
+    // storefront must not stop the home screen from rendering.
+    ref.watch(packBridgeProvider);
+
     final done = ref.watch(setupCompletedProvider);
 
     return done.when(

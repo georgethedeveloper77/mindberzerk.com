@@ -83,71 +83,27 @@ class IconPackGeneration extends Notifier<int> {
 
 /// The catalogue, merged with what is on disk.
 ///
-/// ─── SOMETHING MUST WATCH THIS, OR THE WIRE IS NOT CONNECTED ────────────────
+/// A PURE READER. It does NOT register [PackFlutterApi] — `packBridgeProvider`
+/// does, and the separation is not tidiness.
 ///
-/// Riverpod providers are lazy, and [build] is where [PackFlutterApi] gets
-/// registered. If no widget ever watches this provider, the registration never
-/// runs and `onPackInstalled` goes back to firing into nowhere — which is
-/// exactly the bug this file exists to fix, reintroduced by absence rather than
-/// by a mistake anyone can see in a diff.
+/// Pigeon's `setUp` REPLACES whatever handler is on the channel. If this
+/// registered as well, then whichever of the two resolved last would silently
+/// unhook the other, and the symptom is a progress bar that works until you
+/// open a second screen. Exactly one place may call it.
 ///
-/// The background sync worker can install a pack while the app is foregrounded
-/// and no storefront is open, so this must be warmed at startup rather than
-/// when a store screen mounts. A `ref.watch(packCatalogueProvider)` in the root
-/// widget is enough.
+/// It also decouples lifetime from interest: the bridge must be listening while
+/// the background sync worker installs a pack with no storefront open, and
+/// tying that to whether anyone is looking at a catalogue is how it stops
+/// happening.
 final packCatalogueProvider =
     AsyncNotifierProvider<PackCatalogue, List<PackInfo>>(PackCatalogue.new);
 
 class PackCatalogue extends AsyncNotifier<List<PackInfo>> {
   @override
-  Future<List<PackInfo>> build() async {
-    // Registered BEFORE the first host call, the same ordering `AppList.build`
-    // uses and for the same reason: an install completing mid-startup must not
-    // be dropped on the floor.
-    PackFlutterApi.setUp(_PackSink(onProgress: _onProgress, onInstalled: _onInstalled));
-
+  Future<List<PackInfo>> build() {
     // The CACHED index only. No network, so the store opens instantly and works
     // on a plane; [refresh] is the explicit fetch.
     return ref.read(packHostApiProvider).catalogue();
-  }
-
-  void _onProgress(PackProgress p) {
-    if (p.bytesTotal <= 0) return;
-    ref.read(packProgressProvider.notifier).report(
-          p.packId,
-          p.bytesDone / p.bytesTotal,
-        );
-  }
-
-  void _onInstalled(String packId, int version) {
-    ref.read(packProgressProvider.notifier).done(packId);
-
-    // Re-render every icon. See [iconPackGenerationProvider] for why this is
-    // unconditional rather than limited to icon-bearing pack types.
-    ref.read(iconPackGenerationProvider.notifier).bump();
-
-    // Re-read what is installed, so the card flips from Get to Installed.
-    ref.invalidateSelf();
-
-    // ─── THE LINE THAT MAKES A PURCHASE VISIBLE ────────────────────────────
-    //
-    // `activeThemeSpecProvider` resolved once, at startup or at the last theme
-    // switch, and cached the answer. A theme pack landing on disk after that is
-    // invisible to it: the selection has not changed, so nothing re-runs, and
-    // the phone keeps rendering the Ubuntu fallback it correctly resolved
-    // when the pack was not yet there.
-    //
-    // GATED ON THE SELECTION rather than invalidated unconditionally. Rebuilding
-    // the theme cascades into `effectiveThemeProvider`, which re-pushes the icon
-    // style, re-keys every app-list family and re-checks the wallpaper. Doing
-    // all that because an unrelated pack finished downloading in the background
-    // is a visible hitch on the home screen for no reason.
-    //
-    // The case this catches is the important one and it is the ordinary one:
-    // select a distro you do not own yet, the launcher falls back to Ubuntu,
-    // you install it, and the desktop becomes the thing you chose.
-    final selected = ref.read(selectedThemeIdProvider).asData?.value;
-    if (selected == packId) ref.invalidate(activeThemeSpecProvider);
   }
 
   /// Ask the CDN for a newer index, then re-read if it changed.
@@ -168,7 +124,8 @@ class PackCatalogue extends AsyncNotifier<List<PackInfo>> {
   /// retry. The caller branches on `status`. See `PackResult` in the schema.
   ///
   /// No `invalidateSelf` here: a successful install fires `onPackInstalled`,
-  /// which does it. Doing both would re-read the catalogue twice per install.
+  /// which `packBridgeProvider` handles. Doing both would re-read the catalogue
+  /// twice per install.
   Future<PackResult> install(String packId) {
     return ref.read(packHostApiProvider).installPack(packId);
   }
@@ -193,23 +150,4 @@ class PackCatalogue extends AsyncNotifier<List<PackInfo>> {
     if (selected == packId) ref.invalidate(activeThemeSpecProvider);
     return true;
   }
-}
-
-/// Native's callbacks, adapted onto the notifier.
-///
-/// A plain class rather than the notifier implementing [PackFlutterApi] itself,
-/// mirroring `_AppListSink`. Pigeon's generated interface grows methods over
-/// time and a notifier that also implements it starts failing to compile for
-/// reasons that have nothing to do with state management.
-class _PackSink implements PackFlutterApi {
-  _PackSink({required this.onProgress, required this.onInstalled});
-
-  final void Function(PackProgress) onProgress;
-  final void Function(String packId, int version) onInstalled;
-
-  @override
-  void onPackProgress(PackProgress progress) => onProgress(progress);
-
-  @override
-  void onPackInstalled(String packId, int version) => onInstalled(packId, version);
 }

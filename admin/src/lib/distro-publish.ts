@@ -1,10 +1,16 @@
 import 'server-only';
 
-import { signPack, signIndex, type IndexPack, type IndexEntitlement } from './sign';
-import { putPack, putObject } from './r2';
-import { readLiveIndex, upsertPack, nextGeneratedAt, type AppId } from './catalogue';
-import { canonicalThemeJson, type ThemeSpecJson } from './theme-spec';
+import { readLiveIndex, type AppId } from './catalogue';
 import { canonicalHeroPackJson, type HeroPackJson } from './hero-pack';
+import {
+  commitIndex,
+  guardIndex,
+  nextVersionFor,
+  packKeyId,
+  uploadPack,
+} from './publish-core';
+import type { IndexEntitlement, IndexPack, PackFile } from './sign';
+import { canonicalThemeJson, type ThemeSpecJson } from './theme-spec';
 
 export interface DistroPublishInput {
   app: AppId;
@@ -37,112 +43,152 @@ export type DistroPublishResult =
   | { ok: false; error: string };
 
 /**
- * Publish a whole distro in one shot. The two packs are uploaded first (each in
- * its own safe payload/manifest/signature order), then a SINGLE index write adds
- * both entries plus the distro entitlement, bumps generatedAt, and re-signs.
+ * Publish a whole distro in one shot.
  *
- * One index write is the point: a device must never see the theme pack land in
- * the catalogue a sync before its icon pack, or a buyer briefly owns half a
- * distro. Uploading the pack objects first is safe (nothing reads them until the
- * index points at them); the index flip is the atomic-enough commit.
+ * Both packs are uploaded first, each in its own safe payload/manifest/signature
+ * order, then a SINGLE index write adds both entries plus the distro
+ * entitlement, bumps generatedAt and re-signs.
+ *
+ * One index write is the point. A device must never see the theme pack land in
+ * the catalogue a sync before its icon pack, or someone who just paid owns half
+ * a distro until the next refresh.
+ *
+ * ─── NOW BUILT ON `publish-core`, AND THREE THINGS CHANGED WITH IT ──────────
+ *
+ * This used to be a parallel implementation of the pack route's sequence. It
+ * agreed on nearly all of it, and the disagreements were the expensive part:
+ *
+ *   1. it wrote hero packs to `hero/<id>/<v>` while the route's `dirFor` says
+ *      `heropacks/`. Both installed correctly, because a device follows the
+ *      `path` in the index. But an icon pack published here and then republished
+ *      from the icon builder left its old objects orphaned in the other prefix,
+ *      where `putPack`'s sweep would never look for them. `dirFor` now has one
+ *      home and both callers use it.
+ *
+ *      EXISTING PACKS PUBLISHED UNDER `hero/` KEEP WORKING: their index entry
+ *      still names the old path and their objects are still there. The next
+ *      publish moves them, and the stale prefix is cleanable by hand once
+ *      nothing points at it.
+ *
+ *   2. it signed with `live.keyId`, the key the LAST index happened to use, so
+ *      rotating `PACK_KEY_ID` took effect on the route and silently did not
+ *      here. [packKeyId] is now the only answer.
+ *
+ *   3. it did not refuse an unreadable bucket. `readLiveIndex` no longer throws
+ *      on a failed read, so without [guardIndex] this would have merged into an
+ *      empty catalogue and replaced the live index with two packs.
  */
-export async function publishDistro(input: DistroPublishInput): Promise<DistroPublishResult> {
+export async function publishDistro(
+  input: DistroPublishInput,
+): Promise<DistroPublishResult> {
   try {
     const live = await readLiveIndex(input.app);
-    if (live.corrupt) {
-      throw new Error('The live index did not parse; refusing to publish over it.');
-    }
-    const keyId = live.keyId;
+    const refusal = guardIndex(input.app, live);
+    if (refusal) return { ok: false, error: refusal };
 
-    // ── theme pack ───────────────────────────────────────────────────────────
-    const themeVersion = (live.packs.find((p) => p.packId === input.theme.packId)?.version ?? 0) + 1;
-    const themeJson = Buffer.from(canonicalThemeJson(input.theme.spec), 'utf8');
-    const themeFiles = [
-      { path: 'theme.json', bytes: themeJson },
+    const keyId = packKeyId();
+
+    // ── theme pack ─────────────────────────────────────────────────────────
+    const themeVersion = nextVersionFor(live, input.theme.packId);
+    const themeFiles: PackFile[] = [
+      {
+        path: 'theme.json',
+        bytes: Buffer.from(canonicalThemeJson(input.theme.spec), 'utf8'),
+      },
+      // FLAT, BARE FILENAMES. `PackPaths.installedFile` on the device refuses a
+      // name containing a separator, so a nested path here produces a theme
+      // that installs perfectly and renders a black rectangle where its
+      // wallpaper should be.
       ...input.theme.assets.map((a) => ({ path: a.file, bytes: a.bytes })),
     ];
-    const themeSigned = signPack({
-      packType: 'theme',
-      packId: input.theme.packId,
-      version: themeVersion,
-      minAppVersion: input.theme.minAppVersion,
-      keyId,
-      files: themeFiles,
-    });
-    const themePath = `themes/${input.theme.packId}/${themeVersion}`;
-    await putPack(`${input.app}/${themePath}`, themeSigned.objects);
-    const themeEntry: IndexPack = {
-      packId: input.theme.packId,
-      packType: 'theme',
-      path: themePath,
-      version: themeVersion,
-      minAppVersion: input.theme.minAppVersion,
-      sizeBytes: themeFiles.reduce((n, f) => n + f.bytes.length, 0),
-      title: input.theme.title,
-      summary: input.theme.summary,
-      sku: input.theme.sku,
-    };
 
-    // ── icon pack (optional) ───────────────────────────────────────────────────
+    const themeEntry = await uploadPack(
+      input.app,
+      {
+        packType: 'theme',
+        packId: input.theme.packId,
+        version: themeVersion,
+        minAppVersion: input.theme.minAppVersion,
+        title: input.theme.title,
+        summary: input.theme.summary,
+        sku: input.theme.sku,
+        files: themeFiles,
+      },
+      keyId,
+    );
+
+    // ── icon pack, optional ────────────────────────────────────────────────
     let iconEntry: IndexPack | null = null;
     let iconVersion: number | null = null;
+
     if (input.icons && input.icons.entries.length > 0) {
       const ic = input.icons;
-      iconVersion = (live.packs.find((p) => p.packId === ic.packId)?.version ?? 0) + 1;
+      iconVersion = nextVersionFor(live, ic.packId);
+
       const iconsMap: Record<string, string> = {};
       for (const e of ic.entries) iconsMap[e.pkg] = e.file;
-      const packJson: HeroPackJson = { id: ic.packId, name: ic.name, masked: false, icons: iconsMap };
-      const iconFiles = [
+
+      // `masked: false` is the format's usual case and is not configurable from
+      // this screen: a distro's own icon set is final art with its own
+      // silhouette, and masking it would slice the corners off a shape its
+      // author chose. The icon builder exposes the flag for packs that need it.
+      const packJson: HeroPackJson = {
+        id: ic.packId,
+        name: ic.name,
+        masked: false,
+        icons: iconsMap,
+      };
+
+      const iconFiles: PackFile[] = [
         { path: 'pack.json', bytes: Buffer.from(canonicalHeroPackJson(packJson), 'utf8') },
         ...ic.entries.map((e) => ({ path: e.file, bytes: e.bytes })),
       ];
-      const iconSigned = signPack({
-        packType: 'hero',
-        packId: ic.packId,
-        version: iconVersion,
-        minAppVersion: ic.minAppVersion,
+
+      iconEntry = await uploadPack(
+        input.app,
+        {
+          packType: 'hero',
+          packId: ic.packId,
+          version: iconVersion,
+          minAppVersion: ic.minAppVersion,
+          title: ic.name,
+          summary: `${ic.entries.length} ${ic.entries.length === 1 ? 'icon' : 'icons'}`,
+          sku: ic.sku,
+          files: iconFiles,
+        },
         keyId,
-        files: iconFiles,
-      });
-      const iconPath = `hero/${ic.packId}/${iconVersion}`;
-      await putPack(`${input.app}/${iconPath}`, iconSigned.objects);
-      iconEntry = {
-        packId: ic.packId,
-        packType: 'hero',
-        path: iconPath,
-        version: iconVersion,
-        minAppVersion: ic.minAppVersion,
-        sizeBytes: iconFiles.reduce((n, f) => n + f.bytes.length, 0),
-        title: ic.name,
-        summary: `${ic.entries.length} ${ic.entries.length === 1 ? 'icon' : 'icons'}`,
-        sku: ic.sku,
-      };
+      );
     }
 
-    // ── merge packs ────────────────────────────────────────────────────────────
-    let packs = upsertPack(live.packs, themeEntry);
-    if (iconEntry) packs = upsertPack(packs, iconEntry);
-
-    // ── the distro entitlement ─────────────────────────────────────────────────
+    // ── the distro entitlement ─────────────────────────────────────────────
+    //
     // Owning `distroSku` grants both packs. The icon pack ALSO carries its own
-    // `icons_x` sku (set on the pack), so it is buyable alone; that needs no
-    // entitlement. A free distro writes no entitlement.
+    // `icons_x` sku on the pack entry, so it stays buyable alone and needs no
+    // entitlement of its own. A free distro writes none.
+    //
+    // NAMED GRANTS, never a wildcard. A `*` grant promises every pack published
+    // from now until the app dies, and cannot be withdrawn from anyone who
+    // already bought it.
     let entitlements = live.entitlements;
     if (input.distroSku) {
-      const grants = [themeEntry.packId, ...(iconEntry ? [iconEntry.packId] : [])];
       const next: IndexEntitlement = {
         sku: input.distroSku,
         title: input.distroTitle,
         summary: input.distroSummary,
-        grants,
+        grants: [themeEntry.packId, ...(iconEntry ? [iconEntry.packId] : [])],
       };
-      entitlements = [...entitlements.filter((e) => e.sku !== input.distroSku), next];
+      entitlements = [
+        ...entitlements.filter((e) => e.sku !== input.distroSku),
+        next,
+      ];
     }
 
-    const generatedAt = nextGeneratedAt(live);
-    const { index, signature } = signIndex({ generatedAt, keyId, packs, entitlements });
-    await putObject(`${input.app}/index.json`, index, 'application/json');
-    await putObject(`${input.app}/index.sig`, signature, 'application/octet-stream');
+    await commitIndex(
+      input.app,
+      live,
+      iconEntry ? [themeEntry, iconEntry] : [themeEntry],
+      entitlements,
+    );
 
     return { ok: true, themeVersion, iconVersion };
   } catch (e) {

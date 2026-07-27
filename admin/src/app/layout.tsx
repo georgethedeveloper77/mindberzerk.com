@@ -48,7 +48,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* Colours come from globals.css, not from utilities here: the body is the
           one element that must be painted before any CSS-in-JS or route chunk
           arrives, or the first paint is white on a dark panel. */}
-      <body className="min-h-[100dvh] antialiased">
+      {/* suppressHydrationWarning, and ONLY on <body>.
+
+          The hydration mismatch reported here was `cz-shortcut-listen="true"`,
+          which is ColorZilla. Browser extensions inject attributes onto <body>
+          before React hydrates, so the server HTML and the client tree differ
+          on an attribute this app never wrote. React cannot tell that from a
+          real mismatch and warns loudly about a bug that is not in the code.
+
+          Scoped to this one element deliberately. It suppresses the warning for
+          <body>'s own attributes and nothing below it, so a genuine mismatch
+          inside the app still reports. Putting it on <html>, or on a component,
+          is how a real hydration bug goes quiet for a month. */}
+      <body className="min-h-[100dvh] antialiased" suppressHydrationWarning>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

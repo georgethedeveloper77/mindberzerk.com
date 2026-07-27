@@ -76,8 +76,14 @@ export default async function ThemesPage({ params }: { params: Promise<{ app: st
         title="Themes & packs"
         meta={`${rows.length} themes · ${iconRows.length} packs`}
         actions={
-          <Button href={`/apps/${appId}/themes/builder`} variant="primary">
-            New theme
+          /* /themes/builder is gone. A theme and a distro were always the same
+             artifact: a distro is a theme plus an optional icon pack plus
+             optional SKUs, so the workspace is the superset, and two editors
+             for one file was two places for the schema to drift.
+
+             This page stays as the INVENTORY. One list, one editor. */
+          <Button href={`/apps/${appId}/distros/builder`} variant="primary">
+            New distro
           </Button>
         }
       />
@@ -118,7 +124,7 @@ export default async function ThemesPage({ params }: { params: Promise<{ app: st
                 <ListToggle app={appId} packId={r.id} initial={isListed(listing, r.id)} disabled={r.bundled} />
               </Td>
               <Td num>
-                <Button href={`/apps/${appId}/themes/builder?id=${r.id}`}>Edit</Button>
+                <Button href={`/apps/${appId}/distros/builder?id=${r.id}`}>Edit</Button>
               </Td>
             </Tr>
           ))}

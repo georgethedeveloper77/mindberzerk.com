@@ -11,6 +11,7 @@ import { AppGrid, type Assignment } from './AppGrid';
 import { publishDistroAction } from '@/app/apps/[app]/distros/actions';
 import {
   blankDraft,
+  importTheme,
   isSafePackId,
   validateDraft,
   type ChromeName,
@@ -21,6 +22,37 @@ import {
   SHELLS,
 } from '@/lib/theme-spec';
 import { COMMON_APPS, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pack';
+import { distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
+
+/**
+ * Every file a theme.json references, as bare filenames.
+ *
+ * Deliberately tolerant of both shapes it can meet: a bundled theme carries
+ * APK-relative paths, a published one carries bare names, and this has to
+ * report the same list for both. The last path segment is the answer in either
+ * case, and it is also what `PackPaths.installedFile` on the device will accept.
+ */
+function assetNamesOf(spec: ThemeSpecJson): string[] {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === 'string' && v.trim()) out.push(v.split('/').pop()!.trim());
+  };
+
+  for (const w of spec.wallpapers ?? []) push(w);
+
+  const logo = spec.logo;
+  if (typeof logo === 'string') push(logo);
+  else if (logo && typeof logo === 'object') {
+    const l = logo as Record<string, unknown>;
+    push(l.light);
+    push(l.dark);
+  }
+
+  const splash = spec.splash;
+  if (splash && typeof splash === 'object') push((splash as Record<string, unknown>).logo);
+
+  return [...new Set(out)];
+}
 
 interface Asset {
   name: string;
@@ -44,16 +76,82 @@ function extFor(file: File): string {
   return raw.replace(/[^a-z0-9]/g, '') || 'webp';
 }
 
-export function DistroWorkspace({ app }: { app: string }) {
+export function DistroWorkspace({
+  app,
+  initial = null,
+}: {
+  app: string;
+  /**
+   * An existing draft to open, or null for a new distro.
+   *
+   * Read on the SERVER and passed down, so every `useState` below initialises
+   * with the real value on first render. Loading it in an effect instead would
+   * mount the whole form blank and correct it a frame later, and a builder that
+   * flashes an empty palette before filling in is one you check twice.
+   */
+  initial?: ThemeDraft | null;
+}) {
   const [tab, setTab] = React.useState<Tab>('theme');
-  const [base, setBase] = React.useState('');
-  const [spec, setSpec] = React.useState<ThemeSpecJson>(() => blankDraft().spec);
-  const [cardTitle, setCardTitle] = React.useState('');
-  const [cardSummary, setCardSummary] = React.useState('');
+
+  // The distro id, from which both pack ids and both SKUs derive. An existing
+  // theme's pack id IS that id, so opening one seeds it and every derived
+  // field falls out unchanged.
+  const [base, setBase] = React.useState(initial?.id ?? '');
+
+  const [spec, setSpec] = React.useState<ThemeSpecJson>(
+    // THROUGH `importTheme`, NOT the draft's spec directly. A draft read back
+    // out of R2 was written by an older build, by a script, or by hand, so it
+    // is untrusted input in exactly the way a downloaded theme.json is. The
+    // importer fills only what the file actually contains and leaves absent
+    // keys absent, which is what stops an edit to the palette from silently
+    // writing out today's defaults for every block the author never touched.
+    () => {
+      if (!initial) return blankDraft().spec;
+      const imported = importTheme(initial.spec);
+      return 'error' in imported ? blankDraft().spec : imported.spec;
+    },
+  );
+
+  /**
+   * Asset filenames the OPENED theme referenced, as bare names.
+   *
+   * ─── THE BUG THIS EXISTS TO STOP, WHICH IS WORSE THAN IT LOOKS ───────────
+   *
+   * `effectiveSpec` below rewrites `wallpapers` and `logo` from the UPLOADED
+   * files, which is correct: a published pack is flat, so the references have
+   * to be the bare names of the files actually going into it.
+   *
+   * But it rewrites them unconditionally. Open Ubuntu, which references three
+   * wallpapers and two logos, change the accent colour, and publish without
+   * touching the assets tab, and `wallpapers` becomes `[]` and `logo` becomes
+   * undefined. The pack publishes cleanly. The flat-path gate never fires,
+   * because there are no paths left to be unflat. Every device that installs it
+   * gets a distro with no wallpaper and the Mindhunter fallback mark, and
+   * nothing anywhere reported a problem.
+   *
+   * That is strictly worse than the refusal I expected: a refusal tells you
+   * what to fix. So the references are captured at open, and any that have no
+   * matching upload become a publish-blocking problem naming the file.
+   *
+   * Flattened on capture because the bundled themes carry APK-relative paths
+   * (`assets/themes/ubuntu-24-04/wallpapers/numbat_color.webp`) and what has to
+   * be uploaded is `numbat_color.webp`.
+   */
+  const [requiredAssets] = React.useState<string[]>(() =>
+    initial ? assetNamesOf(initial.spec) : [],
+  );
+
+  const [cardTitle, setCardTitle] = React.useState(initial?.title ?? '');
+  const [cardSummary, setCardSummary] = React.useState(initial?.summary ?? '');
 
   // pricing
-  const [free, setFree] = React.useState(false);
-  const [distroSkuRaw, setDistroSkuRaw] = React.useState('');
+  //
+  // A draft with no sku is a free distro, which is the bundled case and the
+  // common one. `free` therefore starts true when we opened something that has
+  // no product ID, rather than defaulting to paid and making every free theme
+  // an edit away from being priced.
+  const [free, setFree] = React.useState(initial ? !initial.sku : false);
+  const [distroSkuRaw, setDistroSkuRaw] = React.useState(initial?.sku ?? '');
   const [iconsSkuRaw, setIconsSkuRaw] = React.useState('');
 
   // theme assets
@@ -73,8 +171,21 @@ export function DistroWorkspace({ app }: { app: string }) {
 
   const themePackId = base ? `${base}-theme` : '';
   const iconPackId = base ? `${base}-icons` : '';
-  const distroSku = free ? null : distroSkuRaw.trim() || (base ? `distro_${base.replace(/-/g, '_')}` : '');
-  const iconsSku = free ? null : iconsSkuRaw.trim() || (base ? `icons_${base.replace(/-/g, '_')}` : '');
+  // ── SKU DERIVATION, THROUGH `skus.ts` AND NOT BY HAND ────────────────────
+  //
+  // This was `base.replace(/-/g, '_')` inline, which is right for the ordinary
+  // case and wrong for the one that costs something. `isSafePackId` allows a
+  // PERIOD in a distro id, so `kali-2024.1` derived `distro_kali_2024.1`, which
+  // `isSafeSku` refuses. The publish would upload both packs, reach `signIndex`
+  // and fail there, leaving the objects in the bucket and nothing in the
+  // catalogue pointing at them.
+  //
+  // `slugFor` collapses every run of non-alphanumerics to one underscore and
+  // trims the ends, so a derived id is always something Play and the signed
+  // index both accept. One derivation, shared with the icon builder and the
+  // commerce page.
+  const distroSku = free ? null : distroSkuRaw.trim() || (base ? distroSkuFor(base) : '');
+  const iconsSku = free ? null : iconsSkuRaw.trim() || (base ? iconsSkuFor(base) : '');
 
   const order = React.useMemo(
     () => entries.filter((e) => assignments[e.pkg]).map((e) => ({ pkg: e.pkg, file: assignments[e.pkg].file })),
@@ -126,7 +237,43 @@ export function DistroWorkspace({ app }: { app: string }) {
       )
     : [];
 
-  const allProblems = [...baseProblems, ...themeProblems, ...iconProblems];
+  // Advisory, and it belongs here rather than beside the derivation above
+  // because it reads `hasIcons`, which is declared further down. A `const` read
+  // before its initialiser is a TDZ throw at render, not a lint warning.
+  //
+  // `isSafeSku` inside `signIndex` remains the gate. This exists so a bad shape
+  // is visible BEFORE an upload rather than after it: a Play product ID is
+  // permanent, so the moment to catch a typo is while it is still a draft.
+  const skuIssues = free
+    ? []
+    : [
+        ...skuProblems(distroSku ?? '', 'distro'),
+        ...(hasIcons ? skuProblems(iconsSku ?? '', 'icons') : []),
+      ];
+
+  // Names as they will ship. Logos are renamed to logo_light/logo_dark on pick,
+  // which is why a theme whose logo was already called that matches without the
+  // author doing anything.
+  const uploadedNames = new Set<string>([
+    ...wallpapers.map((w) => w.name),
+    ...(logoLight ? [logoLight.name] : []),
+    ...(logoDark ? [logoDark.name] : []),
+  ]);
+  const missingAssets = requiredAssets.filter((n) => !uploadedNames.has(n));
+
+  const assetProblems = missingAssets.map(
+    (n) =>
+      `${n} is referenced by this theme and no file has been uploaded for it. ` +
+      'Publishing now would ship the pack without it, silently.',
+  );
+
+  const allProblems = [
+    ...baseProblems,
+    ...themeProblems,
+    ...iconProblems,
+    ...skuIssues,
+    ...assetProblems,
+  ];
   const valid = allProblems.length === 0;
 
   function onAssign(pkg: string, a: Assignment | null) {
@@ -414,10 +561,10 @@ function PricingTab(props: {
         {!props.free ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Field label="whole-distro sku" hint="unlocks theme + icons">
-              <TextInput value={props.distroSkuRaw} placeholder={props.base ? `distro_${props.base.replace(/-/g, '_')}` : 'distro_kali'} onChange={props.setDistroSkuRaw} />
+              <TextInput value={props.distroSkuRaw} placeholder={props.base ? distroSkuFor(props.base) : 'distro_kali'} onChange={props.setDistroSkuRaw} />
             </Field>
             <Field label="icons-alone sku" hint="unlocks the icon pack only">
-              <TextInput value={props.iconsSkuRaw} placeholder={props.base ? `icons_${props.base.replace(/-/g, '_')}` : 'icons_kali'} onChange={props.setIconsSkuRaw} />
+              <TextInput value={props.iconsSkuRaw} placeholder={props.base ? iconsSkuFor(props.base) : 'icons_kali'} onChange={props.setIconsSkuRaw} />
             </Field>
           </div>
         ) : null}

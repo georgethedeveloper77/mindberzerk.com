@@ -181,6 +181,40 @@ export async function ensureSeeded(app: AppId): Promise<ThemeDraft[]> {
   return Object.values(map).sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/**
+ * [ensureSeeded], plus what to show when the bucket will not answer.
+ *
+ * ─── WHY THE SEEDS ARE THE FALLBACK AND NOT AN EMPTY LIST ───────────────────
+ *
+ * `ensureSeeded` reads and then WRITES, so a credential failure takes out both
+ * halves and the whole page dies in the error boundary. Degrading to `[]` would
+ * be the other mistake: the panel would report "no distros" for a launcher that
+ * ships three inside its APK, which is the same lie the overview told when it
+ * showed zero packs on an unreadable bucket.
+ *
+ * The seeds are the honest answer. They are compiled into this file, they are
+ * transcribed from the APK, and they are on every device whatever R2 says. So
+ * with the bucket down the page still shows Ubuntu, KDE and Terminal with real
+ * previews, and the banner explains that nothing published is included.
+ *
+ * `unreachable` is separate from an empty list for the usual reason: "nothing
+ * published yet" and "we could not find out" look identical on screen and only
+ * one of them is safe to act on.
+ */
+export async function ensureSeededSafe(
+  app: AppId,
+): Promise<{ drafts: ThemeDraft[]; unreachable: string | null }> {
+  try {
+    return { drafts: await ensureSeeded(app), unreachable: null };
+  } catch (e) {
+    const seeds = app === 'g-launcher' ? [...SEED_FREE_THEMES] : [];
+    return {
+      drafts: seeds.sort((a, b) => a.id.localeCompare(b.id)),
+      unreachable: (e as Error).message || 'The bucket could not be read.',
+    };
+  }
+}
+
 // ── the listing merge (pure) ─────────────────────────────────────────────────
 
 export interface ThemeRow {

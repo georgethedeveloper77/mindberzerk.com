@@ -1,29 +1,22 @@
 import { NextResponse } from 'next/server';
 
 import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import {
-  nextGeneratedAt,
-  readLiveIndex,
-  upsertPack,
-  type AppId,
-} from '@/lib/catalogue';
-import { putObject, putPack } from '@/lib/r2';
+import { readLiveIndex, type AppId } from '@/lib/catalogue';
+import { checkThemePackFlat } from '@/lib/flat-check';
+import { commitIndex, packKeyId, uploadPack } from '@/lib/publish-core';
 import { unzipSync } from 'fflate';
 
 import {
   INDEX_NAME,
-  INDEX_SIGNATURE_NAME,
   KNOWN_PACK_TYPES,
   isSafePackId,
   isSafeRelativePath,
-  signIndex,
-  signPack,
   type PackFile,
   type PackType,
 } from '@/lib/sign';
 
 /**
- * PHASE C4 - POST a pack, get it signed, uploaded and listed.
+ * PHASE C4 — POST a pack, get it signed, uploaded and listed.
  *
  * This is the route the whole panel exists for. Everything else is a form.
  *
@@ -58,7 +51,7 @@ const META_SKIP = 'pack.meta.json';
 
 export async function POST(request: Request) {
   // FIRST LINE OF THE HANDLER, ALWAYS. The middleware does not verify anything
-  // - it cannot, it runs on Edge - and /api is excluded from it anyway so that
+  // — it cannot, it runs on Edge — and /api is excluded from it anyway so that
   // an auth failure here returns 401 JSON rather than a redirect to an HTML
   // login page, which at the caller looks like a parse error.
   try {
@@ -179,7 +172,7 @@ export async function POST(request: Request) {
     }
     // manifest.json and manifest.sig are OUTPUT. Accepting them as input would
     // let a stale manifest from a previous publish ride along and then be
-    // overwritten - or worse, not be, if the signing step ever changed.
+    // overwritten — or worse, not be, if the signing step ever changed.
       if (path === 'manifest.json' || path === 'manifest.sig') continue;
       if (path === META_SKIP) continue;
 
@@ -201,7 +194,7 @@ export async function POST(request: Request) {
 
   // THE HARDEST REFUSAL IN THIS FILE, and it guards the most expensive mistake.
   //
-  // `readLiveIndex` no longer throws on a read failure - every page in the panel
+  // `readLiveIndex` no longer throws on a read failure — every page in the panel
   // called it and none caught it, so one expired credential took out the whole
   // console. But a soft read failure here is a different animal: the merge below
   // would take an EMPTY catalogue as its base and the write at the end would
@@ -211,6 +204,9 @@ export async function POST(request: Request) {
   //
   // `unreachable` is a separate flag from `exists` for exactly this line. "There
   // is nothing published" is safe to merge into. "We could not find out" is not.
+  // The two refusals now live in `publish-core.guardIndex`, which
+  // `distro-publish` also calls. Keeping the messages here as well is how the
+  // two paths drifted the first time.
   if (live.unreachable) {
     return NextResponse.json(
       {
@@ -249,101 +245,84 @@ export async function POST(request: Request) {
     );
   }
 
-  const keyId = process.env.PACK_KEY_ID ?? 'mh-2026-07';
-  // VERSION IN THE PATH. Every object under a pack is then genuinely immutable
-  // and can be cached for a year; without it, publishing v3 leaves edges
-  // serving v2's manifest against v3's payload, which reads to a device as
-  // tampering. Old versions are left in place deliberately: a device that read
-  // the index a moment ago and is mid-download still finds its files.
-  const packPath = `${dirFor(packType)}/${packId}/${version}`;
-  const remoteDir = `${app}/${packPath}`;
+  // ── THE FLAT-PATH GATE, finally wired ──────────────────────────────────────
+  //
+  // `flat-check.ts` was written for exactly this line and nothing imported it,
+  // so it has never run on a single publish. It catches the hardest failure in
+  // this system to diagnose from the outside: a theme whose `theme.json` points
+  // at `wallpapers/numbat.webp` verifies, downloads, installs, and renders the
+  // Ubuntu fallback, because `PackPaths.installedFile` refuses a filename
+  // containing a separator. Nothing errors anywhere.
+  //
+  // Theme packs only, and it refuses rather than rewriting: rewriting the JSON
+  // would change the bytes being signed, and the whole point of a flat pack is
+  // that the theme.json and the files agree.
+  if (packType === 'theme') {
+    const flat = checkThemePackFlat(files);
+    if (!flat.ok) {
+      return NextResponse.json(
+        {
+          error:
+            'theme.json references assets by a path rather than a bare filename, so they ' +
+            'resolve against nothing once the pack is installed. Flatten both the files and ' +
+            'the references: ' +
+            flat.problems.map((p) => `'${p.ref}' should be '${p.flat}'`).join(', '),
+        },
+        { status: 400 },
+      );
+    }
+  }
 
-  // ── sign ───────────────────────────────────────────────────────────────────
-  let signed;
+  const keyId = packKeyId();
+
+  // ── sign and upload ────────────────────────────────────────────────────────
+  // One shared implementation with `distro-publish`, which is what stops the two
+  // from disagreeing about where a pack type lives in the bucket. `putPack`
+  // inside owns the ordering: payload, then manifest, then signature, then a
+  // sweep of files the previous version listed and this one does not.
+  let entry;
   try {
-    signed = signPack({ packType, packId, version, minAppVersion, keyId, files });
+    entry = await uploadPack(
+      app,
+      { packType, packId, version, minAppVersion, title, summary, sku, files },
+      keyId,
+    );
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
-
-  // ── upload ─────────────────────────────────────────────────────────────────
-  // putPack handles the ordering: payload, then manifest, then signature, then
-  // a sweep of files the previous version listed and this one does not. See r2.ts
-  // for why every intermediate state has to be one the device handles.
-  await putPack(remoteDir, signed.objects);
 
   // ── rebuild the index ──────────────────────────────────────────────────────
   // AFTER the pack is fully up, never before. The index is what tells devices a
   // pack exists; advertising one whose files are still uploading produces a
   // wave of failed installs across the whole install base at once.
-  const packs = upsertPack(live.packs, {
-    packId,
-    packType,
-    path: packPath,
-    version,
-    minAppVersion,
-    sizeBytes: total,
-    title,
-    summary,
-    sku,
-  });
-
-  const generatedAt = nextGeneratedAt(live);
-
-  let index;
+  //
+  // No entitlements argument, so the live list is carried through untouched.
+  // Bundle membership is edited on its own screen; a pack publish must never be
+  // able to change who owns what.
+  let generatedAt: number;
   try {
-    index = signIndex({
-      generatedAt,
-      keyId,
-      packs,
-      // Carried through untouched. Bundle membership is edited on its own
-      // screen; a pack publish must never be able to change who owns what.
-      entitlements: live.entitlements,
-    });
+    generatedAt = await commitIndex(app, live, [entry]);
   } catch (e) {
     // The pack is already uploaded and is perfectly valid; only the catalogue
     // failed. Say so precisely, because "publish failed" would send someone
     // re-uploading a pack that is already there.
     return NextResponse.json(
       {
-        error: `Pack uploaded, but the index could not be signed: ${(e as Error).message}`,
+        error: `Pack uploaded, but the index could not be written: ${(e as Error).message}`,
         packUploaded: true,
       },
       { status: 500 },
     );
   }
 
-  await putObject(`${app}/${INDEX_NAME}`, index.index, 'application/json');
-  await putObject(`${app}/${INDEX_SIGNATURE_NAME}`, index.signature, 'application/octet-stream');
-
   return NextResponse.json({
     ok: true,
     packId,
     version,
-    remoteDir,
+    remoteDir: `${app}/${entry.path}`,
     fileCount: files.length,
     sizeBytes: total,
     generatedAt,
     previousGeneratedAt: live.generatedAt,
   });
-}
-
-/**
- * Where a pack type lives in the bucket.
- *
- * Must match the launcher's expectations and `backend/content/`, which mirror
- * each other path for path. A mismatch here produces 404s on device that read
- * as a network problem rather than a layout problem.
- */
-function dirFor(packType: PackType): string {
-  switch (packType) {
-    case 'theme':
-      return 'themes';
-    case 'brand':
-      return 'brandpacks';
-    case 'hero':
-      return 'heropacks';
-    case 'icon':
-      return 'iconpacks';
-  }
 }
