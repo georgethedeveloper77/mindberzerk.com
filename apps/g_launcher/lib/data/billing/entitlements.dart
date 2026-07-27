@@ -114,6 +114,14 @@ final restorePurchasesProvider = Provider<Future<void> Function()>((ref) {
 /// It cannot live in `bootstrap()`: there is no ProviderContainer yet at that
 /// point, because `runApp(ProviderScope(...))` has not been called.
 final packBridgeProvider = Provider<void>((ref) {
+  // KEPT ALIVE EXPLICITLY. Riverpod 3 auto-disposes a provider the moment its
+  // last listener goes, and this one's VALUE is void — nothing reads it, so
+  // nothing holds it beyond `_Root`'s watch. That watch is stable today, but a
+  // provider whose entire purpose is a side effect must not depend on somebody
+  // remembering to keep watching it: disposal here silently unhooks the
+  // platform channel and every `onPackInstalled` fires into nowhere again.
+  ref.keepAlive();
+
   registerPackFlutterApi(ref);
 
   // A completed purchase should start the download immediately. Making someone

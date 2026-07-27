@@ -34,6 +34,53 @@ String encodeWallpaperSource(String source) {
   return 'file://$source';
 }
 
+/// Is [source] a reference INTO the active theme, rather than a device path or
+/// a URL?
+///
+/// ─── THE BUG THIS EXISTS TO FIX: A DOWNLOADED DISTRO HAS NO WALLPAPER ───────
+///
+/// [encodeWallpaperSource] takes a string and nothing else, so it cannot know
+/// where a theme's files live. That is correct for a BUNDLED theme, whose
+/// `theme.json` says `assets/themes/ubuntu-24-04/wallpapers/numbat_color.webp`
+/// and which resolves through the asset bundle. It is silently wrong for an
+/// INSTALLED pack, whose `theme.json` says `wall_x.webp` — a bare filename,
+/// because `PackPaths` refuses separators — with the directory known only to
+/// `ThemeSource`.
+///
+/// A bare name falls through all four branches above and comes out as
+/// `file://wall_x.webp`: two slashes and a relative remainder, which parses as
+/// an authority with an empty path. There is nothing for native to open, so the
+/// system wallpaper never changes. And the launcher runs TRANSPARENT over the
+/// system wallpaper (see `_WallpaperParallax` in gnome_shell.dart — "the
+/// wallpaper is drawn by WindowManager underneath Flutter"), so this is not a
+/// cosmetic miss: it is the whole reason a downloaded distro appeared to arrive
+/// with no wallpaper at all.
+///
+/// ─── WHY A SEPARATE PREDICATE AND NOT A `spec.asset()` CALL AT THE SITE ─────
+///
+/// Because `prefs.wallpaperCurrent` holds TWO different kinds of string and
+/// only one of them may be resolved against the pack directory:
+///
+///   `wall_x.webp`                       a theme reference     -> resolve
+///   `assets/themes/…/numbat.webp`       a theme reference     -> resolve
+///   `/data/…/cache/image_picker1.jpg`   the user's own photo  -> DO NOT
+///   `content://…`                       a document picker URI -> DO NOT
+///
+/// Resolving the third against the pack directory relocates someone's photo
+/// into a folder it is not in, which is a new bug traded for an old one. The
+/// rule is exactly the inverse of [encodeWallpaperSource]'s last three
+/// branches, and it lives here so the encoder and its discriminator cannot
+/// drift apart — the same reason the encoder and [wallpaperAppliedForKey]
+/// share this file.
+///
+/// TRUE FOR BUNDLED PATHS TOO, deliberately. `ThemeSource.asset` returns a
+/// bundled path unchanged, so passing one through costs nothing and means the
+/// call sites need one branch instead of two.
+bool isThemeAssetRef(String source) =>
+    !source.startsWith('http') &&
+    !source.contains('://') &&
+    !source.startsWith('/');
+
 /// Which theme's wallpaper is currently on the screen.
 ///
 /// ─── WHY THIS IS GLOBAL AND NOT A PER-THEME FLAG ────────────────────────────

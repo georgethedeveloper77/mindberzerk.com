@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/prefs/setup_state.dart';
-import 'data/repositories/pack_bridge.dart';
+import 'data/billing/entitlements.dart';
 import 'design/theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
@@ -95,6 +95,13 @@ class _Root extends ConsumerWidget {
     //
     // Deliberately not awaited or branched on. If it ever threw, a broken
     // storefront must not stop the home screen from rendering.
+    //
+    // MOVED from `data/repositories/pack_bridge.dart`, which is deleted. There
+    // were two providers of this name, in two files, each calling `setUp`, and
+    // this line chose one of them — so the other's progress reports and
+    // catalogue invalidations went to notifiers nothing was watching. The
+    // surviving one also carries the purchase-completed listener, which was in
+    // the half that never ran. See the merge note in `cdn/pack_repository.dart`.
     ref.watch(packBridgeProvider);
 
     final done = ref.watch(setupCompletedProvider);

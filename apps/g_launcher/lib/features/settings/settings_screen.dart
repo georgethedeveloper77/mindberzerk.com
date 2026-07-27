@@ -12,6 +12,7 @@ import '../../engine/theme_spec.dart' show ChromeFamily;
 import '../../system/system_stats.dart';
 import '../gestures/gesture_actions.dart';
 import '../home/workspaces/workspace_controller.dart';
+import '../icons/icon_theme_screen.dart';
 import '../themes/themes_screen.dart';
 import 'device_pages.dart';
 import 'folders_screen.dart';
@@ -1007,7 +1008,7 @@ void _showShapeSheet(
   EffectiveTheme theme,
 ) {
   const shapes = <String, String>{
-    '_theme': 'Theme default',
+    '_theme': 'Distro default',
     'roundedSquare': 'Rounded square',
     'circle': 'Circle',
     'squircle': 'Squircle',
@@ -1359,7 +1360,7 @@ Future<void> _confirmReset(
     title: 'Reset settings?',
     message:
         'Your ${theme.spec.name} layout, icon shape and hidden apps go back to '
-        'the theme defaults. Other themes are untouched.',
+        'the distro defaults. Other distros are untouched.',
     confirmLabel: 'Reset',
     cancelLabel: context.t('common.cancel'),
   );
@@ -1552,8 +1553,31 @@ class _InfoButton extends StatelessWidget {
 // Label helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The Icons row's subtitle: which SOURCE is on top right now.
+///
+/// Reads the two prefs and nothing async, because a settings row that waits on
+/// a package-manager call renders blank on first paint and then pops. The
+/// screen behind it does the resolving.
+///
+/// ORDER MATTERS AND MIRRORS THE RENDERER. A third-party pack layers ABOVE the
+/// icon theme, so when both are set the installed pack is what the user is
+/// mostly looking at, and that is what this names.
+String _iconsLong(EffectiveTheme theme) {
+  if (theme.prefs.systemIconPack != null) {
+    return 'An installed pack, over the distro icons';
+  }
+  final hero = theme.prefs.iconPackId;
+  if (hero != null) return 'The $hero icon theme';
+  return "The distro's own icons";
+}
+
+String _iconsShort(EffectiveTheme theme) {
+  if (theme.prefs.systemIconPack != null) return 'Custom';
+  return theme.prefs.iconPackId ?? 'Distro';
+}
+
 String _shapeLong(String? raw) => switch (raw) {
-      null => 'Following the theme',
+      null => 'Following the distro',
       'roundedSquare' => 'Rounded square',
       'circle' => 'Circle',
       'squircle' => 'Squircle',
@@ -1564,7 +1588,7 @@ String _shapeLong(String? raw) => switch (raw) {
     };
 
 String _shapeShort(String? raw) => switch (raw) {
-      null => 'Theme',
+      null => 'Distro',
       'roundedSquare' => 'Rounded',
       'circle' => 'Circle',
       'squircle' => 'Squircle',
@@ -1611,7 +1635,7 @@ List<Widget> _appearanceSection(
           _Row(
             icon: Icons.palette_outlined,
             accent: true, // leads with the distro accent
-            title: 'Theme',
+            title: 'Distro',
             subtitle: 'The whole desktop look',
             trailing: _Value(theme.spec.name),
             onTap: () => Navigator.of(context).push(
@@ -1631,18 +1655,34 @@ List<Widget> _appearanceSection(
             onTap: () => _showShapeSheet(context, notifier, theme),
           ),
         ),
-        const _FilterRow(
-          ['icon pack', 'icons', 'adaptive', 'yaru'],
+        _FilterRow(
+          // 'icon pack' kept as a search term even though the row is now called
+          // Icons: it is what Play, Nova and Icon Pack Studio all call the
+          // thing, so it is what someone will type.
+          const ['icons', 'icon pack', 'icon theme', 'adaptive', 'yaru', 'nova'],
           _Row(
             icon: Icons.grid_view_outlined,
-            title: 'Icon pack',
-            // A status row, not a promise: the runtime engine already themes
-            // every installed app adaptively, so this states what is already
-            // true. It stays tap-inert until downloadable hero packs ship, at
-            // which point this row grows a picker. No forward-looking copy until
-            // then.
-            subtitle: 'Adaptive — every app covered',
-            trailing: _Value('Adaptive'),
+            // "Icons", because in Linux an icon set is an icon THEME and the
+            // distro is the other thing on this screen. The old title said
+            // "Icon pack", which is what an APK from Play is — one of the two
+            // sources the page now shows, not the whole subject.
+            title: 'Icons',
+            // ─── THIS ROW WAS TAP-INERT AND SAID SO ────────────────────────
+            //
+            // It read "Adaptive — every app covered" with no onTap, and its
+            // comment said it would grow a picker "when downloadable hero packs
+            // ship". They ship now, and `IconPackPage` — a picker for the
+            // third-party half — had been sitting in the tree the whole time
+            // with nothing importing it.
+            //
+            // Both halves now live in `IconThemeScreen`, because they are not
+            // alternatives: a Nova pack covers what it has art for and the
+            // distro's icon theme fills the rest. See the file's header.
+            subtitle: _iconsLong(theme),
+            trailing: _Value(_iconsShort(theme)),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const IconThemeScreen()),
+            ),
           ),
         ),
         _FilterRow(

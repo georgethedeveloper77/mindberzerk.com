@@ -45,6 +45,12 @@ class ThemesScreen extends ConsumerWidget {
     final cards = ref.watch(themeCatalogProvider).asData?.value ?? const <ThemeCard>[];
     final more = ref.watch(themeMoreProvider);
     final progress = ref.watch(packProgressProvider);
+
+    // THE FETCH. `catalogueProvider` is the cached index and never hits the
+    // network; this is the one thing that asks the CDN whether anything is new.
+    // Watched rather than read so the grid rebuilds when the answer lands, and
+    // fired once per app run — see `catalogueRefreshProvider`.
+    ref.watch(catalogueRefreshProvider);
     // Watched here so a price arriving from Play repaints the whole grid at
     // once, rather than each card independently re-reading a provider family.
     ref.watch(ownedSkusProvider);
@@ -102,7 +108,7 @@ class ThemesScreen extends ConsumerWidget {
 
     Future<void> tapCard(ThemeCard c) async {
       if (isActive(c)) {
-        context.showMessage('${c.name} is your current theme');
+        context.showMessage('${c.name} is your current distro');
         return;
       }
 
@@ -147,7 +153,19 @@ class ThemesScreen extends ConsumerWidget {
     }
 
     return ThemedScaffold(
-      body: ListView(
+      // Pull to refresh. The automatic fetch above runs once per app run, which
+      // is right for the common case and useless in the one that matters: you
+      // have just published something and want it NOW. `refresh()` sends an
+      // ETag, so a pull that finds nothing new costs a 304 with no body.
+      //
+      // Colours passed explicitly because RefreshIndicator otherwise reads
+      // `Theme.of`, which this screen deliberately does not have — see
+      // no_constants.sh's settings scope.
+      body: RefreshIndicator(
+        color: ChromeScope.of(context).colors.accent,
+        backgroundColor: ChromeScope.of(context).colors.line,
+        onRefresh: () => ref.read(packActionsProvider).refresh(),
+        child: ListView(
         padding: EdgeInsets.only(
           top: MediaQuery.viewPaddingOf(context).top,
           bottom: 28,
@@ -182,28 +200,37 @@ class ThemesScreen extends ConsumerWidget {
           ),
 
           // ── More ────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _MoreHeader(),
-                for (final m in more)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: _MoreRow(
-                      entry: m,
-                      onGet: () => context.showMessage(
-                        m.pro
-                            ? '${m.name} is a Pro theme, coming soon'
-                            : '${m.name} ships in an update, coming soon',
+          //
+          // RENDERS NOTHING WHEN EMPTY, header included. `themeMoreProvider`
+          // returns no entries now that the storefront shows only what is
+          // actually available, and a lone "More themes" heading over blank
+          // space reads as a list that failed to load. The grid above already
+          // carries every theme the signed index advertises, so an empty
+          // section here is the correct and complete state, not a gap.
+          if (more.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _MoreHeader(),
+                  for (final m in more)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: _MoreRow(
+                        entry: m,
+                        onGet: () => context.showMessage(
+                          m.pro
+                              ? '${m.name} is a paid distro, coming soon'
+                              : '${m.name} ships in an update, coming soon',
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -815,7 +842,7 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Themes', style: d.text.display),
+          Text('Distros', style: d.text.display),
           const SizedBox(height: 3),
           Text(
             'Your phone, as a Linux desktop. Named by the real distro version.',
@@ -836,7 +863,7 @@ class _MoreHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
-        'More themes — pushed via updates',
+        'More distros — pushed via updates',
         style: d.text.label.copyWith(fontSize: 11.5, letterSpacing: 0.5),
       ),
     );

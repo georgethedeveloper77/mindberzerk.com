@@ -268,11 +268,40 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
         (spec.wallpapers.isNotEmpty ? spec.wallpapers.first : null);
 
     if (source != null) {
-      await api_.setWallpaper(
-        encodeWallpaperSource(source),
-        prefs.wallpaperLock ?? false,
-      );
-      await store.write(wallpaperAppliedForKey, spec.id);
+      // ── RESOLVE BEFORE ENCODING ────────────────────────────────────────
+      //
+      // `spec.asset` is what knows whether this theme's files are in the APK
+      // or in `packs/<id>/`, and it is the ONLY thing that does. Handing the
+      // raw string to the encoder works for a bundled theme and produces
+      // `file://wall_x.webp` for a downloaded one — a relative path behind a
+      // scheme, which opens nothing. Since the launcher is transparent over
+      // the system wallpaper, that was the entire reason an installed distro
+      // arrived looking like it had no wallpaper.
+      //
+      // Guarded by `isThemeAssetRef` rather than called unconditionally: a
+      // user's own photo is an absolute path, and resolving THAT against the
+      // pack directory would relocate it. See the note on the predicate.
+      final asset = isThemeAssetRef(source) ? spec.asset(source) : null;
+
+      // ── ONLY ATTEMPT WHAT IS THERE, AND ONLY RECORD WHAT WORKED ────────
+      //
+      // `existsSync` is documented for exactly this call site: synchronous, so
+      // it belongs where a theme RESOLVES rather than in a build method, and
+      // it reports true for bundled assets because the bundle cannot be probed
+      // and a missing one is a build-time problem.
+      //
+      // The write moved INSIDE the success branch. It used to run
+      // unconditionally, one line after an unchecked call, so a wallpaper that
+      // failed to apply was recorded as the wallpaper on screen — and because
+      // this whole branch is gated on that key, the theme then never tried
+      // again. A failure that marks itself done is worse than a failure.
+      if (asset == null || asset.existsSync) {
+        final applied = await api_.setWallpaper(
+          encodeWallpaperSource(asset?.path ?? source),
+          prefs.wallpaperLock ?? false,
+        );
+        if (applied) await store.write(wallpaperAppliedForKey, spec.id);
+      }
     }
     // Nothing to apply, and the key is deliberately NOT written. A theme that
     // ships no wallpapers (Aqua, today) leaves the previous one up, and the

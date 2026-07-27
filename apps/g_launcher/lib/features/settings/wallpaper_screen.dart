@@ -9,6 +9,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/theme_source.dart';
 import '../../system/wallpaper_source.dart';
 
 /// Rotation intervals we are willing to offer.
@@ -54,6 +55,25 @@ class WallpaperScreen extends ConsumerWidget {
 
     final applyToLock = theme.prefs.wallpaperLock ?? false;
 
+    /// A stored source, as native should receive it.
+    ///
+    /// THE ONE PLACE THIS SCREEN ENCODES A WALLPAPER. `apply` and the rotation
+    /// schedule both go through it, and they used to disagree: `apply` called
+    /// the encoder directly while rotation went via the deprecated `_encode`
+    /// below. Both were wrong in the same way for an installed theme, and
+    /// having two of them is why fixing one would have left the other.
+    ///
+    /// `spec.asset` is what turns a downloaded theme's bare `wall_x.webp` into
+    /// the absolute path inside `packs/<id>/`. Without it the encoder emits
+    /// `file://wall_x.webp`, which opens nothing, and the wallpaper silently
+    /// does not change. `isThemeAssetRef` keeps the user's own photos out of
+    /// that resolution — they are absolute paths and belong where they are.
+    String encodeFor(String source) {
+      final asset =
+          isThemeAssetRef(source) ? theme.spec.asset(source) : null;
+      return encodeWallpaperSource(asset?.path ?? source);
+    }
+
     Future<void> apply(String source) async {
       // Stash the user's own wallpaper before the first time we replace it.
       // Idempotent on the native side — it refuses to overwrite an existing
@@ -61,7 +81,7 @@ class WallpaperScreen extends ConsumerWidget {
       await api.stashWallpaper();
 
       final ok = await api.setWallpaper(
-        encodeWallpaperSource(source),
+        encodeFor(source),
         applyToLock,
       );
 
@@ -116,7 +136,7 @@ class WallpaperScreen extends ConsumerWidget {
                     } else {
                       api.scheduleWallpaperRotation(
                         e.value!,
-                        all.map(_encode).toList(),
+                        all.map(encodeFor).toList(),
                         applyToLock,
                       );
                     }
@@ -135,12 +155,12 @@ class WallpaperScreen extends ConsumerWidget {
       body: ListView(
         children: [
           if (presets.isNotEmpty) ...[
-            const ThemedSectionHeader('From this theme'),
-            _Strip(sources: presets, onTap: apply),
+            const ThemedSectionHeader('From this distro'),
+            _Strip(sources: presets, source: theme.spec.source, onTap: apply),
           ],
 
           const ThemedSectionHeader('Yours'),
-          _Strip(sources: mine, onTap: apply),
+          _Strip(sources: mine, source: theme.spec.source, onTap: apply),
 
           ThemedListRow(
             icon: Icons.add_photo_alternate_outlined,
@@ -200,19 +220,6 @@ class WallpaperScreen extends ConsumerWidget {
       ),
     );
   }
-
-  /// Native distinguishes three schemes and the string carries which:
-  ///   assets/…  -> "asset:…"   bundled
-  ///   https://… -> unchanged   CDN, downloaded and cached natively
-  ///   anything else            a file/content URI from the user's gallery
-  /// Moved to `system/wallpaper_source.dart`, and CORRECTED on the way.
-  ///
-  /// The version that lived here attached a scheme to bundled assets and to
-  /// nothing else, so a photo from the gallery reached native as a bare path
-  /// with no scheme and was silently ignored. It also existed in a second
-  /// copy inside effective_theme, which is how one of them stayed wrong.
-  @Deprecated('Use encodeWallpaperSource from system/wallpaper_source.dart')
-  static String _encode(String source) => encodeWallpaperSource(source);
 }
 
 /// "Put my wallpaper back", shown ONLY when a stash actually exists.
@@ -242,7 +249,7 @@ class _RestoreRow extends ConsumerWidget {
         return ThemedListRow(
           icon: Icons.settings_backup_restore,
           title: 'Restore my wallpaper',
-          subtitle: 'The one you had before you applied a theme',
+          subtitle: 'The one you had before you applied a distro',
           onTap: () async {
             final ok = await api.restoreWallpaper();
             if (!context.mounted) return;
@@ -286,9 +293,25 @@ class _RotationValue extends StatelessWidget {
 /// A horizontal strip of wallpaper thumbnails. Empty renders a themed
 /// placeholder line rather than a gap.
 class _Strip extends StatelessWidget {
-  const _Strip({required this.sources, required this.onTap});
+  const _Strip({
+    required this.sources,
+    required this.source,
+    required this.onTap,
+  });
 
   final List<String> sources;
+
+  /// Where the ACTIVE theme's files live.
+  ///
+  /// Needed because the same `theme.json` string means two different things.
+  /// This strip used to guess with `startsWith('assets/')` and fall through to
+  /// `Image.file(File(src))`, so an installed pack's `wall_x.webp` became a
+  /// RELATIVE File, failed to open, and drew the broken-image placeholder for
+  /// every wallpaper a downloaded distro ships. `ThemeSource` is the one thing
+  /// that knows whether to build an AssetImage or a FileImage, and it already
+  /// existed for exactly this.
+  final ThemeSource source;
+
   final Future<void> Function(String) onTap;
 
   @override
@@ -311,8 +334,12 @@ class _Strip extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, i) {
           final src = sources[i];
-          final isAsset = src.startsWith('assets/');
+          // Remote first: it is the only case with its own loading state, and
+          // `isThemeAssetRef` would otherwise have to exclude it twice.
           final isRemote = src.startsWith('http');
+          // A theme reference — bundled OR installed. `source.asset` decides
+          // which, and returns an AssetImage or a FileImage accordingly.
+          final themed = !isRemote && isThemeAssetRef(src) ? source.asset(src) : null;
 
           return GestureDetector(
             onTap: () => onTap(src),
@@ -320,12 +347,14 @@ class _Strip extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: 90,
-                child: switch ((isAsset, isRemote)) {
-                  (true, _) => Image.asset(
-                      src,
+                child: switch ((themed != null, isRemote)) {
+                  (true, _) => Image(
+                      image: themed!.image,
                       fit: BoxFit.cover,
                       // A theme whose wallpaper files are missing must still show
-                      // a usable list, not a red error box.
+                      // a usable list, not a red error box. Reachable for an
+                      // installed pack whose files were swept as well as for a
+                      // bundled path that no longer exists.
                       errorBuilder: (_, __, ___) => const _Missing(
                         Icons.image_not_supported_outlined,
                       ),
@@ -344,6 +373,7 @@ class _Strip extends StatelessWidget {
                       errorBuilder: (_, __, ___) =>
                           const _Missing(Icons.cloud_off_outlined),
                     ),
+                  // The user's own photo: an absolute path or a content URI.
                   _ => Image.file(
                       File(src),
                       fit: BoxFit.cover,

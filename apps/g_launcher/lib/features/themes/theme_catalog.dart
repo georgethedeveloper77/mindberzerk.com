@@ -346,7 +346,7 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       id: p.packId,
       name: p.title,
       version: p.summary.isEmpty ? 'v${p.version}' : p.summary,
-      tag: 'Theme',
+      tag: 'Distro',
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
       preview: const ThemePreviewSpec(
         bg: [Color(0xFF14141A), Color(0xFF0A0A0E)],
@@ -440,35 +440,38 @@ const _floorCards = <ThemeCard>[
       // every tap produced "needs to be purchased first" with nowhere to buy.
     ];
 
-/// The coming-soon teaser. Every entry taps to a "coming soon" message and
-/// starts no download and no purchase, so this list is safe to ship before the
-/// CDN, billing and render paths exist. The three `pro` entries are the locked
-/// paid lineup and match the Play product ids already created
-/// (distro_kali, distro_garuda_dragonized, distro_pop_cosmic); Mint is a planned
-/// free add. Nothing here can dead-end because nothing here promises a button.
-final themeMoreProvider = Provider<List<ThemeMoreEntry>>((ref) => const [
-      ThemeMoreEntry(
-        name: 'Kali Linux',
-        subtitle: 'Dragon · undercover mode',
-        swatch: [Color(0xFFA80030), Color(0xFF5E0019)],
-        pro: true,
-      ),
-      ThemeMoreEntry(
-        name: 'Garuda Dr460nized',
-        subtitle: 'Neon · Dragonized',
-        swatch: [Color(0xFFB44BE8), Color(0xFF5E1E8C)],
-        pro: true,
-      ),
-      ThemeMoreEntry(
-        name: 'Pop!_OS',
-        subtitle: '22.04 · COSMIC',
-        swatch: [Color(0xFF48B9C7), Color(0xFF1F6F79)],
-        pro: true,
-      ),
-      ThemeMoreEntry(
-        name: 'Linux Mint',
-        subtitle: '22 · Cinnamon',
-        swatch: [Color(0xFF0F4C2D), Color(0xFF082B19)],
-        pro: false,
-      ),
-    ]);
+/// The "More themes" list. EMPTY, and that is the change.
+///
+/// ─── AVAILABLE ONLY ─────────────────────────────────────────────────────────
+///
+/// This held four hand-written teasers: Kali, Garuda, Pop!_OS and Mint. Each
+/// tapped to a "coming soon" message, started nothing, and could not be bought,
+/// downloaded or applied. They were honest about being unbuyable and still
+/// wrong, for three reasons that only became visible once the pipeline worked:
+///
+///  1. THE GRID ALREADY SHOWS EVERYTHING REAL. [themeCatalogProvider] merges
+///     the signed index over the floor and calls `_cardFromPack` for any theme
+///     the index advertises that has no floor entry. So the moment Kali is
+///     genuinely published it appears ABOVE as a card with a Get button and a
+///     price. Anything that could legitimately be listed down here is, by
+///     definition, already listed up there.
+///  2. THEY CONTRADICTED THE PRICING MODEL. Two of them render a Pro badge, and
+///     there is no Pro tier: every launcher FEATURE is free and what is sold is
+///     whole distros and icon packs. A badge reading "Pro" on a screen where
+///     nothing else does is the one piece of UI still describing the model that
+///     was dropped.
+///  3. A HARDCODED LIST DRIFTS. These four are a promise made in Dart, so
+///     keeping them true means an app release every time the storefront moves.
+///     The whole point of the signed index is that it does not.
+///
+/// Kept as a provider returning nothing rather than deleted, so [ThemeMoreEntry]
+/// and `_MoreRow` stay compiled and the section can come back as a real,
+/// catalogue-derived list (an "announced but not yet published" block, say)
+/// without reconstructing the widgets. `themes_screen` hides the header when
+/// this is empty, so today the section simply is not there.
+///
+/// If nothing wants it back, grep for `ThemeMoreEntry`, `_MoreRow` and
+/// `_MoreHeader` and remove the four together.
+final themeMoreProvider = Provider<List<ThemeMoreEntry>>(
+  (ref) => const <ThemeMoreEntry>[],
+);

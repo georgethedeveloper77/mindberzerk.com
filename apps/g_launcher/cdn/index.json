@@ -1,17 +1,17 @@
 {
   "formatVersion": 1,
-  "generatedAt": 1784538939,
+  "generatedAt": 1785171687,
   "keyId": "mh-2026-07",
   "packs": [
     {
-      "packId": "simple-icons",
-      "packType": "brand",
-      "path": "brandpacks/simple-icons",
-      "version": 2,
+      "packId": "ubuntu-cdn-test",
+      "packType": "theme",
+      "path": "themes/ubuntu-cdn-test/1",
+      "version": 1,
       "minAppVersion": 6,
-      "sizeBytes": 40527,
-      "title": "Simple Icons",
-      "summary": "CC0 brand glyphs for the apps everyone recognises"
+      "sizeBytes": 141063,
+      "title": "Ubuntu (CDN test)",
+      "summary": "24.04 · GNOME"
     }
   ]
 }
