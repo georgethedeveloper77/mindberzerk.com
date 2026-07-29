@@ -8,3 +8,10 @@
 -keep class * extends androidx.room.RoomDatabase { <init>(); }
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
 -dontwarn androidx.room.paging.**
+# WorkManager instantiates workers BY NAME from a string in its own database, so
+# a renamed class throws at execution time on a background thread with nothing
+# in the UI to show for it. work-runtime's consumer rules keep `extends Worker`;
+# CoroutineWorker is a ListenableWorker and is not covered by that.
+-keep class * extends androidx.work.ListenableWorker {
+    <init>(android.content.Context, androidx.work.WorkerParameters);
+}

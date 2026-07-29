@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { BuilderShell, useToast } from '@/components/console';
-import { Section, Field, TextInput, NumberInput, SelectInput, Toggle } from '@/components/theme-builder/primitives';
+import { Section, Field, TextInput, NumberInput, SelectInput, Segmented, Toggle } from '@/components/theme-builder/primitives';
 import { PaletteEditor, LayoutEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
@@ -25,33 +25,55 @@ import { COMMON_APPS, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pa
 import { distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
 
 /**
- * Every file a theme.json references, as bare filenames.
+ * Did the opened theme reference any wallpaper, and any logo.
  *
- * Deliberately tolerant of both shapes it can meet: a bundled theme carries
- * APK-relative paths, a published one carries bare names, and this has to
- * report the same list for both. The last path segment is the answer in either
- * case, and it is also what `PackPaths.installedFile` on the device will accept.
+ * REPLACES `assetNamesOf`, which returned the bare FILENAMES a theme referenced
+ * so they could be matched one-for-one against what the author uploaded. That
+ * match could never succeed. Wallpaper uploads are named `wall_<timestamp>` and
+ * the references are authored names, so a theme that already had wallpapers had
+ * its publish button disabled forever. Names are no longer compared; only
+ * presence is, per kind.
+ *
+ * ─── WHAT PRESENCE STILL HAS TO CATCH ────────────────────────────────────────
+ *
+ * `effectiveSpec` rewrites `wallpapers` and `logo` from the UPLOADED files,
+ * unconditionally. Open Ubuntu, change the accent colour, publish without ever
+ * opening the assets tab, and `wallpapers` becomes `[]` and `logo` becomes
+ * undefined. The pack publishes cleanly. The flat-path gate cannot fire, because
+ * there are no paths left to be unflat. Every device that installs it gets a
+ * distro with no wallpaper and the Mindhunter fallback mark, and nothing
+ * anywhere reports a problem.
+ *
+ * So the two booleans below are not a weaker version of the name match. They are
+ * the whole of what the name match was actually protecting: dropping references
+ * silently. A published wallpaper being called `wall_ms34zzni.webp` instead of
+ * `numbat_color.webp` costs a clean diff against the bundled copy. Shipping no
+ * wallpaper at all costs a broken distro on every phone that installs it.
+ *
+ * ─── SPLASH IS DELIBERATELY NOT GUARDED ──────────────────────────────────────
+ *
+ * `assetNamesOf` also required `splash.logo`, and there is no uploader for it:
+ * `splash` is passthrough JSON edited as text, with no file slot anywhere in
+ * this workspace. Requiring it made every theme carrying one unpublishable for
+ * the same reason the wallpapers were, which is the bug being fixed here rather
+ * than a second one to preserve. `effectiveSpec` does not rewrite `splash`
+ * either, so the reference survives publish untouched. It can therefore ship
+ * pointing at a file that was never uploaded. That is a real gap and it is not
+ * closed here, because closing it means giving splash a file slot, which is a
+ * change to what the workspace can edit and not to this guard.
  */
-function assetNamesOf(spec: ThemeSpecJson): string[] {
-  const out: string[] = [];
-  const push = (v: unknown) => {
-    if (typeof v === 'string' && v.trim()) out.push(v.split('/').pop()!.trim());
-  };
+function referencesWallpaper(spec: ThemeSpecJson): boolean {
+  return (spec.wallpapers ?? []).some((w) => typeof w === 'string' && w.trim() !== '');
+}
 
-  for (const w of spec.wallpapers ?? []) push(w);
-
+function referencesLogo(spec: ThemeSpecJson): boolean {
   const logo = spec.logo;
-  if (typeof logo === 'string') push(logo);
-  else if (logo && typeof logo === 'object') {
+  if (typeof logo === 'string') return logo.trim() !== '';
+  if (logo && typeof logo === 'object') {
     const l = logo as Record<string, unknown>;
-    push(l.light);
-    push(l.dark);
+    return [l.light, l.dark].some((v) => typeof v === 'string' && v.trim() !== '');
   }
-
-  const splash = spec.splash;
-  if (splash && typeof splash === 'object') push((splash as Record<string, unknown>).logo);
-
-  return [...new Set(out)];
+  return false;
 }
 
 interface Asset {
@@ -79,6 +101,8 @@ function extFor(file: File): string {
 export function DistroWorkspace({
   app,
   initial = null,
+  heroPacks = [],
+  heroPacksUnreadable = false,
 }: {
   app: string;
   /**
@@ -90,6 +114,18 @@ export function DistroWorkspace({
    * flashes an empty palette before filling in is one you check twice.
    */
   initial?: ThemeDraft | null;
+
+  /**
+   * Hero packs already in the live index, for the "use published" source.
+   *
+   * Read on the server for the same reason `initial` is. Empty when nothing is
+   * published AND when the bucket could not be read, which are different facts
+   * with the same shape, so [heroPacksUnreadable] carries the difference: a
+   * picker saying "nothing published yet" when the truth is "we could not look"
+   * invites someone to build a second copy of a pack that already exists.
+   */
+  heroPacks?: { packId: string; title: string; sku: string | null }[];
+  heroPacksUnreadable?: boolean;
 }) {
   const [tab, setTab] = React.useState<Tab>('theme');
 
@@ -113,32 +149,20 @@ export function DistroWorkspace({
   );
 
   /**
-   * Asset filenames the OPENED theme referenced, as bare names.
+   * What the OPENED theme referenced, captured once at open. See the note on
+   * [referencesWallpaper] for why this is presence per kind and not a filename
+   * list.
    *
-   * ─── THE BUG THIS EXISTS TO STOP, WHICH IS WORSE THAN IT LOOKS ───────────
-   *
-   * `effectiveSpec` below rewrites `wallpapers` and `logo` from the UPLOADED
-   * files, which is correct: a published pack is flat, so the references have
-   * to be the bare names of the files actually going into it.
-   *
-   * But it rewrites them unconditionally. Open Ubuntu, which references three
-   * wallpapers and two logos, change the accent colour, and publish without
-   * touching the assets tab, and `wallpapers` becomes `[]` and `logo` becomes
-   * undefined. The pack publishes cleanly. The flat-path gate never fires,
-   * because there are no paths left to be unflat. Every device that installs it
-   * gets a distro with no wallpaper and the Mindhunter fallback mark, and
-   * nothing anywhere reported a problem.
-   *
-   * That is strictly worse than the refusal I expected: a refusal tells you
-   * what to fix. So the references are captured at open, and any that have no
-   * matching upload become a publish-blocking problem naming the file.
-   *
-   * Flattened on capture because the bundled themes carry APK-relative paths
-   * (`assets/themes/ubuntu-24-04/wallpapers/numbat_color.webp`) and what has to
-   * be uploaded is `numbat_color.webp`.
+   * Both are false for a new draft, and that is correct rather than a gap: a
+   * distro with no wallpaper renders the palette gradient, which is a legitimate
+   * thing to ship. The guard is only ever about LOSING a reference that was
+   * there when the theme was opened, never about requiring one to exist.
    */
-  const [requiredAssets] = React.useState<string[]>(() =>
-    initial ? assetNamesOf(initial.spec) : [],
+  const [hadWallpaper] = React.useState<boolean>(() =>
+    initial ? referencesWallpaper(initial.spec) : false,
+  );
+  const [hadLogo] = React.useState<boolean>(() =>
+    initial ? referencesLogo(initial.spec) : false,
   );
 
   const [cardTitle, setCardTitle] = React.useState(initial?.title ?? '');
@@ -163,6 +187,32 @@ export function DistroWorkspace({
   const [entries, setEntries] = React.useState<{ pkg: string; label: string }[]>(() => [...COMMON_APPS]);
   const [assignments, setAssignments] = React.useState<Record<string, Assignment>>({});
   const [iconName, setIconName] = React.useState('');
+
+  /**
+   * WHERE THIS DISTRO'S HERO PACK COMES FROM.
+   *
+   * 'build' is the screen as it was: assign art per app below, and publish a new
+   * pack at `<base>-icons`. 'published' points at a pack that already exists and
+   * publishes no icon pack at all.
+   *
+   * ONE SOURCE, NEVER BOTH, and that is the point rather than a simplification.
+   * A theme names exactly one hero pack. Offering an inline grid and a picker at
+   * the same time means the two can disagree, and the losing one is a pack that
+   * uploads, verifies, installs, is granted, and is never read by anything.
+   *
+   * Opening an existing distro starts in 'published' when its spec already names
+   * a pack, because that is what the distro currently is. It does NOT start
+   * there merely because the field is non-empty and unrecognised: a spec naming
+   * a bundled pack like `yaru`, which is not in the CDN index, would otherwise
+   * open into a picker with nothing selected and look broken.
+   */
+  const [iconSource, setIconSource] = React.useState<'build' | 'published'>(() => {
+    const named = initial?.spec.icons?.heroPack;
+    return named && heroPacks.some((p) => p.packId === named) ? 'published' : 'build';
+  });
+  const [pickedPack, setPickedPack] = React.useState<string>(
+    () => initial?.spec.icons?.heroPack ?? '',
+  );
 
   const [publishing, setPublishing] = React.useState(false);
   const toast = useToast();
@@ -191,7 +241,64 @@ export function DistroWorkspace({
     () => entries.filter((e) => assignments[e.pkg]).map((e) => ({ pkg: e.pkg, file: assignments[e.pkg].file })),
     [entries, assignments],
   );
-  const hasIcons = order.length > 0;
+  // Only the 'build' source publishes an inline pack. In 'published' the grid is
+  // not rendered at all, but its assignments survive a mode switch in state, and
+  // sending them would upload a second pack nothing references.
+  const hasIcons = iconSource === 'build' && order.length > 0;
+
+  /**
+   * The hero pack this distro ships, whichever way it was chosen.
+   *
+   * ─── THE FIELD WAS NEVER WRITTEN, AND THAT WAS THE BUG ──────────────────
+   *
+   * `effectiveSpec` below rewrote `id`, `wallpapers` and `logo`. `heroPack` was
+   * not in it and appeared nowhere else in this file. So filling the grid and
+   * publishing uploaded a pack at `<base>-icons`, wrote the entitlement granting
+   * it, and shipped a theme.json that never named it. The pack verified,
+   * installed, was granted, and if the device links a theme to its icons through
+   * this field, was never read. Nothing errors on that path: an unnamed hero
+   * pack simply means every app falls to the generator, which looks like a
+   * design choice rather than a failure.
+   *
+   * Writing it is correct either way. If the launcher instead resolves by a
+   * `<base>-icons` convention, naming the pack explicitly changes nothing and
+   * makes the theme self-describing.
+   */
+  const heroPackId =
+    iconSource === 'published'
+      ? pickedPack || null
+      : hasIcons
+        ? iconPackId
+        : (spec.icons?.heroPack ?? null);
+
+  const pickedSku =
+    iconSource === 'published'
+      ? (heroPacks.find((p) => p.packId === pickedPack)?.sku ?? null)
+      : null;
+
+  /**
+   * Problems only the published source can create.
+   *
+   * The second one is a pricing leak rather than a typo, and it is silent on
+   * device. `distro-publish` writes an entitlement only when `distroSku` is set,
+   * so a FREE distro naming a PAID icon pack grants nobody anything: the theme
+   * asks for a pack the buyer does not own, the request fails entitlement, and
+   * every app falls to the generator. The distro looks finished here, ships, and
+   * renders wrong for everyone.
+   */
+  const pickedProblems: string[] = [];
+  if (iconSource === 'published') {
+    if (!pickedPack) {
+      pickedProblems.push('Choose a published icon pack, or switch back to building one here.');
+    } else if (!heroPacks.some((p) => p.packId === pickedPack)) {
+      pickedProblems.push(`'${pickedPack}' is not in the published packs, so nothing would resolve it.`);
+    } else if (free && pickedSku) {
+      pickedProblems.push(
+        `This distro is free, so it writes no entitlement, but '${pickedPack}' is sold as '${pickedSku}'. ` +
+          'Nobody would be granted it and every app would fall back to the generated icon.',
+      );
+    }
+  }
 
   // The spec exactly as it will publish: id becomes the theme packId, and the
   // asset paths become the bare filenames the pack ships (not the APK paths).
@@ -205,8 +312,12 @@ export function DistroWorkspace({
       id: themePackId,
       wallpapers: wallpapers.map((w) => w.name),
       logo,
+      // `?? undefined` rather than null: `pruneIcons` in theme-spec drops absent
+      // keys, and a distro with no hero pack should ship no key at all rather
+      // than an explicit null that reads as a deliberate empty.
+      icons: { ...spec.icons, heroPack: heroPackId ?? undefined },
     };
-  }, [spec, themePackId, wallpapers, logoLight, logoDark]);
+  }, [spec, themePackId, wallpapers, logoLight, logoDark, heroPackId]);
 
   const themeDraft: ThemeDraft = {
     id: themePackId,
@@ -251,21 +362,22 @@ export function DistroWorkspace({
         ...(hasIcons ? skuProblems(iconsSku ?? '', 'icons') : []),
       ];
 
-  // Names as they will ship. Logos are renamed to logo_light/logo_dark on pick,
-  // which is why a theme whose logo was already called that matches without the
-  // author doing anything.
-  const uploadedNames = new Set<string>([
-    ...wallpapers.map((w) => w.name),
-    ...(logoLight ? [logoLight.name] : []),
-    ...(logoDark ? [logoDark.name] : []),
-  ]);
-  const missingAssets = requiredAssets.filter((n) => !uploadedNames.has(n));
-
-  const assetProblems = missingAssets.map(
-    (n) =>
-      `${n} is referenced by this theme and no file has been uploaded for it. ` +
-      'Publishing now would ship the pack without it, silently.',
-  );
+  // Only one logo slot has to be filled: `effectiveSpec` above falls back with
+  // `logoLight ?? logoDark` for both sides, so a single upload satisfies a theme
+  // that referenced light and dark.
+  const assetProblems: string[] = [];
+  if (hadWallpaper && wallpapers.length === 0) {
+    assetProblems.push(
+      'This theme referenced a wallpaper and none has been uploaded. ' +
+        'Publishing now would ship the pack with no wallpaper at all, silently.',
+    );
+  }
+  if (hadLogo && !logoLight && !logoDark) {
+    assetProblems.push(
+      'This theme referenced a logo and neither slot is filled. ' +
+        'Publishing now would ship the pack with no logo, silently.',
+    );
+  }
 
   const allProblems = [
     ...baseProblems,
@@ -273,6 +385,7 @@ export function DistroWorkspace({
     ...iconProblems,
     ...skuIssues,
     ...assetProblems,
+    ...pickedProblems,
   ];
   const valid = allProblems.length === 0;
 
@@ -350,7 +463,7 @@ export function DistroWorkspace({
       meta={valid ? '✓ ready' : `✗ ${allProblems.length} to fix`}
       actions={
         <button type="button" className="tb-btn" disabled={!valid || publishing} onClick={publish} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
-          {publishing ? 'publishing…' : 'publish distro'}
+          {publishing ? 'publishing' : 'publish distro'}
         </button>
       }
     >
@@ -468,18 +581,72 @@ export function DistroWorkspace({
 
             {tab === 'icons' ? (
               <>
-                <Section title="icon pack" hint={hasIcons ? `${order.length} assigned` : 'optional - a distro can ship with no icon pack'}>
-                  <Field label="icon pack name">
-                    <TextInput value={iconName} placeholder={`${spec.name || 'Kali'} icons`} mono={false} onChange={setIconName} />
-                  </Field>
-                  <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, marginTop: -4 }}>
-                    ships as <span style={{ color: C.dim }}>{iconPackId || '<distro>-icons'}</span>
-                    {iconsSku ? <> · sold alone as <span style={{ color: C.dim }}>{iconsSku}</span></> : ' · free'}
-                  </div>
+                <Section
+                  title="icon pack"
+                  hint={
+                    iconSource === 'published'
+                      ? 'point this distro at a pack that is already published'
+                      : hasIcons
+                        ? `${order.length} assigned`
+                        : 'optional - a distro can ship with no icon pack'
+                  }
+                  right={
+                    <Segmented<'build' | 'published'>
+                      value={iconSource}
+                      options={['build', 'published'] as const}
+                      labels={{ build: 'build here', published: 'use published' }}
+                      onChange={setIconSource}
+                    />
+                  }
+                >
+                  {iconSource === 'published' ? (
+                    <>
+                      <Field
+                        label="published pack"
+                        hint="publishes no new icon pack"
+                        error={
+                          heroPacksUnreadable
+                            ? 'The published packs could not be read, so this list is empty for a reason that is not "none exist".'
+                            : undefined
+                        }
+                      >
+                        <SelectInput<string>
+                          value={pickedPack}
+                          options={['', ...heroPacks.map((p) => p.packId)]}
+                          labels={{
+                            '': heroPacks.length === 0 ? 'nothing published' : 'choose a pack',
+                            ...Object.fromEntries(
+                              heroPacks.map((p) => [
+                                p.packId,
+                                p.title && p.title !== p.packId ? `${p.title} · ${p.packId}` : p.packId,
+                              ]),
+                            ),
+                          }}
+                          onChange={setPickedPack}
+                        />
+                      </Field>
+                      <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, marginTop: -4 }}>
+                        theme.json names <span style={{ color: C.dim }}>{pickedPack || '<nothing>'}</span>
+                        {pickedSku ? <> · sold alone as <span style={{ color: C.dim }}>{pickedSku}</span></> : null}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Field label="icon pack name">
+                        <TextInput value={iconName} placeholder={`${spec.name || 'Kali'} icons`} mono={false} onChange={setIconName} />
+                      </Field>
+                      <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, marginTop: -4 }}>
+                        ships as <span style={{ color: C.dim }}>{iconPackId || '<distro>-icons'}</span>
+                        {iconsSku ? <> · sold alone as <span style={{ color: C.dim }}>{iconsSku}</span></> : ' · free'}
+                      </div>
+                    </>
+                  )}
                 </Section>
-                <Section title="app icons" hint="assign an image per app; the rest inherit the theme's icon shape">
-                  <AppGrid entries={entries} assignments={assignments} masked={false} onAssign={onAssign} onAddApp={onAddApp} />
-                </Section>
+                {iconSource === 'build' ? (
+                  <Section title="app icons" hint="assign an image per app; the rest inherit the theme's icon shape">
+                    <AppGrid entries={entries} assignments={assignments} masked={false} onAssign={onAssign} onAddApp={onAddApp} />
+                  </Section>
+                ) : null}
               </>
             ) : null}
 

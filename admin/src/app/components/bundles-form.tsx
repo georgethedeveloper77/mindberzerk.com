@@ -234,7 +234,7 @@ export function BundlesForm({
           disabled={!dirty || busy}
           className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
         >
-          {busy ? 'Signing index…' : dirty ? 'Save and sign' : 'No changes'}
+          {busy ? 'Signing index' : dirty ? 'Save and sign' : 'No changes'}
         </button>
       </div>
     </div>

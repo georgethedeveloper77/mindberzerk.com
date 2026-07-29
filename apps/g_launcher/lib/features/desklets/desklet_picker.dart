@@ -574,7 +574,7 @@ class _AppWidgetSection extends ConsumerWidget {
     final async = ref.watch(installedWidgetProvidersProvider);
 
     return async.when(
-      loading: () => _Note(theme: theme, text: 'Looking for app widgets…'),
+      loading: () => _Note(theme: theme, text: 'Looking for app widgets'),
       error: (_, __) => _Note(theme: theme, text: 'Could not read app widgets'),
       data: (groups) {
         // Filter by app label or any of the app's widget labels, so typing

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_account/g_account.dart';
 
+import '../../platform/pack_api.g.dart';
 import '../cdn/pack_repository.dart';
 
 /// PHASE C3 — the app-side wiring over `g_account`.
@@ -23,27 +24,49 @@ import '../cdn/pack_repository.dart';
 /// together, and the day they disagree one gives a pack away and the other
 /// charges twice for it.
 
-/// Every SKU this build knows how to sell.
+/// Every SKU worth asking Play about, DERIVED FROM THE SIGNED INDEX.
 ///
-/// MUST match `backend/content/products.json` and the product IDs created in
-/// Play Console. A SKU listed here but absent from the console comes back in
-/// `notFoundIDs` and its card renders with no price; a SKU in the console but
-/// missing here is simply never queried, so a user who owns it appears not to.
+/// ─── THIS REPLACES A HARDCODED SET, AND THE SET WAS WRONG ───────────────────
 ///
-/// Singles are carried on each pack's own `sku` field in the index; the three
-/// bundles also appear in the index's `entitlements` block.
-const kProductSkus = <String>{
-  'distro_pack_kali',
-  'distro_pack_arch',
-  'distro_pack_garuda',
-  'distro_pack_elementary',
-  'distro_pack_mint',
-  'distro_pack_popos',
-  'distro_pack_debian',
-  'bundle_tiling',
-  'bundle_classic',
-  'distro_pack_all',
-};
+/// `kProductSkus` used to be a const of ten strings — `distro_pack_kali`,
+/// `bundle_tiling`, `distro_pack_all` and friends. Not one of them exists in
+/// the Play console, which lists `distro_kali`, `icons_kali`,
+/// `bundle_all_distros` and four others. Every product came back in
+/// `notFoundIDs`, so no price ever rendered and no purchase could be observed.
+/// The panel's `skus.ts` had the right scheme the whole time; only the app
+/// disagreed.
+///
+/// Correcting the constant would have worked until the eighth distro. The list
+/// belongs in the index because that is where a sku is ATTACHED: the panel
+/// writes `"sku": "distro_kali"` onto a pack, signs the index, and the phone
+/// reads it. Publish a paid distro, attach its product ID, and it is
+/// purchasable — no app release, which is the entire argument for a signed
+/// catalogue rather than a compiled-in one.
+///
+/// ─── WHY A STRING AND NOT A Set ─────────────────────────────────────────────
+///
+/// Riverpod collapses a no-op re-emit by comparing with `==`, and `Set` in Dart
+/// uses IDENTITY equality. Returning a Set here would produce a brand-new object
+/// on every catalogue rebuild, `ownedSkusProvider` would re-run, and `start()`
+/// would re-query Play and re-restore on every pack install. A sorted joined
+/// string compares by value, so this only moves when the SKUs genuinely change.
+///
+/// Bundles are included: `bundle_all_distros` is a product a user can own, and
+/// `CdnIndex.isUnlocked` checks entitlement grants against exactly that.
+final productSkusProvider = Provider<String>((ref) {
+  final packs = ref.watch(catalogueProvider).asData?.value ?? const <PackInfo>[];
+  final bundles = ref.watch(bundlesProvider).asData?.value ?? const <BundleInfo>[];
+
+  final skus = <String>{
+    for (final p in packs)
+      if (p.sku != null && p.sku!.isNotEmpty) p.sku!,
+    for (final b in bundles)
+      if (b.sku.isNotEmpty) b.sku,
+  };
+
+  final sorted = skus.toList()..sort();
+  return sorted.join(',');
+});
 
 final entitlementServiceProvider = Provider<EntitlementService>((ref) {
   final service = EntitlementService();
@@ -60,17 +83,33 @@ final entitlementServiceProvider = Provider<EntitlementService>((ref) {
 final ownedSkusProvider = StreamProvider<Set<String>>((ref) {
   final service = ref.watch(entitlementServiceProvider);
 
+  // WATCHED, so this re-runs when the catalogue names a sku it did not before.
+  // That is the whole mechanism: publish a paid distro, the index changes, the
+  // next refresh brings it down, and Play is asked about it without a release.
+  final joined = ref.watch(productSkusProvider);
+  final skus = joined.isEmpty ? <String>{} : joined.split(',').toSet();
+
   // Push down to native on every change, INCLUDING the empty first emit.
   // Native starts empty and never persists, so a missed push after a purchase
   // leaves someone who has paid staring at a download that refuses.
-  final sub = service.owned.listen((skus) {
-    ref.read(packActionsProvider).pushEntitlements(skus);
+  final sub = service.owned.listen((owned) {
+    ref.read(packActionsProvider).pushEntitlements(owned);
   });
   ref.onDispose(sub.cancel);
 
+  // CALLED EVEN WITH AN EMPTY SET, and that is deliberate. On the very first
+  // launch the cached catalogue is empty, so nothing is priced yet — but a
+  // returning user still owns what they own, and `start` connects, subscribes
+  // and restores regardless. `EntitlementService` skips only the product query
+  // when there is nothing to query.
+  //
+  // Called AGAIN when the catalogue lands, which is safe by construction: the
+  // purchase subscription is guarded by `??=`, products merge rather than
+  // replace, and restore is documented as repeatable.
+  //
   // Fire and forget: start() does network work and nothing should wait on it.
   // The storefront renders from the cached catalogue meanwhile.
-  unawaited(service.start(kProductSkus));
+  unawaited(service.start(skus));
 
   return service.owned;
 });

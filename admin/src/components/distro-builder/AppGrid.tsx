@@ -133,7 +133,7 @@ function AppTile(props: {
           <img src={props.assignment!.url} alt="" width={60} height={60} style={{ objectFit: 'contain' }} />
         ) : (
           <span style={{ color: busy ? C.amber : C.faint, fontFamily: C.mono, fontSize: 11 }}>
-            {busy ? '…' : err ? 'retry' : '+ image'}
+            {err ? 'retry' : '+ image'}
           </span>
         )}
       </button>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 
-import { APPS, type AppId } from '@/lib/catalogue';
+import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
 import { readDraft } from '@/lib/themes';
@@ -28,6 +28,21 @@ import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
  * draft, which includes every theme that only exists as a published pack. The
  * workspace opens empty in that case rather than refusing, because an empty
  * builder is a usable thing and a 404 on an Edit button is not.
+ *
+ * ─── AND THE PUBLISHED HERO PACKS, FOR THE SAME REASON ──────────────────────
+ *
+ * A distro's icon pack can now be one that already exists rather than one built
+ * on this screen, so the workspace needs the list of what is published. Read
+ * here, on the server, and passed down like the draft.
+ *
+ * AN UNREADABLE BUCKET IS NOT AN EMPTY ONE. `readLiveIndex` never throws now, so
+ * a refused credential comes back as `unreachable` with an empty `packs`. Handed
+ * down as-is that becomes a picker saying nothing is published, which is an
+ * invitation to build a second copy of a pack that already exists. The flag
+ * carries the difference and the picker says which it is. It does NOT refuse the
+ * page, unlike the icon builder: nothing here derives a version number from the
+ * index, `publishDistro` computes versions server-side and `guardIndex` refuses
+ * an unreadable bucket before anything is written.
  */
 export default async function DistroWorkspacePage({
   params,
@@ -41,17 +56,33 @@ export default async function DistroWorkspacePage({
 
   const { app } = await params;
   if (!APPS.includes(app as AppId)) notFound();
+  const appId = app as AppId;
 
   const { id } = await searchParams;
   // Never let a bad read take the builder down: the point of opening it may be
   // to replace whatever is broken.
-  const initial = id
-    ? await readDraft(app as AppId, id).catch(() => null)
-    : null;
+  const [initial, live] = await Promise.all([
+    id ? readDraft(appId, id).catch(() => null) : Promise.resolve(null),
+    readLiveIndex(appId),
+  ]);
+
+  // 'hero' only. `brand` is the CC0 glyph layer and is chosen through
+  // `icons.brandPack`, which is a different field with a different meaning, and
+  // `icon`/`theme` are not hero art at all. Offering them here would let a
+  // distro name a brand pack as its hero pack, which resolves to nothing.
+  const heroPacks = live.packs
+    .filter((p) => p.packType === 'hero')
+    .map((p) => ({ packId: p.packId, title: p.title || p.packId, sku: p.sku ?? null }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 
   return (
-    <Shell app={app as AppId}>
-      <DistroWorkspace app={app as AppId} initial={initial} />
+    <Shell app={appId}>
+      <DistroWorkspace
+        app={appId}
+        initial={initial}
+        heroPacks={heroPacks}
+        heroPacksUnreadable={!!live.unreachable || live.corrupt}
+      />
     </Shell>
   );
 }

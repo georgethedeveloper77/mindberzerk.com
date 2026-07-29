@@ -323,7 +323,7 @@ class _Screen extends ConsumerWidget {
           ),
 
           if (packs.isEmpty)
-            _Note(
+            const _Note(
               text: 'Icon themes arrive with distros. Each one ships its own '
                   'set, and they can be mixed — run the Kali desktop with '
                   'Ubuntu icons if you want.',
@@ -338,9 +338,9 @@ class _Screen extends ConsumerWidget {
             // what the user can do about it, so it draws the same thing.
             // Inventing an error state would offer a retry button for a
             // package-manager call that does not fail transiently.
-            error: (_, __) => _Note(text: _emptyPacks),
+            error: (_, __) => const _Note(text: _emptyPacks),
             data: (map) => map.isEmpty
-                ? _Note(text: _emptyPacks)
+                ? const _Note(text: _emptyPacks)
                 : GridView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     shrinkWrap: true,
@@ -386,7 +386,7 @@ class _Screen extends ConsumerWidget {
           // Both selections are live at once, and without this line someone who
           // has picked from both grids sees half their icons come from one and
           // reasonably concludes the other did not work.
-          _Note(
+          const _Note(
             text: 'An installed pack covers the apps it has art for. Anything '
                 'it misses falls back to the icon theme, then to the distro’s '
                 'own icons.',

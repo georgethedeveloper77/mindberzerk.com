@@ -296,7 +296,7 @@ export function PublishForm({
           disabled={!ready}
           className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
         >
-          {busy ? 'Signing and uploading…' : 'Sign and publish'}
+          {busy ? 'Signing and uploading' : 'Sign and publish'}
         </button>
       </div>
     </div>

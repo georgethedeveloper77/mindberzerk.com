@@ -597,9 +597,39 @@ export function parseTheme(value: unknown): ResolvedTheme | { error: string } {
     ),
   ];
 
+  // ── A SEPARATOR IN A REFERENCE IS FINE, and this used to say the opposite ──
+  //
+  // The note here reported any reference containing a separator as resolving
+  // against nothing once downloaded. It resolves fine. `ThemeSource.asset` in
+  // `theme_source.dart` keeps the LAST path segment and drops the rest, and its
+  // docblock says why: a theme.json authored against the bundled layout still
+  // reads `assets/themes/ubuntu-24-04/wallpapers/noble.webp`, and the same
+  // authored theme has to work in both places. So that reference resolves to
+  // `<packDir>/noble.webp` and renders.
+  //
+  // The cost of the wrong note was not cosmetic. `flat-check.ts` enforced the
+  // same belief at publish and refused packs that would have worked, while
+  // passing the ones that do not: a bare reference naming no file in the payload
+  // has no separator to catch it. Both now use the rule the device uses.
+  //
+  // WHAT IS ACTUALLY WORTH REPORTING is the consequence of that flattening. Two
+  // references differing only in their directory collapse to one name, so an
+  // installed pack holds a single file where the bundled theme has two, and the
+  // second silently renders as the first. Nothing else in the pipeline can see
+  // this: the publish gate is satisfied because each reference does resolve, and
+  // both point at something real.
+  const byBareName = new Map<string, string[]>();
   for (const a of assets) {
-    if (a.includes('/') || a.includes('\\')) {
-      note('lint', 'assets', `'${a}' is not a bare filename. Installed packs are flat, so this resolves against nothing once downloaded.`);
+    const bare = a.split(/[\\/]/).pop() ?? a;
+    byBareName.set(bare, [...(byBareName.get(bare) ?? []), a]);
+  }
+  for (const [bare, refs] of byBareName) {
+    if (refs.length > 1) {
+      note(
+        'degraded',
+        'assets',
+        `${refs.map((r) => `'${r}'`).join(' and ')} both flatten to '${bare}', so an installed pack holds one file where this theme references ${refs.length}. Rename one.`,
+      );
     }
   }
   if (wallpapers.length === 0) {

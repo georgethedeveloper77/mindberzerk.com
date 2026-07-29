@@ -311,6 +311,44 @@ function rowTags(o: {
   return t;
 }
 
+/**
+ * The icon packs that belong to a distro, split by whether each is actually in
+ * the live index.
+ *
+ * EXTRACTED FROM THE DISTROS PAGE so the delete action and the page can never
+ * disagree about what "this distro's icon packs" means. The entitlement is
+ * authoritative where one exists: the distro's sku names exactly which packs
+ * it grants, so a distro that later ships a second icon pack counts correctly
+ * without anyone touching this. The `<base>-` prefix is only the fallback for
+ * free distros, which have no entitlement to read.
+ *
+ * `pending` is a granted pack that has not shipped yet. The page counts it,
+ * because the storefront advertises it and reporting zero would contradict the
+ * bundle; a delete ignores it, because there is nothing in the index to pull.
+ */
+export function distroIconPackIds(
+  live: LiveIndex,
+  themePackId: string,
+): { present: string[]; pending: string[] } {
+  const base = themePackId.replace(/-theme$/, '');
+  const grant = live.entitlements.find((e) => e.grants.includes(themePackId));
+  const candidates = grant
+    ? grant.grants.filter((g) => g !== themePackId)
+    : live.packs
+        .filter((p) => p.packId.startsWith(`${base}-`) && p.packId !== themePackId)
+        .map((p) => p.packId);
+
+  const iconTypes = new Set(['hero', 'icon', 'brand']);
+  const present: string[] = [];
+  const pending: string[] = [];
+  for (const id of candidates) {
+    const p = live.packs.find((x) => x.packId === id);
+    if (!p) pending.push(id);
+    else if (iconTypes.has(p.packType)) present.push(id);
+  }
+  return { present, pending };
+}
+
 // ── the three free-theme seeds ───────────────────────────────────────────────
 //
 // Transcribed verbatim from the APK's assets/themes/<id>/theme.json. Asset paths

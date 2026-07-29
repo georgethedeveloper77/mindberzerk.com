@@ -110,7 +110,7 @@ function KeyRow({
           disabled={!dirty || busy}
           className="rounded-lg bg-accent px-3 py-2 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
         >
-          {busy ? 'Publishing…' : 'Publish'}
+          {busy ? 'Publishing' : 'Publish'}
         </button>
       </div>
 

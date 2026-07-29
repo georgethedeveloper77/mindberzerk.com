@@ -9,9 +9,28 @@ import 'theme_registry.dart';
 import 'theme_source.dart';
 import 'theme_spec.dart';
 
-/// versionCode of this build. A theme whose `minAppVersion` exceeds it targets
-/// features this APK does not have, so it must not load.
-const _appVersionCode = 6;
+/// ─── THE minAppVersion CHECK USED TO LIVE HERE, AS A HARDCODED 6 ───────────
+///
+/// `const _appVersionCode = 6` sat above this line while `pubspec.yaml` said
+/// `6.0.0+7` and `PackVerifier` read the real number off `PackageManager`. Two
+/// owners for one value, already one apart, and 6.1.0 would have made it two.
+///
+/// It is DELETED rather than synced, because the check could only ever be
+/// wrong in one direction:
+///
+///   INSTALLED PACKS  cannot reach disk without `PackVerifier.verifyManifest`
+///                    approving their minAppVersion against the REAL
+///                    versionCode. Re-checking here against a copy that drifts
+///                    downward can only refuse a pack the device already
+///                    verified, install and hold — and it refuses it silently,
+///                    falling back to Ubuntu with nothing logged.
+///   BUNDLED THEMES   ship inside this exact APK, so their minAppVersion cannot
+///                    exceed the build containing them. The check was
+///                    unreachable, and a genuinely malformed bundled theme
+///                    still falls through on a parse failure below.
+///
+/// One number, one owner, and the owner is the one that reads it from the
+/// system rather than from a constant somebody has to remember to bump.
 
 /// The one native handle. Instantiated once rather than per resolve: Pigeon's
 /// generated class is a thin wrapper over a channel, but a new one per theme
@@ -56,9 +75,7 @@ final activeThemeSpecProvider = FutureProvider<ThemeSpec>((ref) async {
   // 1. A bundled selection. Straight out of the APK, no platform call.
   if (selectedId != null && bundledThemes.containsKey(selectedId)) {
     final bundled = await _loadAsset(bundledThemes[selectedId]!.assetPath);
-    if (bundled != null && bundled.minAppVersion <= _appVersionCode) {
-      return bundled;
-    }
+    if (bundled != null) return bundled;
     // A bundled theme that fails to parse is a broken APK, but it is not worth
     // black-screening over when Ubuntu is sitting right there. Fall through.
   }
@@ -68,13 +85,16 @@ final activeThemeSpecProvider = FutureProvider<ThemeSpec>((ref) async {
   //    through to Ubuntu the same way a typo would.
   if (selectedId != null && selectedId.isNotEmpty) {
     final installed = await _loadInstalled(selectedId);
-    if (installed != null && installed.minAppVersion <= _appVersionCode) {
-      return installed;
-    }
-    // A minAppVersion MISS IS NOT AN ERROR. It is the whole reason the field
-    // exists: the panel is allowed to publish a theme that uses a field this
-    // APK cannot render, and old clients are supposed to keep working by
-    // ignoring it. Ubuntu until they update.
+    if (installed != null) return installed;
+    // Still falls through to Ubuntu when nothing is installed under this id —
+    // a stale selection, a pack the user removed, or an id from a newer
+    // catalogue this build has never seen.
+    //
+    // A minAppVersion MISS IS NOT AN ERROR, and it is now caught in the one
+    // place that knows the real versionCode: `PackVerifier` refuses the pack at
+    // install, `PackDownloader` reports `AppTooOld`, and the storefront card
+    // says "needs a newer version of G Launcher" instead of a download that
+    // silently produces nothing.
   }
 
   // 3. Guaranteed fallback. Bundled Ubuntu is in the APK and targets this

@@ -25,12 +25,51 @@ class Analytics {
 
   static Future<void> _log(String name, Map<String, Object> params) async {
     try {
-      await _fa.logEvent(name: name, parameters: params);
+      await _fa.logEvent(name: name, parameters: _coerce(params));
     } catch (e) {
       // Debug-only breadcrumb. In release this is silence by design.
       debugPrint('analytics: $name failed ($e)');
     }
   }
+
+  /// Firebase accepts String and num ONLY. Anything else is coerced here.
+  ///
+  /// ─── TWO EVENTS HAVE NEVER BEEN RECORDED ────────────────────────────────
+  ///
+  /// `setup_home_role` passes `granted` and `setup_complete` passes `home_role`,
+  /// both `bool`, and `logEvent` asserts:
+  ///
+  ///   'string' OR 'number' must be set as the value of the parameter: granted.
+  ///   false found instead
+  ///
+  /// The wrapper's try/catch swallowed it, so the failure was a debugPrint
+  /// nobody was reading and the dashboard simply showed fewer events than there
+  /// were. Worse in release: Dart strips assertions, so the bool crosses the
+  /// platform channel and Firebase discards it natively with no breadcrumb at
+  /// all. Debug mode was the only reason this was ever visible.
+  ///
+  /// ─── HERE RATHER THAN AT THE CALL SITES ─────────────────────────────────
+  ///
+  /// Fixing `homeRolePrompt` and `setupComplete` to pass `granted ? 1 : 0` would
+  /// work today and last until the next event that wants a flag — and this file
+  /// exists precisely so that "every event is declared in one place" is enough
+  /// to trust them. A call site cannot reintroduce the bug if the wrapper will
+  /// not let a bool through.
+  ///
+  /// BOOLS BECOME 1 AND 0, not "true" and "false". BigQuery can sum a number;
+  /// counting a string means a CASE in every query, and the C10 coverage work
+  /// reads these numerically.
+  static Map<String, Object> _coerce(Map<String, Object> params) => {
+        for (final e in params.entries)
+          e.key: switch (e.value) {
+            final bool b => b ? 1 : 0,
+            final String v => v,
+            final num v => v,
+            // A future caller passing something exotic gets a readable string
+            // rather than a dropped event. Still wrong, still visible.
+            final Object v => v.toString(),
+          },
+      };
 
   /// The user reached the home-role step and pressed Next.
   ///

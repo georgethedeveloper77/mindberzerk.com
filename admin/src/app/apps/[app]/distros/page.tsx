@@ -4,6 +4,7 @@ import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
 import { Banner, Button, Chip, PageHead, type Tone } from '@/app/components/ui';
 import { Breadcrumb } from '@/components/console/breadcrumb';
+import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { ListToggle } from '@/components/theme-list/ListToggle';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
@@ -11,7 +12,7 @@ import { isListed, readListing } from '@/lib/listing';
 import { readPackJson } from '@/lib/pack-content';
 import { appName } from '@/lib/registry';
 import { importTheme, type ThemeSpecJson } from '@/lib/theme-spec';
-import { ensureSeededSafe, mergeThemeRows } from '@/lib/themes';
+import { distroIconPackIds, ensureSeededSafe, mergeThemeRows } from '@/lib/themes';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,33 +99,6 @@ export default async function DistrosPage({
   );
   for (const [id, spec] of fetched) if (spec) draftSpecs.set(id, spec);
 
-  /**
-   * How many icon packs belong to this distro.
-   *
-   * THE ENTITLEMENT IS AUTHORITATIVE where one exists: `distro_<base>` names
-   * exactly which packs it grants, so a distro that later ships a second icon
-   * pack counts correctly without anyone touching this. The `<base>-icons`
-   * prefix is only the fallback for free distros, which have no entitlement to
-   * read.
-   */
-  const iconPackIdsFor = (themePackId: string): string[] => {
-    const base = themePackId.replace(/-theme$/, '');
-    const grant = live.entitlements.find((e) => e.grants.includes(themePackId));
-    const candidates = grant
-      ? grant.grants.filter((g) => g !== themePackId)
-      : live.packs
-          .filter((p) => p.packId.startsWith(`${base}-`) && p.packId !== themePackId)
-          .map((p) => p.packId);
-
-    const iconTypes = new Set(['hero', 'icon', 'brand']);
-    return candidates.filter((id) => {
-      const p = live.packs.find((x) => x.packId === id);
-      // A granted pack that has not shipped yet still counts: the bundle
-      // advertises it, and reporting zero would contradict the storefront.
-      return p ? iconTypes.has(p.packType) : true;
-    });
-  };
-
   const sorted = [...rows].sort((a, b) => {
     if (a.bundled !== b.bundled) return a.bundled ? -1 : 1;
     return (a.title || a.id).localeCompare(b.title || b.id);
@@ -154,22 +128,32 @@ export default async function DistrosPage({
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {sorted.map((r) => (
-          <DistroCard
-            key={r.id}
-            app={appId}
-            id={r.id}
-            title={r.title}
-            summary={r.summary}
-            sku={r.sku}
-            bundled={r.bundled}
-            tags={r.tags}
-            version={r.publishedVersion ?? r.draftVersion}
-            listed={isListed(listing, r.id)}
-            spec={draftSpecs.get(r.id) ?? null}
-            iconPacks={iconPackIdsFor(r.id)}
-          />
-        ))}
+        {sorted.map((r) => {
+          // `distroIconPackIds` is the same helper the delete action reads, so
+          // the count on the card and what a delete would pull cannot drift.
+          // The card shows present and pending together, because the bundle
+          // advertises a granted pack whether or not it has shipped; a delete
+          // only pulls the present ones.
+          const icons = distroIconPackIds(live, r.id);
+          return (
+            <DistroCard
+              key={r.id}
+              app={appId}
+              id={r.id}
+              title={r.title}
+              summary={r.summary}
+              sku={r.sku}
+              bundled={r.bundled}
+              tags={r.tags}
+              version={r.publishedVersion ?? r.draftVersion}
+              published={r.publishedVersion != null}
+              listed={isListed(listing, r.id)}
+              spec={draftSpecs.get(r.id) ?? null}
+              iconPacks={[...icons.present, ...icons.pending]}
+              liveIconPacks={icons.present}
+            />
+          );
+        })}
       </div>
 
       <p className="mt-3 text-micro leading-relaxed text-ink-3">
@@ -191,9 +175,11 @@ function DistroCard({
   bundled,
   tags,
   version,
+  published,
   listed,
   spec,
   iconPacks,
+  liveIconPacks,
 }: {
   app: AppId;
   id: string;
@@ -203,9 +189,12 @@ function DistroCard({
   bundled: boolean;
   tags: string[];
   version: number | null;
+  published: boolean;
   listed: boolean;
   spec: ThemeSpecJson | null;
   iconPacks: string[];
+  /** The subset of [iconPacks] actually in the live index; what a delete pulls. */
+  liveIconPacks: string[];
 }) {
   return (
     <section className="flex flex-col overflow-hidden rounded-card border border-line-soft bg-surface-1">
@@ -287,9 +276,25 @@ function DistroCard({
           </div>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+        {/* flex-wrap so the delete confirm text can take a full line of its
+            own instead of crushing the toggle. Bundled distros get no delete
+            at all: their packs ship in the APK and the unpublish layer refuses
+            their ids, so a disabled button would promise something the server
+            never allows. */}
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
           <ListToggle app={app} packId={id} initial={listed} disabled={bundled} />
-          <Button href={`/apps/${app}/distros/builder?id=${id}`}>Edit</Button>
+          <div className="flex items-center gap-3">
+            {!bundled && (
+              <DeleteDistro
+                app={app}
+                id={id}
+                published={published}
+                sku={sku}
+                iconPacks={liveIconPacks}
+              />
+            )}
+            <Button href={`/apps/${app}/distros/builder?id=${id}`}>Edit</Button>
+          </div>
         </div>
       </div>
     </section>

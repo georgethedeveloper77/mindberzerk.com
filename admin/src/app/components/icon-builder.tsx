@@ -12,6 +12,7 @@ import {
 } from '@/lib/icon-pack';
 import { renderHeroIcon } from '@/lib/image-trim';
 import { iconsSkuFor, skuProblems } from '@/lib/skus';
+import type { RehydratedPack } from '@/lib/cdn';
 
 /**
  * PHASE C8 - the hero pack builder, corrected to the launcher's reader.
@@ -51,25 +52,78 @@ interface Entry {
   busy: boolean;
 }
 
+/**
+ * Decode one `data:` URL into a Blob, synchronously.
+ *
+ * Synchronous is the whole point. It means a published pack becomes real
+ * entries inside a `useState` initialiser, with no effect, no loading state and
+ * no window in which the builder is mounted but empty. It also means nothing
+ * re-runs when the parent re-renders: `router.refresh()` fires after every
+ * publish, and an effect keyed on `initial` would wipe the author's unsaved
+ * edits each time it did.
+ */
+function blobFromDataUrl(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  const head = dataUrl.slice(0, comma);
+  const mime = /:(.*?);/.exec(head)?.[1] ?? 'image/png';
+  const binary = atob(dataUrl.slice(comma + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * A published pack's icons as builder entries.
+ *
+ * `url` is the data URL itself rather than an object URL, deliberately. It is a
+ * valid `src`, so the preview works with no extra step, and there is no handle
+ * to revoke. `render` calls `URL.revokeObjectURL(entry.url)` when an entry is
+ * replaced, and that is a harmless no-op on a `data:` URL, so a rehydrated icon
+ * can be swapped for a new upload with no special case anywhere.
+ *
+ * `aspect` is 1 because these bytes already went through `renderHeroIcon` before
+ * they were published, which letterboxes everything to a square. The
+ * not-square warning would be a lie here.
+ */
+function entriesFrom(initial: RehydratedPack | null | undefined): Entry[] {
+  if (!initial) return [];
+  return initial.icons.map((ic) => {
+    const blob = blobFromDataUrl(ic.dataUrl);
+    return {
+      id: `published-${ic.pkg}`,
+      file: new File([blob], ic.file, { type: blob.type || 'image/png' }),
+      pkg: ic.pkg,
+      url: ic.dataUrl,
+      blob,
+      aspect: 1,
+      error: null,
+      busy: false,
+    };
+  });
+}
+
 export function IconBuilder({
   app,
   publishedIds,
   publishedVersion,
+  initial,
 }: {
   app: string;
   publishedIds: string[];
   publishedVersion: Record<string, number>;
+  /** A published pack to edit, or null for a new one. See `lib/cdn.ts`. */
+  initial?: RehydratedPack | null;
 }) {
   const router = useRouter();
 
-  const [packId, setPackId] = useState('');
-  const [name, setName] = useState('');
-  const [minAppVersion, setMinAppVersion] = useState('6');
-  const [masked, setMasked] = useState(false);
-  const [sku, setSku] = useState('');
-  const [plate, setPlate] = useState('#E95420');
+  const [packId, setPackId] = useState(initial?.packId ?? '');
+  const [name, setName] = useState(initial?.name ?? '');
+  const [minAppVersion, setMinAppVersion] = useState(String(initial?.minAppVersion ?? 6));
+  const [masked, setMasked] = useState(initial?.masked ?? false);
+  const [sku, setSku] = useState(initial?.sku ?? '');
+  const [plate, setPlate] = useState('#E95420'); // preview only, not in pack.json
   const [radius, setRadius] = useState(22); // preview only, percent
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<Entry[]>(() => entriesFrom(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -374,9 +428,12 @@ export function IconBuilder({
             {entries.map((e) => (
               <div key={e.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:px-4">
                 <div className="grid size-12 shrink-0 place-items-center overflow-hidden border border-line" style={tileStyle}>
-                  {e.busy ? (
-                    <span className="text-micro text-ink-3">…</span>
-                  ) : e.url ? (
+                  {/* Busy renders NOTHING. The tile is 48px with a border and a
+                      background, so an empty one already reads as "not yet",
+                      and the failure case below has its own mark to be
+                      distinguished from. A character here was a third state
+                      competing with two that already say enough. */}
+                  {e.busy ? null : e.url ? (
                     <img src={e.url} alt="" className="size-12" />
                   ) : (
                     <span className="text-micro text-bad">!</span>
@@ -462,7 +519,7 @@ export function IconBuilder({
           disabled={!ready}
           className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
         >
-          {busy ? 'Signing and uploading…' : `Publish ${entries.length} icons as v${version}`}
+          {busy ? 'Signing and uploading' : `Publish ${entries.length} icons as v${version}`}
         </button>
         {publishedIds.length > 0 && !packId && (
           <p className="mt-2 text-micro text-ink-3">Published hero packs: {publishedIds.join(', ')}</p>

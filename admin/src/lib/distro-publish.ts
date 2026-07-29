@@ -2,6 +2,7 @@ import 'server-only';
 
 import { readLiveIndex, type AppId } from './catalogue';
 import { canonicalHeroPackJson, type HeroPackJson } from './hero-pack';
+import { checkThemePackFlat, flatRefusal } from './flat-check';
 import {
   commitIndex,
   guardIndex,
@@ -102,6 +103,20 @@ export async function publishDistro(
       ...input.theme.assets.map((a) => ({ path: a.file, bytes: a.bytes })),
     ];
 
+    // ── THE ASSET-RESOLUTION GATE ──────────────────────────────────────────
+    //
+    // The paragraph above asserts that these names are flat and resolvable. It
+    // asserted it for a while without anything checking, and `route.ts` ran the
+    // check while this path did not, so the screen that publishes most themes
+    // was the unguarded one.
+    //
+    // It runs HERE rather than before `themeFiles` is built, because the check
+    // compares the references in theme.json against the payload, and `themeFiles`
+    // is the first point where both exist together. Before `uploadPack`, because
+    // after it the bytes are in the bucket.
+    const flat = checkThemePackFlat(themeFiles);
+    if (!flat.ok) return { ok: false, error: flatRefusal(flat) };
+
     const themeEntry = await uploadPack(
       input.app,
       {
@@ -171,11 +186,39 @@ export async function publishDistro(
     // already bought it.
     let entitlements = live.entitlements;
     if (input.distroSku) {
+      /**
+       * A pack this distro NAMES but does not publish.
+       *
+       * The workspace can point a distro at a hero pack that already exists
+       * instead of building one, in which case there is no `iconEntry` and the
+       * link is `icons.heroPack` in the theme.json. Granting it is the same
+       * relationship an inline pack already has: buying the distro unlocks the
+       * icons the distro ships with. Without this the theme names a pack the
+       * buyer does not own, entitlement refuses it, and every app falls to the
+       * generator with nothing reported.
+       *
+       * ONLY IF IT IS IN THE INDEX, and the exclusion is deliberate rather than
+       * defensive. A theme may legitimately name a pack that is not in the
+       * catalogue at all: the bundled sets ship inside the APK, and bundled
+       * implies free, so they have no entitlement to be added to. Granting an id
+       * that names nothing would put an unbuyable string in a signed index
+       * forever.
+       */
+      const named = input.theme.spec.icons?.heroPack ?? null;
+      const namedIsPublished =
+        !!named &&
+        named !== iconEntry?.packId &&
+        live.packs.some((p) => p.packId === named);
+
       const next: IndexEntitlement = {
         sku: input.distroSku,
         title: input.distroTitle,
         summary: input.distroSummary,
-        grants: [themeEntry.packId, ...(iconEntry ? [iconEntry.packId] : [])],
+        grants: [
+          themeEntry.packId,
+          ...(iconEntry ? [iconEntry.packId] : []),
+          ...(namedIsPublished ? [named] : []),
+        ],
       };
       entitlements = [
         ...entitlements.filter((e) => e.sku !== input.distroSku),

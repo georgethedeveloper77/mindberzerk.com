@@ -98,17 +98,34 @@ class EntitlementService {
       onError: (Object e) => _errorController.add(e.toString()),
     );
 
-    final response = await _iap.queryProductDetails(skus);
-    for (final p in response.productDetails) {
-      _products[p.id] = p;
-    }
-    // notFoundIDs is a real signal, not noise: it usually means the product was
-    // never created in the console, or the build is not signed with the upload
-    // key Play knows. Both look identical on-device — a card with no price.
-    if (response.notFoundIDs.isNotEmpty) {
-      _errorController.add(
-        'Not found in Play: ${response.notFoundIDs.join(', ')}',
-      );
+    // AN EMPTY SET IS LEGITIMATE, and this guard is what makes it so.
+    //
+    // The caller derives its SKUs from the signed catalogue rather than from a
+    // constant, so on a cold start with an empty cache there is nothing to ask
+    // about yet — and an app whose catalogue simply has nothing priced is the
+    // same shape. `queryProductDetails` with no ids is a billing call with no
+    // answer to give and errors on some Play versions.
+    //
+    // Everything else still runs. Connecting, subscribing and restoring with no
+    // products loaded is not wasted: `_handle` records a restored purchase by
+    // its product id whether or not this build has queried it, so a returning
+    // user's ownership is known before the catalogue arrives. Calling `start`
+    // again once it does is safe — the subscription is guarded, products merge,
+    // and restore is repeatable.
+    if (skus.isNotEmpty) {
+      final response = await _iap.queryProductDetails(skus);
+      for (final p in response.productDetails) {
+        _products[p.id] = p;
+      }
+      // notFoundIDs is a real signal, not noise: it usually means the product
+      // was never created in the console, or the build is not signed with the
+      // upload key Play knows. Both look identical on-device — a card with no
+      // price.
+      if (response.notFoundIDs.isNotEmpty) {
+        _errorController.add(
+          'Not found in Play: ${response.notFoundIDs.join(', ')}',
+        );
+      }
     }
 
     await restore();

@@ -350,15 +350,33 @@ class _ThemeCard extends StatelessWidget {
   }
 }
 
-/// The right-hand meta element: the active check, a Pro badge, or the DE tag.
-class _Trailing extends StatelessWidget {
+/// The right-hand meta element: the active check, a price, or the DE tag.
+///
+/// ─── THE PRO BADGE IS GONE, AND IT WAS WRONG TWICE ──────────────────────────
+///
+/// There is no Pro tier. Every launcher FEATURE is free — the boot-log editor,
+/// scheduled switching, the cube transition, all of it — and what is sold is
+/// whole distros and icon packs. A badge reading "Pro" was the last piece of UI
+/// still describing a model that was dropped, and it was the only word on this
+/// screen implying some capability was withheld.
+///
+/// It was also useless as an affordance. "Pro" tells you a thing costs money and
+/// refuses to say how much, so the only way to find out was to tap, get Play's
+/// sheet, and read the number there. A price is the same amount of pixels and
+/// answers the question.
+///
+/// A ConsumerWidget now, because the price comes from Play through
+/// `productPriceProvider` — a LOCALISED string Play formats for the user's
+/// country and currency, never a number formatted here, which would be wrong in
+/// every market this launcher actually targets.
+class _Trailing extends ConsumerWidget {
   const _Trailing({required this.card, required this.active});
 
   final ThemeCard card;
   final bool active;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = ChromeScope.of(context).colors;
 
     // ORDER MATTERS, and this is the order:
@@ -374,7 +392,16 @@ class _Trailing extends StatelessWidget {
     if (!active && card.status == CardStatus.updateAvailable) {
       return _MiniLabel('Update', c.accent);
     }
-    if (!active && card.status == CardStatus.locked) return const _ProBadge();
+    if (!active && card.status == CardStatus.locked) {
+      // The price when Play has answered, the word Buy when it has not.
+      //
+      // Null is the ordinary state in three real cases: the build is not on a
+      // Play track yet, the device has no Play Services, or the product does not
+      // exist in the console. All three render a card with no price, so a
+      // fallback word is what stops the trailing slot going blank and reading as
+      // a card that failed to load.
+      return _MiniLabel(ref.watch(productPriceProvider(card.sku)) ?? 'Buy', c.accent);
+    }
     if (!active && card.status == CardStatus.available) {
       return _MiniLabel('Get', c.accent);
     }
@@ -391,7 +418,9 @@ class _Trailing extends StatelessWidget {
         child: Icon(Icons.check, size: 11, color: c.onAccent),
       );
     }
-    if (card.tier == ThemeTier.pro) return const _ProBadge();
+    // A paid card reaching HERE is one that is not locked — owned, installed, or
+    // bundled. It has nothing left to sell, so it reads as its desktop tag like
+    // every other card rather than wearing a price it has already been paid.
     return _Tag(card.tag);
   }
 }
@@ -444,29 +473,6 @@ class _Tag extends StatelessWidget {
   }
 }
 
-class _ProBadge extends StatelessWidget {
-  const _ProBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: c.accent,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        'Pro',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: c.onAccent,
-        ),
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The mini-desktop preview. Pure decoration driven by ThemePreviewSpec.
@@ -665,7 +671,7 @@ class _ThemePreview extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'firefox files…',
+                  'firefox files',
                   style: TextStyle(
                     fontFamily: GType.mono,
                     fontSize: 10,
@@ -795,12 +801,14 @@ class _MoreRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              if (entry.pro)
-                const _ProBadge()
-              else
-                // getbtn: outlined, transparent. "Get" — active voice, names
-                // exactly what tapping does.
-                OutlinedButton(
+              // ONE BUTTON, whether or not the entry is paid. The Pro badge that
+              // used to sit here is gone with the rest of them: nothing on this
+              // screen advertises a tier any more, and this row is unreachable
+              // regardless while `themeMoreProvider` returns nothing.
+              //
+              // getbtn: outlined, transparent. "Get" — active voice, names
+              // exactly what tapping does.
+              OutlinedButton(
                   onPressed: onGet,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: c.text,

@@ -70,7 +70,7 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
           onClick={save}
           style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}
         >
-          {saving ? 'saving…' : 'save'}
+          {saving ? 'saving' : 'save'}
         </button>
       }
     >
@@ -154,10 +154,10 @@ export function RegistryEditor({ app, initial }: { app: string; initial: Registr
                   <div style={{ padding: '4px 14px 14px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                       <Field label="play url">
-                        <TextInput value={a.playUrl} placeholder="https://play.google.com/…" onChange={(v) => update(i, { playUrl: v })} />
+                        <TextInput value={a.playUrl} placeholder="https://play.google.com/store/apps/details?id=" onChange={(v) => update(i, { playUrl: v })} />
                       </Field>
                       <Field label="app store url">
-                        <TextInput value={a.appStoreUrl} placeholder="https://apps.apple.com/…" onChange={(v) => update(i, { appStoreUrl: v })} />
+                        <TextInput value={a.appStoreUrl} placeholder="https://apps.apple.com/app/id" onChange={(v) => update(i, { appStoreUrl: v })} />
                       </Field>
                     </div>
                     <Field label="about">

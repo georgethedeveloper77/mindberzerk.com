@@ -232,7 +232,7 @@ class LsDesklet extends ConsumerWidget {
               ),
             if (apps.length > shown.length)
               Text(
-                '... ${apps.length - shown.length} more',
+                '${apps.length - shown.length} more',
                 style: TextStyle(
                   fontFamily: theme.typography.mono,
                   fontSize: skin.num_('rowSize', 12.5),

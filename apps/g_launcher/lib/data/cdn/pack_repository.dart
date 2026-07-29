@@ -212,7 +212,17 @@ class PackActions {
   final Ref _ref;
 
   /// Returns true when the catalogue changed and the UI should re-read.
+  ///
+  /// STAMPS THE FRESHNESS CLOCK, and does it here rather than in
+  /// [catalogueRefreshProvider] so that EVERY route to a fetch resets it. A
+  /// pull-to-refresh goes straight to this method, bypassing the provider by
+  /// design; without the stamp here, closing the storefront and reopening it a
+  /// second later would fetch again immediately.
+  ///
+  /// Before the await, not after. Two storefronts mounting in the same frame
+  /// would otherwise both read a stale timestamp and both fetch.
   Future<bool> refresh() async {
+    _lastCatalogueFetch = DateTime.now();
     final changed = await _ref.read(packHostApiProvider).refreshCatalogue();
     if (changed) _ref.invalidate(catalogueProvider);
     return changed;
@@ -274,33 +284,52 @@ class PackActions {
 
 final packActionsProvider = Provider<PackActions>(PackActions.new);
 
-/// ONE network refresh per app run, fired the first time a storefront is opened.
+/// Refresh the catalogue whenever a storefront is opened, at most once every
+/// [_refreshInterval].
 ///
-/// ─── WITHOUT THIS, NOTHING PUBLISHED EVER REACHES A PHONE ───────────────────
+/// ─── WHY THIS IS NOT `keepAlive` AND NOT ONCE PER RUN ───────────────────────
 ///
-/// [catalogueProvider] reads the CACHED index and deliberately never touches the
-/// network, which is what makes the storefront open instantly and work on a
-/// plane. [PackActions.refresh] is the explicit fetch. Nothing called it.
+/// It was both, and for a LAUNCHER that is close to never. This process is the
+/// home screen: it is started once and lives for days, so "once per app run"
+/// meant a distro published on Monday was invisible until the process died.
+/// The user would have to pull to refresh to see something they had no reason
+/// to believe existed, which is not a discovery mechanism.
 ///
-/// `themes_screen`'s own docblock claimed "a refresh runs in the background on
-/// open", and it was the only description of a behaviour that did not exist. On
-/// a device with an empty cache — every device, on first install — the
-/// catalogue was empty, no card could appear, and the entire publishing
-/// pipeline was invisible. `PackSyncWorker` would have papered over it
-/// eventually, on its own schedule, which is worse: intermittent rather than
-/// absent.
+/// So it AUTO-DISPOSES, which is Riverpod's default and is exactly the behaviour
+/// wanted here: the provider lives while a storefront is on screen and is
+/// dropped when the last one closes, so the next open re-runs it and re-asks the
+/// CDN. Opening Distros IS the refresh.
 ///
-/// A PROVIDER RATHER THAN AN initState, so both storefronts share one
-/// implementation and cannot drift, and so the fetch happens exactly once
-/// however many times either screen is opened. [ref.keepAlive] is what makes
-/// that true: without it Riverpod disposes the provider when the last screen
-/// closes and the next open re-fetches.
+/// ─── THE INTERVAL IS WHAT STOPS THAT BEING RUDE ─────────────────────────────
 ///
-/// Its VALUE is deliberately ignored by callers — `refresh()` already
-/// invalidates [catalogueProvider] when something actually changed, so watching
-/// this is enough. It returns the bool anyway so a pull-to-refresh can say "up
-/// to date" rather than flashing a spinner over an identical list.
+/// Without it, flicking between Distros and Icons, or backing out and returning,
+/// would fetch every time. The timestamp is module-level rather than provider
+/// state deliberately: it has to survive the disposal that makes the re-run
+/// happen at all, so holding it inside the provider would defeat the whole
+/// mechanism.
+///
+/// Twenty seconds is short enough that publishing something and reaching for
+/// your phone finds it, and long enough that navigation costs nothing.
+///
+/// ─── THE FETCH IS CHEAPER THAN IT LOOKS ─────────────────────────────────────
+///
+/// `refresh` sends an ETag, so the overwhelmingly common answer is a 304 with no
+/// body, and `catalogueProvider` is only invalidated when something actually
+/// changed. An unchanged catalogue costs one conditional request and no rebuild.
+///
+/// Its VALUE is deliberately ignored by callers — the invalidate is the point.
+/// It returns the bool anyway so a pull-to-refresh can say "up to date" rather
+/// than flashing a spinner over an identical list.
+DateTime? _lastCatalogueFetch;
+
+/// Long enough that navigating between the two storefronts is free, short enough
+/// that a distro published a minute ago is there when you look.
+const _refreshInterval = Duration(seconds: 20);
+
 final catalogueRefreshProvider = FutureProvider<bool>((ref) async {
-  ref.keepAlive();
+  final last = _lastCatalogueFetch;
+  if (last != null && DateTime.now().difference(last) < _refreshInterval) {
+    return false;
+  }
   return ref.read(packActionsProvider).refresh();
 });

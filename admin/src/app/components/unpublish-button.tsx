@@ -84,7 +84,7 @@ export function UnpublishButton({ app, packId }: { app: string; packId: string }
         disabled={busy}
         className="rounded-lg border border-bad bg-bad px-2.5 py-1.5 text-data font-medium text-surface-0 transition hover:brightness-110 disabled:opacity-50"
       >
-        {busy ? 'Signing…' : 'Pull'}
+        {busy ? 'Signing' : 'Pull'}
       </button>
     </div>
   );

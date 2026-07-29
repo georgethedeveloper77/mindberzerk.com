@@ -219,7 +219,12 @@ export function Button({
     borderRadius: 7,
     padding: '8px 16px',
     cursor: disabled || busy ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
+    // Busy dims too. The label used to be REPLACED by an ellipsis while
+    // working, which loses the one piece of information the button carries at
+    // the moment you most want it — you tapped Publish, and now it says nothing
+    // about what is publishing. The button is already `disabled` while busy, so
+    // dimming is the whole signal and the word stays put.
+    opacity: disabled || busy ? 0.5 : 1,
     transition: 'background .12s, border-color .12s, opacity .12s',
   };
   const skin: Record<ButtonVariant, React.CSSProperties> = {
@@ -236,7 +241,7 @@ export function Button({
       title={title}
       style={{ ...base, ...skin[variant] }}
     >
-      {busy ? '…' : children}
+      {children}
     </button>
   );
 }

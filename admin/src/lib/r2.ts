@@ -85,9 +85,22 @@ export async function putObject(key: string, body: Buffer, contentType: string) 
       // With the version in the path, every object really is immutable, cache
       // busting is free, and old versions stay reachable so a device that read
       // the index a minute ago and is mid-download still finds its files.
+      //
+      // THE THIRD CASE, ADDED WITH THE LEGAL PAGES. Anything under `site/` is
+      // mutable at a FIXED path: `site/content.json` is rewritten on every
+      // publish, and `site/legal/<app>/privacy.html` is rewritten whenever the
+      // policy changes. Immutable-for-a-year was already wrong for the first —
+      // publishing site content did nothing at the edge until the cache aged
+      // out — and would have been a compliance problem for the second, since a
+      // privacy policy Google has on file must reflect what the app does now.
+      //
+      // Five minutes, because these are read by people and reviewers rather
+      // than by an install path, and nothing downstream hashes them.
       CacheControl: key.endsWith('index.json') || key.endsWith('index.sig')
         ? 'no-cache'
-        : 'public, max-age=31536000, immutable',
+        : key.startsWith('site/')
+          ? 'public, max-age=300'
+          : 'public, max-age=31536000, immutable',
     }),
   );
 }

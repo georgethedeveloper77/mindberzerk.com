@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "generatedAt": 1785171687,
+  "generatedAt": 1785178962,
   "keyId": "mh-2026-07",
   "packs": [
     {
@@ -12,6 +12,17 @@
       "sizeBytes": 141063,
       "title": "Ubuntu (CDN test)",
       "summary": "24.04 · GNOME"
+    },
+    {
+      "packId": "ubuntu-paid-test",
+      "packType": "theme",
+      "path": "themes/ubuntu-paid-test/1",
+      "version": 1,
+      "minAppVersion": 6,
+      "sizeBytes": 141064,
+      "title": "Ubuntu (paid test)",
+      "summary": "Priced against distro_kali",
+      "sku": "distro_kali"
     }
   ]
 }

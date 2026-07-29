@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { NotAuthorised, requireAdmin } from '@/lib/auth';
 import { readLiveIndex, type AppId } from '@/lib/catalogue';
-import { checkThemePackFlat } from '@/lib/flat-check';
+import { checkThemePackFlat, flatRefusal } from '@/lib/flat-check';
 import { commitIndex, packKeyId, uploadPack } from '@/lib/publish-core';
 import { unzipSync } from 'fflate';
 
@@ -245,31 +245,28 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── THE FLAT-PATH GATE, finally wired ──────────────────────────────────────
+  // ── THE ASSET-RESOLUTION GATE ──────────────────────────────────────────────
   //
-  // `flat-check.ts` was written for exactly this line and nothing imported it,
-  // so it has never run on a single publish. It catches the hardest failure in
-  // this system to diagnose from the outside: a theme whose `theme.json` points
-  // at `wallpapers/numbat.webp` verifies, downloads, installs, and renders the
-  // Ubuntu fallback, because `PackPaths.installedFile` refuses a filename
-  // containing a separator. Nothing errors anywhere.
+  // It catches the hardest failure in this system to diagnose from the outside:
+  // a theme whose `theme.json` names a file the pack does not contain verifies,
+  // downloads, installs, and renders the Ubuntu fallback. Nothing errors
+  // anywhere.
+  //
+  // The rule is `ThemeSource.asset`'s own: the last path segment is kept and the
+  // rest dropped, so a reference is fine exactly when that segment names a file
+  // in the payload. It used to refuse any reference containing a separator,
+  // which refused packs that work and passed packs that do not. See flat-check.
   //
   // Theme packs only, and it refuses rather than rewriting: rewriting the JSON
-  // would change the bytes being signed, and the whole point of a flat pack is
-  // that the theme.json and the files agree.
+  // would change the bytes being signed, and the whole point is that the
+  // theme.json and the files agree.
+  //
+  // `distro-publish` runs the same check with the same message. A gate on one of
+  // two publish paths is worse than no gate, because it reads as covered.
   if (packType === 'theme') {
     const flat = checkThemePackFlat(files);
     if (!flat.ok) {
-      return NextResponse.json(
-        {
-          error:
-            'theme.json references assets by a path rather than a bare filename, so they ' +
-            'resolve against nothing once the pack is installed. Flatten both the files and ' +
-            'the references: ' +
-            flat.problems.map((p) => `'${p.ref}' should be '${p.flat}'`).join(', '),
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: flatRefusal(flat) }, { status: 400 });
     }
   }
 

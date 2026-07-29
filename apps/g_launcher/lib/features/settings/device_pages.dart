@@ -458,7 +458,7 @@ class _DevicePage extends ConsumerWidget {
             // Saying so beats an empty page that looks like a dead screen.
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text('Reading…', style: TextStyle(color: c.textMuted)),
+              child: Text('Reading', style: TextStyle(color: c.textMuted)),
             )
           else ...[
             const ThemedSectionHeader('Right now'),
