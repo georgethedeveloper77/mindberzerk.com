@@ -288,6 +288,7 @@ class SetupInstallerFrame extends StatelessWidget {
     this.onBack,
     this.status,
     this.footerNote,
+    this.fills = false,
   });
 
   final SetupSkin skin;
@@ -309,6 +310,18 @@ class SetupInstallerFrame extends StatelessWidget {
 
   /// Rendered above the footer buttons. The home-role nag lives here.
   final Widget? footerNote;
+
+  /// Should [body] STRETCH to the bottom of the window?
+  ///
+  /// True for steps whose body has something worth growing: the welcome step's
+  /// language list, and any step built around a list rather than a handful of
+  /// rows. False leaves the old top-aligned scroll, which is right for a step
+  /// that is genuinely three radio buttons tall.
+  ///
+  /// Opt-in rather than always-on because a filling step gets no outer scroll
+  /// view, so its body must be able to handle its own overflow. A step that is
+  /// a plain list of rows leaves this false and keeps the scrolling frame.
+  final bool fills;
 
   final VoidCallback? onBack;
   final VoidCallback onNext;
@@ -338,25 +351,27 @@ class SetupInstallerFrame extends StatelessWidget {
       ],
     );
 
-    // The console IS the screen and the assistant is deliberately bare, but
-    // the wizard is a WINDOW: the modern Ubuntu installer floats a rounded
-    // card over the wallpaper, and that floating card is most of what makes
-    // the screenshot recognisable. Margins clear Android's own status bar the
-    // same way the shells do — the wallpaper shows through around it because
-    // the scaffold behind this frame is transparent.
+    // ─── THE WINDOW IS MAXIMISED, NOT FLOATING ──────────────────────────
+    //
+    // It used to sit inside 10dp of padding on all four sides PLUS the status
+    // bar inset, on top of the SafeArea the setup screen already applies. That
+    // is a dialog floating on a desktop, and on a 360dp phone it reads as an
+    // app that could not fill its own screen. Every real installer runs
+    // maximised, and a phone has no other sensible window state.
+    //
+    // So: edge to edge, square corners, no double inset. The SafeArea in
+    // setup_screen still keeps the title bar clear of the notch.
+    //
+    // TRANSLUCENT, which is what keeps the wallpaper in the picture. Filling
+    // the screen with an opaque surface would have hidden the distro wallpaper
+    // entirely, trading one flat rectangle for another. At 0.94 the aubergine
+    // reads through the chrome the way a compositor's window does, and the
+    // text still passes against it.
     if (skin.kind != SetupFrameKind.wizard) return column;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        10,
-        MediaQuery.viewPaddingOf(context).top + 10,
-        10,
-        10 + MediaQuery.viewPaddingOf(context).bottom,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Container(color: c.surface, child: column),
-      ),
+    return Container(
+      color: c.surface.withValues(alpha: 0.94),
+      child: column,
     );
   }
 
@@ -393,32 +408,69 @@ class SetupInstallerFrame extends StatelessWidget {
     );
   }
 
+  /// ─── WHY THIS FILLS THE WINDOW NOW ────────────────────────────────────
+  ///
+  /// It was a bare [SingleChildScrollView], which sizes its child to the
+  /// child's own intrinsic height and top-aligns it. So the window was full
+  /// height and the CONTENT was not, and every step ended in a band of dead
+  /// space between the last row and the footer. On the welcome step that band
+  /// was a third of the screen, which is what makes an installer read as a
+  /// phone form that happens to have a title bar.
+  ///
+  /// ─── AND WHY THERE IS NO IntrinsicHeight HERE ─────────────────────────
+  ///
+  /// The textbook recipe for "fill but still scroll" is a scroll view plus a
+  /// minHeight constraint plus [IntrinsicHeight], and it is wrong for this
+  /// screen. IntrinsicHeight has to measure its children, a [ListView] cannot
+  /// report an intrinsic height, and the language list is a ListView. It would
+  /// have thrown on the one step this exists for.
+  ///
+  /// So a filling step gets a plain [Column] and no outer scroll at all: the
+  /// header is fixed, [body] takes the rest, and the body scrolls itself if it
+  /// needs to. That is also the honest structure, since a step that fills has
+  /// something inside it built to scroll anyway.
+  ///
+  /// Non-filling steps keep the old scroll view untouched.
   Widget _content(ChromeData d) {
     final c = d.colors;
     final centred = skin.kind == SetupFrameKind.assistant;
 
+    final header = <Widget>[
+      Text(
+        title,
+        textAlign: centred ? TextAlign.center : TextAlign.start,
+        style: d.text.display,
+      ),
+      if (subtitle != null) ...[
+        const SizedBox(height: 6),
+        Text(
+          subtitle!,
+          textAlign: centred ? TextAlign.center : TextAlign.start,
+          style: d.text.body.copyWith(color: c.textMuted),
+        ),
+      ],
+      const SizedBox(height: 16),
+    ];
+
+    final padding = EdgeInsets.fromLTRB(centred ? 24 : 16, 18, 16, 12);
+    final cross =
+        centred ? CrossAxisAlignment.center : CrossAxisAlignment.start;
+
+    if (fills) {
+      return Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: cross,
+          children: [...header, Expanded(child: body)],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(centred ? 24 : 16, 18, 16, 12),
+      padding: padding,
       child: Column(
-        crossAxisAlignment:
-            centred ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            textAlign: centred ? TextAlign.center : TextAlign.start,
-            style: d.text.display,
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              subtitle!,
-              textAlign: centred ? TextAlign.center : TextAlign.start,
-              style: d.text.body.copyWith(color: c.textMuted),
-            ),
-          ],
-          const SizedBox(height: 16),
-          body,
-        ],
+        crossAxisAlignment: cross,
+        children: [...header, body],
       ),
     );
   }

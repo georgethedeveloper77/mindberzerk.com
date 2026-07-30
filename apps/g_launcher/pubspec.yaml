@@ -57,6 +57,7 @@ dependencies:
   # library and its presence here once masked this one being missing.
   flutter_localizations:
     sdk: flutter
+  fl_chart: ^1.2.0
 
 flutter_gen:
   assets:

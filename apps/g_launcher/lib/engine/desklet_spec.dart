@@ -70,6 +70,18 @@ class DeskletKind {
 
 /// Every kind this build knows. Order is the picker order.
 ///
+/// ─── THE SPANS HERE ARE IN THE FINE GRID ────────────────────────────────────
+///
+/// Every number below was multiplied when the desklet grid was split off from
+/// the icon grid: X by [DeskletLayout.colFactor], Y by
+/// [DeskletLayout.rowFactor]. A kind whose maximum stayed at the old figure
+/// would have been silently confined to a fraction of the screen, which is the
+/// kind of change that looks like the resize handle broke.
+///
+/// If those factors ever change again, these change with them, and stored
+/// placements need a migration. That is the whole reason
+/// [LauncherPrefs.deskletGridVersion] exists.
+///
 /// The grid kinds below read from sources that need NO runtime permission.
 /// Permissions only start at calendar events, Wi-Fi SSID, media controls and
 /// weather, none of which are here.
@@ -90,12 +102,12 @@ class DeskletKinds {
   static const appWidget = DeskletKind(
     id: 'appwidget',
     label: 'App widget',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 2,
-    defaultSpanY: 2,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 4,
+    defaultSpanY: 6,
   );
 
   /// The combined default desktop tile. Time + date, and stat rows that appear
@@ -109,12 +121,12 @@ class DeskletKinds {
   static const glance = DeskletKind(
     id: 'glance',
     label: 'Glance',
-    minSpanX: 2,
-    minSpanY: 1,
-    maxSpanX: 3,
-    maxSpanY: 4,
-    defaultSpanX: 2,
-    defaultSpanY: 2,
+    minSpanX: 4,
+    minSpanY: 3,
+    maxSpanX: 6,
+    maxSpanY: 12,
+    defaultSpanX: 4,
+    defaultSpanY: 6,
   );
 
   /// Big, and the proof of the skin layer: it looks radically different on all
@@ -122,12 +134,12 @@ class DeskletKinds {
   static const clock = DeskletKind(
     id: 'clock',
     label: 'Clock',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 4,
-    maxSpanY: 2,
-    defaultSpanX: 2,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 8,
+    maxSpanY: 6,
+    defaultSpanX: 4,
+    defaultSpanY: 3,
     defaults: {
       'format': '24h', // '24h' | '12h'
       'showSeconds': false,
@@ -140,12 +152,12 @@ class DeskletKinds {
   static const monitor = DeskletKind(
     id: 'monitor',
     label: 'System monitor',
-    minSpanX: 2,
-    minSpanY: 2,
-    maxSpanX: 4,
-    maxSpanY: 5,
-    defaultSpanX: 2,
-    defaultSpanY: 3,
+    minSpanX: 4,
+    minSpanY: 6,
+    maxSpanX: 8,
+    maxSpanY: 15,
+    defaultSpanX: 4,
+    defaultSpanY: 9,
     defaults: {'graphs': true},
   );
 
@@ -153,12 +165,12 @@ class DeskletKinds {
   static const fastfetch = DeskletKind(
     id: 'fastfetch',
     label: 'Fastfetch',
-    minSpanX: 3,
-    minSpanY: 2,
-    maxSpanX: 5,
-    maxSpanY: 4,
-    defaultSpanX: 4,
-    defaultSpanY: 2,
+    minSpanX: 6,
+    minSpanY: 6,
+    maxSpanX: 10,
+    maxSpanY: 12,
+    defaultSpanX: 8,
+    defaultSpanY: 6,
   );
 
   /// Live throughput and transport. Never the SSID: that needs location
@@ -167,12 +179,12 @@ class DeskletKinds {
   static const network = DeskletKind(
     id: 'network',
     label: 'Network',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 4,
-    maxSpanY: 3,
-    defaultSpanX: 2,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 8,
+    maxSpanY: 9,
+    defaultSpanX: 4,
+    defaultSpanY: 3,
   );
 
   /// The same number Settings shows and the same one G Recovery will report.
@@ -180,12 +192,12 @@ class DeskletKinds {
   static const storage = DeskletKind(
     id: 'storage',
     label: 'Storage',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 4,
-    maxSpanY: 3,
-    defaultSpanX: 2,
-    defaultSpanY: 2,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 8,
+    maxSpanY: 9,
+    defaultSpanX: 4,
+    defaultSpanY: 6,
   );
 
   /// Draw, temperature, time-to-empty. NOT a percentage — Android's own status
@@ -193,35 +205,35 @@ class DeskletKinds {
   static const battery = DeskletKind(
     id: 'battery',
     label: 'Battery detail',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 4,
-    maxSpanY: 3,
-    defaultSpanX: 2,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 8,
+    maxSpanY: 9,
+    defaultSpanX: 4,
+    defaultSpanY: 3,
   );
 
   static const notes = DeskletKind(
     id: 'notes',
     label: 'Note',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 2,
-    defaultSpanY: 2,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 4,
+    defaultSpanY: 6,
     defaults: {'text': ''},
   );
 
   static const search = DeskletKind(
     id: 'search',
     label: 'Search',
-    minSpanX: 2,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 1,
-    defaultSpanX: 4,
-    defaultSpanY: 1,
+    minSpanX: 4,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 3,
+    defaultSpanX: 8,
+    defaultSpanY: 3,
   );
 
   // ── pane surface (terminal shell) ──────────────────────────────────────────
@@ -231,12 +243,12 @@ class DeskletKinds {
   static const freeMem = DeskletKind(
     id: 'free',
     label: 'free -h',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 1,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 2,
+    defaultSpanY: 3,
     paneOnly: true,
   );
 
@@ -248,12 +260,12 @@ class DeskletKinds {
   static const appsList = DeskletKind(
     id: 'ls',
     label: 'ls',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 1,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 2,
+    defaultSpanY: 3,
     paneOnly: true,
     defaults: {'limit': 12},
   );
@@ -262,24 +274,24 @@ class DeskletKinds {
   static const uptime = DeskletKind(
     id: 'uptime',
     label: 'uptime',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 1,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 2,
+    defaultSpanY: 3,
     paneOnly: true,
   );
 
   static const diskFree = DeskletKind(
     id: 'df',
     label: 'df -h',
-    minSpanX: 1,
-    minSpanY: 1,
-    maxSpanX: 5,
-    maxSpanY: 5,
-    defaultSpanX: 1,
-    defaultSpanY: 1,
+    minSpanX: 2,
+    minSpanY: 3,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 2,
+    defaultSpanY: 3,
     paneOnly: true,
   );
 

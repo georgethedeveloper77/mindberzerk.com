@@ -15,6 +15,11 @@ import '../../data/repositories/shell_apps.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
+// AppEntry, for resolving a suggestion's componentKeys into icons.
+import '../../platform/launcher_api.g.dart';
+import '../../system/wallpaper_source.dart';
+import '../drawer/app_icon.dart';
+import '../drawer/folder_glyph.dart';
 import '../../engine/theme_registry.dart';
 import '../../engine/theme_spec.dart';
 import '../../i18n/i18n.dart';
@@ -310,7 +315,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = ref.watch(effectiveThemeProvider).asData?.value;
+    // hasValue, not asData: asData is null through a RELOAD, and every prefs
+    // write is a reload. See home_screen.dart.
+    final themeAsync = ref.watch(effectiveThemeProvider);
+    final theme = themeAsync.hasValue ? themeAsync.requireValue : null;
 
     // ChromeScope is normally installed by ThemedScaffold. This screen builds
     // its own frame, so it has to provide the chrome itself, otherwise every
@@ -333,6 +341,25 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       data: chrome,
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        // ─── THE INSTALLER RUNS OVER THE LIVE SESSION'S WALLPAPER ────────
+        //
+        // It used to be a flat two-stop gradient of the palette, and that is
+        // the single biggest reason the wizard read as a phone form rather than
+        // a desktop. You do not install Ubuntu on a purple rectangle; you
+        // install it from a live session, with the distro's own wallpaper
+        // behind the window and the installer floating on top. The frame was
+        // ALREADY drawing a floating window over this; there was just nothing
+        // underneath worth floating over.
+        //
+        // The gradient stays as the layer beneath, so a theme with no
+        // wallpaper, or one whose image has not decoded yet, looks exactly as
+        // it does today rather than flashing black.
+        //
+        // `spec.asset` is what knows whether this distro's files are in the APK
+        // or in `packs/<id>/`, and it is the only thing that does. Handing the
+        // raw string to an AssetImage works for a bundled theme and silently
+        // renders nothing for a downloaded one, which is the same trap
+        // `wallpaper_source.dart` documents at length.
         body: DecoratedBox(
           decoration: BoxDecoration(
             gradient: theme == null
@@ -342,6 +369,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                     end: Alignment.bottomCenter,
                     colors: [theme.palette.bgTop, theme.palette.bgBottom],
                   ),
+            image: _wallpaperFor(theme),
           ),
           child: SafeArea(
             child: theme == null
@@ -386,11 +414,51 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                           _ => ref.t('setup.next.continue'),
                         },
                         body: _body(theme, skin, current),
+                        // The welcome step is the one built around a LIST, so
+                        // it is the one that should grow into the window. The
+                        // rest are a handful of rows and look wrong stretched.
+                        fills: current == _SetupStep.welcome,
                       );
                     },
                   ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// The distro's own wallpaper, dimmed, as the installer's backdrop.
+  ///
+  /// Null whenever there is nothing safe to show: no theme yet, no wallpaper
+  /// authored, or a source that is not a theme reference (a user photo cannot
+  /// exist during setup, but the predicate is the one place that rule lives and
+  /// reusing it beats reimplementing it here).
+  ///
+  /// Dimmed hard, because this is a BACKDROP. An undimmed photo behind a
+  /// translucent window makes the installer text unreadable, and the real live
+  /// session dims the desktop behind its installer for exactly that reason.
+  DecorationImage? _wallpaperFor(EffectiveTheme? theme) {
+    if (theme == null) return null;
+
+    final source = theme.spec.wallpapers.isNotEmpty
+        ? theme.spec.wallpapers.first
+        : null;
+    if (source == null || !isThemeAssetRef(source)) return null;
+
+    return DecorationImage(
+      image: theme.spec.asset(source).image,
+      fit: BoxFit.cover,
+      // The SPEC's palette, not the resolved one, for the same reason the
+      // splash uses it: this is a scrim over a photograph, and dimming a
+      // photograph with a near-white wash does not dim it, it bleaches it.
+      // Light mode made `theme.palette.bgBottom` pale, so the installer's
+      // backdrop went from a dark aubergine veil to a white haze.
+      //
+      // A live session dims the desktop behind its installer whichever theme
+      // the session is running.
+      colorFilter: ColorFilter.mode(
+        theme.spec.palette.bgBottom.withValues(alpha: 0.72),
+        BlendMode.srcOver,
       ),
     );
   }
@@ -412,6 +480,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   String _title(_SetupStep step) => switch (step) {
         _SetupStep.welcome => ref.t('setup.welcome.chooseLanguage'),
         _SetupStep.distro => ref.t('setup.title.distro'),
+        _SetupStep.appearance => ref.t('setup.title.appearance'),
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
         _SetupStep.folders => ref.t('setup.title.folders'),
@@ -422,6 +491,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         // The reference has no line under "Choose your language:".
         _SetupStep.welcome => null,
         _SetupStep.distro => ref.t('setup.subtitle.distro'),
+        _SetupStep.appearance => ref.t('setup.subtitle.appearance'),
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
         _SetupStep.folders => ref.t('setup.subtitle.folders'),
@@ -437,6 +507,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             onRequest: _openHomePicker,
           ),
         _SetupStep.distro => _StepDistro(mono: skin.mono),
+        _SetupStep.appearance =>
+          _StepAppearance(theme: theme, mono: skin.mono),
         _SetupStep.dock => _StepDock(theme: theme, mono: skin.mono),
         _SetupStep.drawer => _StepDrawer(theme: theme, mono: skin.mono),
         _SetupStep.folders => _StepFolders(
@@ -455,6 +527,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 enum _SetupStep {
   welcome('Welcome'),
   distro('Desktop'),
+  appearance('Appearance'),
   dock('Dock'),
   drawer('App drawer'),
   folders('Folders'),
@@ -494,6 +567,10 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
   return const [
     _SetupStep.welcome,
     _SetupStep.distro,
+    // BEFORE the layout steps, deliberately. Dock and drawer both preview
+    // themselves, and a preview painted in the mode you are about to leave is
+    // worse than no preview. After distro because the preview needs a palette.
+    _SetupStep.appearance,
     _SetupStep.dock,
     _SetupStep.drawer,
     _SetupStep.folders,
@@ -532,7 +609,10 @@ class _StepWelcome extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
-    final theme = ref.watch(effectiveThemeProvider).asData?.value;
+    // hasValue, not asData: asData is null through a RELOAD, and every prefs
+    // write is a reload. See home_screen.dart.
+    final themeAsync = ref.watch(effectiveThemeProvider);
+    final theme = themeAsync.hasValue ? themeAsync.requireValue : null;
     final i18n = ref.watch(i18nProvider);
     // Preselect what is on screen: the explicit choice, else the device
     // language the app booted with.
@@ -541,33 +621,47 @@ class _StepWelcome extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The distro mark, centred like the reference's Ubuntu wordmark. A
-        // typeset mark (accent block + name in the display face) rather than
-        // the SVG logo for now: wiring LauncherBrandIcon here needs
-        // app_icon.dart in hand to match its constructor, and a wrong guess
-        // renders nothing. Swap-in point is exactly this block.
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 18),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 34, height: 34, color: d.colors.accent),
-                const SizedBox(width: 10),
-                Text(
-                  theme?.spec.name ?? 'G Launcher',
-                  style: d.text.display.copyWith(fontSize: 30),
-                ),
-              ],
+        // The distro's REAL mark, centred like the reference's Ubuntu wordmark.
+        //
+        // This used to be a typeset stand-in: an accent-coloured square beside
+        // the distro's name, with a comment saying the SVG was not wired
+        // because app_icon.dart was not in hand. It looked exactly like what it
+        // was, a placeholder, and it was the first thing on the first screen.
+        //
+        // LauncherBrandIcon reads `spec.logo` and picks the variant that reads
+        // on this surface, so a CDN distro shipping its own logo gets it here
+        // with no code change, and a distro shipping none falls back to the
+        // Mindhunter mark rather than to a coloured rectangle.
+        if (theme != null)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 18),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LauncherBrandIcon(theme: theme, size: 34),
+                  const SizedBox(width: 10),
+                  Text(
+                    theme.spec.name,
+                    style: d.text.display.copyWith(fontSize: 30),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
 
-        // The language box: bordered, rounded, fixed height, SCROLLABLE.
-        // Plain text rows — the reference has no radios and no cards, just
+        // The language box: bordered, rounded, SCROLLABLE, and it now GROWS.
+        //
+        // It was a fixed 288, which is what left a third of the window empty
+        // beneath the home-role button. The frame gives this step the full
+        // height (SetupInstallerFrame.fills), so the box takes whatever the
+        // header and the rows below do not, on every screen size, instead of
+        // being right on one phone and wrong on the rest.
+        //
+        // Plain text rows: the reference has no radios and no cards, just
         // names, with the active one in the accent colour.
-        Container(
-          height: 288,
+        Expanded(
+          child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: d.colors.line),
             borderRadius: BorderRadius.circular(9),
@@ -586,6 +680,7 @@ class _StepWelcome extends ConsumerWidget {
                   ),
               ],
             ),
+          ),
           ),
         ),
         const SizedBox(height: 18),
@@ -681,24 +776,203 @@ class _StepDistro extends ConsumerWidget {
     final active =
         ref.watch(selectedThemeIdProvider).asData?.value ?? fallbackThemeId;
 
+    // The console skin keeps the text list: a TTY installer does not draw
+    // pictures of desktops, and a preview thumbnail there would be the one
+    // detail that gives the whole thing away.
+    if (mono) {
+      return Column(
+        children: [
+          for (final spec in specs)
+            SetupRow(
+              title: spec.name,
+              subtitle: _taglineFor(spec.shell),
+              trailing: spec.version.isEmpty ? null : spec.version,
+              selected: spec.id == active,
+              mono: true,
+              marker: SetupMarker.chevron,
+              onTap: () {
+                Analytics.themeSelected(spec.id);
+                ref.read(selectedThemeIdProvider.notifier).select(spec.id);
+              },
+            ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         for (final spec in specs)
-          SetupRow(
-            title: spec.name,
-            subtitle: _taglineFor(spec.shell),
-            // The pinned version, straight out of theme.json. A distro that
-            // does not version itself (Arch is rolling, Aqua is unversioned on
-            // purpose) shows nothing rather than an empty gap.
-            trailing: spec.version.isEmpty ? null : spec.version,
+          _DistroCard(
+            spec: spec,
             selected: spec.id == active,
-            mono: mono,
-            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
             onTap: () {
               Analytics.themeSelected(spec.id);
               ref.read(selectedThemeIdProvider.notifier).select(spec.id);
             },
           ),
+      ],
+    );
+  }
+}
+
+/// Light, dark, or follow the phone.
+///
+/// ─── WHY THIS STEP EXISTS AT ALL, AND WHY IT IS NOT PER DISTRO ──────────────
+///
+/// Wanting a light phone is a fact about the person and the room they are in,
+/// not about which desktop they are imitating. So [LauncherPrefs.themeMode] is
+/// promoted to the global bucket, and this step and the Appearance section in
+/// Settings write the SAME value. Setting it here and setting it later are the
+/// same act, which is why the subtitle says so out loud.
+///
+/// ─── A DISTRO THAT SHIPS NO LIGHT PALETTE ───────────────────────────────────
+///
+/// It stays dark, and the step SAYS SO rather than hiding itself. Two reasons.
+/// Hiding it would make the wizard change length when you go back and pick a
+/// different distro, which is exactly the failure `_stepsFor` is built as an
+/// enum to survive, and the preference is worth recording anyway: it applies
+/// the moment any distro with a light block is installed.
+/// One distro, with a picture of the desktop it gives you.
+///
+/// ─── WHY A PREVIEW AND NOT A ROW OF TEXT ────────────────────────────────────
+///
+/// "Top bar, dock down the left, activities overview" is an accurate sentence
+/// and it is useless to the person it is aimed at. This is the screen where
+/// someone decides what their phone will look like for the next year, and the
+/// list gave them three taglines to imagine from. The dock step three screens
+/// later drew them a picture for a decision an order of magnitude smaller.
+///
+/// [DevicePreview] costs almost nothing here, which is why this is a small
+/// change rather than a project: it paints from six palette colours and four
+/// layout scalars, all of which `setupDistrosProvider` has already loaded. No
+/// wallpaper decode, no icon lookup, no EffectiveTheme to build. Three of them
+/// on one screen is three gradients and some rectangles.
+class _DistroCard extends StatelessWidget {
+  const _DistroCard({
+    required this.spec,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ThemeSpec spec;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: selected ? c.accent.withValues(alpha: 0.10) : null,
+            border: Border.all(
+              color: selected ? c.accent : c.line,
+              width: selected ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // The distro's OWN palette and dock side, so the three cards are
+              // visibly three different desktops rather than three labels.
+              SizedBox(
+                height: 62,
+                child: DevicePreview(
+                  palette: spec.palette,
+                  mode: DevicePreviewMode.desktop,
+                  dock: spec.layout.dock,
+                  cols: spec.layout.cols,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(spec.name, style: d.text.title),
+                        ),
+                        if (spec.version.isNotEmpty)
+                          Text(
+                            spec.version,
+                            style: d.text.caption.copyWith(color: c.textFaint),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _taglineFor(spec.shell),
+                      style: d.text.caption.copyWith(color: c.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepAppearance extends ConsumerWidget {
+  const _StepAppearance({required this.theme, required this.mono});
+
+  final EffectiveTheme theme;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = ChromeScope.of(context);
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final mode = theme.prefs.themeMode ?? 'system';
+    final hasLight = theme.spec.paletteLight != null;
+
+    // The dock preview, reused: it paints from EffectiveTheme.palette, which is
+    // already the resolved variant, so it shows the choice rather than
+    // describing it. No new preview widget, and no second idea of what a
+    // desktop looks like.
+    return Column(
+      children: [
+        _Preview(theme: theme, mode: DevicePreviewMode.desktop),
+        const SizedBox(height: 14),
+        for (final e in const [
+          ('system', 'Match the system', 'Follows the phone\'s own light and dark switch.'),
+          ('light', 'Always light', null),
+          ('dark', 'Always dark', null),
+        ])
+          SetupRow(
+            title: e.$2,
+            subtitle: e.$3,
+            selected: mode == e.$1,
+            mono: mono,
+            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+            // Written through the ordinary per-theme notifier even though the
+            // value is global. `PrefsNotifier.edit` routes it; a call site that
+            // knew which bucket a field lived in would be a call site that can
+            // pick wrong.
+            onTap: () => notifier.edit((p) => p.copyWith(themeMode: e.$1)),
+          ),
+        if (!hasLight) ...[
+          const SizedBox(height: 10),
+          Text(
+            '${theme.spec.name} ships only a dark palette, so it stays dark. '
+            'Your choice applies to distros that offer both.',
+            softWrap: true,
+            style: d.text.caption.copyWith(color: d.colors.textMuted),
+          ),
+        ],
       ],
     );
   }
@@ -862,17 +1136,63 @@ class _StepFolders extends ConsumerWidget {
       );
     }
 
-    // A TOGGLE, ON BY DEFAULT, applied when the user advances — not a button.
+    // ─── THE FOLDERS ARE SHOWN, NOT COUNTED ──────────────────────────────
     //
-    // Games leads the naming because it is the suggestion engine's first
-    // claim (threshold 3, claimed before publishers) and the folder people
-    // recognise instantly. Per-suggestion rows with names and member lists
-    // remain the better screen and still need folder_suggestions.dart to
-    // expose them; until then the toggle covers the whole proposed set.
+    // This step used to be one checkbox reading "Create 8 folders", and the
+    // comment here admitted the better screen needed FolderSuggestion's name
+    // and members exposed. They always were: `name`, `componentKeys` and
+    // `size` have been on the class the whole time.
+    //
+    // So it draws them. Eight folders with their real names and the apps
+    // actually going into each is the difference between agreeing to a number
+    // and seeing what you are about to get, and it is the one screen in the
+    // wizard with the room to do it.
+    final byKey = {for (final a in apps) a.componentKey: a};
+
+    // GAMES FIRST, which is what the copy has always claimed.
+    //
+    // `propose` sorts biggest-first, so a Google block of twenty-five outranks
+    // a Games folder of four and the promise was quietly false. Reordering here
+    // rather than in the engine, because size-first is right for a settings
+    // list and recognisability is right for a first run: this is the only place
+    // someone has never seen any of these folders before.
+    final ordered = [
+      ...suggestions.where((s) => s.kind == SuggestionKind.games),
+      ...suggestions.where((s) => s.kind != SuggestionKind.games),
+    ];
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 12,
+          children: [
+            for (final s in ordered)
+              SizedBox(
+                width: 68,
+                child: FolderTile(
+                  theme: theme,
+                  name: s.name,
+                  size: 60,
+                  // Resolved against the live app list, so a member that has
+                  // been uninstalled between propose and paint is absent rather
+                  // than a gap. whereType drops the nulls in one pass.
+                  members: s.componentKeys
+                      .map((k) => byKey[k])
+                      .whereType<AppEntry>()
+                      .toList(),
+                  labelColor: d.colors.text,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
         SetupRow(
-          title: 'Create ${suggestions.length} folders — Games first',
+          title: ref.t(
+            'setup.folders.create',
+            {'n': '${suggestions.length}'},
+          ),
           subtitle: 'Grouped by what the apps say they are. Created when you '
               'continue; untick to skip.',
           selected: createFolders,

@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/drawer_slots.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 
@@ -160,12 +164,181 @@ final drawerItemsProvider =
     const DeviceSettingsItem(),
   ];
 
-  final appItems = <DrawerItem>[
+  // ── SORT MODES ──────────────────────────────────────────────────────────
+  //
+  // 'az' (null) is the order everything above described. 'mostUsed' and
+  // 'recent' re-rank the LOOSE APPS by the usage repository's two orderings,
+  // with never-launched apps keeping their alphabetical order after the
+  // ranked ones; folders and the launcher entries do not re-rank, because a
+  // folder's frecency is not a thing the usage store measures. 'custom'
+  // returns the slot arrangement FLATTENED, launcher entries first, so search
+  // and every other flat consumer sees the drawer in the order the user
+  // built; the drawer body itself renders the sparse grid via
+  // [drawerCustomGridProvider], gaps included.
+  final mode = prefs.drawerSortMode ?? 'custom';
+
+  if (mode == 'custom') {
+    final grid = ref.watch(drawerCustomGridProvider(theme));
+    return [
+      for (final cell in grid.cells)
+        if (cell != null) cell,
+    ];
+  }
+
+  var appItems = <DrawerItem>[
     for (final a in apps)
       if (!folded.contains(a.componentKey)) AppDrawerItem(a),
   ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
+  if (mode == 'mostUsed' || mode == 'recent') {
+    final ranked = mode == 'mostUsed'
+        ? ref.watch(frequentAppsProvider)
+        : ref.watch(recentAppsProvider);
+    final rank = {for (var i = 0; i < ranked.length; i++) ranked[i]: i};
+
+    // A STABLE re-sort: ranked apps in rank order, everything unranked keeps
+    // the alphabetical order it already has, after them. List.sort is not
+    // stable in Dart, so the split-and-concatenate does what a stable sort
+    // key would.
+    final rankedItems = <(int, DrawerItem)>[];
+    final unranked = <DrawerItem>[];
+    for (final item in appItems) {
+      final key = (item as AppDrawerItem).entry.componentKey;
+      final r = rank[key];
+      if (r != null) {
+        rankedItems.add((r, item));
+      } else {
+        unranked.add(item);
+      }
+    }
+    rankedItems.sort((a, b) => a.$1.compareTo(b.$1));
+    appItems = [for (final e in rankedItems) e.$2, ...unranked];
+  }
+
   return [...folders, ...launcherEntries, ...appItems];
+});
+
+/// What the CUSTOM drawer renders: the sparse slot grid, resolved.
+///
+/// A flat cell list of length pageCount x capacity, where null is a gap. The
+/// first two cells are always the launcher's own entries (see
+/// [DrawerSlots.reservedSlots]). Entries whose app or folder no longer
+/// resolves render as gaps here and are swept from storage by Clean up pages
+/// or the next prune. Anything alive but UNPLACED, a new install, an app just
+/// pulled out of a folder, a folder made outside Custom, is DISPLAYED
+/// appended after the last occupied slot, folders before apps, both
+/// alphabetical; it becomes stored the first time it is dragged. One trailing
+/// empty page always exists so there is somewhere to drag things to.
+typedef DrawerCustomGrid = ({
+  List<DrawerItem?> cells,
+  int cols,
+  int rows,
+  int pageCount,
+});
+
+final drawerCustomGridProvider =
+    Provider.family<DrawerCustomGrid, EffectiveTheme>((ref, theme) {
+  final apps = ref.watch(shellAppsProvider(theme));
+  final byKey = {for (final a in apps) a.componentKey: a};
+
+  final prefs =
+      ref.watch(prefsProvider(theme.spec.id)).asData?.value ?? theme.prefs;
+
+  final cols = math.max(1, prefs.drawerSlotCols ?? 4);
+  final rows = math.max(1, prefs.drawerSlotRows ?? 5);
+  final per = cols * rows;
+
+  final folded = DrawerLayout.foldedKeys(prefs);
+  final folderById = {for (final f in prefs.drawerFolders) f.id: f};
+
+  DrawerItem? resolve(DrawerSlot s) {
+    final k = s.componentKey;
+    if (k != null) {
+      final e = byKey[k];
+      if (e == null || folded.contains(k)) return null;
+      return AppDrawerItem(e);
+    }
+    final f = folderById[s.folderId];
+    if (f == null) return null;
+    return FolderDrawerItem(
+      f,
+      [
+        for (final m in f.members)
+          if (byKey[m] != null) byKey[m]!,
+      ],
+    );
+  }
+
+  final placed = <int, DrawerItem>{};
+  final placedApps = <String>{};
+  final placedFolders = <String>{};
+  var lastFlat = DrawerSlots.reservedSlots - 1;
+
+  for (final s in prefs.drawerSlots) {
+    final flat = s.page * per + s.index;
+    if (flat < DrawerSlots.reservedSlots) continue;
+    final item = resolve(s);
+    if (item == null) continue;
+    placed[flat] = item;
+    if (flat > lastFlat) lastFlat = flat;
+    if (s.componentKey != null) placedApps.add(s.componentKey!);
+    if (s.folderId != null) placedFolders.add(s.folderId!);
+  }
+
+  // Alive but unplaced: displayed appended, folders first, per the append-at-
+  // end decision. Skipping occupied flats keeps this correct even if storage
+  // somehow holds an entry past lastFlat with a gap before it.
+  var next = lastFlat + 1;
+  void append(DrawerItem item) {
+    while (placed.containsKey(next)) {
+      next++;
+    }
+    placed[next] = item;
+    next++;
+  }
+
+  for (final f in DrawerLayout.orderedFolders(prefs)) {
+    if (placedFolders.contains(f.id)) continue;
+    append(FolderDrawerItem(
+      f,
+      [
+        for (final m in f.members)
+          if (byKey[m] != null) byKey[m]!,
+      ],
+    ));
+  }
+  for (final a in apps) {
+    if (folded.contains(a.componentKey)) continue;
+    if (placedApps.contains(a.componentKey)) continue;
+    append(AppDrawerItem(a));
+  }
+
+  final maxFlat = placed.isEmpty
+      ? DrawerSlots.reservedSlots
+      : placed.keys.reduce(math.max);
+
+  // Exactly as many pages as the contents occupy, PLUS any the user has grown
+  // the drawer to with the "+" beside the page dots.
+  //
+  // This used to be `+ 2`, an unconditional trailing empty page, so that a
+  // drag always had somewhere to land. It worked and it was wrong: the drawer
+  // permanently ended on a blank screen nobody had asked for. Growing the
+  // drawer is now an explicit act that is then remembered, which is how modern
+  // launchers do it, and Clean up pages is what takes the empty pages back.
+  final needed = (maxFlat ~/ per) + 1;
+  final pageCount = math.max(needed, prefs.drawerPageCount ?? 0);
+
+  final cells = List<DrawerItem?>.filled(pageCount * per, null);
+  // `needed` is at least 1 and `per` at least 1, but a one-column one-row grid
+  // would leave no room for the second reserved cell, so both writes below are
+  // bounds-checked rather than assumed.
+  if (cells.isNotEmpty) cells[0] = const LauncherSettingsItem();
+  if (cells.length > 1) cells[1] = const DeviceSettingsItem();
+  placed.forEach((flat, item) {
+    if (flat < cells.length) cells[flat] = item;
+  });
+
+  return (cells: cells, cols: cols, rows: rows, pageCount: pageCount);
 });
 
 /// The drawer list, filtered by a query, WITH the launcher entries included.

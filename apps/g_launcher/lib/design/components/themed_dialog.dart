@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../tokens/radii.dart';
 import '../tokens/spacing.dart';
 import 'chrome_theme.dart';
+import 'glass_panel.dart';
 import 'themed_button.dart';
 
 /// A themed dialog. Same route-boundary rule as [ThemedSheet]: the chrome is
@@ -32,17 +33,25 @@ class ThemedDialog {
 
     return showDialog<T>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
+      // Matched to the sheet's. A dialog and a sheet appearing over the same
+      // desktop with different scrims is the kind of inconsistency nobody can
+      // name and everybody feels.
+      barrierColor: Colors.black.withValues(alpha: 0.38),
       builder: (ctx) {
         final resolvedActions = actionsBuilder?.call(ctx) ?? actions;
         return ChromeScope(
           data: data,
           child: Dialog(
-            backgroundColor: c.surface,
+            // Transparent, with the glass below doing the painting. Same
+            // reasoning as ThemedSheet: an opaque colour here would sit behind
+            // the translucent layer and leave the blur nothing to work on.
+            backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             shape: const RoundedRectangleBorder(borderRadius: GRadius.lgAll),
-            child: Padding(
+            child: GlassPanel(
+              borderRadius: GRadius.lgAll,
+              child: Padding(
               padding: const EdgeInsets.all(GSpace.xl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -66,6 +75,7 @@ class ThemedDialog {
                     ),
                   ],
                 ],
+              ),
               ),
             ),
           ),
@@ -104,3 +114,4 @@ class ThemedDialog {
     );
   }
 }
+

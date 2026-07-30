@@ -98,6 +98,16 @@ export interface ThemeSpecJson {
   tier: TierName;
   chromeFamily?: ChromeName | null;
   palette: ThemePaletteJson;
+  /**
+   * The LIGHT variant, when the distro ships one.
+   *
+   * Optional and additive, mirroring `ThemeSpec.paletteLight` on the device:
+   * `palette` stays the DARK variant and keeps its name, because renaming it
+   * would break every theme.json already published to the CDN. A theme without
+   * this block has no light mode and the device forces dark, which is why an
+   * absent value must stay absent rather than being filled with a default.
+   */
+  paletteLight?: ThemePaletteJson | null;
   typography?: ThemeTypographyJson | null;
   layout: ThemeLayoutJson;
   icons?: IconStyleJson | null;
@@ -138,6 +148,28 @@ export function isHexColor(v: string): boolean {
   return HEX.test(v);
 }
 
+/**
+ * WCAG relative luminance of a hex colour, 0 (black) to 1 (white).
+ *
+ * Mirrors Flutter's `Color.computeLuminance`, which is what
+ * `ChromeColors.fromPalette` uses to decide whether a theme's chrome is dark.
+ * Duplicated here rather than approximated, because the panel and the device
+ * disagreeing about which side of 0.5 a colour falls on would mean a theme that
+ * validates in the builder and renders unreadable on a phone.
+ *
+ * Accepts `#RRGGBB` and `#AARRGGBB`; the alpha byte is ignored, since ink is
+ * composited opaque.
+ */
+export function luminance(hex: string): number {
+  const s = hex.trim().replace(/^#/, '');
+  const rgb = s.length === 8 ? s.slice(2) : s;
+  const ch = (i: number) => {
+    const c = parseInt(rgb.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4);
+}
+
 /** Normalize a hex string to `#RRGGBB` / `#AARRGGBB`, uppercased with a leading #. */
 export function normalizeHex(v: string): string {
   const s = v.trim().replace(/^#/, '');
@@ -169,6 +201,20 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
     accent: spec.palette.accent,
     onDark: spec.palette.onDark,
   };
+
+  // Emitted ONLY when authored. An empty or partial light block would make the
+  // device believe the distro has a light mode and then paint it with whatever
+  // defaults happened to be in the editor.
+  if (spec.paletteLight) {
+    out.paletteLight = {
+      bgTop: spec.paletteLight.bgTop,
+      bgBottom: spec.paletteLight.bgBottom,
+      bar: spec.paletteLight.bar,
+      dock: spec.paletteLight.dock,
+      accent: spec.paletteLight.accent,
+      onDark: spec.paletteLight.onDark,
+    };
+  }
 
   if (spec.typography && (spec.typography.display || spec.typography.mono)) {
     const t: Record<string, string> = {};
@@ -236,6 +282,23 @@ export function validateDraft(draft: ThemeDraft): string[] {
   } else {
     for (const [k, v] of Object.entries(s.palette)) {
       if (!isHexColor(v as string)) p.push(`Palette ${k} '${v}' is not a hex colour`);
+    }
+  }
+
+  if (s.paletteLight) {
+    for (const [k, v] of Object.entries(s.paletteLight)) {
+      if (!isHexColor(v as string)) {
+        p.push(`Light palette ${k} '${v}' is not a hex colour`);
+      }
+    }
+    // The device derives chrome brightness backwards from onDark's own
+    // luminance, so a light palette carrying light ink inverts the whole
+    // settings surface: white text on white cards. Cheap to catch here,
+    // expensive to notice on a phone.
+    if (isHexColor(s.paletteLight.onDark) && luminance(s.paletteLight.onDark) > 0.5) {
+      p.push(
+        "Light palette onDark is a light colour. It is the INK that must read on a light surface, so it should be dark.",
+      );
     }
   }
 
@@ -360,6 +423,7 @@ export function importTheme(
   }
 
   const paletteRaw = obj(j.palette);
+  const lightRaw = obj(j.paletteLight);
   if (!paletteRaw) notes.push('No `palette`. The device throws on an absent palette, so this one is the blank default.');
 
   const layoutRaw = obj(j.layout) ?? {};
@@ -402,6 +466,20 @@ export function importTheme(
       accent: str(paletteRaw?.accent) ?? base.palette.accent,
       onDark: str(paletteRaw?.onDark) ?? base.palette.onDark,
     },
+    // ABSENT STAYS ABSENT. Unlike `palette`, which the device throws without
+    // and which therefore falls back to the blank default, a missing light
+    // block is a meaningful answer: this distro has no light mode. Filling it
+    // from `base` would invent one on every import and republish it.
+    paletteLight: lightRaw
+      ? {
+          bgTop: str(lightRaw.bgTop) ?? base.palette.bgTop,
+          bgBottom: str(lightRaw.bgBottom) ?? base.palette.bgBottom,
+          bar: str(lightRaw.bar) ?? base.palette.bar,
+          dock: str(lightRaw.dock) ?? base.palette.dock,
+          accent: str(lightRaw.accent) ?? base.palette.accent,
+          onDark: str(lightRaw.onDark) ?? base.palette.onDark,
+        }
+      : null,
     layout: {
       dock: (DOCKS as string[]).includes(str(layoutRaw.dock) ?? '')
         ? (str(layoutRaw.dock) as DockName)

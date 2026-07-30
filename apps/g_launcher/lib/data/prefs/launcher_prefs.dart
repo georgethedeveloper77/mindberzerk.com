@@ -24,6 +24,13 @@ class LauncherPrefs {
     this.drawerSearchPosition,
     this.drawerScrollStyle,
     this.drawerGrouping,
+    this.drawerSortMode,
+    this.drawerSlots = const [],
+    this.drawerSlotCols,
+    this.drawerSlotRows,
+    this.drawerPageCount,
+    this.themeMode,
+    this.deskletGridVersion,
     this.workspaceCount,
     this.verboseBoot,
     this.iconSizeDp,
@@ -112,6 +119,72 @@ class LauncherPrefs {
   /// Grouping is therefore ORTHOGONAL to layout, and only meaningful when
   /// drawerScrollStyle is the list. Settings hides this row otherwise.
   final String? drawerGrouping;
+
+  /// How the drawer's loose apps are ORDERED.
+  /// null | 'az' | 'mostUsed' | 'recent' | 'custom'. null = alphabetical.
+  ///
+  /// 'mostUsed' ranks by the frecency in UsageStats.ranked, 'recent' by
+  /// UsageStats.recent; both fall back to alphabetical for apps that have
+  /// never been launched. 'custom' switches the drawer to the sparse slot
+  /// arrangement in [drawerSlots]. Per theme like everything else here, and
+  /// values from a newer build degrade to alphabetical rather than throwing.
+  final String? drawerSortMode;
+
+  /// The CUSTOM arrangement: sparse (page, index) slots holding apps and
+  /// folders, interleaved, One UI style. Gaps are legal and deliberate;
+  /// "Clean up pages" compacts them. Empty means Custom has never been seeded
+  /// for this theme. All mutation lives in `DrawerSlots`; nothing else writes
+  /// this list.
+  final List<DrawerSlot> drawerSlots;
+
+  /// The grid the slots were laid against, FROZEN when Custom was entered.
+  ///
+  /// A sparse position is meaningless against a capacity that reflows with
+  /// screen width, so while in Custom the drawer renders THIS grid and the
+  /// responsive column count (and [drawerCols]) do not apply. null until the
+  /// first seed.
+  final int? drawerSlotCols;
+  final int? drawerSlotRows;
+
+  /// How many pages the CUSTOM drawer has, when the user has grown it past
+  /// what its contents need.
+  ///
+  /// null means "exactly as many as the slots require", which is the resting
+  /// state. The "+" beside the page dots writes a larger number, and that is
+  /// the only thing that keeps an empty page alive.
+  ///
+  /// This replaces an always-on trailing empty page. That page existed so a
+  /// drag had somewhere to go, and it worked, but it also meant the drawer
+  /// permanently ended on a blank screen nobody asked for. Modern launchers
+  /// make growing the drawer an explicit act and then remember it, which is
+  /// both less surprising and less to explain.
+  ///
+  /// Cleared by Clean up pages, along with the gaps: compacting the
+  /// arrangement and then leaving three empty pages hanging off the end would
+  /// not be a clean up.
+  final int? drawerPageCount;
+
+  /// 'system' | 'light' | 'dark'. Null means system, so an existing prefs file
+  /// with no opinion behaves the way a phone expects without a migration.
+  ///
+  /// GLOBAL, not per theme: see [GlobalPrefs]. Wanting a light phone is a fact
+  /// about the person and the room they are in, not about which distro they
+  /// are imitating this week.
+  ///
+  /// A theme with no `paletteLight` block ignores this and stays dark. That is
+  /// deliberate; see [ThemeSpec.paletteLight].
+  final String? themeMode;
+
+  /// Which coordinate system [desklets] are stored in.
+  ///
+  /// null or 0  the ICON grid, `layout.grid` cols by rows
+  /// 1          the FINE desklet grid, cols x2 by rows x3
+  ///
+  /// Exists because the desklet grid was split off from the icon grid, and
+  /// every stored `col`, `row`, `spanX` and `spanY` had to be rescaled once.
+  /// Without a marker the migration would run on every load and a desklet would
+  /// double in size forever; with it, it runs exactly once per theme.
+  final int? deskletGridVersion;
 
   /// How many vertical workspaces the desktop has, 1–5. null = default (3).
   ///
@@ -345,6 +418,13 @@ class LauncherPrefs {
     String? drawerSearchPosition,
     String? drawerScrollStyle,
     String? drawerGrouping,
+    String? drawerSortMode,
+    List<DrawerSlot>? drawerSlots,
+    int? drawerSlotCols,
+    int? drawerSlotRows,
+    int? drawerPageCount,
+    String? themeMode,
+    int? deskletGridVersion,
     int? workspaceCount,
     bool? verboseBoot,
     double? iconSizeDp,
@@ -384,6 +464,13 @@ class LauncherPrefs {
       drawerSearchPosition: drawerSearchPosition ?? this.drawerSearchPosition,
       drawerScrollStyle: drawerScrollStyle ?? this.drawerScrollStyle,
       drawerGrouping: drawerGrouping ?? this.drawerGrouping,
+      drawerSortMode: drawerSortMode ?? this.drawerSortMode,
+      drawerSlots: drawerSlots ?? this.drawerSlots,
+      drawerSlotCols: drawerSlotCols ?? this.drawerSlotCols,
+      drawerSlotRows: drawerSlotRows ?? this.drawerSlotRows,
+      drawerPageCount: drawerPageCount ?? this.drawerPageCount,
+      themeMode: themeMode ?? this.themeMode,
+      deskletGridVersion: deskletGridVersion ?? this.deskletGridVersion,
       workspaceCount: workspaceCount ?? this.workspaceCount,
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
@@ -428,6 +515,10 @@ class LauncherPrefs {
     bool drawerSearchPosition = false,
     bool drawerScrollStyle = false,
     bool drawerGrouping = false,
+    bool drawerSortMode = false,
+    bool drawerPageCount = false,
+    bool themeMode = false,
+    bool deskletGridVersion = false,
     bool folderCols = false,
     bool folderRows = false,
     bool folderShape = false,
@@ -459,6 +550,20 @@ class LauncherPrefs {
       drawerScrollStyle:
           drawerScrollStyle ? null : this.drawerScrollStyle,
       drawerGrouping: drawerGrouping ? null : this.drawerGrouping,
+      drawerSortMode: drawerSortMode ? null : this.drawerSortMode,
+      // Pass-through, not clearable: the arrangement survives leaving Custom,
+      // which is what lets returning to Custom restore it. Omitting these
+      // from this method would silently wipe them on every unrelated clear,
+      // the exact bug drawerScrollStyle once had.
+      drawerSlots: drawerSlots,
+      drawerSlotCols: drawerSlotCols,
+      drawerSlotRows: drawerSlotRows,
+      // Clearable, unlike the slots above: Clean up pages resets the
+      // drawer to exactly as many pages as it needs.
+      drawerPageCount: drawerPageCount ? null : this.drawerPageCount,
+      themeMode: themeMode ? null : this.themeMode,
+      deskletGridVersion:
+          deskletGridVersion ? null : this.deskletGridVersion,
       workspaceCount: workspaceCount ? null : this.workspaceCount,
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
@@ -505,6 +610,14 @@ class LauncherPrefs {
         if (drawerCols != null) 'drawerCols': drawerCols,
         if (drawerScrollStyle != null) 'drawerScrollStyle': drawerScrollStyle,
         if (drawerGrouping != null) 'drawerGrouping': drawerGrouping,
+        if (drawerSortMode != null) 'drawerSortMode': drawerSortMode,
+        'drawerSlots': drawerSlots.map((e) => e.toJson()).toList(),
+        if (drawerSlotCols != null) 'drawerSlotCols': drawerSlotCols,
+        if (drawerSlotRows != null) 'drawerSlotRows': drawerSlotRows,
+        if (drawerPageCount != null) 'drawerPageCount': drawerPageCount,
+        if (themeMode != null) 'themeMode': themeMode,
+        if (deskletGridVersion != null)
+          'deskletGridVersion': deskletGridVersion,
         if (drawerSearchPosition != null)
           'drawerSearchPosition': drawerSearchPosition,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
@@ -556,6 +669,15 @@ class LauncherPrefs {
       drawerSearchPosition: j['drawerSearchPosition'] as String?,
       drawerScrollStyle: j['drawerScrollStyle'] as String?,
       drawerGrouping: j['drawerGrouping'] as String?,
+      drawerSortMode: j['drawerSortMode'] as String?,
+      drawerSlots: ((j['drawerSlots'] as List?) ?? const [])
+          .map((e) => DrawerSlot.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      drawerSlotCols: (j['drawerSlotCols'] as num?)?.toInt(),
+      drawerSlotRows: (j['drawerSlotRows'] as num?)?.toInt(),
+      drawerPageCount: (j['drawerPageCount'] as num?)?.toInt(),
+      themeMode: j['themeMode'] as String?,
+      deskletGridVersion: (j['deskletGridVersion'] as num?)?.toInt(),
       workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
@@ -636,6 +758,13 @@ class LauncherPrefs {
         other.drawerSearchPosition == drawerSearchPosition &&
         other.drawerScrollStyle == drawerScrollStyle &&
         other.drawerGrouping == drawerGrouping &&
+        other.drawerSortMode == drawerSortMode &&
+        const ListEquality<DrawerSlot>().equals(other.drawerSlots, drawerSlots) &&
+        other.drawerSlotCols == drawerSlotCols &&
+        other.drawerSlotRows == drawerSlotRows &&
+        other.drawerPageCount == drawerPageCount &&
+        other.themeMode == themeMode &&
+        other.deskletGridVersion == deskletGridVersion &&
         other.workspaceCount == workspaceCount &&
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
@@ -679,6 +808,13 @@ class LauncherPrefs {
         drawerSearchPosition,
         drawerScrollStyle,
         drawerGrouping,
+        drawerSortMode,
+        const ListEquality<DrawerSlot>().hash(drawerSlots),
+        drawerSlotCols,
+        drawerSlotRows,
+        drawerPageCount,
+        themeMode,
+        deskletGridVersion,
         workspaceCount,
         verboseBoot,
         iconSizeDp,
@@ -747,6 +883,56 @@ class HomeItem {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HomeItem &&
+          other.page == page &&
+          other.index == index &&
+          other.componentKey == componentKey &&
+          other.folderId == folderId;
+
+  @override
+  int get hashCode => Object.hash(page, index, componentKey, folderId);
+}
+
+/// One CUSTOM-ORDER drawer slot. Either an app or a folder, never both.
+///
+/// The same shape as [HomeItem] on purpose, and a separate type on purpose:
+/// the drawer's slot grid and the home grid share nothing but geometry, and a
+/// shared type would invite home mutations to run against drawer storage the
+/// way sharing [AppFolder] deliberately does NOT invite sharing folder rules.
+/// Position is against the FROZEN grid in `drawerSlotCols` x `drawerSlotRows`;
+/// see `DrawerSlots` for every rule that touches these.
+class DrawerSlot {
+  const DrawerSlot({
+    required this.page,
+    required this.index,
+    this.componentKey,
+    this.folderId,
+  });
+
+  final int page;
+  final int index;
+  final String? componentKey;
+  final String? folderId;
+
+  bool get isFolder => folderId != null;
+
+  Map<String, dynamic> toJson() => {
+        'page': page,
+        'index': index,
+        if (componentKey != null) 'componentKey': componentKey,
+        if (folderId != null) 'folderId': folderId,
+      };
+
+  static DrawerSlot fromJson(Map<String, dynamic> j) => DrawerSlot(
+        page: (j['page'] as num).toInt(),
+        index: (j['index'] as num).toInt(),
+        componentKey: j['componentKey'] as String?,
+        folderId: j['folderId'] as String?,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DrawerSlot &&
           other.page == page &&
           other.index == index &&
           other.componentKey == componentKey &&

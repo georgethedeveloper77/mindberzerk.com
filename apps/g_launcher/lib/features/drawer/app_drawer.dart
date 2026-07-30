@@ -3,14 +3,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/drawer_slots.dart';
+import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
+import '../../design/components/components.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../search/search_page.dart';
 import 'drawer_actions.dart';
 import 'drawer_pager.dart';
+import 'drawer_state.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import 'app_icon.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
@@ -42,13 +48,31 @@ import 'drawer_items.dart';
 ///    design. A Dart path here would duplicate it and lose both cache tiers.
 ///
 /// (Absorbed from the retired `features/drawer/README.md`.)
-class AppDrawer extends ConsumerWidget {
+class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key, required this.theme});
 
   final EffectiveTheme theme;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends ConsumerState<AppDrawer> {
+  /// The row count the paged layout ACTUALLY rendered, reported by
+  /// [DrawerPager.onRows]. Seeding Custom freezes this rather than an
+  /// estimate, so entering Custom changes nothing on screen. Null until the
+  /// pager's first layout (or forever on the vertical list, which then seeds
+  /// from the shared formula).
+  int? _pagedRows;
+
+  /// One auto-seed attempt per drawer lifetime. Reset only when a scheduled
+  /// attempt finds the app list empty, so the next rebuild (the one the
+  /// arriving app list causes) can try again.
+  bool _seedScheduled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
     final items = ref.watch(drawerItemsProvider(theme));
 
     // Where the search bar sits. null = the theme decides, resolved to bottom
@@ -91,13 +115,44 @@ class AppDrawer extends ConsumerWidget {
         // theme constant loses to responsiveness here on purpose — a 5-column
         // grid that's right on a tablet is cramped on a 392dp phone, and no
         // theme author can know which one they're on.
-        final columns = theme.prefs.drawerCols ??
-            GridMetrics.drawerColumns(constraints.maxWidth);
+        // Custom renders the FROZEN grid; every other mode stays responsive.
+        final mode = theme.prefs.drawerSortMode ?? 'custom';
+        final columns = mode == 'custom'
+            ? (theme.prefs.drawerSlotCols ?? 4)
+            : theme.prefs.drawerCols ??
+                GridMetrics.drawerColumns(constraints.maxWidth);
 
-        final labelLines =
-            theme.prefs.labelLines ?? GridMetrics.defaultLabelLines;
+        // The RESOLVED value, off EffectiveTheme, per the rule everything else
+        // follows. This line used to re-derive it as
+        // `prefs.labelLines ?? GridMetrics.defaultLabelLines`, which is how
+        // the drawer briefly disagreed with the home grid about row height:
+        // GridMetrics said 1 while LayoutResolver said 2, and this was the
+        // only surface reading the wrong constant.
+        final labelLines = theme.labelLines;
 
-        final aspect = labelLines > 1 ? 0.70 : 0.78;
+        // ─── THE CELL IS SIZED TO ITS CONTENTS ─────────────────────────
+        //
+        // This was `labelLines > 1 ? 0.70 : 0.78`, a constant that knew nothing
+        // about the icon size, the label's font size, or the system font scale.
+        // It clipped the second line of a long name on some phones and left a
+        // band of dead space under every short name on others, which is the
+        // uneven row spacing.
+        //
+        // `textScalerOf` is the piece that was missing entirely: Flutter
+        // applies the user's Android font-size setting on top of the theme's
+        // own textScale, so any measurement that leaves it out is wrong by
+        // exactly however far they have turned their font up.
+        final labelFontSize = _tileFontSize * theme.textScale;
+        final ambientScale = MediaQuery.textScalerOf(context).scale(1);
+
+        final cellW = GridMetrics.cellWidthFor(constraints.maxWidth, columns);
+        final aspect = GridMetrics.aspectFor(
+          cellWidth: cellW,
+          iconSize: theme.iconSizeDp,
+          labelLines: labelLines,
+          fontSize: labelFontSize,
+          textScaler: ambientScale,
+        );
 
         // How the drawer moves. Vertical is the default and the one nobody
         // notices; paged and cube are the personalization payoff.
@@ -140,8 +195,7 @@ class AppDrawer extends ConsumerWidget {
         //
         // Still derived from the tile rather than a fixed dp, so it stays
         // proportional across a 320dp Tecno and a tablet.
-        final tileH =
-            GridMetrics.cellWidthFor(constraints.maxWidth, columns) / aspect;
+        final tileH = cellW / aspect;
         final topGap = searchAtBottom ? tileH * 0.5 : 0.0;
 
         Widget tileAt(int i) => _tileFor(
@@ -151,8 +205,143 @@ class AppDrawer extends ConsumerWidget {
               onFolderCreated: onFolderCreated,
             );
 
-        // Grouping only applies to the list; see LauncherPrefs.drawerGrouping.
-        final groupAz = (theme.prefs.drawerGrouping ?? 'none') == 'az';
+        // Grouping only applies to the alphabetical list; letter headers over
+        // a usage ranking or a custom arrangement would label an order that
+        // is not alphabetical. See LauncherPrefs.drawerGrouping.
+        final groupAz =
+            mode == 'az' && (theme.prefs.drawerGrouping ?? 'none') == 'az';
+
+        // ── OVERFLOW MENU, SORT SHEET, AND THE HANDLERS BEHIND THEM ─────
+        //
+        // Defined here rather than on the State because they capture layout
+        // facts (columns, tile height, constraints) that only exist inside
+        // this LayoutBuilder, and seeding Custom must freeze exactly what is
+        // on screen.
+
+        void enterCustom() {
+          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+              theme.prefs;
+          final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+          // Returning to Custom restores the old arrangement; only a first
+          // visit seeds.
+          if (live.drawerSlots.isNotEmpty) {
+            notifier.edit((p) => p.copyWith(drawerSortMode: 'custom'));
+            return;
+          }
+
+          final apps = ref.read(shellAppsProvider(theme));
+          final foldedNow = DrawerLayout.foldedKeys(live);
+          final folderIds = [
+            for (final f in DrawerLayout.orderedFolders(live)) f.id,
+          ];
+          final appKeys = [
+            for (final a in apps)
+              if (!foldedNow.contains(a.componentKey)) a.componentKey,
+          ];
+
+          // The rows the pager actually rendered, else the shared formula
+          // against the body's approximate height (the vertical list never
+          // reports rows because it has none).
+          final rowsNow = _pagedRows ??
+              DrawerPager.rowsFor(
+                maxHeight:
+                    constraints.maxHeight - (showSearch ? 66.0 : 0.0),
+                tileHeight: tileH,
+                topPadding: topGap,
+              );
+
+          notifier.edit(
+            (p) => DrawerSlots.seed(
+              p,
+              folderIds: folderIds,
+              appKeys: appKeys,
+              cols: columns,
+              rows: rowsNow,
+            ),
+          );
+        }
+
+        // ── AUTO-SEED ───────────────────────────────────────────────────
+        //
+        // Custom is the DEFAULT now, so a fresh profile arrives here with
+        // nothing stored. The grid provider displays the dense append order
+        // regardless, but drags against unstored entries degrade to append
+        // fallbacks; seeding makes the first drag behave. Post-frame because
+        // a provider cannot be written during build. Checked against LIVE
+        // prefs inside the callback, since the frame that scheduled it may be
+        // stale by the time it runs; an empty app list resets the guard so
+        // the rebuild the arriving list causes can try again.
+        if (mode == 'custom' &&
+            theme.prefs.drawerSlots.isEmpty &&
+            !_seedScheduled) {
+          _seedScheduled = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (ref.read(shellAppsProvider(theme)).isEmpty) {
+              _seedScheduled = false;
+              return;
+            }
+            final live =
+                ref.read(prefsProvider(theme.spec.id)).asData?.value;
+            if (live == null || live.drawerSlots.isNotEmpty) return;
+            enterCustom();
+          });
+        }
+
+        void openSortSheet() {
+          _showSortSheet(
+            context,
+            ref,
+            theme,
+            currentMode: mode,
+            onCustom: enterCustom,
+          );
+        }
+
+        void cleanUpPages() {
+          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+              theme.prefs;
+          final apps = ref.read(shellAppsProvider(theme));
+          final foldedNow = DrawerLayout.foldedKeys(live);
+          ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                (p) => DrawerSlots.cleanUp(
+                  p,
+                  liveAppKeys: {
+                    for (final a in apps)
+                      if (!foldedNow.contains(a.componentKey)) a.componentKey,
+                  },
+                  liveFolderIds: {for (final f in live.drawerFolders) f.id},
+                ),
+              );
+          context.showMessage(context.t('drawer.pagesCleanedUp'));
+        }
+
+        void addPage() {
+          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+              theme.prefs;
+          final grid = ref.read(drawerCustomGridProvider(theme));
+          // Against the CURRENT page count rather than the stored one, so the
+          // first tap on an auto-sized drawer grows it by one rather than
+          // jumping to 1 and appearing to do nothing.
+          final next = grid.pageCount + 1;
+          if ((live.drawerPageCount ?? 0) >= next) return;
+          ref
+              .read(prefsProvider(theme.spec.id).notifier)
+              .edit((p) => p.copyWith(drawerPageCount: next));
+        }
+
+        void showOverflow(Offset at) {
+          _showDrawerOverflowMenu(
+            context,
+            theme,
+            at: at,
+            showCleanUp: mode == 'custom',
+            onSort: openSortSheet,
+            onCleanUp: cleanUpPages,
+            onSettings: () => openLauncherSettings(context, theme),
+          );
+        }
 
         // ── WHY THE PAGED BRANCH NO LONGER RETURNS EARLY ────────────────
         //
@@ -168,7 +357,49 @@ class AppDrawer extends ConsumerWidget {
         // has no business deciding whether the drawer has a search bar.
         final Widget body;
 
-        if (style == 'pages' || style == 'cube') {
+        if (mode == 'custom') {
+          final grid = ref.watch(drawerCustomGridProvider(theme));
+          final per = grid.cols * grid.rows;
+          body = Expanded(
+            child: DrawerPager(
+              itemCount: grid.cells.length,
+              columns: grid.cols,
+              rowsOverride: grid.rows,
+              aspectRatio: aspect,
+              cube: style == 'cube',
+              dragPaging: true,
+              topPadding: topGap,
+              initialPage: ref.read(drawerPageProvider),
+              onPage: (p) =>
+                  ref.read(drawerPageProvider.notifier).setPage(p),
+              onAddPage: addPage,
+              itemBuilder: (context, i) {
+                final page = i ~/ per;
+                final index = i % per;
+                final item = grid.cells[i];
+                if (item == null) {
+                  return _EmptySlot(
+                    key: ValueKey('empty-$page-$index'),
+                    theme: theme,
+                    page: page,
+                    index: index,
+                  );
+                }
+                return _tileFor(
+                  item,
+                  theme: theme,
+                  labelLines: labelLines,
+                  onFolderCreated: onFolderCreated,
+                  // The reserved cells are chrome: not draggable, not
+                  // reorder targets, exactly as in every other mode.
+                  slot: i < DrawerSlots.reservedSlots
+                      ? null
+                      : (page: page, index: index),
+                );
+              },
+            ),
+          );
+        } else if (style == 'pages' || style == 'cube') {
           body = Expanded(
             child: DrawerPager(
               itemCount: items.length,
@@ -176,6 +407,10 @@ class AppDrawer extends ConsumerWidget {
               aspectRatio: aspect,
               cube: style == 'cube',
               topPadding: topGap,
+              onRows: (r) => _pagedRows = r,
+              initialPage: ref.read(drawerPageProvider),
+              onPage: (p) =>
+                  ref.read(drawerPageProvider.notifier).setPage(p),
               itemBuilder: (context, i) => tileAt(i),
             ),
           );
@@ -205,7 +440,8 @@ class AppDrawer extends ConsumerWidget {
           );
         }
 
-        final searchBar = _DrawerSearchBar(theme: theme);
+        final searchBar =
+            _DrawerSearchBar(theme: theme, onOverflow: showOverflow);
 
         // The drawer paints its OWN backdrop. GNOME's Activities is a
         // translucent wash over the wallpaper, not an opaque page — you can see
@@ -235,9 +471,14 @@ class AppDrawer extends ConsumerWidget {
 /// launcher-owned entries route in-app or hand off to the OS. Kept in one place
 /// so the tiles can't drift apart.
 class _DrawerSearchBar extends StatelessWidget {
-  const _DrawerSearchBar({required this.theme});
+  const _DrawerSearchBar({required this.theme, required this.onOverflow});
 
   final EffectiveTheme theme;
+
+  /// Opens the drawer's overflow menu, anchored at the tap. The dots get
+  /// their own hit target so the rest of the pill keeps opening the search
+  /// page untouched.
+  final void Function(Offset globalPosition) onOverflow;
 
   @override
   Widget build(BuildContext context) {
@@ -272,12 +513,29 @@ class _DrawerSearchBar extends StatelessWidget {
                     color: onDark.withValues(alpha: 0.7),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    'Search',
-                    style: TextStyle(
-                      color: onDark.withValues(alpha: 0.6),
-                      fontFamily: theme.typography.display,
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      'Search',
+                      style: TextStyle(
+                        color: onDark.withValues(alpha: 0.6),
+                        fontFamily: theme.typography.display,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (d) => onOverflow(d.globalPosition),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 12,
+                      ),
+                      child: Icon(
+                        Icons.more_vert,
+                        size: 20,
+                        color: onDark.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                 ],
@@ -289,6 +547,11 @@ class _DrawerSearchBar extends StatelessWidget {
     );
   }
 }
+
+/// The drawer label's base size, before the theme's textScale and before
+/// Android's own font scaling. Named because [GridMetrics.cellHeightFor] has to
+/// be handed the same number the label is drawn at.
+const double _tileFontSize = 12;
 
 /// The shared label under any drawer tile. Extracted so the launcher entries are
 /// pixel-for-pixel peers of the app tiles, not lookalikes that drift.
@@ -311,7 +574,13 @@ class _TileLabel extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: 12 * theme.textScale,
+        fontSize: _tileFontSize * theme.textScale,
+        // EXPLICIT, and it has to be: the cell height is computed from this
+        // exact multiplier in GridMetrics.cellHeightFor. Leaving it to the
+        // font's own default means the measurement and the drawing disagree by
+        // however much Ubuntu's metrics differ from Inter's, which is a clipped
+        // descender nobody can explain.
+        height: GridMetrics.labelLineHeight,
         color: theme.palette.onDark,
         fontFamily: theme.typography.display,
       ),
@@ -337,11 +606,18 @@ class _AppTile extends ConsumerStatefulWidget {
     required this.theme,
     required this.labelLines,
     required this.onFolderCreated,
+    this.slot,
   });
 
   final AppEntry entry;
   final EffectiveTheme theme;
   final int labelLines;
+
+  /// This tile's (page, index) in the CUSTOM slot grid, or null everywhere
+  /// else. Non-null is what arms the zone split: drops on the middle of the
+  /// tile merge exactly as always, drops on the left or right quarter insert
+  /// the dragged entry before or after this one.
+  final ({int page, int index})? slot;
 
   /// Called with the new folder's id when a drop on this tile created one. The
   /// DRAWER handles it, because this tile is about to unmount (see _mergeWith).
@@ -353,7 +629,16 @@ class _AppTile extends ConsumerStatefulWidget {
 
 class _AppTileState extends ConsumerState<_AppTile> {
   /// Where the tile was when the drag began, so release can measure travel.
-  Offset? _origin;
+  /// Where the finger went down, for the hold-versus-drag test. Captured from
+  /// a Listener rather than onDragStarted, because the draggable reports no
+  /// position and the tile's own corner is not a usable stand-in under the
+  /// pointer anchor.
+  Offset? _downAt;
+
+  /// Which zone the hovering drag is over, custom mode only. Tracked in
+  /// onMove because onAcceptWithDetails reports where the drag was RELEASED
+  /// relative to the feedback widget, which is not where the finger is.
+  _DropZone? _zone;
 
   /// Below this, a "drag" is really a hold with a shaky thumb. 24dp is the same
   /// slop Flutter uses to distinguish a tap from a pan.
@@ -384,46 +669,91 @@ class _AppTileState extends ConsumerState<_AppTile> {
         // A folder dropped on a loose app always has somewhere to go.
         FolderDrag() => true,
       },
-      onAcceptWithDetails: (d) => _accept(d.data),
+      onMove: (details) {
+        if (widget.slot == null) return;
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        // details.offset IS the pointer, exactly, because the draggables below
+        // use pointerDragAnchorStrategy.
+        //
+        // They did not, and that was the whole reposition bug. Under the
+        // default childDragAnchorStrategy this offset is the feedback's
+        // top-left, which sits wherever inside the tile the thumb happened to
+        // grab. Guessing the finger by adding half a tile is only right if the
+        // grab was dead centre; a thumb landing 30dp off pushed every read a
+        // third of a tile sideways. The merge band, being the middle AND the
+        // null fallback, swallowed nearly every drop, which is precisely the
+        // reported symptom: merging worked, repositioning never did.
+        final w = box.size.width;
+        final dx = box.globalToLocal(details.offset).dx.clamp(0.0, w);
+        final z = dx < w * _edgeFraction
+            ? _DropZone.before
+            : dx > w * (1 - _edgeFraction)
+                ? _DropZone.after
+                : _DropZone.merge;
+        if (z != _zone) setState(() => _zone = z);
+      },
+      onLeave: (_) {
+        if (_zone != null) setState(() => _zone = null);
+      },
+      onAcceptWithDetails: (d) {
+        final z = widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
+        _zone = null;
+        switch (z) {
+          case _DropZone.merge:
+            _accept(d.data);
+          case _DropZone.before:
+            _insert(d.data, after: false);
+          case _DropZone.after:
+            _insert(d.data, after: true);
+        }
+      },
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
         return LongPressDraggable<DrawerDrag>(
           data: AppDrag(entry.componentKey),
-          onDragStarted: () {
-            HapticFeedback.mediumImpact();
-            final box = context.findRenderObject() as RenderBox?;
-            _origin = (box != null && box.hasSize)
-                ? box.localToGlobal(Offset.zero)
-                : null;
-          },
+          // See _AppTileState.onMove: this is what makes details.offset the
+          // pointer rather than the feedback's corner.
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          onDragStarted: HapticFeedback.mediumImpact,
           onDraggableCanceled: (_, offset) {
             // Nothing accepted it. If it never moved, the user was holding, not
-            // dragging — that is the menu.
-            final from = _origin;
+            // dragging, and that is the menu.
+            //
+            // Compared against the POINTER-DOWN position, not the tile corner.
+            // Under the pointer anchor the release offset is the finger, and a
+            // finger is always most of a tile away from that corner, so the
+            // old comparison could never fall under the slop and the long-press
+            // menu would have stopped opening entirely.
+            final from = _downAt;
             if (from == null || (offset - from).distance < _slop) {
               showDrawerAppMenu(context, ref, widget.theme, widget.entry);
             }
           },
-          // The dragged icon must FOLLOW the finger, not sit under it.
-          feedback: Transform.scale(
-            scale: 1.15,
-            child: Material(color: Colors.transparent, child: content),
+          // Centred on the finger. The pointer anchor puts the feedback's
+          // top-left under the pointer, which reads as the icon hanging off
+          // the thumb; the fractional shift is half its own size, so it needs
+          // no pixel measurement.
+          feedback: FractionalTranslation(
+            translation: const Offset(-0.5, -0.5),
+            child: Transform.scale(
+              scale: 1.15,
+              child: Material(color: Colors.transparent, child: content),
+            ),
           ),
-          childWhenDragging: Opacity(opacity: 0.25, child: content),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _launch(context, ref),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              decoration: BoxDecoration(
-                // The only affordance telling you a drop will land here.
-                color: hovering
-                    ? theme.palette.onDark.withValues(alpha: 0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
+          childWhenDragging: _SourceOutline(theme: theme, child: content),
+          child: Listener(
+            onPointerDown: (e) => _downAt = e.position,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _launch(context, ref),
+              child: _DropFeedback(
+                theme: theme,
+                hovering: hovering,
+                zone: widget.slot == null ? null : _zone,
+                child: content,
               ),
-              child: content,
             ),
           ),
         );
@@ -445,16 +775,49 @@ class _AppTileState extends ConsumerState<_AppTile> {
         // A folder dragged onto a loose app: the app joins the folder. The
         // mirror of dropping the app on the folder, and it must resolve the
         // same way — whichever direction the user drags, a folder plus an app
-        // is that folder with one more app in it.
+        // is that folder with one more app in it. In Custom, the slot-aware
+        // wrapper additionally frees this app's slot; the folder keeps its
+        // own.
         HapticFeedback.mediumImpact();
         ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
-              (p) => DrawerLayout.absorbApp(
-                p,
-                folderId,
-                widget.entry.componentKey,
-              ),
+              (p) => widget.slot == null
+                  ? DrawerLayout.absorbApp(
+                      p,
+                      folderId,
+                      widget.entry.componentKey,
+                    )
+                  : DrawerSlots.addToFolderAt(
+                      p,
+                      folderId,
+                      widget.entry.componentKey,
+                    ),
             );
     }
+  }
+
+  /// An edge drop in Custom: the dragged entry is inserted before or after
+  /// THIS tile's slot, contents shifting along the occupied slots so the gaps
+  /// the user carved stay put. See DrawerSlots.insertNear.
+  void _insert(DrawerDrag drag, {required bool after}) {
+    final slot = widget.slot;
+    if (slot == null) return;
+    HapticFeedback.mediumImpact();
+
+    final (String? key, String? folderId) = switch (drag) {
+      AppDrag(:final componentKey) => (componentKey, null),
+      FolderDrag(:final folderId) => (null, folderId),
+    };
+
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+          (p) => DrawerSlots.insertNear(
+            p,
+            componentKey: key,
+            folderId: folderId,
+            targetPage: slot.page,
+            targetIndex: slot.index,
+            after: after,
+          ),
+        );
   }
 
   /// Another app was dropped on this one → a new folder holding both, and the
@@ -474,33 +837,45 @@ class _AppTileState extends ConsumerState<_AppTile> {
     // us with no handle on the folder we just made.
     final id = newDrawerFolderId();
 
-    final before = theme.prefs;
-    final after = DrawerLayout.mergeApps(
-      before,
-      sourceKey,
-      widget.entry.componentKey,
-      newFolderId: () => id,
-      newFolderName: defaultFolderName,
-    );
+    // The slot-aware wrapper delegates to the same DrawerLayout rules, then
+    // hands the new folder the TARGET's slot; outside Custom it is the plain
+    // merge unchanged. One function reference, so the refusal check and the
+    // edit below cannot run different logic.
+    LauncherPrefs merge(LauncherPrefs p) => widget.slot == null
+        ? DrawerLayout.mergeApps(
+            p,
+            sourceKey,
+            widget.entry.componentKey,
+            newFolderId: () => id,
+            newFolderName: defaultFolderName,
+          )
+        : DrawerSlots.mergeAppsAt(
+            p,
+            sourceKey,
+            widget.entry.componentKey,
+            newFolderId: () => id,
+            newFolderName: defaultFolderName,
+          );
+
+    // The LIVE prefs, not the family-key snapshot: in Custom the merge needs
+    // the slot storage, and the snapshot can trail a drag that landed one
+    // frame ago.
+    final before =
+        ref.read(prefsProvider(theme.spec.id)).asData?.value ?? theme.prefs;
+    final after = merge(before);
 
     // Refused (already filed, or same app). Say so rather than absorbing the
     // gesture silently.
     if (identical(before, after)) {
-      if (mounted) context.showMessage('Take that app out of its folder first');
+      if (mounted) {
+        context.showMessage(context.t('drawer.takeThatAppOut'));
+      }
       return;
     }
 
     // The drop already fired a haptic when the drag began; a second one here
     // reads as a stutter, not as confirmation.
-    notifier.edit(
-      (p) => DrawerLayout.mergeApps(
-        p,
-        sourceKey,
-        widget.entry.componentKey,
-        newFolderId: () => id,
-        newFolderName: defaultFolderName,
-      ),
-    );
+    notifier.edit(merge);
 
     // Hand the new folder UP to the drawer rather than opening the sheet here.
     //
@@ -562,18 +937,27 @@ class _FolderTile extends ConsumerStatefulWidget {
     required this.item,
     required this.theme,
     required this.labelLines,
+    this.slot,
   });
 
   final FolderDrawerItem item;
   final EffectiveTheme theme;
   final int labelLines;
 
+  /// Same contract as [_AppTile.slot]: non-null in the Custom grid, arming
+  /// the centre-merges-edges-insert split.
+  final ({int page, int index})? slot;
+
   @override
   ConsumerState<_FolderTile> createState() => _FolderTileState();
 }
 
 class _FolderTileState extends ConsumerState<_FolderTile> {
-  Offset? _origin;
+  /// See [_AppTileState._downAt].
+  Offset? _downAt;
+
+  /// See [_AppTileState._zone].
+  _DropZone? _zone;
 
   /// Same 24dp as [_AppTileState]. Named separately rather than shared because
   /// they are the same NUMBER, not the same decision — if one tile ever wants a
@@ -588,28 +972,70 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
 
     switch (drag) {
       case AppDrag(:final componentKey):
+        // In Custom the slot-aware wrapper also frees the joining app's slot;
+        // this folder keeps its own either way.
         notifier.edit(
-          (p) => DrawerLayout.addToFolder(p, widget.item.folder.id, componentKey),
+          (p) => widget.slot == null
+              ? DrawerLayout.addToFolder(
+                  p,
+                  widget.item.folder.id,
+                  componentKey,
+                )
+              : DrawerSlots.addToFolderAt(
+                  p,
+                  widget.item.folder.id,
+                  componentKey,
+                ),
         );
       case FolderDrag(:final folderId):
         // THIS folder is the target, so THIS folder's name survives and the
         // dragged one disappears. See DrawerLayout.mergeFolders for why the
         // target wins: the thing that stayed put is the thing that absorbed.
-        final before = theme.prefs;
-        final after = DrawerLayout.mergeFolders(
-          before,
-          folderId,
-          widget.item.folder.id,
-        );
+        // In Custom the wrapper also frees the dragged folder's slot.
+        LauncherPrefs merge(LauncherPrefs p) => widget.slot == null
+            ? DrawerLayout.mergeFolders(p, folderId, widget.item.folder.id)
+            : DrawerSlots.mergeFoldersAt(p, folderId, widget.item.folder.id);
+
+        // Live prefs for the same reason as _AppTileState._mergeWith.
+        final before =
+            ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+                theme.prefs;
+        final after = merge(before);
         if (identical(before, after)) return;
 
-        notifier.edit(
-          (p) => DrawerLayout.mergeFolders(p, folderId, widget.item.folder.id),
-        );
+        notifier.edit(merge);
         if (mounted) {
-          context.showMessage('Merged into ${widget.item.folder.name}');
+          context.showMessage(
+            context.t(
+              'drawer.mergedInto',
+              {'name': widget.item.folder.name},
+            ),
+          );
         }
     }
+  }
+
+  /// See [_AppTileState._insert]; identical semantics, this folder as target.
+  void _insert(DrawerDrag drag, {required bool after}) {
+    final slot = widget.slot;
+    if (slot == null) return;
+    HapticFeedback.mediumImpact();
+
+    final (String? key, String? folderId) = switch (drag) {
+      AppDrag(:final componentKey) => (componentKey, null),
+      FolderDrag(:final folderId) => (null, folderId),
+    };
+
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+          (p) => DrawerSlots.insertNear(
+            p,
+            componentKey: key,
+            folderId: folderId,
+            targetPage: slot.page,
+            targetIndex: slot.index,
+            after: after,
+          ),
+        );
   }
 
   @override
@@ -627,7 +1053,45 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
         // Cannot merge a folder into itself.
         FolderDrag(:final folderId) => folderId != item.folder.id,
       },
-      onAcceptWithDetails: (d) => _accept(d.data),
+      onMove: (details) {
+        if (widget.slot == null) return;
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        // details.offset IS the pointer, exactly, because the draggables below
+        // use pointerDragAnchorStrategy.
+        //
+        // They did not, and that was the whole reposition bug. Under the
+        // default childDragAnchorStrategy this offset is the feedback's
+        // top-left, which sits wherever inside the tile the thumb happened to
+        // grab. Guessing the finger by adding half a tile is only right if the
+        // grab was dead centre; a thumb landing 30dp off pushed every read a
+        // third of a tile sideways. The merge band, being the middle AND the
+        // null fallback, swallowed nearly every drop, which is precisely the
+        // reported symptom: merging worked, repositioning never did.
+        final w = box.size.width;
+        final dx = box.globalToLocal(details.offset).dx.clamp(0.0, w);
+        final z = dx < w * _edgeFraction
+            ? _DropZone.before
+            : dx > w * (1 - _edgeFraction)
+                ? _DropZone.after
+                : _DropZone.merge;
+        if (z != _zone) setState(() => _zone = z);
+      },
+      onLeave: (_) {
+        if (_zone != null) setState(() => _zone = null);
+      },
+      onAcceptWithDetails: (d) {
+        final z = widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
+        _zone = null;
+        switch (z) {
+          case _DropZone.merge:
+            _accept(d.data);
+          case _DropZone.before:
+            _insert(d.data, after: false);
+          case _DropZone.after:
+            _insert(d.data, after: true);
+        }
+      },
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
@@ -669,31 +1133,40 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
 
         return LongPressDraggable<DrawerDrag>(
           data: FolderDrag(item.folder.id),
-          onDragStarted: () {
-            HapticFeedback.mediumImpact();
-            final box = context.findRenderObject() as RenderBox?;
-            _origin = (box != null && box.hasSize)
-                ? box.localToGlobal(Offset.zero)
-                : null;
-          },
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          onDragStarted: HapticFeedback.mediumImpact,
           onDraggableCanceled: (_, offset) {
             // Nothing accepted the drop. If the finger never really travelled
-            // it was a hold, which is the settings sheet — the trigger the
-            // draggable took away.
-            final from = _origin;
+            // it was a hold, which is the settings sheet, the trigger the
+            // draggable took away. See _AppTileState for why this compares
+            // against the pointer-down position.
+            final from = _downAt;
             if (from == null || (offset - from).distance < _slop) {
               drawerFolderSettings(context, ref, theme, item);
             }
           },
-          feedback: Transform.scale(
-            scale: 1.15,
-            child: Material(color: Colors.transparent, child: content),
+          feedback: FractionalTranslation(
+            translation: const Offset(-0.5, -0.5),
+            child: Transform.scale(
+              scale: 1.15,
+              child: Material(color: Colors.transparent, child: content),
+            ),
           ),
-          childWhenDragging: Opacity(opacity: 0.25, child: content),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => openDrawerFolder(context, ref, theme, item),
-            child: content,
+          childWhenDragging: _SourceOutline(theme: theme, child: content),
+          child: Listener(
+            onPointerDown: (e) => _downAt = e.position,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => openDrawerFolder(context, ref, theme, item),
+              // The folder tile paints its own hover wash on the icon well
+              // above, so this only adds the insertion caret.
+              child: _DropFeedback(
+                theme: theme,
+                hovering: false,
+                zone: widget.slot == null ? null : _zone,
+                child: content,
+              ),
+            ),
           ),
         );
       },
@@ -750,6 +1223,7 @@ Widget _tileFor(
   required EffectiveTheme theme,
   required int labelLines,
   required void Function(String folderId) onFolderCreated,
+  ({int page, int index})? slot,
 }) {
             final item = drawerItem;
             // Sealed: adding a DrawerItem variant breaks this until it's
@@ -766,12 +1240,14 @@ Widget _tileFor(
                   entry: entry,
                   theme: theme,
                   labelLines: labelLines,
+                  slot: slot,
                 ),
               FolderDrawerItem() => _FolderTile(
                   key: ValueKey(item.folder.id),
                   item: item,
                   theme: theme,
                   labelLines: labelLines,
+                  slot: slot,
                 ),
               LauncherSettingsItem() => _ActionTile(
                   key: const ValueKey('launcher-settings'),
@@ -1004,4 +1480,336 @@ Widget _plainGrid({
       itemBuilder: (context, i) => tileAt(i),
     ),
   );
+}
+
+// ── CUSTOM MODE: DROP ZONES, EMPTY SLOTS, OVERFLOW MENU, SORT SHEET ─────────
+
+/// Where on a tile a drag is hovering. The center merges (folder rules,
+/// unchanged from every other mode); the left and right quarters insert before
+/// or after, shifting along the occupied slots so user-carved gaps survive.
+enum _DropZone { before, merge, after }
+
+/// A vacant cell in the Custom grid. It exists to be dropped on: releasing a
+/// drag here parks the entry at exactly this (page, index), which is how gaps
+/// are made on purpose rather than survived by accident.
+class _EmptySlot extends ConsumerWidget {
+  const _EmptySlot({
+    super.key,
+    required this.theme,
+    required this.page,
+    required this.index,
+  });
+
+  final EffectiveTheme theme;
+  final int page;
+  final int index;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onDark = theme.palette.onDark;
+
+    return DragTarget<DrawerDrag>(
+      onAcceptWithDetails: (d) {
+        HapticFeedback.selectionClick();
+        final drag = d.data;
+        // moveToFree refuses reserved and occupied slots against the LIVE
+        // prefs, so a race with another surface degrades to a no-op, never a
+        // double-filled cell.
+        ref.read(prefsProvider(theme.spec.id).notifier).edit(
+              (p) => switch (drag) {
+                AppDrag(:final componentKey) => DrawerSlots.moveToFree(
+                    p,
+                    componentKey: componentKey,
+                    toPage: page,
+                    toIndex: index,
+                  ),
+                FolderDrag(:final folderId) => DrawerSlots.moveToFree(
+                    p,
+                    folderId: folderId,
+                    toPage: page,
+                    toIndex: index,
+                  ),
+              },
+            );
+      },
+      builder: (context, candidate, _) {
+        final hovering = candidate.isNotEmpty;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          margin: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: hovering
+                ? onDark.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hovering
+                  ? onDark.withValues(alpha: 0.35)
+                  : Colors.transparent,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The three-dot menu on the drawer search bar, One UI style: a small card
+/// anchored at the tap, not a full-width sheet. Adapted from the folder member
+/// menu; prefers ABOVE the tap because the search bar lives at the bottom of
+/// the screen, so below is usually off-screen.
+void _showDrawerOverflowMenu(
+  BuildContext context,
+  EffectiveTheme theme, {
+  required Offset at,
+  required bool showCleanUp,
+  required VoidCallback onSort,
+  required VoidCallback onCleanUp,
+  required VoidCallback onSettings,
+}) {
+  HapticFeedback.selectionClick();
+
+  // Built from the theme, not looked up: the drawer body is not guaranteed to
+  // sit under a ChromeScope, and the menu's route is not a descendant of this
+  // screen anyway.
+  final chrome = ChromeData.fromPalette(
+    theme.palette,
+    typography: theme.typography,
+    textScale: theme.textScale,
+    family: theme.chromeFamily,
+  );
+
+  const width = 220.0;
+  const rowH = 52.0;
+  const pad = 12.0;
+
+  showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: context.t('drawer.dismiss'),
+    // theme-exempt: a scrim is not chrome. Neutral dim over the wallpaper,
+    // same reasoning as the folder member menu.
+    barrierColor: const Color(0x33000000), // theme-exempt: neutral scrim
+    transitionDuration: const Duration(milliseconds: 120),
+    pageBuilder: (ctx, _, __) {
+      final size = MediaQuery.sizeOf(ctx);
+      final rowCount = 2 + (showCleanUp ? 1 : 0);
+      final height = rowCount * rowH + pad;
+
+      final left = (at.dx - width / 2).clamp(8.0, size.width - width - 8);
+      final above = at.dy - height - 12;
+      final top = above < 8
+          ? (at.dy + 12).clamp(8.0, size.height - height - 8)
+          : above;
+
+      Widget row(IconData icon, String title, VoidCallback go) {
+        return ThemedListRow(
+          icon: icon,
+          title: title,
+          onTap: () {
+            Navigator.pop(ctx);
+            go();
+          },
+        );
+      }
+
+      return ChromeScope(
+        data: chrome,
+        child: Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: top,
+              width: width,
+              // The same glass every sheet and dialog uses. An anchored menu
+              // is a floating panel over the desktop too, and leaving it an
+              // opaque grey slab while everything else turned translucent is
+              // the sort of inconsistency nobody can name and everybody feels.
+              child: GlassPanel(
+                borderRadius: BorderRadius.circular(14),
+                child: Material(
+                color: Colors.transparent,
+                elevation: 0,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: pad / 2),
+                    row(Icons.sort, ctx.t('drawer.sort'), onSort),
+                    if (showCleanUp)
+                      row(
+                        Icons.cleaning_services_outlined,
+                        ctx.t('drawer.cleanUpPages'),
+                        onCleanUp,
+                      ),
+                    row(
+                      Icons.settings_outlined,
+                      ctx.t('drawer.gLauncherSettings'),
+                      onSettings,
+                    ),
+                    const SizedBox(height: pad / 2),
+                  ],
+                ),
+              ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// The sort mode picker. Radio-style rows; the current mode is marked. Picking
+/// Custom routes through [onCustom], which restores a previous arrangement or
+/// seeds a fresh one; the other modes are a plain pref write.
+void _showSortSheet(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme, {
+  required String currentMode,
+  required VoidCallback onCustom,
+}) {
+  final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
+
+  ThemedSheet.show<void>(
+    context,
+    title: context.t('drawer.sortBy'),
+    builder: (sheet) {
+      Widget row(String mode, String title) {
+        final selected = currentMode == mode;
+        return ThemedListRow(
+          icon: selected
+              ? Icons.radio_button_checked
+              : Icons.radio_button_unchecked,
+          title: title,
+          onTap: () {
+            Navigator.pop(sheet);
+            if (selected) return;
+            if (mode == 'custom') {
+              onCustom();
+            } else {
+              prefs.edit((p) => p.copyWith(drawerSortMode: mode));
+            }
+          },
+        );
+      }
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row('custom', context.t('drawer.sortCustom')),
+          row('az', context.t('drawer.sortAlphabetical')),
+          row('mostUsed', context.t('drawer.sortMostUsed')),
+          row('recent', context.t('drawer.sortRecent')),
+        ],
+      );
+    },
+  );
+}
+
+/// How much of a tile's width, each side, means "insert here" rather than
+/// "merge". A third each way leaves a third in the middle for merging, which
+/// on a four-column phone is roughly 30dp per band: hittable with a thumb once
+/// the zone is read from the actual pointer, and visibly signposted by
+/// [_DropFeedback] so the geometry is learnable rather than guessed at.
+const double _edgeFraction = 1 / 3;
+
+/// What a hovering drag looks like: a wash and ring for a merge, a caret for an
+/// insert.
+///
+/// The zones existed before this widget and were invisible, which made
+/// repositioning undiscoverable even where it worked: nothing on screen told
+/// you the tile had three different meanings across its width, so a drop that
+/// landed on the wrong third read as the feature being broken rather than as a
+/// near miss.
+class _DropFeedback extends StatelessWidget {
+  const _DropFeedback({
+    required this.theme,
+    required this.hovering,
+    required this.zone,
+    required this.child,
+  });
+
+  final EffectiveTheme theme;
+
+  /// Paint the merge wash. Off for tiles that already wash themselves.
+  final bool hovering;
+
+  /// Null outside Custom, where there is nothing to insert into.
+  final _DropZone? zone;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = zone;
+    final merging = z == _DropZone.merge || (hovering && z == null);
+    final accent = theme.palette.accent;
+
+    return Stack(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: merging && hovering
+                ? theme.palette.onDark.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: merging && z != null
+                  ? accent.withValues(alpha: 0.85)
+                  : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: child,
+        ),
+        if (z == _DropZone.before || z == _DropZone.after)
+          Positioned(
+            left: z == _DropZone.before ? 0 : null,
+            right: z == _DropZone.after ? 0 : null,
+            top: 4,
+            bottom: 4,
+            width: 3,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The cell a drag came FROM: an outlined hole, not a faded icon.
+///
+/// A 25% ghost still reads as an icon, so the grid looked unchanged while
+/// something was in flight and there was no visual answer to "where was this
+/// before". An empty dashed-looking well matches what the drop targets show and
+/// makes the gap the arrangement is about visible while you are making it.
+class _SourceOutline extends StatelessWidget {
+  const _SourceOutline({required this.theme, required this.child});
+
+  final EffectiveTheme theme;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.palette.onDark.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.palette.onDark.withValues(alpha: 0.30),
+          width: 1.5,
+        ),
+      ),
+      child: Opacity(opacity: 0.15, child: child),
+    );
+  }
 }

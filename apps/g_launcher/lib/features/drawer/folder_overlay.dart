@@ -7,12 +7,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/home_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../dock/dock_metrics.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
@@ -193,8 +196,14 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     // Live theme, not the push-time snapshot: renaming, adding an app or
     // changing the folder grid must all land under your finger rather than on
     // the next open.
+    //
+    // hasValue, not asData, and that is what makes the above actually true.
+    // asData is null through a RELOAD, not only a first load, and every prefs
+    // write reloads effectiveThemeProvider, so each of those three actions fell
+    // back to the very snapshot this line exists to avoid. See home_screen.dart.
+    final themeAsync = ref.watch(effectiveThemeProvider);
     final theme =
-        ref.watch(effectiveThemeProvider).asData?.value ?? widget.theme;
+        themeAsync.hasValue ? themeAsync.requireValue : widget.theme;
 
     final live = ref
         .watch(drawerItemsProvider(theme))
@@ -640,10 +649,15 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = theme.palette;
 
-    // The tile is icon + gap + one line of label. Derived from the live icon
+    // The tile is icon + gap + the LABEL BLOCK. Derived from the live icon
     // size rather than fixed, so the folder still fits itself when the icon
-    // size setting changes — the same lesson the device preview taught.
-    final tileH = theme.iconSizeDp + 34;
+    // size setting changes, and now from the resolved labelLines too: the
+    // member tile wraps long names (two lines by default, matching the
+    // drawer), and a cell whose extent still budgeted one line would clip the
+    // second into an overflow stripe. 16 logical pixels per extra line covers
+    // the 12sp label with its line height.
+    final tileH =
+        theme.iconSizeDp + 34 + (theme.labelLines - 1) * 16.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -741,7 +755,10 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
           const SizedBox(height: 6),
           Text(
             entry.label,
-            maxLines: 1,
+            // The RESOLVED line count, two by default, so "Culimix Delivery"
+            // wraps whole instead of truncating. The ellipsis stays as the
+            // runtime backstop for names longer than even two lines.
+            maxLines: theme.labelLines,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -812,7 +829,24 @@ void showFolderMemberMenu(
     pageBuilder: (ctx, _, __) {
       final size = MediaQuery.sizeOf(ctx);
       final canUninstall = !entry.isSystem && !entry.isWorkProfile;
-      final rowCount = canUninstall ? 3 : 2;
+
+      // Being in a folder does not bar an app from the dock: pinToDock takes
+      // any componentKey and has no idea where the drawer files it. Pinned
+      // members get Unpin; unpinned ones get Pin only while the dock has
+      // room, because offering a pin that can only be refused is a button
+      // that exists to say no.
+      //
+      // Read off the snapshot the menu opened with, same as everything else
+      // here and the same pattern showDrawerAppMenu uses. A pin landing from
+      // another surface while this menu is up can slip past the on-tap check
+      // below, in which case pinToDock inside the edit refuses against the
+      // LIVE prefs and nothing is lost; the window is a tap wide.
+      final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
+      final dockHasSpace =
+          theme.prefs.favourites.length < DockMetrics.maxCapacity;
+      final showPinRow = isPinned || dockHasSpace;
+
+      final rowCount = (canUninstall ? 3 : 2) + (showPinRow ? 1 : 0);
       final height = rowCount * rowH + pad;
 
       // Clamp into the screen with an 8px margin, so it never kisses an edge.
@@ -832,18 +866,75 @@ void showFolderMemberMenu(
               left: left,
               top: top,
               width: width,
-              child: Material(
-                color: chrome.colors.surface,
-                elevation: 8,
+              // The same glass every sheet and dialog uses. An anchored menu
+              // is a floating panel over the desktop too, and leaving it an
+              // opaque grey slab while everything else turned translucent is
+              // the sort of inconsistency nobody can name and everybody feels.
+              child: GlassPanel(
+                borderRadius: BorderRadius.circular(14),
+                child: Material(
+                color: Colors.transparent,
+                elevation: 0,
                 borderRadius: BorderRadius.circular(14),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: pad / 2),
+                    // Pin first, matching showDrawerAppMenu's ordering so the
+                    // same action sits in the same place whichever surface the
+                    // long-press came from.
+                    if (showPinRow)
+                      ThemedListRow(
+                        icon: isPinned
+                            ? Icons.push_pin_outlined
+                            : Icons.push_pin,
+                        title: ctx.t(
+                          isPinned
+                              ? 'shell.unpinFromDock'
+                              : 'shell.pinToDock',
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          if (isPinned) {
+                            prefs.edit(
+                              (p) => HomeLayout.unpinFromDock(
+                                p,
+                                entry.componentKey,
+                              ),
+                            );
+                            return;
+                          }
+                          // The space check above ran when the menu OPENED; a
+                          // pin from another surface can fill the dock before
+                          // this tap lands. Same refusal contract as the
+                          // drawer menu: compare identity, say so, drop it.
+                          final before = theme.prefs;
+                          final after = HomeLayout.pinToDock(
+                            before,
+                            entry.componentKey,
+                            capacity: DockMetrics.maxCapacity,
+                          );
+                          if (identical(before, after)) {
+                            if (context.mounted) {
+                              context.showMessage(
+                                context.t('drawer.dockIsFull'),
+                              );
+                            }
+                            return;
+                          }
+                          prefs.edit(
+                            (p) => HomeLayout.pinToDock(
+                              p,
+                              entry.componentKey,
+                              capacity: DockMetrics.maxCapacity,
+                            ),
+                          );
+                        },
+                      ),
                     ThemedListRow(
                       icon: Icons.folder_off_outlined,
-                      title: 'Remove from folder',
+                      title: ctx.t('drawer.removeFromFolder'),
                       onTap: () {
                         Navigator.pop(ctx);
                         prefs.edit(
@@ -857,7 +948,7 @@ void showFolderMemberMenu(
                     ),
                     ThemedListRow(
                       icon: Icons.info_outline,
-                      title: 'App info',
+                      title: ctx.t('shell.appInfo'),
                       onTap: () {
                         Navigator.pop(ctx);
                         notifier.openInfo(entry);
@@ -868,7 +959,7 @@ void showFolderMemberMenu(
                     if (canUninstall)
                       ThemedListRow(
                         icon: Icons.delete_outline,
-                        title: 'Uninstall',
+                        title: ctx.t('drawer.uninstall'),
                         danger: true,
                         onTap: () {
                           Navigator.pop(ctx);
@@ -878,6 +969,7 @@ void showFolderMemberMenu(
                     const SizedBox(height: pad / 2),
                   ],
                 ),
+              ),
               ),
             ),
           ],

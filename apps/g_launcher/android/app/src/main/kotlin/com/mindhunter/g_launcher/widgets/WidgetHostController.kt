@@ -52,6 +52,24 @@ class WidgetHostController(context: Context) {
     private var activity: Activity? = null
     private var pending: Pending? = null
 
+    /**
+     * Live host views, by widget id.
+     *
+     * ─── WHY THE VIEWS ARE TRACKED AT ALL ───────────────────────────────────
+     *
+     * `updateAppWidgetOptions` tells the PROVIDER what size it has, which is
+     * what makes a widget's own `onAppWidgetOptionsChanged` fire. It does not
+     * tell the HOST VIEW anything, and on Android 12+ the host view is what
+     * picks between the RemoteViews variants a responsive widget supplies. So a
+     * widget shipping a compact layout and a full one would be told it had room
+     * and still draw the compact one, which is most of "the Spotify widget
+     * looks bad on this launcher".
+     *
+     * Held only while the PlatformView that created it is alive;
+     * [releaseView] is called from its dispose.
+     */
+    private val views = mutableMapOf<Int, AppWidgetHostView>()
+
     private data class Pending(
         val widgetId: Int,
         val provider: ComponentName,
@@ -151,7 +169,30 @@ class WidgetHostController(context: Context) {
     /** Inflate the hosted view for [widgetId], or null if the provider is gone. */
     fun createView(widgetId: Int): AppWidgetHostView? {
         val info = manager.getAppWidgetInfo(widgetId) ?: return null
-        return runCatching { host.createView(appContext, widgetId, info) }.getOrNull()
+        val view = runCatching { host.createView(appContext, widgetId, info) }
+            .getOrNull() ?: return null
+
+        // ─── STRIP THE DEFAULT PADDING ──────────────────────────────────────
+        //
+        // AppWidgetHostView applies the platform's default widget margin to any
+        // provider targeting below API 15, and to plenty that target above it.
+        // On a home screen full of icons that margin is what keeps widgets from
+        // touching each other; on a desktop where the tile ALREADY has a gutter
+        // and a frame, it is a second inset inside the first, and it is why a
+        // hosted widget reads as floating in the middle of too much space while
+        // its own content is cramped.
+        //
+        // Every launcher does this. It is the single cheapest visual difference
+        // between a hosted widget that looks placed and one that looks pasted.
+        view.setPadding(0, 0, 0, 0)
+
+        views[widgetId] = view
+        return view
+    }
+
+    /** The PlatformView holding [widgetId] is gone. */
+    fun releaseView(widgetId: Int) {
+        views.remove(widgetId)
     }
 
     // ── resize + delete ──────────────────────────────────────────────────────
@@ -174,9 +215,23 @@ class WidgetHostController(context: Context) {
             }
         }
         runCatching { manager.updateAppWidgetOptions(widgetId, opts) }
+
+        // AND THE HOST VIEW, which is the half that was missing.
+        //
+        // The manager call above notifies the provider. This one tells the view
+        // that renders it, which on API 31+ is what selects among a responsive
+        // widget's RemoteViews variants. Without it the view keeps whichever
+        // variant it inflated at first layout, so resizing a Spotify or Weather
+        // widget changed its rectangle and not its contents.
+        views[widgetId]?.let { view ->
+            runCatching {
+                view.updateAppWidgetSize(Bundle.EMPTY, minW, minH, maxW, maxH)
+            }
+        }
     }
 
     fun removeWidget(widgetId: Int) {
+        views.remove(widgetId)
         runCatching { host.deleteAppWidgetId(widgetId) }
     }
 

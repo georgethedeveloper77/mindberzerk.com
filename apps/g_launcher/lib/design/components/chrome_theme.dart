@@ -57,6 +57,7 @@ class ChromeColors {
     required this.ok,
     required this.warn,
     required this.danger,
+    required this.tint,
   });
 
   /// Page background behind cards. A NEUTRAL grey at Adwaita's page lightness,
@@ -96,6 +97,25 @@ class ChromeColors {
   final Color warn;
   final Color danger;
 
+  /// The distro's OWN base colour, un-neutralised.
+  ///
+  /// ─── THE ONE COLOUR HERE THAT KEEPS ITS HUE ─────────────────────────────
+  ///
+  /// Every surface above is drained to a near-grey by [_neutral], and that is
+  /// correct for a settings PAGE: real Adwaita and Breeze carry structure in
+  /// greys and reserve colour for state, and a settings screen tinted with the
+  /// wallpaper reads as a themed app rather than a system one.
+  ///
+  /// A floating panel is a different surface and the desktops treat it
+  /// differently. GNOME's popovers and KDE's panels are translucent over the
+  /// wallpaper, and what shows through is the desktop's own colour. So a sheet
+  /// needs the aubergine that `_neutral` deliberately threw away, and this is
+  /// where it survives.
+  ///
+  /// Used ONLY by translucent floating surfaces (see [ThemedSheet]). A page
+  /// background reaching for this would undo the whole reason `_neutral` exists.
+  final Color tint;
+
   /// Semantic statuses. Same hexes as [GColors]; duplicated here so the derived
   /// path has zero dependency on the house tokens and reads as one coherent
   /// set. These are the only non-derived colours by design.
@@ -119,14 +139,15 @@ class ChromeColors {
     final darkChrome = ink.computeLuminance() > 0.5;
 
     return ChromeColors(
-      bg: _neutral(p.bgBottom, darkChrome ? 0.115 : 0.965),
+      bg: _neutral(p.bgBottom, darkChrome ? 0.115 : 0.945, dark: darkChrome),
       // Adwaita's header bar is the SAME value as its cards, separated from
       // the page by a hairline rather than by a step in lightness. Was
       // `p.bar`, the desktop's system-bar colour, which is a different surface
       // doing a different job.
-      bar: _neutral(p.bgBottom, darkChrome ? 0.188 : 1.0),
-      surface: _neutral(p.bgBottom, darkChrome ? 0.188 : 1.0),
-      surfaceAlt: _neutral(p.bgBottom, darkChrome ? 0.255 : 0.925),
+      bar: _neutral(p.bgBottom, darkChrome ? 0.188 : 0.975, dark: darkChrome),
+      surface: _neutral(p.bgBottom, darkChrome ? 0.188 : 0.975, dark: darkChrome),
+      surfaceAlt:
+          _neutral(p.bgBottom, darkChrome ? 0.255 : 0.915, dark: darkChrome),
       text: ink,
       // Opacity ramps rather than fixed greys, so muted text keeps the ink's
       // hue. Under a warm-white ink this reads warmer; that is intended.
@@ -143,6 +164,8 @@ class ChromeColors {
       ok: _ok,
       warn: _warn,
       danger: _danger,
+      // Straight through, not neutralised. See the field doc.
+      tint: p.bgBottom,
     );
   }
 
@@ -174,10 +197,34 @@ class ChromeColors {
   /// dark; #f6f6f6 page, #ffffff card in light. Light is handled even though
   /// every bundled theme is currently dark, because a CDN pack with a pale
   /// palette would otherwise get white text on white cards.
-  static Color _neutral(Color base, double lightness) {
+  ///
+  /// ─── LIGHT MODE NEEDED DIFFERENT NUMBERS, AND ONE OF THEM WAS A BUG ─────
+  ///
+  /// The light steps were Adwaita's literal values: a #f6f6f6 page and a
+  /// #ffffff card. A card at lightness 1.0 IS WHITE, whatever hue and whatever
+  /// saturation you hand it, because saturation has no effect at that
+  /// lightness. So the moment light mode existed, every settings page, sheet
+  /// and dialog in the app came out pure white and the distro vanished from all
+  /// of them.
+  ///
+  /// Two changes. The card comes off 1.0 so its hue can show at all, and the
+  /// saturation cap is far higher on a light surface than a dark one. That is
+  /// not an inconsistency: the same 6% that reads as a warm grey against near
+  /// black is invisible against near white, and matching the two by NUMBER
+  /// rather than by APPEARANCE is what produced a white settings screen under
+  /// an aubergine desktop.
+  ///
+  /// Still restrained. Ubuntu's light card lands at #FAF8F9 and its page at
+  /// #F3EFF2, which nobody would call purple and which are visibly not the same
+  /// screen KDE draws.
+  static Color _neutral(Color base, double lightness, {required bool dark}) {
     final hsl = HSLColor.fromColor(base);
+
+    final scale = dark ? 0.12 : 0.55;
+    final cap = dark ? 0.06 : 0.18;
+
     return hsl
-        .withSaturation((hsl.saturation * 0.12).clamp(0.0, 0.06))
+        .withSaturation((hsl.saturation * scale).clamp(0.0, cap))
         .withLightness(lightness)
         .toColor();
   }
@@ -202,6 +249,10 @@ class ChromeColors {
     ok: GColors.ok,
     warn: GColors.warn,
     danger: GColors.danger,
+    // No theme yet, so there is no distro colour to show through. The house
+    // background is the honest stand-in and makes the bootstrap sheet opaque
+    // rather than tinted with nothing.
+    tint: GColors.bg,
   );
 }
 

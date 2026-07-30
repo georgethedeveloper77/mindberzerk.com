@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/prefs/desklet_layout.dart';
 import '../data/prefs/launcher_prefs.dart';
 import '../data/prefs/prefs_repository.dart';
 import '../data/prefs/starter_desktop.dart';
@@ -34,10 +36,19 @@ class EffectiveTheme {
     required this.textScale,
     required this.iconScale,
     required this.icons,
+    required this.dark,
   });
 
   final ThemeSpec spec;
   final LauncherPrefs prefs;
+
+  /// Is the DARK variant on screen?
+  ///
+  /// Resolved from `prefs.themeMode` against the platform brightness, and true
+  /// whenever the distro ships no light palette. Stored rather than recomputed
+  /// so `==` can see it: see the note on the operator below, which is the whole
+  /// reason this is a field.
+  final bool dark;
 
   final DockSide dock;
   final bool topBar;
@@ -64,7 +75,30 @@ class EffectiveTheme {
   /// choice layered on top.
   final api.IconStyle icons;
 
-  ThemePalette get palette => spec.palette;
+  /// The DESKLET grid, which is finer than the icon grid.
+  ///
+  /// ─── WHY THESE ARE NOT cols AND rows ──────────────────────────────────
+  ///
+  /// `cols` and `rows` shape a cell for an app icon with a label under it,
+  /// which on a phone is about 83 wide by 140 tall. Android widgets are
+  /// authored against a roughly square launcher cell, so on the icon grid a
+  /// weather strip wanting 74dp of height could not ask for less than 140.
+  ///
+  /// Derived rather than stored, and derived from the theme's own grid rather
+  /// than fixed, so a distro that authors a 5-column desktop gets a
+  /// proportionally finer desklet grid without authoring a second number.
+  int get deskletCols => cols * DeskletLayout.colFactor;
+  int get deskletRows => rows * DeskletLayout.rowFactor;
+
+  /// The palette actually on screen.
+  ///
+  /// `spec.palette` is the DARK variant and keeps that name for
+  /// backward-compatible theme.json; the light one is optional. A distro with
+  /// no `paletteLight` block resolves [dark] to true, so this getter returns
+  /// the same object it always did and nothing downstream can tell light mode
+  /// exists.
+  ThemePalette get palette =>
+      dark ? spec.palette : (spec.paletteLight ?? spec.palette);
   ThemeTypography get typography => spec.typography;
   ShellKind get shell => spec.shell;
 
@@ -73,7 +107,39 @@ class EffectiveTheme {
   /// spec. Pure passthrough; no user override merges into it (yet).
   ChromeFamily get chromeFamily => spec.chromeFamily;
 
-  static EffectiveTheme resolve(ThemeSpec spec, LauncherPrefs prefs) {
+  /// Which variant [prefs] and the platform ask for.
+  ///
+  /// A theme with no light palette is always dark, checked FIRST: offering a
+  /// light mode that cannot render is worse than not offering one, and this is
+  /// the line that keeps every bundled distro behaving exactly as it does today
+  /// until someone authors the light block.
+  static bool resolveDark(ThemeSpec spec, LauncherPrefs prefs,
+      {bool systemDark = true}) {
+    if (spec.paletteLight == null) return true;
+    return switch (prefs.themeMode) {
+      'light' => false,
+      'dark' => true,
+      _ => systemDark,
+    };
+  }
+
+  /// [systemDark] DEFAULTS TO TRUE RATHER THAN BEING REQUIRED.
+  ///
+  /// Making it required was the tidier signature and it broke every existing
+  /// test, which called `resolve(spec, prefs)` and had no opinion about
+  /// brightness because until now there was nothing to have an opinion about.
+  ///
+  /// The default is not a shrug: `true` is exactly what this function did
+  /// before light mode existed, and a theme with no `paletteLight` resolves to
+  /// dark whatever is passed. So a caller that forgets gets today's behaviour
+  /// rather than a surprise, and the one call site that genuinely knows the
+  /// platform brightness, `effectiveThemeProvider`, passes it explicitly.
+  static EffectiveTheme resolve(
+    ThemeSpec spec,
+    LauncherPrefs prefs, {
+    bool systemDark = true,
+  }) {
+    final dark = resolveDark(spec, prefs, systemDark: systemDark);
     // Layout scalars (dock, grid, sizes, labels) live in LayoutResolver, the
     // one owner of the theme-default-then-user-override merge. Icon SHAPE is a
     // separate concern and stays below, coupled to iconCacheId and the native
@@ -84,6 +150,7 @@ class EffectiveTheme {
     return EffectiveTheme(
       spec: spec,
       prefs: prefs,
+      dark: dark,
       dock: layout.dock,
       topBar: layout.topBar,
       rows: layout.rows,
@@ -143,6 +210,13 @@ class EffectiveTheme {
   String get iconCacheId {
     final i = icons;
     return '${spec.id}'
+        // Brightness belongs in the icon key for the same reason every
+        // IconStyle field does: `monochromeTint` and `backgroundColor` are
+        // resolved per palette, so a light distro renders genuinely different
+        // bitmaps. Without this the first mode you open wins and every later
+        // flip serves the other mode's icons, which is the eight-place trap
+        // this comment block exists to warn about.
+        '|${dark ? 'd' : 'l'}'
         '|${i.treatment.name}'
         '|${i.cornerRadius}'
         '|${i.foregroundScale}'
@@ -182,6 +256,20 @@ class EffectiveTheme {
       other is EffectiveTheme &&
           other.spec.id == spec.id &&
           other.prefs == prefs &&
+          // ── WHY BRIGHTNESS IS IN HERE ────────────────────────────────
+          //
+          // This operator compares `spec.id`, not the spec, so it cannot see a
+          // palette swap: the id is identical in both modes. And a SYSTEM
+          // brightness flip changes no pref either, so without this line two
+          // EffectiveThemes that paint completely different colours compare
+          // EQUAL.
+          //
+          // That is not a cosmetic miss. Every Riverpod family keyed on
+          // EffectiveTheme (shellApps, drawerItems, the custom grid, every icon
+          // request) would keep serving its cached value, and turning on
+          // Android's dark mode would repaint nothing at all until something
+          // unrelated happened to invalidate the tree.
+          other.dark == dark &&
           other.dock == dock &&
           other.topBar == topBar &&
           other.rows == rows &&
@@ -197,6 +285,7 @@ class EffectiveTheme {
   int get hashCode => Object.hash(
         spec.id,
         prefs,
+        dark,
         dock,
         topBar,
         rows,
@@ -218,7 +307,12 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   final spec = await ref.watch(activeThemeSpecProvider.future);
   final prefs = await ref.watch(prefsProvider(spec.id).future);
 
-  final effective = EffectiveTheme.resolve(spec, prefs);
+  // Watched, so flipping Android's own dark mode repaints the desktop under
+  // the user's thumb rather than on next launch.
+  final systemDark = ref.watch(systemDarkProvider);
+
+  final effective =
+      EffectiveTheme.resolve(spec, prefs, systemDark: systemDark);
 
   final api_ = ref.read(launcherHostApiProvider);
 
@@ -261,11 +355,41 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // it re-runs the whole thing. The old branch did precisely that and paid a
   // rebuild for it on every first run. Nobody watches this key, so applying a
   // wallpaper now costs one write and no rebuild.
+  // ─── THE TOKEN CARRIES THE MODE NOW ────────────────────────────────────
+  //
+  // It used to be the theme id alone, which was right until light mode existed
+  // and then silently wrong: switching to light repainted every surface pale
+  // and left the DARK photograph behind them, because as far as this key was
+  // concerned the correct wallpaper was already on screen. A pale dock on a
+  // near-black desktop is what that looks like, and it does not read as a light
+  // theme, it reads as the chrome having lost its colour.
+  //
+  // Adding the mode means the flip re-applies exactly once per direction, and
+  // the bug this key was built to fix stays fixed: it still answers "whose
+  // wallpaper is on screen", with one more thing in the answer.
   final store = ref.read(prefsStoreProvider);
-  if (await store.read(wallpaperAppliedForKey) != spec.id) {
-    // The user's choice for THIS theme, else the theme's own first preset.
-    final source = prefs.wallpaperCurrent ??
-        (spec.wallpapers.isNotEmpty ? spec.wallpapers.first : null);
+  final appliedToken = '${spec.id}|${effective.dark ? 'dark' : 'light'}';
+
+  if (await store.read(wallpaperAppliedForKey) != appliedToken) {
+    // ── WHOSE WALLPAPER IS THIS ─────────────────────────────────────────
+    //
+    // A preset the theme ships is THEME-MANAGED and follows the mode. Anything
+    // else is the user's own picture and must not be swapped out from under
+    // them because they turned on light mode, which is why this tests
+    // membership rather than simply taking `wallpaperCurrent` whenever it is
+    // set.
+    final current = prefs.wallpaperCurrent;
+    final themeManaged = current == null ||
+        spec.wallpapers.contains(current) ||
+        spec.wallpapersLight.contains(current);
+
+    final preset = !effective.dark && spec.wallpapersLight.isNotEmpty
+        ? spec.wallpapersLight
+        : spec.wallpapers;
+
+    final source = themeManaged
+        ? (preset.isNotEmpty ? preset.first : current)
+        : current;
 
     if (source != null) {
       // ── RESOLVE BEFORE ENCODING ────────────────────────────────────────
@@ -300,7 +424,7 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
           encodeWallpaperSource(asset?.path ?? source),
           prefs.wallpaperLock ?? false,
         );
-        if (applied) await store.write(wallpaperAppliedForKey, spec.id);
+        if (applied) await store.write(wallpaperAppliedForKey, appliedToken);
       }
     }
     // Nothing to apply, and the key is deliberately NOT written. A theme that
@@ -322,12 +446,31 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   //
   // Removing every desklet is a legitimate arrangement, which is why the flag
   // exists at all rather than testing `prefs.desklets.isEmpty`.
+  // PHASE D-grid — rescale placements onto the fine grid, ONCE per theme.
+  //
+  // BEFORE the starter branch, and on its own flag, for the same reason the
+  // starter and the wallpaper are separate: a desktop that already exists has
+  // to be rescaled, and a desktop that does not yet exist has to be authored
+  // straight into the new coordinates. Running the migration after the seeding
+  // would rescale a starter that was never in the old system.
+  //
+  // Terminates the same way: it writes prefs, prefs is watched, this provider
+  // re-runs, and the marker is set so the branch is skipped.
+  if ((prefs.deskletGridVersion ?? 0) < DeskletLayout.gridVersion) {
+    final migrated = DeskletLayout.migrateToFineGrid(prefs);
+    await ref.read(prefsProvider(spec.id).notifier).edit((_) => migrated);
+  }
+
   if (!prefs.deskletsInitialized) {
     final seeded = StarterDesktop.apply(
       prefs,
       spec.desklets,
-      cols: effective.cols,
-      rows: effective.rows,
+      // The FINE grid: authored starter coordinates are in desklet cells, not
+      // icon cells. A theme.json shipped before this change is one app version
+      // old and its starter has not been applied on this device yet, so there
+      // is nothing to convert, only something to author correctly.
+      cols: effective.deskletCols,
+      rows: effective.deskletRows,
       // Time-based, prefixed, and minted HERE rather than in theme.json — two
       // people installing the same pack must not end up sharing desklet ids.
       newId: () => 'dk${DateTime.now().microsecondsSinceEpoch}',
@@ -343,3 +486,49 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
 
   return effective;
 });
+
+
+/// Is the PHONE in dark mode right now?
+///
+/// ─── WHY A NOTIFIER AND NOT MediaQuery ──────────────────────────────────────
+///
+/// `MediaQuery.platformBrightnessOf(context)` is the usual answer and it is the
+/// wrong one here, because the thing that needs the value is a PROVIDER, not a
+/// widget. `effectiveThemeProvider` has no BuildContext, and threading one in
+/// from whichever shell happened to build first would make the palette depend
+/// on the widget tree's shape.
+///
+/// So the platform dispatcher is observed directly and republished as state.
+/// One listener for the whole app, no context, and every consumer of
+/// EffectiveTheme picks the change up through the ordinary rebuild path.
+///
+/// `themeMode` of 'light' or 'dark' ignores this entirely; it only decides the
+/// 'system' case. The listener still runs in those modes, which costs one
+/// comparison on an event most phones fire twice a day.
+class SystemDark extends Notifier<bool> {
+  ui.PlatformDispatcher? _dispatcher;
+
+  @override
+  bool build() {
+    final d = ui.PlatformDispatcher.instance;
+    _dispatcher = d;
+
+    final previous = d.onPlatformBrightnessChanged;
+    d.onPlatformBrightnessChanged = () {
+      // Chained, never replaced. `onPlatformBrightnessChanged` is a single
+      // slot: assigning it discards whoever registered before, and Flutter's
+      // own binding registers here. Dropping that handler stops the framework
+      // rebuilding on brightness change, which breaks MediaQuery for every
+      // widget in the app to fix the palette for one provider.
+      previous?.call();
+      final now = _dispatcher?.platformBrightness == ui.Brightness.dark;
+      if (now != state) state = now;
+    };
+
+    ref.onDispose(() => d.onPlatformBrightnessChanged = previous);
+
+    return d.platformBrightness == ui.Brightness.dark;
+  }
+}
+
+final systemDarkProvider = NotifierProvider<SystemDark, bool>(SystemDark.new);

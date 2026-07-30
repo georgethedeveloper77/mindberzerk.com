@@ -7,7 +7,8 @@ import { Breadcrumb } from '@/components/console/breadcrumb';
 import { IconBuilder } from '@/app/components/icon-builder';
 import { readLiveIndex } from '@/lib/catalogue';
 import { readPublishedHeroPack, type RehydratedPack } from '@/lib/cdn';
-import { appName, isAppId } from '@/lib/registry';
+import { listPlayProducts, playLite } from '@/lib/play';
+import { appMeta, appName, isAppId } from '@/lib/registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,13 @@ export const dynamic = 'force-dynamic';
  * It is worse with rehydration than it was without: an unreadable index also
  * means an empty editor that looks loaded. So the builder does not render at all
  * until the catalogue is known.
+ *
+ * ─── PLAY IS READ TOO, AND ITS FAILURE DOES NOT CLOSE THE BUILDER ───────────
+ *
+ * The product ID field becomes a picker over what exists in Play, with a
+ * status line. Unlike the index, nothing about publishing depends on Play, so
+ * an unreachable Play degrades the field to a plain input with the reason
+ * rather than refusing the page. `listPlayProducts` never throws.
  */
 export default async function IconBuilderPage({
   params,
@@ -65,7 +73,11 @@ export default async function IconBuilderPage({
   if (!isAppId(app)) notFound();
 
   const { id } = await searchParams;
-  const live = await readLiveIndex(app);
+  const [live, playRaw] = await Promise.all([
+    readLiveIndex(app),
+    listPlayProducts(appMeta(app)?.pkg ?? null),
+  ]);
+  const play = playLite(playRaw);
 
   const crumbs = (
     <Breadcrumb
@@ -138,6 +150,7 @@ export default async function IconBuilderPage({
         publishedIds={hero.map((p) => p.packId)}
         publishedVersion={publishedVersion}
         initial={initial}
+        play={play}
       />
     </Shell>
   );

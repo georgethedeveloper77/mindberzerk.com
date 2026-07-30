@@ -85,6 +85,42 @@ class DeskletSurfaceView extends ConsumerWidget {
   /// the bezel reads as a bug, and the dock and top bar need clearance.
   static const EdgeInsets margin = EdgeInsets.fromLTRB(14, 14, 14, 14);
 
+  /// Roughly how big one cell is, for callers that must size something BEFORE
+  /// this widget has laid out.
+  ///
+  /// ─── WHY THIS EXISTS ──────────────────────────────────────────────────
+  ///
+  /// The picker has to turn a widget provider's requested footprint in dp into
+  /// a span in cells, and it was dividing by a hardcoded 70. A real row on a
+  /// 4 by 5 grid is about 140dp tall, so every hosted widget was seeded at
+  /// twice the rows it asked for: a weather strip that wants 74dp got two rows
+  /// and 280dp, which is most of why third-party widgets look stretched and
+  /// wrong on this launcher.
+  ///
+  /// An ESTIMATE, and honest about it. The real cell comes from the workspace
+  /// canvas's own constraints, which nothing outside the build can see; this
+  /// approximates the same arithmetic from the window. It is used to choose an
+  /// initial span, never to lay anything out, so being a few dp off costs
+  /// nothing and being 70 against 140 cost a great deal.
+  static ({double w, double h}) estimateCell(
+    BuildContext context,
+    EffectiveTheme theme,
+  ) {
+    final size = MediaQuery.sizeOf(context);
+    final insets = MediaQuery.viewPaddingOf(context);
+
+    final w = size.width - margin.horizontal - insets.horizontal;
+    final h = size.height - margin.vertical - insets.vertical;
+
+    final cols = theme.deskletCols < 1 ? 1 : theme.deskletCols;
+    final rows = theme.deskletRows < 1 ? 1 : theme.deskletRows;
+
+    return (
+      w: w <= 0 ? 70 : w / cols,
+      h: h <= 0 ? 70 : h / rows,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = DeskletLayout.renderable(theme.prefs, page);
@@ -95,8 +131,9 @@ class DeskletSurfaceView extends ConsumerWidget {
     // empty desktop, which is the authentic reading.
     if (items.isEmpty && !editing) return const SizedBox.expand();
 
-    final cols = theme.cols;
-    final rows = theme.rows;
+    // The FINE grid, not the icon grid. See EffectiveTheme.deskletCols.
+    final cols = theme.deskletCols;
+    final rows = theme.deskletRows;
 
     return LayoutBuilder(
       builder: (context, constraints) {

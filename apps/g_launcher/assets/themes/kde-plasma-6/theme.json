@@ -13,6 +13,14 @@
     "accent": "#3DAEE9",
     "onDark": "#FCFCFC"
   },
+  "paletteLight": {
+    "bgTop": "#BFD4E8",
+    "bgBottom": "#E1EAF3",
+    "bar": "#CEDDEB",
+    "dock": "#C2CEDDEB",
+    "accent": "#3DAEE9",
+    "onDark": "#232629"
+  },
   "typography": {
     "display": "Ubuntu",
     "mono": "UbuntuMono"

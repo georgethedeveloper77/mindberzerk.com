@@ -16,6 +16,7 @@ import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/app_icon.dart';
+import '../drawer/folder_glyph.dart';
 import '../drawer/drawer_items.dart';
 
 /// Folder settings — its own page, because folders grew past a row.
@@ -40,10 +41,15 @@ class FoldersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Live, not the push-time snapshot: accepting a suggestion must remove it
     // from the list under your finger, and renaming must show immediately.
-    final theme = ref.watch(effectiveThemeProvider).asData?.value ?? this.theme;
+    // hasValue, not asData. See home_screen.dart: asData is null through a
+    // reload, and every prefs write is a reload.
+    final async = ref.watch(effectiveThemeProvider);
+    final theme = async.hasValue ? async.requireValue : this.theme;
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
     final apps = ref.watch(shellAppsProvider(theme));
+    // Members are stored as component keys; the rows draw icons.
+    final byKey = {for (final a in apps) a.componentKey: a};
     final suggestions = FolderSuggestions.propose(apps, theme.prefs);
     final folders = ref
         .watch(drawerItemsProvider(theme))
@@ -146,15 +152,16 @@ class FoldersScreen extends ConsumerWidget {
               },
               itemBuilder: (context, i) {
                 final f = folders[i];
-                return ThemedListRow(
+                return _FolderRow(
                   key: ValueKey(f.folder.id),
-                  icon: Icons.folder_outlined,
-                  title: f.folder.name,
-                  subtitle: '${f.folder.members.length} apps',
-                  trailing: ReorderableDragStartListener(
-                    index: i,
-                    child: const Icon(Icons.drag_handle, size: 20),
-                  ),
+                  theme: theme,
+                  name: f.folder.name,
+                  count: f.folder.members.length,
+                  members: f.folder.members
+                      .map((k) => byKey[k])
+                      .whereType<AppEntry>()
+                      .toList(),
+                  index: i,
                   onTap: () => drawerFolderSettings(context, ref, theme, f),
                 );
               },
@@ -324,6 +331,79 @@ class FoldersScreen extends ConsumerWidget {
 /// Accept and Dismiss are both plainly visible — no swipe, no long-press. A
 /// suggestion the user cannot obviously refuse reads as the launcher having
 /// already decided.
+/// One folder in the list, drawn as a FOLDER.
+///
+/// ─── WHY NOT ThemedListRow ──────────────────────────────────────────────────
+///
+/// It takes `icon: IconData`, so the leading slot can only ever be a glyph from
+/// the icon font, and `Icons.folder_outlined` is exactly the generic outline
+/// this screen was asked to stop using. Widening that primitive to accept an
+/// arbitrary leading widget would touch every settings row in the app to serve
+/// one screen.
+///
+/// So this builds its own row from the same chrome tokens, which is the idiom
+/// [_SuggestionRow] directly below already uses for the same reason.
+class _FolderRow extends StatelessWidget {
+  const _FolderRow({
+    super.key,
+    required this.theme,
+    required this.name,
+    required this.count,
+    required this.members,
+    required this.index,
+    required this.onTap,
+  });
+
+  final EffectiveTheme theme;
+  final String name;
+  final int count;
+  final List<AppEntry> members;
+
+  /// The reorderable list's index, for the drag listener.
+  final int index;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        child: Row(
+          children: [
+            FolderGlyph(theme: theme, size: 42, members: members),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(name, style: d.text.body),
+                  Text(
+                    count == 1 ? '1 app' : '$count apps',
+                    style: d.text.caption.copyWith(color: c.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            ReorderableDragStartListener(
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Icons.drag_handle, size: 20, color: c.textFaint),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SuggestionRow extends StatelessWidget {
   const _SuggestionRow({
     required this.suggestion,
@@ -525,7 +605,11 @@ class _HiddenAppsRow extends ConsumerWidget {
         builder: (ctx, r, __) {
           // Live inside the sheet: unhiding must remove the row under your
           // finger, or the only feedback is the count on the page behind.
-          final live = r.watch(effectiveThemeProvider).asData?.value ?? theme;
+          // hasValue, not asData: unhiding an app is itself a prefs write, so
+          // with asData this sheet fell back to the stale snapshot on the very
+          // action it exists to reflect.
+          final liveAsync = r.watch(effectiveThemeProvider);
+          final live = liveAsync.hasValue ? liveAsync.requireValue : theme;
           final keys = live.prefs.hiddenApps;
           final rows = [
             for (final a in hidden)

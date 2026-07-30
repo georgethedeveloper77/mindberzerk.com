@@ -133,8 +133,27 @@ class AppIcon extends ConsumerWidget {
     // prefs write — hiding an app, nudging a column, toggling verbose boot — and
     // without the selector every icon on the phone would rebuild each time. With
     // it, only a change that actually alters how icons are DRAWN gets through.
+    // `hasValue`, NOT `asData`, and that difference is a bug fix.
+    //
+    // `asData` is null while a provider is REFRESHING, not only while it is
+    // loading for the first time. `effectiveThemeProvider` is a FutureProvider
+    // that awaits a platform call, so every single prefs write sends it back
+    // through loading: create a folder, move an icon, nudge a column, and for
+    // the length of that round trip this selector returned ''.
+    //
+    // An empty cache id is a DIFFERENT family key, so every icon on screen
+    // stopped watching its bitmap and asked native for a new one under the
+    // empty key, rendering `SizedBox.shrink()` until it arrived. Every icon in
+    // the drawer blanked and re-decoded on every write, which is the flicker
+    // that reads as the whole screen refreshing on every action.
+    //
+    // `hasValue` is true through a refresh, because Riverpod carries the
+    // previous value into the loading state. So the id holds steady, the key
+    // does not change, and nothing re-requests. `requireValue` cannot throw
+    // here: it is guarded by the same `hasValue`.
     final styleId = ref.watch(
-      effectiveThemeProvider.select((t) => t.asData?.value.iconCacheId ?? ''),
+      effectiveThemeProvider
+          .select((t) => t.hasValue ? t.requireValue.iconCacheId : ''),
     );
 
     // A pack landing does not change the style id: a hero or brand pack keeps
@@ -157,9 +176,12 @@ class AppIcon extends ConsumerWidget {
     // key, native stood ready to render every icon afresh, and Dart went on
     // serving the bitmaps it already held. The picker would have looked
     // completely inert on any surface that was already on screen.
+    // Same refresh-retention rule as `styleId` above, and the same bug if it
+    // is written with `asData`.
     final systemPack = ref.watch(
-      effectiveThemeProvider
-          .select((t) => t.asData?.value.prefs.systemIconPack ?? '-'),
+      effectiveThemeProvider.select(
+        (t) => t.hasValue ? (t.requireValue.prefs.systemIconPack ?? '-') : '-',
+      ),
     );
 
     final icon = ref.watch(

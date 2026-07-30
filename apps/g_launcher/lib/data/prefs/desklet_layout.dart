@@ -378,6 +378,57 @@ class DeskletLayout {
     );
   }
 
+  /// The desklet grid's density relative to the icon grid.
+  ///
+  /// ─── WHY TWO DIFFERENT FACTORS ──────────────────────────────────────────
+  ///
+  /// The icon grid's cell is shaped for an app icon with a two-line label under
+  /// it: on a 1080 by 2340 phone that is about 83 wide by 140 tall, an aspect
+  /// of 1.7. Android widgets are authored against a launcher cell that is
+  /// roughly square, so a weather strip asking for 74dp of height could not ask
+  /// for less than 140 and came out nearly twice as tall as it wanted.
+  ///
+  /// DOUBLING BOTH AXES WOULD HAVE FIXED NOTHING. 8 by 10 has exactly the same
+  /// 1.7 aspect and exactly the same problem, one step smaller. Tripling the
+  /// rows is what squares the cell: 8 by 15 measures 42 by 47, and the same
+  /// weather widget lands within a quarter of its natural height instead of
+  /// within a factor of two.
+  static const int colFactor = 2;
+  static const int rowFactor = 3;
+
+  /// The current [LauncherPrefs.deskletGridVersion]. Bump only alongside a
+  /// migration below.
+  static const int gridVersion = 1;
+
+  /// Rescale every placement from the icon grid to the fine grid, ONCE.
+  ///
+  /// Returns [p] unchanged when the marker already says it has run, which is
+  /// what makes this safe to call on every theme resolve. Without that guard a
+  /// desktop would double in width and triple in height on every launch until
+  /// everything clamped to the edges.
+  ///
+  /// Spans scale with positions. A tile that filled the width still fills it, a
+  /// tile that was half as tall is still half as tall, and nobody's desktop
+  /// moves. Clamping is deliberately NOT done here: `normalise` already clamps
+  /// against the kind and the grid, and doing it in two places would mean two
+  /// answers when they disagree.
+  static LauncherPrefs migrateToFineGrid(LauncherPrefs p) {
+    if ((p.deskletGridVersion ?? 0) >= gridVersion) return p;
+
+    return p.copyWith(
+      deskletGridVersion: gridVersion,
+      desklets: [
+        for (final d in p.desklets)
+          d.copyWith(
+            col: d.col * colFactor,
+            row: d.row * rowFactor,
+            spanX: d.spanX * colFactor,
+            spanY: d.spanY * rowFactor,
+          ),
+      ],
+    );
+  }
+
   /// Repair structurally impossible data. NOT a prune.
   ///
   /// Two things only, and both can arrive from a hand-edited theme.json or an

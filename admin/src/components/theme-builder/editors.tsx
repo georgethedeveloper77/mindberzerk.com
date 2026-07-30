@@ -9,6 +9,7 @@ import {
   ICON_TREATMENTS,
   SHELLS,
   isHexColor,
+  luminance,
   type ChromeName,
   type IconStyleJson,
   type ShellName,
@@ -155,29 +156,130 @@ const PALETTE_FIELDS: { key: keyof ThemePaletteJson; label: string; hint: string
   { key: 'onDark', label: 'on dark', hint: 'text on the desktop' },
 ];
 
-export function PaletteEditor(props: {
+function PaletteGrid(props: {
   palette: ThemePaletteJson;
   setPalette: (p: Partial<ThemePaletteJson>) => void;
+  /** Light variant: onDark is the DARK ink that reads on a pale surface. */
+  light?: boolean;
 }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0 14px' }}>
       {PALETTE_FIELDS.map((f) => {
         const v = props.palette[f.key];
+        const inverted =
+          props.light &&
+          f.key === 'onDark' &&
+          isHexColor(v) &&
+          luminance(v) > 0.5;
         return (
           <div key={f.key}>
             <div style={{ fontFamily: C.mono, fontSize: 11, color: C.faint, marginBottom: -4, marginLeft: 2 }}>
-              {f.hint}
+              {props.light && f.key === 'onDark' ? 'ink on the light surface' : f.hint}
             </div>
             <ColorField
               label={f.label}
               value={v}
-              error={isHexColor(v) ? undefined : 'not a hex colour'}
+              error={
+                !isHexColor(v)
+                  ? 'not a hex colour'
+                  : inverted
+                    ? 'too light: this is the ink, it must read on a pale surface'
+                    : undefined
+              }
               onChange={(nv) => props.setPalette({ [f.key]: nv } as Partial<ThemePaletteJson>)}
             />
           </div>
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Sensible starting point for a light variant, derived from nothing.
+ *
+ * Deliberately NOT computed from the dark palette. Inverting six colours
+ * algorithmically produces something that is technically light and looks like
+ * no desktop anyone ships, and an author who is handed a plausible-looking
+ * result is far less likely to replace it than one handed obvious placeholders.
+ * The accent carries over because an accent is the brand and does not change
+ * between a desktop's light and dark sessions.
+ */
+function blankLight(dark: ThemePaletteJson): ThemePaletteJson {
+  return {
+    bgTop: '#E9E6E4',
+    bgBottom: '#F7F5F4',
+    bar: '#F6F5F4',
+    dock: '#D9F6F5F4',
+    accent: dark.accent,
+    onDark: '#2C2A2B',
+  };
+}
+
+export function PaletteEditor(props: {
+  palette: ThemePaletteJson;
+  setPalette: (p: Partial<ThemePaletteJson>) => void;
+  paletteLight?: ThemePaletteJson | null;
+  setPaletteLight?: (p: ThemePaletteJson | null) => void;
+}) {
+  const { paletteLight, setPaletteLight } = props;
+
+  return (
+    <>
+      <PaletteGrid palette={props.palette} setPalette={props.setPalette} />
+
+      {setPaletteLight ? (
+        <div style={{ marginTop: 10, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginBottom: paletteLight ? 12 : 0,
+            }}
+          >
+            <div>
+              <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.dim }}>
+                light variant
+              </div>
+              <div style={{ fontFamily: C.mono, fontSize: 11, color: C.faint, marginTop: 3 }}>
+                {paletteLight
+                  ? 'shown when the user picks light, or when the phone is light'
+                  : 'no light mode: this distro stays dark whatever the user picks'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="tb-btn"
+              onClick={() =>
+                setPaletteLight(paletteLight ? null : blankLight(props.palette))
+              }
+              style={{
+                fontFamily: C.mono,
+                fontSize: 11.5,
+                color: paletteLight ? C.red : C.amber,
+                background: 'transparent',
+                border: `1px solid ${C.line}`,
+                borderRadius: 6,
+                padding: '5px 11px',
+                flexShrink: 0,
+              }}
+            >
+              {paletteLight ? 'remove' : 'add light variant'}
+            </button>
+          </div>
+
+          {paletteLight ? (
+            <PaletteGrid
+              palette={paletteLight}
+              setPalette={(p) => setPaletteLight({ ...paletteLight, ...p })}
+              light
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </>
   );
 }
 

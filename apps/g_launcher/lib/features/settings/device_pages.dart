@@ -12,6 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/components/components.dart';
 import '../../system/system_stats.dart';
+import '../../system/stats_history.dart';
+import '../../design/charts.dart';
 
 /// The device-owned Settings categories. T1.
 ///
@@ -152,10 +154,36 @@ class NetworkPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(systemStatsProvider).asData?.value;
+    final async = ref.watch(systemStatsProvider);
+    final s = async.hasValue ? async.requireValue : null;
+    final history = ref.watch(statsHistoryProvider);
+
+    final down = history.series((x) => x.downBytesPerSec);
+    final up = history.series((x) => x.upBytesPerSec);
+    final c = ChromeScope.of(context).colors;
 
     return _DevicePage(
       title: 'Network',
+      // The chart answers a question the rows cannot: the rows say 2.4 MB/s,
+      // the chart says whether that is a download running or a spike as you
+      // opened the page. Only once there are enough samples to have a shape.
+      header: history.chartable && down.isNotEmpty
+          ? _ChartHeader(
+              legend: {'Down': ChartColors.down, 'Up': ChartColors.up},
+              child: TrendChart(
+                series: down,
+                secondSeries: up,
+                // Cyan and pink, not accent and grey. Two series need two
+                // HUES; two shades of the same one is a legend nobody reads.
+                color: ChartColors.down,
+                secondColor: ChartColors.up,
+                // Rates start at zero. Letting a flat 4 MB/s fill the box would
+                // draw an idle connection as a busy one.
+                minY: 0,
+                height: 116,
+              ),
+            )
+          : null,
       action: _AndroidSettings.wifi,
       actionLabel: 'Wi-Fi and mobile data',
       rows: [
@@ -190,10 +218,44 @@ class PowerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(systemStatsProvider).asData?.value;
+    final async = ref.watch(systemStatsProvider);
+    final s = async.hasValue ? async.requireValue : null;
+    final history = ref.watch(statsHistoryProvider);
+
+    final c = ChromeScope.of(context).colors;
+    final pct = s?.batteryPercent;
+    final temps = history.series((x) => x.batteryTempC);
+
+    // Below 15% the ring turns, because that is the point where the number
+    // stops being trivia. Charging overrides it: a phone at 8% on a cable is
+    // not a warning, it is a phone charging.
+    final lowBattery = pct != null && pct <= 15 && s?.batteryCharging != true;
 
     return _DevicePage(
       title: 'Power',
+      header: pct == null
+          ? null
+          : _ChartHeader(
+              legend: temps.length >= 2
+                  ? {'Temperature': ChartColors.warm}
+                  : null,
+              centre: RingGauge(
+                fraction: pct / 100,
+                label: '$pct%',
+                caption: s?.batteryCharging == true ? 'Charging' : null,
+                color: lowBattery ? c.danger : ChartColors.good,
+              ),
+              // Temperature over time is the one battery figure worth a trend:
+              // a number climbing steadily while charging is the thing you
+              // would want to notice, and a single reading cannot show it.
+              child: temps.length >= 2
+                  ? TrendChart(
+                      series: temps,
+                      color: ChartColors.warm,
+                      height: 72,
+                    )
+                  : null,
+            ),
       action: _AndroidSettings.battery,
       actionLabel: 'Battery usage',
       rows: [
@@ -251,7 +313,8 @@ class StoragePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(systemStatsProvider).asData?.value;
+    final async = ref.watch(systemStatsProvider);
+    final s = async.hasValue ? async.requireValue : null;
     final has = s?.hasStorage ?? false;
 
     final used = has ? s!.storageUsedBytes! : 0;
@@ -301,13 +364,53 @@ class StoragePage extends ConsumerWidget {
   }
 }
 
-/// Used against free, as one bar.
+/// The chart block above a device page's rows.
 ///
-/// A BAR, NOT A DONUT. A donut is the prettier chart and the wrong one here:
-/// it needs a legend to say which arc is which, and this page has exactly two
-/// quantities that sum to a known total. A bar reads left to right with no
-/// legend at all, and it is the shape every OS storage screen already uses, so
-/// nobody has to learn it.
+/// One wrapper so the three pages cannot drift on padding, legend placement or
+/// the gap to the first row. Every part is optional, because the pages differ:
+/// network is a chart alone, power is a ring with a small trend beneath it, and
+/// a page with nothing worth charting passes no header at all and looks exactly
+/// as it did before charts existed.
+class _ChartHeader extends StatelessWidget {
+  const _ChartHeader({this.child, this.centre, this.legend});
+
+  final Widget? child;
+  final Widget? centre;
+  final Map<String, Color>? legend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (centre != null) Center(child: centre!),
+          if (centre != null && child != null) const SizedBox(height: 12),
+          if (child != null) child!,
+          if (legend != null) ...[
+            const SizedBox(height: 8),
+            ChartLegend(entries: legend!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Used against free: a ring with the free figure inside it, over the bar.
+///
+/// ─── THE OLD COMMENT ARGUED AGAINST A DONUT AND WAS RIGHT ABOUT ONE ─────────
+///
+/// It said a donut needs a legend to say which arc is which, and that a bar
+/// reads left to right without one. Both true. A RING WITH THE NUMBER IN THE
+/// MIDDLE is a different object: there is no legend because there is nothing to
+/// cross-reference, the headline and the chart are the same thing, and the free
+/// figure stays the headline exactly as the old design insisted it should.
+///
+/// The bar survives underneath. It is still the clearest read of a proportion,
+/// and the two together give the glance answer and the precise one without
+/// either having to do both jobs.
 ///
 /// Everything is drawn from the palette. `no_constants.sh` covers settings, and
 /// a storage bar in a fixed blue would be the one place the whole screen forgot
@@ -337,6 +440,29 @@ class _StorageChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ─── A BAR, NOT A THIRD RING ────────────────────────────────
+          //
+          // Network has a line and power has a ring, and a third page answering
+          // "how much of the whole" with the same shape as the second would
+          // make the set read as decoration. Used against free is a COMPARISON,
+          // which is what a bar is for, and it puts the two numbers side by
+          // side at their real relative heights rather than as one arc.
+          BarsChart(
+            bars: [
+              (
+                label: 'Used',
+                value: used / (1024 * 1024 * 1024),
+                color: full ? ChartColors.warm : ChartColors.cool,
+              ),
+              (
+                label: 'Free',
+                value: (total - used) / (1024 * 1024 * 1024),
+                color: ChartColors.good,
+              ),
+            ],
+            height: 116,
+          ),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,

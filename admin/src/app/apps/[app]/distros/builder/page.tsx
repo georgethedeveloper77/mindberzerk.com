@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
+import { listPlayProducts, playLite } from '@/lib/play';
+import { appMeta } from '@/lib/registry';
 import { readDraft } from '@/lib/themes';
 import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
 
@@ -43,6 +45,15 @@ import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
  * page, unlike the icon builder: nothing here derives a version number from the
  * index, `publishDistro` computes versions server-side and `guardIndex` refuses
  * an unreadable bucket before anything is written.
+ *
+ * ─── AND PLAY, SO THE PRICING TAB KNOWS WHAT ACTUALLY SELLS ─────────────────
+ *
+ * The sku fields become a picker over what exists in Play, with a status line
+ * per product. `listPlayProducts` NEVER THROWS: an unreachable Play arrives as
+ * `ok: false` and the workspace degrades to plain text inputs with the reason,
+ * because pricing must stay editable when the reporting API is down. Read in
+ * the same Promise.all so the slower of the three reads sets the page's
+ * latency rather than their sum.
  */
 export default async function DistroWorkspacePage({
   params,
@@ -61,10 +72,12 @@ export default async function DistroWorkspacePage({
   const { id } = await searchParams;
   // Never let a bad read take the builder down: the point of opening it may be
   // to replace whatever is broken.
-  const [initial, live] = await Promise.all([
+  const [initial, live, playRaw] = await Promise.all([
     id ? readDraft(appId, id).catch(() => null) : Promise.resolve(null),
     readLiveIndex(appId),
+    listPlayProducts(appMeta(appId)?.pkg ?? null),
   ]);
+  const play = playLite(playRaw);
 
   // 'hero' only. `brand` is the CC0 glyph layer and is chosen through
   // `icons.brandPack`, which is a different field with a different meaning, and
@@ -82,6 +95,7 @@ export default async function DistroWorkspacePage({
         initial={initial}
         heroPacks={heroPacks}
         heroPacksUnreadable={!!live.unreachable || live.corrupt}
+        play={play}
       />
     </Shell>
   );

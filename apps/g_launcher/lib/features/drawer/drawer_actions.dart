@@ -154,7 +154,7 @@ void showDrawerAppMenu(
         if (isPinned)
           ThemedListRow(
             icon: Icons.push_pin_outlined,
-            title: 'Unpin from dock',
+            title: context.t('shell.unpinFromDock'),
             onTap: () {
               Navigator.pop(sheet);
               prefs.edit(
@@ -165,7 +165,7 @@ void showDrawerAppMenu(
         else
           ThemedListRow(
             icon: Icons.push_pin,
-            title: 'Pin to dock',
+            title: context.t('shell.pinToDock'),
             onTap: () {
               Navigator.pop(sheet);
               // Pin against the ceiling; the dock displays what fits its
@@ -180,7 +180,9 @@ void showDrawerAppMenu(
               if (identical(before, after)) {
                 // Refused = full. A silently dropped pin is worse than a
                 // refused one. Single-string message per the convention.
-                if (host.mounted) host.showMessage('Dock is full');
+                if (host.mounted) {
+                  host.showMessage(host.t('drawer.dockIsFull'));
+                }
                 return;
               }
               prefs.edit((p) => HomeLayout.pinToDock(
@@ -192,7 +194,7 @@ void showDrawerAppMenu(
           ),
         ThemedListRow(
           icon: Icons.info_outline,
-          title: 'App info',
+          title: context.t('shell.appInfo'),
           onTap: () {
             Navigator.pop(sheet);
             notifier.openInfo(entry);
@@ -211,13 +213,15 @@ void showDrawerAppMenu(
         // convention.
         ThemedListRow(
           icon: Icons.visibility_off_outlined,
-          title: 'Hide app',
-          subtitle: 'Unhide it under Apps and folders',
+          title: context.t('drawer.hideApp'),
+          subtitle: context.t('drawer.unhideItUnderApps'),
           onTap: () {
             Navigator.pop(sheet);
             prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
             if (host.mounted) {
-              host.showMessage('${entry.label} hidden');
+              host.showMessage(
+                host.t('drawer.appHidden', {'name': entry.label}),
+              );
             }
           },
         ),
@@ -227,7 +231,7 @@ void showDrawerAppMenu(
         if (!entry.isSystem && !entry.isWorkProfile)
           ThemedListRow(
             icon: Icons.delete_outline,
-            title: 'Uninstall',
+            title: context.t('drawer.uninstall'),
             onTap: () {
               Navigator.pop(sheet);
               notifier.uninstall(entry);
@@ -286,7 +290,7 @@ void drawerFolderSettings(
       children: [
         ThemedListRow(
           icon: Icons.folder_open_outlined,
-          title: 'Open',
+          title: context.t('drawer.open'),
           onTap: () {
             Navigator.pop(sheet);
             openDrawerFolder(context, ref, theme, item);
@@ -294,7 +298,7 @@ void drawerFolderSettings(
         ),
         ThemedListRow(
           icon: Icons.drive_file_rename_outline,
-          title: 'Rename folder',
+          title: context.t('drawer.renameFolder'),
           onTap: () {
             Navigator.pop(sheet);
             renameDrawerFolder(
@@ -308,8 +312,8 @@ void drawerFolderSettings(
         ),
         ThemedListRow(
           icon: Icons.folder_off_outlined,
-          title: 'Ungroup',
-          subtitle: 'The apps return to the drawer; nothing is uninstalled',
+          title: context.t('drawer.ungroup'),
+          subtitle: context.t('drawer.theAppsReturnTo'),
           onTap: () {
             Navigator.pop(sheet);
             ref.read(prefsProvider(theme.spec.id).notifier).edit(
@@ -337,62 +341,125 @@ void renameDrawerFolder(
   required String folderId,
   required String currentName,
 }) {
-  // Preselected, so the first keystroke REPLACES the placeholder instead of
-  // appending to it. Nobody wants to name a folder "FolderGames".
-  final controller = TextEditingController(text: currentName)
-    ..selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: currentName.length,
-    );
-
   ThemedSheet.show<void>(
     context,
-    title: 'Name this folder',
+    title: context.t('drawer.nameThisFolder'),
     isScrollControlled: true,
-    builder: (sheet) {
-      final d = ChromeScope.of(sheet);
+    builder: (sheet) => _RenameFolderBody(
+      ref: ref,
+      theme: theme,
+      folderId: folderId,
+      currentName: currentName,
+    ),
+  );
+}
 
-      void commit() {
-        final name = controller.text;
-        Navigator.pop(sheet);
-        ref
-            .read(prefsProvider(theme.spec.id).notifier)
-            .edit((p) => DrawerLayout.rename(p, folderId, name));
-      }
+/// The rename sheet's body, as a StatefulWidget so it OWNS its controller.
+///
+/// ─── WHY THIS IS NOT A CLOSURE ANY MORE ─────────────────────────────────────
+///
+/// It was: the controller was built beside the `ThemedSheet.show` call and
+/// disposed with `.whenComplete(controller.dispose)`. That reads as careful
+/// lifecycle management and is a crash. The route's Future completes the moment
+/// the sheet is POPPED, while the sheet is still on screen playing its exit
+/// animation, and every frame of that animation rebuilds the TextField against
+/// a controller that has just been disposed:
+///
+///   A TextEditingController was used after being disposed.
+///
+/// It fired hardest right after merging two apps, because that path opens this
+/// sheet automatically and users dismiss it fast, which is the shortest gap
+/// between pop and the next rebuild.
+///
+/// Owning the controller in a State fixes it by construction rather than by
+/// timing: Flutter disposes the State when the subtree is actually gone, not
+/// when a Future resolves. No delay to tune, nothing to get wrong again.
+class _RenameFolderBody extends StatefulWidget {
+  const _RenameFolderBody({
+    required this.ref,
+    required this.theme,
+    required this.folderId,
+    required this.currentName,
+  });
 
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          20 + MediaQuery.viewInsetsOf(sheet).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => commit(),
-              style: d.text.body,
-              decoration: InputDecoration(
-                hintText: 'Folder name',
-                hintStyle: d.text.body.copyWith(color: d.colors.textFaint),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: d.colors.line),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: d.colors.accent),
-                ),
+  final WidgetRef ref;
+  final EffectiveTheme theme;
+  final String folderId;
+  final String currentName;
+
+  @override
+  State<_RenameFolderBody> createState() => _RenameFolderBodyState();
+}
+
+class _RenameFolderBodyState extends State<_RenameFolderBody> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Preselected, so the first keystroke REPLACES the placeholder instead of
+    // appending to it. Nobody wants to name a folder "FolderGames".
+    _controller = TextEditingController(text: widget.currentName)
+      ..selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: widget.currentName.length,
+      );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final name = _controller.text;
+    Navigator.pop(context);
+    widget.ref
+        .read(prefsProvider(widget.theme.spec.id).notifier)
+        .edit((p) => DrawerLayout.rename(p, widget.folderId, name));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _commit(),
+            style: d.text.body,
+            decoration: InputDecoration(
+              hintText: context.t('drawer.folderName'),
+              hintStyle: d.text.body.copyWith(color: d.colors.textFaint),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: d.colors.line),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: d.colors.accent),
               ),
             ),
-            const SizedBox(height: 20),
-            ThemedButton(label: context.t('common.save'), onPressed: commit, expand: true),
-          ],
-        ),
-      );
-    },
-  ).whenComplete(controller.dispose);
+          ),
+          const SizedBox(height: 20),
+          ThemedButton(
+            label: context.t('common.save'),
+            onPressed: _commit,
+            expand: true,
+          ),
+        ],
+      ),
+    );
+  }
 }

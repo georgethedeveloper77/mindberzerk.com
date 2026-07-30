@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../tokens/radii.dart';
 import '../tokens/spacing.dart';
 import 'chrome_theme.dart';
+import 'glass_panel.dart';
 
 /// A themed modal bottom sheet.
 ///
@@ -31,8 +32,13 @@ class ThemedSheet {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
-      backgroundColor: c.surface,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
+      // TRANSPARENT, because the sheet paints itself below. Leaving the colour
+      // here would put an opaque slab behind the translucent one and the blur
+      // would have nothing to blur.
+      backgroundColor: Colors.transparent,
+      // Lighter than it was. The sheet is now see-through, so a heavy scrim
+      // behind it darkens the very wallpaper the translucency exists to show.
+      barrierColor: Colors.black.withValues(alpha: 0.38),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: GRadius.lg),
       ),
@@ -45,7 +51,13 @@ class ThemedSheet {
         ),
         child: ChromeScope(
           data: data,
-          child: _SheetBody(title: title, child: Builder(builder: builder)),
+          child: GlassPanel(
+            borderRadius: const BorderRadius.vertical(top: GRadius.lg),
+            // Top edge only: the other three run off the screen, and a full
+            // border would draw two hairlines down the sides of the display.
+            border: Border(top: BorderSide(color: c.lineStrong)),
+            child: _SheetBody(title: title, child: Builder(builder: builder)),
+          ),
         ),
       ),
     );
@@ -98,3 +110,4 @@ class _SheetBody extends StatelessWidget {
     );
   }
 }
+

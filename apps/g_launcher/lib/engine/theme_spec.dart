@@ -21,10 +21,12 @@ class ThemeSpec {
     required this.shell,
     required this.tier,
     required this.palette,
+    this.paletteLight,
     required this.typography,
     required this.layout,
     required this.icons,
     required this.wallpapers,
+    this.wallpapersLight = const [],
     required this.minAppVersion,
     ChromeFamily? chromeFamily,
     this.logo,
@@ -61,6 +63,20 @@ class ThemeSpec {
 
   final String tier;
   final ThemePalette palette;
+
+  /// The LIGHT variant, when the distro ships one.
+  ///
+  /// Additive and optional, so every existing theme.json keeps parsing and a
+  /// theme without this block simply has no light mode: [EffectiveTheme] falls
+  /// back to [palette] rather than inventing a pale version of it. Inverting
+  /// six colours algorithmically produces something that is technically light
+  /// and looks like nothing any of these desktops ship, which is the opposite
+  /// of the point.
+  ///
+  /// `palette` remains the DARK variant and keeps its name. Renaming it to
+  /// `paletteDark` would have been tidier and would also have broken every
+  /// bundled theme.json and every pack already published to the CDN.
+  final ThemePalette? paletteLight;
   final ThemeTypography typography;
   final ThemeLayout layout;
 
@@ -70,6 +86,22 @@ class ThemeSpec {
   /// The theme's preset wallpapers. The user adds their own on top; both live
   /// in prefs.wallpapers and rotate together.
   final List<String> wallpapers;
+
+  /// Wallpapers for LIGHT mode, when the distro ships them.
+  ///
+  /// Empty means "use [wallpapers] in both modes", which is what every theme
+  /// did before light mode existed and what the terminal will always do.
+  ///
+  /// ─── WHY A WALLPAPER HAS TO FOLLOW THE MODE ─────────────────────────────
+  ///
+  /// The launcher runs TRANSPARENT over the system wallpaper, so the wallpaper
+  /// is the background of everything else. Switching the palette to light while
+  /// leaving a dark photograph behind it gives a pale dock and a pale drawer
+  /// floating on a near-black desktop, which does not read as a light theme at
+  /// all: it reads as the chrome having lost its colour. Ubuntu has shipped
+  /// `noble_light.webp` in its wallpapers list the whole time and nothing ever
+  /// chose it.
+  final List<String> wallpapersLight;
 
   /// Gates against versionCode. A theme built for features this build does not
   /// have must refuse to load rather than render half-broken.
@@ -136,10 +168,12 @@ class ThemeSpec {
         shell: shell,
         tier: tier,
         palette: palette,
+        paletteLight: paletteLight,
         typography: typography,
         layout: layout,
         icons: icons,
         wallpapers: wallpapers,
+        wallpapersLight: wallpapersLight,
         minAppVersion: minAppVersion,
         // The PRIVATE override, not the resolved getter. Passing
         // `chromeFamily` would bake the shell default into the field, so a
@@ -167,6 +201,11 @@ class ThemeSpec {
       version: json['version'] as String? ?? '',
       shell: ShellKind.parse(json['shell'] as String?),
       tier: json['tier'] as String? ?? 'free',
+      paletteLight: json['paletteLight'] is Map
+          ? ThemePalette.fromJson(
+              (json['paletteLight'] as Map).cast<String, dynamic>(),
+            )
+          : null,
       palette: ThemePalette.fromJson(
         (json['palette'] as Map).cast<String, dynamic>(),
       ),
@@ -192,6 +231,9 @@ class ThemeSpec {
         brandTreatment: icons['brandTreatment'] as String?,
       ),
       wallpapers: _wallpapers(json),
+      wallpapersLight: ((json['wallpapersLight'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
       minAppVersion: (json['minAppVersion'] as num?)?.toInt() ?? 0,
       logo: ThemeLogo.fromJson(json['logo']),
       boot: BootSpec.fromJson(
@@ -384,6 +426,26 @@ class ThemePalette {
         accent: parseColor(j['accent'] as String?) ?? const Color(0xFFE95420),
         onDark: parseColor(j['onDark'] as String?) ?? const Color(0xFFFFFFFF),
       );
+
+  /// Value equality, added with the light variant.
+  ///
+  /// It matters now because two palettes for one distro are compared to decide
+  /// whether the desktop must repaint. Without it, `paletteLight` and `palette`
+  /// are always unequal by identity even when a theme ships the same six
+  /// colours twice, and every brightness flip would repaint for nothing.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemePalette &&
+          other.bgTop == bgTop &&
+          other.bgBottom == bgBottom &&
+          other.bar == bar &&
+          other.dock == dock &&
+          other.accent == accent &&
+          other.onDark == onDark;
+
+  @override
+  int get hashCode => Object.hash(bgTop, bgBottom, bar, dock, accent, onDark);
 }
 
 class ThemeTypography {

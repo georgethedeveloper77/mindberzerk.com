@@ -96,8 +96,8 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
       toPage: _d.page,
       toCol: _d.col + dc,
       toRow: _d.row + dr,
-      cols: widget.theme.cols,
-      rows: widget.theme.rows,
+      cols: widget.theme.deskletCols,
+      rows: widget.theme.deskletRows,
     );
 
     // Identity, not equality. The engine returns the SAME object on refusal,
@@ -134,15 +134,22 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
       id: _d.id,
       spanX: _d.spanX + dx,
       spanY: _d.spanY + dy,
-      cols: widget.theme.cols,
-      rows: widget.theme.rows,
+      cols: widget.theme.deskletCols,
+      rows: widget.theme.deskletRows,
     );
 
     // A resize that only hit the kind's ceiling is NOT a failure — the engine
     // clamped it and the tile stops growing, which is what a handle should do.
-    // Only a collision comes back identical, and only that is worth saying.
+    // Only a collision comes back identical.
+    //
+    // AND IT NOW SAYS SO. This buzzed and returned in silence, so a widget that
+    // would not grow because a neighbour was in the way was indistinguishable
+    // from a resize handle that does not work, which is precisely how the
+    // feature gets reported as broken. The move path has said "No room there"
+    // all along; there was no reason for this one to stay quiet.
     if (identical(after, before)) {
       HapticFeedback.heavyImpact();
+      if (mounted) context.showMessage('No room to grow');
       return;
     }
 
@@ -293,12 +300,18 @@ class _Frame extends StatelessWidget {
               : palette.onDark.withValues(alpha: 0.28),
           width: selected ? 1.6 : 1,
         ),
+        // A SHADOW IS NOT A SURFACE, so it does not follow the palette into
+        // light mode. This was the theme's own background at half alpha, which
+        // reads as a deep aubergine drop under a dark desktop and as nothing at
+        // all under a light one: a lifted tile stopped looking lifted the
+        // moment the palette went pale. Shadows are dark everywhere, on every
+        // desktop, because they are absence of light rather than a colour.
         boxShadow: lifted
-            ? [
+            ? const [
                 BoxShadow(
-                  color: palette.bgBottom.withValues(alpha: 0.5),
+                  color: Color(0x66000000), // theme-exempt: a shadow is not a surface
                   blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  offset: Offset(0, 6),
                 ),
               ]
             : null,

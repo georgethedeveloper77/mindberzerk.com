@@ -228,8 +228,8 @@ class TerminalCommands {
       before,
       kindId: kindId,
       page: 0,
-      cols: theme.cols,
-      rows: theme.rows,
+      cols: theme.deskletCols,
+      rows: theme.deskletRows,
       newId: () => 'dk${DateTime.now().microsecondsSinceEpoch}',
     );
 

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/bulk-icons';
 import {
   CORE_PACKAGES,
   buildHeroPackJson,
@@ -11,7 +12,8 @@ import {
   isPackageName,
 } from '@/lib/icon-pack';
 import { renderHeroIcon } from '@/lib/image-trim';
-import { iconsSkuFor, skuProblems } from '@/lib/skus';
+import { playSkuNote, type PlayLite } from '@/lib/play-lite';
+import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/skus';
 import type { RehydratedPack } from '@/lib/cdn';
 
 /**
@@ -107,12 +109,20 @@ export function IconBuilder({
   publishedIds,
   publishedVersion,
   initial,
+  play,
 }: {
   app: string;
   publishedIds: string[];
   publishedVersion: Record<string, number>;
   /** A published pack to edit, or null for a new one. See `lib/cdn.ts`. */
   initial?: RehydratedPack | null;
+  /**
+   * What Play actually sells, slimmed, read on the server. `ok: false`
+   * degrades the product ID field to the plain input it used to be, with the
+   * reason, because publishing does not depend on Play and the field must not
+   * become less usable than before Play was consulted.
+   */
+  play: PlayLite;
 }) {
   const router = useRouter();
 
@@ -121,12 +131,35 @@ export function IconBuilder({
   const [minAppVersion, setMinAppVersion] = useState(String(initial?.minAppVersion ?? 6));
   const [masked, setMasked] = useState(initial?.masked ?? false);
   const [sku, setSku] = useState(initial?.sku ?? '');
+  // Custom mode starts on only when the opened pack carries a sku that is
+  // neither in Play nor this pack's derived id; every option path covers the
+  // rest, and hiding a real sku behind a mismatched select would discard it.
+  const [customSku, setCustomSku] = useState<boolean>(() => {
+    const s = initial?.sku ?? '';
+    if (s === '' || !play.ok) return false;
+    if (play.products.some((p) => p.productId === s)) return false;
+    return s !== (initial?.packId ? iconsSkuFor(initial.packId) : '');
+  });
   const [plate, setPlate] = useState('#E95420'); // preview only, not in pack.json
   const [radius, setRadius] = useState(22); // preview only, percent
   const [entries, setEntries] = useState<Entry[]>(() => entriesFrom(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+
+  // Named refusals from the last intake: license-marked SVGs, unreadable zips,
+  // skipped non-images. Replaced per pick rather than accumulated, because the
+  // question they answer is "what happened to what I just dropped".
+  const [refused, setRefused] = useState<RefusedFile[]>([]);
+
+  // The human half of the license gate; the scan in bulk-icons is the other.
+  // Starts true only when editing a pack that already shipped, since that
+  // attestation was made when it was first published.
+  const [licensed, setLicensed] = useState<boolean>(() => !!initial);
+
+  // Display-only. At folder scale the rows needing a human are the point, and
+  // they should not be buried under forty that guessed fine.
+  const [unmappedFirst, setUnmappedFirst] = useState(false);
 
   // Advisory, never blocking: a shape Play would refuse is worth saying loudly,
   // but this builder does not get to decide what a valid product ID is. The
@@ -148,8 +181,14 @@ export function IconBuilder({
 
   async function addFiles(files: FileList | null) {
     if (!files?.length) return;
-    const added: Entry[] = Array.from(files).map((file, i) => ({
-      id: `${Date.now()}-${i}-${file.name}`,
+    // Expansion first: zips flatten, folders lose their noise, license-marked
+    // SVGs are refused by name. Only what survives enters the pipeline.
+    const intake = await expandPicked(Array.from(files));
+    setRefused(intake.refused);
+    if (intake.files.length === 0) return;
+    const stamp = Date.now();
+    const added: Entry[] = intake.files.map((file, i) => ({
+      id: `${stamp}-${i}-${file.name}`,
       file,
       pkg: guessPackage(file.name) ?? '',
       url: null,
@@ -187,8 +226,9 @@ export function IconBuilder({
       entries.every((e) => e.blob && isPackageName(e.pkg)) &&
       duplicates.size === 0 &&
       /^[a-z0-9._-]+$/.test(packId) &&
+      licensed &&
       !busy,
-    [entries, duplicates, packId, busy],
+    [entries, duplicates, packId, licensed, busy],
   );
 
   const covered = new Set(entries.map((e) => e.pkg));
@@ -302,42 +342,106 @@ export function IconBuilder({
             Blank is free, and free is the common case: the bundled packs and
             every hero pack that ships with a free distro carry no SKU.
 
-            The suggestion button exists because a Play product ID is PERMANENT.
-            Play never releases one for reuse, so a typo here is a store listing
-            you live with, and `icons_<slug>` is the convention the signed index,
-            `isSafeSku` and the commerce page all already assume. */}
+            WHEN PLAY CAN BE READ, this is a picker rather than an input: a
+            Play product ID is PERMANENT, Play never releases one for reuse,
+            and picking an existing product is the case that can never typo.
+            The derived `icons_<slug>` id is offered even when Play does not
+            have it yet, because naming the product here first and creating it
+            in Play second is a legitimate order of operations; the status line
+            says exactly what remains to be done in Play Console. Custom
+            reveals the plain input.
+
+            WHEN PLAY CANNOT BE READ, this is the input it always was, plus
+            the reason nothing can be confirmed. The suggestion button only
+            exists on this path; in the picker the derived id is an option. */}
         <div className="mt-3">
           <label className="block text-micro text-ink-3">
             Play product ID <span className="text-ink-3/60">· blank means free</span>
           </label>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <input
-              value={sku}
-              onChange={(e) => setSku(e.target.value)}
-              placeholder="icons_kali"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
-            />
-            {packId && !sku && (
-              <button
-                onClick={() => setSku(iconsSkuFor(packId))}
-                className="shrink-0 rounded-lg border border-line bg-surface-2 px-2.5 py-2 text-data text-ink-2 transition hover:bg-surface-3"
-              >
-                {iconsSkuFor(packId)}
-              </button>
-            )}
-          </div>
+          {play.ok ? (
+            (() => {
+              const derived = packId ? iconsSkuFor(packId) : '';
+              const listed = play.products.filter((p) =>
+                p.productId.startsWith(SKU_PREFIX.icons),
+              );
+              const rows: { value: string; label: string }[] = [
+                { value: '', label: 'free (no product)' },
+                ...(derived && !listed.some((p) => p.productId === derived)
+                  ? [{ value: derived, label: `${derived} (create in Play)` }]
+                  : []),
+                ...listed.map((p) => ({
+                  value: p.productId,
+                  label:
+                    p.activeOptions === 0 ? `${p.productId} (not active)` : p.productId,
+                })),
+                ...(sku &&
+                sku !== derived &&
+                !listed.some((p) => p.productId === sku)
+                  ? [{ value: sku, label: `${sku} (not in Play)` }]
+                  : []),
+                { value: '__custom', label: 'custom ID' },
+              ];
+              return (
+                <>
+                  <select
+                    value={customSku ? '__custom' : sku}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '__custom') {
+                        setCustomSku(true);
+                        return;
+                      }
+                      setCustomSku(false);
+                      setSku(v);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                  >
+                    {rows.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  {customSku && (
+                    <input
+                      value={sku}
+                      onChange={(e) => setSku(e.target.value)}
+                      placeholder="icons_kali"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                    />
+                  )}
+                </>
+              );
+            })()
+          ) : (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <input
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="icons_kali"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+              />
+              {packId && !sku && (
+                <button
+                  onClick={() => setSku(iconsSkuFor(packId))}
+                  className="shrink-0 rounded-lg border border-line bg-surface-2 px-2.5 py-2 text-data text-ink-2 transition hover:bg-surface-3"
+                >
+                  {iconsSkuFor(packId)}
+                </button>
+              )}
+            </div>
+          )}
           {skuIssues.map((p) => (
             <p key={p} className="mt-1 text-micro text-warn">
               {p}
             </p>
           ))}
           {sku.trim() !== '' && skuIssues.length === 0 && (
-            <p className="mt-1 text-micro text-ink-3">
-              Nothing installs this pack until the product is active in Play. Check
-              it on the Commerce page after publishing.
-            </p>
+            <PlayNoteLine play={play} sku={sku.trim()} />
           )}
         </div>
 
@@ -400,18 +504,63 @@ export function IconBuilder({
 
       {/* ── input ────────────────────────────────────────────────────────── */}
       <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
-        <input
-          type="file"
-          multiple
-          accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
-          onChange={(e) => addFiles(e.target.files)}
-          className="block w-full text-data text-ink-3 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-data file:text-ink"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="file"
+            multiple
+            accept=".svg,.png,.webp,.jpg,.jpeg,.zip,image/svg+xml,image/png,image/webp,image/jpeg,application/zip"
+            onChange={(e) => {
+              void addFiles(e.target.files);
+              e.target.value = '';
+            }}
+            className="block min-w-0 flex-1 text-data text-ink-3 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-data file:text-ink"
+          />
+          {/* A folder pick is its own input: `webkitdirectory` and `multiple`
+              on one input mean "folder" wins everywhere it is supported and
+              loose files become unpickable. Set via callback ref because the
+              attribute is non-standard and not in React's input props. */}
+          <input
+            type="file"
+            ref={(el) => el?.setAttribute('webkitdirectory', '')}
+            onChange={(e) => {
+              void addFiles(e.target.files);
+              e.target.value = '';
+            }}
+            className="hidden"
+            id="icon-folder-pick"
+          />
+          <label
+            htmlFor="icon-folder-pick"
+            className="shrink-0 cursor-pointer rounded-lg border border-line bg-surface-2 px-3 py-2 text-data text-ink-2 transition hover:bg-surface-3"
+          >
+            Add a folder
+          </label>
+        </div>
         <p className="mt-2 text-micro leading-relaxed text-ink-3">
-          SVG or PNG. Each drawing is fitted to a 192 square at its own
-          proportions and written as PNG. No trimming or rescaling: what you drew
-          is what ships. Nothing uploads until you publish.
+          SVG, PNG, WEBP, or JPEG, loose, in a folder, or in a zip. Each drawing
+          is fitted to a 192 square at its own proportions and written as PNG.
+          No trimming or rescaling: what you drew is what ships. Packages are
+          guessed from filenames and reviewed below; nothing uploads until you
+          publish.
         </p>
+        <label className="mt-3 flex cursor-pointer items-start gap-2 text-micro leading-relaxed text-ink-2">
+          <input
+            type="checkbox"
+            checked={licensed}
+            onChange={(e) => setLicensed(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>{LICENSE_ATTESTATION}</span>
+        </label>
+        {refused.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {refused.map((r, i) => (
+              <p key={i} className="text-micro leading-relaxed text-warn">
+                {r.name} {r.reason}
+              </p>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ── entries ──────────────────────────────────────────────────────── */}
@@ -419,13 +568,37 @@ export function IconBuilder({
         <section className="rounded-card border border-line-soft bg-surface-1">
           <header className="flex items-center gap-2 border-b border-line-soft px-3 py-2.5 sm:px-4">
             <h2 className="text-data font-medium">{entries.length} icons</h2>
-            <span className="ml-auto text-micro text-ink-3">
+            <span className="text-micro text-ink-3">
               {entries.filter((e) => isPackageName(e.pkg)).length} mapped
             </span>
+            {entries.some((e) => !isPackageName(e.pkg)) && (
+              <button
+                onClick={() => setUnmappedFirst((v) => !v)}
+                className={`ml-auto text-micro transition ${unmappedFirst ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
+              >
+                {unmappedFirst ? 'Original order' : 'Unmapped first'}
+              </button>
+            )}
           </header>
 
+          {/* The common packages as picks, so correcting a guess is a choice
+              rather than typing a reverse-DNS string on a laptop keyboard.
+              Free text still works: the datalist only suggests. */}
+          <datalist id="core-pkgs">
+            {CORE_PACKAGES.map((c) => (
+              <option key={c.pkg} value={c.pkg}>
+                {c.label}
+              </option>
+            ))}
+          </datalist>
+
           <div className="divide-y divide-line-soft">
-            {entries.map((e) => (
+            {(unmappedFirst
+              ? [...entries].sort(
+                  (a, b) => Number(isPackageName(a.pkg)) - Number(isPackageName(b.pkg)),
+                )
+              : entries
+            ).map((e) => (
               <div key={e.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:px-4">
                 <div className="grid size-12 shrink-0 place-items-center overflow-hidden border border-line" style={tileStyle}>
                   {/* Busy renders NOTHING. The tile is 48px with a border and a
@@ -447,6 +620,7 @@ export function IconBuilder({
                     placeholder="com.example.app"
                     autoCapitalize="none"
                     spellCheck={false}
+                    list="core-pkgs"
                     className={`w-full rounded-lg border bg-surface-2 px-2.5 py-1.5 font-mono ${
                       !e.pkg
                         ? 'border-warn/50'
@@ -521,10 +695,28 @@ export function IconBuilder({
         >
           {busy ? 'Signing and uploading' : `Publish ${entries.length} icons as v${version}`}
         </button>
+        {!licensed && entries.length > 0 && (
+          <p className="mt-2 text-micro text-warn">
+            Publishing needs the license attestation above.
+          </p>
+        )}
         {publishedIds.length > 0 && !packId && (
           <p className="mt-2 text-micro text-ink-3">Published hero packs: {publishedIds.join(', ')}</p>
         )}
       </div>
     </div>
   );
+}
+
+/**
+ * The status line under the product ID: can this sku actually be bought?
+ * Advisory only, same three states as the Commerce page. It replaces the old
+ * static "check the Commerce page after publishing" sentence, which is now the
+ * answer rather than the errand.
+ */
+function PlayNoteLine({ play, sku }: { play: PlayLite; sku: string }) {
+  const note = playSkuNote(play, sku);
+  const cls =
+    note.tone === 'ok' ? 'text-ok' : note.tone === 'warn' ? 'text-warn' : 'text-ink-3';
+  return <p className={`mt-1 text-micro leading-relaxed ${cls}`}>{note.text}</p>;
 }

@@ -72,7 +72,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     // Live, not the push-time snapshot — every control reflects its edit at once.
     final theme =
-        ref.watch(effectiveThemeProvider).asData?.value ?? widget.theme;
+        // hasValue, not asData: asData is null while a provider RELOADS, not
+        // only while it first loads, and effectiveThemeProvider reloads on
+        // every prefs write because it awaits prefsProvider(id).future. With
+        // asData, every toggle on this page dropped back to the push-time
+        // snapshot for a frame and then forward again. See home_screen.dart.
+        ref.watch(effectiveThemeProvider).hasValue
+            ? ref.watch(effectiveThemeProvider).requireValue
+            : widget.theme;
     ref.read(prefsProvider(theme.spec.id).notifier);
     ref.read(launcherHostApiProvider);
     final workspaces = ref.watch(workspaceCountProvider);
@@ -1624,7 +1631,53 @@ List<Widget> _appearanceSection(
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
   ref.read(launcherHostApiProvider);
 
+  final mode = theme.prefs.themeMode ?? 'system';
+  final hasLight = theme.spec.paletteLight != null;
+
   return [
+    // ── Light and dark ─────────────────────────────────────────────
+    //
+    // First in the section because it is the coarsest appearance decision
+    // there is, and because it is the one setting here that applies to EVERY
+    // distro rather than the one on screen. It writes the same global value
+    // the setup wizard's Appearance step does; see GlobalPrefs.themeMode.
+    _Group(
+      label: 'Light and dark',
+      query: q,
+      rows: [
+        for (final e in const [
+          ('system', 'Match the system', 'Follows the phone\'s own switch'),
+          ('light', 'Always light', null),
+          ('dark', 'Always dark', null),
+        ])
+          _FilterRow(
+            const ['light', 'dark', 'theme mode', 'appearance', 'night'],
+            _Row(
+              icon: mode == e.$1
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              title: e.$2,
+              subtitle: e.$3,
+              // `trailing` is required on _Row, and the radio lives in the icon
+              // slot here, so this stays empty rather than carrying a second
+              // marker for the same piece of state.
+              trailing: const SizedBox.shrink(),
+              onTap: () => notifier.edit((p) => p.copyWith(themeMode: e.$1)),
+            ),
+          ),
+        if (!hasLight)
+          _FilterRow(
+            const ['light', 'dark'],
+            _Row(
+              icon: Icons.info_outline,
+              title: '${theme.spec.name} is dark only',
+              subtitle: 'Your choice applies to distros that ship both',
+              trailing: const SizedBox.shrink(),
+            ),
+          ),
+      ],
+    ),
+
     // ── Personalize ────────────────────────────────────────────────
     _Group(
       label: 'Personalize',
@@ -2286,8 +2339,20 @@ class _SectionPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = ref.watch(effectiveThemeProvider).asData?.value;
-    if (theme == null) return const SizedBox.shrink();
+    // THIS ONE WAS THE WORST OF THE SET.
+    //
+    // With `asData` and no fallback, every settings sub-page rendered
+    // `SizedBox.shrink()` for the duration of a reload, and a reload is what
+    // every prefs write causes. So flipping any toggle on this page BLANKED THE
+    // PAGE THE TOGGLE WAS ON, then brought it back. `hasValue` holds the
+    // previous theme through the reload, so the page stays put and the row
+    // simply updates.
+    //
+    // The null branch survives for the genuine first-load case, where there is
+    // no previous value to hold.
+    final async = ref.watch(effectiveThemeProvider);
+    if (!async.hasValue) return const SizedBox.shrink();
+    final theme = async.requireValue;
     final workspaces = ref.watch(workspaceCountProvider);
 
     return ThemedScaffold(

@@ -13,6 +13,14 @@
     "accent": "#E95420",
     "onDark": "#FFFFFF"
   },
+  "paletteLight": {
+    "bgTop": "#D6B9CA",
+    "bgBottom": "#EBDCE5",
+    "bar": "#DFC8D6",
+    "dock": "#C2DFC8D6",
+    "accent": "#E95420",
+    "onDark": "#2C2A2B"
+  },
   "typography": {
     "display": "Ubuntu",
     "mono": "UbuntuMono"
@@ -42,12 +50,16 @@
     "assets/themes/ubuntu-24-04/wallpapers/numbat_dark.webp",
     "assets/themes/ubuntu-24-04/wallpapers/noble_light.webp"
   ],
+  "wallpapersLight": [
+    "assets/themes/ubuntu-24-04/wallpapers/noble_light.webp"
+  ],
   "splash": {
     "style": "dots",
     "durationMs": 1100
   },
   "desklets": {
     "offers": [
+      "glance",
       "clock",
       "monitor",
       "fastfetch",
@@ -59,20 +71,12 @@
     ],
     "starter": [
       {
-        "kind": "clock",
+        "kind": "glance",
         "page": 0,
-        "col": 0,
+        "col": 4,
         "row": 0,
-        "spanX": 3,
-        "spanY": 1
-      },
-      {
-        "kind": "monitor",
-        "page": 0,
-        "col": 2,
-        "row": 1,
-        "spanX": 2,
-        "spanY": 3
+        "spanX": 4,
+        "spanY": 6
       }
     ],
     "skins": {

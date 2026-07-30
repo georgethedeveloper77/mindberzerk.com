@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { Field, TextInput } from '@/components/theme-builder/primitives';
+import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/bulk-icons';
 import { fileNameFor, isValidPackage } from '@/lib/hero-pack';
+import { guessPackage } from '@/lib/icon-pack';
 import { renderHeroIcon } from '@/lib/image-trim';
 
 export interface Assignment {
@@ -59,6 +61,12 @@ export function AppGrid(props: {
           />
         ))}
       </div>
+      <BulkAdd
+        entries={props.entries}
+        assignments={props.assignments}
+        onAssign={props.onAssign}
+        onAddApp={props.onAddApp}
+      />
       <AddApp existing={props.entries.map((e) => e.pkg)} onAdd={props.onAddApp} />
     </>
   );
@@ -213,6 +221,229 @@ function AddApp(props: { existing: string[]; onAdd: (pkg: string, label: string)
           add app
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * BULK ADD for the app grid: a folder or zip of drawings, matched to tiles.
+ *
+ * The grid's model is per-app slots, so bulk here means: expand the pick
+ * through the same intake the icon builder uses (same extensions, same
+ * license scan, same zip walk), then for each file, guess the package from
+ * its name and fill the matching tile. A package-shaped filename that names
+ * an app not on the grid ADDS the app first, exactly as the add-app row
+ * would, so `com.duolingo.svg` lands without pre-work.
+ *
+ * Files that guess nothing are NOT dropped: they queue below with the same
+ * package input the add-app row has, one apply or discard each. Silently
+ * losing three files out of forty is how an icon pack ships with a hole
+ * nobody can explain.
+ *
+ * The attestation gates INTAKE here rather than publish, because this grid
+ * has no publish button of its own: the distro workspace's publish is a long
+ * way from this section, and refusing the pick is the honest place to stop.
+ */
+function BulkAdd(props: {
+  entries: { pkg: string; label: string }[];
+  assignments: Record<string, Assignment>;
+  onAssign: (pkg: string, a: Assignment | null) => void;
+  onAddApp: (pkg: string, label: string) => void;
+}) {
+  const [licensed, setLicensed] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [assigned, setAssigned] = React.useState(0);
+  const [refused, setRefused] = React.useState<RefusedFile[]>([]);
+  const [pending, setPending] = React.useState<{ id: string; file: File; name: string }[]>([]);
+
+  const known = new Set(props.entries.map((e) => e.pkg));
+
+  function labelFrom(fileName: string): string {
+    const stem = fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+    return stem ? stem[0].toUpperCase() + stem.slice(1) : fileName;
+  }
+
+  async function assignTo(pkg: string, file: File): Promise<boolean> {
+    try {
+      const rendered = await renderHeroIcon(file);
+      const previous = props.assignments[pkg];
+      if (previous) URL.revokeObjectURL(previous.url);
+      props.onAssign(pkg, { file: fileNameFor(pkg), blob: rendered.blob, url: rendered.url });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function take(files: FileList | null) {
+    if (!files?.length || busy) return;
+    setBusy(true);
+    setAssigned(0);
+    setPending([]);
+    const intake = await expandPicked(Array.from(files));
+    const refusals = [...intake.refused];
+    const stamp = Date.now();
+    let done = 0;
+
+    // Sequential for the same reason the icon builder is: each render decodes
+    // a full image, and a folder of forty at once reads as a hang.
+    for (const [i, file] of intake.files.entries()) {
+      const guess = guessPackage(file.name);
+      if (!guess) {
+        setPending((p) => [...p, { id: `${stamp}-${i}`, file, name: file.name }]);
+        continue;
+      }
+      if (!known.has(guess)) {
+        // isPackageName-shaped or hint-mapped either way; a new app is added
+        // the same way the add-app row adds one, then filled.
+        props.onAddApp(guess, labelFrom(file.name));
+      }
+      const ok = await assignTo(guess, file);
+      if (ok) {
+        done++;
+        setAssigned(done);
+      } else {
+        refusals.push({ name: file.name, reason: 'could not be decoded as an image.' });
+      }
+    }
+    setRefused(refusals);
+    setBusy(false);
+  }
+
+  async function resolvePending(id: string, pkg: string) {
+    const row = pending.find((p) => p.id === id);
+    if (!row) return;
+    if (!known.has(pkg)) props.onAddApp(pkg, labelFrom(row.name));
+    const ok = await assignTo(pkg, row.file);
+    if (ok) {
+      setPending((p) => p.filter((x) => x.id !== id));
+      setAssigned((n) => n + 1);
+    } else {
+      setRefused((r) => [...r, { name: row.name, reason: 'could not be decoded as an image.' }]);
+      setPending((p) => p.filter((x) => x.id !== id));
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}` }}>
+      <div style={{ fontFamily: C.mono, fontSize: 12, color: C.inkStrong }}>
+        bulk add
+        <span style={{ color: C.faint }}> · a folder or zip, matched to apps by filename</span>
+      </div>
+
+      <label
+        style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, cursor: 'pointer', fontFamily: C.mono, fontSize: 11.5, lineHeight: 1.6, color: C.dim }}
+      >
+        <input
+          type="checkbox"
+          checked={licensed}
+          onChange={(ev) => setLicensed(ev.target.checked)}
+          style={{ marginTop: 2 }}
+        />
+        <span>{LICENSE_ATTESTATION}</span>
+      </label>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <input
+          type="file"
+          multiple
+          accept=".svg,.png,.webp,.jpg,.jpeg,.zip,image/svg+xml,image/png,image/webp,image/jpeg,application/zip"
+          disabled={!licensed || busy}
+          onChange={(ev) => {
+            void take(ev.target.files);
+            ev.target.value = '';
+          }}
+          id="grid-bulk-files"
+          style={{ display: 'none' }}
+        />
+        <label
+          htmlFor="grid-bulk-files"
+          className="tb-btn"
+          style={{ fontFamily: C.mono, fontSize: 12, color: licensed && !busy ? C.ink : C.faint, background: C.chip, border: `1px solid ${C.line}`, borderRadius: 7, padding: '7px 12px', cursor: licensed && !busy ? 'pointer' : 'not-allowed' }}
+        >
+          {busy ? 'matching' : 'pick files or a zip'}
+        </label>
+        <input
+          type="file"
+          ref={(el) => el?.setAttribute('webkitdirectory', '')}
+          disabled={!licensed || busy}
+          onChange={(ev) => {
+            void take(ev.target.files);
+            ev.target.value = '';
+          }}
+          id="grid-bulk-folder"
+          style={{ display: 'none' }}
+        />
+        <label
+          htmlFor="grid-bulk-folder"
+          className="tb-btn"
+          style={{ fontFamily: C.mono, fontSize: 12, color: licensed && !busy ? C.ink : C.faint, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '7px 12px', cursor: licensed && !busy ? 'pointer' : 'not-allowed' }}
+        >
+          pick a folder
+        </label>
+        {assigned > 0 ? (
+          <span style={{ fontFamily: C.mono, fontSize: 11.5, color: C.green }}>
+            {assigned} assigned
+          </span>
+        ) : null}
+      </div>
+
+      {pending.length > 0 ? (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.amber }}>
+            {pending.length} file{pending.length === 1 ? '' : 's'} matched nothing. Name the package for each, or discard.
+          </div>
+          {pending.map((p) => (
+            <PendingRow key={p.id} row={p} onApply={resolvePending} onDiscard={(id) => setPending((all) => all.filter((x) => x.id !== id))} />
+          ))}
+        </div>
+      ) : null}
+
+      {refused.length > 0 ? (
+        <div style={{ marginTop: 10 }}>
+          {refused.map((r, i) => (
+            <div key={i} style={{ fontFamily: C.mono, fontSize: 11.5, lineHeight: 1.6, color: C.amber }}>
+              {r.name} {r.reason}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PendingRow(props: {
+  row: { id: string; file: File; name: string };
+  onApply: (id: string, pkg: string) => void;
+  onDiscard: (id: string) => void;
+}) {
+  const [pkg, setPkg] = React.useState('');
+  const ok = isValidPackage(pkg.trim());
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+      <span style={{ fontFamily: C.mono, fontSize: 11.5, color: C.dim, minWidth: 120, wordBreak: 'break-all' }}>
+        {props.row.name}
+      </span>
+      <div style={{ flex: 1 }}>
+        <TextInput value={pkg} placeholder="com.example.app" onChange={setPkg} />
+      </div>
+      <button
+        type="button"
+        className="tb-btn"
+        disabled={!ok}
+        onClick={() => props.onApply(props.row.id, pkg.trim())}
+        style={{ fontFamily: C.mono, fontSize: 11.5, color: ok ? C.ink : C.faint, background: C.chip, border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 10px' }}
+      >
+        assign
+      </button>
+      <button
+        type="button"
+        className="tb-btn"
+        onClick={() => props.onDiscard(props.row.id)}
+        style={{ fontFamily: C.mono, fontSize: 11.5, color: C.dim, background: 'none', border: 'none' }}
+      >
+        discard
+      </button>
     </div>
   );
 }

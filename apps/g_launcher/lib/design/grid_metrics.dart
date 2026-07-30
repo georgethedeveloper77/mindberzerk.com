@@ -27,16 +27,21 @@ abstract final class GridMetrics {
     return 8; // big tablets
   }
 
-  /// ONE line by default. This reverses the earlier call, and the earlier
-  /// reasoning ("Secure Fold…" is not a name, it's a shrug) was right about the
-  /// label and wrong about the price.
+  /// TWO lines by default, so long app names wrap instead of truncating.
   ///
-  /// The price is a whole ROW of grid height on every page, paid to accommodate
-  /// roughly one app in twenty. Measured on a 412dp phone, a paged drawer fits
-  /// SIX rows at one line and FIVE at two. Trading a sixth of the drawer for a
-  /// truncation nobody hits often is the wrong side of that trade, and the
-  /// people who disagree have a toggle in Settings.
-  static const defaultLabelLines = 1;
+  /// MUST MIRROR LayoutResolver.defaultLabelLines, whose comment says the same
+  /// about this one. They briefly disagreed (this said 1, that said 2), which
+  /// is exactly the failure both comments warn about: the drawer sized its
+  /// cells from here while the home grid resolved through LayoutResolver, and
+  /// two grids on the same phone used different row heights for the same
+  /// unset setting. If you change this, change that one to match.
+  ///
+  /// The known price, measured on a 412dp phone: a paged drawer fits SIX rows
+  /// at one line and FIVE at two, so this costs a row per page. Accepted
+  /// deliberately; names like "Secure Folder" rendering whole is worth more
+  /// than the sixth row, and the people who disagree have the labelLines
+  /// setting.
+  static const defaultLabelLines = 2;
 
   /// Icon size for a given width and column count, label space allowed for.
   /// 16dp outer padding each side, 8dp between columns — matching the drawer's
@@ -57,4 +62,70 @@ abstract final class GridMetrics {
   /// need it for spacing decisions that are not about the icon.
   static double cellWidthFor(double widthDp, int columns) =>
       (widthDp - 32 - (columns - 1) * 8) / columns;
+
+  /// The gap between an icon and its label. Mirrors the SizedBox in the tile.
+  static const labelGap = 6.0;
+
+  /// The label's line height multiplier. The tile MUST set this explicitly on
+  /// its TextStyle, or what is measured here and what is drawn there disagree
+  /// by whatever the font's own default happens to be.
+  static const labelLineHeight = 1.25;
+
+  /// A little air under the last line, so a descender does not sit on the cell
+  /// boundary and a one-pixel rounding difference does not clip a letter.
+  static const cellBreathingRoom = 8.0;
+
+  /// How tall a cell has to be to hold its own contents.
+  ///
+  /// ─── THIS REPLACES A MAGIC ASPECT RATIO ─────────────────────────────────
+  ///
+  /// The drawer used `labelLines > 1 ? 0.70 : 0.78` and divided the cell width
+  /// by it. That number knew nothing about the icon size, nothing about the
+  /// font size, and nothing about the SYSTEM font scale, so it was right on one
+  /// phone at one setting and wrong everywhere else, in both directions:
+  ///
+  ///   TOO SHORT  a second label line got clipped, which is why an app called
+  ///              "All Document Reader" lost the word "Reader" while its
+  ///              one-line neighbours looked fine. Anyone running Android's
+  ///              font size above default hit it on far more apps.
+  ///
+  ///   TOO TALL   a cell sized for two lines holding a one-line label leaves
+  ///              dead space at the bottom of every tile in that row, and the
+  ///              gap between rows reads as uneven because it is: the space is
+  ///              inside the cells, not between them.
+  ///
+  /// Both are the same mistake, so both take the same fix. Ask what the content
+  /// needs and make the cell that tall.
+  ///
+  /// [textScaler] is the AMBIENT one, from MediaQuery. Flutter applies it to
+  /// the label on top of the theme's own `textScale`, so a measurement that
+  /// omits it is wrong by exactly the amount the user has turned their font up.
+  static double cellHeightFor({
+    required double iconSize,
+    required int labelLines,
+    required double fontSize,
+    double textScaler = 1.0,
+  }) {
+    final lines = labelLines < 1 ? 1 : labelLines;
+    final label = lines * fontSize * textScaler * labelLineHeight;
+    return iconSize + labelGap + label + cellBreathingRoom;
+  }
+
+  /// The cell's aspect for a [SliverGridDelegateWithFixedCrossAxisCount],
+  /// which takes width over height rather than a height.
+  static double aspectFor({
+    required double cellWidth,
+    required double iconSize,
+    required int labelLines,
+    required double fontSize,
+    double textScaler = 1.0,
+  }) {
+    final h = cellHeightFor(
+      iconSize: iconSize,
+      labelLines: labelLines,
+      fontSize: fontSize,
+      textScaler: textScaler,
+    );
+    return h <= 0 ? 1.0 : cellWidth / h;
+  }
 }

@@ -137,6 +137,32 @@ export async function listPrefix(prefix: string): Promise<string[]> {
   return out;
 }
 
+/**
+ * Like [listPrefix], with sizes. A separate function rather than a changed
+ * return type because listPrefix has callers that want strings and a shape
+ * change there touches every one of them for one new consumer.
+ */
+export async function listPrefixObjects(
+  prefix: string,
+): Promise<{ key: string; size: number }[]> {
+  const out: { key: string; size: number }[] = [];
+  let token: string | undefined;
+  do {
+    const res = await s3().send(
+      new ListObjectsV2Command({
+        Bucket: bucket(),
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const o of res.Contents ?? []) {
+      if (o.Key) out.push({ key: o.Key, size: o.Size ?? 0 });
+    }
+    token = res.NextContinuationToken;
+  } while (token);
+  return out;
+}
+
 export async function deleteObject(key: string) {
   await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
 }

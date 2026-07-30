@@ -43,7 +43,10 @@ class WallpaperScreen extends ConsumerWidget {
     // Live, not the push-time snapshot — so a photo you add shows up in "Yours"
     // and the rotation count updates the instant you pick it, instead of only
     // after you back out and reopen this screen.
-    final theme = ref.watch(effectiveThemeProvider).asData?.value ?? this.theme;
+    // hasValue, not asData. See home_screen.dart: asData is null through a
+    // reload, and every prefs write is a reload.
+    final async = ref.watch(effectiveThemeProvider);
+    final theme = async.hasValue ? async.requireValue : this.theme;
     final api = ref.read(launcherHostApiProvider);
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 

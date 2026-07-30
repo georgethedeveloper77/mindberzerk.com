@@ -3,9 +3,11 @@ import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
 import { indexIsSigned, readLiveIndex } from '@/lib/catalogue';
+import { orphanReport } from '@/lib/orphans';
 import { isAppId, appName } from '@/lib/registry';
 import { KNOWN_PACK_TYPES } from '@/lib/sign';
 import { Shell } from '@/app/components/shell';
+import { SweepOrphans } from '@/components/packs/SweepOrphans';
 import {
   Banner,
   Button,
@@ -68,7 +70,13 @@ export default async function PacksPage({
 
   const { type } = await searchParams;
   const live = await readLiveIndex(app);
-  const signed = live.exists ? await indexIsSigned(app) : false;
+  // The report shares the live read's guards internally, so an unreachable or
+  // corrupt index yields `ok: false` here rather than a bucket-wide false
+  // alarm. Rendered as one quiet line, not a banner: orphans are housekeeping.
+  const [signed, orphans] = await Promise.all([
+    live.exists ? indexIsSigned(app) : Promise.resolve(false),
+    orphanReport(app),
+  ]);
 
   const filtered =
     type && (KNOWN_PACK_TYPES as readonly string[]).includes(type)
@@ -189,6 +197,27 @@ export default async function PacksPage({
           )}
         </Card>
       </div>
+
+      {orphans.ok && orphans.groups.length > 0 && (
+        <div className="mt-3 sm:mt-4">
+          <Card
+            title="Orphaned objects"
+            flush
+            right={
+              <span className="font-mono text-micro text-ink-3">
+                {orphans.objectCount} objects · {bytes(orphans.totalBytes)}
+              </span>
+            }
+          >
+            {/* Left behind on purpose by unpublish and delete, so in-flight
+                device downloads finish. This is the deliberate second half:
+                reviewed, grouped, and gone only on an explicit confirm. The
+                catalogue, admin state, site files, and every live pack's
+                current version are never listed here and can never be swept. */}
+            <SweepOrphans app={app} groups={orphans.groups} />
+          </Card>
+        </div>
+      )}
 
       <div className="mt-3 grid gap-3 sm:mt-4 lg:grid-cols-[1.6fr_1fr]">
         <Card title="Bundles" flush>

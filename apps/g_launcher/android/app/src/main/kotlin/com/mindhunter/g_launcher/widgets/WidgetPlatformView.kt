@@ -18,8 +18,8 @@ import io.flutter.plugin.platform.PlatformViewFactory
  */
 class WidgetPlatformView(
     context: Context,
-    controller: WidgetHostController,
-    widgetId: Int,
+    private val controller: WidgetHostController,
+    private val widgetId: Int,
 ) : PlatformView {
 
     private val container = FrameLayout(context)
@@ -40,6 +40,12 @@ class WidgetPlatformView(
     override fun getView(): View = container
 
     override fun dispose() {
+        // Tell the controller to drop its reference BEFORE the view is detached.
+        // It holds host views so a resize can reach them (see its `views` map);
+        // leaving one behind after the PlatformView is gone would keep an
+        // AppWidgetHostView, and the RemoteViews tree under it, alive for the
+        // life of the process.
+        controller.releaseView(widgetId)
         container.removeAllViews()
     }
 }

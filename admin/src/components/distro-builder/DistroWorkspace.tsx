@@ -22,7 +22,8 @@ import {
   SHELLS,
 } from '@/lib/theme-spec';
 import { COMMON_APPS, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pack';
-import { distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
+import { playSkuNote, type PlayLite } from '@/lib/play-lite';
+import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
 
 /**
  * Did the opened theme reference any wallpaper, and any logo.
@@ -103,6 +104,7 @@ export function DistroWorkspace({
   initial = null,
   heroPacks = [],
   heroPacksUnreadable = false,
+  play,
 }: {
   app: string;
   /**
@@ -126,6 +128,14 @@ export function DistroWorkspace({
    */
   heroPacks?: { packId: string; title: string; sku: string | null }[];
   heroPacksUnreadable?: boolean;
+
+  /**
+   * What Play actually sells, slimmed. Read on the server like everything
+   * else. `ok: false` degrades the sku fields to plain text inputs with the
+   * reason: pricing must stay editable when the reporting API is down, and an
+   * unreachable Play is a different fact from a missing product.
+   */
+  play: PlayLite;
 }) {
   const [tab, setTab] = React.useState<Tab>('theme');
 
@@ -149,19 +159,23 @@ export function DistroWorkspace({
   );
 
   /**
-   * What the OPENED theme referenced, captured once at open. See the note on
+   * What the OPENED OR IMPORTED theme referenced. See the note on
    * [referencesWallpaper] for why this is presence per kind and not a filename
    * list.
    *
    * Both are false for a new draft, and that is correct rather than a gap: a
    * distro with no wallpaper renders the palette gradient, which is a legitimate
    * thing to ship. The guard is only ever about LOSING a reference that was
-   * there when the theme was opened, never about requiring one to exist.
+   * there when the theme arrived, never about requiring one to exist.
+   *
+   * Import RAISES these and never lowers them: an imported spec that references
+   * wallpapers, published without an upload, would otherwise ship with
+   * `wallpapers: []` silently, which is the exact bug this guard exists for.
    */
-  const [hadWallpaper] = React.useState<boolean>(() =>
+  const [hadWallpaper, setHadWallpaper] = React.useState<boolean>(() =>
     initial ? referencesWallpaper(initial.spec) : false,
   );
-  const [hadLogo] = React.useState<boolean>(() =>
+  const [hadLogo, setHadLogo] = React.useState<boolean>(() =>
     initial ? referencesLogo(initial.spec) : false,
   );
 
@@ -216,6 +230,79 @@ export function DistroWorkspace({
 
   const [publishing, setPublishing] = React.useState(false);
   const toast = useToast();
+
+  const [importOpen, setImportOpen] = React.useState(false);
+
+  /**
+   * Apply a pasted or picked theme.json. REPLACE, NOT MERGE: the importer's
+   * absent-stays-absent contract only holds when it starts from the file
+   * alone, so the whole spec state is swapped for `importTheme`'s result.
+   * Pricing, card title, and summary are untouched; they live in the index
+   * row, not in theme.json, so the file has nothing to say about them.
+   *
+   * Beyond the spec, three things follow the file:
+   *
+   *   - the distro id is seeded from the imported `id` (trailing `-theme`
+   *     stripped) ONLY when it is currently empty, so importing into an
+   *     existing distro can never silently rename its pack ids and skus
+   *   - the icon source mirrors the open-from-draft initialiser exactly: a
+   *     named hero pack that is published opens the picker on it, anything
+   *     else lands in build mode with the reference carried in the spec
+   *   - the asset guard is RAISED (never lowered) from what the file
+   *     references, so publishing without the uploads blocks instead of
+   *     shipping a wallpaperless pack silently
+   *
+   * The union return is for the panel: an error means nothing was changed,
+   * notes mean the spec landed and these are the fixes to make before
+   * publishing, in the importer's own words.
+   */
+  function applyImport(raw: string): { error: string } | { notes: string[] } {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { error: 'That is not valid JSON. Nothing was changed.' };
+    }
+    const imported = importTheme(parsed);
+    if ('error' in imported) {
+      return { error: `${imported.error} Nothing was changed.` };
+    }
+
+    setSpec(imported.spec);
+
+    // The one pricing field the file actually speaks about. Seeded ONLY when
+    // the raw JSON carried a `tier` key (the importer fills an absent one from
+    // the blank default, which must not flip anything) and only while both sku
+    // fields are untouched, so an import can never reprice a distro someone
+    // has already priced.
+    if (
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      'tier' in (parsed as Record<string, unknown>) &&
+      distroSkuRaw === '' &&
+      iconsSkuRaw === ''
+    ) {
+      setFree(imported.spec.tier === 'free');
+    }
+
+    const importedBase = imported.spec.id.replace(/-theme$/, '');
+    if (!base && importedBase) setBase(importedBase);
+
+    const named = imported.spec.icons?.heroPack;
+    if (named && heroPacks.some((p) => p.packId === named)) {
+      setIconSource('published');
+      setPickedPack(named);
+    } else {
+      setIconSource('build');
+      setPickedPack(named ?? '');
+    }
+
+    if (referencesWallpaper(imported.spec)) setHadWallpaper(true);
+    if (referencesLogo(imported.spec)) setHadLogo(true);
+
+    toast.success('Imported.');
+    return { notes: imported.notes };
+  }
 
   const setS = (p: Partial<ThemeSpecJson>) => setSpec((s) => ({ ...s, ...p }));
 
@@ -462,9 +549,19 @@ export function DistroWorkspace({
       title="Distro workspace"
       meta={valid ? '✓ ready' : `✗ ${allProblems.length} to fix`}
       actions={
-        <button type="button" className="tb-btn" disabled={!valid || publishing} onClick={publish} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
-          {publishing ? 'publishing' : 'publish distro'}
-        </button>
+        <>
+          <button
+            type="button"
+            className="tb-btn"
+            onClick={() => setImportOpen((v) => !v)}
+            style={{ fontFamily: C.mono, fontSize: 12.5, color: importOpen ? C.inkStrong : C.ink, background: importOpen ? C.chip : 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '8px 14px', marginRight: 8 }}
+          >
+            import theme.json
+          </button>
+          <button type="button" className="tb-btn" disabled={!valid || publishing} onClick={publish} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
+            {publishing ? 'publishing' : 'publish distro'}
+          </button>
+        </>
       }
     >
       <style
@@ -476,6 +573,8 @@ export function DistroWorkspace({
 `,
         }}
       />
+      {importOpen ? <ImportPanel onApply={applyImport} /> : null}
+
         <div style={{ display: 'flex', gap: 4, padding: '0 0 14px' }}>
           {(['theme', 'icons', 'pricing'] as Tab[]).map((t) => {
             const on = t === tab;
@@ -549,7 +648,12 @@ export function DistroWorkspace({
                 </Section>
 
                 <Section title="palette" hint="six colours; dock takes an #AARRGGBB alpha byte">
-                  <PaletteEditor palette={spec.palette} setPalette={(p) => setSpec((s) => ({ ...s, palette: { ...s.palette, ...p } }))} />
+                  <PaletteEditor
+                    palette={spec.palette}
+                    setPalette={(p) => setSpec((s) => ({ ...s, palette: { ...s.palette, ...p } }))}
+                    paletteLight={spec.paletteLight ?? null}
+                    setPaletteLight={(pl) => setSpec((s) => ({ ...s, paletteLight: pl }))}
+                  />
                 </Section>
 
                 <Section title="layout">
@@ -629,6 +733,11 @@ export function DistroWorkspace({
                         theme.json names <span style={{ color: C.dim }}>{pickedPack || '<nothing>'}</span>
                         {pickedSku ? <> · sold alone as <span style={{ color: C.dim }}>{pickedSku}</span></> : null}
                       </div>
+                      {/* The one path where a dead product ships silently: the
+                          pack is already published, so no sku field on this
+                          screen would ever mention it. Same three states as
+                          the pricing tab. */}
+                      {pickedSku ? <PlayNote play={play} sku={pickedSku} /> : null}
                     </>
                   ) : (
                     <>
@@ -667,6 +776,7 @@ export function DistroWorkspace({
               themePackId={themePackId}
               iconPackId={iconPackId}
               hasIcons={hasIcons}
+              play={play}
             /> : null}
           </div>
 
@@ -707,6 +817,7 @@ function PricingTab(props: {
   themePackId: string;
   iconPackId: string;
   hasIcons: boolean;
+  play: PlayLite;
 }) {
   return (
     <>
@@ -727,12 +838,26 @@ function PricingTab(props: {
         </div>
         {!props.free ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Field label="whole-distro sku" hint="unlocks theme + icons">
-              <TextInput value={props.distroSkuRaw} placeholder={props.base ? distroSkuFor(props.base) : 'distro_kali'} onChange={props.setDistroSkuRaw} />
-            </Field>
-            <Field label="icons-alone sku" hint="unlocks the icon pack only">
-              <TextInput value={props.iconsSkuRaw} placeholder={props.base ? iconsSkuFor(props.base) : 'icons_kali'} onChange={props.setIconsSkuRaw} />
-            </Field>
+            <SkuField
+              label="whole-distro sku"
+              hint="unlocks theme + icons"
+              kind="distro"
+              derived={props.base ? distroSkuFor(props.base) : ''}
+              placeholder={props.base ? distroSkuFor(props.base) : 'distro_kali'}
+              raw={props.distroSkuRaw}
+              setRaw={props.setDistroSkuRaw}
+              play={props.play}
+            />
+            <SkuField
+              label="icons-alone sku"
+              hint="unlocks the icon pack only"
+              kind="icons"
+              derived={props.base ? iconsSkuFor(props.base) : ''}
+              placeholder={props.base ? iconsSkuFor(props.base) : 'icons_kali'}
+              raw={props.iconsSkuRaw}
+              setRaw={props.setIconsSkuRaw}
+              play={props.play}
+            />
           </div>
         ) : null}
       </Section>
@@ -827,5 +952,229 @@ function AssetSlot(props: { label: string; asset: Asset | null; onPick: (file: F
         <input ref={ref} type="file" accept="image/svg+xml,image/png,image/webp" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onPick(f); e.target.value = ''; }} />
       </div>
     </Field>
+  );
+}
+
+/**
+ * One sku, chosen rather than typed, when Play can be read.
+ *
+ * ─── DERIVED FIRST, PLAY SECOND, CUSTOM LAST ────────────────────────────────
+ *
+ * The empty value keeps its old meaning: raw '' means "derive from the distro
+ * id", so the default tracks a renamed id instead of pinning a stale string,
+ * exactly as the text input behaved. The Play products of the matching prefix
+ * come next, because picking an existing product is the case that can never
+ * typo. Custom reveals the plain input for a product being named before it is
+ * created in Play, which is a legitimate order of operations: the ID is chosen
+ * here first and created there second.
+ *
+ * A select cannot express "Play is down", so when the catalogue could not be
+ * read this degrades to the text input it replaced, unchanged, with the status
+ * line saying why nothing can be confirmed. The field must never be less
+ * usable than it was before Play was consulted.
+ *
+ * The status line below is ADVISORY and stays out of `allProblems`: a missing
+ * product is a to-do in Play Console, not an error in this draft, and blocking
+ * publish on it would force products to be created before the pack they sell.
+ * `skuProblems` (shape) still gates as before.
+ */
+function SkuField(props: {
+  label: string;
+  hint?: string;
+  kind: 'distro' | 'icons';
+  /** The sku the empty value resolves to, '' when no distro id is set yet. */
+  derived: string;
+  placeholder: string;
+  raw: string;
+  setRaw: (v: string) => void;
+  play: PlayLite;
+}) {
+  const listed = props.play.ok
+    ? props.play.products.filter((p) => p.productId.startsWith(SKU_PREFIX[props.kind]))
+    : [];
+
+  // Custom starts on when the opened draft carries a sku Play does not list;
+  // showing that as a select value would invent an option, and hiding it would
+  // silently discard it.
+  const [custom, setCustom] = React.useState<boolean>(
+    () => props.raw !== '' && !listed.some((p) => p.productId === props.raw),
+  );
+
+  const effective = props.raw.trim() || props.derived;
+
+  if (!props.play.ok) {
+    return (
+      <Field label={props.label} hint={props.hint}>
+        <TextInput value={props.raw} placeholder={props.placeholder} onChange={props.setRaw} />
+        {effective ? <PlayNote play={props.play} sku={effective} /> : null}
+      </Field>
+    );
+  }
+
+  const options = ['', ...listed.map((p) => p.productId), '__custom'];
+  const labels: Record<string, string> = {
+    '': props.derived ? `derived: ${props.derived}` : 'derived from distro id',
+    ...Object.fromEntries(
+      listed.map((p) => [
+        p.productId,
+        p.activeOptions === 0 ? `${p.productId} (not active)` : p.productId,
+      ]),
+    ),
+    __custom: 'custom ID',
+  };
+
+  return (
+    <Field label={props.label} hint={props.hint}>
+      <SelectInput<string>
+        value={custom ? '__custom' : props.raw}
+        options={options}
+        labels={labels}
+        onChange={(v) => {
+          if (v === '__custom') {
+            setCustom(true);
+            return;
+          }
+          setCustom(false);
+          props.setRaw(v);
+        }}
+      />
+      {custom ? (
+        <div style={{ marginTop: 8 }}>
+          <TextInput value={props.raw} placeholder={props.placeholder} onChange={props.setRaw} />
+        </div>
+      ) : null}
+      {effective ? <PlayNote play={props.play} sku={effective} /> : null}
+    </Field>
+  );
+}
+
+/** The status line: can [sku] actually be bought? Tone follows playSkuNote. */
+function PlayNote({ play, sku }: { play: PlayLite; sku: string }) {
+  const note = playSkuNote(play, sku);
+  const color = note.tone === 'ok' ? C.green : note.tone === 'warn' ? C.amber : C.faint;
+  return (
+    <div style={{ fontFamily: C.mono, fontSize: 11.5, lineHeight: 1.5, color, marginTop: 6 }}>
+      {note.text}
+    </div>
+  );
+}
+
+/**
+ * The import panel: a paste box and a file picker feeding one parse path.
+ *
+ * The panel owns its text, error, and notes, so closing it clears them, which
+ * is the lifetime the feedback should have: notes are the "fix before
+ * publishing" list for THIS import, not a permanent banner. The parent owns
+ * what applying means; the union it returns is rendered here and nothing else
+ * crosses back.
+ *
+ * A picked file is read into the textarea before applying, so what was
+ * imported is visible and can be edited and re-applied, which makes the file
+ * path and the paste path the same path with one extra click.
+ */
+function ImportPanel(props: {
+  onApply: (raw: string) => { error: string } | { notes: string[] };
+}) {
+  const [text, setText] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [notes, setNotes] = React.useState<string[]>([]);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  function run(raw: string) {
+    const out = props.onApply(raw);
+    if ('error' in out) {
+      setError(out.error);
+      setNotes([]);
+    } else {
+      setError(null);
+      setNotes(out.notes);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        border: `1px solid ${C.line}`,
+        borderRadius: 10,
+        background: C.surface,
+        padding: 14,
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ fontFamily: C.mono, fontSize: 12.5, color: C.inkStrong }}>
+        import theme.json
+        <span style={{ color: C.faint }}>
+          {' '}
+          · replaces the theme being edited. Pricing, card title, and summary are untouched.
+        </span>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder='{"id": "kali-theme", "name": "Kali Linux", "palette": { ... } }'
+        spellCheck={false}
+        style={{
+          width: '100%',
+          minHeight: 130,
+          resize: 'vertical',
+          marginTop: 10,
+          padding: 10,
+          fontFamily: C.mono,
+          fontSize: 12,
+          lineHeight: 1.6,
+          color: C.inkStrong,
+          background: C.bg,
+          border: `1px solid ${C.line}`,
+          borderRadius: 8,
+        }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <button
+          type="button"
+          className="tb-btn"
+          onClick={() => fileRef.current?.click()}
+          style={{ fontFamily: C.mono, fontSize: 12, color: C.ink, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 12px' }}
+        >
+          pick a .json file
+        </button>
+        <button
+          type="button"
+          className="tb-btn"
+          disabled={!text.trim()}
+          onClick={() => run(text)}
+          style={{ fontFamily: C.mono, fontSize: 12, color: text.trim() ? C.inkStrong : C.faint, background: C.chip, border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 14px' }}
+        >
+          apply
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        style={{ display: 'none' }}
+        onChange={(ev) => {
+          const f = ev.target.files?.[0];
+          ev.target.value = '';
+          if (!f) return;
+          void f.text().then((raw) => {
+            setText(raw);
+            run(raw);
+          });
+        }}
+      />
+      {error ? (
+        <div style={{ fontFamily: C.mono, fontSize: 11.5, lineHeight: 1.6, color: C.red, marginTop: 10 }}>
+          {error}
+        </div>
+      ) : null}
+      {notes.length > 0 ? (
+        <div style={{ fontFamily: C.mono, fontSize: 11.5, lineHeight: 1.7, color: C.amber, marginTop: 10 }}>
+          <div>Imported with notes. Publishing before fixing them ships the theme as imported.</div>
+          {notes.map((n, i) => (
+            <div key={i}>· {n}</div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

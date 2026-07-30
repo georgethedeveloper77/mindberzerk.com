@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/recent_searches.dart';
 import '../../data/repositories/app_repository.dart';
+import '../../data/repositories/shell_apps.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
@@ -121,7 +122,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   // ── Before typing: the four blocks ──────────────────────────────────────────
   Widget _landing(BuildContext context, ChromeData d) {
     final c = d.colors;
-    final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+    // ─── shellApps, NOT appList ────────────────────────────────────────
+    //
+    // `appListProvider` is the RAW list and includes hidden apps.
+    // `shellAppsProvider` is the same list with this theme's hidden set
+    // removed, which is what every other surface reads.
+    //
+    // Resolving suggestions against the raw list meant an app you had
+    // deliberately hidden reappeared under "Suggested apps" the moment you
+    // opened search, having launched it once before hiding it. That is exactly
+    // the failure `HiddenApps.forSearch` was written to prevent on the RESULTS
+    // list, and this block has no query to admit anything against: nobody typed
+    // its whole name, so it has no business being here at all.
+    //
+    // It also fixes the alphabetical fallback below, which was showing the
+    // first eight apps including hidden ones on a fresh install.
+    final apps = ref.watch(shellAppsProvider(widget.theme));
     final byKey = {for (final a in apps) a.componentKey: a};
 
     // RECENT, not frequent. "Suggested apps" on a search screen should answer
@@ -264,66 +280,105 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       );
     }
 
-    // A SEPARATE SECTION rather than cells mixed into the app grid, and that is
-    // deliberate on two counts. The grid is typed to AppEntry all the way down
-    // (_AppCell, onTap, the usage recording), so mixing would mean threading a
-    // sealed type through the whole page for two rows. And a launcher entry is
-    // not an app: giving it its own heading says so, the same way the drawer
-    // now pins these above the app list rather than sorting them into it.
-    if (launcherHits.isNotEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-            child: Text(
-              'Launcher',
-              style: d.text.body.copyWith(
-                color: d.colors.textMuted,
-                fontWeight: FontWeight.w600,
+    // TWO TITLED CARDS, matching the landing page's _Block treatment: an
+    // "Apps" card holding the result grid, then a "Launcher" card for the
+    // launcher-owned hits. Apps come FIRST because they are what the person is
+    // overwhelmingly searching for; the launcher's own entries are the
+    // secondary answer and read that way sitting below.
+    //
+    // Still a SEPARATE section rather than cells mixed into the app grid, and
+    // that is deliberate on two counts. The grid is typed to AppEntry all the
+    // way down (_AppCell, onTap, the usage recording), so mixing would mean
+    // threading a sealed type through the whole page for two rows. And a
+    // launcher entry is not an app: giving it its own card says so, the same
+    // way the drawer pins these above the app list rather than sorting them in.
+    //
+    // A CustomScrollView rather than a ListView of _Blocks, because a _Block
+    // would shrink-wrap the grid and build EVERY matching cell at once. One
+    // typed letter can match dozens of apps, and the drawer's own perf rule
+    // (lazy build only, never decode off a full list) applies just as hard
+    // here. DecoratedSliver paints the card behind a grid that stays lazy.
+    return CustomScrollView(
+      slivers: [
+        if (results.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+            sliver: DecoratedSliver(
+              decoration: BoxDecoration(
+                color: d.colors.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              sliver: SliverMainAxisGroup(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Text('Apps', style: d.text.title),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    sliver: _appResultsSliver(context, d, results),
+                  ),
+                ],
               ),
             ),
           ),
-          for (final item in launcherHits)
-            _LauncherHit(
-              item: item,
-              theme: widget.theme,
-              onTap: () {
-                // Reuses the drawer's own router, so this page cannot drift
-                // from what tapping the same entry does in the drawer.
-                ref.read(recentSearchesProvider.notifier).record(_query);
-                activateDrawerItem(context, ref, widget.theme, item);
-              },
-            ),
-          if (results.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 2),
-              child: Text(
-                'Apps',
-                style: d.text.body.copyWith(
-                  color: d.colors.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
+        if (launcherHits.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: d.colors.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: Text('Launcher', style: d.text.title),
+                  ),
+                  for (final item in launcherHits)
+                    _LauncherHit(
+                      item: item,
+                      theme: widget.theme,
+                      onTap: () {
+                        // Reuses the drawer's own router, so this page cannot
+                        // drift from what tapping the same entry does in the
+                        // drawer.
+                        ref
+                            .read(recentSearchesProvider.notifier)
+                            .record(_query);
+                        activateDrawerItem(context, ref, widget.theme, item);
+                      },
+                    ),
+                ],
               ),
             ),
-          Expanded(child: _appGrid(context, d, results)),
-        ],
-      );
-    }
-
-    return _appGrid(context, d, results);
+          ),
+      ],
+    );
   }
 
-  Widget _appGrid(
+  /// The result grid as a SLIVER, so it can sit inside the Apps card and stay
+  /// lazily built. Same delegate numbers the old full-screen _appGrid used.
+  /// That method is deleted rather than kept for the no-hits case: the card is
+  /// drawn whenever there are results, so a second unstyled render path would
+  /// only exist to drift from this one.
+  Widget _appResultsSliver(
     BuildContext context,
     ChromeData d,
     List<AppEntry> results,
   ) {
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+    return SliverGrid.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        childAspectRatio: 0.78,
+        // 0.70, not 0.78: the cell has to be taller now that the label takes
+        // two lines, and this is the same ratio the drawer uses for two-line
+        // labels rather than a second guess at it.
+        childAspectRatio: 0.70,
         crossAxisSpacing: 8,
         mainAxisSpacing: 16,
       ),
@@ -501,7 +556,8 @@ class _SuggestedGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        childAspectRatio: 0.8,
+        // See the results grid: two-line labels need the taller cell.
+        childAspectRatio: 0.70,
         crossAxisSpacing: 8,
         mainAxisSpacing: 14,
       ),
@@ -541,7 +597,20 @@ class _AppCell extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             entry.label,
-            maxLines: 1,
+            // TWO LINES, so the whole app name reads.
+            //
+            // At one line this truncated names the drawer shows in full, which
+            // is the worst place for it: search is where you have typed part of
+            // a name and are checking you found the right thing, and
+            // "AKI VIC Verificati" is precisely the case where the tail is the
+            // informative part.
+            //
+            // TextOverflow.ellipsis stays as the last resort, per the house
+            // rule: no ellipsis in authored COPY, but runtime truncation is
+            // what stops a pathological name from clipping mid-glyph. Two lines
+            // at four columns holds around 26 characters, so it is a fallback
+            // rather than a normal outcome.
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: labelColor),

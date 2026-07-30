@@ -1,5 +1,7 @@
 import 'server-only';
 
+import type { PlayLite } from './play-lite';
+
 /**
  * WHAT PLAY ACTUALLY THINKS IS FOR SALE.
  *
@@ -284,4 +286,28 @@ export async function listPlayProducts(packageName: string | null): Promise<Play
   } catch (e) {
     return { ok: false, packageName, error: (e as Error).message };
   }
+}
+
+/**
+ * The catalogue in the shape the builders receive as a prop.
+ *
+ * Lives here rather than in play-lite so the full [PlayCatalogue] type never
+ * has to be imported outside server code. Price comes from an ACTIVE option
+ * only: a draft option's price is a number nobody can pay, and showing it
+ * beside "not active" would read as a contradiction.
+ */
+export function playLite(c: PlayCatalogue): PlayLite {
+  if (!c.ok) return { ok: false, error: c.error };
+  return {
+    ok: true,
+    products: c.products.map((p) => {
+      const active = p.purchaseOptions.filter((o) => o.state === 'ACTIVE');
+      return {
+        productId: p.productId,
+        title: p.title,
+        activeOptions: p.activeOptions,
+        samplePrice: active.find((o) => o.samplePrice)?.samplePrice ?? null,
+      };
+    }),
+  };
 }

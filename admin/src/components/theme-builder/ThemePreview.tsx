@@ -11,7 +11,12 @@ import type { ThemeSpecJson } from '@/lib/theme-spec';
  * and the terminal, from the palette and layout as you type.
  */
 export function ThemePreview({ spec }: { spec: ThemeSpecJson }) {
-  const p = spec.palette;
+  // Which variant is on show. Defaults to dark, because `palette` is the dark
+  // one and every distro has it; the toggle only appears once a light block
+  // exists, so it cannot offer a mode that would render as a copy of dark.
+  const [light, setLight] = React.useState(false);
+  const showLight = light && !!spec.paletteLight;
+  const p = showLight ? spec.paletteLight! : spec.palette;
   const bg = `linear-gradient(180deg, ${cssColor(p.bgTop, '#222')}, ${cssColor(p.bgBottom, '#111')})`;
   const onDark = cssColor(p.onDark, '#fff');
   const accent = cssColor(p.accent, C.amber);
@@ -45,27 +50,55 @@ export function ThemePreview({ spec }: { spec: ThemeSpecJson }) {
           {isTui ? (
             <Terminal spec={spec} onDark={onDark} accent={accent} />
           ) : (
-            <Desktop spec={spec} onDark={onDark} accent={accent} />
+            <Desktop spec={spec} palette={p} onDark={onDark} accent={accent} />
           )}
         </div>
       </div>
       <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint }}>
         {spec.shell} · {spec.name || 'untitled'} {spec.version ? `· ${spec.version}` : ''}
       </div>
+
+      {spec.paletteLight ? (
+        <div style={{ display: 'inline-flex', border: `1px solid ${C.line}`, borderRadius: 7, overflow: 'hidden' }}>
+          {([false, true] as const).map((v, i) => (
+            <button
+              key={String(v)}
+              type="button"
+              className="tb-seg"
+              onClick={() => setLight(v)}
+              style={{
+                padding: '5px 12px',
+                fontFamily: C.mono,
+                fontSize: 11.5,
+                border: 'none',
+                borderLeft: i === 0 ? 'none' : `1px solid ${C.line}`,
+                background: light === v ? C.amber : 'transparent',
+                color: light === v ? C.onAccent : C.dim,
+              }}
+            >
+              {v ? 'light' : 'dark'}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function Desktop({
   spec,
+  palette,
   onDark,
   accent,
 }: {
   spec: ThemeSpecJson;
+  // Passed in rather than read off the spec, so the light toggle above reaches
+  // the bar and dock instead of only the background gradient.
+  palette: ThemeSpecJson['palette'];
   onDark: string;
   accent: string;
 }) {
-  const p = spec.palette;
+  const p = palette;
   const dockColor = cssColor(p.dock, '#0008');
   const barColor = cssColor(p.bar, '#0006');
   const dockSide = spec.layout.dock;

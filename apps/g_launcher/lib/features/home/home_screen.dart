@@ -64,6 +64,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: theme.when(
+        // ── skipLoadingOnReload IS A BUG FIX, NOT A TIDY-UP ─────────────
+        //
+        // `when` already skips the loading branch on a REFRESH, because that
+        // flag defaults to true. It does NOT skip it on a RELOAD, and a reload
+        // is what happens here: `effectiveThemeProvider` awaits
+        // `prefsProvider(id).future`, so every single prefs write re-runs it,
+        // and re-running an async provider means AsyncLoading again.
+        //
+        // Without this flag, that sent the ENTIRE DESKTOP through the black
+        // branch below on every write. Create a folder, drag an icon, nudge a
+        // column: the shell unmounted, black for the length of the native
+        // setIconTheme round trip, then remounted from scratch. Which is the
+        // flicker, and also why the drawer landed back on page one every time,
+        // since a remounted PageView is a brand-new PageController.
+        //
+        // With it, the previous theme keeps painting until the new one lands.
+        // Nothing unmounts, so nothing loses its place. The black branch now
+        // means what its comment always claimed: the FIRST resolve only.
+        skipLoadingOnReload: true,
         // NOT a spinner. A launcher that flashes a progress indicator on every
         // home press feels broken. Black for the few frames it takes to read one
         // bundled JSON file and one prefs blob.
@@ -112,14 +131,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               // The splash's half of the same mapping. One wiring point for
               // both, here, where the EffectiveTheme field names are known.
+              // ─── THE SPLASH IS ALWAYS THE DISTRO'S DARK BASE ──────────
+              //
+              // `t.spec.palette`, not `t.palette`. The resolved palette follows
+              // light mode; the splash must not.
+              //
+              // Two reasons, and the second is a bug I introduced with light
+              // mode. Plymouth does not change with your GTK theme: a boot
+              // splash is the distro's own brand moment and it is dark on every
+              // desktop that ships one, whatever session you log into
+              // afterwards.
+              //
+              // And the logo below is the DARK variant, chosen because a splash
+              // paints on a dark base. The moment `t.palette` started resolving
+              // to a pale surface in light mode, that comment stopped being
+              // true: light-ink artwork on a near-white plate is an invisible
+              // logo over a white flash. Pinning the background to the spec's
+              // own dark palette makes the artwork correct again by
+              // construction rather than by adding a second logo branch.
+              //
+              // BootColors above already reads `t.spec.palette` for exactly
+              // this reason; the splash simply never got the same treatment.
               splashChrome: SplashChrome(
-                background: t.palette.bgBottom,
-                accent: t.palette.accent,
-                onDark: t.palette.onDark,
+                background: t.spec.palette.bgBottom,
+                accent: t.spec.palette.accent,
+                onDark: t.spec.palette.onDark,
                 title: t.spec.name,
-                // The theme's own logo, DARK variant: a splash paints on the
-                // distro's dark base, so the light-surface artwork would
-                // disappear into it.
                 logoAsset: t.spec.splash?.logo ?? t.spec.logo?.dark,
                 displayFontFamily: t.typography.display,
                 monoFontFamily: t.typography.mono ?? 'UbuntuMono',

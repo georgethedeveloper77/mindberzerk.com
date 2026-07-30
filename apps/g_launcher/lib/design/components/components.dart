@@ -12,6 +12,7 @@
 library;
 
 export 'chrome_theme.dart';
+export 'glass_panel.dart';
 export 'themed_button.dart';
 export 'themed_dialog.dart';
 export 'themed_list_row.dart';

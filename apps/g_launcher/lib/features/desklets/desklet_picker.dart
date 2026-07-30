@@ -13,7 +13,9 @@ import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart' as api;
 import '../drawer/app_icon.dart';
 import 'desklet_edit.dart';
-import 'desklet_surface.dart' show buildDesklet;
+// DeskletSurfaceView for its cell-size estimate: the picker must size a
+// hosted widget in the same cells the surface will draw it in.
+import 'desklet_surface.dart' show buildDesklet, DeskletSurfaceView;
 import 'widget_catalog.dart';
 
 /// Add something to the desktop. PHASE D4 → the image-2 restructure.
@@ -150,16 +152,16 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
             page: widget.page,
             col: widget.col!,
             row: widget.row!,
-            cols: theme.cols,
-            rows: theme.rows,
+            cols: theme.deskletCols,
+            rows: theme.deskletRows,
             newId: newId,
           )
         : DeskletLayout.place(
             before,
             kindId: kind.id,
             page: widget.page,
-            cols: theme.cols,
-            rows: theme.rows,
+            cols: theme.deskletCols,
+            rows: theme.deskletRows,
             newId: newId,
           );
 
@@ -199,19 +201,39 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
 
     String newId() => 'wk${DateTime.now().microsecondsSinceEpoch}';
 
-    // Initial span. A widget's `targetCellWidth`/`Height` (API 31+) is its
-    // PREFERRED size in grid cells — use it when declared, so Spotify lands at
-    // the size it wants to render its full layout rather than at its minimum
-    // (which is often 1×1 and shows only a grey compact bar). Fall back to the
-    // minimum footprint, floored so a media widget is never seeded tiny.
+    // ─── INITIAL SPAN, IN dp, AGAINST THE REAL CELL ───────────────────────
+    //
+    // This used to divide by a hardcoded 70, and to use `targetCellWidth` and
+    // `targetCellHeight` as spans directly. Both were wrong in the same
+    // direction and they compounded.
+    //
+    // A row on a 4 by 5 grid is about 140dp tall on a 1080 by 2340 phone, not
+    // 70. So a Google Weather strip asking for 74dp was seeded at two rows and
+    // handed 280dp: nearly four times its own height, which is exactly the
+    // "third-party widgets look terrible" report. Spotify's media widget got
+    // two and a half times.
+    //
+    // And `targetCell*` is expressed in a STANDARD launcher's cells, which are
+    // roughly square and roughly 70dp. Treating those numbers as spans on a
+    // grid whose rows are twice as tall doubles the error again.
+    //
+    // So: convert everything to dp first, then divide by what a cell on THIS
+    // phone and THIS distro's grid actually measures.
+    const nominalCellDp = 70.0;
+    final cell = DeskletSurfaceView.estimateCell(context, theme);
+
     final tw = provider.targetCellWidth;
     final th = provider.targetCellHeight;
-    final sx = tw > 0
-        ? tw.clamp(1, theme.cols)
-        : (provider.minWidthDp / 70).ceil().clamp(2, theme.cols);
-    final sy = th > 0
-        ? th.clamp(1, theme.rows)
-        : (provider.minHeightDp / 70).ceil().clamp(2, theme.rows);
+
+    final wantWidthDp =
+        tw > 0 ? tw * nominalCellDp : provider.minWidthDp.toDouble();
+    final wantHeightDp =
+        th > 0 ? th * nominalCellDp : provider.minHeightDp.toDouble();
+
+    // Ceil, because a widget given LESS than it asked for clips its own
+    // layout, which is worse than a little slack around it.
+    final sx = (wantWidthDp / cell.w).ceil().clamp(1, theme.deskletCols);
+    final sy = (wantHeightDp / cell.h).ceil().clamp(1, theme.deskletRows);
 
     final config = <String, Object?>{
       'widgetId': widgetId,
@@ -228,8 +250,8 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
             page: widget.page,
             col: widget.col!,
             row: widget.row!,
-            cols: theme.cols,
-            rows: theme.rows,
+            cols: theme.deskletCols,
+            rows: theme.deskletRows,
             newId: newId,
             spanX: sx,
             spanY: sy,
@@ -243,8 +265,8 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
         before,
         kindId: 'appwidget',
         page: widget.page,
-        cols: theme.cols,
-        rows: theme.rows,
+        cols: theme.deskletCols,
+        rows: theme.deskletRows,
         newId: newId,
         spanX: sx,
         spanY: sy,
