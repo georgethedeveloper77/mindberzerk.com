@@ -103,3 +103,22 @@ bool isThemeAssetRef(String source) =>
 /// Held here rather than in `prefs_repository` so the encoder and the key that
 /// must agree with it sit in one file.
 const wallpaperAppliedForKey = 'wallpaperAppliedFor.v1';
+
+/// The value stored under [wallpaperAppliedForKey].
+///
+/// ─── WHY THIS IS A FUNCTION AND NOT A BARE THEME ID ─────────────────────────
+///
+/// It used to be `spec.id`, which was right until light mode existed. A theme
+/// has two palettes and can ship two wallpapers, so "whose wallpaper is on
+/// screen" needs the mode as well as the distro, or a light session sits on a
+/// dark photograph.
+///
+/// It is a FUNCTION because TWO places write this key: the theme resolve, when
+/// it seeds or swaps a wallpaper, and the wallpaper screen, when the user picks
+/// one. They composed the token separately and stopped agreeing the moment the
+/// mode was added, so the screen wrote `ubuntu-24-04` while the resolve looked
+/// for `ubuntu-24-04|dark`, concluded the wrong wallpaper was up, and stamped
+/// the theme's own preset back over the user's choice on the next rebuild.
+/// Picking a wallpaper appeared to work and then quietly undid itself.
+String wallpaperAppliedToken(String themeId, {required bool dark}) =>
+    '$themeId|${dark ? 'dark' : 'light'}';

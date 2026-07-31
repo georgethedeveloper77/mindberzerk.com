@@ -11,6 +11,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
@@ -63,7 +64,7 @@ class FoldersScreen extends ConsumerWidget {
       // "Apps and folders", because hiding an app landed here and the page
       // stopped being only about folders. Naming it after half its contents is
       // how a setting becomes unfindable.
-      title: 'Apps and folders',
+      title: context.t('settings.appsAndFolders'),
       body: ListView(
         children: [
           // The folder itself, drawn at the current settings. Columns, rows and
@@ -86,12 +87,12 @@ class FoldersScreen extends ConsumerWidget {
           ),
 
           // ── Folder grid ────────────────────────────────────────────────
-          const ThemedSectionHeader('Folder grid'),
+          ThemedSectionHeader(context.t('settings.folderGrid')),
 
           ThemedListRow(
             icon: Icons.view_column_outlined,
-            title: 'Columns',
-            subtitle: 'Apps per row inside an open folder',
+            title: context.t('settings.columns'),
+            subtitle: context.t('settings.appsPerRowInside'),
             trailing: _Stepper(
               value: cols,
               min: 3,
@@ -102,8 +103,8 @@ class FoldersScreen extends ConsumerWidget {
 
           ThemedListRow(
             icon: Icons.table_rows_outlined,
-            title: 'Rows',
-            subtitle: 'How tall a folder opens before it scrolls',
+            title: context.t('settings.rows'),
+            subtitle: context.t('settings.howTallAFolder'),
             trailing: _Stepper(
               value: rows,
               min: 2,
@@ -113,11 +114,11 @@ class FoldersScreen extends ConsumerWidget {
           ),
 
           // ── Shape ──────────────────────────────────────────────────────
-          const ThemedSectionHeader('Appearance'),
+          ThemedSectionHeader(context.t('settings.appearance')),
 
           ThemedListRow(
             icon: Icons.category_outlined,
-            title: 'Folder shape',
+            title: context.t('settings.folderShape'),
             // null follows the theme's icon treatment, which is the right
             // default: a folder should look like the icons it sits among
             // without anyone configuring it.
@@ -129,7 +130,7 @@ class FoldersScreen extends ConsumerWidget {
           ),
 
           // ── Existing folders ───────────────────────────────────────────
-          const ThemedSectionHeader('Your folders'),
+          ThemedSectionHeader(context.t('settings.yourFolders')),
 
           if (folders.isEmpty)
             const _Empty()
@@ -169,10 +170,37 @@ class FoldersScreen extends ConsumerWidget {
             if (theme.prefs.folderOrderCustom == true)
               ThemedListRow(
                 icon: Icons.sort_by_alpha,
-                title: 'Sort folders A to Z',
-                subtitle: 'Discards your manual order',
+                title: context.t('settings.sortFoldersATo'),
+                subtitle: context.t('settings.discardsYourManualOrder'),
                 onTap: () => notifier.edit(DrawerLayout.resetFolderOrder),
               ),
+            // The bulk form of the Ungroup row every folder already carries in
+            // its own sheet. Confirmed first: one tap here undoes every
+            // grouping on the phone, and unlike a rename there is no single
+            // obvious inverse to reach for afterwards. The wording leads with
+            // what SURVIVES, because "remove" next to folders reads as
+            // uninstall to someone skimming.
+            ThemedListRow(
+              icon: Icons.folder_off_outlined,
+              title: 'Ungroup all folders',
+              subtitle: 'Every app returns to the list',
+              onTap: () async {
+                final ok = await ThemedDialog.confirm(
+                  context,
+                  title: 'Ungroup all folders?',
+                  message: 'The apps are not touched. They leave their '
+                      'folders and return to the list, and the folders '
+                      'themselves are removed.',
+                  confirmLabel: 'Ungroup',
+                  danger: true,
+                );
+                if (ok != true) return;
+                await notifier.edit(DrawerLayout.dissolveAll);
+                if (context.mounted) {
+                  context.showMessage('All folders ungrouped');
+                }
+              },
+            ),
           ],
 
           // ── Hidden apps ────────────────────────────────────────────────
@@ -182,14 +210,14 @@ class FoldersScreen extends ConsumerWidget {
           // and UNHIDING cannot be, because a hidden app is not in the drawer to
           // long-press. Without this section the action is one-way, which is the
           // worst possible shape for a setting that removes things.
-          const ThemedSectionHeader('Hidden apps'),
+          ThemedSectionHeader(context.t('settings.hiddenApps')),
 
           _HiddenAppsRow(theme: theme),
 
           ThemedListRow(
             icon: Icons.manage_search,
-            title: 'Find hidden apps by name',
-            subtitle: 'Only when you type the whole name',
+            title: context.t('settings.findHiddenAppsBy'),
+            subtitle: context.t('settings.onlyWhenYouType'),
             trailing: ThemedToggle(
               value: HiddenApps.searchable(theme.prefs),
               onChanged: (v) => notifier.edit(
@@ -200,7 +228,7 @@ class FoldersScreen extends ConsumerWidget {
 
           // ── Suggestions ────────────────────────────────────────────────
           if (suggestions.isNotEmpty) ...[
-            const ThemedSectionHeader('Suggested groups'),
+            ThemedSectionHeader(context.t('settings.suggestedGroups')),
 
             // One tap for all of them. Most people who want any of these want
             // all of them, and making them accept four cards one at a time is
@@ -219,7 +247,7 @@ class FoldersScreen extends ConsumerWidget {
                       newFolderId: newDrawerFolderId,
                     ),
                   );
-                  context.showMessage('Folders created');
+                  context.showMessage(context.t('settings.foldersCreated'));
                 },
               ),
             ),
@@ -246,7 +274,7 @@ class FoldersScreen extends ConsumerWidget {
           if (theme.prefs.dismissedSuggestions.isNotEmpty)
             ThemedListRow(
               icon: Icons.refresh,
-              title: 'Show dismissed suggestions',
+              title: context.t('settings.showDismissedSuggestions'),
               subtitle:
                   '${theme.prefs.dismissedSuggestions.length} hidden group(s)',
               onTap: () => notifier.edit(FolderSuggestions.clearDismissals),
@@ -295,7 +323,7 @@ class FoldersScreen extends ConsumerWidget {
 
     ThemedSheet.show<void>(
       context,
-      title: 'Folder shape',
+      title: context.t('settings.folderShape'),
       builder: (sheet) {
         final c = ChromeScope.of(sheet).colors;
         return Column(
@@ -461,12 +489,12 @@ class _SuggestionRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               ThemedButton(
-                label: 'Not now',
+                label: context.t('settings.notNow'),
                 kind: ThemedButtonKind.text,
                 onPressed: onDismiss,
               ),
               const SizedBox(width: 8),
-              ThemedButton(label: 'Create', onPressed: onAccept),
+              ThemedButton(label: context.t('settings.create'), onPressed: onAccept),
             ],
           ),
         ],
@@ -582,7 +610,7 @@ class _HiddenAppsRow extends ConsumerWidget {
 
     return ThemedListRow(
       icon: Icons.visibility_off_outlined,
-      title: 'Hidden apps',
+      title: context.t('settings.hiddenApps'),
       subtitle: hidden.isEmpty
           ? 'Hold an app in the drawer to hide it'
           : '${hidden.length} hidden',
@@ -599,7 +627,7 @@ class _HiddenAppsRow extends ConsumerWidget {
 
     ThemedSheet.show<void>(
       context,
-      title: 'Hidden apps',
+      title: context.t('settings.hiddenApps'),
       isScrollControlled: true,
       builder: (sheet) => Consumer(
         builder: (ctx, r, __) {
@@ -679,7 +707,7 @@ class _HiddenAppsRow extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                 child: ThemedButton(
-                  label: 'Unhide all',
+                  label: context.t('settings.unhideAll'),
                   kind: ThemedButtonKind.text,
                   expand: true,
                   onPressed: () {

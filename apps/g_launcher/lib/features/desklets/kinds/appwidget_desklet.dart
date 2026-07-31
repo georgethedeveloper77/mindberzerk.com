@@ -9,7 +9,7 @@ import '../../../data/prefs/launcher_prefs.dart';
 import '../../../engine/desklet_skin.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../platform/launcher_api.g.dart' as api;
-import '../desklet_edit.dart';
+import '../desklet_menu.dart';
 
 /// A hosted third-party AppWidget on the desktop. PHASE D-widgets (host).
 ///
@@ -67,17 +67,29 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
   int? _lastW;
   int? _lastH;
 
-  void _enterEdit() {
-    HapticFeedback.mediumImpact();
-    final edit = ref.read(deskletEditProvider.notifier);
-    edit.enter();
-    edit.select(widget.desklet.id);
+  /// The hold gesture on a hosted widget.
+  ///
+  /// Opens the same menu a drawn desklet does. A PlatformView eats pointer
+  /// events so this recognizer exists to get the gesture at all, but what the
+  /// gesture MEANS must not differ between a Spotify widget and a clock: going
+  /// straight into edit mode here and into a sheet everywhere else is the sort
+  /// of split nobody can articulate and everybody notices.
+  void _openMenu() {
+    // Same anchor the drawn tiles pass. A hosted widget is usually the largest
+    // thing on the desktop, so a menu that ignored its position would be the
+    // furthest possible from its subject.
+    final box = context.findRenderObject() as RenderBox?;
+    final anchor = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    showDeskletMenu(context, ref, widget.theme, widget.desklet,
+        anchor: anchor);
   }
 
   Set<Factory<OneSequenceGestureRecognizer>> get _recognizers =>
       <Factory<OneSequenceGestureRecognizer>>{
         Factory<OneSequenceGestureRecognizer>(
-          () => LongPressGestureRecognizer()..onLongPress = _enterEdit,
+          () => LongPressGestureRecognizer()..onLongPress = _openMenu,
         ),
       };
 
@@ -111,8 +123,17 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
     final id = widget.desklet.config['widgetId'];
     if (id is! int) return _Fallback(theme: widget.theme);
 
+    // The corner setting reaches a hosted widget even though background and
+    // accent cannot: the frame is ours, the contents are the other app's. 10 is
+    // the value this used before per-widget settings existed, so a widget with
+    // nothing set is unchanged.
+    final radius = switch (widget.desklet.config['radius']) {
+      final num r => r.toDouble(),
+      _ => 10.0,
+    };
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(radius),
       child: LayoutBuilder(
         builder: (context, constraints) {
           // A PlatformView cannot lay out unbounded. The surface gives us a

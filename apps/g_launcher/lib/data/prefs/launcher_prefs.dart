@@ -31,6 +31,9 @@ class LauncherPrefs {
     this.drawerPageCount,
     this.themeMode,
     this.deskletGridVersion,
+    this.topBarSide,
+    this.topBarStats,
+    this.surfaceOpacity,
     this.workspaceCount,
     this.verboseBoot,
     this.iconSizeDp,
@@ -57,6 +60,8 @@ class LauncherPrefs {
     this.wallpaperLock,
     this.wallpaperCurrent,
     this.wallpaperRotationMinutes,
+    this.wallpaperRotationSource,
+    this.wallpaperFit,
     this.wallpaperInitialized = false,
     this.deskletsInitialized = false,
   });
@@ -96,7 +101,13 @@ class LauncherPrefs {
   /// Tiling and TUI own their own input placement and ignore it.
   final String? drawerSearchPosition;
 
-  /// How the drawer moves: 'vertical' (null, the default), 'pages', or 'cube'.
+  /// How the drawer moves: 'vertical', 'pages', or 'cube'. null means "the
+  /// user has never chosen", which is a real state, not a value: it lets the
+  /// distro's own authored default apply, and `LayoutResolver` falls to
+  /// 'pages' when the distro has no opinion either. (This doc once claimed
+  /// vertical was the default while every read site said `?? 'pages'`; the
+  /// read sites were what users actually got, and the resolver now writes
+  /// that down once.)
   ///
   /// Vertical is one long scroll — what every Android drawer does, and what
   /// nobody notices. Pages and cube are paged; the cube is the old
@@ -185,6 +196,31 @@ class LauncherPrefs {
   /// Without a marker the migration would run on every load and a desklet would
   /// double in size forever; with it, it runs exactly once per theme.
   final int? deskletGridVersion;
+
+  /// 'top' | 'bottom'. Null inherits the distro.
+  ///
+  /// PER THEME, not global: which edge the shell bar sits on is exactly the
+  /// kind of thing that makes a desktop recognisable, the same reasoning that
+  /// keeps `dockSide` and `topBar` per theme.
+  final String? topBarSide;
+
+  /// Live readouts in the bar. Null inherits the distro.
+  final bool? topBarStats;
+
+  /// How solid the launcher's own surfaces are, 0.6 to 1.0. Null is 1.0.
+  ///
+  /// ─── WHY THIS IS GLOBAL AND WHY IT HAS A FLOOR ──────────────────────────
+  ///
+  /// Global because it is a statement about how much wallpaper someone wants to
+  /// see, which does not change when they switch distro. It sits beside icon
+  /// shape and text scale in [GlobalPrefs] for the same reason.
+  ///
+  /// Floored at 0.6 because below that a settings page stops being readable
+  /// over a photograph: the rows are dense text and the wallpaper underneath is
+  /// arbitrary. A slider that can be dragged into unusability is a slider that
+  /// will be, and the person doing it will read the result as the app being
+  /// broken rather than as their own setting.
+  final double? surfaceOpacity;
 
   /// How many vertical workspaces the desktop has, 1–5. null = default (3).
   ///
@@ -391,6 +427,28 @@ class LauncherPrefs {
   /// and quietly lie.
   final int? wallpaperRotationMinutes;
 
+  /// Where rotation draws from. null = this distro's pool (its presets plus
+  /// the photos under Yours). 'all' = that pool plus every collection.
+  /// 'collection:<id>' = one collection alone.
+  ///
+  /// PER THEME, while the collections themselves are GLOBAL (see
+  /// `wallpaper_collections.dart`): the photos are facts about the person,
+  /// which pool a distro cycles is a fact about that distro, so the terminal
+  /// can rotate moody screenshots while Aqua rotates the family album. A value
+  /// from a newer build, or a collection id since deleted, degrades to the
+  /// distro pool at the read site (`rotationPoolFor`) rather than sticking or
+  /// throwing.
+  final String? wallpaperRotationSource;
+
+  /// How a wallpaper meets the screen: 'cover' | 'contain' | 'fill' |
+  /// 'center'. null means cover, which is byte-for-byte the pre-fit
+  /// behaviour. PER THEME like `wallpaperCurrent`, because the fit describes
+  /// how THIS distro's chosen image sits: a terminal theme can letterbox a
+  /// screenshot while Aqua covers with a photo. Native degrades an unknown
+  /// value to cover, so a pref written by a newer build renders instead of
+  /// failing.
+  final String? wallpaperFit;
+
   /// Has this theme's default wallpaper been applied yet?
   ///
   /// Per-theme, and ONCE. Ubuntu applies Numbat the first time you use it; if
@@ -425,6 +483,9 @@ class LauncherPrefs {
     int? drawerPageCount,
     String? themeMode,
     int? deskletGridVersion,
+    String? topBarSide,
+    bool? topBarStats,
+    double? surfaceOpacity,
     int? workspaceCount,
     bool? verboseBoot,
     double? iconSizeDp,
@@ -451,6 +512,8 @@ class LauncherPrefs {
     bool? wallpaperLock,
     String? wallpaperCurrent,
     int? wallpaperRotationMinutes,
+    String? wallpaperRotationSource,
+    String? wallpaperFit,
     bool? wallpaperInitialized,
     bool? deskletsInitialized,
   }) {
@@ -471,6 +534,9 @@ class LauncherPrefs {
       drawerPageCount: drawerPageCount ?? this.drawerPageCount,
       themeMode: themeMode ?? this.themeMode,
       deskletGridVersion: deskletGridVersion ?? this.deskletGridVersion,
+      topBarSide: topBarSide ?? this.topBarSide,
+      topBarStats: topBarStats ?? this.topBarStats,
+      surfaceOpacity: surfaceOpacity ?? this.surfaceOpacity,
       workspaceCount: workspaceCount ?? this.workspaceCount,
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
@@ -498,6 +564,9 @@ class LauncherPrefs {
       wallpaperCurrent: wallpaperCurrent ?? this.wallpaperCurrent,
       wallpaperRotationMinutes:
           wallpaperRotationMinutes ?? this.wallpaperRotationMinutes,
+      wallpaperRotationSource:
+          wallpaperRotationSource ?? this.wallpaperRotationSource,
+      wallpaperFit: wallpaperFit ?? this.wallpaperFit,
       desklets: desklets ?? this.desklets,
       wallpaperInitialized: wallpaperInitialized ?? this.wallpaperInitialized,
       deskletsInitialized: deskletsInitialized ?? this.deskletsInitialized,
@@ -519,6 +588,18 @@ class LauncherPrefs {
     bool drawerPageCount = false,
     bool themeMode = false,
     bool deskletGridVersion = false,
+    bool topBarSide = false,
+    bool topBarStats = false,
+    bool surfaceOpacity = false,
+    /// Clearable, because removing the wallpaper you had chosen has to
+    /// leave NO choice rather than a path pointing at a picture that is no
+    /// longer in the list. `effective_theme` treats a non-null value here
+    /// as "the user picked this", so a dangling one is a choice nobody can
+    /// see or change.
+    bool wallpaperCurrent = false,
+    bool wallpaperRotationMinutes = false,
+    bool wallpaperRotationSource = false,
+    bool wallpaperFit = false,
     bool folderCols = false,
     bool folderRows = false,
     bool folderShape = false,
@@ -564,6 +645,9 @@ class LauncherPrefs {
       themeMode: themeMode ? null : this.themeMode,
       deskletGridVersion:
           deskletGridVersion ? null : this.deskletGridVersion,
+      topBarSide: topBarSide ? null : this.topBarSide,
+      topBarStats: topBarStats ? null : this.topBarStats,
+      surfaceOpacity: surfaceOpacity ? null : this.surfaceOpacity,
       workspaceCount: workspaceCount ? null : this.workspaceCount,
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
@@ -593,8 +677,17 @@ class LauncherPrefs {
       // Pass-through, not clearable. A field OMITTED from this method is
       // dropped rather than preserved, which is how drawerScrollStyle was
       // once silently reset by every unrelated clear.
-      wallpaperCurrent: wallpaperCurrent,
-      wallpaperRotationMinutes: wallpaperRotationMinutes,
+      wallpaperCurrent: wallpaperCurrent ? null : this.wallpaperCurrent,
+      // Clearable now (it was pass-through). The rotation sheet's Off used
+      // copyWith(null), which copyWith cannot write, so the interval survived
+      // Off forever. Nothing re-read it then; rescheduleRotation does now, and
+      // a stale interval would resurrect a rotation the user turned off the
+      // next time a collection changed.
+      wallpaperRotationMinutes:
+          wallpaperRotationMinutes ? null : this.wallpaperRotationMinutes,
+      wallpaperRotationSource:
+          wallpaperRotationSource ? null : this.wallpaperRotationSource,
+      wallpaperFit: wallpaperFit ? null : this.wallpaperFit,
       wallpaperInitialized: wallpaperInitialized,
       deskletsInitialized: deskletsInitialized,
     );
@@ -618,6 +711,9 @@ class LauncherPrefs {
         if (themeMode != null) 'themeMode': themeMode,
         if (deskletGridVersion != null)
           'deskletGridVersion': deskletGridVersion,
+        if (topBarSide != null) 'topBarSide': topBarSide,
+        if (topBarStats != null) 'topBarStats': topBarStats,
+        if (surfaceOpacity != null) 'surfaceOpacity': surfaceOpacity,
         if (drawerSearchPosition != null)
           'drawerSearchPosition': drawerSearchPosition,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
@@ -648,6 +744,9 @@ class LauncherPrefs {
         if (wallpaperCurrent != null) 'wallpaperCurrent': wallpaperCurrent,
         if (wallpaperRotationMinutes != null)
           'wallpaperRotationMinutes': wallpaperRotationMinutes,
+        if (wallpaperRotationSource != null)
+          'wallpaperRotationSource': wallpaperRotationSource,
+        if (wallpaperFit != null) 'wallpaperFit': wallpaperFit,
         'wallpaperInitialized': wallpaperInitialized,
         'deskletsInitialized': deskletsInitialized,
       };
@@ -678,6 +777,9 @@ class LauncherPrefs {
       drawerPageCount: (j['drawerPageCount'] as num?)?.toInt(),
       themeMode: j['themeMode'] as String?,
       deskletGridVersion: (j['deskletGridVersion'] as num?)?.toInt(),
+      topBarSide: j['topBarSide'] as String?,
+      topBarStats: j['topBarStats'] as bool?,
+      surfaceOpacity: (j['surfaceOpacity'] as num?)?.toDouble(),
       workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
@@ -722,6 +824,8 @@ class LauncherPrefs {
       wallpaperCurrent: j['wallpaperCurrent'] as String?,
       wallpaperRotationMinutes:
           (j['wallpaperRotationMinutes'] as num?)?.toInt(),
+      wallpaperRotationSource: j['wallpaperRotationSource'] as String?,
+      wallpaperFit: j['wallpaperFit'] as String?,
       wallpaperInitialized: j['wallpaperInitialized'] as bool? ?? false,
       deskletsInitialized: j['deskletsInitialized'] as bool? ?? false,
     );
@@ -765,6 +869,9 @@ class LauncherPrefs {
         other.drawerPageCount == drawerPageCount &&
         other.themeMode == themeMode &&
         other.deskletGridVersion == deskletGridVersion &&
+        other.topBarSide == topBarSide &&
+        other.topBarStats == topBarStats &&
+        other.surfaceOpacity == surfaceOpacity &&
         other.workspaceCount == workspaceCount &&
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
@@ -793,6 +900,8 @@ class LauncherPrefs {
         other.wallpaperLock == wallpaperLock &&
         other.wallpaperCurrent == wallpaperCurrent &&
         other.wallpaperRotationMinutes == wallpaperRotationMinutes &&
+        other.wallpaperRotationSource == wallpaperRotationSource &&
+        other.wallpaperFit == wallpaperFit &&
         other.wallpaperInitialized == wallpaperInitialized &&
         other.deskletsInitialized == deskletsInitialized;
   }
@@ -815,6 +924,9 @@ class LauncherPrefs {
         drawerPageCount,
         themeMode,
         deskletGridVersion,
+        topBarSide,
+        topBarStats,
+        surfaceOpacity,
         workspaceCount,
         verboseBoot,
         iconSizeDp,
@@ -844,6 +956,8 @@ class LauncherPrefs {
         wallpaperLock,
         wallpaperCurrent,
         wallpaperRotationMinutes,
+        wallpaperRotationSource,
+        wallpaperFit,
         wallpaperInitialized,
         deskletsInitialized,
       ]);

@@ -57,6 +57,7 @@ class GlobalPrefs {
     this.workspaceCount,
     this.hiddenAppsSearchable,
     this.themeMode,
+    this.surfaceOpacity,
   });
 
   // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -102,6 +103,10 @@ class GlobalPrefs {
   // are wearing. Set at setup and changeable in Settings under Appearance.
   final String? themeMode;
 
+  /// How solid the launcher's surfaces are. See [LauncherPrefs.surfaceOpacity]
+  /// for the floor and why it exists.
+  final double? surfaceOpacity;
+
   /// Read the promoted fields off a [LauncherPrefs].
   ///
   /// Used for the one-time migration and for splitting an edit.
@@ -122,6 +127,7 @@ class GlobalPrefs {
         workspaceCount: p.workspaceCount,
         hiddenAppsSearchable: p.hiddenAppsSearchable,
         themeMode: p.themeMode,
+        surfaceOpacity: p.surfaceOpacity,
       );
 
   /// Overlay these values onto [p], replacing whatever the per-theme store held
@@ -149,6 +155,7 @@ class GlobalPrefs {
       workspaceCount: workspaceCount == null,
       hiddenAppsSearchable: hiddenAppsSearchable == null,
       themeMode: themeMode == null,
+      surfaceOpacity: surfaceOpacity == null,
     );
 
     return cleared.copyWith(
@@ -168,6 +175,7 @@ class GlobalPrefs {
       workspaceCount: workspaceCount,
       hiddenAppsSearchable: hiddenAppsSearchable,
       themeMode: themeMode,
+      surfaceOpacity: surfaceOpacity,
     );
   }
 
@@ -191,6 +199,7 @@ class GlobalPrefs {
         if (hiddenAppsSearchable != null)
           'hiddenAppsSearchable': hiddenAppsSearchable,
         if (themeMode != null) 'themeMode': themeMode,
+        if (surfaceOpacity != null) 'surfaceOpacity': surfaceOpacity,
       };
 
   factory GlobalPrefs.fromJson(Map<String, dynamic> j) => GlobalPrefs(
@@ -210,6 +219,7 @@ class GlobalPrefs {
         workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
         hiddenAppsSearchable: j['hiddenAppsSearchable'] as bool?,
         themeMode: j['themeMode'] as String?,
+        surfaceOpacity: (j['surfaceOpacity'] as num?)?.toDouble(),
       );
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
@@ -242,6 +252,7 @@ class GlobalPrefs {
         workspaceCount,
         hiddenAppsSearchable,
         themeMode,
+        surfaceOpacity,
       ]);
 }
 

@@ -46,7 +46,10 @@ Future<void> showDesktopMenu(
     context: context,
     // Light, not the usual heavy modal black: the desktop behind this is the
     // subject, not a distraction.
-    barrierColor: Colors.black.withValues(alpha: 0.35),
+    // Matched to the sheets and dialogs, which sit at 0.38. A menu and a sheet
+    // appearing over the same desktop with different scrims is the
+    // inconsistency nobody can name and everybody feels.
+    barrierColor: Colors.black.withValues(alpha: 0.38),
     barrierDismissible: true,
     barrierLabel: 'Close',
     transitionDuration: const Duration(milliseconds: 180),
@@ -139,8 +142,6 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
-
     return SafeArea(
       top: false,
       // MATERIAL, not a plain Container. showGeneralDialog builds this outside
@@ -151,18 +152,37 @@ class _Bar extends StatelessWidget {
       // spilling past it.
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-        child: Material(
-          color: c.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: c.line),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [for (final a in actions) Expanded(child: a)],
+        // ─── GLASS, WHICH IS WHAT THIS FILE ALREADY ARGUED FOR ──────────
+        //
+        // The doc at the top says the wallpaper stays visible behind a light
+        // scrim, "because you are picking a wallpaper, so hiding it behind an
+        // opaque sheet is exactly backwards". It then drew the bar in
+        // `c.surface`, which is opaque, and in light mode resolves to something
+        // very close to white. So the bar was the one thing on screen doing the
+        // opposite of what the file says it is for.
+        //
+        // GlassPanel is the same primitive every sheet, dialog and anchored
+        // menu now uses: blurred, translucent, tinted with the distro's own
+        // colour. The wallpaper reads through it, which is the entire point of
+        // this gesture.
+        child: GlassPanel(
+          borderRadius: BorderRadius.circular(20),
+          child: Material(
+            // Transparent: the glass paints the surface. Material stays because
+            // showGeneralDialog builds this outside the app's Scaffold, so the
+            // InkWell in each action has no Material ancestor and throws on
+            // first paint without one.
+            color: Colors.transparent,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [for (final a in actions) Expanded(child: a)],
+              ),
             ),
           ),
         ),

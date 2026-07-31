@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../design/components/components.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/dock_metrics.dart';
 
@@ -185,7 +186,21 @@ class GnomeDock extends StatelessWidget {
               ? const EdgeInsets.symmetric(horizontal: 7, vertical: 9)
               : const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
           decoration: BoxDecoration(
-            color: palette.dock,
+            // ─── THE USER'S SURFACE SETTING, VIA THE SCOPE ──────────────
+            //
+            // Read from ChromeScope rather than taken as a parameter: this
+            // widget receives a ThemePalette, and threading an opacity down
+            // through the shell to reach it would mean a new argument on every
+            // dock, on every shell, for one number that is already in scope.
+            // The shell sits under the ChromeScope home_screen installs.
+            //
+            // MULTIPLIED, not replaced. `palette.dock` already carries the
+            // distro's own alpha, and Ubuntu's is 0xBD on purpose; overwriting
+            // it would make every distro's dock equally solid and throw away an
+            // authored value to honour a preference.
+            color: palette.dock.withValues(
+              alpha: palette.dock.a * ChromeScope.of(context).opacity,
+            ),
             // Was Ubuntu.dockBorder, a fixed white-10% hairline. Derived from
             // the palette now, so a light-chrome distro gets a hairline that is
             // actually visible against it instead of Ubuntu's.

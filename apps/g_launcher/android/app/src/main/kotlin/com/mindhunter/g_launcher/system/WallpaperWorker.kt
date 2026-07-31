@@ -28,6 +28,8 @@ class WallpaperWorker(
         private const val KEY_SOURCES = "sources"
         private const val KEY_INDEX = "index"
         private const val KEY_LOCK = "lock"
+        private const val KEY_FIT = "fit"
+        private const val KEY_COLOR = "letterboxColor"
 
         const val MIN_INTERVAL_MINUTES = 15L
 
@@ -36,6 +38,8 @@ class WallpaperWorker(
             minutes: Long,
             sources: List<String>,
             applyToLock: Boolean,
+            fit: String = "cover",
+            letterboxColor: Long = 0xFF000000L,
         ) {
             if (sources.isEmpty()) {
                 cancel(context)
@@ -50,6 +54,11 @@ class WallpaperWorker(
                 .edit()
                 .putString(KEY_SOURCES, sources.joinToString("\n"))
                 .putBoolean(KEY_LOCK, applyToLock)
+                // Stored beside the list for the same reason the list lives
+                // here: every tick must render the way a manual apply does,
+                // without a reschedule when only the fit changed.
+                .putString(KEY_FIT, fit)
+                .putLong(KEY_COLOR, letterboxColor)
                 .apply()
 
             val interval = maxOf(minutes, MIN_INTERVAL_MINUTES)
@@ -92,7 +101,12 @@ class WallpaperWorker(
         val next = (index + 1) % sources.size
 
         val ok = WallpaperController(applicationContext)
-            .setWallpaper(sources[next], prefs.getBoolean(KEY_LOCK, false))
+            .setWallpaper(
+                sources[next],
+                prefs.getBoolean(KEY_LOCK, false),
+                prefs.getString(KEY_FIT, "cover") ?: "cover",
+                prefs.getLong(KEY_COLOR, 0xFF000000L),
+            )
 
         // Advance regardless: a source that fails every time (deleted photo)
         // must not wedge the rotation on it forever.

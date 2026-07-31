@@ -89,6 +89,13 @@ class DrawerPager extends StatefulWidget {
   /// The row-derivation formula, exposed so a caller estimating rows before
   /// the pager has laid out (seeding Custom on a drawer that was rendering
   /// the vertical list) uses the SAME arithmetic instead of a drifting copy.
+  /// Headroom kept below the last row.
+  ///
+  /// Not decoration: it is the difference between a page that fits to the pixel
+  /// and one that survives a font whose real metrics run a little tall. See
+  /// rowsFor.
+  static const double _edgeSlack = 8;
+
   static int rowsFor({
     required double maxHeight,
     required double tileHeight,
@@ -96,9 +103,24 @@ class DrawerPager extends StatefulWidget {
   }) {
     const vPad = 12.0;
     const mainGap = 16.0;
+
+    // ─── A ROW'S WORTH OF SLACK BEFORE THE LAST ONE IS TAKEN ──────────────
+    //
+    // The arithmetic below is exact and has been reported as clipping the last
+    // row's labels three separate times, each with a different real cause
+    // fixed: the drop ring's 2dp border, the label box, the breathing room.
+    // Exactness is the remaining problem. Every one of those causes was a few
+    // pixels, and a formula that fits the last row to the pixel turns any
+    // future few-pixel difference straight into a cut label.
+    //
+    // `_edgeSlack` is that margin. It costs a row only when the page was within
+    // a few pixels of not fitting anyway, which is precisely the case where the
+    // last row was going to be clipped. A page with one fewer row and readable
+    // labels beats a full page with headless captions on the bottom.
     return math.max(
       1,
-      ((maxHeight - vPad * 2 - topPadding + mainGap) / (tileHeight + mainGap))
+      ((maxHeight - vPad * 2 - topPadding - _edgeSlack + mainGap) /
+              (tileHeight + mainGap))
           .floor(),
     );
   }

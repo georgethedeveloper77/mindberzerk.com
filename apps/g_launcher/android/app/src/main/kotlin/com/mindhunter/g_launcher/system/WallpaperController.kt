@@ -4,6 +4,9 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -46,8 +49,26 @@ class WallpaperController(context: Context) {
      * The CDN case is what lets a new distro ship wallpapers without a Play
      * release — the same property themes and hero icon packs have.
      */
-    fun setWallpaper(source: String, applyToLock: Boolean): Boolean {
-        val bitmap = decodeSampled(source) ?: return false
+    fun setWallpaper(
+        source: String,
+        applyToLock: Boolean,
+        fit: String = "cover",
+        letterboxColor: Long = 0xFF000000L,
+    ): Boolean {
+        val decoded = decodeSampled(source) ?: return false
+
+        // "cover" (and anything unrecognised, per the degrade rule the schema
+        // documents) is the LEGACY PATH, untouched: the sampled bitmap goes to
+        // the system as before, keeping the 2x scroll width and therefore the
+        // parallax existing users already have. Only the three fits that mean
+        // "compose against MY screen" pay for a composite.
+        val bitmap = when (fit) {
+            "contain", "fill", "center" ->
+                composite(decoded, fit, letterboxColor.toInt()).also {
+                    if (it !== decoded) decoded.recycle()
+                }
+            else -> decoded
+        }
 
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -141,6 +162,53 @@ class WallpaperController(context: Context) {
      */
     private fun stashFile(): File =
         File(appContext.filesDir, "wallpaper_stash.img")
+
+    /**
+     * Draws [src] onto a screen-sized canvas per [fit], bars filled with
+     * [color] (the theme's own background, passed from Dart, so a letterboxed
+     * photo still reads as that distro's desktop).
+     *
+     * SINGLE screen size, not the 2x scroll width: a chosen fit means "this is
+     * how the image meets MY screen", and a panning wallpaper would re-crop it
+     * per page, which contradicts the choice. Scroll stays a cover-only
+     * property. Overflow (center on a large photo) clips at the canvas edge,
+     * which IS the crop the mode promises.
+     */
+    private fun composite(src: Bitmap, fit: String, color: Int): Bitmap {
+        val metrics = appContext.resources.displayMetrics
+        val w = metrics.widthPixels
+        val h = metrics.heightPixels
+        if (w <= 0 || h <= 0) return src
+
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(color)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+
+        val dst = when (fit) {
+            "fill" -> RectF(0f, 0f, w.toFloat(), h.toFloat())
+            "contain" -> centred(
+                src,
+                minOf(w / src.width.toFloat(), h / src.height.toFloat()),
+                w,
+                h,
+            )
+            // "center": as decoded, unscaled. decodeSampled has already
+            // brought a huge photo near screen resolution, which is what
+            // actual-size means once the alternative is an OOM.
+            else -> centred(src, 1f, w, h)
+        }
+        canvas.drawBitmap(src, null, dst, paint)
+        return out
+    }
+
+    private fun centred(src: Bitmap, scale: Float, w: Int, h: Int): RectF {
+        val dw = src.width * scale
+        val dh = src.height * scale
+        val left = (w - dw) / 2f
+        val top = (h - dh) / 2f
+        return RectF(left, top, left + dw, top + dh)
+    }
 
     /**
      * Decoding a full-res wallpaper straight into memory is a reliable OOM on a

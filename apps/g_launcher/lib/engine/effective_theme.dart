@@ -12,6 +12,7 @@ import '../platform/launcher_api.g.dart' as api;
 import '../system/wallpaper_source.dart';
 import 'layout_resolver.dart';
 import 'theme_engine.dart';
+import 'font_registry.dart';
 import 'theme_spec.dart';
 
 /// What the shell actually renders.
@@ -28,9 +29,15 @@ class EffectiveTheme {
     required this.prefs,
     required this.dock,
     required this.topBar,
+    required this.topBarSide,
+    required this.topBarStats,
+    required this.panels,
+    required this.workspaceAxis,
     required this.rows,
     required this.cols,
     required this.drawerCols,
+    required this.drawerScrollStyle,
+    required this.drawerGrouping,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -52,11 +59,31 @@ class EffectiveTheme {
 
   final DockSide dock;
   final bool topBar;
+
+  /// Which edge the bar sits on, and whether it carries live readouts.
+  /// Resolved in [LayoutResolver]; the shells read these and never the spec.
+  final TopBarSide topBarSide;
+  final bool topBarStats;
+
+  /// Every panel the shell should draw. Resolved in [LayoutResolver]; shells
+  /// read this and never the spec.
+  final List<PanelSpec> panels;
+
+  /// Which way workspaces page. See [WorkspaceAxis].
+  final WorkspaceAxis workspaceAxis;
   final int rows;
   final int cols;
 
   /// Denser than home by convention.
   final int drawerCols;
+
+  /// How the drawer moves ('vertical' | 'pages' | 'cube') and how its list is
+  /// grouped ('none' | 'az'). Resolved in [LayoutResolver]: the user's choice,
+  /// else the distro's authored default, else the engine default. Shells and
+  /// settings read THESE and never `prefs.drawerScrollStyle`, which is only
+  /// half the answer now that a distro can carry a default.
+  final String drawerScrollStyle;
+  final String drawerGrouping;
 
   final double iconSizeDp;
 
@@ -89,6 +116,15 @@ class EffectiveTheme {
   /// proportionally finer desklet grid without authoring a second number.
   int get deskletCols => cols * DeskletLayout.colFactor;
   int get deskletRows => rows * DeskletLayout.rowFactor;
+
+  /// How solid the launcher's own surfaces are, 0.6 to 1.0.
+  ///
+  /// Clamped HERE rather than at the slider, so a value written by a settings
+  /// screen from a newer build, or hand-edited into a prefs file, cannot make
+  /// the app unreadable. The slider's own bounds are a courtesy; this is the
+  /// guarantee.
+  double get surfaceOpacity =>
+      (prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
 
   /// The palette actually on screen.
   ///
@@ -153,9 +189,15 @@ class EffectiveTheme {
       dark: dark,
       dock: layout.dock,
       topBar: layout.topBar,
+      topBarSide: layout.topBarSide,
+      topBarStats: layout.topBarStats,
+      panels: layout.panels,
+      workspaceAxis: layout.workspaceAxis,
       rows: layout.rows,
       cols: layout.cols,
       drawerCols: layout.drawerCols,
+      drawerScrollStyle: layout.drawerScrollStyle,
+      drawerGrouping: layout.drawerGrouping,
       iconSizeDp: layout.iconSizeDp,
       labelLines: layout.labelLines,
       textScale: layout.textScale,
@@ -272,9 +314,15 @@ class EffectiveTheme {
           other.dark == dark &&
           other.dock == dock &&
           other.topBar == topBar &&
+          other.topBarSide == topBarSide &&
+          other.topBarStats == topBarStats &&
+          other.panels.length == panels.length &&
+          other.workspaceAxis == workspaceAxis &&
           other.rows == rows &&
           other.cols == cols &&
           other.drawerCols == drawerCols &&
+          other.drawerScrollStyle == drawerScrollStyle &&
+          other.drawerGrouping == drawerGrouping &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
           other.textScale == textScale &&
@@ -288,9 +336,15 @@ class EffectiveTheme {
         dark,
         dock,
         topBar,
+        topBarSide,
+        topBarStats,
+        panels.length,
+        workspaceAxis,
         rows,
         cols,
         drawerCols,
+        drawerScrollStyle,
+        drawerGrouping,
         iconSizeDp,
         labelLines,
         textScale,
@@ -305,6 +359,18 @@ class EffectiveTheme {
 /// is what makes changing the icon shape in Settings actually repaint the grid.
 final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   final spec = await ref.watch(activeThemeSpecProvider.future);
+
+  // ─── FONTS BEFORE ANYTHING IS PUBLISHED ──────────────────────────────────
+  //
+  // A downloaded distro's families are registered at runtime, and they have to
+  // be registered BEFORE this provider hands out a theme naming them. Do it
+  // after and the first frame paints in the platform fallback and then jumps,
+  // which on a cold start is the first thing anyone sees.
+  //
+  // Cheap after the first call: FontRegistry keeps what it has loaded, and a
+  // theme with no fonts of its own returns immediately, which is every bundled
+  // theme today.
+  await FontRegistry.ensure(spec);
   final prefs = await ref.watch(prefsProvider(spec.id).future);
 
   // Watched, so flipping Android's own dark mode repaints the desktop under
@@ -368,7 +434,8 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // the bug this key was built to fix stays fixed: it still answers "whose
   // wallpaper is on screen", with one more thing in the answer.
   final store = ref.read(prefsStoreProvider);
-  final appliedToken = '${spec.id}|${effective.dark ? 'dark' : 'light'}';
+  final appliedToken =
+      wallpaperAppliedToken(spec.id, dark: effective.dark);
 
   if (await store.read(wallpaperAppliedForKey) != appliedToken) {
     // ── WHOSE WALLPAPER IS THIS ─────────────────────────────────────────
@@ -423,6 +490,13 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
         final applied = await api_.setWallpaper(
           encodeWallpaperSource(asset?.path ?? source),
           prefs.wallpaperLock ?? false,
+          // The user's per-theme fit applies to a seeded preset exactly as it
+          // does to a manual pick; letterbox bars wear the palette this apply
+          // is FOR, not whichever the getter would resolve later.
+          prefs.wallpaperFit ?? 'cover',
+          (effective.dark ? spec.palette : (spec.paletteLight ?? spec.palette))
+              .bgTop
+              .toARGB32(),
         );
         if (applied) await store.write(wallpaperAppliedForKey, appliedToken);
       }

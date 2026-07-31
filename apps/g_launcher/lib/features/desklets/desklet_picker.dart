@@ -8,6 +8,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_spec.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart' as api;
@@ -57,6 +58,9 @@ Future<void> showDeskletPicker(
   required int page,
   int? col,
   int? row,
+  /// When set, whatever is picked joins THIS stack instead of landing on the
+  /// desktop. See the note on `_absorb`.
+  String? intoStack,
 }) async {
   const fallback = [
     'glance',
@@ -80,7 +84,7 @@ Future<void> showDeskletPicker(
   final shown = offers.where((k) => !k.paneOnly).toList();
 
   if (shown.isEmpty) {
-    context.showMessage('This theme offers no desklets');
+    context.showMessage(context.t('desklets.thisThemeOffersNo'));
     return;
   }
 
@@ -96,6 +100,7 @@ Future<void> showDeskletPicker(
           page: page,
           col: col,
           row: row,
+          intoStack: intoStack,
         ),
       ),
     ),
@@ -109,11 +114,16 @@ class _WidgetPickerScreen extends ConsumerStatefulWidget {
     required this.page,
     required this.col,
     required this.row,
+    required this.intoStack,
   });
 
   final EffectiveTheme theme;
   final List<DeskletKind> kinds;
   final int page;
+
+  /// The stack a pick should join, or null for the desktop. See `_commit`.
+  final String? intoStack;
+
   final int? col;
   final int? row;
 
@@ -166,13 +176,42 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
           );
 
     if (identical(after, before)) {
-      context.showMessage('No room on this workspace');
+      context.showMessage(context.t('desklets.noRoomOnThis'));
       return;
     }
 
     HapticFeedback.selectionClick();
-    ref.read(prefsProvider(theme.spec.id).notifier).edit((_) => after);
-    ref.read(deskletEditProvider.notifier).select(after.desklets.last.id);
+    _commit(after);
+  }
+
+  /// ─── WHERE A NEWLY PLACED DESKLET ACTUALLY GOES ─────────────────────────
+  ///
+  /// Both placement paths put the new tile on the DESKTOP, because that was the
+  /// only destination there was. Adding to a stack could not reuse them by
+  /// passing a different cell: a stack's members do not occupy cells at all,
+  /// they are parked off-desktop and drawn into the stack's own rectangle.
+  ///
+  /// So placement runs unchanged and the result is ABSORBED afterwards. The
+  /// tile is minted with a real position and immediately moved into the stack,
+  /// which wastes a cell for the length of one function call and costs nothing.
+  /// The alternative was a second pair of place / placeAt overloads that agree
+  /// with the first pair until they do not.
+  ///
+  /// One consequence worth knowing: adding to a stack still needs a free cell
+  /// to mint into, so a completely full page refuses. That is honest rather
+  /// than ideal, and it is the same message the desktop already gives.
+  void _commit(LauncherPrefs after) {
+    final id = after.desklets.last.id;
+    final stack = widget.intoStack;
+
+    final out =
+        stack == null ? after : DeskletLayout.addToStack(after, stack, id);
+
+    ref.read(prefsProvider(theme.spec.id).notifier).edit((_) => out);
+
+    // The STACK is what gets selected when we joined one: the new member has no
+    // footprint of its own, so selecting it would draw handles around nothing.
+    ref.read(deskletEditProvider.notifier).select(stack ?? id);
     Navigator.of(context).pop();
   }
 
@@ -278,14 +317,12 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
       // Genuinely no room. Release the id we just bound rather than leak it.
       await host.removeWidget(widgetId);
       if (!mounted) return;
-      context.showMessage('No room on this workspace');
+      context.showMessage(context.t('desklets.noRoomOnThis'));
       return;
     }
 
     HapticFeedback.selectionClick();
-    ref.read(prefsProvider(theme.spec.id).notifier).edit((_) => after);
-    ref.read(deskletEditProvider.notifier).select(after.desklets.last.id);
-    Navigator.of(context).pop();
+    _commit(after);
   }
 
   @override
@@ -320,7 +357,7 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(pad, 8, pad, 24),
                 children: [
-                  _SectionHeader(theme: theme, label: 'G Launcher'),
+                  _SectionHeader(theme: theme, label: context.t('drawer.gLauncher')),
                   const SizedBox(height: 12),
                   if (ours.isEmpty)
                     _EmptyLine(theme: theme, text: 'No widgets match')
@@ -341,7 +378,7 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
                       ],
                     ),
                   const SizedBox(height: 28),
-                  _SectionHeader(theme: theme, label: 'App widgets'),
+                  _SectionHeader(theme: theme, label: context.t('desklets.appWidgets')),
                   const SizedBox(height: 12),
                   _AppWidgetSection(
                     theme: theme,

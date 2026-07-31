@@ -553,18 +553,35 @@ abstract class LauncherHostApi {
   /// [source] is "asset:<path>" (a theme preset) or a content:// URI the user
   /// picked. Returns false on failure — a bad image must not take the launcher
   /// down; the user simply keeps the wallpaper they had.
+  /// [fit] is how the image meets the screen: 'cover' | 'contain' | 'fill' |
+  /// 'center'. A STRING, NOT AN ENUM, same rule as `brandTreatment`: a third
+  /// enum would renumber this codec's positional ids, and an unknown value
+  /// from a newer build must degrade (natively, to 'cover') rather than fail
+  /// to parse. 'cover' is byte-for-byte the legacy path, so existing users
+  /// see no change. [letterboxColor] is the ARGB that fills the bars 'contain'
+  /// and 'center' leave; the Dart side passes the theme palette's background.
   @async
-  bool setWallpaper(String source, bool applyToLock);
+  bool setWallpaper(
+    String source,
+    bool applyToLock,
+    String fit,
+    int letterboxColor,
+  );
 
   /// Rotates the wallpaper, desktop-style.
   ///
   /// [minutes] is CLAMPED TO 15 — WorkManager's hard floor. Do not offer a
   /// shorter interval in the UI and quietly deliver fifteen; lying about a
   /// setting is worse than not having it.
+  /// [fit] and [letterboxColor] as on [setWallpaper]: the worker stores them
+  /// beside the source list so every rotation tick renders the same way a
+  /// manual apply does.
   void scheduleWallpaperRotation(
     int minutes,
     List<String> sources,
     bool applyToLock,
+    String fit,
+    int letterboxColor,
   );
 
   void cancelWallpaperRotation();

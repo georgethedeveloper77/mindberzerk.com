@@ -178,7 +178,17 @@ final drawerItemsProvider =
   final mode = prefs.drawerSortMode ?? 'custom';
 
   if (mode == 'custom') {
-    final grid = ref.watch(drawerCustomGridProvider(theme));
+    // The STORED pair here, not the live one, and that is not the same
+    // inconsistency the provider's doc warns about. This provider produces a
+    // flat ORDER for search, the dock and everything else that wants a list;
+    // order is unchanged by how many rows the screen happens to fit, and this
+    // provider has no screen to ask. The BODY is what renders the grid, and it
+    // passes the derived count.
+    final grid = ref.watch(drawerCustomGridProvider((
+      theme: theme,
+      cols: math.max(1, prefs.drawerSlotCols ?? 4),
+      rows: math.max(1, prefs.drawerSlotRows ?? 5),
+    )));
     return [
       for (final cell in grid.cells)
         if (cell != null) cell,
@@ -236,16 +246,38 @@ typedef DrawerCustomGrid = ({
   int pageCount,
 });
 
+/// The key for [drawerCustomGridProvider].
+///
+/// ─── WHY THE GRID IS PASSED IN AND NOT READ FROM PREFS ──────────────────────
+///
+/// It used to read `drawerSlotCols` and `drawerSlotRows`, the count frozen when
+/// Custom was first entered. Freezing the grid was the whole point of the
+/// sparse-slot model: a stored (page, index) only means anything against a
+/// known capacity.
+///
+/// It also meant the Custom drawer rendered a DIFFERENT number of rows from
+/// every other sort mode. Once cells were sized to their contents the frozen
+/// count no longer fit, the pager squeezed the cells to make it fit, and
+/// squeezing a content-sized cell clips exactly one thing: the label on the
+/// last row.
+///
+/// So the row count now comes from the SAME derivation alphabetical uses, and
+/// the stored pair is what the caller reconciles against; see the reflow in
+/// app_drawer. Custom, most used and recently used all lay out identically,
+/// which is what they should have done from the start.
+typedef DrawerGridKey = ({EffectiveTheme theme, int cols, int rows});
+
 final drawerCustomGridProvider =
-    Provider.family<DrawerCustomGrid, EffectiveTheme>((ref, theme) {
+    Provider.family<DrawerCustomGrid, DrawerGridKey>((ref, key) {
+  final theme = key.theme;
   final apps = ref.watch(shellAppsProvider(theme));
   final byKey = {for (final a in apps) a.componentKey: a};
 
   final prefs =
       ref.watch(prefsProvider(theme.spec.id)).asData?.value ?? theme.prefs;
 
-  final cols = math.max(1, prefs.drawerSlotCols ?? 4);
-  final rows = math.max(1, prefs.drawerSlotRows ?? 5);
+  final cols = math.max(1, key.cols);
+  final rows = math.max(1, key.rows);
   final per = cols * rows;
 
   final folded = DrawerLayout.foldedKeys(prefs);

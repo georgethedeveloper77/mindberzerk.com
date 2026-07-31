@@ -83,12 +83,19 @@ class SetupScreen extends ConsumerStatefulWidget {
 /// It belongs in theme.json eventually, as a `tagline` beside `name` and
 /// `version`. It is here because adding a ThemeSpec field to ship one sentence
 /// per shell is the wrong order to do things in.
-String _taglineFor(ShellKind shell) => switch (shell) {
-      ShellKind.gnome => 'Top bar, dock down the left, activities overview',
-      ShellKind.plasma => 'Bottom panel, kickoff menu, system tray',
-      ShellKind.tiling => 'No dock. A status bar and a keyboard launcher',
-      ShellKind.tui => 'No desktop at all. A prompt, and commands that stay',
-      ShellKind.aqua => 'Menu bar across the top, magnifying dock below',
+/// Returns a KEY, not a sentence.
+///
+/// The strings were extracted into en.json a while ago and this switch kept
+/// returning the English ones, so a French install read every distro's
+/// description in English. Returning the key and resolving at the call site is
+/// what lets a switch like this be translated at all: `ref.t` needs a WidgetRef
+/// and a switch on an enum has no business taking one.
+String _taglineKeyFor(ShellKind shell) => switch (shell) {
+      ShellKind.gnome => 'setup.topBarDockDown',
+      ShellKind.plasma => 'setup.bottomPanelKickoffMenu',
+      ShellKind.tiling => 'setup.noDockAStatus',
+      ShellKind.tui => 'setup.noDesktopAtAll',
+      ShellKind.aqua => 'setup.menuBarAcrossThe',
     };
 
 /// The specs behind [bundledThemes], loaded from their assets.
@@ -331,6 +338,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             typography: theme.typography,
             textScale: theme.textScale,
             family: theme.chromeFamily,
+            opacity: theme.surfaceOpacity,
           );
 
     final skin = theme == null
@@ -785,7 +793,7 @@ class _StepDistro extends ConsumerWidget {
           for (final spec in specs)
             SetupRow(
               title: spec.name,
-              subtitle: _taglineFor(spec.shell),
+              subtitle: ref.t(_taglineKeyFor(spec.shell)),
               trailing: spec.version.isEmpty ? null : spec.version,
               selected: spec.id == active,
               mono: true,
@@ -912,7 +920,10 @@ class _DistroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _taglineFor(spec.shell),
+                      // context.t, not ref.t: _DistroCard is a StatelessWidget
+                      // and has no WidgetRef. A language switch rebuilds the
+                      // tree through MaterialApp.locale, so it still updates.
+                      context.t(_taglineKeyFor(spec.shell)),
                       style: d.text.caption.copyWith(color: c.textMuted),
                     ),
                   ],
@@ -967,8 +978,7 @@ class _StepAppearance extends ConsumerWidget {
         if (!hasLight) ...[
           const SizedBox(height: 10),
           Text(
-            '${theme.spec.name} ships only a dark palette, so it stays dark. '
-            'Your choice applies to distros that offer both.',
+            ref.t('setup.appearance.darkOnly', {'name': theme.spec.name}),
             softWrap: true,
             style: d.text.caption.copyWith(color: d.colors.textMuted),
           ),
@@ -998,23 +1008,23 @@ class _StepDock extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         SetupRow(
-          title: 'Down the left edge',
-          subtitle: 'How ${theme.spec.name} ships.',
+          title: ref.t('setup.downTheLeftEdge'),
+          subtitle: ref.t('setup.dock.leftSub', {'name': theme.spec.name}),
           selected: theme.dock == DockSide.left,
           mono: mono,
           marker: mono ? SetupMarker.chevron : SetupMarker.radio,
           onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'left')),
         ),
         SetupRow(
-          title: 'Along the bottom',
+          title: ref.t('setup.alongTheBottom'),
           selected: theme.dock == DockSide.bottom,
           mono: mono,
           marker: mono ? SetupMarker.chevron : SetupMarker.radio,
           onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'bottom')),
         ),
         SetupRow(
-          title: 'No dock',
-          subtitle: 'The drawer is still one swipe away.',
+          title: ref.t('setup.noDock'),
+          subtitle: ref.t('setup.theDrawerIsStill'),
           selected: theme.dock == DockSide.off,
           mono: mono,
           marker: mono ? SetupMarker.chevron : SetupMarker.radio,
@@ -1022,7 +1032,7 @@ class _StepDock extends ConsumerWidget {
         ),
         if (theme.dock != DockSide.off) ...[
           const SizedBox(height: 8),
-          const _MiniLabel(text: 'App grid button'),
+          _MiniLabel(text: ref.t('setup.appGridButton')),
           for (final e in const {
             'end': 'At the far end of the dock',
             'start': 'First in the dock',
@@ -1051,10 +1061,11 @@ class _StepDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-    // Pages, matching the drawer's own fallback. Setup showing 'List'
-    // preselected while the drawer actually came up paged was a lie the
-    // user would only catch after finishing.
-    final style = theme.prefs.drawerScrollStyle ?? 'pages';
+    // The RESOLVED style, so what Setup preselects is exactly what the
+    // drawer will do, including a distro's own authored default. Setup
+    // showing 'List' preselected while the drawer actually came up paged
+    // was a lie the user would only catch after finishing.
+    final style = theme.drawerScrollStyle;
 
     return Column(
       children: [
@@ -1130,7 +1141,7 @@ class _StepFolders extends ConsumerWidget {
 
     if (suggestions.isEmpty) {
       return Text(
-        'Nothing worth grouping yet. Drag one app onto another in the drawer to make a folder.',
+        ref.t('setup.nothingWorthGroupingYet'),
         softWrap: true,
         style: d.text.body.copyWith(color: d.colors.textMuted),
       );
@@ -1193,8 +1204,8 @@ class _StepFolders extends ConsumerWidget {
             'setup.folders.create',
             {'n': '${suggestions.length}'},
           ),
-          subtitle: 'Grouped by what the apps say they are. Created when you '
-              'continue; untick to skip.',
+          subtitle: '${ref.t('setup.groupedByWhatThe')} '
+              '${ref.t('setup.folders.createdWhenYouContinue')}',
           selected: createFolders,
           marker: SetupMarker.check,
           mono: mono,
@@ -1202,7 +1213,7 @@ class _StepFolders extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Skipping loses nothing. They stay available in Settings, Folders.',
+          ref.t('setup.skippingLosesNothingThey'),
           softWrap: true,
           style: d.text.caption.copyWith(color: d.colors.textMuted),
         ),
@@ -1415,13 +1426,13 @@ class _NagLine extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'G Launcher is not your home app',
+              context.t('settings.gLauncherIsNot'),
               softWrap: true,
               style: d.text.caption.copyWith(color: c.warn),
             ),
           ),
           Text(
-            'Fix',
+            context.t('setup.fix'),
             style: d.text.caption
                 .copyWith(color: c.warn, fontWeight: FontWeight.w600),
           ),

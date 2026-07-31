@@ -242,6 +242,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
       typography: theme.typography,
       textScale: theme.textScale,
       family: theme.chromeFamily,
+      opacity: theme.surfaceOpacity,
     );
 
     return ChromeScope(

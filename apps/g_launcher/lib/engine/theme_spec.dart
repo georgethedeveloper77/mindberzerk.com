@@ -27,12 +27,14 @@ class ThemeSpec {
     required this.icons,
     required this.wallpapers,
     this.wallpapersLight = const [],
+    this.fonts = const [],
     required this.minAppVersion,
     ChromeFamily? chromeFamily,
     this.logo,
     this.boot,
     this.splash,
     this.desklets = const DeskletThemeBlock(),
+    this.gestures = const {},
     this.source = const ThemeSource.bundled(),
   }) : _chromeFamily = chromeFamily;
 
@@ -103,6 +105,23 @@ class ThemeSpec {
   /// chose it.
   final List<String> wallpapersLight;
 
+  /// Font families this theme ships, to be registered at runtime.
+  ///
+  /// ─── WHY A DISTRO CANNOT JUST NAME A FONT ───────────────────────────────
+  ///
+  /// [ThemeTypography] holds family NAMES, and a name only resolves if the
+  /// family is declared in pubspec.yaml. That works for the bundled three, and
+  /// it can never work for a pack downloaded after the APK was built: a CDN
+  /// theme cannot edit pubspec.
+  ///
+  /// So a pack carries its font files and this block names them. `FontLoader`
+  /// registers a family at runtime from bytes, which is the only route from a
+  /// downloaded file to a resolvable family name.
+  ///
+  /// Empty for every theme that uses a bundled family, which is all of them
+  /// today; nothing about the existing path changes.
+  final List<ThemeFont> fonts;
+
   /// Gates against versionCode. A theme built for features this build does not
   /// have must refuse to load rather than render half-broken.
   final int minAppVersion;
@@ -146,6 +165,29 @@ class ThemeSpec {
   /// promise `boot` and `splash` make with their `defaultForShell`.
   final DeskletThemeBlock desklets;
 
+  /// The distro's DEFAULT gesture bindings, gestureId to binding string, in
+  /// the same encoding `LauncherPrefs.gestures` uses (a GestureAction id, or
+  /// "app:<componentKey>").
+  ///
+  /// ─── THE HARD RULE: A DISTRO NEVER REBINDS A SET GESTURE ─────────────────
+  ///
+  /// A theme default applies ONLY to a gesture the user has never bound.
+  /// Several actions are driven by an accessibility service the user granted
+  /// for a specific purpose, and a distro silently rebinding one is not the
+  /// same kind of choice as a distro choosing a dock side. The touched marker
+  /// is entry presence in `prefs.gestures`: the Settings sheet always writes an
+  /// explicit entry, including when the user re-picks the value already on
+  /// screen, and never deletes one. So a user entry beats this map
+  /// unconditionally, this map beats `defaultGestures`, and switching distro
+  /// can never rebind a deliberate choice. The one place that resolution
+  /// lives is `bindingFor` in gesture_actions.dart.
+  ///
+  /// Kept as raw strings on parse; an action id from a newer catalogue is
+  /// screened out in `bindingFor` (falling through to `defaultGestures`, not
+  /// decoding to a dead gesture), which keeps the known-id list beside the
+  /// enum it belongs to rather than duplicated here.
+  final Map<String, String> gestures;
+
   /// Where this theme's FILES live: the APK's asset bundle, or an installed
   /// pack directory.
   ///
@@ -174,6 +216,7 @@ class ThemeSpec {
         icons: icons,
         wallpapers: wallpapers,
         wallpapersLight: wallpapersLight,
+        fonts: fonts,
         minAppVersion: minAppVersion,
         // The PRIVATE override, not the resolved getter. Passing
         // `chromeFamily` would bake the shell default into the field, so a
@@ -185,6 +228,7 @@ class ThemeSpec {
         boot: boot,
         splash: splash,
         desklets: desklets,
+        gestures: gestures,
         source: source,
       );
 
@@ -234,6 +278,11 @@ class ThemeSpec {
       wallpapersLight: ((json['wallpapersLight'] as List?) ?? const [])
           .map((e) => e.toString())
           .toList(),
+      fonts: ((json['fonts'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ThemeFont.fromJson(e.cast<String, dynamic>()))
+          .where((f) => f.isUsable)
+          .toList(),
       minAppVersion: (json['minAppVersion'] as num?)?.toInt() ?? 0,
       logo: ThemeLogo.fromJson(json['logo']),
       boot: BootSpec.fromJson(
@@ -245,6 +294,14 @@ class ThemeSpec {
       desklets: DeskletThemeBlock.fromJson(
         (json['desklets'] as Map?)?.cast<String, dynamic>(),
       ),
+      // String entries only; anything else is dropped rather than fatal. The
+      // action ids are NOT validated here (see the field doc): bindingFor
+      // screens them beside the enum, so this stays a dumb carrier.
+      gestures: {
+        for (final e in ((json['gestures'] as Map?) ?? const {}).entries)
+          if (e.key is String && e.value is String)
+            e.key as String: e.value as String,
+      },
       // Explicit override only. A null here (key absent, or an unknown value
       // from a newer CDN theme) lets the ThemeSpec.chromeFamily getter fall
       // back to the shell default, so the bundled themes need no JSON change.
@@ -459,19 +516,186 @@ class ThemeTypography {
       );
 }
 
+/// One font family a theme ships.
+///
+/// [files] are BARE FILENAMES, not paths. `PackPaths.installedFile` refuses a
+/// separator, so every asset inside a pack is flat, and a font is no different
+/// from a wallpaper in that respect. A bundled theme's files are asset-bundle
+/// paths, resolved through the same [ThemeSource] everything else uses.
+// No @immutable: nothing else in this file is annotated and it imports neither
+// meta nor foundation. The class is const-constructible with final fields,
+// which is the property that matters.
+class ThemeFont {
+  const ThemeFont({required this.family, required this.files});
+
+  /// The name [ThemeTypography] refers to. Must match, or the text falls back
+  /// silently to the platform default, which is the failure mode this whole
+  /// block exists to make impossible to hit by accident.
+  final String family;
+
+  final List<String> files;
+
+  /// A family with no name or no files registers nothing and would only add a
+  /// load attempt that cannot succeed. Filtered at parse, so nothing
+  /// downstream has to check.
+  bool get isUsable => family.isNotEmpty && files.isNotEmpty;
+
+  static ThemeFont fromJson(Map<String, dynamic> j) => ThemeFont(
+        family: (j['family'] as String?) ?? '',
+        files: ((j['files'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList(),
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ThemeFont &&
+      other.family == family &&
+      other.files.length == files.length &&
+      other.files.every(files.contains);
+
+  @override
+  int get hashCode => Object.hash(family, Object.hashAll(files));
+}
+
+/// One panel: an edge, a thickness, and what it carries.
+///
+/// ─── WHY A LIST REPLACED A SINGLE BAR ───────────────────────────────────────
+///
+/// The shell could express one bar, on one edge, carrying a fixed set of
+/// readouts behind a boolean. That covers GNOME, which has exactly one, and it
+/// cannot express Xfce at all: Kali ships a top bar AND a bottom dock, and
+/// authoring it as a one-bar distro is close enough to look wrong.
+///
+/// It also turned the readouts into a yes-or-no. A waybar feels authored
+/// because its author chose which modules and in what order; `topBarStats: true`
+/// gives every distro the same three in the same order forever.
+///
+/// The DOCK is not a panel and is still [ThemeLayout.dock]. It holds pinned
+/// apps, it magnifies on Aqua, it has its own capacity rules; folding it in
+/// here would mean one type doing two unrelated jobs.
+class PanelSpec {
+  const PanelSpec({
+    required this.side,
+    required this.modules,
+    this.height,
+  });
+
+  final TopBarSide side;
+
+  /// In order, leading edge first. A [PanelModule.spacer] splits the run.
+  final List<PanelModule> modules;
+
+  /// Thickness in dp. Null takes the shell's own default, which is what every
+  /// theme authored before panels existed gets.
+  final double? height;
+
+  bool get isEmpty => modules.isEmpty;
+
+  static PanelSpec? fromJson(Map<String, dynamic> j) {
+    final mods = ((j['modules'] as List?) ?? const [])
+        .map((e) => PanelModule.parse(e.toString()))
+        .whereType<PanelModule>()
+        .toList();
+
+    // A panel with nothing in it is a coloured strip. Dropped at parse so
+    // nothing downstream has to decide what an empty one means.
+    if (mods.isEmpty) return null;
+
+    return PanelSpec(
+      side: TopBarSide.parse(j['side'] as String?),
+      modules: mods,
+      height: (j['height'] as num?)?.toDouble(),
+    );
+  }
+}
+
+/// Which way workspaces run.
+///
+/// ─── WHY THIS IS AUTHORED AND NOT ASSUMED ───────────────────────────────────
+///
+/// GNOME's workspaces are a vertical strip and this shell has always paged
+/// vertically because of it. macOS Spaces run horizontally, and a phone
+/// imitating macOS that swipes DOWN to change space is wrong in a way anyone
+/// who has used one notices immediately.
+///
+/// One enum rather than a per-shell constant, because the axis belongs to the
+/// distro rather than to the shell implementation: Plasma is configurable and
+/// a distro shipping either answer is authentic.
+enum WorkspaceAxis {
+  vertical,
+  horizontal;
+
+  static WorkspaceAxis parse(String? raw) =>
+      raw == 'horizontal' ? WorkspaceAxis.horizontal : WorkspaceAxis.vertical;
+}
+
 enum DockSide { left, bottom, off }
 
 class ThemeLayout {
   const ThemeLayout({
     required this.dock,
     required this.topBar,
+    this.topBarSide = TopBarSide.top,
+    this.topBarStats = false,
+    this.panels = const [],
+    this.workspaceAxis = WorkspaceAxis.vertical,
     required this.rows,
     required this.cols,
     this.iconScale = 1.0,
+    this.drawerScrollStyle,
+    this.drawerGrouping,
   });
 
   final DockSide dock;
   final bool topBar;
+
+  /// Which edge the shell bar sits on.
+  ///
+  /// ─── WHY THIS IS SEPARATE FROM [topBar] AND NOT AN ENUM REPLACING IT ────
+  ///
+  /// `topBar` is a BOOL and stays one, because it answers "is there a bar",
+  /// which is what `LayoutResolver`, `EffectiveTheme` and three shells already
+  /// ask. Widening it to an enum would have rippled through all of them to
+  /// carry information only the placement cares about.
+  ///
+  /// So visibility and position are two questions. A theme that says nothing
+  /// gets the top, which is where every GNOME-family desktop puts it and what
+  /// this shell did before the field existed.
+  final TopBarSide topBarSide;
+
+  /// Does the bar carry live system readouts?
+  ///
+  /// ─── AND WHY THIS IS OFF BY DEFAULT ─────────────────────────────────────
+  ///
+  /// `gnome_top_bar.dart` argues, correctly, that the bar carries nothing
+  /// because Android's status bar a few pixels above it already shows the
+  /// clock, the battery and the connection, and duplicating those is the
+  /// opposite of authentic.
+  ///
+  /// That argument covers exactly the things Android shows. Throughput, memory
+  /// pressure and free space are none of them, and a waybar or a polybar
+  /// carries all three. So a distro can opt in, and the modules that ship are
+  /// only the ones the status bar does NOT already own.
+  final bool topBarStats;
+
+  /// Every panel this distro draws, in no particular order.
+  ///
+  /// ─── SYNTHESISED WHEN A THEME DOES NOT AUTHOR IT ────────────────────────
+  ///
+  /// [topBar], [topBarSide] and [topBarStats] still parse and still mean what
+  /// they meant. When `panels` is absent they are turned INTO one, so there is
+  /// exactly one shape downstream and no shell has to ask which era a theme was
+  /// written in. Authoring `panels` supersedes all three.
+  ///
+  /// Empty means no panel at all, which is what `topBar: false` has always
+  /// meant and what the tiling and TUI shells want.
+  final List<PanelSpec> panels;
+
+  /// Which way workspaces page. Defaults to vertical, which is what this shell
+  /// has always done and what GNOME does.
+  final WorkspaceAxis workspaceAxis;
   final int rows;
   final int cols;
 
@@ -488,6 +712,67 @@ class ThemeLayout {
   /// same rule SplashSpec's duration clamp follows.
   final double iconScale;
 
+  /// The distro's DEFAULT drawer motion: 'vertical' | 'pages' | 'cube', or
+  /// null for the engine default ('pages', see `LayoutResolver`).
+  ///
+  /// ─── A DEFAULT, NEVER AN OVERRIDE ────────────────────────────────────────
+  ///
+  /// These two fields exist so a distro like Mint can say "I am a list distro"
+  /// without a new ShellKind. They are consulted ONLY when the user has never
+  /// touched the setting, and "touched" already has a marker: the promoted
+  /// global pref is non-null. The Settings and Setup rows always write an
+  /// explicit value (including the one that matches the default on screen), so
+  /// a deliberate choice is never confusable with an untouched one, and
+  /// switching distro never rebinds a choice the user made. The merge lives in
+  /// `LayoutResolver.resolve` and nowhere else.
+  ///
+  /// Unknown values from a newer catalogue parse to null and fall through,
+  /// same drop-not-fatal contract as `PanelModule.parse`.
+  final String? drawerScrollStyle;
+
+  /// The distro's DEFAULT grouping: 'none' | 'az', or null for the engine
+  /// default ('none'). Same default-never-override contract as
+  /// [drawerScrollStyle], and like the user pref it only means anything when
+  /// the resolved scroll style is the list.
+  final String? drawerGrouping;
+
+  /// Panels, authored or synthesised from the legacy trio.
+  ///
+  /// The synthesis is the compatibility layer and it is deliberately literal:
+  /// one panel, on the authored side, carrying Activities and, if the theme
+  /// asked for stats, the same three readouts in the same order the boolean
+  /// always produced. Nobody's desktop moves.
+  ///
+  /// A spacer sits between them because that is what the old bar did with its
+  /// `Spacer()`: Activities left, readouts far end.
+  static List<PanelSpec> _panels(Map<String, dynamic> j) {
+    final raw = j['panels'];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => PanelSpec.fromJson(e.cast<String, dynamic>()))
+          .whereType<PanelSpec>()
+          .toList();
+    }
+
+    if ((j['topBar'] as bool? ?? true) == false) return const [];
+
+    return [
+      PanelSpec(
+        side: TopBarSide.parse(j['topBarSide'] as String?),
+        modules: [
+          PanelModule.activities,
+          if (j['topBarStats'] as bool? ?? false) ...[
+            PanelModule.spacer,
+            PanelModule.network,
+            PanelModule.memory,
+            PanelModule.storage,
+          ],
+        ],
+      ),
+    ];
+  }
+
   /// The theme's DEFAULT. User overrides in Settings always win, and are stored
   /// per-theme so switching themes does not wipe them. Plan §5.3.
   static ThemeLayout fromJson(Map<String, dynamic> j) {
@@ -499,11 +784,99 @@ class ThemeLayout {
         _ => DockSide.left,
       },
       topBar: j['topBar'] as bool? ?? true,
+      topBarSide: TopBarSide.parse(j['topBarSide'] as String?),
+      topBarStats: j['topBarStats'] as bool? ?? false,
+      panels: _panels(j),
+      workspaceAxis: WorkspaceAxis.parse(j['workspaceAxis'] as String?),
       rows: (grid['rows'] as num?)?.toInt() ?? 5,
       cols: (grid['cols'] as num?)?.toInt() ?? 4,
       iconScale: IconSizing.parseScale(j['iconScale']),
+      drawerScrollStyle: switch (j['drawerScrollStyle'] as String?) {
+        'vertical' => 'vertical',
+        'pages' => 'pages',
+        'cube' => 'cube',
+        // Absent, or a value from a newer catalogue: no theme opinion, so the
+        // resolver falls through to the engine default.
+        _ => null,
+      },
+      drawerGrouping: switch (j['drawerGrouping'] as String?) {
+        'none' => 'none',
+        'az' => 'az',
+        _ => null,
+      },
     );
   }
+}
+
+/// Which edge the shell bar sits on.
+///
+/// ─── THE VERTICAL CASE, AND THE COLLISION THAT DID NOT HAPPEN ───────────────
+///
+/// `left` and `right` were withheld until the layout existed, on the reasoning
+/// that a left bar would sit exactly where Ubuntu's dock already is. It turns
+/// out it does not: the dock is `Positioned` inside the WORKSPACE's own
+/// LayoutBuilder, not inside the shell's outer Stack, so a bar placed as a
+/// sibling of the workspace shrinks the box the dock is positioned within and
+/// the two simply never overlap.
+///
+/// That is also the authentic arrangement. A polybar or a waybar owns its edge
+/// outright and everything else lives inboard of it, which is exactly what
+/// falls out of putting the bar and the workspace in one Row.
+/// One module in a panel.
+///
+/// Deliberately SHORT. Every entry here is something Android's own status bar
+/// does not already show, which is the rule gnome_top_bar's doc lays down: a
+/// clock or a battery percentage in a launcher panel is duplication, and
+/// duplication is the opposite of authentic.
+enum PanelModule {
+  /// The Activities affordance. Opens the overview.
+  activities,
+
+  /// Down and up throughput.
+  network,
+
+  /// Used against total.
+  memory,
+
+  /// Free space.
+  storage,
+
+  /// Pushes everything after it to the far end. A panel with no spacer packs
+  /// to the leading edge, which is what a dense polybar does.
+  spacer;
+
+  static PanelModule? parse(String raw) => switch (raw) {
+        'activities' => PanelModule.activities,
+        'network' => PanelModule.network,
+        'memory' => PanelModule.memory,
+        'storage' => PanelModule.storage,
+        'spacer' => PanelModule.spacer,
+        // An unknown module from a newer catalogue is DROPPED, not fatal. A
+        // panel missing one readout is a panel; a theme that fails to parse is
+        // a black screen.
+        _ => null,
+      };
+}
+
+enum TopBarSide {
+  top,
+  bottom,
+  left,
+  right;
+
+  /// Does the bar run down an edge rather than across one?
+  ///
+  /// The shell reads this to choose a Row over a Column, and the bar itself
+  /// reads it to stack its contents instead of laying them out in a line. Both
+  /// need the same answer, so it lives here rather than being asked twice.
+  bool get isVertical => this == TopBarSide.left || this == TopBarSide.right;
+
+  static TopBarSide parse(String? raw) => switch (raw) {
+        'bottom' => TopBarSide.bottom,
+        'left' => TopBarSide.left,
+        'right' => TopBarSide.right,
+        _ => TopBarSide.top,
+      };
 }
 
 /// Accepts "#RRGGBB" and "#AARRGGBB". Null-in, null-out — a null colour is

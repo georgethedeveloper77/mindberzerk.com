@@ -65,6 +65,7 @@ class TrendChart extends StatelessWidget {
     this.secondColor,
     this.minY,
     this.maxY,
+    this.labelFor,
   });
 
   /// Oldest first.
@@ -77,6 +78,10 @@ class TrendChart extends StatelessWidget {
   final Color? secondColor;
   final double height;
 
+  /// Formats a y-axis label. Null draws no axis at all, which is right for a
+  /// chart small enough that the numbers beside it would be bigger than it.
+  final String Function(double)? labelFor;
+
   /// Both default to the data's own range. Pass [minY] 0 for anything where the
   /// axis genuinely starts at zero, which is most rates: letting a flat line at
   /// 4.2 MB/s fill the box makes an idle connection look like a busy one.
@@ -85,12 +90,14 @@ class TrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
+    final d = ChromeScope.of(context);
+    final c = d.colors;
     final primary = color ?? c.accent;
     final second = secondColor ?? c.textMuted;
 
     final all = <double>[...series, ...?secondSeries];
-    final top = maxY ?? (all.isEmpty ? 1.0 : all.reduce((a, b) => a > b ? a : b));
+    final top =
+        maxY ?? (all.isEmpty ? 1.0 : all.reduce((a, b) => a > b ? a : b));
     final bottom =
         minY ?? (all.isEmpty ? 0.0 : all.reduce((a, b) => a < b ? a : b));
 
@@ -99,8 +106,8 @@ class TrendChart extends StatelessWidget {
     // steady value visible as a steady value.
     final pad = (top - bottom).abs() < 0.0001 ? (top.abs() * 0.1 + 1) : 0.0;
 
-    final count =
-        [series.length, secondSeries?.length ?? 0].reduce((a, b) => a > b ? a : b);
+    final count = [series.length, secondSeries?.length ?? 0]
+        .reduce((a, b) => a > b ? a : b);
 
     return SizedBox(
       height: height,
@@ -110,9 +117,53 @@ class TrendChart extends StatelessWidget {
           maxX: (count - 1).toDouble().clamp(1, double.infinity),
           minY: bottom - pad,
           maxY: top + pad,
-          gridData: const FlGridData(show: false),
+          // ─── AXES AND GRID ────────────────────────────────────────
+          //
+          // A line with no scale beside it is a shape, not a reading: it says
+          // something went up without saying from what to what. Horizontal
+          // rules only, at the same two values the labels mark, because
+          // vertical ones on a time series divide it into nothing meaningful.
+          gridData: FlGridData(
+            show: labelFor != null,
+            drawVerticalLine: false,
+            horizontalInterval:
+                (top - bottom).abs() < 0.0001 ? 1 : (top - bottom) / 2,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: c.line,
+              strokeWidth: 0.5,
+            ),
+          ),
           borderData: FlBorderData(show: false),
-          titlesData: const FlTitlesData(show: false),
+          titlesData: FlTitlesData(
+            show: labelFor != null,
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            // No bottom axis: the x axis is "the last few minutes", and
+            // stamping numbers on it would imply a precision the three-second
+            // poll does not have.
+            bottomTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: labelFor != null,
+                reservedSize: 46,
+                // Two labels, the floor and the ceiling. A dense axis on a
+                // 116dp chart is unreadable and a phone has no room for it.
+                interval:
+                    (top - bottom).abs() < 0.0001 ? 1 : (top - bottom) / 2,
+                getTitlesWidget: (value, meta) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(
+                    labelFor!(value),
+                    textAlign: TextAlign.right,
+                    style: d.text.caption.copyWith(color: c.textFaint),
+                  ),
+                ),
+              ),
+            ),
+          ),
           lineTouchData: const LineTouchData(enabled: false),
           lineBarsData: [
             if (secondSeries != null && secondSeries!.isNotEmpty)
@@ -124,7 +175,8 @@ class TrendChart extends StatelessWidget {
     );
   }
 
-  LineChartBarData _line(List<double> data, Color colour, {required bool fill}) {
+  LineChartBarData _line(List<double> data, Color colour,
+      {required bool fill}) {
     return LineChartBarData(
       spots: [
         for (var i = 0; i < data.length; i++) FlSpot(i.toDouble(), data[i]),
@@ -137,7 +189,22 @@ class TrendChart extends StatelessWidget {
       preventCurveOverShooting: true,
       color: colour,
       barWidth: 2,
-      dotData: const FlDotData(show: false),
+      // ─── ONE DOT, ON THE LATEST SAMPLE ────────────────────────────────
+      //
+      // "Show the data points" is right in principle and wrong applied to a
+      // hundred and twenty of them: the dots merge into a thick line and the
+      // shape disappears. The point worth marking is the one that is true NOW,
+      // which is also the one the number above the chart is quoting.
+      dotData: FlDotData(
+        show: true,
+        checkToShowDot: (spot, bar) =>
+            bar.spots.isNotEmpty && spot.x == bar.spots.last.x,
+        getDotPainter: (spot, pct, bar, i) => FlDotCirclePainter(
+          radius: 3,
+          color: colour,
+          strokeWidth: 0,
+        ),
+      ),
       belowBarData: BarAreaData(
         show: fill,
         color: colour.withValues(alpha: 0.16),
@@ -213,7 +280,8 @@ class RingGauge extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label, style: d.text.display.copyWith(fontSize: size * 0.19)),
+              Text(label,
+                  style: d.text.display.copyWith(fontSize: size * 0.19)),
               if (caption != null)
                 Text(
                   caption!,
@@ -260,7 +328,6 @@ class ChartLegend extends StatelessWidget {
   }
 }
 
-
 /// Categorical bars, drawn from labelled values.
 ///
 /// ─── WHY A BAR AND NOT A THIRD RING ─────────────────────────────────────────
@@ -281,10 +348,21 @@ class BarsChart extends StatelessWidget {
     required this.bars,
     this.height = 130,
     this.maxY,
+    this.labelFor,
+    this.track,
   });
 
   /// Label, value, colour. Order is left to right.
   final List<({String label, double value, Color color})> bars;
+
+  /// Formats the number printed above each rod.
+  final String Function(double)? labelFor;
+
+  /// The full height a rod is measured against, drawn as a faint track behind
+  /// it. Without it a short rod is just a short rod: nothing on screen says
+  /// what full would look like, which is the difference between 42GB used and
+  /// 42GB used OUT OF 128.
+  final double? track;
 
   final double height;
 
@@ -297,8 +375,8 @@ class BarsChart extends StatelessWidget {
     final d = ChromeScope.of(context);
     if (bars.isEmpty) return const SizedBox.shrink();
 
-    final top = maxY ??
-        bars.map((b) => b.value).reduce((a, b) => a > b ? a : b) * 1.15;
+    final tallest = bars.map((b) => b.value).reduce((a, b) => a > b ? a : b);
+    final top = maxY ?? (track ?? tallest * 1.15);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -312,7 +390,7 @@ class BarsChart extends StatelessWidget {
               gridData: const FlGridData(show: false),
               borderData: FlBorderData(show: false),
               titlesData: const FlTitlesData(show: false),
-              barTouchData: BarTouchData(enabled: false),
+              barTouchData: const BarTouchData(enabled: false),
               barGroups: [
                 for (var i = 0; i < bars.length; i++)
                   BarChartGroupData(
@@ -323,6 +401,21 @@ class BarsChart extends StatelessWidget {
                         color: bars[i].color,
                         width: 26,
                         borderRadius: BorderRadius.circular(5),
+                        backDrawRodData: track == null
+                            ? null
+                            : BackgroundBarChartRodData(
+                                show: true,
+                                toY: track!,
+                                // surfaceAlt, not line. A line colour is meant
+                                // for hairlines: filled across a whole rod on a
+                                // dark palette it is nearly invisible, so the
+                                // track disappeared and a short rod read as a
+                                // rod with no context, which is the storage
+                                // contrast problem. surfaceAlt is a real
+                                // surface step and is what the bar further down
+                                // this page already uses for the same job.
+                                color: d.colors.surfaceAlt,
+                              ),
                       ),
                     ],
                   ),
@@ -335,12 +428,27 @@ class BarsChart extends StatelessWidget {
           children: [
             for (final b in bars)
               Expanded(
-                child: Text(
-                  b.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: d.text.caption.copyWith(color: d.colors.textMuted),
+                child: Column(
+                  children: [
+                    // The VALUE, under its own rod. A bar chart with no numbers
+                    // on it asks the eye to estimate against an axis that a
+                    // 116dp box has no room for.
+                    if (labelFor != null)
+                      Text(
+                        labelFor!(b.value),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: d.text.value.copyWith(color: b.color),
+                      ),
+                    Text(
+                      b.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: d.text.caption.copyWith(color: d.colors.textMuted),
+                    ),
+                  ],
                 ),
               ),
           ],

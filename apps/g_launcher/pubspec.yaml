@@ -58,6 +58,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   fl_chart: ^1.2.0
+  path_provider: ^2.1.6
 
 flutter_gen:
   assets:
@@ -87,6 +88,12 @@ flutter:
     # line below, which is the trap that once left the terminal unbundled.
     - assets/i18n/
     - assets/themes/
+
+    # The folder glyph the drawer, setup and the folders screen all draw.
+    # WITHOUT THIS LINE flutter_svg does not throw: it logs and paints nothing,
+    # so every folder renders as a name floating over empty space, which reads
+    # as a layout bug rather than a packaging one.
+    - assets/svg/
 
     - assets/themes/ubuntu-24-04/
     - assets/themes/ubuntu-24-04/wallpapers/

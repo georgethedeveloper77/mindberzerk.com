@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/desklet_layout.dart';
@@ -7,6 +6,8 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
 import 'desklet_edit.dart';
+import 'desklet_menu.dart';
+import 'desklet_settings.dart';
 import 'desklet_editor.dart';
 import 'desklet_picker.dart';
 import 'kinds/clock_desklet.dart';
@@ -14,6 +15,7 @@ import 'kinds/appwidget_desklet.dart';
 import 'kinds/control_desklets.dart';
 import 'kinds/glance_desklet.dart';
 import 'kinds/pane_desklets.dart';
+import 'kinds/stack_desklet.dart';
 import 'kinds/stat_desklets.dart';
 
 /// Turn one stored placement into a widget. PHASE D3.
@@ -33,6 +35,14 @@ Widget? buildDesklet(
   DeskletSkin skin,
 ) {
   return switch (desklet.kind) {
+    // The builder is handed back to the stack so it can draw its members
+    // without importing this file, which would be a cycle.
+    'stack' => StackDesklet(
+        theme: theme,
+        desklet: desklet,
+        skin: skin,
+        build: buildDesklet,
+      ),
     'glance' => GlanceDesklet(theme: theme, desklet: desklet, skin: skin),
     'appwidget' =>
       AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
@@ -81,9 +91,21 @@ class DeskletSurfaceView extends ConsumerWidget {
   /// Breathing room around each tile so two neighbours do not touch.
   static const double gutter = 6;
 
-  /// The desktop grid is inset from the screen edges: a desklet flush against
-  /// the bezel reads as a bug, and the dock and top bar need clearance.
-  static const EdgeInsets margin = EdgeInsets.fromLTRB(14, 14, 14, 14);
+  /// The desktop grid's inset from the screen edges.
+  ///
+  /// ─── 6, NOT 14, AND THE REASON CHANGED UNDER IT ─────────────────────────
+  ///
+  /// It was 14 because "a desklet flush against the bezel reads as a bug, and
+  /// the dock and top bar need clearance". The first half still holds and is
+  /// why this is not zero. The second half stopped being true: panels are
+  /// siblings of the workspace now and take their own space out of it, and the
+  /// dock is positioned inside this surface's own box. Neither needs a gutter
+  /// paid for by every desklet on every edge.
+  ///
+  /// 14 on each side is 28dp of a 384dp screen, most of a cell on the fine
+  /// grid, and it is why a widget sized to fill the width still stopped short
+  /// of it.
+  static const EdgeInsets margin = EdgeInsets.all(6);
 
   /// Roughly how big one cell is, for callers that must size something BEFORE
   /// this widget has laid out.
@@ -230,11 +252,25 @@ class _ResizableTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
+      // ─── THE HOLD OPENS A MENU, IT DOES NOT ENTER EDIT MODE ──────────
+      //
+      // This used to call `enter()` and `select()` straight away, so the whole
+      // desktop became draggable the instant a thumb rested on a tile. A menu
+      // ought to freeze the thing it is about; a modal sheet does that for
+      // free, and only Resize inside it makes anything movable.
+      //
+      // It also gives remove, and eventually per-widget settings and stacks,
+      // somewhere to live. The old vocabulary was two handles on the selected
+      // tile, which is why nobody found anything but resize.
       onLongPress: () {
-        HapticFeedback.mediumImpact();
-        final edit = ref.read(deskletEditProvider.notifier);
-        edit.enter();
-        edit.select(desklet.id);
+        // The tile's own rectangle, so the menu opens beside it rather than at
+        // the bottom of the screen. Measured at press time because the tile
+        // moves whenever the grid reflows.
+        final box = context.findRenderObject() as RenderBox?;
+        final anchor = (box != null && box.hasSize)
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null;
+        showDeskletMenu(context, ref, theme, desklet, anchor: anchor);
       },
       child: Padding(
         padding: const EdgeInsets.all(DeskletSurfaceView.gutter / 2),
@@ -252,7 +288,15 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = theme.spec.desklets.skinFor(theme.shell, desklet.kind);
+    // ─── THE DISTRO'S SKIN, THEN THE PERSON'S ─────────────────────────────
+    //
+    // Same merge order as every other preference in the app: the distro
+    // provides the default and the user beats it. `mergedWith` inherits any key
+    // the override does not carry, so a widget with nothing set renders exactly
+    // as it did before per-widget settings existed.
+    final skin = theme.spec.desklets
+        .skinFor(theme.shell, desklet.kind)
+        .mergedWith(skinOverridesFor(desklet));
     final child = buildDesklet(theme, desklet, skin);
     if (child == null) return const SizedBox.shrink();
 
@@ -264,7 +308,12 @@ class _Tile extends StatelessWidget {
     // `SizedBox.expand` expands into infinity and asserts. So it takes the
     // bounded cell directly, which is also the correct behaviour — a widget
     // should occupy the rectangle you gave it, not be shrunk to its content.
-    if (desklet.kind == 'appwidget') {
+    // A STACK IS THE SAME CASE, for a different reason. It is a PageView, and a
+    // PageView cannot lay out with unbounded height: measured inside the
+    // FittedBox below it asserts before it ever paints. It also WANTS the whole
+    // rectangle, since its members are drawn into the stack's footprint rather
+    // than at their own natural sizes.
+    if (desklet.kind == 'appwidget' || desklet.kind == 'stack') {
       return SizedBox.expand(child: child);
     }
 
@@ -345,6 +394,20 @@ class DeskletPane extends ConsumerWidget {
 /// covered ones are simply behind it in the Stack and never receive the tap.
 /// Testing occupancy here as well would duplicate `DeskletLayout.at` for no
 /// gain, and the two copies would eventually disagree.
+/// The grid, while editing.
+///
+/// ─── WHY THIS IS PAINTED AND NOT 120 WIDGETS ────────────────────────────────
+///
+/// It used to build a rounded, bordered box with a plus icon in EVERY cell.
+/// Twenty of those on the old 4 by 5 grid reads fine. The desklet grid is 8 by
+/// 15 now, so the same code draws a hundred and twenty: a wall of plus signs
+/// dense enough to hide the desktop under it, and a hundred and twenty widgets
+/// rebuilt on every edit-mode frame.
+///
+/// So the grid is one painted layer of hairlines and the taps go through a
+/// single detector that works out which cell was hit from the coordinates. Same
+/// behaviour, two widgets instead of a hundred and twenty, and a grid that
+/// reads as a guide rather than as a form to fill in.
 class _EmptyCells extends ConsumerWidget {
   const _EmptyCells({
     required this.theme,
@@ -366,46 +429,68 @@ class _EmptyCells extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ink = theme.palette.onDark;
 
-    return Stack(
-      children: [
-        for (var r = 0; r < rows; r++)
-          for (var c = 0; c < cols; c++)
-            Positioned(
-              left: c * cellW,
-              top: r * cellH,
-              width: cellW,
-              height: cellH,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => showDeskletPicker(
-                  context,
-                  ref,
-                  theme,
-                  page: page,
-                  col: c,
-                  row: r,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: ink.withValues(alpha: 0.13),
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.add,
-                        size: 16,
-                        color: ink.withValues(alpha: 0.22),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-      ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // Which cell, from where the tap landed. `placeAt` already refuses an
+      // occupied cell and the caller falls back to the packer, so an occupied
+      // hit is handled and does not need excluding here.
+      onTapUp: (d) {
+        final c = (d.localPosition.dx / cellW).floor().clamp(0, cols - 1);
+        final r = (d.localPosition.dy / cellH).floor().clamp(0, rows - 1);
+        showDeskletPicker(context, ref, theme, page: page, col: c, row: r);
+      },
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _GridPainter(
+          cols: cols,
+          rows: rows,
+          cellW: cellW,
+          cellH: cellH,
+          color: ink.withValues(alpha: 0.10),
+        ),
+      ),
     );
   }
+}
+
+/// Hairlines on the cell boundaries. INTERIOR ONLY: a line around the whole
+/// workspace would read as a frame the desktop does not have.
+class _GridPainter extends CustomPainter {
+  const _GridPainter({
+    required this.cols,
+    required this.rows,
+    required this.cellW,
+    required this.cellH,
+    required this.color,
+  });
+
+  final int cols;
+  final int rows;
+  final double cellW;
+  final double cellH;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+
+    for (var c = 1; c < cols; c++) {
+      final x = c * cellW;
+      canvas.drawLine(Offset(x, 0), Offset(x, rows * cellH), paint);
+    }
+    for (var r = 1; r < rows; r++) {
+      final y = r * cellH;
+      canvas.drawLine(Offset(0, y), Offset(cols * cellW, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      old.cols != cols ||
+      old.rows != rows ||
+      old.cellW != cellW ||
+      old.cellH != cellH ||
+      old.color != color;
 }

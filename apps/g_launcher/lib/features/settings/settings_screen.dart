@@ -104,7 +104,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // The scaffold's own inset handling comes with the bar, so the manual
     // viewPadding on the list goes with the title.
     return ThemedScaffold(
-      title: 'Settings',
+      title: context.t('settings.settings'),
+      // ─── NO BACK ARROW: THIS IS A ROOT, NOT A STEP ──────────────────────
+      //
+      // Settings is reached from the drawer and from the desktop menu, both of
+      // which are dismissed rather than navigated away from, so there is
+      // nothing behind it to go back TO. Flutter offers the arrow because a
+      // route exists underneath; that route is the home screen, which the
+      // system back gesture already returns to.
+      //
+      // The section pages keep theirs: those genuinely are a step deeper and
+      // the arrow means what it says.
+      automaticallyImplyLeading: false,
+      // ─── NO BACK ARROW: THIS IS A ROOT, NOT A STEP ──────────────────────
+      //
+      // Settings is reached from the drawer and from the desktop menu, both of
+      // which are dismissed rather than navigated away from, so there is
+      // nothing behind it to go back TO. Flutter offers the arrow because a
+      // route exists underneath; that route is the home screen, which the
+      // system back gesture already returns to.
+      //
+      // The section pages below keep theirs: those genuinely are a step deeper
+      // and the arrow means what it says.
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 28),
         children: [
@@ -150,8 +171,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _Row(
                     icon: Icons.desktop_windows_outlined,
                     accent: true,
-                    title: 'Change desktop',
-                    subtitle: 'Settings below are stored per distro',
+                    title: context.t('settings.changeDesktop'),
+                    subtitle: context.t('settings.settingsBelowAreStored'),
                     trailing: const _Chevron(),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -176,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // without tapping anything, the way a desktop settings sidebar is.
             if (devices.isNotEmpty)
               _Group(
-                label: 'Device',
+                label: context.t('settings.device'),
                 rows: [
                   for (final d in devices)
                     _FilterRow(
@@ -195,14 +216,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
 
             _Group(
-              label: 'Desktop',
+              label: context.t('setup.step.distro'),
               rows: [
                 _FilterRow(
                   const ['appearance', 'wallpaper', 'icons', 'boot', 'labels'],
                   _Row(
                     icon: Icons.palette_outlined,
                     accent: true,
-                    title: 'Appearance',
+                    title: context.t('settings.appearance'),
                     trailing: const _Chevron(),
                     onTap: () => _openSection(
                       context,
@@ -216,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _Row(
                     icon: Icons.layers_outlined,
                     accent: true,
-                    title: 'Desktop and dock',
+                    title: context.t('settings.desktopAndDock'),
                     trailing: const _Chevron(),
                     onTap: () => _openSection(
                       context,
@@ -230,7 +251,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _Row(
                     icon: Icons.apps_outlined,
                     accent: true,
-                    title: 'Applications',
+                    title: context.t('settings.applications'),
                     trailing: const _Chevron(),
                     onTap: () => _openSection(
                       context,
@@ -244,7 +265,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _Row(
                     icon: Icons.gesture_outlined,
                     accent: true,
-                    title: 'Gestures',
+                    title: context.t('settings.gestures'),
                     trailing: const _Chevron(),
                     onTap: () =>
                         _openSection(context, 'Gestures', _gesturesSection),
@@ -281,15 +302,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
 
             _Group(
-              label: 'System',
+              label: context.t('settings.system'),
               rows: [
                 _FilterRow(
                   const ['system', 'android', 'reset', 'about', 'default'],
                   _Row(
                     icon: Icons.info_outline,
                     accent: true,
-                    title: 'System',
-                    subtitle: 'Android settings, maintenance, reset',
+                    title: context.t('settings.system'),
+                    subtitle: context.t('settings.androidSettingsMaintenanceReset'),
                     trailing: const _Chevron(),
                     onTap: () =>
                         _openSection(context, 'System', _systemSection),
@@ -934,7 +955,7 @@ class _GestureRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = _Skin.of(context);
-    final binding = bindingFor(theme.prefs, gesture);
+    final binding = bindingFor(theme, gesture);
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
     final label = binding.isApp ? 'Custom app' : binding.action.label;
@@ -1105,7 +1126,7 @@ void _showGridSheet(
           children: [
             _sheetHead(context, 'Desktop grid'),
             _StepRow(
-              label: 'Rows',
+              label: context.t('settings.rows'),
               value: theme.rows,
               min: 3,
               max: 8,
@@ -1115,7 +1136,7 @@ void _showGridSheet(
               },
             ),
             _StepRow(
-              label: 'Columns',
+              label: context.t('settings.columns'),
               value: theme.cols,
               min: 3,
               max: 7,
@@ -1364,11 +1385,11 @@ Future<void> _confirmReset(
   // AlertDialog got right only by luck of a single navigator.
   final ok = await ThemedDialog.confirm(
     context,
-    title: 'Reset settings?',
+    title: context.t('settings.resetSettings'),
     message:
         'Your ${theme.spec.name} layout, icon shape and hidden apps go back to '
         'the distro defaults. Other distros are untouched.',
-    confirmLabel: 'Reset',
+    confirmLabel: context.t('settings.reset'),
     cancelLabel: context.t('common.cancel'),
   );
   if (ok == true) notifier.resetAll();
@@ -1428,7 +1449,7 @@ class _DefaultLauncherBanner extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               ThemedButton(
-                label: 'Set',
+                label: context.t('settings.set'),
                 onPressed: api.requestDefaultLauncher,
               ),
             ],
@@ -1453,7 +1474,7 @@ class _GestureServiceCard extends ConsumerWidget {
   /// gesture list taxes everyone forever to reassure the few who ask. So the
   /// card states the offer in one line and the reasoning goes one tap away.
   static const _explainer =
-      'Android only lets a launcher pull down the shade, open quick settings, show recents or lock the screen through an accessibility service.\n\nThe next screen warns that G Launcher can "observe your actions". That is the standard wording for every app that uses this API.\n\nG Launcher does not read your screen and does not watch other apps. It asks only for the ability to perform the gestures you set here.\n\nGestures that do not need it — Activities, launching an app, showing the dock — work either way.';
+      'Android only lets a launcher pull down the shade, open quick settings, show recents or lock the screen through an accessibility service.\n\nThe next screen warns that G Launcher can "observe your actions". That is the standard wording for every app that uses this API.\n\nG Launcher does not read your screen and does not watch other apps. It asks only for the ability to perform the gestures you set here.\n\nGestures that do not need it, such as Activities, launching an app or showing the dock, work either way.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1498,14 +1519,14 @@ class _GestureServiceCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     ThemedButton(
-                      label: 'Turn it on',
+                      label: context.t('settings.turnItOn'),
                       onPressed: api.openAccessibilitySettings,
                     ),
                   ],
                 ),
               ),
-              const _InfoButton(
-                title: 'Why an accessibility service?',
+              _InfoButton(
+                title: context.t('settings.whyAnAccessibilityService'),
                 body: _explainer,
               ),
             ],
@@ -1641,8 +1662,33 @@ List<Widget> _appearanceSection(
     // there is, and because it is the one setting here that applies to EVERY
     // distro rather than the one on screen. It writes the same global value
     // the setup wizard's Appearance step does; see GlobalPrefs.themeMode.
+    // ─── SURFACES ──────────────────────────────────────────────────
+    //
+    // One slider for the whole launcher rather than a control per screen. How
+    // much wallpaper someone wants to see is a single preference, and a
+    // per-page version would mean a settings page and a sheet over it
+    // disagreeing about how solid they are, which reads as a rendering fault.
+    //
+    // The top bar is absent from the list below because it paints no fill at
+    // all: it has been fully transparent since the day the clock and tray came
+    // out of it, so there is nothing for this to make more transparent.
     _Group(
-      label: 'Light and dark',
+      label: context.t('settings.surfaces'),
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['opacity', 'transparency', 'surface', 'glass', 'wallpaper'],
+          _OpacityRow(
+            value: theme.surfaceOpacity,
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(surfaceOpacity: v)),
+          ),
+        ),
+      ],
+    ),
+
+    _Group(
+      label: context.t('settings.lightAndDark'),
       query: q,
       rows: [
         for (final e in const [
@@ -1670,8 +1716,8 @@ List<Widget> _appearanceSection(
             const ['light', 'dark'],
             _Row(
               icon: Icons.info_outline,
-              title: '${theme.spec.name} is dark only',
-              subtitle: 'Your choice applies to distros that ship both',
+              title: context.t('settings.distroDarkOnly', {'name': theme.spec.name}),
+              subtitle: context.t('settings.appliesToBoth'),
               trailing: const SizedBox.shrink(),
             ),
           ),
@@ -1680,7 +1726,7 @@ List<Widget> _appearanceSection(
 
     // ── Personalize ────────────────────────────────────────────────
     _Group(
-      label: 'Personalize',
+      label: context.t('settings.personalize'),
       query: q,
       rows: [
         _FilterRow(
@@ -1688,8 +1734,8 @@ List<Widget> _appearanceSection(
           _Row(
             icon: Icons.palette_outlined,
             accent: true, // leads with the distro accent
-            title: 'Distro',
-            subtitle: 'The whole desktop look',
+            title: context.t('settings.distro'),
+            subtitle: context.t('settings.theWholeDesktopLook'),
             trailing: _Value(theme.spec.name),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -1702,7 +1748,7 @@ List<Widget> _appearanceSection(
           const ['icon shape', 'circle', 'squircle', 'rounded'],
           _Row(
             icon: Icons.category_outlined,
-            title: 'Icon shape',
+            title: context.t('settings.iconShape'),
             subtitle: _shapeLong(theme.prefs.iconTreatment),
             trailing: _Value(_shapeShort(theme.prefs.iconTreatment)),
             onTap: () => _showShapeSheet(context, notifier, theme),
@@ -1719,7 +1765,7 @@ List<Widget> _appearanceSection(
             // distro is the other thing on this screen. The old title said
             // "Icon pack", which is what an APK from Play is — one of the two
             // sources the page now shows, not the whole subject.
-            title: 'Icons',
+            title: context.t('settings.icons'),
             // ─── THIS ROW WAS TAP-INERT AND SAID SO ────────────────────────
             //
             // It read "Adaptive — every app covered" with no onTap, and its
@@ -1742,8 +1788,8 @@ List<Widget> _appearanceSection(
           const ['wallpaper', 'background', 'photo', 'rotation'],
           _Row(
             icon: Icons.image_outlined,
-            title: 'Wallpaper',
-            subtitle: 'Presets, your photos, rotation',
+            title: context.t('settings.wallpaper'),
+            subtitle: context.t('settings.presetsYourPhotosRotation'),
             trailing: const _Chevron(),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -1763,10 +1809,10 @@ List<Widget> _appearanceSection(
           ],
           _ToggleRow(
             icon: Icons.terminal,
-            title: 'Verbose boot',
+            title: context.t('settings.verboseBoot'),
             // Off = the quick splash. On = the full [  OK  ] scroll every
             // time the shell opens, themed to this distro.
-            subtitle: 'Play the full Linux boot log on every launch',
+            subtitle: context.t('settings.playTheFullLinux'),
             // null = off; the toggle reads and writes an explicit bool.
             value: theme.prefs.verboseBoot ?? false,
             onChanged: (v) => notifier.edit((p) => p.copyWith(verboseBoot: v)),
@@ -1787,7 +1833,7 @@ List<Widget> _appearanceSection(
     // would sit above a filtered list looking like one.
     // ── Labels ─────────────────────────────────────────────────────
     _Group(
-      label: 'Icons and bar',
+      label: context.t('settings.iconsAndBar'),
       query: q,
       rows: [
         _FilterRow(
@@ -1795,11 +1841,11 @@ List<Widget> _appearanceSection(
           _Row(
             icon: Icons.photo_size_select_large_outlined,
             accent: true,
-            title: 'Icon size',
+            title: context.t('settings.iconSize'),
             trailing: _Value(_iconSizeLabel(theme.iconSizeDp)),
             onTap: () => _showSliderSheet(
               context,
-              title: 'Icon size',
+              title: context.t('settings.iconSize'),
               value: theme.iconSizeDp,
               min: 36,
               max: 72,
@@ -1814,11 +1860,11 @@ List<Widget> _appearanceSection(
             _Row(
               icon: Icons.rounded_corner_outlined,
               accent: true,
-              title: 'Corner roundness',
+              title: context.t('settings.cornerRoundness'),
               trailing: _Value('${(theme.icons.cornerRadius * 200).round()}%'),
               onTap: () => _showSliderSheet(
                 context,
-                title: 'Corner roundness',
+                title: context.t('settings.cornerRoundness'),
                 value: theme.icons.cornerRadius,
                 min: 0,
                 max: 0.5,
@@ -1833,7 +1879,7 @@ List<Widget> _appearanceSection(
           _ToggleRow(
             icon: Icons.web_asset_outlined,
             accent: true,
-            title: 'Top bar',
+            title: context.t('settings.topBar'),
             value: theme.topBar,
             onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
           ),
@@ -1841,21 +1887,21 @@ List<Widget> _appearanceSection(
       ],
     ),
     _Group(
-      label: 'Labels',
+      label: context.t('settings.labels'),
       query: q,
       rows: [
         _FilterRow(
           const ['wrap', 'app names', 'labels', 'truncate'],
           _ToggleRow(
             icon: Icons.wrap_text,
-            title: 'Wrap long app names',
+            title: context.t('settings.wrapLongAppNames'),
             // Reversed default. One line is now the default, because two
             // costs a whole ROW of grid height on every page to
             // accommodate the one app in twenty whose name wraps: on a
             // 412dp phone a paged drawer fits six rows at one line and
             // five at two. The setting stays for the people who would
             // rather read "Secure Folder" than "Secure Fold…".
-            subtitle: 'Two lines instead of one',
+            subtitle: context.t('settings.twoLinesInsteadOf'),
             value: theme.labelLines > 1,
             onChanged: (v) =>
                 notifier.edit((p) => p.copyWith(labelLines: v ? 2 : 1)),
@@ -1865,11 +1911,11 @@ List<Widget> _appearanceSection(
           const ['text size', 'font size', 'labels'],
           _Row(
             icon: Icons.format_size,
-            title: 'Text size',
+            title: context.t('settings.textSize'),
             trailing: _Value('${(theme.textScale * 100).round()}%'),
             onTap: () => _showSliderSheet(
               context,
-              title: 'Text size',
+              title: context.t('settings.textSize'),
               value: theme.textScale,
               min: 0.8,
               max: 1.4,
@@ -1912,7 +1958,7 @@ List<Widget> _desktopSection(
 
     // ── Layout ─────────────────────────────────────────────────────
     _Group(
-      label: 'Layout',
+      label: context.t('settings.layout'),
       query: q,
       rows: [
         _FilterRow(
@@ -1920,7 +1966,7 @@ List<Widget> _desktopSection(
           _Row(
             icon: Icons.dashboard_outlined,
             accent: true,
-            title: 'Dock position',
+            title: context.t('settings.dockPosition'),
             trailing: _Seg(
               // theme.dock is already the effective value (pref or default).
               value: theme.dock.name,
@@ -1938,8 +1984,8 @@ List<Widget> _desktopSection(
           _Row(
             icon: Icons.apps_outlined,
             accent: true,
-            title: 'Activities button',
-            subtitle: 'Where the app-grid button sits in the dock',
+            title: context.t('settings.activitiesButton'),
+            subtitle: context.t('settings.whereTheAppGrid'),
             trailing: _Seg(
               value: theme.prefs.dockGridButton ?? 'end', // Ubuntu default
               options: const {
@@ -1970,8 +2016,8 @@ List<Widget> _desktopSection(
           _Row(
             icon: Icons.grid_view_outlined,
             accent: true,
-            title: 'Desktop grid',
-            subtitle: 'Rows × columns',
+            title: context.t('settings.desktopGrid'),
+            subtitle: context.t('settings.rowsColumns'),
             trailing: _ChipValue(
               label: '${theme.rows} × ${theme.cols}',
               preview: DevicePreview(
@@ -1989,12 +2035,12 @@ List<Widget> _desktopSection(
           _Row(
             icon: Icons.dashboard_customize_outlined,
             accent: true,
-            title: 'Workspaces',
-            subtitle: 'Vertical desktops you swipe between',
+            title: context.t('settings.workspaces'),
+            subtitle: context.t('settings.verticalDesktopsYouSwipe'),
             trailing: _Value('$workspaces'),
             onTap: () => _showStepperSheet(
               context,
-              title: 'Workspaces',
+              title: context.t('settings.workspaces'),
               value: workspaces,
               min: WorkspaceCount.min,
               max: WorkspaceCount.max,
@@ -2028,7 +2074,7 @@ List<Widget> _applicationsSection(
 
   return [
     _Group(
-      label: 'App drawer',
+      label: context.t('settings.appDrawer_2'),
       query: q,
       rows: [
         _FilterRow(
@@ -2036,7 +2082,7 @@ List<Widget> _applicationsSection(
           _Row(
             icon: Icons.view_column_outlined,
             accent: true,
-            title: 'Drawer columns',
+            title: context.t('settings.drawerColumns'),
             trailing: _ChipValue(
               label: '${theme.drawerCols}',
               preview: DevicePreview(
@@ -2047,7 +2093,7 @@ List<Widget> _applicationsSection(
             ),
             onTap: () => _showStepperSheet(
               context,
-              title: 'Drawer columns',
+              title: context.t('settings.drawerColumns'),
               value: theme.drawerCols,
               min: 3,
               max: 8,
@@ -2067,14 +2113,14 @@ List<Widget> _applicationsSection(
           _Row(
             icon: Icons.view_carousel_outlined,
             accent: true,
-            title: 'Drawer scrolls',
-            subtitle: 'One long list, or paged',
+            title: context.t('settings.drawerScrolls'),
+            subtitle: context.t('settings.oneLongListOr'),
             // Inline segments, not a sheet: this is three options that
             // change instantly and are worth trying against each other.
             // Making someone open a sheet to compare them is the friction
             // that stops anyone discovering the cube at all.
             trailing: _Seg(
-              value: theme.prefs.drawerScrollStyle ?? 'pages',
+              value: theme.drawerScrollStyle,
               options: const {
                 'vertical': 'List',
                 'pages': 'Pages',
@@ -2103,12 +2149,12 @@ List<Widget> _applicationsSection(
           const ['a to z', 'az', 'alphabet', 'grouping', 'sections'],
           _ToggleRow(
             icon: Icons.sort_by_alpha,
-            title: 'Group A to Z',
-            subtitle: (theme.prefs.drawerScrollStyle ?? 'pages') == 'vertical'
+            title: context.t('settings.groupAToZ'),
+            subtitle: theme.drawerScrollStyle == 'vertical'
                 ? 'Letter headings down the list'
                 : 'Only on the list layout',
-            value: (theme.prefs.drawerGrouping ?? 'none') == 'az',
-            enabled: (theme.prefs.drawerScrollStyle ?? 'pages') == 'vertical',
+            value: theme.drawerGrouping == 'az',
+            enabled: theme.drawerScrollStyle == 'vertical',
             onChanged: (v) => notifier.edit(
               (p) => p.copyWith(drawerGrouping: v ? 'az' : 'none'),
             ),
@@ -2124,8 +2170,8 @@ List<Widget> _applicationsSection(
           _Row(
             icon: Icons.search,
             accent: true,
-            title: 'Search bar',
-            subtitle: 'Where the drawer\'s search sits',
+            title: context.t('settings.searchBar'),
+            subtitle: context.t('settings.whereDrawerSearch'),
             trailing: _Seg(
               value: theme.prefs.drawerSearchPosition ?? 'bottom',
               options: const {
@@ -2160,8 +2206,8 @@ List<Widget> _applicationsSection(
           _Row(
             icon: Icons.folder_outlined,
             accent: true,
-            title: 'Apps and folders',
-            subtitle: 'Grid, shape, and suggested groups',
+            title: context.t('settings.appsAndFolders'),
+            subtitle: context.t('settings.gridShapeAndSuggested'),
             trailing: _ChipValue(
               preview: DevicePreview(
                 palette: theme.palette,
@@ -2206,7 +2252,7 @@ List<Widget> _gesturesSection(
     // ── Gestures ───────────────────────────────────────────────────
     const _GestureServiceCard(),
     _Group(
-      label: 'Gestures',
+      label: context.t('settings.gestures'),
       query: q,
       rows: [
         for (final g in Gesture.values)
@@ -2241,14 +2287,14 @@ List<Widget> _systemSection(
   return [
     // ── System (hands off to Android) ──────────────────────────────
     _Group(
-      label: 'System — opens Android settings',
+      label: context.t('settings.systemOpensAndroidSettings'),
       query: q,
       rows: [
         _FilterRow(
           const ['default launcher', 'home app', 'set default'],
           _Row(
             icon: Icons.home_outlined,
-            title: 'Set as default launcher',
+            title: context.t('settings.setAsDefaultLauncher'),
             trailing: const _SysBadge(),
             onTap: api.requestDefaultLauncher,
           ),
@@ -2257,7 +2303,7 @@ List<Widget> _systemSection(
           const ['notifications', 'access', 'permissions'],
           _Row(
             icon: Icons.notifications_outlined,
-            title: 'Notifications & access',
+            title: context.t('settings.notificationsAccess'),
             trailing: const _SysBadge(),
             onTap: () => api.openAndroidSettings(
               'android.settings.APP_NOTIFICATION_SETTINGS',
@@ -2269,20 +2315,20 @@ List<Widget> _systemSection(
 
     // ── Maintenance ────────────────────────────────────────────────
     _Group(
-      label: 'Maintenance',
+      label: context.t('settings.maintenance'),
       query: q,
       rows: [
         _FilterRow(
           const ['rebuild icon cache', 'icons', 'stale', 'cache'],
           _Row(
             icon: Icons.refresh,
-            title: 'Rebuild icon cache',
-            subtitle: 'If icons look wrong or stale',
+            title: context.t('settings.rebuildIconCache'),
+            subtitle: context.t('settings.ifIconsLookWrong'),
             trailing: const _Chevron(),
             onTap: () async {
               await api.clearIconCache();
               if (context.mounted) {
-                context.showMessage('Icon cache cleared');
+                context.showMessage(context.t('settings.iconCacheCleared'));
               }
             },
           ),
@@ -2291,9 +2337,9 @@ List<Widget> _systemSection(
           ['reset', 'defaults', theme.spec.name.toLowerCase()],
           _Row(
             icon: Icons.settings_backup_restore,
-            title: 'Reset ${theme.spec.name} settings',
+            title: context.t('settings.resetDistro', {'name': theme.spec.name}),
             // Per-theme, per §5.3 — resetting Ubuntu must not touch KDE.
-            subtitle: 'Layout, icon shape and hidden apps',
+            subtitle: context.t('settings.layoutIconShapeAnd'),
             trailing: const _Chevron(),
             onTap: () => _confirmReset(context, notifier, theme),
           ),
@@ -2410,4 +2456,64 @@ class _RowIcons extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_RowIcons oldWidget) => oldWidget.show != show;
+}
+
+
+/// The surface opacity slider.
+///
+/// Its own widget because a `_Row` is an icon, two lines of text and a trailing
+/// slot, and a slider is none of those. Built from chrome tokens the same way
+/// `_SuggestionRow` in folders_screen is, which is the established way this app
+/// makes a row that the primitive does not cover.
+class _OpacityRow extends StatelessWidget {
+  const _OpacityRow({required this.value, required this.onChanged});
+
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.opacity, size: 20, color: c.textMuted),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(context.t('settings.surfaceOpacity'),
+                    style: d.text.body),
+              ),
+              Text('${(value * 100).round()}%',
+                  style: d.text.value.copyWith(color: c.textMuted)),
+            ],
+          ),
+          ThemedSlider(
+            value: value,
+            // 0.6 to 1.0, and the floor is the point. Below it a settings page
+            // stops being readable over an arbitrary photograph, and
+            // EffectiveTheme.surfaceOpacity clamps to the same bounds so a
+            // value from anywhere else cannot get past it either.
+            min: 0.6,
+            max: 1.0,
+            divisions: 8,
+            label: '${(value * 100).round()}%',
+            onChanged: onChanged,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 34, bottom: 4),
+            child: Text(
+              context.t('settings.surfaceOpacitySub'),
+              style: d.text.caption.copyWith(color: c.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

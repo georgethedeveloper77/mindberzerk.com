@@ -7,13 +7,14 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 // `show ThemePalette` is MANDATORY here, not tidiness: DockSide is declared in
 // BOTH theme_spec.dart and dock_metrics.dart, and an unrestricted import of
 // theme_spec into a file that also sees dock metrics is an ambiguous-import
 // error that reads as if neither declaration exists.
 import '../../engine/theme_spec.dart' show ThemePalette;
-import '../../platform/launcher_api.g.dart' as api;
 import 'desklet_edit.dart';
+import 'desklet_menu.dart';
 
 /// One desklet, while the desktop is being edited. PHASE D4.
 ///
@@ -105,7 +106,7 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     // in DeskletLayout is written to return `p` rather than a copy.
     if (identical(after, before)) {
       HapticFeedback.heavyImpact();
-      context.showMessage('No room there');
+      context.showMessage(context.t('desklets.noRoomThere'));
       return;
     }
 
@@ -149,7 +150,7 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     // all along; there was no reason for this one to stay quiet.
     if (identical(after, before)) {
       HapticFeedback.heavyImpact();
-      if (mounted) context.showMessage('No room to grow');
+      if (mounted) context.showMessage(context.t('desklets.noRoomToGrow'));
       return;
     }
 
@@ -166,6 +167,16 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     final w = _d.spanX * widget.cellW + _grow.width;
     final h = _d.spanY * widget.cellH + _grow.height;
 
+    // The span this resize WOULD commit, by the same rounding `_resizeEnd`
+    // uses. Derived from that one arithmetic rather than re-guessed, so the
+    // number on screen and the number stored can never disagree; a chip that
+    // says 4 x 3 and commits 4 x 4 is worse than no chip.
+    final pendingX = _d.spanX + (_grow.width / widget.cellW).round();
+    final pendingY = _d.spanY + (_grow.height / widget.cellH).round();
+    // `_resizing`, the existing flag set on pan start, not `_grow != zero`:
+    // the latter is false for the first few pixels of a drag, so the chip would
+    // appear late and flicker at the moment the user most needs it.
+
     return Transform.translate(
       offset: _drag,
       child: SizedBox(
@@ -174,6 +185,40 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
+            if (_resizing)
+              // ─── THE SIZE CHIP ────────────────────────────────────────
+              //
+              // Resize was a corner handle and a rectangle that grew, with
+              // nothing saying where the boundary between one span and the next
+              // fell. On the fine grid a cell is 42 by 47, so the difference
+              // between committing 4 and committing 5 is a thumb's width and
+              // entirely invisible.
+              //
+              // Below the tile rather than inside it: a widget being resized is
+              // the thing you are looking at, and a label over its middle
+              // covers exactly what you are judging.
+              Positioned(
+                left: 0,
+                bottom: -26,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: p.bgBottom.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    child: Text(
+                      '$pendingX x $pendingY',
+                      style: TextStyle(
+                        color: p.onDark,
+                        fontSize: 11,
+                        fontFamily: widget.theme.typography.mono,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -245,20 +290,15 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                 top: -10,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    ref.read(deskletEditProvider.notifier).select(null);
-                    // A hosted AppWidget owns a native allocation; release it or
-                    // it leaks for the life of the install. Other kinds are pure
-                    // Dart and have nothing to free.
-                    if (_d.kind == 'appwidget') {
-                      final id = _d.config['widgetId'];
-                      if (id is int) {
-                        api.LauncherHostApi().removeWidget(id);
-                      }
-                    }
-                    _edit((prefs) => DeskletLayout.remove(prefs, _d.id));
-                  },
+                  // One removal, shared with the long-press menu.
+                  //
+                  // A hosted AppWidget owns a native allocation that has to be
+                  // released or it leaks for the life of the install, and that
+                  // knowledge used to live only here, in the badge that was
+                  // then the only way to remove anything. Now that the menu can
+                  // remove too, two copies of "remember to free the native
+                  // thing" is one copy too many.
+                  onTap: () => removeDesklet(ref, widget.theme, _d),
                   child: _Handle(palette: p, icon: Icons.close, danger: true),
                 ),
               ),

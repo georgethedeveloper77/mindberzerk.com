@@ -158,13 +158,18 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // notices; paged and cube are the personalization payoff.
         // PAGES IS THE DEFAULT, and this fallback is what changes it for
         // everyone rather than only for new installs: the pref is nullable,
-        // and null has always meant "whatever this line says".
+        // and null means "the resolver decides".
         //
         // Applying it to existing users was a deliberate call. The alternative
         // is writing 'vertical' into every existing profile on upgrade, which
         // freezes them on the layout they never chose and makes the default a
         // lie for the rest of the app's life.
-        final style = theme.prefs.drawerScrollStyle ?? 'pages';
+        //
+        // RESOLVED, no local fallback: since distros can author their own
+        // drawer default, `prefs ?? 'pages'` here would be only half the
+        // chain. LayoutResolver owns user-then-theme-then-engine; this widget
+        // just renders the answer.
+        final style = theme.drawerScrollStyle;
 
         // ── THE EMPTY FIRST ROW ─────────────────────────────────────────
         //
@@ -208,8 +213,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // Grouping only applies to the alphabetical list; letter headers over
         // a usage ranking or a custom arrangement would label an order that
         // is not alphabetical. See LauncherPrefs.drawerGrouping.
-        final groupAz =
-            mode == 'az' && (theme.prefs.drawerGrouping ?? 'none') == 'az';
+        final groupAz = mode == 'az' && theme.drawerGrouping == 'az';
 
         // ── OVERFLOW MENU, SORT SHEET, AND THE HANDLERS BEHIND THEM ─────
         //
@@ -217,6 +221,26 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // facts (columns, tile height, constraints) that only exist inside
         // this LayoutBuilder, and seeding Custom must freeze exactly what is
         // on screen.
+
+        // ─── ONE ROW COUNT, SHARED ──────────────────────────────────────
+        //
+        // The rows the pager ACTUALLY rendered, falling back to an estimate on
+        // the very first frame. The estimate subtracts a nominal 66 for the
+        // search bar and is only ever an estimate; the pager measures the box
+        // it is really given.
+        //
+        // Hoisted above the handlers because `addPage` reads the same grid the
+        // body renders, and the grid provider is keyed on this number. Two
+        // derivations would mean the button counted pages against one shape
+        // while the screen drew another.
+        final rowsNow = _pagedRows ??
+            DrawerPager.rowsFor(
+              maxHeight: constraints.maxHeight - (showSearch ? 66 : 0),
+              tileHeight: tileH,
+              topPadding: topGap,
+            );
+
+        final gridKey = (theme: theme, cols: columns, rows: rowsNow);
 
         void enterCustom() {
           final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
@@ -239,17 +263,6 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             for (final a in apps)
               if (!foldedNow.contains(a.componentKey)) a.componentKey,
           ];
-
-          // The rows the pager actually rendered, else the shared formula
-          // against the body's approximate height (the vertical list never
-          // reports rows because it has none).
-          final rowsNow = _pagedRows ??
-              DrawerPager.rowsFor(
-                maxHeight:
-                    constraints.maxHeight - (showSearch ? 66.0 : 0.0),
-                tileHeight: tileH,
-                topPadding: topGap,
-              );
 
           notifier.edit(
             (p) => DrawerSlots.seed(
@@ -320,7 +333,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         void addPage() {
           final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
               theme.prefs;
-          final grid = ref.read(drawerCustomGridProvider(theme));
+          final grid = ref.read(drawerCustomGridProvider(gridKey));
           // Against the CURRENT page count rather than the stored one, so the
           // first tap on an auto-sized drawer grows it by one rather than
           // jumping to 1 and appearing to do nothing.
@@ -358,16 +371,65 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         final Widget body;
 
         if (mode == 'custom') {
-          final grid = ref.watch(drawerCustomGridProvider(theme));
+          // ── THE GRID FOLLOWS THE SCREEN, LIKE EVERY OTHER MODE ────────
+          //
+          // The row count came from `drawerSlotRows`, frozen when Custom was
+          // first entered, and was handed to the pager as `rowsOverride`. Two
+          // things went wrong with that and the second was mine.
+          //
+          // Custom rendered a different number of rows from alphabetical, so
+          // switching sort mode reshuffled the whole page. And once cells were
+          // sized to their contents the frozen count stopped fitting, at which
+          // point the pager's squeeze shrank the cells to make it fit, and
+          // shrinking a content-sized cell clips exactly one thing: the label
+          // on the last row.
+          //
+          // So the count is derived here with the SAME arithmetic the ordinary
+          // paged branch uses, and a stored arrangement whose shape no longer
+          // matches is re-packed onto the new one below.
+          final grid = ref.watch(drawerCustomGridProvider(gridKey));
+
+          // Persist the new shape once, post-frame, so the stored slots agree
+          // with what is on screen. Order survives; see DrawerSlots.reflow.
+          // Post-frame because a provider cannot be written during build, and
+          // guarded on a real difference so it settles after one pass.
+          if (theme.prefs.drawerSlotCols != columns ||
+              theme.prefs.drawerSlotRows != rowsNow) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                    (p) => DrawerSlots.reflow(
+                      p,
+                      cols: columns,
+                      rows: rowsNow,
+                      liveAppKeys: {
+                        for (final i in items)
+                          if (i is AppDrawerItem) i.entry.componentKey,
+                      },
+                      liveFolderIds: {
+                        for (final i in items)
+                          if (i is FolderDrawerItem) i.folder.id,
+                      },
+                    ),
+                  );
+            });
+          }
+
           final per = grid.cols * grid.rows;
           body = Expanded(
             child: DrawerPager(
               itemCount: grid.cells.length,
               columns: grid.cols,
-              rowsOverride: grid.rows,
               aspectRatio: aspect,
               cube: style == 'cube',
               dragPaging: true,
+              // Reported after layout, so the grid provider and the pager agree
+              // on the row count from the second frame onward.
+              onRows: (r) {
+                if (_pagedRows != r && mounted) {
+                  setState(() => _pagedRows = r);
+                }
+              },
               topPadding: topGap,
               initialPage: ref.read(drawerPageProvider),
               onPage: (p) =>
@@ -407,6 +469,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               aspectRatio: aspect,
               cube: style == 'cube',
               topPadding: topGap,
+              // Assigned without setState: the ordinary paged branch does not
+              // rebuild on it, it is only read when Custom is entered to seed
+              // the frozen count. The custom branch above DOES need a rebuild,
+              // which is why it has its own handler.
               onRows: (r) => _pagedRows = r,
               initialPage: ref.read(drawerPageProvider),
               onPage: (p) =>
@@ -568,21 +634,41 @@ class _TileLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      maxLines: labelLines,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: _tileFontSize * theme.textScale,
-        // EXPLICIT, and it has to be: the cell height is computed from this
-        // exact multiplier in GridMetrics.cellHeightFor. Leaving it to the
-        // font's own default means the measurement and the drawing disagree by
-        // however much Ubuntu's metrics differ from Inter's, which is a clipped
-        // descender nobody can explain.
-        height: GridMetrics.labelLineHeight,
-        color: theme.palette.onDark,
-        fontFamily: theme.typography.display,
+    final fontSize = _tileFontSize * theme.textScale;
+
+    // ─── A BOX OF EXACTLY THE HEIGHT THE CELL WAS SIZED FOR ──────────────
+    //
+    // The cell height is computed from `GridMetrics.labelBlockFor`, and until
+    // now nothing made the label that tall: the two agreed only while the
+    // font's own metrics happened to match the multiplier. They do not. Ubuntu
+    // is not Inter, and a fallback face for a script Ubuntu lacks is neither.
+    //
+    // The overflow lands on the LAST ROW every time, which is what makes it
+    // look like a last-row bug rather than a per-tile one: every row above has
+    // another row beneath it to push into, and the bottom one has the edge of
+    // the page.
+    //
+    // Boxed, the arithmetic and the widget are the same number by construction.
+    // A taller face ellipsises inside its own box instead of pushing the grid
+    // past its bottom edge.
+    return SizedBox(
+      height: GridMetrics.labelBlockFor(
+        labelLines: labelLines,
+        fontSize: fontSize,
+        textScaler: MediaQuery.textScalerOf(context).scale(1),
+      ),
+      child: Text(
+        text,
+        maxLines: labelLines,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: fontSize,
+          // Explicit, and it has to match labelBlockFor's multiplier exactly.
+          height: GridMetrics.labelLineHeight,
+          color: theme.palette.onDark,
+          fontFamily: theme.typography.display,
+        ),
       ),
     );
   }
@@ -1578,6 +1664,7 @@ void _showDrawerOverflowMenu(
     typography: theme.typography,
     textScale: theme.textScale,
     family: theme.chromeFamily,
+    opacity: theme.surfaceOpacity,
   );
 
   const width = 220.0;
@@ -1757,6 +1844,24 @@ class _DropFeedback extends StatelessWidget {
             color: merging && hovering
                 ? theme.palette.onDark.withValues(alpha: 0.12)
                 : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          // ─── foregroundDecoration, NOT decoration ────────────────────
+          //
+          // A `Border` in `decoration` is LAYOUT: it insets the child by its
+          // width on every side. This one is 2 and it is always 2, transparent
+          // when idle, precisely so the tile does not jump when the merge ring
+          // appears. Which means every tile in the drawer was quietly losing
+          // 4dp of height to a border nobody could see, in every sort mode.
+          //
+          // The cell has 8dp of breathing room, so four went to this and the
+          // last row had four left for whatever the font's metrics wanted.
+          // That is the margin the labels were disappearing into.
+          //
+          // `foregroundDecoration` paints OVER the child and takes no space, so
+          // the ring still appears without moving anything, and the tile gets
+          // its full cell.
+          foregroundDecoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: merging && z != null

@@ -223,13 +223,16 @@ class LauncherHostApiImpl(
     override fun setWallpaper(
         source: String,
         applyToLock: Boolean,
+        fit: String,
+        letterboxColor: Long,
         callback: (Result<Boolean>) -> Unit,
     ) {
         // Decoding + pushing a full wallpaper takes hundreds of ms. Never on the
         // main thread — this would be a visible freeze on the home screen.
         io.execute {
-            val ok = runCatching { wallpaper.setWallpaper(source, applyToLock) }
-                .getOrDefault(false)
+            val ok = runCatching {
+                wallpaper.setWallpaper(source, applyToLock, fit, letterboxColor)
+            }.getOrDefault(false)
             main.post { callback(Result.success(ok)) }
         }
     }
@@ -238,8 +241,12 @@ class LauncherHostApiImpl(
         minutes: Long,
         sources: List<String>,
         applyToLock: Boolean,
+        fit: String,
+        letterboxColor: Long,
     ) {
-        WallpaperWorker.schedule(appContext, minutes, sources, applyToLock)
+        WallpaperWorker.schedule(
+            appContext, minutes, sources, applyToLock, fit, letterboxColor,
+        )
     }
 
     override fun cancelWallpaperRotation() = WallpaperWorker.cancel(appContext)

@@ -123,6 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               typography: t.typography,
               textScale: t.textScale,
               family: t.chromeFamily,
+              opacity: t.surfaceOpacity,
             ),
             child: BootGate(
               colors: BootColors.fromPalette(

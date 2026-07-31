@@ -61,6 +61,23 @@ const fallbackThemeId = 'ubuntu-24-04';
 /// the remote manifest merge on top; the SHAPE the rest of the app reads,
 /// id -> a resolvable ThemeSpec source, does not change.
 ///
+/// ─── A BUNDLED ID CAN NOW BE SUPERSEDED ─────────────────────────────────────
+///
+/// It used to be a stated invariant that a bundled id could never also be
+/// installed, and `activeThemeSpecProvider` checked bundled first because of
+/// it. That is no longer true and the ordering there is now the other way
+/// round: publishing `ubuntu-24-04` over the CDN replaces the copy in the APK
+/// on any phone that downloads it.
+///
+/// This is what makes a fix to a free distro shippable without a Play release,
+/// which was the reason for the pipeline in the first place.
+///
+/// What has NOT changed is that bundled implies free. A republished free distro
+/// is still free: it carries no SKU, the panel adds no entitlement for it, and
+/// nothing about the security property above is weakened. And the APK copy
+/// stays the floor, so a corrupt or too-new upload falls back to it rather than
+/// taking the distro away from anyone.
+///
 /// `fedora-41`, `arch-hyprland` and `aqua` USED TO BE HERE and were moved out
 /// to the CDN when the free/paid line was drawn. Removing them from this map is
 /// what takes them out of the APK; their `assets/themes/<id>/` directories and

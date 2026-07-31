@@ -60,7 +60,17 @@ class GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    // The user's surface setting, applied to this panel's own two layers.
+    //
+    // `c.tint` and `c.surface` are palette colours composed here rather than
+    // taken ready-made, so the fills that ChromeData already made translucent
+    // do not reach this widget. Scaling both by the same amount keeps a sheet
+    // in step with the page behind it; a panel that stayed solid while every
+    // page went see-through would read as a bug rather than a setting.
+    final o = d.opacity;
 
     return ClipRRect(
       borderRadius: borderRadius,
@@ -68,7 +78,7 @@ class GlassPanel extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: c.tint.withValues(alpha: _tintAlpha),
+            color: c.tint.withValues(alpha: _tintAlpha * o),
             borderRadius: borderRadius,
             // The edge is not decoration. A translucent panel over a busy
             // wallpaper has no boundary at all without one.
@@ -76,7 +86,7 @@ class GlassPanel extends StatelessWidget {
           ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: c.surface.withValues(alpha: _surfaceAlpha),
+              color: c.surface.withValues(alpha: _surfaceAlpha * o),
               borderRadius: borderRadius,
             ),
             child: child,

@@ -1143,14 +1143,21 @@ class LauncherHostApi {
   /// [source] is "asset:<path>" (a theme preset) or a content:// URI the user
   /// picked. Returns false on failure — a bad image must not take the launcher
   /// down; the user simply keeps the wallpaper they had.
-  Future<bool> setWallpaper(String source, bool applyToLock) async {
+  /// [fit] is how the image meets the screen: 'cover' | 'contain' | 'fill' |
+  /// 'center'. A STRING, NOT AN ENUM, same rule as `brandTreatment`: a third
+  /// enum would renumber this codec's positional ids, and an unknown value
+  /// from a newer build must degrade (natively, to 'cover') rather than fail
+  /// to parse. 'cover' is byte-for-byte the legacy path, so existing users
+  /// see no change. [letterboxColor] is the ARGB that fills the bars 'contain'
+  /// and 'center' leave; the Dart side passes the theme palette's background.
+  Future<bool> setWallpaper(String source, bool applyToLock, String fit, int letterboxColor) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[source, applyToLock]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[source, applyToLock, fit, letterboxColor]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1167,14 +1174,17 @@ class LauncherHostApi {
   /// [minutes] is CLAMPED TO 15 — WorkManager's hard floor. Do not offer a
   /// shorter interval in the UI and quietly deliver fifteen; lying about a
   /// setting is worse than not having it.
-  Future<void> scheduleWallpaperRotation(int minutes, List<String> sources, bool applyToLock) async {
+  /// [fit] and [letterboxColor] as on [setWallpaper]: the worker stores them
+  /// beside the source list so every rotation tick renders the same way a
+  /// manual apply does.
+  Future<void> scheduleWallpaperRotation(int minutes, List<String> sources, bool applyToLock, String fit, int letterboxColor) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.scheduleWallpaperRotation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minutes, sources, applyToLock]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minutes, sources, applyToLock, fit, letterboxColor]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

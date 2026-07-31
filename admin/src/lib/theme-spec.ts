@@ -70,9 +70,64 @@ export interface ThemeTypographyJson {
   mono?: string | null;
 }
 
+/** Which edge the shell bar sits on. All four are offered now that the shell
+ *  lays out along either axis. A vertical bar shrinks the workspace rather than
+ *  overlapping the dock, because the dock is positioned inside the workspace
+ *  rather than the shell. */
+export const TOP_BAR_SIDES = ['top', 'bottom', 'left', 'right'] as const;
+export type TopBarSideName = (typeof TOP_BAR_SIDES)[number];
+
+export interface ThemeFontJson {
+  family: string;
+  /** BARE filenames. Pack assets are flat: `PackPaths.installedFile` refuses a
+   *  separator, so a path here downloads and then fails to open. */
+  files: string[];
+}
+
+/** What a panel can carry. Mirrors PanelModule on the device, and the omissions
+ *  are the point: no clock and no battery, because Android's own status bar
+ *  shows both a few pixels away and duplicating them is the opposite of
+ *  authentic. */
+export const PANEL_MODULES = [
+  'activities',
+  'network',
+  'memory',
+  'storage',
+  'spacer',
+] as const;
+export type PanelModuleName = (typeof PANEL_MODULES)[number];
+
+export interface PanelJson {
+  side: TopBarSideName;
+  /** In order, leading edge first. A `spacer` splits the run. */
+  modules: PanelModuleName[];
+  /** Thickness in dp. Omit for the shell's own default. */
+  height?: number;
+}
+
+export const WORKSPACE_AXES = ['vertical', 'horizontal'] as const;
+export type WorkspaceAxisName = (typeof WORKSPACE_AXES)[number];
+
 export interface ThemeLayoutJson {
   dock: DockName;
   topBar: boolean;
+  /** Absent means `top`, which is what every theme authored before this field
+   *  existed gets, and what every GNOME-family desktop does anyway. */
+  topBarSide?: TopBarSideName;
+  /** Live readouts in the bar: throughput, memory, free space. Never a clock or
+   *  a battery percentage, which Android's own status bar already shows.
+   *
+   *  SUPERSEDED BY `panels`. Kept because every theme authored before panels
+   *  existed still uses it, and the device synthesises a panel from it when
+   *  `panels` is absent. */
+  topBarStats?: boolean;
+  /** Every panel this distro draws. Supersedes `topBar`, `topBarSide` and
+   *  `topBarStats` when present: the device stops synthesising and uses these
+   *  verbatim. This is what lets Xfce ship a top bar AND a bottom one. */
+  panels?: PanelJson[];
+  /** Which way workspaces page. Absent means vertical, which is GNOME's answer
+   *  and what the shell has always done. macOS Spaces are horizontal. */
+  workspaceAxis?: WorkspaceAxisName;
   grid?: { rows: number; cols: number };
   iconScale?: number;
 }
@@ -113,6 +168,10 @@ export interface ThemeSpecJson {
   icons?: IconStyleJson | null;
   logo?: unknown;
   wallpapers: string[];
+  /** Font families the pack ships. A family named in `typography` only resolves
+   *  if it is declared in pubspec, which a downloaded pack cannot do, so it
+   *  carries its own files and they are registered at runtime. */
+  fonts?: ThemeFontJson[];
   minAppVersion: number;
   boot?: unknown;
   splash?: unknown;
@@ -226,6 +285,31 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
   out.layout = {
     dock: spec.layout.dock,
     topBar: spec.layout.topBar,
+    // Emitted only when they differ from the device's own defaults, so a theme
+    // that does not care about either stays as small as it was before the
+    // fields existed. The device reads an absent key as top / off.
+    ...(spec.layout.topBarSide && spec.layout.topBarSide !== 'top'
+      ? { topBarSide: spec.layout.topBarSide }
+      : {}),
+    ...(spec.layout.topBarStats ? { topBarStats: true } : {}),
+    // Emitted verbatim when authored. The device stops synthesising the moment
+    // this key exists, so a half-written panels array would silently replace a
+    // working legacy bar; the filter below drops panels with no modules rather
+    // than shipping one.
+    ...(spec.layout.panels?.length
+      ? {
+          panels: spec.layout.panels
+            .filter((p) => p.modules.length)
+            .map((p) => ({
+              side: p.side,
+              modules: [...p.modules],
+              ...(p.height != null ? { height: p.height } : {}),
+            })),
+        }
+      : {}),
+    ...(spec.layout.workspaceAxis && spec.layout.workspaceAxis !== 'vertical'
+      ? { workspaceAxis: spec.layout.workspaceAxis }
+      : {}),
     ...(spec.layout.grid
       ? { grid: { rows: spec.layout.grid.rows, cols: spec.layout.grid.cols } }
       : {}),
@@ -234,6 +318,11 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
 
   if (spec.icons && Object.keys(pruneIcons(spec.icons)).length) {
     out.icons = pruneIcons(spec.icons);
+  }
+  if (spec.fonts?.length) {
+    out.fonts = spec.fonts
+      .filter((f) => f.family.trim() && f.files.length)
+      .map((f) => ({ family: f.family.trim(), files: [...f.files] }));
   }
   if (spec.logo != null) out.logo = spec.logo;
   if (spec.wallpapers && spec.wallpapers.length) out.wallpapers = spec.wallpapers;
@@ -282,6 +371,73 @@ export function validateDraft(draft: ThemeDraft): string[] {
   } else {
     for (const [k, v] of Object.entries(s.palette)) {
       if (!isHexColor(v as string)) p.push(`Palette ${k} '${v}' is not a hex colour`);
+    }
+  }
+
+  // A distro that publishes a bar position while its bar is off has almost
+  // certainly toggled the bar and forgotten the rest. Refusing beats shipping a
+  // theme.json whose layout block contradicts itself.
+  if (!s.layout?.topBar && (s.layout?.topBarSide || s.layout?.topBarStats)) {
+    p.push('Bar side and bar modules need the shell bar switched on');
+  }
+
+  const panels = s.layout?.panels ?? [];
+
+  for (const panel of panels) {
+    if (!panel.modules.length) {
+      p.push(`A ${panel.side} panel has no modules`);
+    }
+    if (panel.modules.filter((m) => m === 'spacer').length > 1) {
+      // Two spacers split a run into three and the middle group has no edge to
+      // sit against, so it lands wherever the flex maths puts it. One is the
+      // only arrangement with a meaning anyone can predict.
+      p.push(`The ${panel.side} panel has more than one spacer`);
+    }
+    if (panel.height != null && (panel.height < 16 || panel.height > 96)) {
+      p.push(`Panel height ${panel.height} is outside 16 to 96dp`);
+    }
+  }
+
+  // Two panels on one edge stack, which is legal and is almost never what
+  // someone meant. Not fatal: a distro could genuinely want a thin strip above
+  // a thick one.
+  for (const side of TOP_BAR_SIDES) {
+    if (panels.filter((x) => x.side === side).length > 1) {
+      p.push(`More than one panel on the ${side} edge; they will stack`);
+    }
+  }
+
+  // The legacy trio is IGNORED once panels exist. Saying so beats an author
+  // moving `topBarSide` and watching nothing happen on the phone.
+  if (panels.length && (s.layout?.topBarSide || s.layout?.topBarStats)) {
+    p.push(
+      'Panels supersede topBarSide and topBarStats; those two will be ignored',
+    );
+  }
+
+  for (const f of s.fonts ?? []) {
+    if (!f.family.trim()) p.push('A font block has no family name');
+    if (!f.files.length) p.push(`Font '${f.family}' lists no files`);
+    for (const file of f.files) {
+      // The flat-path rule, enforced where it is cheap to fix. On the device it
+      // presents as text silently in the platform fallback and no error at all.
+      if (file.includes('/') || file.includes('\\')) {
+        p.push(`Font file '${file}' must be a bare filename, not a path`);
+      }
+      if (!/\.(ttf|otf)$/i.test(file)) {
+        p.push(`Font file '${file}' should be .ttf or .otf`);
+      }
+    }
+  }
+
+  // A shipped family nobody references loads glyphs for nothing, and the usual
+  // cause is a typo between the two blocks. On the device that is invisible:
+  // the text falls back and no error is raised anywhere.
+  const namedFamilies = [s.typography?.display, s.typography?.mono]
+    .filter((x): x is string => !!x);
+  for (const f of s.fonts ?? []) {
+    if (f.family.trim() && !namedFamilies.includes(f.family.trim())) {
+      p.push(`Font '${f.family}' is shipped but not named by typography`);
     }
   }
 
@@ -470,6 +626,18 @@ export function importTheme(
     // and which therefore falls back to the blank default, a missing light
     // block is a meaningful answer: this distro has no light mode. Filling it
     // from `base` would invent one on every import and republish it.
+    fonts: Array.isArray(j.fonts)
+      ? (j.fonts as unknown[])
+          .map((e) => obj(e))
+          .filter((e): e is Record<string, unknown> => !!e)
+          .map((e) => ({
+            family: str(e.family) ?? '',
+            files: Array.isArray(e.files)
+              ? (e.files as unknown[]).map(String).filter(Boolean)
+              : [],
+          }))
+          .filter((f) => f.family && f.files.length)
+      : undefined,
     paletteLight: lightRaw
       ? {
           bgTop: str(lightRaw.bgTop) ?? base.palette.bgTop,
@@ -486,6 +654,43 @@ export function importTheme(
         : base.layout.dock,
       topBar:
         typeof layoutRaw.topBar === 'boolean' ? layoutRaw.topBar : base.layout.topBar,
+      // Round-tripped so importing a theme and republishing it does not drop
+      // its bar position, the same reason `paletteLight` is read here.
+      topBarSide: (TOP_BAR_SIDES as readonly string[]).includes(
+        str(layoutRaw.topBarSide) ?? '',
+      )
+        ? (str(layoutRaw.topBarSide) as TopBarSideName)
+        : undefined,
+      topBarStats:
+        typeof layoutRaw.topBarStats === 'boolean'
+          ? layoutRaw.topBarStats
+          : undefined,
+      // Round-tripped so importing a theme and republishing it does not quietly
+      // flatten a two-panel distro back to one.
+      panels: Array.isArray(layoutRaw.panels)
+        ? (layoutRaw.panels as unknown[])
+            .map((e) => obj(e))
+            .filter((e): e is Record<string, unknown> => !!e)
+            .map((e) => ({
+              side: ((TOP_BAR_SIDES as readonly string[]).includes(
+                str(e.side) ?? '',
+              )
+                ? str(e.side)
+                : 'top') as TopBarSideName,
+              modules: (Array.isArray(e.modules) ? e.modules : [])
+                .map(String)
+                .filter((m): m is PanelModuleName =>
+                  (PANEL_MODULES as readonly string[]).includes(m),
+                ),
+              ...(typeof e.height === 'number' ? { height: e.height } : {}),
+            }))
+            .filter((p) => p.modules.length)
+        : undefined,
+      workspaceAxis: (WORKSPACE_AXES as readonly string[]).includes(
+        str(layoutRaw.workspaceAxis) ?? '',
+      )
+        ? (str(layoutRaw.workspaceAxis) as WorkspaceAxisName)
+        : undefined,
       grid: {
         rows: num(gridRaw?.rows) ?? base.layout.grid?.rows ?? 5,
         cols: num(gridRaw?.cols) ?? base.layout.grid?.cols ?? 4,

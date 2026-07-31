@@ -9,6 +9,10 @@ import '../data/repositories/shell_apps.dart';
 import '../data/usage/usage_repository.dart';
 import '../design/components/components.dart';
 import '../engine/effective_theme.dart';
+// TopBarSide only. An unrestricted import of theme_spec into a file that also
+// sees dock_metrics is an ambiguous-import error on DockSide, which is declared
+// in both; desklet_editor documents the same trap.
+import '../engine/theme_spec.dart' show TopBarSide, WorkspaceAxis;
 import '../features/dock/dock_metrics.dart';
 import '../features/drawer/app_icon.dart';
 import '../features/desklets/desklet_edit.dart';
@@ -127,6 +131,7 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     final count = ref.watch(workspaceCountProvider);
     final active = ref.watch(activeWorkspaceProvider);
     final activitiesOpen = ref.watch(activitiesOpenProvider);
+
     final dockRevealed = ref.watch(dockRevealedProvider);
     final editing = ref.watch(deskletEditProvider).active;
 
@@ -146,10 +151,52 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
       );
     });
 
-    final body = Stack(
-      children: [
-        Column(
-          children: [
+    // ─── COLUMN OR ROW, BY WHICH EDGE THE BAR OWNS ────────────────────────
+    //
+    // A vertical bar is not a rotated horizontal one, it is the same three
+    // children laid out along the other axis. Building the list once and
+    // choosing the flex widget keeps the bar, the workspace and the ordering
+    // in one place; writing the vertical case out separately is how the two
+    // stop matching after the next change to either.
+    //
+    // The dock needs no special handling. It is Positioned inside the
+    // WORKSPACE's own LayoutBuilder rather than this Stack, so shrinking the
+    // workspace by the bar's thickness moves the dock inboard for free, which
+    // is also how a real polybar and a dock share an edge.
+    // ─── PANELS, NESTED BY AXIS ───────────────────────────────────────────
+    //
+    // Column for the horizontal edges, wrapping a Row for the vertical ones:
+    //
+    //   Column[ top..., Expanded(Row[ left..., Expanded(workspace), right... ]),
+    //           bottom... ]
+    //
+    // That shape handles every combination, including the one this shell could
+    // not express at all until now: Xfce's top bar AND bottom dock, which is
+    // what Kali ships. The single-bar version was an if-chain that could only
+    // ever place one.
+    //
+    // The dock still needs no special handling. It is Positioned inside the
+    // WORKSPACE's LayoutBuilder, so every panel that takes space shrinks the
+    // box the dock is positioned within, and they cannot overlap.
+    List<Widget> panelsOn(TopBarSide side) => [
+          for (final p in theme.panels)
+            if (p.side == side)
+              Opacity(
+                // Opacity rather than a conditional, unchanged reasoning: see
+                // the note below. Dropping a panel would let the workspace grow
+                // into the freed space for one frame, and that reflow is
+                // visible through the Activities wash.
+                opacity: activitiesOpen ? 0 : 1,
+                child: GnomeTopBar(
+                  palette: theme.palette,
+                  onActivities: _openActivities,
+                  displayFontFamily: theme.typography.display,
+                  panel: p,
+                ),
+              ),
+        ];
+
+    final workspace = <Widget>[
             // ── WHY THIS IS AN OPACITY AND NOT AN `if` ──────────────────
             //
             // The drawer paints a 0.92 wash, so anything still mounted BELOW
@@ -168,15 +215,22 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
             // freed height for one frame, and that reflow is visible through
             // the very wash we are fixing. The dock and the dots below are
             // Positioned, so they can simply not be built.
-            Opacity(
-              opacity: activitiesOpen ? 0 : 1,
-              child: GnomeTopBar(
-                palette: theme.palette,
-                onActivities: _openActivities,
-                displayFontFamily: theme.typography.display,
-              ),
-            ),
-            Expanded(
+            // ─── THE BAR CAN SIT AT EITHER END ────────────────────────
+            //
+            // It was always the first child of this Column, which is GNOME's
+            // answer and a fine default. It is not everyone's: a waybar or a
+            // polybar is as often along the bottom, and a distro that puts it
+            // there is a distro this shell could not express.
+            //
+            // Built once and placed by position rather than duplicated, so the
+            // Opacity trick below keeps working identically at both ends. See
+            // the note there for why it is opacity and not a conditional.
+            // No Expanded here any more: this list is the children of a Stack
+            // that an outer Expanded already sizes, and an Expanded inside a
+            // Stack is an error. The old code put the bar and the workspace in
+            // one Column, so the workspace had to claim the leftover height
+            // itself; panels take their space in the enclosing Column now.
+            Positioned.fill(
               child: GestureLayer(
                 theme: theme,
                 child: LayoutBuilder(
@@ -290,7 +344,15 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                           },
                           child: PageView.builder(
                             controller: _pages,
-                            scrollDirection: Axis.vertical,
+                            // The DISTRO's axis, not this shell's. GNOME
+                            // pages vertically and always did; macOS Spaces run
+                            // horizontally, and a phone imitating macOS that
+                            // swipes down to change space is wrong in a way
+                            // anyone who has used one notices at once.
+                            scrollDirection:
+                                theme.workspaceAxis == WorkspaceAxis.horizontal
+                                    ? Axis.horizontal
+                                    : Axis.vertical,
                             // Frozen while editing. A tile being dragged up the
                             // screen and a vertical pager are the same gesture,
                             // and the arena would hand it to whichever claimed
@@ -395,6 +457,23 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                 ),
               ),
             ),
+    ];
+
+    final body = Stack(
+      children: [
+        Column(
+          children: [
+            ...panelsOn(TopBarSide.top),
+            Expanded(
+              child: Row(
+                children: [
+                  ...panelsOn(TopBarSide.left),
+                  Expanded(child: Stack(children: workspace)),
+                  ...panelsOn(TopBarSide.right),
+                ],
+              ),
+            ),
+            ...panelsOn(TopBarSide.bottom),
           ],
         ),
         if (activitiesOpen) Positioned.fill(child: _Activities(theme: theme)),

@@ -73,7 +73,11 @@ abstract final class GridMetrics {
 
   /// A little air under the last line, so a descender does not sit on the cell
   /// boundary and a one-pixel rounding difference does not clip a letter.
-  static const cellBreathingRoom = 8.0;
+  /// Raised from 8 when the drop ring stopped stealing 4 of it. Kept generous
+  /// because this is the only slack absorbing a font whose real metrics run
+  /// taller than the multiplier, and the cost of too little is a clipped label
+  /// while the cost of too much is a few pixels of air.
+  static const cellBreathingRoom = 10.0;
 
   /// How tall a cell has to be to hold its own contents.
   ///
@@ -106,9 +110,38 @@ abstract final class GridMetrics {
     required double fontSize,
     double textScaler = 1.0,
   }) {
+    return iconSize +
+        labelGap +
+        labelBlockFor(
+          labelLines: labelLines,
+          fontSize: fontSize,
+          textScaler: textScaler,
+        ) +
+        cellBreathingRoom;
+  }
+
+  /// Exactly how tall the label's box is.
+  ///
+  /// ─── THE TILE MUST ENFORCE THIS, NOT JUST ASSUME IT ─────────────────────
+  ///
+  /// [cellHeightFor] computes a cell from this number, but nothing made the
+  /// LABEL that tall, so the two agreed only as long as the font's own metrics
+  /// matched the multiplier. Ubuntu's do not match Inter's, a fallback face for
+  /// a script the bundled font lacks matches neither, and the difference lands
+  /// on the last row, where there is no row below to lend it space. Everything
+  /// above simply pushes down and looks fine.
+  ///
+  /// So the tile wraps its label in a box of exactly this height. Then the cell
+  /// arithmetic and the widget are the same number by construction rather than
+  /// by agreement, and a face with taller metrics ellipsises inside its own box
+  /// instead of pushing the grid over its edge.
+  static double labelBlockFor({
+    required int labelLines,
+    required double fontSize,
+    double textScaler = 1.0,
+  }) {
     final lines = labelLines < 1 ? 1 : labelLines;
-    final label = lines * fontSize * textScaler * labelLineHeight;
-    return iconSize + labelGap + label + cellBreathingRoom;
+    return lines * fontSize * textScaler * labelLineHeight;
   }
 
   /// The cell's aspect for a [SliverGridDelegateWithFixedCrossAxisCount],

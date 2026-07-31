@@ -53,14 +53,30 @@ final _packApi = PackHostApi();
 /// because an installed pack is not an asset and nothing here looked on disk.
 ///
 /// Resolution, in order, with a GUARANTEED landing:
-///   1. the selection, if it names a BUNDLED theme (free tier, always present);
-///   2. otherwise the selection as an INSTALLED pack on disk;
+///   1. the selection as an INSTALLED pack on disk;
+///   2. otherwise the selection as a BUNDLED theme;
 ///   3. otherwise bundled Ubuntu, which always exists and always fits.
 ///
-/// Bundled is checked FIRST, not last. A bundled id can never also be installed
-/// (bundled implies free, and free packs are not sold or downloaded), so the
-/// ordering costs nothing — and it means the overwhelmingly common case, a user
-/// on one of the three free distros, never makes a platform call at all.
+/// ─── INSTALLED IS CHECKED FIRST, AND IT USED TO BE LAST ─────────────────────
+///
+/// The old order rested on "a bundled id can never also be installed", because
+/// bundled implies free and free packs are not sold. That was true and it is
+/// not any more: a free distro can now be REPUBLISHED over the CDN, which is
+/// the whole point of shipping fixes without a Play release. Under the old
+/// order a corrected Ubuntu could be authored, signed, uploaded, downloaded,
+/// verified and installed, and the phone would keep rendering the copy baked
+/// into the APK. The pipeline worked and had no effect, which is the same class
+/// of bug the render bridge above was written to fix.
+///
+/// The cost is one extra platform call per resolve for someone on a bundled
+/// distro with nothing installed. `_loadInstalled` short-circuits on a path
+/// lookup before it reads anything, so that call is a directory probe, not a
+/// file read, and the resolve it sits inside already does far more work than
+/// that. Paying it is what makes the CDN authoritative.
+///
+/// The APK copy remains the floor: an installed pack that is corrupt, too new
+/// or half-written falls through to bundled, and bundled falls through to
+/// Ubuntu. A distro can be superseded but never removed by a bad upload.
 ///
 /// A too-new or corrupt theme falls BACK rather than throwing, at every step.
 /// The registry's rule is absolute: the launcher must ALWAYS render. A user with
@@ -72,17 +88,9 @@ final activeThemeSpecProvider = FutureProvider<ThemeSpec>((ref) async {
   // live desktop repaints.
   final selectedId = await ref.watch(selectedThemeIdProvider.future);
 
-  // 1. A bundled selection. Straight out of the APK, no platform call.
-  if (selectedId != null && bundledThemes.containsKey(selectedId)) {
-    final bundled = await _loadAsset(bundledThemes[selectedId]!.assetPath);
-    if (bundled != null) return bundled;
-    // A bundled theme that fails to parse is a broken APK, but it is not worth
-    // black-screening over when Ubuntu is sitting right there. Fall through.
-  }
-
-  // 2. An installed pack. Also covers a selection this build has never heard
-  //    of: an id from a newer catalogue simply is not on disk, and falls
-  //    through to Ubuntu the same way a typo would.
+  // 1. An installed pack, INCLUDING one that supersedes a bundled id. Also
+  //    covers a selection this build has never heard of: an id from a newer
+  //    catalogue simply is not on disk and falls through like a typo would.
   if (selectedId != null && selectedId.isNotEmpty) {
     final installed = await _loadInstalled(selectedId);
     if (installed != null) return installed;
@@ -95,6 +103,16 @@ final activeThemeSpecProvider = FutureProvider<ThemeSpec>((ref) async {
     // install, `PackDownloader` reports `AppTooOld`, and the storefront card
     // says "needs a newer version of G Launcher" instead of a download that
     // silently produces nothing.
+  }
+
+  // 2. The APK's own copy. Reached when nothing is installed under this id, or
+  //    when what is installed would not load: this is the floor that keeps a
+  //    bad upload from taking a free distro away from anyone who has it.
+  if (selectedId != null && bundledThemes.containsKey(selectedId)) {
+    final bundled = await _loadAsset(bundledThemes[selectedId]!.assetPath);
+    if (bundled != null) return bundled;
+    // A bundled theme that fails to parse is a broken APK, but it is not worth
+    // black-screening over when Ubuntu is sitting right there. Fall through.
   }
 
   // 3. Guaranteed fallback. Bundled Ubuntu is in the APK and targets this

@@ -304,6 +304,57 @@ class DrawerSlots {
   /// then compact everything into dense slots from [reservedSlots] up, in
   /// current slot order. Gaps and empty pages disappear; relative order does
   /// not change.
+  /// Re-pack every placement onto a grid of a different shape.
+  ///
+  /// ─── WHY A REFLOW HAD TO EXIST ──────────────────────────────────────────
+  ///
+  /// A stored slot is a (page, index) pair, which only means anything against a
+  /// capacity. Change the row count and every index points somewhere else, so
+  /// the arrangement was frozen at the count it was created with and the drawer
+  /// rendered that many rows whatever the screen could actually fit.
+  ///
+  /// That freeze is what made the Custom drawer lay out differently from every
+  /// other sort mode, and once cells were sized to their contents it stopped
+  /// fitting at all. So the grid follows the screen now, and when the shape
+  /// changes the arrangement is re-packed onto it.
+  ///
+  /// ORDER SURVIVES, GAPS DO NOT. There is no honest way to preserve a gap
+  /// across a change of capacity: the cell it sat in no longer exists. Order is
+  /// the part someone actually arranged, so order is what is kept, and it is
+  /// the same trade "Clean up pages" already makes deliberately.
+  ///
+  /// Returns [p] unchanged when the shape already matches, so this is safe to
+  /// call on every layout pass.
+  static LauncherPrefs reflow(
+    LauncherPrefs p, {
+    required int cols,
+    required int rows,
+    required Set<String> liveAppKeys,
+    required Set<String> liveFolderIds,
+  }) {
+    if (p.drawerSlotCols == cols && p.drawerSlotRows == rows) return p;
+    if (p.drawerSlots.isEmpty) {
+      return p.copyWith(drawerSlotCols: cols, drawerSlotRows: rows);
+    }
+
+    final live = _liveSorted(p, liveAppKeys, liveFolderIds);
+    final per = (cols < 1 ? 1 : cols) * (rows < 1 ? 1 : rows);
+
+    return p.copyWith(
+      drawerSlotCols: cols,
+      drawerSlotRows: rows,
+      drawerSlots: [
+        for (var i = 0; i < live.length; i++)
+          DrawerSlot(
+            page: (reservedSlots + i) ~/ per,
+            index: (reservedSlots + i) % per,
+            componentKey: live[i].componentKey,
+            folderId: live[i].folderId,
+          ),
+      ],
+    );
+  }
+
   static LauncherPrefs cleanUp(
     LauncherPrefs p, {
     required Set<String> liveAppKeys,

@@ -1096,16 +1096,26 @@ interface LauncherHostApi {
    * [source] is "asset:<path>" (a theme preset) or a content:// URI the user
    * picked. Returns false on failure — a bad image must not take the launcher
    * down; the user simply keeps the wallpaper they had.
+   * [fit] is how the image meets the screen: 'cover' | 'contain' | 'fill' |
+   * 'center'. A STRING, NOT AN ENUM, same rule as `brandTreatment`: a third
+   * enum would renumber this codec's positional ids, and an unknown value
+   * from a newer build must degrade (natively, to 'cover') rather than fail
+   * to parse. 'cover' is byte-for-byte the legacy path, so existing users
+   * see no change. [letterboxColor] is the ARGB that fills the bars 'contain'
+   * and 'center' leave; the Dart side passes the theme palette's background.
    */
-  fun setWallpaper(source: String, applyToLock: Boolean, callback: (Result<Boolean>) -> Unit)
+  fun setWallpaper(source: String, applyToLock: Boolean, fit: String, letterboxColor: Long, callback: (Result<Boolean>) -> Unit)
   /**
    * Rotates the wallpaper, desktop-style.
    *
    * [minutes] is CLAMPED TO 15 — WorkManager's hard floor. Do not offer a
    * shorter interval in the UI and quietly deliver fifteen; lying about a
    * setting is worse than not having it.
+   * [fit] and [letterboxColor] as on [setWallpaper]: the worker stores them
+   * beside the source list so every rotation tick renders the same way a
+   * manual apply does.
    */
-  fun scheduleWallpaperRotation(minutes: Long, sources: List<String>, applyToLock: Boolean)
+  fun scheduleWallpaperRotation(minutes: Long, sources: List<String>, applyToLock: Boolean, fit: String, letterboxColor: Long)
   fun cancelWallpaperRotation()
   /**
    * Is the gesture accessibility service actually enabled?
@@ -1417,7 +1427,9 @@ interface LauncherHostApi {
             val args = message as List<Any?>
             val sourceArg = args[0] as String
             val applyToLockArg = args[1] as Boolean
-            api.setWallpaper(sourceArg, applyToLockArg) { result: Result<Boolean> ->
+            val fitArg = args[2] as String
+            val letterboxColorArg = args[3] as Long
+            api.setWallpaper(sourceArg, applyToLockArg, fitArg, letterboxColorArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LauncherApiPigeonUtils.wrapError(error))
@@ -1439,8 +1451,10 @@ interface LauncherHostApi {
             val minutesArg = args[0] as Long
             val sourcesArg = args[1] as List<String>
             val applyToLockArg = args[2] as Boolean
+            val fitArg = args[3] as String
+            val letterboxColorArg = args[4] as Long
             val wrapped: List<Any?> = try {
-              api.scheduleWallpaperRotation(minutesArg, sourcesArg, applyToLockArg)
+              api.scheduleWallpaperRotation(minutesArg, sourcesArg, applyToLockArg, fitArg, letterboxColorArg)
               listOf(null)
             } catch (exception: Throwable) {
               LauncherApiPigeonUtils.wrapError(exception)

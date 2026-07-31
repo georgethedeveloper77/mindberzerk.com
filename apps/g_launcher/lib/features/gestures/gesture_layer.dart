@@ -54,7 +54,7 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
   }
 
   Future<void> _fire(Gesture gesture) async {
-    final binding = bindingFor(widget.theme.prefs, gesture);
+    final binding = bindingFor(widget.theme, gesture);
 
     final ok = await runGesture(
       ref,

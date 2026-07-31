@@ -194,6 +194,22 @@ class DrawerLayout {
             p.drawerFolders.where((x) => x.id != folderId).toList(),
       );
 
+  /// Ungroup EVERYTHING: every folder's members return to the list at once.
+  ///
+  /// The manual folder ORDER goes with them. An order over zero folders is not
+  /// an arrangement, and leaving [LauncherPrefs.folderOrderCustom] set would
+  /// start the next folder someone creates in "custom order" mode for no
+  /// reason they chose. `clearing`, not `copyWith`, because copyWith cannot
+  /// write null.
+  ///
+  /// No-folders returns [p] unchanged, same identity-comparable refusal the
+  /// other mutations use.
+  static LauncherPrefs dissolveAll(LauncherPrefs p) => p.drawerFolders.isEmpty
+      ? p
+      : p
+          .copyWith(drawerFolders: const [])
+          .clearing(folderOrderCustom: true);
+
   /// Rename. A blank name is refused rather than stored: an unnamed folder in an
   /// alphabetical list has nowhere to sort and nothing to tap.
   static LauncherPrefs rename(LauncherPrefs p, String folderId, String name) {

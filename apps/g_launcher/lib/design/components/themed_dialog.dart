@@ -29,7 +29,6 @@ class ThemedDialog {
     List<Widget> Function(BuildContext dialogContext)? actionsBuilder,
   }) {
     final data = ChromeScope.of(context);
-    final c = data.colors;
 
     return showDialog<T>(
       context: context,
@@ -52,30 +51,30 @@ class ThemedDialog {
             child: GlassPanel(
               borderRadius: GRadius.lgAll,
               child: Padding(
-              padding: const EdgeInsets.all(GSpace.xl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(title, style: data.text.title),
-                  if (content != null) ...[
-                    const SizedBox(height: GSpace.md),
-                    DefaultTextStyle(style: data.text.body, child: content),
-                  ],
-                  if (resolvedActions.isNotEmpty) ...[
-                    const SizedBox(height: GSpace.xl),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        for (var i = 0; i < resolvedActions.length; i++) ...[
-                          if (i > 0) const SizedBox(width: GSpace.sm),
-                          resolvedActions[i],
+                padding: const EdgeInsets.all(GSpace.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(title, style: data.text.title),
+                    if (content != null) ...[
+                      const SizedBox(height: GSpace.md),
+                      DefaultTextStyle(style: data.text.body, child: content),
+                    ],
+                    if (resolvedActions.isNotEmpty) ...[
+                      const SizedBox(height: GSpace.xl),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          for (var i = 0; i < resolvedActions.length; i++) ...[
+                            if (i > 0) const SizedBox(width: GSpace.sm),
+                            resolvedActions[i],
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
+                ),
               ),
             ),
           ),
@@ -114,4 +113,3 @@ class ThemedDialog {
     );
   }
 }
-

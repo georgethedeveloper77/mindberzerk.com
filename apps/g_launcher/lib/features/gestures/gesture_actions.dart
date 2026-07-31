@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/prefs/launcher_prefs.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/usage/usage_repository.dart';
+import '../../engine/effective_theme.dart';
 
 /// The gestures a user can bind.
 ///
@@ -107,10 +107,38 @@ const defaultGestures = <String, String>{
   'twoFingerSwipeDown': 'quickSettings',
 };
 
-GestureBinding bindingFor(LauncherPrefs prefs, Gesture gesture) =>
-    GestureBinding.decode(
-      prefs.gestures[gesture.id] ?? defaultGestures[gesture.id],
-    );
+/// The ONE place a gesture resolves to a binding: the user's entry, else the
+/// distro's authored default, else [defaultGestures].
+///
+/// ─── THE HARD RULE ──────────────────────────────────────────────────────────
+///
+/// A user entry wins UNCONDITIONALLY, even one this build cannot decode (it
+/// reads as [GestureAction.none] and the gesture goes dead until they rebind).
+/// Falling through an unknown user value to the theme would let a distro
+/// rebind a gesture the user deliberately set, and several actions ride an
+/// accessibility service the user granted for a purpose; a distro is never
+/// allowed near that. The touched marker is entry PRESENCE: the Settings sheet
+/// always writes an explicit entry and never deletes one, so absence really
+/// does mean "never chosen".
+///
+/// A THEME entry, by contrast, is screened: an action id from a newer
+/// catalogue, or anything else undecodable, falls through to
+/// [defaultGestures] rather than shadowing a working default with a dead
+/// gesture. An `app:` theme default passes the screen and is inert when the
+/// app is not installed, via the existing uninstalled guard in [runGesture];
+/// service-gated theme defaults are allowed and simply no-op when the service
+/// is off, which is the contract every binding already lives under.
+GestureBinding bindingFor(EffectiveTheme theme, Gesture gesture) {
+  final user = theme.prefs.gestures[gesture.id];
+  if (user != null) return GestureBinding.decode(user);
+
+  final themed = theme.spec.gestures[gesture.id];
+  final themedKnown = themed != null &&
+      (themed.startsWith('app:') || GestureAction.parse(themed) != null);
+  if (themedKnown) return GestureBinding.decode(themed);
+
+  return GestureBinding.decode(defaultGestures[gesture.id]);
+}
 
 /// Fires a binding. Returns false when nothing happened — the caller can then
 /// surface the opt-in prompt instead of leaving the user tapping at a dead

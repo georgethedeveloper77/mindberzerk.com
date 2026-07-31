@@ -429,6 +429,235 @@ class DeskletLayout {
     );
   }
 
+  // ─── STACKS ────────────────────────────────────────────────────────────────
+
+  /// The page a stack's members are parked on.
+  ///
+  /// Negative, so it can never collide with a real workspace. `renderable` and
+  /// `onPage` both filter by page, so a member is invisible on every desktop by
+  /// the rule that already existed, and `byId`, `remove`, `configure` and the
+  /// hosted-widget release path all keep working on it unchanged.
+  static const int stackedPage = -1;
+
+  /// The member ids of [stackId], in order. Empty for anything that is not a
+  /// stack, so callers can ask without checking the kind first.
+  static List<String> membersOf(LauncherPrefs p, String stackId) {
+    final d = byId(p, stackId);
+    if (d == null || d.kind != 'stack') return const [];
+    final raw = d.config['members'];
+    if (raw is! List) return const [];
+    return [for (final e in raw) if (e is String) e];
+  }
+
+  /// The member desklets, resolved and in order, skipping ids that no longer
+  /// exist. A dangling id is not an error: an uninstalled provider can take its
+  /// desklet with it.
+  static List<Desklet> stackContents(LauncherPrefs p, String stackId) => [
+        for (final id in membersOf(p, stackId))
+          if (byId(p, id) case final d?) d,
+      ];
+
+  /// Is this desklet parked inside a stack?
+  static bool isStacked(Desklet d) => d.page == stackedPage;
+
+  /// Turn [id] into a stack holding itself.
+  ///
+  /// The STACK takes the tile's footprint and the tile becomes its first
+  /// member, parked off-desktop. Refuses when the desklet is already a stack or
+  /// is itself stacked, returning [p] unchanged so the caller can tell.
+  static LauncherPrefs makeStack(
+    LauncherPrefs p,
+    String id, {
+    required String Function() newId,
+  }) {
+    final d = byId(p, id);
+    if (d == null || d.kind == 'stack' || isStacked(d)) return p;
+
+    final stackId = newId();
+
+    return p.copyWith(
+      desklets: [
+        for (final x in p.desklets)
+          if (x.id == id)
+            // Same object, same config, same widgetId. Only its position
+            // changes, which is what keeps a hosted widget alive through this.
+            x.copyWith(page: stackedPage, col: 0, row: 0)
+          else
+            x,
+        Desklet(
+          id: stackId,
+          kind: 'stack',
+          page: d.page,
+          col: d.col,
+          row: d.row,
+          spanX: d.spanX,
+          spanY: d.spanY,
+          config: {'members': [id]},
+        ),
+      ],
+    );
+  }
+
+  /// Park an existing desklet into [stackId] and append it to the order.
+  ///
+  /// Its own position is discarded, which is the point: a member is drawn into
+  /// the stack's rectangle, so adding one can never fail for want of space.
+  static LauncherPrefs addToStack(
+    LauncherPrefs p,
+    String stackId,
+    String memberId,
+  ) {
+    final stack = byId(p, stackId);
+    final member = byId(p, memberId);
+    if (stack == null || member == null) return p;
+    if (stack.kind != 'stack' || member.kind == 'stack') return p;
+
+    final members = membersOf(p, stackId);
+    if (members.contains(memberId)) return p;
+
+    return _replace(
+      p.copyWith(
+        desklets: [
+          for (final x in p.desklets)
+            if (x.id == memberId)
+              x.copyWith(page: stackedPage, col: 0, row: 0)
+            else
+              x,
+        ],
+      ),
+      stack.copyWith(config: {
+        ...stack.config,
+        'members': [...members, memberId],
+      }),
+    );
+  }
+
+  /// Take [memberId] back out onto the desktop.
+  ///
+  /// It lands at the stack's own cell when that is free, else wherever it fits,
+  /// else it is REMOVED from the stack's list but left parked rather than
+  /// dropped: a desklet nobody can see is recoverable, a deleted one is not.
+  ///
+  /// A stack emptied to ONE member dissolves, the same invariant a drawer
+  /// folder has and for the same reason: a stack of one is a widget with a
+  /// pointless dot under it.
+  static LauncherPrefs removeFromStack(
+    LauncherPrefs p,
+    String stackId,
+    String memberId, {
+    required int cols,
+    required int rows,
+  }) {
+    final stack = byId(p, stackId);
+    if (stack == null || stack.kind != 'stack') return p;
+
+    final members = membersOf(p, stackId);
+    if (!members.contains(memberId)) return p;
+
+    final rest = members.where((m) => m != memberId).toList();
+
+    var out = _restore(p, memberId, stack, cols: cols, rows: rows);
+
+    if (rest.length >= 2) {
+      return _replace(
+        out,
+        stack.copyWith(config: {...stack.config, 'members': rest}),
+      );
+    }
+
+    // Dissolve: the survivor comes back too, and the stack goes.
+    for (final id in rest) {
+      out = _restore(out, id, stack, cols: cols, rows: rows);
+    }
+    return remove(out, stackId);
+  }
+
+  /// Ungroup: every member returns to the desktop and the stack disappears.
+  static LauncherPrefs unstack(
+    LauncherPrefs p,
+    String stackId, {
+    required int cols,
+    required int rows,
+  }) {
+    final stack = byId(p, stackId);
+    if (stack == null || stack.kind != 'stack') return p;
+
+    var out = p;
+    for (final id in membersOf(p, stackId)) {
+      out = _restore(out, id, stack, cols: cols, rows: rows);
+    }
+    return remove(out, stackId);
+  }
+
+  /// Drag-reorder inside a stack. [to] is the index AFTER removal, the
+  /// ReorderableListView convention every other reorder here follows.
+  static LauncherPrefs reorderStack(
+    LauncherPrefs p,
+    String stackId,
+    int from,
+    int to,
+  ) {
+    final stack = byId(p, stackId);
+    if (stack == null || stack.kind != 'stack') return p;
+
+    final members = [...membersOf(p, stackId)];
+    if (from < 0 || from >= members.length) return p;
+
+    final moved = members.removeAt(from);
+    members.insert(to.clamp(0, members.length), moved);
+
+    return _replace(
+      p,
+      stack.copyWith(config: {...stack.config, 'members': members}),
+    );
+  }
+
+  /// Put a parked desklet back on a desktop, at the stack's cell if it is free.
+  static LauncherPrefs _restore(
+    LauncherPrefs p,
+    String id,
+    Desklet stack, {
+    required int cols,
+    required int rows,
+  }) {
+    final d = byId(p, id);
+    if (d == null) return p;
+
+    // The stack's own cell first: unstacking one thing should leave it where
+    // the stack was, not somewhere across the screen.
+    if (fits(
+      p,
+      page: stack.page,
+      col: stack.col,
+      row: stack.row,
+      spanX: d.spanX,
+      spanY: d.spanY,
+      cols: cols,
+      rows: rows,
+      ignoreId: id,
+    )) {
+      return _replace(
+        p,
+        d.copyWith(page: stack.page, col: stack.col, row: stack.row),
+      );
+    }
+
+    final cell = firstFreeCell(
+      p,
+      page: stack.page,
+      spanX: d.spanX,
+      spanY: d.spanY,
+      cols: cols,
+      rows: rows,
+    );
+    if (cell == null) return p; // stays parked; see removeFromStack's doc
+
+    return _replace(
+      p,
+      d.copyWith(page: stack.page, col: cell.col, row: cell.row),
+    );
+  }
+
   /// Repair structurally impossible data. NOT a prune.
   ///
   /// Two things only, and both can arrive from a hand-edited theme.json or an

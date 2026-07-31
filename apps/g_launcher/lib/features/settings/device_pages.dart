@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 // NEEDS A PUBSPEC LINE: `url_launcher: ^6.3.1`.
 //
 // Not a Pigeon method, deliberately, though it was the obvious alternative.
@@ -10,10 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/repositories/app_repository.dart';
-import '../../design/components/components.dart';
-import '../../system/system_stats.dart';
-import '../../system/stats_history.dart';
 import '../../design/charts.dart';
+import '../../design/components/components.dart';
+import '../../system/stats_history.dart';
+import '../../system/system_stats.dart';
 
 /// The device-owned Settings categories. T1.
 ///
@@ -99,12 +100,28 @@ enum DeviceCategory {
   /// category arrives with its own vocabulary instead of needing a second edit
   /// somewhere else.
   List<String> get keywords => switch (this) {
-        DeviceCategory.network =>
-          const ['wifi', 'wi-fi', 'internet', 'data', 'speed', 'mobile'],
-        DeviceCategory.power =>
-          const ['battery', 'charge', 'charging', 'temperature', 'thermal'],
-        DeviceCategory.storage =>
-          const ['space', 'free', 'disk', 'memory', 'full'],
+        DeviceCategory.network => const [
+            'wifi',
+            'wi-fi',
+            'internet',
+            'data',
+            'speed',
+            'mobile'
+          ],
+        DeviceCategory.power => const [
+            'battery',
+            'charge',
+            'charging',
+            'temperature',
+            'thermal'
+          ],
+        DeviceCategory.storage => const [
+            'space',
+            'free',
+            'disk',
+            'memory',
+            'full'
+          ],
       };
 
   /// The one figure worth putting on the landing row.
@@ -160,16 +177,15 @@ class NetworkPage extends ConsumerWidget {
 
     final down = history.series((x) => x.downBytesPerSec);
     final up = history.series((x) => x.upBytesPerSec);
-    final c = ChromeScope.of(context).colors;
 
     return _DevicePage(
-      title: 'Network',
+      title: context.t('settings.network'),
       // The chart answers a question the rows cannot: the rows say 2.4 MB/s,
       // the chart says whether that is a download running or a spike as you
       // opened the page. Only once there are enough samples to have a shape.
       header: history.chartable && down.isNotEmpty
           ? _ChartHeader(
-              legend: {'Down': ChartColors.down, 'Up': ChartColors.up},
+              legend: const {'Down': ChartColors.down, 'Up': ChartColors.up},
               child: TrendChart(
                 series: down,
                 secondSeries: up,
@@ -181,6 +197,7 @@ class NetworkPage extends ConsumerWidget {
                 // draw an idle connection as a busy one.
                 minY: 0,
                 height: 116,
+                labelFor: SystemStats.rate,
               ),
             )
           : null,
@@ -232,13 +249,12 @@ class PowerPage extends ConsumerWidget {
     final lowBattery = pct != null && pct <= 15 && s?.batteryCharging != true;
 
     return _DevicePage(
-      title: 'Power',
+      title: context.t('settings.power'),
       header: pct == null
           ? null
           : _ChartHeader(
-              legend: temps.length >= 2
-                  ? {'Temperature': ChartColors.warm}
-                  : null,
+              legend:
+                  temps.length >= 2 ? {'Temperature': ChartColors.warm} : null,
               centre: RingGauge(
                 fraction: pct / 100,
                 label: '$pct%',
@@ -252,14 +268,16 @@ class PowerPage extends ConsumerWidget {
                   ? TrendChart(
                       series: temps,
                       color: ChartColors.warm,
-                      height: 72,
+                      height: 84,
+                      labelFor: (v) => '${v.toStringAsFixed(0)} C',
                     )
                   : null,
             ),
       action: _AndroidSettings.battery,
       actionLabel: 'Battery usage',
       rows: [
-        if (s?.batteryPercent != null) _StatRow('Charge', '${s!.batteryPercent}%'),
+        if (s?.batteryPercent != null)
+          _StatRow('Charge', '${s!.batteryPercent}%'),
         if (s?.batteryCharging != null)
           _StatRow('State', s!.batteryCharging! ? 'Charging' : 'Discharging'),
         // Direction from the CHARGING FLAG, never the platform's sign, which is
@@ -322,7 +340,7 @@ class StoragePage extends ConsumerWidget {
     final free = total - used;
 
     return _DevicePage(
-      title: 'Storage',
+      title: context.t('settings.storage'),
       action: _AndroidSettings.storage,
       actionLabel: 'Manage storage',
       // The headline is FREE space, not used.
@@ -344,14 +362,14 @@ class StoragePage extends ConsumerWidget {
       // trusts, and G Recovery's entire pitch is telling the truth about space.
       note: 'Internal storage, matching what Android reports.',
       extra: [
-        const ThemedSectionHeader('Free up space'),
+        ThemedSectionHeader(context.t('settings.freeUpSpace')),
         ThemedListRow(
           icon: Icons.cleaning_services_outlined,
-          title: 'G Recovery',
+          title: context.t('settings.gRecovery'),
           // Says what it does, not "our other app". The ecosystem cross-link
           // earns its place by being useful on the page it sits on: this screen
           // tells you how full the phone is and cannot do anything about it.
-          subtitle: 'Find large files, duplicates and unused apps',
+          subtitle: context.t('settings.findLargeFilesDuplicates'),
           onTap: () => launchUrl(
             Uri.parse(recoveryUrl),
             // externalApplication, so it opens the Play app rather than an
@@ -450,17 +468,23 @@ class _StorageChart extends StatelessWidget {
           BarsChart(
             bars: [
               (
-                label: 'Used',
+                label: context.t('settings.used'),
                 value: used / (1024 * 1024 * 1024),
                 color: full ? ChartColors.warm : ChartColors.cool,
               ),
               (
-                label: 'Free',
+                label: context.t('settings.free'),
                 value: (total - used) / (1024 * 1024 * 1024),
                 color: ChartColors.good,
               ),
             ],
             height: 116,
+            // Both rods measured against the WHOLE disk rather than against
+            // each other, with a faint track showing it. Without that, 42GB
+            // used beside 86GB free is just a short rod and a tall one, and
+            // nothing on screen says what full looks like.
+            track: total / (1024 * 1024 * 1024),
+            labelFor: (gb) => '${gb.toStringAsFixed(gb >= 100 ? 0 : 1)} GB',
           ),
           const SizedBox(height: 16),
           Row(
@@ -577,7 +601,6 @@ class _DevicePage extends ConsumerWidget {
       body: ListView(
         children: [
           if (header != null) header!,
-
           if (rows.isEmpty)
             // Reachable only between the capability probe saying yes
             // and the first stats sample landing, which is under three seconds.
@@ -587,10 +610,9 @@ class _DevicePage extends ConsumerWidget {
               child: Text('Reading', style: TextStyle(color: c.textMuted)),
             )
           else ...[
-            const ThemedSectionHeader('Right now'),
+            ThemedSectionHeader(context.t('settings.rightNow')),
             ...rows,
           ],
-
           if (note != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -599,16 +621,13 @@ class _DevicePage extends ConsumerWidget {
                 style: TextStyle(color: c.textFaint, fontSize: 12),
               ),
             ),
-
-          const ThemedSectionHeader('Android'),
-
+          ThemedSectionHeader(context.t('settings.android')),
           ThemedListRow(
             icon: Icons.open_in_new,
             title: actionLabel,
-            subtitle: 'Opens Android settings',
+            subtitle: context.t('settings.opensAndroidSettings'),
             onTap: () => api.openAndroidSettings(action),
           ),
-
           ...?extra,
         ],
       ),

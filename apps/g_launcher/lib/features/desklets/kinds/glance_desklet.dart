@@ -18,13 +18,14 @@ import 'stat_desklets.dart' show thermalLabel;
 /// contents are keyed to its own [Desklet.spanY], so dragging the resize handle
 /// reveals or hides information rather than just scaling a fixed layout.
 ///
-///   spanY 1   time, date
-///   spanY 2   + cpu, ram          ← the first-install default
-///   spanY 3   + network
-///   spanY 4   + disk, temp
+///   up to 2 rows   time, date
+///   3 to 4         + cpu, ram          the first-install default
+///   5 to 6         + network
+///   7 and up       + disk, temp
 ///
-/// Resize is already the tested engine ([DeskletLayout.resize] clamps to
-/// minSpanY 1 / maxSpanY 4). This widget just reads the committed span and
+/// Those are FINE-GRID rows; see [_tierFor], which is the one place the mapping
+/// lives. Resize is already the tested engine ([DeskletLayout.resize] clamps to
+/// the kind's own bounds). This widget just reads the committed span and
 /// decides how many rows to draw. The tiers SNAP on release, same as every
 /// other resize in the app — the tile shows its old contents mid-drag and the
 /// new ones the instant you let go.
@@ -58,7 +59,20 @@ class GlanceDesklet extends ConsumerWidget {
     final s = ref.watch(systemStatsProvider).asData?.value;
 
     final p = theme.palette;
-    final tier = desklet.spanY;
+
+    // ─── SPANS ARE FINE-GRID ROWS, NOT TIERS ──────────────────────────────
+    //
+    // This read `desklet.spanY` AS the tier, which was true while a row was a
+    // fifth of the screen: spans ran 1 to 4 and so did the tiers. The desklet
+    // grid is now three times finer, so the starter tile's spanY is 3 and a
+    // tall one is 12, and every stack of information unlocked at once. The tile
+    // has been showing disk and temperature since the grid changed, whatever
+    // size it was dragged to, which is exactly the resize-reveals-information
+    // behaviour this kind exists for, inverted.
+    //
+    // Thresholds rather than a division, because the tiers are about how much
+    // ROOM there is and the boundaries are a design decision, not arithmetic.
+    final tier = _tierFor(desklet.spanY);
 
     final bare = skin.surface == DeskletSurface.bare;
 
@@ -165,6 +179,22 @@ class GlanceDesklet extends ConsumerWidget {
       body: DeskletBody(command: 'glances', custom: content),
     );
   }
+}
+
+/// Which stat tier a height in fine-grid rows unlocks.
+///
+/// Keyed to the same numbers `DeskletKinds.glance` is bounded by: the default
+/// is 3 rows and shows cpu and ram, the maximum is 12 and shows everything.
+///
+///   up to 2   time, date
+///   3 to 4    + cpu, ram          the first-install default
+///   5 to 6    + network
+///   7 and up  + disk, temp
+int _tierFor(int spanY) {
+  if (spanY <= 2) return 1;
+  if (spanY <= 4) return 2;
+  if (spanY <= 6) return 3;
+  return 4;
 }
 
 /// One `label   value` line, styled to sit under the time. Dim label, bright

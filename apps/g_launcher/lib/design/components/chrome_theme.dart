@@ -217,11 +217,61 @@ class ChromeColors {
   /// Still restrained. Ubuntu's light card lands at #FAF8F9 and its page at
   /// #F3EFF2, which nobody would call purple and which are visibly not the same
   /// screen KDE draws.
+  /// The same colours with the FILLS made translucent.
+  ///
+  /// ─── ONLY THE FILLS ─────────────────────────────────────────────────────
+  ///
+  /// `bg`, `bar`, `surface` and `surfaceAlt` are areas, and areas are what a
+  /// person means by "let the wallpaper through". Text, lines and the semantic
+  /// statuses are NOT touched: fading the ink along with the paper is how a
+  /// translucency setting turns into an unreadable one, and a danger red that
+  /// gets quieter the more wallpaper you want is actively wrong.
+  ///
+  /// A no-op at 1.0, so the default path allocates nothing new.
+  ChromeColors withOpacity(double opacity) {
+    if (opacity >= 1.0) return this;
+    Color f(Color c) => c.withValues(alpha: c.a * opacity);
+    return ChromeColors(
+      bg: f(bg),
+      bar: f(bar),
+      surface: f(surface),
+      surfaceAlt: f(surfaceAlt),
+      line: line,
+      lineStrong: lineStrong,
+      text: text,
+      textMuted: textMuted,
+      textFaint: textFaint,
+      accent: accent,
+      onAccent: onAccent,
+      ok: ok,
+      warn: warn,
+      danger: danger,
+      tint: tint,
+    );
+  }
+
   static Color _neutral(Color base, double lightness, {required bool dark}) {
     final hsl = HSLColor.fromColor(base);
 
-    final scale = dark ? 0.12 : 0.55;
-    final cap = dark ? 0.06 : 0.18;
+    // ─── DARK WAS LEFT NEUTRAL WHILE LIGHT WAS TINTED ─────────────────
+    //
+    // When light mode arrived, light's numbers were raised so its surfaces
+    // could show a hue at all and dark's were left at the original 0.12 / 0.06.
+    // The result was a settings screen that carried the distro in light mode
+    // and was flat grey in dark, which is not a considered difference, it is
+    // half a change.
+    //
+    // Both are tinted now, at values chosen to LOOK alike rather than to read
+    // alike: 0.16 against near-black lands about where 0.18 does against
+    // near-white. Ubuntu's dark card goes #332D30 to #382831, which nobody
+    // would call purple and which is visibly not the card KDE draws.
+    //
+    // Still restrained on purpose. Adwaita and Breeze carry structure in greys
+    // and reserve colour for state; a settings list that is fully the
+    // wallpaper's colour reads as a themed app rather than a system one, and
+    // dense rows of text need the contrast that a low-saturation surface gives.
+    final scale = dark ? 0.45 : 0.55;
+    final cap = dark ? 0.16 : 0.18;
 
     return hsl
         .withSaturation((hsl.saturation * scale).clamp(0.0, cap))
@@ -351,11 +401,20 @@ class ChromeText {
 class ChromeData {
   const ChromeData({
     required this.colors,
+    this.opacity = 1.0,
     required this.text,
     this.family = ChromeFamily.generic,
   });
 
   final ChromeColors colors;
+
+  /// How solid this chrome is, 0.6 to 1.0.
+  ///
+  /// The FILLS in [colors] already carry it, so a page or a card needs to do
+  /// nothing. It is exposed because [GlassPanel] composes its own alphas and
+  /// has to scale them by the same amount, and because a panel that stayed
+  /// solid while every page behind it went translucent would look like a bug.
+  final double opacity;
   final ChromeText text;
 
   /// The structural design language (see [ChromeFamily]). Surfaces that fork on
@@ -380,10 +439,12 @@ class ChromeData {
     ThemeTypography? typography,
     double textScale = 1.0,
     ChromeFamily family = ChromeFamily.generic,
+    double opacity = 1.0,
   }) {
-    final colors = ChromeColors.fromPalette(palette);
+    final colors = ChromeColors.fromPalette(palette).withOpacity(opacity);
     return ChromeData(
       colors: colors,
+      opacity: opacity,
       text: ChromeText.resolve(
         colors,
         typography: typography,

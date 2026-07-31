@@ -102,12 +102,41 @@ class DeskletKinds {
   static const appWidget = DeskletKind(
     id: 'appwidget',
     label: 'App widget',
-    minSpanX: 2,
-    minSpanY: 3,
+    minSpanX: 1,
+    minSpanY: 1,
     maxSpanX: 10,
     maxSpanY: 15,
     defaultSpanX: 4,
-    defaultSpanY: 6,
+    defaultSpanY: 3,
+  );
+
+  /// Several widgets sharing one footprint, swiped between.
+  ///
+  /// ─── WHERE A STACK'S MEMBERS LIVE ───────────────────────────────────────
+  ///
+  /// `config['members']` is an ordered list of DESKLET IDS, and each member is
+  /// a perfectly ordinary [Desklet] still sitting in `prefs.desklets` on page
+  /// [DeskletLayout.stackedPage].
+  ///
+  /// That was the whole design decision, and the alternative was worse. Nesting
+  /// members INSIDE the config as maps would mean `byId` cannot find them,
+  /// `remove` cannot remove them, a hosted widget's `widgetId` would be buried
+  /// where the release path never looks, and every existing query would need a
+  /// recursive twin. Parking them on a page nothing renders costs nothing:
+  /// `renderable` already filters by page, so they are invisible by the rule
+  /// that was there before stacks existed.
+  ///
+  /// Spans are the stack's own; a member is drawn into whatever rectangle the
+  /// stack occupies, which is why adding one never has to refuse for space.
+  static const stack = DeskletKind(
+    id: 'stack',
+    label: 'Stack',
+    minSpanX: 3,
+    minSpanY: 2,
+    maxSpanX: 10,
+    maxSpanY: 15,
+    defaultSpanX: 4,
+    defaultSpanY: 4,
   );
 
   /// The combined default desktop tile. Time + date, and stat rows that appear
@@ -121,12 +150,12 @@ class DeskletKinds {
   static const glance = DeskletKind(
     id: 'glance',
     label: 'Glance',
-    minSpanX: 4,
-    minSpanY: 3,
-    maxSpanX: 6,
+    minSpanX: 3,
+    minSpanY: 2,
+    maxSpanX: 8,
     maxSpanY: 12,
     defaultSpanX: 4,
-    defaultSpanY: 6,
+    defaultSpanY: 3,
   );
 
   /// Big, and the proof of the skin layer: it looks radically different on all
@@ -135,11 +164,11 @@ class DeskletKinds {
     id: 'clock',
     label: 'Clock',
     minSpanX: 2,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 8,
     maxSpanY: 6,
     defaultSpanX: 4,
-    defaultSpanY: 3,
+    defaultSpanY: 2,
     defaults: {
       'format': '24h', // '24h' | '12h'
       'showSeconds': false,
@@ -152,12 +181,12 @@ class DeskletKinds {
   static const monitor = DeskletKind(
     id: 'monitor',
     label: 'System monitor',
-    minSpanX: 4,
-    minSpanY: 6,
+    minSpanX: 3,
+    minSpanY: 2,
     maxSpanX: 8,
-    maxSpanY: 15,
+    maxSpanY: 12,
     defaultSpanX: 4,
-    defaultSpanY: 9,
+    defaultSpanY: 3,
     defaults: {'graphs': true},
   );
 
@@ -165,12 +194,12 @@ class DeskletKinds {
   static const fastfetch = DeskletKind(
     id: 'fastfetch',
     label: 'Fastfetch',
-    minSpanX: 6,
-    minSpanY: 6,
+    minSpanX: 4,
+    minSpanY: 2,
     maxSpanX: 10,
-    maxSpanY: 12,
-    defaultSpanX: 8,
-    defaultSpanY: 6,
+    maxSpanY: 9,
+    defaultSpanX: 5,
+    defaultSpanY: 3,
   );
 
   /// Live throughput and transport. Never the SSID: that needs location
@@ -180,11 +209,11 @@ class DeskletKinds {
     id: 'network',
     label: 'Network',
     minSpanX: 2,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 8,
-    maxSpanY: 9,
+    maxSpanY: 6,
     defaultSpanX: 4,
-    defaultSpanY: 3,
+    defaultSpanY: 2,
   );
 
   /// The same number Settings shows and the same one G Recovery will report.
@@ -193,11 +222,11 @@ class DeskletKinds {
     id: 'storage',
     label: 'Storage',
     minSpanX: 2,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 8,
-    maxSpanY: 9,
+    maxSpanY: 6,
     defaultSpanX: 4,
-    defaultSpanY: 6,
+    defaultSpanY: 2,
   );
 
   /// Draw, temperature, time-to-empty. NOT a percentage — Android's own status
@@ -206,9 +235,9 @@ class DeskletKinds {
     id: 'battery',
     label: 'Battery detail',
     minSpanX: 2,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 8,
-    maxSpanY: 9,
+    maxSpanY: 6,
     defaultSpanX: 4,
     defaultSpanY: 3,
   );
@@ -217,11 +246,11 @@ class DeskletKinds {
     id: 'notes',
     label: 'Note',
     minSpanX: 2,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 10,
-    maxSpanY: 15,
+    maxSpanY: 12,
     defaultSpanX: 4,
-    defaultSpanY: 6,
+    defaultSpanY: 2,
     defaults: {'text': ''},
   );
 
@@ -229,11 +258,11 @@ class DeskletKinds {
     id: 'search',
     label: 'Search',
     minSpanX: 4,
-    minSpanY: 3,
+    minSpanY: 1,
     maxSpanX: 10,
-    maxSpanY: 3,
+    maxSpanY: 2,
     defaultSpanX: 8,
-    defaultSpanY: 3,
+    defaultSpanY: 1,
   );
 
   // ── pane surface (terminal shell) ──────────────────────────────────────────
@@ -298,6 +327,7 @@ class DeskletKinds {
   static const all = <DeskletKind>[
     glance,
     appWidget,
+    stack,
     clock,
     monitor,
     fastfetch,

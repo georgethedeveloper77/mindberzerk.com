@@ -10,6 +10,7 @@ import {
   SHELLS,
   isHexColor,
   luminance,
+  TOP_BAR_SIDES,
   type ChromeName,
   type IconStyleJson,
   type ShellName,
@@ -17,6 +18,7 @@ import {
   type ThemeLayoutJson,
   type ThemePaletteJson,
   type ThemeSpecJson,
+  type TopBarSideName,
 } from '@/lib/theme-spec';
 
 const shellLabels: Record<ShellName, string> = {
@@ -301,10 +303,35 @@ export function LayoutEditor(props: {
       <div style={{ marginBottom: 12 }}>
         <Toggle
           value={layout.topBar}
-          label="Top bar"
+          label="Shell bar"
           onChange={(v) => setLayout({ topBar: v })}
         />
       </div>
+
+      {/* Only meaningful when there IS a bar. Showing the position and the
+          modules for a distro that has switched the bar off would be two
+          controls that change nothing, which is how a builder teaches its own
+          user that settings are unreliable. */}
+      {layout.topBar ? (
+        <>
+          <Field label="bar side" hint="a vertical bar shrinks the workspace, the dock moves inboard">
+            <Segmented<TopBarSideName>
+              value={layout.topBarSide ?? 'top'}
+              options={TOP_BAR_SIDES}
+              onChange={(v) =>
+                setLayout({ topBarSide: v === 'top' ? undefined : v })
+              }
+            />
+          </Field>
+          <div style={{ marginBottom: 12 }}>
+            <Toggle
+              value={layout.topBarStats ?? false}
+              label="Show throughput, memory and free space"
+              onChange={(v) => setLayout({ topBarStats: v || undefined })}
+            />
+          </div>
+        </>
+      ) : null}
       <div style={twoCol}>
         <Field label="grid rows">
           <NumberInput

@@ -25,6 +25,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../design/components/components.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/theme_spec.dart';
 
 /// The structural language of the installer.
@@ -347,7 +348,7 @@ class SetupInstallerFrame extends StatelessWidget {
             ],
           ),
         ),
-        _footer(d),
+        _footer(context, d),
       ],
     );
 
@@ -475,7 +476,11 @@ class SetupInstallerFrame extends StatelessWidget {
     );
   }
 
-  Widget _footer(ChromeData d) {
+  // Takes the context so the footer's own copy can be translated. The build
+  // method has one; a helper reached from it does not, and wrapping the
+  // footer in a Builder just to find one would be a widget added to work
+  // around an argument that costs nothing to pass.
+  Widget _footer(BuildContext context, ChromeData d) {
     final c = d.colors;
     final dots = skin.progress == SetupProgress.dots;
     return Container(
@@ -494,7 +499,7 @@ class SetupInstallerFrame extends StatelessWidget {
             children: [
               if (onBack != null) ...[
                 ThemedButton(
-                  label: 'Back',
+                  label: context.t('common.back'),
                   kind: ThemedButtonKind.text,
                   onPressed: onBack!,
                 ),

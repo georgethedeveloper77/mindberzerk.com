@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
+// parseColor, for a per-widget accent override. See _accentOf.
+import '../../engine/theme_spec.dart' show parseColor;
 
 /// The shape almost every desklet actually is. PHASE D5.
 ///
@@ -129,6 +131,23 @@ class DeskletFrame extends StatelessWidget {
 String? _family(EffectiveTheme t, DeskletSkin s) =>
     s.font == DeskletFont.mono ? t.typography.mono : t.typography.display;
 
+/// The accent this desklet draws with.
+///
+/// ─── WHY A SKIN PROP AND NOT A NEW PARAMETER ────────────────────────────────
+///
+/// The distro's accent is the default and always will be. A per-widget override
+/// arrives as `accentHex` in [DeskletSkin.props], which is where a theme's own
+/// tuning already lives and which `mergedWith` already merges, so the user's
+/// value reaches here by the same path a distro's would. Threading a colour
+/// through every surface constructor would have been a second mechanism for the
+/// same idea.
+///
+/// An unparseable value falls back rather than throwing, the same contract
+/// every other free-form read in the theme layer follows: this string can come
+/// from a CDN pack or a prefs file written by a newer build.
+Color _accentOf(EffectiveTheme t, DeskletSkin s) =>
+    parseColor(s.text('accentHex', '')) ?? t.palette.accent;
+
 /// The drop shadow that lets unboxed text survive a light wallpaper. A scrim
 /// would turn the bare surface into the card surface with extra steps.
 List<Shadow> _shadows(EffectiveTheme t) => [
@@ -191,7 +210,12 @@ class _Bare extends StatelessWidget {
           for (var i = 0; i < body.rows.length; i++)
             Padding(
               padding: EdgeInsets.only(top: i == 0 ? 0 : 2),
-              child: _BareRow(theme: theme, row: body.rows[i], right: right),
+              child: _BareRow(
+                theme: theme,
+                accent: _accentOf(theme, skin),
+                row: body.rows[i],
+                right: right,
+              ),
             ),
           if (body.custom != null) body.custom!,
         ],
@@ -203,11 +227,17 @@ class _Bare extends StatelessWidget {
 class _BareRow extends StatelessWidget {
   const _BareRow({
     required this.theme,
+    required this.accent,
     required this.row,
     required this.right,
   });
 
   final EffectiveTheme theme;
+
+  /// Already resolved by [_accentOf]. Passed rather than re-derived so the row
+  /// and its parent cannot disagree about which accent this tile is wearing.
+  final Color accent;
+
   final DeskletRow row;
   final bool right;
 
@@ -225,7 +255,9 @@ class _BareRow extends StatelessWidget {
           if (row.value != null)
             TextSpan(
               text: row.value,
-              style: TextStyle(color: row.accent ? p.accent : p.onDark),
+              style: TextStyle(
+              color: row.accent ? accent : p.onDark,
+            ),
             ),
         ],
       ),
@@ -243,7 +275,13 @@ class _BareRow extends StatelessWidget {
       children: [
         text,
         const SizedBox(height: 2),
-        _Bar(theme: theme, fraction: row.fraction!, width: 78, height: 2),
+        _Bar(
+          theme: theme,
+          accent: accent,
+          fraction: row.fraction!,
+          width: 78,
+          height: 2,
+        ),
       ],
     );
   }
@@ -292,7 +330,12 @@ class _Card extends StatelessWidget {
             for (final row in body.rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: _CardRow(theme: theme, row: row, size: size),
+                child: _CardRow(
+                  theme: theme,
+                  accent: _accentOf(theme, skin),
+                  row: row,
+                  size: size,
+                ),
               ),
             if (body.custom != null) body.custom!,
           ],
@@ -305,11 +348,16 @@ class _Card extends StatelessWidget {
 class _CardRow extends StatelessWidget {
   const _CardRow({
     required this.theme,
+    required this.accent,
     required this.row,
     required this.size,
   });
 
   final EffectiveTheme theme;
+
+  /// See [_BareRow.accent].
+  final Color accent;
+
   final DeskletRow row;
   final double size;
 
@@ -340,14 +388,20 @@ class _CardRow extends StatelessWidget {
                   // lines up. The label is not, so it reads as prose.
                   fontFamily: theme.typography.mono,
                   fontSize: size,
-                  color: row.accent ? p.accent : p.onDark,
+                  color: row.accent ? accent : p.onDark,
                 ),
               ),
           ],
         ),
         if (row.fraction != null) ...[
           const SizedBox(height: 3),
-          _Bar(theme: theme, fraction: row.fraction!, width: null, height: 3),
+          _Bar(
+            theme: theme,
+            accent: accent,
+            fraction: row.fraction!,
+            width: null,
+            height: 3,
+          ),
         ],
       ],
     );
@@ -384,7 +438,9 @@ class _Panel extends StatelessWidget {
       decoration: BoxDecoration(
         color: p.bar.withValues(alpha: skin.num_('opacity', 0.9)),
         borderRadius: BorderRadius.circular(skin.num_('radius', 4)),
-        border: Border(left: BorderSide(color: p.accent, width: 2)),
+        border: Border(
+          left: BorderSide(color: _accentOf(theme, skin), width: 2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
@@ -398,7 +454,7 @@ class _Panel extends StatelessWidget {
                   fontFamily: theme.typography.mono,
                   fontSize: skin.num_('rowSize', 12),
                   fontWeight: FontWeight.w600,
-                  color: skin.accent ? p.accent : p.onDark,
+                  color: skin.accent ? _accentOf(theme, skin) : p.onDark,
                 ),
               ),
             ),
@@ -444,7 +500,10 @@ class _Terminal extends StatelessWidget {
             children: [
               TextSpan(
                 text: '~ \u276f ',
-                style: TextStyle(color: p.accent, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: _accentOf(theme, skin),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               TextSpan(
                 text: skin.text('command', body.command ?? ''),
@@ -464,8 +523,11 @@ class _Terminal extends StatelessWidget {
                 ),
                 TextSpan(
                   text: row.value ?? '',
-                  style:
-                      TextStyle(color: row.accent ? p.accent : p.onDark),
+                  style: TextStyle(
+                    // `_Terminal` holds the skin itself, unlike `_BareRow` and
+                    // `_CardRow`, which are handed the resolved colour.
+                    color: row.accent ? _accentOf(theme, skin) : p.onDark,
+                  ),
                 ),
               ],
             ),
@@ -496,12 +558,18 @@ class _Terminal extends StatelessWidget {
 class _Bar extends StatelessWidget {
   const _Bar({
     required this.theme,
+    required this.accent,
     required this.fraction,
     required this.width,
     required this.height,
   });
 
   final EffectiveTheme theme;
+
+  /// Passed in rather than read off the palette, so a per-widget accent reaches
+  /// the gauge too. A tile whose numbers are cyan and whose bar is still the
+  /// distro orange looks like a rendering bug rather than a setting.
+  final Color accent;
   final double fraction;
   final double? width;
   final double height;
@@ -529,7 +597,7 @@ class _Bar extends StatelessWidget {
                 // a storage bar that turns red at 80% full cries wolf on a
                 // 128GB phone, and this ecosystem's whole storage pitch is that
                 // it tells the truth about space.
-                color: f > 0.9 ? p.accent : p.accent.withValues(alpha: 0.75),
+                color: f > 0.9 ? accent : accent.withValues(alpha: 0.75),
               ),
             ),
           ],

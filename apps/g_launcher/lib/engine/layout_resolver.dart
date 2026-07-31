@@ -22,9 +22,15 @@ class ResolvedLayout {
   const ResolvedLayout({
     required this.dock,
     required this.topBar,
+    required this.topBarSide,
+    required this.topBarStats,
+    required this.panels,
+    required this.workspaceAxis,
     required this.rows,
     required this.cols,
     required this.drawerCols,
+    required this.drawerScrollStyle,
+    required this.drawerGrouping,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -33,9 +39,34 @@ class ResolvedLayout {
 
   final DockSide dock;
   final bool topBar;
+
+  /// Which edge the bar sits on, and whether it carries live readouts. Both
+  /// resolve the same way everything else here does: the distro's default,
+  /// beaten by the user's per-theme override when they have set one.
+  final TopBarSide topBarSide;
+  final bool topBarStats;
+
+  /// The distro's panels. Not overridable per user yet: the position and the
+  /// modules of a panel are what make a desktop recognisable, and a per-panel
+  /// settings surface is its own screen rather than a row. topBarSide and
+  /// topBarStats remain the user-facing overrides, and they feed the synthesis
+  /// in ThemeLayout when a theme authors no panels of its own.
+  final List<PanelSpec> panels;
+
+  /// Which way workspaces page. Theme-authored; not a user override, because a
+  /// distro that pages the wrong way is not that distro.
+  final WorkspaceAxis workspaceAxis;
   final int rows;
   final int cols;
   final int drawerCols;
+
+  /// How the drawer moves and how its list is grouped, RESOLVED: the user's
+  /// choice, else the distro's authored default, else the engine default. Never
+  /// null, so no read site carries its own `?? 'pages'` fallback; three of
+  /// them did, and a fourth would eventually have disagreed. Unknown values
+  /// from a newer build fall through the chain rather than reaching a shell.
+  final String drawerScrollStyle;
+  final String drawerGrouping;
   /// The user's EXPLICIT icon-size override, in dp, or the legacy default.
   ///
   /// Being phased out. It is a flat number that knows nothing about the screen,
@@ -60,9 +91,15 @@ class ResolvedLayout {
       other is ResolvedLayout &&
           other.dock == dock &&
           other.topBar == topBar &&
+          other.topBarSide == topBarSide &&
+          other.topBarStats == topBarStats &&
+          other.panels.length == panels.length &&
+          other.workspaceAxis == workspaceAxis &&
           other.rows == rows &&
           other.cols == cols &&
           other.drawerCols == drawerCols &&
+          other.drawerScrollStyle == drawerScrollStyle &&
+          other.drawerGrouping == drawerGrouping &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
           other.textScale == textScale &&
@@ -72,9 +109,15 @@ class ResolvedLayout {
   int get hashCode => Object.hash(
         dock,
         topBar,
+        topBarSide,
+        topBarStats,
+        panels.length,
+        workspaceAxis,
         rows,
         cols,
         drawerCols,
+        drawerScrollStyle,
+        drawerGrouping,
         iconSizeDp,
         labelLines,
         textScale,
@@ -106,6 +149,34 @@ abstract final class LayoutResolver {
 
   static const defaultTextScale = 1.0;
 
+  /// The engine defaults for the drawer, when neither the user nor the distro
+  /// has an opinion. 'pages', NOT 'vertical': the `LauncherPrefs` doc once
+  /// claimed vertical and every read site said `?? 'pages'`, and the read
+  /// sites were what users actually got. Written down here once so the
+  /// disagreement cannot recur.
+  static const defaultDrawerScrollStyle = 'pages';
+  static const defaultDrawerGrouping = 'none';
+
+  /// First KNOWN value wins: the user's, else the theme's, else [fallback].
+  ///
+  /// The theme value arrives pre-validated by `ThemeLayout.fromJson`, but the
+  /// USER value can be a string written by a newer build, and an unknown style
+  /// must fall through the chain rather than reach a shell that switches on
+  /// it. This is the touched-marker rule made executable: a non-null user
+  /// value, even one this build cannot render, still means "the user chose",
+  /// so it is only skipped for being unknown, never overridden by the theme
+  /// when it is known.
+  static String _pick(
+    String? user,
+    String? theme,
+    Set<String> known,
+    String fallback,
+  ) {
+    if (user != null && known.contains(user)) return user;
+    if (user == null && theme != null && known.contains(theme)) return theme;
+    return fallback;
+  }
+
   static ResolvedLayout resolve(ThemeSpec spec, LauncherPrefs prefs) {
     return ResolvedLayout(
       dock: switch (prefs.dockSide) {
@@ -115,12 +186,55 @@ abstract final class LayoutResolver {
         _ => spec.layout.dock,
       },
       topBar: prefs.topBar ?? spec.layout.topBar,
+      topBarSide: switch (prefs.topBarSide) {
+        'top' => TopBarSide.top,
+        'bottom' => TopBarSide.bottom,
+        'left' => TopBarSide.left,
+        'right' => TopBarSide.right,
+        // Anything else, including null and a value written by a newer build,
+        // inherits the distro. Same contract as `dockSide` directly above.
+        _ => spec.layout.topBarSide,
+      },
+      topBarStats: prefs.topBarStats ?? spec.layout.topBarStats,
+      // A user who moves the bar or toggles its readouts is editing the
+      // SYNTHESISED panel, so the synthesis is re-run against their choices
+      // rather than the theme's. A distro that authored real panels keeps them:
+      // overriding one of several panels from two scalars is not expressible,
+      // and silently rewriting an authored layout would be worse than ignoring
+      // the override.
+      panels: spec.layout.panels.length == 1 && spec.layout.panels.first.height == null
+          ? [
+              PanelSpec(
+                side: switch (prefs.topBarSide) {
+                  'top' => TopBarSide.top,
+                  'bottom' => TopBarSide.bottom,
+                  'left' => TopBarSide.left,
+                  'right' => TopBarSide.right,
+                  _ => spec.layout.panels.first.side,
+                },
+                modules: spec.layout.panels.first.modules,
+              ),
+            ]
+          : spec.layout.panels,
+      workspaceAxis: spec.layout.workspaceAxis,
       rows: prefs.rows ?? spec.layout.rows,
       cols: prefs.cols ?? spec.layout.cols,
       // Drawer defaults to the SAME width as home (a clean 4-wide), not home+1.
       // The user can still bump it in Settings, and the width-responsive
       // GridMetrics path applies in the drawer widget where it is used.
       drawerCols: prefs.drawerCols ?? (prefs.cols ?? spec.layout.cols),
+      drawerScrollStyle: _pick(
+        prefs.drawerScrollStyle,
+        spec.layout.drawerScrollStyle,
+        const {'vertical', 'pages', 'cube'},
+        defaultDrawerScrollStyle,
+      ),
+      drawerGrouping: _pick(
+        prefs.drawerGrouping,
+        spec.layout.drawerGrouping,
+        const {'none', 'az'},
+        defaultDrawerGrouping,
+      ),
       iconSizeDp: prefs.iconSizeDp ?? defaultIconSizeDp,
       labelLines: prefs.labelLines ?? defaultLabelLines,
       textScale: prefs.textScale ?? defaultTextScale,
