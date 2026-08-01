@@ -59,7 +59,10 @@ export const dynamic = 'force-dynamic';
  * because they are the floor everything else falls back to.
  */
 
-const FILTERS = ['all', 'live', 'bundled', 'paid', 'unlisted'] as const;
+// `drafts` sits second because it is the one filter that answers "what am I
+// part-way through", which is the question you open this screen with far more
+// often than "what is unlisted".
+const FILTERS = ['all', 'drafts', 'live', 'bundled', 'paid', 'unlisted'] as const;
 type FilterName = (typeof FILTERS)[number];
 
 function isFilter(v: string | undefined): v is FilterName {
@@ -134,6 +137,13 @@ export default async function DistrosPage({
 
   const matches = (r: (typeof sorted)[number], f: FilterName) => {
     switch (f) {
+      // A DRAFT IS UNPUBLISHED AND NOT BUNDLED. Bundled distros also carry
+      // `draft v1` because they ship inside the APK and were never published to
+      // the CDN, but they are finished work rather than work in progress, and
+      // filing them under drafts would bury the one row that needs finishing
+      // under three that do not.
+      case 'drafts':
+        return r.publishedVersion == null && !r.bundled;
       case 'live':
         return r.publishedVersion != null;
       case 'bundled':

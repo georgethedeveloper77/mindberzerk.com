@@ -53,7 +53,10 @@ export const dynamic = 'force-dynamic';
  * it, and they disagree more often than you would expect.
  */
 
-const FILTERS = ['all', 'hero', 'brand', 'in a distro', 'standalone'] as const;
+// `drafts` is second for the same reason it is on Distros: "what am I part-way
+// through" is the question this screen is opened with more often than any
+// question about kind.
+const FILTERS = ['all', 'drafts', 'hero', 'brand', 'in a distro', 'standalone'] as const;
 type FilterName = (typeof FILTERS)[number];
 
 const isFilter = (v: string | undefined): v is FilterName =>
@@ -177,7 +180,7 @@ export default async function IconsPage({
       }),
   );
 
-  const cards = await Promise.all(
+  const published = await Promise.all(
     packs.map(async (p) => {
       // The theme pack that GRANTS this one, which is a payment fact and not a
       // usage one. Kept separate from usedBy on purpose.
@@ -200,6 +203,7 @@ export default async function IconsPage({
       const { art, count } = artFrom(file?.data, (name) => cdnUrl(appId, p.path, name));
 
       return {
+        draft: false as const,
         packId: p.packId,
         title: p.title || p.packId,
         packType: p.packType,
@@ -215,25 +219,58 @@ export default async function IconsPage({
     }),
   );
 
+  // ── DRAFTS JOIN THE LIST RATHER THAN SITTING ABOVE IT ────────────────────
+  //
+  // A separate strip made drafts a second list to scan, which is the shape this
+  // panel has been removing everywhere else: one list, one order, a chip saying
+  // which kind of row it is. A draft has no version, no size and nothing on the
+  // CDN, so those columns render empty rather than as zeroes.
+  const draftCards = iconDrafts.drafts.map((d) => ({
+    draft: true as const,
+    packId: d.packId,
+    title: d.name || d.packId,
+    packType: 'hero',
+    version: 0,
+    sizeBytes: 0,
+    sku: d.sku || null,
+    listed: false,
+    distro: null as string | null,
+    // A draft's art lives under admin/ and is reopened by URL in the builder;
+    // rendering those here would be a second fetch of the same bytes for a
+    // 38px mosaic, so drafts show the count and no thumbnail.
+    art: [] as Art[],
+    count: d.icons.length,
+    mapped: d.icons.filter((i) => i.pkg).length,
+    used: [] as string[],
+    updatedAt: d.updatedAt,
+  }));
+
+  const cards = [...published, ...draftCards];
   cards.sort((a, b) => a.title.localeCompare(b.title));
 
   const matches = (c: (typeof cards)[number], f: FilterName) => {
     switch (f) {
+      case 'drafts':
+        return c.draft;
       case 'hero':
         return c.packType === 'hero' || c.packType === 'icon';
       case 'brand':
         return c.packType === 'brand';
       case 'in a distro':
-        return !!c.distro;
+        return !c.draft && !!c.distro;
       case 'standalone':
-        return !c.distro;
+        return !c.draft && !c.distro;
       default:
         return true;
     }
   };
 
   const shown = cards.filter((c) => matches(c, active));
-  const selected = shown.find((c) => c.packId === sel) ?? shown[0] ?? null;
+  // The inspector describes a PUBLISHED pack, so a draft can never be selected
+  // into it: everything it shows (version, size, granted by, used by) is a fact
+  // about the index, and a draft is in none of it.
+  const selectable = shown.filter((c) => !c.draft);
+  const selected = selectable.find((c) => c.packId === sel) ?? selectable[0] ?? null;
 
   const meta = appMeta(appId);
   const href = (id: string) =>
@@ -287,43 +324,6 @@ export default async function IconsPage({
         })}
       </div>
 
-      {iconDrafts.drafts.length > 0 && (
-        <section className="overflow-hidden rounded-[18px] border border-dashed border-site-line bg-site-card shadow-site-soft">
-          <header className="flex items-center gap-3 px-[18px] py-3.5">
-            <span className="grid size-[30px] place-items-center rounded-[9px] bg-site-info-soft text-site-info">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M11.3 2.9l1.8 1.8L5.8 12H4v-1.8l7.3-7.3z" />
-              </svg>
-            </span>
-            <h2 className="font-site-display text-[15px] font-bold text-site-ink">Drafts</h2>
-            <span className="text-[11.5px] text-site-ink-3">not published, visible only here</span>
-          </header>
-          {iconDrafts.drafts.map((d) => (
-            <Link
-              key={d.packId}
-              href={`/apps/${appId}/icons/builder?id=${d.packId}`}
-              className="flex items-center gap-3.5 border-t border-site-line px-4 py-2.5 transition hover:bg-site-sunk"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-semibold text-site-ink">
-                  {d.name || d.packId}
-                </span>
-                <span className="mt-0.5 block truncate font-mono text-[11px] text-site-ink-3">
-                  {d.packId} {'\u00b7'} {d.icons.filter((i) => i.pkg).length} mapped of{' '}
-                  {d.icons.length}
-                </span>
-              </span>
-              <span className="shrink-0 rounded-full bg-site-info-soft px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] text-site-info">
-                draft
-              </span>
-              <span className="w-[86px] shrink-0 text-right font-mono text-[11.5px] text-site-ink-3">
-                {new Date(d.updatedAt * 1000).toISOString().slice(0, 10)}
-              </span>
-            </Link>
-          ))}
-        </section>
-      )}
-
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
         <section className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
           {shown.length === 0 ? (
@@ -348,28 +348,45 @@ export default async function IconsPage({
               const on = selected?.packId === c.packId;
               return (
                 <Link
-                  key={c.packId}
-                  href={href(c.packId)}
+                  key={`${c.draft ? 'draft' : 'live'}-${c.packId}`}
+                  href={c.draft ? `/apps/${appId}/icons/builder?id=${c.packId}` : href(c.packId)}
                   className={`relative flex items-center gap-3.5 border-t border-site-line px-4 py-2.5 transition first:border-t-0 ${
                     on ? 'bg-site-accent-soft' : 'hover:bg-site-sunk'
                   }`}
                 >
                   {on && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-site-accent" />}
-                  <Mosaic art={c.art} />
+                  {c.draft ? (
+                    <span
+                      aria-hidden
+                      className="grid size-[38px] shrink-0 place-items-center rounded-lg border border-dashed border-site-line text-site-ink-3"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11.3 2.9l1.8 1.8L5.8 12H4v-1.8l7.3-7.3z" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <Mosaic art={c.art} />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13.5px] font-semibold text-site-ink">
                       {c.title}
                     </span>
                     <span className="mt-0.5 block truncate font-mono text-[11px] text-site-ink-3">
-                      {c.packId} {'\u00b7'} {c.packType} {'\u00b7'} v{c.version}
+                      {c.draft
+                        ? `${c.packId} \u00b7 ${c.mapped} mapped of ${c.count}`
+                        : `${c.packId} \u00b7 ${c.packType} \u00b7 v${c.version}`}
                     </span>
                   </span>
                   <span
                     className={`shrink-0 rounded-full px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] ${
-                      c.count === 0 ? 'bg-site-plan-soft text-site-plan' : 'bg-site-ok-soft text-site-ok'
+                      c.draft
+                        ? 'bg-site-info-soft text-site-info'
+                        : c.count === 0
+                          ? 'bg-site-plan-soft text-site-plan'
+                          : 'bg-site-ok-soft text-site-ok'
                     }`}
                   >
-                    {c.count === 0 ? 'no art' : c.distro ? 'in a distro' : 'standalone'}
+                    {c.draft ? 'draft' : c.count === 0 ? 'no art' : c.distro ? 'in a distro' : 'standalone'}
                   </span>
                   <span className="w-[86px] shrink-0 text-right font-mono text-[11.5px] text-site-ink-3">
                     {c.count.toLocaleString()} {c.count === 1 ? 'icon' : 'icons'}

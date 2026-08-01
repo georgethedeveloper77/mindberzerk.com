@@ -129,10 +129,10 @@ function sectionsFor(app: string): { label: string; items: Section[] }[] {
         { label: 'Analytics', href: `/apps/${app}/analytics` },
         ...(app === 'g-launcher' ? [{ label: 'Registry', href: `/apps/${app}/registry` }] : []),
         { label: 'Legal', href: `/apps/${app}/legal` },
-        // Not built yet. Rendered as a disabled label rather than omitted:
-        // knowing the shape of the thing being built is worth one grey line,
-        // and a link that 404s is worse than a label that does not click.
-        { label: 'Architecture' },
+        // Built now. It renders admin/docs/<app>/architecture.md, and an app
+        // with no doc gets an explanation rather than a 404, so this is a real
+        // link for every app rather than only for the ones with diagrams.
+        { label: 'Architecture', href: `/apps/${app}/architecture` },
       ],
     },
   ];

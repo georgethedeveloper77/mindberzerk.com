@@ -77,6 +77,20 @@ export default async function CommercePage({
 
   const [report, manual] = await Promise.all([commerceReport(app), readManualProducts(app)]);
 
+  // WHAT EACH PRODUCT ID ACTUALLY UNLOCKS, from the rows the report already
+  // built. `unlocks` is the pack list for a sku, and `grants` is the bundle
+  // route, so an id can reach a pack either way and both count as linked.
+  //
+  // Computed here rather than in the client component because it is a fact
+  // about the signed index, not about the hand-kept list, and the two must not
+  // start disagreeing.
+  const linked: Record<string, string[]> = {};
+  for (const row of report.rows) {
+    const reached = [...row.unlocks];
+    for (const g of row.grants) if (!reached.includes(g)) reached.push(g);
+    if (reached.length > 0) linked[row.sku] = reached;
+  }
+
   // With the bucket unreachable there is no catalogue to compare against, so
   // "orphan" would be a lie about every product. Show the Play side plainly
   // instead: it is the half that still loaded, and it is worth seeing.
@@ -288,7 +302,7 @@ export default async function CommercePage({
                 The list could not be read, so nothing can be added. {manual.unreachable}
               </p>
             ) : (
-              <ProductIds app={app} initial={manual.products} />
+              <ProductIds app={app} initial={manual.products} linked={linked} />
             )}
           </SoftPanel>
 
