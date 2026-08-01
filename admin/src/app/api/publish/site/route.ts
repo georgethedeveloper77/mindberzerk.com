@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { writeSiteContent, type SiteContent } from '@/lib/site-content';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { writeSiteContent, type SiteContent } from '@/lib/studio/site-content';
 
 /**
  * PHASE C12 - publish site content.

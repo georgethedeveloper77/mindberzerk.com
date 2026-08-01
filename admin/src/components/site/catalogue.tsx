@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
-import { isComing, playUrl, stateLabel } from '@/lib/site-apps';
-import type { AppMeta } from '@/lib/registry';
+import { isComing, playUrl, stateLabel } from '@/lib/studio/site-apps';
+import type { AppMeta } from '@/lib/core/registry';
 
 /**
  * The catalogue: every registry app, filterable. The registry is the source of

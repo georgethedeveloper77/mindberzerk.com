@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { getObject, listPrefix } from '@/lib/r2';
+import { getObject, listPrefix } from '@/lib/core/r2';
 import {
   INDEX_NAME,
   INDEX_SIGNATURE_NAME,
   type IndexEntitlement,
   type IndexPack,
-} from '@/lib/sign';
+} from '@/lib/core/sign';
 
 /**
  * PHASE C4 - reading what is actually deployed.
@@ -39,14 +39,14 @@ import {
  * `server-only`, so importing `AppId` from here into a client component fails
  * the build - correctly, since it would drag the R2 client into the browser
  * bundle. The list therefore lives in `lib/registry.ts`, which has no such
- * marker, and is re-exported here so every existing `from '@/lib/catalogue'`
+ * marker, and is re-exported here so every existing `from '@/lib/core/catalogue'`
  * still resolves.
  *
  * DO NOT re-declare APPS below. Two lists in two files drift, and the failure is
  * a nav item that links to a 404 for one app only.
  */
-export { APPS, type AppId } from '@/lib/registry';
-import type { AppId } from '@/lib/registry';
+export { APPS, type AppId } from '@/lib/core/registry';
+import type { AppId } from '@/lib/core/registry';
 
 export interface LiveIndex {
   generatedAt: number;

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSession, NotAuthorised, revokeSession, SESSION_COOKIE } from '@/lib/auth';
+import { createSession, NotAuthorised, revokeSession, SESSION_COOKIE } from '@/lib/core/auth';
 
 /**
  * PHASE C4 - exchange a Firebase ID token for a session cookie.

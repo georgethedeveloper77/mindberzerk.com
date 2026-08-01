@@ -6,7 +6,7 @@ import {
   playConsoleUrl,
   playListingUrl,
   type AppMeta,
-} from '@/lib/registry';
+} from '@/lib/core/registry';
 
 /**
  * THE STUDIO REGISTER, a third one, and the reason is worth stating.

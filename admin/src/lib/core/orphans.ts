@@ -1,8 +1,8 @@
 import 'server-only';
 
-import { readLiveIndex, type AppId } from '@/lib/catalogue';
-import { deleteObject, listPrefixObjects } from '@/lib/r2';
-import { INDEX_NAME } from '@/lib/sign';
+import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { deleteObject, listPrefixObjects } from '@/lib/core/r2';
+import { INDEX_NAME } from '@/lib/core/sign';
 
 /**
  * ORPHANED OBJECTS: what is in the bucket that the catalogue no longer names.

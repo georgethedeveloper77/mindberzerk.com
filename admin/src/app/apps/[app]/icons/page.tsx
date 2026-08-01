@@ -18,12 +18,12 @@ import {
 } from '@/app/components/ui';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { ListToggle } from '@/components/theme-list/ListToggle';
-import { readLiveIndex, type AppId } from '@/lib/catalogue';
-import { isListed, readListing } from '@/lib/listing';
-import { readPackJson } from '@/lib/pack-content';
-import { appName, isAppId } from '@/lib/registry';
-import { importTheme } from '@/lib/theme-spec';
-import { readAllDraftsSafe } from '@/lib/themes';
+import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { isListed, readListing } from '@/lib/core/listing';
+import { readPackJson } from '@/lib/core/pack-content';
+import { appName, isAppId } from '@/lib/core/registry';
+import { importTheme } from '@/lib/g-launcher/theme-spec';
+import { readAllDraftsSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
 

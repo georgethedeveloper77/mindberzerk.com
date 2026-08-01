@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Geist, Geist_Mono, Plus_Jakarta_Sans } from 'next/font/google';
-import Script from 'next/script';
 import './globals.css';
 import { ToastProvider } from '@/components/console';
 
@@ -64,10 +63,20 @@ export const viewport: Viewport = {
  * visitor sees a white flash. Reading localStorage needs JavaScript; there is
  * no CSS-only version of "what did this person choose last time".
  *
- * `next/script` with `beforeInteractive` is the supported way to do that in the
- * App Router, and it is only allowed in the root layout. A raw <script> tag
- * inside a component earns a Next 16 warning, because such a tag is inlined
- * into the SSR HTML but never executed on a client navigation.
+ * IT GOES IN <head>, AND ONLY THERE. Two wrong turns were taken first, so the
+ * reasons are worth keeping:
+ *
+ *  1. A raw <script> in a ROUTE layout earns a Next 16 warning, because such a
+ *     tag is inlined into the SSR HTML but never executed on a client
+ *     navigation. Correct warning; that version is gone.
+ *  2. `next/script` with `beforeInteractive` as a child of <html> is invalid
+ *     HTML. A <script> cannot be a sibling of <head> and <body>, so React
+ *     reports a nesting error and a hydration mismatch on top of it.
+ *
+ * A plain <script> inside an explicit <head> is the standard no-flash pattern,
+ * it is valid HTML, it runs parser-blocking before first paint, and it needs no
+ * component wrapper. On a client navigation it does not re-run, which is
+ * correct: <html> already carries the attribute by then.
  *
  * It writes `data-theme` onto <html>, which is a server/client difference by
  * design, which is what `suppressHydrationWarning` on <html> is for. Scoped to
@@ -82,9 +91,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${sans.variable} ${mono.variable} ${siteSans.variable} ${siteDisplay.variable}`}
       suppressHydrationWarning
     >
-      <Script id="mb-theme" strategy="beforeInteractive">
-        {THEME_REPLAY}
-      </Script>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_REPLAY }} />
+      </head>
       {/* Colours come from globals.css, not from utilities here: the body is the
           one element that must be painted before any CSS-in-JS or route chunk
           arrives, or the first paint is white on a dark panel. */}

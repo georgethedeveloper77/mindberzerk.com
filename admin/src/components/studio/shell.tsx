@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { ThemeToggle } from '@/components/site/theme-toggle';
-import { signOut } from '@/lib/firebase-client';
-import { MANAGED } from '@/lib/registry';
+import { signOut } from '@/lib/core/firebase-client';
+import { MANAGED } from '@/lib/core/registry';
 
 /**
  * THE STUDIO SHELL, and it is deliberately temporary.
@@ -48,6 +48,28 @@ const NAV = [
       <>
         <rect x="2" y="3" width="12" height="10" rx="2" />
         <path d="M2 6.5h12" />
+      </>
+    ),
+  },
+  {
+    href: '/legal/studio',
+    label: 'Studio legal',
+    icon: (
+      <>
+        <path d="M4 2.5h5l3 3v8a1 1 0 01-1 1H4a1 1 0 01-1-1v-10a1 1 0 011-1z" />
+        <path d="M6 8.5h4M6 11h4" />
+      </>
+    ),
+  },
+  {
+    // The STUDIO's apps, not the launcher's third-party list. That one lives at
+    // /apps/g-launcher/registry and stays there.
+    href: '/registry',
+    label: 'App registry',
+    icon: (
+      <>
+        <rect x="2" y="2.5" width="12" height="11" rx="2" />
+        <path d="M2 6h12M6 6v7.5" />
       </>
     ),
   },

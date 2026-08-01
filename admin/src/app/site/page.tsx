@@ -1,6 +1,6 @@
 import { adminGate } from '@/app/components/admin-gate';
-import { readSiteContent } from '@/lib/site-content';
-import { REGISTRY } from '@/lib/registry';
+import { readSiteContent } from '@/lib/studio/site-content';
+import { REGISTRY } from '@/lib/core/registry';
 import { Shell } from '@/app/components/shell';
 import { SiteForm } from '@/app/components/site-form';
 import { Banner, PageHead, when } from '@/app/components/ui';

@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { isLegalId, writeLegal } from '@/lib/legal';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { isLegalId, writeLegal, type LegalDocument } from '@/lib/studio/legal';
 
 /**
- * PHASE C13 - publish a privacy policy and terms, for an app or for the studio.
+ * PHASE C13 - publish a set of legal documents, for an app or for the studio.
  *
  * Unsigned and on its own track, exactly like `publish/site`: it writes under
  * `site/legal/` and touches nothing about the pack index, its signature or
  * `generatedAt`. A phone never reads these pages; Google and a person do.
  *
  * All validation lives in `writeLegal`, which refuses before it writes anything.
- * That ordering matters here more than usual: a half-published pair, where the
+ * That ordering matters here more than usual: a half-published set, where the
  * privacy page is new and the terms are last month's, is the state Play would
  * notice and nobody else would.
+ *
+ * The body is coerced field by field rather than trusted. This route is behind
+ * the allowlist, so this is not a hostile-input defence; it is a shape defence,
+ * because a stale client posting the old two-field document would otherwise
+ * reach `writeLegal` and fail somewhere less legible.
  */
 export const runtime = 'nodejs';
 
@@ -35,22 +40,31 @@ export async function POST(request: Request) {
   }
 
   // isLegalId, NOT isAppId. The studio has a reserved id that is deliberately
-  // not an app: mindberzerk.com has its own terms and privacy, published
-  // through this same route and rendered by the same template. `isLegalId`
-  // accepts exactly the app ids plus `studio` and nothing else, so widening the
-  // gate does not widen what can be written.
+  // not an app, and it accepts exactly the app ids plus `studio`.
   const app = String(body.app ?? '');
   if (!isLegalId(app)) {
     return NextResponse.json({ error: `Unknown legal id '${app}'` }, { status: 400 });
   }
 
+  if (!Array.isArray(body.documents)) {
+    return NextResponse.json(
+      { error: 'documents is required. An older editor posted privacy and terms as strings.' },
+      { status: 400 },
+    );
+  }
+
+  const documents: LegalDocument[] = (body.documents as Record<string, unknown>[]).map((d) => ({
+    slug: String(d?.slug ?? ''),
+    title: String(d?.title ?? ''),
+    body: String(d?.body ?? ''),
+  }));
+
   const result = await writeLegal(app, {
-    privacy: String(body.privacy ?? ''),
-    terms: String(body.terms ?? ''),
+    documents,
     contactEmail: String(body.contactEmail ?? ''),
     jurisdiction: String(body.jurisdiction ?? ''),
   });
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  return NextResponse.json({ ok: true, updatedAt: result.updatedAt });
+  return NextResponse.json({ ok: true, updatedAt: result.updatedAt, pages: result.pages });
 }

@@ -15,11 +15,12 @@ import {
   bytes,
   when,
 } from '@/app/components/ui';
-import { indexIsSigned, readLiveIndex, type AppId } from '@/lib/catalogue';
-import { commerceReport, worstTone } from '@/lib/commerce';
-import { orphanReport } from '@/lib/orphans';
-import { appMeta, appName, isAppId } from '@/lib/registry';
-import { ensureSeededSafe } from '@/lib/themes';
+import { appAudience, appInstalls, change } from '@/lib/core/app-metrics';
+import { indexIsSigned, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { commerceReport, worstTone } from '@/lib/core/commerce';
+import { orphanReport } from '@/lib/core/orphans';
+import { appMeta, appName, isAppId } from '@/lib/core/registry';
+import { ensureSeededSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,15 @@ export default async function AppOverviewPage({
     commerceReport(appId),
     ensureSeededSafe(appId),
     orphanReport(appId),
+  ]);
+
+  // Installs and audience come from Play's reports bucket and GA4, which are
+  // slower and likelier to be unconfigured than anything above. Fetched after
+  // the first group rather than inside it so a 403 on either cannot delay the
+  // figures this page has always shown.
+  const [installs, audience] = await Promise.all([
+    appInstalls(appMeta(appId)?.pkg ?? null),
+    appAudience(appId, 30),
   ]);
   const signed = live.exists ? await indexIsSigned(appId).catch(() => false) : false;
 
@@ -208,14 +218,27 @@ export default async function AppOverviewPage({
       where: 'Config',
     });
   }
-  tasks.push({
-    level: 'ok',
-    title: 'Analytics export not connected',
-    detail:
-      'BigQuery export is off, so this panel measures nothing yet. Play and Firebase are the systems of record until it lands.',
-    href: `/apps/${appId}/analytics`,
-    where: 'Analytics',
-  });
+  // Two different measurements, two different switches, so two different
+  // tasks. One panel going dark because the other is unconfigured is exactly
+  // the ambiguity these rows exist to remove.
+  if (!installs.ok) {
+    tasks.push({
+      level: 'warn',
+      title: 'Install reports are not readable',
+      detail: installs.reason,
+      href: `/apps/${appId}/config`,
+      where: 'Config',
+    });
+  }
+  if (!audience.ok) {
+    tasks.push({
+      level: 'warn',
+      title: 'Active users are not measured',
+      detail: audience.reason,
+      href: `/apps/${appId}/analytics`,
+      where: 'Analytics',
+    });
+  }
   if (!bucketDown && !live.corrupt && signed) {
     tasks.push({
       level: 'ok',
@@ -361,24 +384,142 @@ export default async function AppOverviewPage({
         </Panel>
       </div>
 
+      {/* ── INSTALLS AND AUDIENCE ─────────────────────────────────────────
+          Measured now, where it can be. Revenue is still absent and still
+          deliberate: Play's financial reports are the system of record and a
+          second answer to a revenue question is worse than no answer.
+
+          Each half reports its own state. Installs can be connected while the
+          audience is not, and saying so beats one panel that goes dark because
+          half of it is unconfigured. */}
+      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-2">
+        <Panel
+          title="Installs"
+          right={
+            installs.ok && installs.data.through ? (
+              <span className="font-mono text-micro text-ink-3">through {installs.data.through}</span>
+            ) : undefined
+          }
+        >
+          {!installs.ok ? (
+            <p className="text-micro leading-relaxed text-ink-3">{installs.reason}</p>
+          ) : (
+            <>
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                <span>
+                  <span className="block text-micro uppercase tracking-wider text-ink-3">installs</span>
+                  <span className="block text-lg font-semibold tracking-tight text-ink tnum">
+                    {installs.data.installs.toLocaleString()}
+                  </span>
+                </span>
+                <span>
+                  <span className="block text-micro uppercase tracking-wider text-ink-3">uninstalls</span>
+                  <span className="block text-lg font-semibold tracking-tight text-ink-2 tnum">
+                    {installs.data.uninstalls.toLocaleString()}
+                  </span>
+                </span>
+                <span>
+                  <span className="block text-micro uppercase tracking-wider text-ink-3">net</span>
+                  <span
+                    className={`block text-lg font-semibold tracking-tight tnum ${
+                      installs.data.net >= 0 ? 'text-ok' : 'text-bad'
+                    }`}
+                  >
+                    {installs.data.net >= 0 ? '+' : ''}
+                    {installs.data.net.toLocaleString()}
+                  </span>
+                </span>
+              </div>
+
+              {/* Nullable stats render as ABSENT ROWS, never as a placeholder
+                  string. Play omits these columns on some report versions. */}
+              {installs.data.activeDeviceInstalls !== null && (
+                <KV k="Active device installs" v={installs.data.activeDeviceInstalls.toLocaleString()} />
+              )}
+              {installs.data.totalUserInstalls !== null && (
+                <KV k="Total user installs" v={installs.data.totalUserInstalls.toLocaleString()} />
+              )}
+
+              <div className="mt-3 space-y-1">
+                {(() => {
+                  const recent = installs.data.series.slice(-14);
+                  const peak = Math.max(1, ...recent.map((d) => d.installs));
+                  return recent.map((d) => (
+                    <BarRow
+                      key={d.date}
+                      label={d.date.slice(5)}
+                      value={d.installs.toLocaleString()}
+                      pct={(d.installs / peak) * 100}
+                      tone="ok"
+                    />
+                  ));
+                })()}
+              </div>
+            </>
+          )}
+        </Panel>
+
+        <Panel title="Active users" right={<span className="font-mono text-micro text-ink-3">30 days</span>}>
+          {!audience.ok ? (
+            <p className="text-micro leading-relaxed text-ink-3">{audience.reason}</p>
+          ) : (
+            <>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <span>
+                  <span className="block text-micro uppercase tracking-wider text-ink-3">active</span>
+                  <span className="block text-lg font-semibold tracking-tight text-ink tnum">
+                    {audience.data.activeUsers.toLocaleString()}
+                  </span>
+                  {(() => {
+                    const delta = change(audience.data.activeUsers, audience.data.previousActive);
+                    return delta === null ? null : (
+                      <span className={`block font-mono text-micro tnum ${delta >= 0 ? 'text-ok' : 'text-bad'}`}>
+                        {delta >= 0 ? '+' : ''}
+                        {delta}% vs previous
+                      </span>
+                    );
+                  })()}
+                </span>
+                <span>
+                  <span className="block text-micro uppercase tracking-wider text-ink-3">new</span>
+                  <span className="block text-lg font-semibold tracking-tight text-ink-2 tnum">
+                    {audience.data.newUsers.toLocaleString()}
+                  </span>
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                {(() => {
+                  const recent = audience.data.series.slice(-14);
+                  const peak = Math.max(1, ...recent.map((d) => d.users));
+                  return recent.map((d) => (
+                    <BarRow
+                      key={d.date}
+                      label={`${d.date.slice(4, 6)}-${d.date.slice(6, 8)}`}
+                      value={d.users.toLocaleString()}
+                      pct={(d.users / peak) * 100}
+                      tone="info"
+                    />
+                  ));
+                })()}
+              </div>
+            </>
+          )}
+        </Panel>
+      </div>
+
       <div className="mt-2 sm:mt-3">
-        <Panel title="Installs and revenue">
-          {/* One line, not four sentences. The argument for why this panel does
-              not rebuild installs or revenue lives in the file doc above. */}
+        <Panel title="Revenue">
           <p className="text-micro leading-relaxed text-ink-3">
-            Not connected. Installs, users and revenue live in Play and Firebase,
-            which are the systems of record until the BigQuery export is on.
+            Not here, on purpose. Play&apos;s financial reports are the system of record, and a
+            revenue figure with two answers is worse than one with none.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {meta?.pkg && (
-              <Button href="https://play.google.com/console/u/0/developers">
-                Play Console
-              </Button>
+              <Button href="https://play.google.com/console/u/0/developers">Play Console</Button>
             )}
             {projectId && (
-              <Button
-                href={`https://console.firebase.google.com/project/${projectId}/analytics`}
-              >
+              <Button href={`https://console.firebase.google.com/project/${projectId}/analytics`}>
                 Firebase
               </Button>
             )}

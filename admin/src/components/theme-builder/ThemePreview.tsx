@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { C, cssColor } from './console';
-import type { ThemeSpecJson } from '@/lib/theme-spec';
+import type { ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
 
 /**
  * A phone-sized read of the theme. Not pixel-accurate to the app, deliberately:

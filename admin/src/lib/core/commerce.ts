@@ -1,10 +1,10 @@
 import 'server-only';
 
-import { readLiveIndex, type AppId, type LiveIndex } from '@/lib/catalogue';
-import { isListed, readListing } from '@/lib/listing';
-import { listPlayProducts, type PlayCatalogue, type PlayProduct } from '@/lib/play';
-import { appMeta } from '@/lib/registry';
-import { skuKind, skuProblems, type SkuKind } from '@/lib/skus';
+import { readLiveIndex, type AppId, type LiveIndex } from '@/lib/core/catalogue';
+import { isListed, readListing } from '@/lib/core/listing';
+import { listPlayProducts, type PlayCatalogue, type PlayProduct } from '@/lib/core/play';
+import { appMeta } from '@/lib/core/registry';
+import { skuKind, skuProblems, type SkuKind } from '@/lib/core/skus';
 
 /**
  * THE THREE SYSTEMS THAT HAVE TO AGREE, JOINED IN ONE PLACE.

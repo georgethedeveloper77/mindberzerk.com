@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { isAppId } from '@/lib/registry';
-import { unpublishPacks } from '@/lib/unpublish-core';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { isAppId } from '@/lib/core/registry';
+import { unpublishPacks } from '@/lib/core/unpublish-core';
 
 /**
  * PHASE C6 - pulling a release. NOW A WRAPPER over `lib/unpublish-core.ts`.

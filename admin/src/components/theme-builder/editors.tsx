@@ -23,7 +23,7 @@ import {
   type DrawerScrollName,
   type ThemeSpecJson,
   type TopBarSideName,
-} from '@/lib/theme-spec';
+} from '@/lib/g-launcher/theme-spec';
 
 const shellLabels: Record<ShellName, string> = {
   gnome: 'GNOME',

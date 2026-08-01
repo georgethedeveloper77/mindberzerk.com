@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { readLiveIndex } from '@/lib/catalogue';
-import { appName, isAppId } from '@/lib/registry';
+import { readLiveIndex } from '@/lib/core/catalogue';
+import { appName, isAppId } from '@/lib/core/registry';
 import { Shell } from '@/app/components/shell';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { BundlesForm } from '@/app/components/bundles-form';

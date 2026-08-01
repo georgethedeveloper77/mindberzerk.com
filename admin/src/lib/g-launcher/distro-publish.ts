@@ -1,17 +1,17 @@
 import 'server-only';
 
-import { readLiveIndex, type AppId } from '@/lib/catalogue';
-import { canonicalHeroPackJson, type HeroPackJson } from '@/lib/hero-pack';
-import { checkThemePackFlat, flatRefusal } from '@/lib/flat-check';
+import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { canonicalHeroPackJson, type HeroPackJson } from '@/lib/g-launcher/hero-pack';
+import { checkThemePackFlat, flatRefusal } from '@/lib/g-launcher/flat-check';
 import {
   commitIndex,
   guardIndex,
   nextVersionFor,
   packKeyId,
   uploadPack,
-} from '@/lib/publish-core';
-import type { IndexEntitlement, IndexPack, PackFile } from '@/lib/sign';
-import { canonicalThemeJson, type ThemeSpecJson } from '@/lib/theme-spec';
+} from '@/lib/core/publish-core';
+import type { IndexEntitlement, IndexPack, PackFile } from '@/lib/core/sign';
+import { canonicalThemeJson, type ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
 
 export interface DistroPublishInput {
   app: AppId;

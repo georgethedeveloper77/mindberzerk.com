@@ -1,13 +1,13 @@
 import 'server-only';
 
-import { nextGeneratedAt, readLiveIndex, type AppId } from '@/lib/catalogue';
-import { putObject } from '@/lib/r2';
+import { nextGeneratedAt, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { putObject } from '@/lib/core/r2';
 import {
   INDEX_NAME,
   INDEX_SIGNATURE_NAME,
   signIndex,
   type IndexPack,
-} from '@/lib/sign';
+} from '@/lib/core/sign';
 
 /**
  * ONE UNPUBLISH PATH.

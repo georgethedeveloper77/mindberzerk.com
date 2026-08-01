@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { indexIsSigned, readLiveIndex } from '@/lib/catalogue';
-import { orphanReport } from '@/lib/orphans';
-import { isAppId, appName } from '@/lib/registry';
-import { KNOWN_PACK_TYPES } from '@/lib/sign';
+import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
+import { orphanReport } from '@/lib/core/orphans';
+import { isAppId, appName } from '@/lib/core/registry';
+import { KNOWN_PACK_TYPES } from '@/lib/core/sign';
 import { Shell } from '@/app/components/shell';
 import { SweepOrphans } from '@/components/packs/SweepOrphans';
 import { UnpublishButton } from '@/app/components/unpublish-button';

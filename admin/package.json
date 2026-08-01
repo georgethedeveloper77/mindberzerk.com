@@ -12,6 +12,7 @@
     "@aws-sdk/client-s3": "^3.1090.0",
     "@google-analytics/data": "^6.1.0",
     "@google-cloud/bigquery": "^8.3.1",
+    "@google-cloud/storage": "^7.14.0",
     "fflate": "^0.8.3",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.2.0",

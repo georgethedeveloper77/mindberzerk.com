@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { readLiveIndex } from '@/lib/catalogue';
-import { hasSignature, readManifest, readPackJson } from '@/lib/pack-content';
-import { appName, isAppId } from '@/lib/registry';
-import { absolutePaths, parseTheme, toCss } from '@/lib/theme-resolve';
+import { readLiveIndex } from '@/lib/core/catalogue';
+import { hasSignature, readManifest, readPackJson } from '@/lib/core/pack-content';
+import { appName, isAppId } from '@/lib/core/registry';
+import { absolutePaths, parseTheme, toCss } from '@/lib/g-launcher/theme-resolve';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { Shell } from '@/app/components/shell';
 import { UnpublishButton } from '@/app/components/unpublish-button';

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { writeRemoteConfigKey } from '@/lib/remote-config';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { writeRemoteConfigKey } from '@/lib/core/remote-config';
 
 /**
  * PHASE C11 - write one Remote Config key.

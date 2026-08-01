@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import type { OrphanGroup } from '@/lib/orphans';
+import type { OrphanGroup } from '@/lib/core/orphans';
 
 /**
  * The sweep UI: every group visible, nothing deleted without its own confirm.

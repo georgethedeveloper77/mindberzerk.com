@@ -2,8 +2,8 @@ import { Catalogue } from '@/components/site/catalogue';
 import { Contact } from '@/components/site/contact';
 import { Featured } from '@/components/site/featured';
 import { Footer, Nav, StoreBadges } from '@/components/site/chrome';
-import { readPublishedSite, resolvePublicFeatured, resolvePublicStats, splitHeadline } from '@/lib/site-public';
-import { REGISTRY, appMeta } from '@/lib/registry';
+import { readPublishedSite, resolvePublicFeatured, resolvePublicStats, splitHeadline } from '@/lib/studio/site-public';
+import { REGISTRY, appMeta } from '@/lib/core/registry';
 
 /**
  * The landing. Everything the panel publishes is read at the top and handed

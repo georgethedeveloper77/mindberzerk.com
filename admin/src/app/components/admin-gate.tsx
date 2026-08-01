@@ -1,4 +1,4 @@
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
 
 /**
  * PHASE C-polish - one place for the auth gate.

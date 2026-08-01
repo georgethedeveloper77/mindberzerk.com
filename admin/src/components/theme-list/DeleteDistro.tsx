@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { deleteDistroAction } from '@/app/apps/[app]/distros/actions';
-import type { AppId } from '@/lib/registry';
+import type { AppId } from '@/lib/core/registry';
 
 /**
  * Delete, as a two-step inline confirm rather than a dialog.

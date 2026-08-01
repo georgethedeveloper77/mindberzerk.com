@@ -3,8 +3,8 @@ import 'server-only';
 // The RESOLVER, not the writer's schema. `theme-spec.ts` describes the file
 // the builder emits; this needs what the device's parser makes of it, which
 // is the same question this gate asks about asset paths.
-import { parseTheme } from '@/lib/theme-resolve';
-import type { PackFile } from '@/lib/sign';
+import { parseTheme } from '@/lib/g-launcher/theme-resolve';
+import type { PackFile } from '@/lib/core/sign';
 
 /**
  * PHASE C7 — the asset-resolution gate, enforced at publish.

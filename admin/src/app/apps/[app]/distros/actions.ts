@@ -1,11 +1,11 @@
 'use server';
 
-import { requireAdmin } from '@/lib/admin';
-import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
-import { publishDistro, type DistroPublishResult } from '@/lib/distro-publish';
-import type { ThemeDraft, ThemeSpecJson } from '@/lib/theme-spec';
-import { deleteDraft, distroIconPackIds, readAllDrafts } from '@/lib/themes';
-import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/unpublish-core';
+import { requireAdmin } from '@/lib/core/admin';
+import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { publishDistro, type DistroPublishResult } from '@/lib/g-launcher/distro-publish';
+import type { ThemeDraft, ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import { deleteDraft, distroIconPackIds, readAllDrafts } from '@/lib/g-launcher/themes';
+import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
 
 interface DistroMeta {
   app: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/firebase-client';
+import { signIn } from '@/lib/core/firebase-client';
 
 /**
  * The only page reachable without a session, at `/admin`.

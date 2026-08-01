@@ -7,7 +7,7 @@
  * apps exist, so the list lives here and catalogue.ts re-exports it:
  *
  *   // lib/catalogue.ts - replace the two lines that declare APPS
- *   export { APPS, type AppId } from '@/lib/registry';
+ *   export { APPS, type AppId } from '@/lib/core/registry';
  *
  * Two lists in two files would drift, and the failure mode is a nav item that
  * links to a 404 for one specific app.

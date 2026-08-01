@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
 
-import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
+import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
-import { listPlayProducts, playLite } from '@/lib/play';
-import { appMeta } from '@/lib/registry';
-import { readDraft } from '@/lib/themes';
+import { listPlayProducts, playLite } from '@/lib/core/play';
+import { appMeta } from '@/lib/core/registry';
+import { readDraft } from '@/lib/g-launcher/themes';
 import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
 
 /**

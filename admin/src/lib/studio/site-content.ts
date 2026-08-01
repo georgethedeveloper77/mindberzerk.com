@@ -1,7 +1,7 @@
 import 'server-only';
 
-import { getObject, putObject } from '@/lib/r2';
-import { REGISTRY, type AppMeta } from '@/lib/registry';
+import { getObject, putObject } from '@/lib/core/r2';
+import { REGISTRY, type AppMeta } from '@/lib/core/registry';
 
 /**
  * PHASE C12 - the publisher site's content, as JSON this panel writes.

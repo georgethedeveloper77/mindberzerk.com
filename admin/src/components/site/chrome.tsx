@@ -1,4 +1,4 @@
-import { APP_STORE_DEV_URL, PLAY_DEV_URL } from '@/lib/site-apps';
+import { APP_STORE_DEV_URL, PLAY_DEV_URL } from '@/lib/studio/site-apps';
 import { ThemeToggle } from './theme-toggle';
 
 /**

@@ -1,18 +1,18 @@
 import 'server-only';
 
-import { deleteObject, getObject, putObject } from '@/lib/r2';
-import { type IndexPack } from '@/lib/sign';
-import type { AppId, LiveIndex } from '@/lib/catalogue';
+import { deleteObject, getObject, putObject } from '@/lib/core/r2';
+import { type IndexPack } from '@/lib/core/sign';
+import type { AppId, LiveIndex } from '@/lib/core/catalogue';
 import {
   validateDraft,
   type ThemeDraft,
   type ThemeSpecJson,
-} from '@/lib/theme-spec';
+} from '@/lib/g-launcher/theme-spec';
 
 // The shape, serializer and validators live in the client-safe schema module so
 // the builder UI and this server layer can never sign different bytes than the
-// preview shows. Re-exported so existing `from '@/lib/themes'` imports still work.
-export * from '@/lib/theme-spec';
+// preview shows. Re-exported so existing `from '@/lib/g-launcher/themes'` imports still work.
+export * from '@/lib/g-launcher/theme-spec';
 
 /**
  * ITEM 1 - free themes as editable data.

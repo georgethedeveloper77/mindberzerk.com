@@ -5,10 +5,10 @@ import { Shell } from '@/app/components/shell';
 import { Banner } from '@/app/components/ui';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { IconBuilder } from '@/app/components/icon-builder';
-import { readLiveIndex } from '@/lib/catalogue';
-import { readPublishedHeroPack, type RehydratedPack } from '@/lib/cdn';
-import { listPlayProducts, playLite } from '@/lib/play';
-import { appMeta, appName, isAppId } from '@/lib/registry';
+import { readLiveIndex } from '@/lib/core/catalogue';
+import { readPublishedHeroPack, type RehydratedPack } from '@/lib/core/cdn';
+import { listPlayProducts, playLite } from '@/lib/core/play';
+import { appMeta, appName, isAppId } from '@/lib/core/registry';
 
 export const dynamic = 'force-dynamic';
 

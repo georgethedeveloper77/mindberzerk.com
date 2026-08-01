@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut } from '@/lib/firebase-client';
-import { MANAGED, appName } from '@/lib/registry';
+import { signOut } from '@/lib/core/firebase-client';
+import { MANAGED, appName } from '@/lib/core/registry';
 
 /**
  * PHASE C5 - the frame, now multi-app.

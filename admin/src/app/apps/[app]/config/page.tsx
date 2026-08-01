@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { KNOWN_KEYS, readRemoteConfig, type RcState } from '@/lib/remote-config';
-import { appName, isAppId } from '@/lib/registry';
+import { KNOWN_KEYS, readRemoteConfig, type RcState } from '@/lib/core/remote-config';
+import { appName, isAppId } from '@/lib/core/registry';
 import { Shell } from '@/app/components/shell';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { ConfigForm } from '@/app/components/config-form';

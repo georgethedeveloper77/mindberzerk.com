@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { renderMarkdown } from '@/lib/markdown';
-import { validate, type DocKind, type LegalDraft } from '@/lib/legal-schema';
+import { renderMarkdown } from '@/lib/core/markdown';
+import { validate, type DocKind, type LegalDraft } from '@/lib/studio/legal-schema';
 
 /**
  * PHASE C13 — editing an app's privacy policy and terms.

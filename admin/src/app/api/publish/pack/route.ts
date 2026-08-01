@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { readLiveIndex, type AppId } from '@/lib/catalogue';
-import { checkThemePackFlat, flatRefusal } from '@/lib/flat-check';
-import { commitIndex, packKeyId, uploadPack } from '@/lib/publish-core';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { checkThemePackFlat, flatRefusal } from '@/lib/g-launcher/flat-check';
+import { commitIndex, packKeyId, uploadPack } from '@/lib/core/publish-core';
 import { unzipSync } from 'fflate';
 
 import {
@@ -13,7 +13,7 @@ import {
   isSafeRelativePath,
   type PackFile,
   type PackType,
-} from '@/lib/sign';
+} from '@/lib/core/sign';
 
 /**
  * PHASE C4 — POST a pack, get it signed, uploaded and listed.

@@ -3,10 +3,10 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { Field, TextInput } from '@/components/theme-builder/primitives';
-import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/bulk-icons';
-import { fileNameFor, isValidPackage } from '@/lib/hero-pack';
-import { guessPackage } from '@/lib/icon-pack';
-import { renderHeroIcon } from '@/lib/image-trim';
+import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
+import { fileNameFor, isValidPackage } from '@/lib/g-launcher/hero-pack';
+import { guessPackage } from '@/lib/g-launcher/icon-pack';
+import { renderHeroIcon } from '@/lib/core/image-trim';
 
 export interface Assignment {
   file: string;

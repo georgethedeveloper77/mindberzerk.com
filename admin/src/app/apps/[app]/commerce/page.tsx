@@ -20,9 +20,9 @@ import {
   Toolbar,
   Tr,
 } from '@/app/components/ui';
-import { commerceReport, worstTone, type SkuRow } from '@/lib/commerce';
-import { appName, isAppId } from '@/lib/registry';
-import { skuKindLabel } from '@/lib/skus';
+import { commerceReport, worstTone, type SkuRow } from '@/lib/core/commerce';
+import { appName, isAppId } from '@/lib/core/registry';
+import { skuKindLabel } from '@/lib/core/skus';
 
 /**
  * COMMERCE - is everything that has a price actually for sale?

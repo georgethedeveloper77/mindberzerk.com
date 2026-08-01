@@ -167,3 +167,30 @@ env:
   #   value: "000000000"
   #   availability:
   #     - RUNTIME
+
+  # ── per-app measurement ──────────────────────────────────────────────────
+  # INSTALLS AND ACTIVE USERS COME FROM DIFFERENT SYSTEMS, and neither is the
+  # Play Developer API. Installs are CSV in a Cloud Storage bucket Play owns;
+  # active users are GA4. Both are read server-side and both report "not
+  # connected" honestly rather than showing a zero.
+  #
+  # The reports bucket. Copy the Cloud Storage URI from Play Console under
+  # Download reports, Statistics. A bare bucket id or a full gs:// URI both
+  # work. The service account needs "View app information and download bulk
+  # reports" at ACCOUNT level, not per app.
+  # - variable: PLAY_REPORTS_BUCKET
+  #   value: pubsite_prod_rev_0000000000000000000
+  #   availability:
+  #     - RUNTIME
+
+  # One GA4 property per app, from GA4 admin, Property details. NUMERIC, not
+  # the G- measurement id. The variable name is the app id, uppercased with
+  # hyphens as underscores.
+  # - variable: GA4_PROPERTY_G_LAUNCHER
+  #   value: "000000000"
+  #   availability:
+  #     - RUNTIME
+  # - variable: GA4_PROPERTY_G_RECOVERY
+  #   value: "000000000"
+  #   availability:
+  #     - RUNTIME

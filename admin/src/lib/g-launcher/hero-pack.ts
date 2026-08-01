@@ -9,10 +9,10 @@
  * Everything else is re-exported so the builders reach one implementation.
  */
 
-import { CORE_PACKAGES, fileNameFor, isPackageName, type HeroPack } from '@/lib/icon-pack';
+import { CORE_PACKAGES, fileNameFor, isPackageName, type HeroPack } from '@/lib/g-launcher/icon-pack';
 
-export { CORE_PACKAGES, fileNameFor, guessPackage, isPackageName } from '@/lib/icon-pack';
-export type { HeroPack as HeroPackJson } from '@/lib/icon-pack';
+export { CORE_PACKAGES, fileNameFor, guessPackage, isPackageName } from '@/lib/g-launcher/icon-pack';
+export type { HeroPack as HeroPackJson } from '@/lib/g-launcher/icon-pack';
 
 // ── validators icon-pack.ts does not provide ─────────────────────────────────
 

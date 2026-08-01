@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 
-import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
-import { ensureSeeded, mergeThemeRows } from '@/lib/themes';
-import { readListing, isListed } from '@/lib/listing';
+import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { ensureSeeded, mergeThemeRows } from '@/lib/g-launcher/themes';
+import { readListing, isListed } from '@/lib/core/listing';
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
 import { Button, Card, Chip, PageHead, Table, Td, Th, Tr, type Tone } from '@/app/components/ui';

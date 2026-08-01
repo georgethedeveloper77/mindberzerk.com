@@ -21,12 +21,12 @@ import { Breadcrumb } from '@/components/console/breadcrumb';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { ListToggle } from '@/components/theme-list/ListToggle';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
-import { APPS, readLiveIndex, type AppId } from '@/lib/catalogue';
-import { isListed, readListing } from '@/lib/listing';
-import { readPackJson } from '@/lib/pack-content';
-import { appName } from '@/lib/registry';
-import { importTheme, type ThemeSpecJson } from '@/lib/theme-spec';
-import { distroIconPackIds, ensureSeededSafe, mergeThemeRows } from '@/lib/themes';
+import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { isListed, readListing } from '@/lib/core/listing';
+import { readPackJson } from '@/lib/core/pack-content';
+import { appName } from '@/lib/core/registry';
+import { importTheme, type ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import { distroIconPackIds, ensureSeededSafe, mergeThemeRows } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
 

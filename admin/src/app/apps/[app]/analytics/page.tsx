@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { retentionByDistro, setupFunnel, type Analytics } from '@/lib/analytics';
-import { appName, isAppId } from '@/lib/registry';
+import { retentionByDistro, setupFunnel, type Analytics } from '@/lib/core/analytics';
+import { appName, isAppId } from '@/lib/core/registry';
 import { Shell } from '@/app/components/shell';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import {

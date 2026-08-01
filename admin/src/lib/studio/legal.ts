@@ -1,12 +1,19 @@
 import 'server-only';
 
-import { getObject, putObject } from '@/lib/r2';
-import { esc, renderMarkdown } from '@/lib/markdown';
-import { validate, type DocKind, type LegalDoc } from '@/lib/legal-schema';
-import { appMeta, isAppId, type AppId } from '@/lib/registry';
+import { getObject, putObject } from '@/lib/core/r2';
+import { esc, renderMarkdown } from '@/lib/core/markdown';
+import {
+  REQUIRED_SLUGS,
+  migrateLegacy,
+  validate,
+  type LegalDoc,
+  type LegalDocument,
+} from './legal-schema';
+import { appMeta, isAppId, type AppId } from '@/lib/core/registry';
 
 /**
- * PHASE C13 — the per-app legal pages, as markdown this panel writes.
+ * PHASE C13 - legal documents, per app and for the studio, as markdown this
+ * panel writes.
  *
  * ## Why these are NOT part of site-content.ts
  *
@@ -53,7 +60,19 @@ import { appMeta, isAppId, type AppId } from '@/lib/registry';
  * there is no path in this panel that offers to.
  */
 
-export { validate, type DocKind, type LegalDoc, type LegalDraft } from '@/lib/legal-schema';
+export {
+  REQUIRED_SLUGS,
+  SLUG_RE,
+  TEMPLATES,
+  blankDocument,
+  isRequired,
+  migrateLegacy,
+  validate,
+  type DocTemplate,
+  type LegalDoc,
+  type LegalDocument,
+  type LegalDraft,
+} from './legal-schema';
 
 /**
  * ── THE RESERVED STUDIO ID ───────────────────────────────────────────────
@@ -93,7 +112,10 @@ export function legalName(id: LegalId): string {
 }
 
 const sourceKey = (app: LegalId) => `site/legal/${app}.json`;
-const pageKey = (app: LegalId, doc: DocKind) => `site/legal/${app}/${doc}.html`;
+// One HTML object per document, named by its slug. This is why a slug is
+// immutable once published: renaming it strands the old URL, which a store or a
+// search engine may already hold.
+const pageKey = (app: LegalId, slug: string) => `site/legal/${app}/${slug}.html`;
 
 export interface LegalState {
   doc: LegalDoc;
@@ -112,7 +134,7 @@ export interface LegalState {
  * Ubuntu and Ubuntu Mono, which is the one deliberate choice here: they are the
  * faces the product itself ships, so the page reads as the same thing as the app
  * rather than a generic legal template someone bought. Everything else is
- * restraint on purpose — this is read by a Play reviewer and by somebody
+ * restraint on purpose: this is read by a Play reviewer and by somebody
  * deciding whether to trust a launcher, and both want to find one section fast.
  *
  * Includes a print stylesheet. People do print these.
@@ -123,8 +145,9 @@ function page(opts: {
   pkg: string;
   updatedAt: number;
   body: string;
-  otherHref: string;
-  otherLabel: string;
+  /** Every OTHER document, for the footer. A reader who lands on one should be
+   *  one click from the rest rather than guessing a URL. */
+  siblings: { slug: string; title: string }[];
 }): string {
   const date = new Date(opts.updatedAt * 1000).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -186,8 +209,7 @@ function page(opts: {
 </header>
 ${opts.body}
 <footer>
-  <a href="${esc(opts.otherHref)}">${esc(opts.otherLabel)}</a> &nbsp;·&nbsp;
-  <a href="https://mindberzerk.com">mindberzerk.com</a>
+  ${opts.siblings.map((o) => `<a href="./${esc(o.slug)}.html">${esc(o.title)}</a> &nbsp;·&nbsp;\n  `).join('')}<a href="https://mindberzerk.com">mindberzerk.com</a>
 </footer>
 </div>
 </body>
@@ -496,20 +518,26 @@ You can end this agreement at any time by uninstalling the app.`,
 
 function seed(app: LegalId): LegalDoc {
   const name = legalName(app);
-  const body =
+  const documents: LegalDocument[] =
     app === STUDIO_ID
-      ? { privacy: STUDIO_PRIVACY, terms: STUDIO_TERMS }
+      ? [
+          { slug: 'privacy', title: 'Privacy Policy', body: STUDIO_PRIVACY },
+          { slug: 'terms', title: 'Terms of Use', body: STUDIO_TERMS },
+        ]
       : app === 'g-launcher'
-        ? { privacy: G_LAUNCHER_PRIVACY, terms: G_LAUNCHER_TERMS }
-        : skeleton(name);
+        ? [
+            { slug: 'privacy', title: 'Privacy Policy', body: G_LAUNCHER_PRIVACY },
+            { slug: 'terms', title: 'Terms of Use', body: G_LAUNCHER_TERMS },
+          ]
+        : (() => {
+            const sk = skeleton(name);
+            return [
+              { slug: 'privacy', title: 'Privacy Policy', body: sk.privacy },
+              { slug: 'terms', title: 'Terms of Use', body: sk.terms },
+            ];
+          })();
 
-  return {
-    privacy: body.privacy,
-    terms: body.terms,
-    contactEmail: '',
-    jurisdiction: '',
-    updatedAt: 0,
-  };
+  return { documents, contactEmail: '', jurisdiction: '', updatedAt: 0 };
 }
 
 // ─── read and write ──────────────────────────────────────────────────────────
@@ -532,14 +560,31 @@ export async function readLegal(app: LegalId): Promise<LegalState> {
   if (!bytes) return { doc: seed(app), exists: false, corrupt: false };
 
   try {
-    const parsed = JSON.parse(bytes.toString('utf8')) as Partial<LegalDoc>;
+    const parsed = JSON.parse(bytes.toString('utf8')) as Partial<LegalDoc> & {
+      privacy?: unknown;
+      terms?: unknown;
+    };
     const s = seed(app);
-    // Field by field with seed fallbacks, so a document written by an older
-    // version of this panel still opens rather than throwing.
+
+    // THE MIGRATION LIVES HERE, on the read path, so a document published under
+    // the old two-field shape opens rather than disappearing. It is not written
+    // back until the next publish, which means a read is never destructive.
+    const documents: LegalDocument[] = Array.isArray(parsed.documents)
+      ? (parsed.documents as LegalDocument[])
+          .filter((d) => d && typeof d.slug === 'string')
+          .map((d) => ({
+            slug: String(d.slug),
+            title: String(d.title ?? d.slug),
+            body: String(d.body ?? ''),
+          }))
+      : migrateLegacy(parsed);
+
     return {
       doc: {
-        privacy: typeof parsed.privacy === 'string' ? parsed.privacy : s.privacy,
-        terms: typeof parsed.terms === 'string' ? parsed.terms : s.terms,
+        // An empty list after a migration means the stored document had neither
+        // field, which is a fresh bucket wearing a file. Seed rather than open
+        // an editor with nothing in it.
+        documents: documents.length > 0 ? documents : s.documents,
         contactEmail: String(parsed.contactEmail ?? ''),
         jurisdiction: String(parsed.jurisdiction ?? ''),
         updatedAt: Number(parsed.updatedAt) || 0,
@@ -553,23 +598,35 @@ export async function readLegal(app: LegalId): Promise<LegalState> {
 }
 
 /**
- * Render and publish both pages, plus the source.
+ * Render and publish every document, plus the source.
  *
  * SOURCE LAST, deliberately. If the HTML writes fail halfway, the source still
  * describes what is live rather than what was meant to be, and pressing publish
  * again is a clean retry. The reverse order would leave the editor claiming a
  * state the bucket does not have.
+ *
+ * ALL OR NOTHING, and that is the reason there is one button rather than one
+ * per document. A privacy page from today beside terms from last month is a
+ * state Play would notice and nobody else would, and the same is true of a
+ * children's policy that names a contact address the others have dropped.
+ *
+ * A DELETED DOCUMENT'S HTML IS NOT SWEPT. Removing a row here stops it being
+ * rendered and stops it appearing in every other page's footer, but the old
+ * object stays on the bucket, reachable by anyone holding the URL. That is
+ * deliberate: a legal page that 404s for someone who bookmarked it is worse
+ * than a stale one, and the orphan sweep on CDN objects is where a genuine
+ * removal belongs, done knowingly.
  */
 export async function writeLegal(
   app: LegalId,
   next: Omit<LegalDoc, 'updatedAt'>,
-): Promise<{ ok: true; updatedAt: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; updatedAt: number; pages: number } | { ok: false; error: string }> {
   const problems = validate(next);
   if (problems.length > 0) return { ok: false, error: problems.join(' ') };
 
   const name = legalName(app);
-  // The studio has no package, and the template already omits the field when it
-  // is blank, so this is the whole of the difference at publish time.
+  // The studio has no package, and the template omits the field when it is
+  // blank, so this is the whole of the difference at publish time.
   const pkg = appMeta(app)?.pkg ?? '';
   const updatedAt = Math.floor(Date.now() / 1000);
 
@@ -582,36 +639,32 @@ Mindberzerk
 
 These terms are governed by the laws of ${next.jurisdiction}, without affecting any mandatory consumer protections in the country where you live.`;
 
-  const privacyHtml = page({
-    title: 'Privacy Policy',
-    appName: name,
-    pkg,
-    updatedAt,
-    body: renderMarkdown(`${next.privacy}\n\n${contact}`),
-    otherHref: './terms.html',
-    otherLabel: 'Terms of Use',
-  });
+  for (const doc of next.documents) {
+    // The governing-law section is appended to the terms only. Contact goes on
+    // everything, because any of these can be the page someone lands on.
+    const body = doc.slug === 'terms' ? `${doc.body}\n\n${governing}\n\n${contact}` : `${doc.body}\n\n${contact}`;
 
-  const termsHtml = page({
-    title: 'Terms of Use',
-    appName: name,
-    pkg,
-    updatedAt,
-    body: renderMarkdown(`${next.terms}\n\n${governing}\n\n${contact}`),
-    otherHref: './privacy.html',
-    otherLabel: 'Privacy Policy',
-  });
+    const html = page({
+      title: doc.title,
+      appName: name,
+      pkg,
+      updatedAt,
+      body: renderMarkdown(body),
+      siblings: next.documents
+        .filter((o) => o.slug !== doc.slug)
+        .map((o) => ({ slug: o.slug, title: o.title })),
+    });
 
-  // Five minutes, NOT immutable. `putObject` marks most objects immutable for a
-  // year because pack paths carry a version; these do not, and a year-stale
-  // privacy policy is a compliance problem rather than an inconvenience.
-  await putObject(pageKey(app, 'privacy'), Buffer.from(privacyHtml, 'utf8'), 'text/html; charset=utf-8');
-  await putObject(pageKey(app, 'terms'), Buffer.from(termsHtml, 'utf8'), 'text/html; charset=utf-8');
+    // Five minutes, NOT immutable. `putObject` marks most objects immutable for
+    // a year because pack paths carry a version; these do not, and a year-stale
+    // privacy policy is a compliance problem rather than an inconvenience.
+    await putObject(pageKey(app, doc.slug), Buffer.from(html, 'utf8'), 'text/html; charset=utf-8');
+  }
 
   const doc: LegalDoc = { ...next, updatedAt };
   await putObject(sourceKey(app), Buffer.from(JSON.stringify(doc, null, 2), 'utf8'), 'application/json');
 
-  return { ok: true, updatedAt };
+  return { ok: true, updatedAt, pages: next.documents.length };
 }
 
 // ─── status, for the dashboard ───────────────────────────────────────────────
@@ -619,7 +672,9 @@ These terms are governed by the laws of ${next.jurisdiction}, without affecting 
 export interface LegalStatus {
   id: LegalId;
   name: string;
-  /** A document has been published at least once. */
+  /** How many documents this entity has. Zero only when unreadable. */
+  documents: number;
+  /** Published at least once. */
   published: boolean;
   updatedAt: number;
   /** The bucket could not be read, so `published` says nothing. */
@@ -627,7 +682,7 @@ export interface LegalStatus {
 }
 
 /**
- * Every legal document's state, for the dashboard's Legal panel.
+ * Every entity's legal state, for the dashboard.
  *
  * READS ARE INDEPENDENT AND FAILURES ARE LOCAL. This runs on the one screen you
  * open to discover something is broken, so one unreadable document must not
@@ -642,27 +697,28 @@ export async function readLegalStatuses(): Promise<LegalStatus[]> {
       try {
         const state = await readLegal(id);
         if (state.unreachable) {
-          return { id, name, published: false, updatedAt: 0, unknown: true };
+          return { id, name, documents: 0, published: false, updatedAt: 0, unknown: true };
         }
         return {
           id,
           name,
+          documents: state.doc.documents.length,
           // `exists` alone is not published: a document can be stored with
-          // updatedAt 0 by an older path. The timestamp is what the publish
+          // updatedAt 0 by an older path. The timestamp is what a publish
           // writes, so it is what "published" means.
           published: state.exists && state.doc.updatedAt > 0,
           updatedAt: state.doc.updatedAt,
           unknown: state.corrupt,
         };
       } catch {
-        return { id, name, published: false, updatedAt: 0, unknown: true };
+        return { id, name, documents: 0, published: false, updatedAt: 0, unknown: true };
       }
     }),
   );
 }
 
 /** Where the published pages are served. Shown in the editor, pasted into Play. */
-export function publicUrl(app: LegalId, doc: DocKind): string {
+export function publicUrl(app: LegalId, slug: string): string {
   const base = (process.env.CDN_BASE_URL ?? 'https://cdn.mindberzerk.com').replace(/\/+$/, '');
-  return `${base}/${pageKey(app, doc)}`;
+  return `${base}/${pageKey(app, slug)}`;
 }

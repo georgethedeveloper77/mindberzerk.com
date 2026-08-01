@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { sweepOrphans } from '@/lib/orphans';
-import { isAppId } from '@/lib/registry';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { sweepOrphans } from '@/lib/core/orphans';
+import { isAppId } from '@/lib/core/registry';
 
 /**
  * Delete orphaned objects, by group directory.

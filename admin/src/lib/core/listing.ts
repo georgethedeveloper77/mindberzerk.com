@@ -1,7 +1,7 @@
 import 'server-only';
 
-import { getObject, putObject } from '@/lib/r2';
-import type { AppId } from '@/lib/catalogue';
+import { getObject, putObject } from '@/lib/core/r2';
+import type { AppId } from '@/lib/core/catalogue';
 
 /**
  * The storefront on/off switch, kept OUT of the signed pipeline.

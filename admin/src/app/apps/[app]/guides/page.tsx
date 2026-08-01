@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { appName, appMeta, isAppId } from '@/lib/registry';
+import { appName, appMeta, isAppId } from '@/lib/core/registry';
 import { Shell } from '@/app/components/shell';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { Banner, Button, Chip, Metric, PageHead, Panel } from '@/app/components/ui';

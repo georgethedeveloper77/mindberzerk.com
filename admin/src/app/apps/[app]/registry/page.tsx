@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
 
-import { APPS, type AppId } from '@/lib/catalogue';
+import { APPS, type AppId } from '@/lib/core/catalogue';
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
 import { Banner, PageHead } from '@/app/components/ui';
 import { Breadcrumb } from '@/components/console/breadcrumb';
-import { appName } from '@/lib/registry';
+import { appName } from '@/lib/core/registry';
 import { loadRegistrySafe } from './actions';
 import { RegistryEditor } from '@/components/registry-editor/RegistryEditor';
 

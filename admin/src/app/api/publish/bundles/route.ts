@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { NotAuthorised, requireAdmin } from '@/lib/auth';
-import { nextGeneratedAt, readLiveIndex } from '@/lib/catalogue';
-import { isAppId } from '@/lib/registry';
-import { putObject } from '@/lib/r2';
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
+import { nextGeneratedAt, readLiveIndex } from '@/lib/core/catalogue';
+import { isAppId } from '@/lib/core/registry';
+import { putObject } from '@/lib/core/r2';
 import {
   INDEX_NAME,
   INDEX_SIGNATURE_NAME,
@@ -11,7 +11,7 @@ import {
   isSafeSku,
   signIndex,
   type IndexEntitlement,
-} from '@/lib/sign';
+} from '@/lib/core/sign';
 
 /**
  * PHASE C6 - bundles, which is the entitlements half of the index.

@@ -1,9 +1,9 @@
 'use server';
 
-import { getObject, putObject } from '@/lib/r2';
-import { requireAdmin } from '@/lib/admin';
-import { APPS, type AppId } from '@/lib/catalogue';
-import { validateRegistry, type RegistryApp } from '@/lib/app-registry';
+import { getObject, putObject } from '@/lib/core/r2';
+import { requireAdmin } from '@/lib/core/admin';
+import { APPS, type AppId } from '@/lib/core/catalogue';
+import { validateRegistry, type RegistryApp } from '@/lib/g-launcher/app-registry';
 
 const key = (app: AppId) => `${app}/admin/registry.json`;
 

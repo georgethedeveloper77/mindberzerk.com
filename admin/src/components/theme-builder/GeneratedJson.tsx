@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { C } from './console';
-import { canonicalThemeJson, validateDraft, type ThemeDraft } from '@/lib/theme-spec';
+import { canonicalThemeJson, validateDraft, type ThemeDraft } from '@/lib/g-launcher/theme-spec';
 
 export function GeneratedJson({ draft }: { draft: ThemeDraft }) {
   const json = React.useMemo(() => canonicalThemeJson(draft.spec), [draft.spec]);

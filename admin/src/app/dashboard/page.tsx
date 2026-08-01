@@ -11,8 +11,8 @@ import {
   SoftButton,
   SoftPanel,
 } from '@/components/studio/ui';
-import { indexIsSigned, readLiveIndex } from '@/lib/catalogue';
-import { STUDIO_ID, readLegalStatuses } from '@/lib/legal';
+import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
+import { STUDIO_ID, readLegalStatuses } from '@/lib/studio/legal';
 import {
   APP_STORE_DEVELOPER_URL,
   MANAGED,
@@ -20,8 +20,8 @@ import {
   REGISTRY,
   appMeta,
   type AppId,
-} from '@/lib/registry';
-import { delta, siteTraffic } from '@/lib/site-traffic';
+} from '@/lib/core/registry';
+import { delta, siteTraffic } from '@/lib/studio/site-traffic';
 
 export const dynamic = 'force-dynamic';
 

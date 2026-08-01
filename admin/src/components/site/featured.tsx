@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { isComing, playUrl, stateLabel } from '@/lib/site-apps';
-import type { AppMeta } from '@/lib/registry';
+import { isComing, playUrl, stateLabel } from '@/lib/studio/site-apps';
+import type { AppMeta } from '@/lib/core/registry';
 
 /**
  * The featured module: the piece of the hero the panel actually configures.

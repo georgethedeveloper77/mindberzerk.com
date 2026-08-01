@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { saveRegistry } from '@/app/apps/[app]/registry/actions';
-import { blankApp, validateApp, STARTER_APPS, type RegistryApp } from '@/lib/app-registry';
+import { blankApp, validateApp, STARTER_APPS, type RegistryApp } from '@/lib/g-launcher/app-registry';
 
 /**
  * THE APP REGISTRY EDITOR: rows on the left, one app in the panel.

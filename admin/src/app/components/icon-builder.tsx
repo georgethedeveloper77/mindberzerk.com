@@ -3,18 +3,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/bulk-icons';
+import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
 import {
   CORE_PACKAGES,
   buildHeroPackJson,
   fileNameFor,
   guessPackage,
   isPackageName,
-} from '@/lib/icon-pack';
-import { renderHeroIcon } from '@/lib/image-trim';
-import { playSkuNote, type PlayLite } from '@/lib/play-lite';
-import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/skus';
-import type { RehydratedPack } from '@/lib/cdn';
+} from '@/lib/g-launcher/icon-pack';
+import { renderHeroIcon } from '@/lib/core/image-trim';
+import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
+import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
+import type { RehydratedPack } from '@/lib/core/cdn';
 
 /**
  * PHASE C8 - the hero pack builder, corrected to the launcher's reader.

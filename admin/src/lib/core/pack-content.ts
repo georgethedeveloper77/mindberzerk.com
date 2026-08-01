@@ -1,7 +1,7 @@
 import 'server-only';
 
-import { getObject } from '@/lib/r2';
-import type { AppId } from '@/lib/registry';
+import { getObject } from '@/lib/core/r2';
+import type { AppId } from '@/lib/core/registry';
 
 /**
  * PHASE C5 - reading a published pack back out of the bucket.

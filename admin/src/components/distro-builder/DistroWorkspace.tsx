@@ -20,10 +20,10 @@ import {
   type ThemeSpecJson,
   CHROMES,
   SHELLS,
-} from '@/lib/theme-spec';
-import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pack';
-import { playSkuNote, type PlayLite } from '@/lib/play-lite';
-import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
+} from '@/lib/g-launcher/theme-spec';
+import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry } from '@/lib/g-launcher/hero-pack';
+import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
+import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 
 /**
  * Did the opened theme reference any wallpaper, and any logo.

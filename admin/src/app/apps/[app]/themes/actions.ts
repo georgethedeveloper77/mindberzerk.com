@@ -1,13 +1,13 @@
 'use server';
 
-import { readDraft, writeDraft } from '@/lib/themes';
-import { setListed } from '@/lib/listing';
-import type { AppId } from '@/lib/catalogue';
-import type { ThemeDraft } from '@/lib/theme-spec';
+import { readDraft, writeDraft } from '@/lib/g-launcher/themes';
+import { setListed } from '@/lib/core/listing';
+import type { AppId } from '@/lib/core/catalogue';
+import type { ThemeDraft } from '@/lib/g-launcher/theme-spec';
 // The shared admin gate. Every server action re-checks it: proxy.ts is not a
 // security boundary. If your gate lives elsewhere or is named differently, this
 // is the one import to adjust.
-import { requireAdmin } from '@/lib/admin';
+import { requireAdmin } from '@/lib/core/admin';
 
 /** Turn a pack's storefront listing on or off. Bundled packs are always on and
  *  are disabled in the UI, so this only ever runs for CDN packs and drafts. */
