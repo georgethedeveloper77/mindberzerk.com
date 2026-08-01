@@ -27,7 +27,7 @@ export function ListToggle({
     if (!res.ok) setOn(!next); // revert
   }
 
-  const label = disabled ? 'Bundled - always available' : on ? 'Listed' : 'Hidden';
+  const label = disabled ? 'Bundled, always available' : on ? 'Listed' : 'Hidden';
   return (
     <button
       type="button"
@@ -37,13 +37,17 @@ export function ListToggle({
       title={label}
       onClick={toggle}
       disabled={disabled || busy}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition disabled:opacity-40 ${
-        on ? 'border-accent bg-accent' : 'border-line bg-surface-3'
+      // SOFT REGISTER. The console tokens this used to carry (`bg-surface-3`,
+      // `bg-accent-ink`) are dark-only, so on the redesigned screens the track
+      // rendered as a dark slab on a light card. `site-` tokens carry a value
+      // for both modes.
+      className={`relative inline-flex h-[22px] w-10 shrink-0 items-center rounded-full border transition disabled:opacity-40 ${
+        on ? 'border-site-ok bg-site-ok' : 'border-site-line bg-site-sunk'
       }`}
     >
       <span
-        className={`inline-block size-3.5 rounded-full transition ${
-          on ? 'translate-x-4 bg-accent-ink' : 'translate-x-0.5 bg-ink-3'
+        className={`inline-block size-4 rounded-full transition ${
+          on ? 'translate-x-[19px] bg-white' : 'translate-x-[3px] bg-site-ink-3'
         }`}
       />
     </button>

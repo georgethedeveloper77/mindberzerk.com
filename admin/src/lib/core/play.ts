@@ -307,6 +307,9 @@ export function playLite(c: PlayCatalogue): PlayLite {
         title: p.title,
         activeOptions: p.activeOptions,
         samplePrice: active.find((o) => o.samplePrice)?.samplePrice ?? null,
+        // Read from Play just now, so `activeOptions` above is a measurement
+        // rather than a memory. `sku-catalogue.ts` stamps the other two.
+        source: 'play',
       };
     }),
   };

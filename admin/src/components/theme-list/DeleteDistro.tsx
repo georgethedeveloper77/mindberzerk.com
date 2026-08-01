@@ -19,9 +19,13 @@ import type { AppId } from '@/lib/core/registry';
  * because those are what the delete will pull. Granted-but-unshipped packs are
  * not listed here: there is nothing in the index to pull for them.
  *
- * On success the router refreshes and the card disappears with the server
+ * On success the router refreshes and the row disappears with the server
  * render; there is no local list to reconcile. Errors render inline under the
  * button, worded by the server.
+ *
+ * Restyled onto the `site-` tokens with the rest of the launcher screens. The
+ * console tokens it carried are dark-only and rendered as bright red on a light
+ * card.
  */
 export function DeleteDistro({
   app,
@@ -68,11 +72,15 @@ export function DeleteDistro({
             setError(null);
             setConfirming(true);
           }}
-          className="text-micro text-ink-3 transition hover:text-bad"
+          className="text-[11.5px] font-semibold text-site-ink-3 transition hover:text-site-plan"
         >
           Delete
         </button>
-        {error && <p className="mt-1 text-micro leading-relaxed text-bad">{error}</p>}
+        {error && (
+          <p className="mt-1.5 rounded-lg bg-site-plan-soft px-2.5 py-2 text-[11px] leading-relaxed text-site-plan">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -88,7 +96,7 @@ export function DeleteDistro({
 
   return (
     <div className="min-w-0 flex-1 basis-full">
-      <p className="text-micro leading-relaxed text-ink-2">
+      <p className="rounded-lg bg-site-plan-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-site-plan">
         {what}
         {play}
       </p>
@@ -97,7 +105,7 @@ export function DeleteDistro({
           type="button"
           disabled={busy}
           onClick={run}
-          className="text-micro font-medium text-bad transition hover:brightness-110 disabled:opacity-50"
+          className="text-[11.5px] font-bold text-site-plan transition hover:brightness-110 disabled:opacity-50"
         >
           {busy ? 'Deleting' : 'Confirm delete'}
         </button>
@@ -105,7 +113,7 @@ export function DeleteDistro({
           type="button"
           disabled={busy}
           onClick={() => setConfirming(false)}
-          className="text-micro text-ink-3 transition hover:text-ink"
+          className="text-[11.5px] font-semibold text-site-ink-3 transition hover:text-site-ink"
         >
           Cancel
         </button>

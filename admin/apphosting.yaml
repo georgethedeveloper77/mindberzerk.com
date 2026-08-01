@@ -119,30 +119,57 @@ env:
   # outbound 465 and 587; only port 25 is blocked. Until all five exist the
   # route answers 503 and the form degrades to a mailto link, so the section
   # works before the secrets do.
-  - variable: SITE_SMTP_HOST
-    secret: site-smtp-host
-    availability:
-      - RUNTIME
-
-  - variable: SITE_SMTP_PORT
-    secret: site-smtp-port
-    availability:
-      - RUNTIME
-
-  - variable: SITE_SMTP_USER
-    secret: site-smtp-user
-    availability:
-      - RUNTIME
-
-  - variable: SITE_SMTP_PASS
-    secret: site-smtp-pass
-    availability:
-      - RUNTIME
-
-  - variable: SITE_CONTACT_TO
-    secret: site-contact-to
-    availability:
-      - RUNTIME
+  # ── CONTACT FORM DELIVERY, COMMENTED UNTIL THE SECRETS EXIST ─────────────
+  #
+  # A `secret:` reference is RESOLVED AT DEPLOY TIME whether or not any code
+  # reads it, so declaring one that does not exist fails the whole rollout with
+  # "Misconfigured secret" rather than degrading. That is why these are
+  # commented rather than left declared and empty.
+  #
+  # The contact route already handles their absence: with any of the five
+  # missing it answers 503 and the form falls back to a mailto link. So the site
+  # is fully functional with this block commented out.
+  #
+  # TO TURN THE FORM ON, create each secret and grant the backend access. The
+  # grant is a separate step from creation and is the one people forget:
+  #
+  #   firebase apphosting:secrets:set site-smtp-host
+  #   firebase apphosting:secrets:set site-smtp-port
+  #   firebase apphosting:secrets:set site-smtp-user
+  #   firebase apphosting:secrets:set site-smtp-pass
+  #   firebase apphosting:secrets:set site-contact-to
+  #   firebase apphosting:secrets:grantaccess site-smtp-host,site-smtp-port,site-smtp-user,site-smtp-pass,site-contact-to --backend <backend-id>
+  #
+  # Values: mail.mindberzerk.com, 465, the mailbox to send FROM, its password,
+  # and the address to deliver TO. Cloud Run permits outbound 465 and 587; only
+  # port 25 is blocked.
+  #
+  # Then uncomment this block and redeploy.
+  #
+  # - variable: SITE_SMTP_HOST
+  #   secret: site-smtp-host
+  #   availability:
+  #     - RUNTIME
+  #
+  # - variable: SITE_SMTP_PORT
+  #   secret: site-smtp-port
+  #   availability:
+  #     - RUNTIME
+  #
+  # - variable: SITE_SMTP_USER
+  #   secret: site-smtp-user
+  #   availability:
+  #     - RUNTIME
+  #
+  # - variable: SITE_SMTP_PASS
+  #   secret: site-smtp-pass
+  #   availability:
+  #     - RUNTIME
+  #
+  # - variable: SITE_CONTACT_TO
+  #   secret: site-contact-to
+  #   availability:
+  #     - RUNTIME
 
   # ── analytics ────────────────────────────────────────────────────────────
   # TWO DIFFERENT NUMBERS, and confusing them is the whole trap.

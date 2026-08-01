@@ -17,6 +17,13 @@ import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 import type { RehydratedPack } from '@/lib/core/cdn';
 
 /**
+ * RESTYLED ONTO THE SOFT REGISTER. This file was the one builder that did NOT
+ * move when `theme-builder/console.tsx` was retargeted, because it never used
+ * the `C` map: it writes Tailwind classes directly, so the console's dark-only
+ * tokens were baked into the markup rather than resolved through one variable
+ * map. Every colour here is a `site-` token now, which has a value in both
+ * modes.
+ *
  * PHASE C8 - the hero pack builder, corrected to the launcher's reader.
  *
  * ## What changed after reading HeroIconResolver / IconRenderer
@@ -32,7 +39,7 @@ import type { RehydratedPack } from '@/lib/core/cdn';
  *  - masked=false: draw the PNG as-is on a neutral field, because that is
  *    literally `drawLayer(canvas, hero, sizePx, 1.0f, null)`.
  *  - masked=true: clip to the theme's shape and fill the plate behind, because
- *    that is the `clipPath(maskPath) … fillBackground … drawLayer` branch.
+ *    that is the `clipPath(maskPath)`, `fillBackground`, `drawLayer` branch.
  *
  * So the plate colour and corner radius only affect the preview when masked is
  * on, exactly as they only affect the device then.
@@ -305,35 +312,35 @@ export function IconBuilder({
   return (
     <div className="space-y-3">
       {/* ── pack ─────────────────────────────────────────────────────────── */}
-      <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
+      <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <label className="block text-micro text-ink-3">Pack id</label>
+            <label className="block text-[11.5px] text-site-ink-3">Pack id</label>
             <input
               value={packId}
               onChange={(e) => setPackId(e.target.value)}
               placeholder="hero-ubuntu"
               autoCapitalize="none"
               spellCheck={false}
-              className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+              className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
             />
           </div>
           <div>
-            <label className="block text-micro text-ink-3">Name</label>
+            <label className="block text-[11.5px] text-site-ink-3">Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ubuntu hero icons"
-              className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-micro text-ink-3">Min app version</label>
+            <label className="block text-[11.5px] text-site-ink-3">Min app version</label>
             <input
               value={minAppVersion}
               onChange={(e) => setMinAppVersion(e.target.value)}
               inputMode="numeric"
-              className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+              className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
             />
           </div>
         </div>
@@ -355,8 +362,8 @@ export function IconBuilder({
             the reason nothing can be confirmed. The suggestion button only
             exists on this path; in the picker the derived id is an option. */}
         <div className="mt-3">
-          <label className="block text-micro text-ink-3">
-            Play product ID <span className="text-ink-3/60">· blank means free</span>
+          <label className="block text-[11.5px] text-site-ink-3">
+            Play product ID <span className="text-site-ink-3/60">· blank means free</span>
           </label>
           {play.ok ? (
             (() => {
@@ -394,7 +401,7 @@ export function IconBuilder({
                       setCustomSku(false);
                       setSku(v);
                     }}
-                    className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                    className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
                   >
                     {rows.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -409,7 +416,7 @@ export function IconBuilder({
                       placeholder="icons_kali"
                       autoCapitalize="none"
                       spellCheck={false}
-                      className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                      className="mt-2 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
                     />
                   )}
                 </>
@@ -423,12 +430,12 @@ export function IconBuilder({
                 placeholder="icons_kali"
                 autoCapitalize="none"
                 spellCheck={false}
-                className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                className="min-w-0 flex-1 rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
               />
               {packId && !sku && (
                 <button
                   onClick={() => setSku(iconsSkuFor(packId))}
-                  className="shrink-0 rounded-lg border border-line bg-surface-2 px-2.5 py-2 text-data text-ink-2 transition hover:bg-surface-3"
+                  className="shrink-0 rounded-lg border border-site-line bg-site-sunk px-2.5 py-2 text-[13px] text-site-ink-2 transition hover:bg-site-sunk"
                 >
                   {iconsSkuFor(packId)}
                 </button>
@@ -436,7 +443,7 @@ export function IconBuilder({
             </div>
           )}
           {skuIssues.map((p) => (
-            <p key={p} className="mt-1 text-micro text-warn">
+            <p key={p} className="mt-1 text-[11.5px] text-site-plan">
               {p}
             </p>
           ))}
@@ -449,18 +456,18 @@ export function IconBuilder({
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             onClick={() => setMasked((m) => !m)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-data transition ${
-              masked ? 'border-accent/40 bg-accent-dim text-accent' : 'border-line text-ink-2'
+            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] transition ${
+              masked ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep' : 'border-site-line text-site-ink-2'
             }`}
           >
             <span
-              className={`grid size-4 place-items-center rounded ${masked ? 'bg-accent text-accent-ink' : 'border border-line'}`}
+              className={`grid size-4 place-items-center rounded ${masked ? 'bg-site-accent text-white' : 'border border-site-line'}`}
             >
               {masked ? '\u2713' : ''}
             </span>
             masked
           </button>
-          <span className="text-micro leading-relaxed text-ink-3">
+          <span className="text-[11.5px] leading-relaxed text-site-ink-3">
             {masked
               ? 'Art is square and full-bleed; the theme clips its shape and draws the plate behind.'
               : 'Art has its own silhouette and transparency, drawn as authored. This is the usual case.'}
@@ -470,19 +477,19 @@ export function IconBuilder({
         {masked && (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-micro text-ink-3">Preview plate</label>
+              <label className="block text-[11.5px] text-site-ink-3">Preview plate</label>
               <div className="mt-1 flex items-center gap-2">
-                <span className="size-9 shrink-0 rounded-lg border border-line" style={{ background: plate }} />
+                <span className="size-9 shrink-0 rounded-lg border border-site-line" style={{ background: plate }} />
                 <input
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono"
+                  className="w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
                 />
               </div>
-              <p className="mt-1 text-micro text-ink-3">Preview only. The real plate comes from the theme.</p>
+              <p className="mt-1 text-[11.5px] text-site-ink-3">Preview only. The real plate comes from the theme.</p>
             </div>
             <div>
-              <label className="block text-micro text-ink-3">Preview corner radius {radius}%</label>
+              <label className="block text-[11.5px] text-site-ink-3">Preview corner radius {radius}%</label>
               <input
                 type="range"
                 min={0}
@@ -495,7 +502,7 @@ export function IconBuilder({
           </div>
         )}
 
-        <p className="mt-3 text-micro text-ink-3">
+        <p className="mt-3 text-[11.5px] text-site-ink-3">
           {existing
             ? `v${existing} is published. This publishes v${version} and replaces every file in it.`
             : 'New pack, publishing as v1.'}
@@ -503,7 +510,7 @@ export function IconBuilder({
       </section>
 
       {/* ── input ────────────────────────────────────────────────────────── */}
-      <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
+      <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="file"
@@ -513,7 +520,7 @@ export function IconBuilder({
               void addFiles(e.target.files);
               e.target.value = '';
             }}
-            className="block min-w-0 flex-1 text-data text-ink-3 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-data file:text-ink"
+            className="block min-w-0 flex-1 text-[13px] text-site-ink-3 file:mr-3 file:rounded-lg file:border-0 file:bg-site-accent-soft file:px-3 file:py-2 file:text-[13px] file:text-site-accent-deep"
           />
           {/* A folder pick is its own input: `webkitdirectory` and `multiple`
               on one input mean "folder" wins everywhere it is supported and
@@ -531,19 +538,19 @@ export function IconBuilder({
           />
           <label
             htmlFor="icon-folder-pick"
-            className="shrink-0 cursor-pointer rounded-lg border border-line bg-surface-2 px-3 py-2 text-data text-ink-2 transition hover:bg-surface-3"
+            className="shrink-0 cursor-pointer rounded-lg border border-site-line bg-site-sunk px-3 py-2 text-[13px] text-site-ink-2 transition hover:bg-site-sunk"
           >
             Add a folder
           </label>
         </div>
-        <p className="mt-2 text-micro leading-relaxed text-ink-3">
+        <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
           SVG, PNG, WEBP, or JPEG, loose, in a folder, or in a zip. Each drawing
           is fitted to a 192 square at its own proportions and written as PNG.
           No trimming or rescaling: what you drew is what ships. Packages are
           guessed from filenames and reviewed below; nothing uploads until you
           publish.
         </p>
-        <label className="mt-3 flex cursor-pointer items-start gap-2 text-micro leading-relaxed text-ink-2">
+        <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11.5px] leading-relaxed text-site-ink-2">
           <input
             type="checkbox"
             checked={licensed}
@@ -555,7 +562,7 @@ export function IconBuilder({
         {refused.length > 0 && (
           <div className="mt-3 space-y-1">
             {refused.map((r, i) => (
-              <p key={i} className="text-micro leading-relaxed text-warn">
+              <p key={i} className="text-[11.5px] leading-relaxed text-site-plan">
                 {r.name} {r.reason}
               </p>
             ))}
@@ -565,16 +572,16 @@ export function IconBuilder({
 
       {/* ── entries ──────────────────────────────────────────────────────── */}
       {entries.length > 0 && (
-        <section className="rounded-card border border-line-soft bg-surface-1">
-          <header className="flex items-center gap-2 border-b border-line-soft px-3 py-2.5 sm:px-4">
-            <h2 className="text-data font-medium">{entries.length} icons</h2>
-            <span className="text-micro text-ink-3">
+        <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
+          <header className="flex items-center gap-2 border-b border-site-line px-3 py-2.5 sm:px-4">
+            <h2 className="text-[13px] font-medium">{entries.length} icons</h2>
+            <span className="text-[11.5px] text-site-ink-3">
               {entries.filter((e) => isPackageName(e.pkg)).length} mapped
             </span>
             {entries.some((e) => !isPackageName(e.pkg)) && (
               <button
                 onClick={() => setUnmappedFirst((v) => !v)}
-                className={`ml-auto text-micro transition ${unmappedFirst ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
+                className={`ml-auto text-[11.5px] transition ${unmappedFirst ? 'text-site-ink' : 'text-site-ink-3 hover:text-site-ink'}`}
               >
                 {unmappedFirst ? 'Original order' : 'Unmapped first'}
               </button>
@@ -592,7 +599,7 @@ export function IconBuilder({
             ))}
           </datalist>
 
-          <div className="divide-y divide-line-soft">
+          <div className="divide-y divide-site-line">
             {(unmappedFirst
               ? [...entries].sort(
                   (a, b) => Number(isPackageName(a.pkg)) - Number(isPackageName(b.pkg)),
@@ -600,7 +607,7 @@ export function IconBuilder({
               : entries
             ).map((e) => (
               <div key={e.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:px-4">
-                <div className="grid size-12 shrink-0 place-items-center overflow-hidden border border-line" style={tileStyle}>
+                <div className="grid size-12 shrink-0 place-items-center overflow-hidden border border-site-line" style={tileStyle}>
                   {/* Busy renders NOTHING. The tile is 48px with a border and a
                       background, so an empty one already reads as "not yet",
                       and the failure case below has its own mark to be
@@ -609,7 +616,7 @@ export function IconBuilder({
                   {e.busy ? null : e.url ? (
                     <img src={e.url} alt="" className="size-12" />
                   ) : (
-                    <span className="text-micro text-bad">!</span>
+                    <span className="text-[11.5px] text-site-plan">!</span>
                   )}
                 </div>
 
@@ -621,15 +628,15 @@ export function IconBuilder({
                     autoCapitalize="none"
                     spellCheck={false}
                     list="core-pkgs"
-                    className={`w-full rounded-lg border bg-surface-2 px-2.5 py-1.5 font-mono ${
+                    className={`w-full rounded-lg border bg-site-sunk px-2.5 py-1.5 font-mono ${
                       !e.pkg
-                        ? 'border-warn/50'
+                        ? 'border-site-plan/50'
                         : !isPackageName(e.pkg) || duplicates.has(e.pkg)
-                          ? 'border-bad/60'
-                          : 'border-line'
+                          ? 'border-site-plan'
+                          : 'border-site-line'
                     }`}
                   />
-                  <p className="mt-0.5 truncate text-micro text-ink-3">
+                  <p className="mt-0.5 truncate text-[11.5px] text-site-ink-3">
                     {e.file.name}
                     {e.aspect < 0.8 || e.aspect > 1.25 ? ' · not square, padded' : ''}
                     {duplicates.has(e.pkg) ? ' · duplicate package' : ''}
@@ -642,7 +649,7 @@ export function IconBuilder({
                     if (e.url) URL.revokeObjectURL(e.url);
                     setEntries((all) => all.filter((x) => x.id !== e.id));
                   }}
-                  className="text-micro text-ink-3 transition hover:text-bad"
+                  className="text-[11.5px] text-site-ink-3 transition hover:text-site-plan"
                 >
                   Remove
                 </button>
@@ -654,21 +661,21 @@ export function IconBuilder({
 
       {/* ── coverage ─────────────────────────────────────────────────────── */}
       {entries.length > 0 && missing.length > 0 && (
-        <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
+        <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
           <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-data font-medium">Core set</h2>
-            <span className="text-micro text-ink-3">
+            <h2 className="text-[13px] font-medium">Core set</h2>
+            <span className="text-[11.5px] text-site-ink-3">
               {CORE_PACKAGES.length - missing.length} of {CORE_PACKAGES.length} covered
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {missing.map((c) => (
-              <span key={c.pkg} title={c.pkg} className="rounded-md border border-line px-2 py-1 font-mono text-micro text-ink-3">
+              <span key={c.pkg} title={c.pkg} className="rounded-md border border-site-line px-2 py-1 font-mono text-[11.5px] text-site-ink-3">
                 {c.label}
               </span>
             ))}
           </div>
-          <p className="mt-2 text-micro leading-relaxed text-ink-3">
+          <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
             The dock and first drawer page are the only icons a user sees. Ranked
             by what the install base runs, not by what a desktop theme ships. A
             real ranking arrives with the analytics export.
@@ -677,12 +684,12 @@ export function IconBuilder({
       )}
 
       {error && (
-        <p className="rounded-card border border-bad/40 bg-bad-dim px-3 py-2 text-data leading-relaxed text-bad">
+        <p className="rounded-card border border-site-plan/40 bg-site-plan-soft px-3 py-2 text-[13px] leading-relaxed text-site-plan">
           {error}
         </p>
       )}
       {result && (
-        <p className="rounded-card border border-ok/40 bg-ok-dim px-3 py-2 font-mono text-micro text-ok">
+        <p className="rounded-card border border-site-ok/40 bg-site-ok-soft px-3 py-2 font-mono text-[11.5px] text-site-ok">
           {result}
         </p>
       )}
@@ -691,17 +698,17 @@ export function IconBuilder({
         <button
           onClick={publish}
           disabled={!ready}
-          className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
+          className="w-full rounded-lg bg-site-accent px-4 py-3 text-[13px] font-medium text-white shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
         >
           {busy ? 'Signing and uploading' : `Publish ${entries.length} icons as v${version}`}
         </button>
         {!licensed && entries.length > 0 && (
-          <p className="mt-2 text-micro text-warn">
+          <p className="mt-2 text-[11.5px] text-site-plan">
             Publishing needs the license attestation above.
           </p>
         )}
         {publishedIds.length > 0 && !packId && (
-          <p className="mt-2 text-micro text-ink-3">Published hero packs: {publishedIds.join(', ')}</p>
+          <p className="mt-2 text-[11.5px] text-site-ink-3">Published hero packs: {publishedIds.join(', ')}</p>
         )}
       </div>
     </div>
@@ -717,6 +724,6 @@ export function IconBuilder({
 function PlayNoteLine({ play, sku }: { play: PlayLite; sku: string }) {
   const note = playSkuNote(play, sku);
   const cls =
-    note.tone === 'ok' ? 'text-ok' : note.tone === 'warn' ? 'text-warn' : 'text-ink-3';
-  return <p className={`mt-1 text-micro leading-relaxed ${cls}`}>{note.text}</p>;
+    note.tone === 'ok' ? 'text-site-ok' : note.tone === 'warn' ? 'text-site-plan' : 'text-site-ink-3';
+  return <p className={`mt-1 text-[11.5px] leading-relaxed ${cls}`}>{note.text}</p>;
 }

@@ -1,26 +1,25 @@
 import { notFound } from 'next/navigation';
 
-import { APPS, type AppId } from '@/lib/core/catalogue';
 import { adminGate } from '@/app/components/admin-gate';
-import { Shell } from '@/app/components/shell';
-import { Banner, PageHead } from '@/app/components/ui';
-import { Breadcrumb } from '@/components/console/breadcrumb';
-import { appName } from '@/lib/core/registry';
-import { loadRegistrySafe } from './actions';
 import { RegistryEditor } from '@/components/registry-editor/RegistryEditor';
+import { StudioShell } from '@/components/studio/shell';
+import { AppSlab } from '@/components/studio/ui';
+import { APPS, type AppId } from '@/lib/core/catalogue';
+import { appMeta, appName } from '@/lib/core/registry';
+import { loadRegistrySafe } from './actions';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * THE APP REGISTRY - what G Launcher knows about the apps it can theme, link
- * to, and group.
+ * THE THIRD-PARTY APP REGISTRY - what G Launcher knows about the apps it can
+ * theme, link to, and group.
  *
- * ─── THIS PAGE NOW READS `loadRegistrySafe`, AND THAT IS THE POINT ──────────
+ * NOT the studio's own app list. That one lives at `/registry` and holds
+ * G Launcher, G Recovery and the rest of what Mindberzerk publishes. This holds
+ * WhatsApp, Instagram and everything else the launcher draws icons for, which
+ * is a different list with a different purpose, so it stays under the app.
  *
- * It called `loadRegistry`, which throws. `actions.ts` says in as many words
- * that the page should show a banner and that "until it reads
- * `loadRegistrySafe`, an unreachable bucket looks like an empty registry". It
- * did, and this is that fix.
+ * ─── IT READS `loadRegistrySafe`, AND THAT IS THE POINT ─────────────────────
  *
  * The stakes here are higher than anywhere else in the panel. The editor loads
  * the WHOLE array, edits it in the browser, and `saveRegistry` writes the whole
@@ -31,15 +30,11 @@ export const dynamic = 'force-dynamic';
  * save that fails after ten minutes of typing is a bad way to learn the bucket
  * is down.
  *
- * So the flag does two things: it draws the banner, and it disables the editor's
- * save. Both are required. The banner alone is an explanation nobody reads
- * before clicking the button.
+ * So the flag does two things: it draws the banner, and it disables the
+ * editor's save. Both are required. The banner alone is an explanation nobody
+ * reads before clicking the button.
  */
-export default async function RegistryPage({
-  params,
-}: {
-  params: Promise<{ app: string }>;
-}) {
+export default async function RegistryPage({ params }: { params: Promise<{ app: string }> }) {
   const gate = await adminGate();
   if (gate) return gate;
 
@@ -47,28 +42,27 @@ export default async function RegistryPage({
   if (!APPS.includes(app as AppId)) notFound();
 
   const { apps, unreachable } = await loadRegistrySafe(app);
+  const meta = appMeta(app);
 
   return (
-    <Shell app={app} subtitle={`${app} / registry`}>
-      <Breadcrumb
-        items={[{ label: appName(app), href: `/apps/${app}/packs` }, { label: 'Registry' }]}
-      />
-
+    <StudioShell app={app}>
       {unreachable && (
-        <Banner tone="bad">
-          The registry could not be read, so the editor below is empty rather
-          than showing what is stored. Saving is disabled: writing an empty list
-          over a real registry is not a mistake that can be undone from here.{' '}
-          {unreachable}
-        </Banner>
+        <p className="rounded-[14px] bg-site-plan-soft px-4 py-3 text-[13px] leading-relaxed text-site-plan">
+          The registry could not be read, so the editor below is empty rather than showing what is
+          stored. Saving is disabled: writing an empty list over a real registry is not a mistake
+          that can be undone from here. {unreachable}
+        </p>
       )}
 
-      <PageHead
+      <AppSlab
+        tint={meta?.tint ?? '#6d4ae8'}
+        mark={meta?.mark ?? '?'}
+        crumb={appName(app)}
         title="App registry"
-        meta={`${apps.length} ${apps.length === 1 ? 'app' : 'apps'}`}
+        meta={`${apps.length} third-party ${apps.length === 1 ? 'app' : 'apps'} the launcher can theme`}
       />
 
       <RegistryEditor app={app} initial={apps} readOnly={!!unreachable} />
-    </Shell>
+    </StudioShell>
   );
 }

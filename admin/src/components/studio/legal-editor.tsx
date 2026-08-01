@@ -45,11 +45,19 @@ export function LegalEditor({
   app,
   initial,
   urlFor,
+  tint,
 }: {
   app: string;
   initial: LegalDraft;
   /** Built server-side, because the CDN base is a server env var. */
   urlFor: Record<string, string>;
+  /**
+   * The app's registry tint, so the editor's slab says which app's policy this
+   * is before a word is read. Absent for the STUDIO's own documents, which fall
+   * back to the amber the studio legal screen already used, since the studio is
+   * not an app and has no tint.
+   */
+  tint?: string;
 }) {
   const router = useRouter();
 
@@ -139,8 +147,9 @@ export function LegalEditor({
       <section
         className="relative overflow-hidden rounded-[22px] shadow-[0_18px_44px_rgba(23,16,31,0.22)]"
         style={{
-          background:
-            'radial-gradient(560px 260px at 5% -30%, rgba(255,178,122,0.4), transparent 62%), radial-gradient(420px 240px at 98% 130%, rgba(141,101,255,0.4), transparent 62%), linear-gradient(140deg, #2b2033, #171020 60%, #110c18)',
+          background: tint
+            ? `radial-gradient(560px 260px at 5% -30%, color-mix(in srgb, ${tint} 52%, transparent), transparent 62%), radial-gradient(420px 240px at 98% 130%, rgba(141,101,255,0.4), transparent 62%), linear-gradient(140deg, #2b2033, #171020 60%, #110c18)`
+            : 'radial-gradient(560px 260px at 5% -30%, rgba(255,178,122,0.4), transparent 62%), radial-gradient(420px 240px at 98% 130%, rgba(141,101,255,0.4), transparent 62%), linear-gradient(140deg, #2b2033, #171020 60%, #110c18)',
         }}
       >
         <span
@@ -157,7 +166,13 @@ export function LegalEditor({
         <div className="relative z-10 flex flex-wrap items-center gap-4 px-6 py-5">
           <div className="min-w-[240px]">
             <span className="inline-flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.1em] text-white/60">
-              <span className="size-1.5 rounded-full bg-[#ffb27a] shadow-[0_0_0_3px_rgba(255,178,122,0.2)]" />
+              <span
+              className="size-1.5 rounded-full"
+              style={{
+                background: tint ?? '#ffb27a',
+                boxShadow: `0 0 0 3px color-mix(in srgb, ${tint ?? '#ffb27a'} 22%, transparent)`,
+              }}
+            />
               Legal
             </span>
             <h1 className="mt-2 font-site-display text-[25px] font-extrabold text-[#f6f2fd]">

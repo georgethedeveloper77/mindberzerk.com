@@ -9,6 +9,14 @@ interface PackRef {
   sku?: string | null;
 }
 
+/** One option for the product ID field. Shape mirrors PlayLiteProduct. */
+interface ProductRef {
+  productId: string;
+  title: string | null;
+  activeOptions: number;
+  source: 'play' | 'snapshot' | 'index';
+}
+
 export interface BundleDraft {
   sku: string;
   title: string;
@@ -56,10 +64,16 @@ export interface BundleDraft {
 export function BundlesForm({
   app,
   packs,
+  products,
+  productsDegraded,
   initial,
 }: {
   app: string;
   packs: PackRef[];
+  /** Product IDs from Play, the snapshot, or the signed index. May be empty. */
+  products: ProductRef[];
+  /** True when these did not come from Play just now. */
+  productsDegraded: boolean;
   initial: BundleDraft[];
 }) {
   const router = useRouter();
@@ -147,41 +161,41 @@ export function BundlesForm({
         <button
           onClick={save}
           disabled={!dirty || busy || !!blocked}
-          className="rounded-lg bg-accent px-4 py-2 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg bg-site-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-site-accent-deep disabled:opacity-40"
         >
           {busy ? 'Signing index' : dirty ? 'Save and sign' : 'No changes'}
         </button>
-        {blocked && dirty && <span className="text-micro text-warn">{blocked}</span>}
+        {blocked && dirty && <span className="text-[11.5px] font-semibold text-site-plan">{blocked}</span>}
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1">
-          <div className="overflow-hidden rounded-card border border-line-soft bg-surface-1">
+          <div className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
             {bundles.map((b, i) => {
               const problem = b.grants.length === 0 || !b.sku.trim();
               return (
                 <button
                   key={i}
                   onClick={() => setSel(i)}
-                  className={`flex w-full items-center gap-2.5 border-b border-line-soft px-2.5 py-2 text-left transition last:border-b-0 sm:px-3 ${
-                    problem ? 'border-l-2 border-l-warn' : ''
-                  } ${sel === i ? 'bg-surface-2' : 'hover:bg-surface-2/60'}`}
+                  className={`flex w-full items-center gap-2.5 border-b border-site-line px-2.5 py-2 text-left transition last:border-b-0 sm:px-3 ${
+                    problem ? 'border-l-2 border-l-site-plan' : ''
+                  } ${sel === i ? 'bg-site-accent-soft' : 'hover:bg-site-sunk'}`}
                 >
                   <span className="min-w-0 flex-1">
                     <span
-                      className={`block truncate font-mono text-data ${
-                        sel === i ? 'text-ink' : 'text-ink-2'
+                      className={`block truncate font-mono text-[12.5px] ${
+                        sel === i ? 'text-site-ink' : 'text-site-ink-2'
                       }`}
                     >
                       {b.sku || 'new bundle'}
                     </span>
-                    <span className="block truncate text-micro text-ink-3">
+                    <span className="block truncate text-[11px] text-site-ink-3">
                       {b.grants.length === 0
                         ? 'grants nothing'
                         : b.title || `${b.grants.length} granted`}
                     </span>
                   </span>
-                  <span className="shrink-0 font-mono text-micro text-ink-3 tnum">
+                  <span className="shrink-0 font-mono text-[11px] text-site-ink-3 tnum">
                     {b.grants.length} {b.grants.length === 1 ? 'grant' : 'grants'}
                   </span>
                 </button>
@@ -190,35 +204,40 @@ export function BundlesForm({
 
             <button
               onClick={add}
-              className="w-full border-t border-dashed border-line px-3 py-2.5 text-data text-ink-3 transition hover:text-ink-2"
+              className="w-full border-t border-dashed border-site-line px-3 py-2.5 text-[13px] font-semibold text-site-ink-3 transition hover:text-site-ink"
             >
               Add a bundle
             </button>
           </div>
 
           {error && (
-            <p className="mt-3 rounded-card border border-bad/40 bg-bad-dim px-3 py-2 text-data leading-relaxed text-bad">
+            <p className="mt-3 rounded-card bg-site-plan-soft px-3 py-2 text-[13px] leading-relaxed text-site-plan">
               {error}
             </p>
           )}
           {result && (
-            <p className="mt-3 rounded-card border border-ok/40 bg-ok-dim px-3 py-2 font-mono text-micro text-ok">
+            <p className="mt-3 rounded-card bg-site-ok-soft px-3 py-2 font-mono text-[11.5px] text-site-ok">
               {result}
             </p>
           )}
         </div>
 
         {current && (
-          <aside className="w-full shrink-0 rounded-card border border-line-soft bg-surface-1 p-3 lg:sticky lg:top-6 lg:w-72">
-            <div className="font-mono text-micro text-ink-3">editing</div>
+          <aside className="w-full shrink-0 rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 lg:sticky lg:top-6 lg:w-72">
+            <div className="font-mono text-[11px] text-site-ink-3">editing</div>
 
             <div className="mt-2 space-y-2">
-              <Field
-                label="product ID"
+              {/* A DATALIST, NOT A SELECT. A bundle's product ID is
+                  legitimately chosen here FIRST and created in Play second, so
+                  the field must stay freely typeable; but a product ID is
+                  permanent and non-reusable, so typing one blind is how an
+                  identifier gets burned. A datalist suggests without
+                  constraining, which is exactly the shape of this decision. */}
+              <SkuInput
                 value={current.sku}
                 onChange={(v) => patch(sel, { sku: v })}
-                mono
-                hint="Must match the Play product id exactly"
+                products={products}
+                degraded={productsDegraded}
               />
               <Field
                 label="title"
@@ -232,8 +251,8 @@ export function BundlesForm({
               />
             </div>
 
-            <div className="mt-3 border-t border-line-soft pt-2.5">
-              <div className="mb-1.5 font-mono text-micro text-ink-3">
+            <div className="mt-3 border-t border-site-line pt-2.5">
+              <div className="mb-1.5 font-mono text-[11px] text-site-ink-3">
                 grants · {current.grants.filter((g) => g !== '*').length} of {packs.length} packs
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -246,8 +265,8 @@ export function BundlesForm({
                       title={p.sku ? p.title : `${p.title} is free, so this grant does nothing`}
                       className={`rounded-md border px-2 py-1 font-mono text-micro transition ${
                         on
-                          ? 'border-accent/40 bg-accent-dim text-accent'
-                          : 'border-line text-ink-3 hover:text-ink-2'
+                          ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep'
+                          : 'border-site-line text-site-ink-3 hover:text-site-ink'
                       } ${!p.sku && on ? 'line-through' : ''}`}
                     >
                       {p.packId}
@@ -265,7 +284,7 @@ export function BundlesForm({
                       key={g}
                       onClick={() => toggleGrant(sel, g)}
                       title="Not published yet. Legal, and it will start granting when it ships."
-                      className="rounded-md border border-info/40 bg-info-dim px-2 py-1 font-mono text-micro text-info"
+                      className="rounded-md border border-site-info/40 bg-site-info-soft px-2 py-1 font-mono text-[11px] text-site-info"
                     >
                       {g} ?
                     </button>
@@ -278,7 +297,7 @@ export function BundlesForm({
                   <button
                     onClick={() => toggleGrant(sel, '*')}
                     title="Remove the wildcard and name the packs instead"
-                    className="rounded-md border border-bad/40 bg-bad-dim px-2 py-1 font-mono text-micro text-bad"
+                    className="rounded-md border border-site-plan/40 bg-site-plan-soft px-2 py-1 font-mono text-[11px] text-site-plan"
                   >
                     everything
                   </button>
@@ -286,28 +305,28 @@ export function BundlesForm({
               </div>
 
               {current.grants.includes('*') && (
-                <p className="mt-2 text-micro leading-relaxed text-bad">
+                <p className="mt-2 text-[11px] leading-relaxed text-site-plan">
                   This grants every pack published from now on, forever, to
                   everyone who has already bought it. Remove it and name the
                   packs.
                 </p>
               )}
               {current.grants.length === 0 && (
-                <p className="mt-2 text-micro leading-relaxed text-warn">
+                <p className="mt-2 text-[11px] leading-relaxed text-site-plan">
                   A bundle that grants nothing cannot be signed, so it blocks the
                   save until it grants a pack or is deleted.
                 </p>
               )}
-              <p className="mt-2 text-micro leading-relaxed text-ink-3">
+              <p className="mt-2 text-[11px] leading-relaxed text-site-ink-3">
                 Blue means named but not published yet, which is legal and starts
                 granting when it ships.
               </p>
             </div>
 
-            <div className="mt-3 border-t border-line-soft pt-2.5">
+            <div className="mt-3 border-t border-site-line pt-2.5">
               <button
                 onClick={() => remove(sel)}
-                className="text-micro text-ink-3 transition hover:text-bad"
+                className="text-[11px] text-site-ink-3 transition hover:text-site-plan"
               >
                 Delete bundle
               </button>
@@ -315,6 +334,69 @@ export function BundlesForm({
           </aside>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The product ID field: type freely, with what we know offered underneath.
+ *
+ * `activeOptions` is only a measurement for a product read from Play just now,
+ * so the suffix on each suggestion says where it came from rather than implying
+ * Play confirmed something nobody checked. Same rule as the distro builder's
+ * SkuField, and for the same reason.
+ */
+function SkuInput({
+  value,
+  onChange,
+  products,
+  degraded,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  products: ProductRef[];
+  degraded: boolean;
+}) {
+  const listId = 'bundle-product-ids';
+  return (
+    <div>
+      <label className="block text-micro text-site-ink-3">product ID</label>
+      <input
+        value={value}
+        list={products.length > 0 ? listId : undefined}
+        onChange={(e) => onChange(e.target.value)}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        placeholder="bundle_all_distros"
+        className="mt-1 w-full rounded-xl border border-site-line bg-site-sunk px-3 py-2 font-mono text-[13px] text-site-ink focus:border-site-accent focus:outline-none"
+      />
+      {products.length > 0 && (
+        <datalist id={listId}>
+          {products.map((p) => (
+            <option
+              key={p.productId}
+              value={p.productId}
+              label={
+                p.source === 'play'
+                  ? p.activeOptions === 0
+                    ? `${p.title ?? p.productId} (not active)`
+                    : (p.title ?? p.productId)
+                  : p.source === 'snapshot'
+                    ? `${p.title ?? p.productId} (last seen in Play)`
+                    : `${p.title ?? p.productId} (in the catalogue)`
+              }
+            />
+          ))}
+        </datalist>
+      )}
+      <p className="mt-1 text-micro leading-relaxed text-site-ink-3">
+        {products.length === 0
+          ? 'No product IDs are known yet, so this is typed. It must match Play exactly.'
+          : degraded
+            ? 'Play could not be read, so these suggestions come from the last successful read and the published catalogue.'
+            : 'Suggestions come from Play. A new ID can still be typed and created there afterwards.'}
+      </p>
     </div>
   );
 }
@@ -334,18 +416,18 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-micro text-ink-3">{label}</label>
+      <label className="block text-[11px] text-site-ink-3">{label}</label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        className={`mt-1 w-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 ${
+        className={`mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-2.5 py-1.5 ${
           mono ? 'font-mono' : ''
         }`}
       />
-      {hint && <p className="mt-1 text-micro leading-relaxed text-ink-3">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] leading-relaxed text-site-ink-3">{hint}</p>}
     </div>
   );
 }

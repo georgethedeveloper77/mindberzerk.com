@@ -5,7 +5,14 @@ import { C, cssColor } from './console';
 import type { ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
 
 /**
- * A phone-sized read of the theme. Not pixel-accurate to the app, deliberately:
+ * A phone-sized read of the theme.
+ *
+ * The CHROME around it (caption, the light/dark segmented control, the bezel)
+ * follows the panel; everything INSIDE the screen is the theme's own colours,
+ * resolved through `cssColor`, and must never be touched by a panel restyle.
+ * That separation is why this component needed no work when the register moved.
+ *
+ * Not pixel-accurate to the app, deliberately:
  * it answers "is this the distro I meant" at a glance, so it renders the parts
  * that carry a distro's identity, the desktop gradient, the bar, the dock shape,
  * and the terminal, from the palette and layout as you type.
@@ -30,9 +37,12 @@ export function ThemePreview({ spec }: { spec: ThemeSpecJson }) {
           height: 480,
           borderRadius: 26,
           padding: 7,
-          background: '#05070522',
+          // A LITERAL, and correct: this is phone hardware, not panel chrome.
+          // It was '#05070522', a near-transparent black that reads as a grey
+          // haze once the card behind it is light.
+          background: '#17121f',
           border: `1px solid ${C.line}`,
-          boxShadow: '0 20px 50px -20px rgba(0,0,0,0.7)',
+          boxShadow: '0 16px 36px -16px rgba(23,16,31,0.45)',
           flexShrink: 0,
         }}
       >

@@ -116,16 +116,16 @@ function KeyRow({
     }
   }
 
-  const tone = { ok: 'text-ok', bad: 'text-bad', warn: 'text-warn' };
+  const tone = { ok: 'text-site-ok', bad: 'text-site-plan', warn: 'text-site-plan' };
 
   return (
-    <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
+    <section className="rounded-[18px] border border-site-line bg-site-card p-4 shadow-site-soft">
       <div className="flex items-baseline justify-between gap-2">
-        <label className="font-mono text-data text-ink">{item.key}</label>
+        <label className="font-mono text-[13px] font-semibold text-site-ink">{item.key}</label>
         {dirty ? (
-          <span className="text-micro text-warn">unsaved</span>
+          <span className="text-[11.5px] font-semibold text-site-plan">unsaved</span>
         ) : (
-          <span className="font-mono text-micro text-ink-3">{app}</span>
+          <span className="font-mono text-[11px] text-site-ink-3">{app}</span>
         )}
       </div>
 
@@ -136,31 +136,31 @@ function KeyRow({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className={`min-w-0 flex-1 rounded-lg border bg-surface-2 px-3 py-2 font-mono ${
-            invalid ? 'border-bad/60' : 'border-line'
+          className={`min-w-0 flex-1 rounded-lg border bg-site-sunk px-3 py-2 font-mono text-[13px] text-site-ink focus:outline-none ${
+            invalid ? 'border-site-plan' : 'border-site-line focus:border-site-accent'
           }`}
         />
         <button
           onClick={save}
           disabled={!dirty || busy || !!invalid}
-          className="rounded-lg bg-accent px-3 py-2 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg bg-site-accent px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-site-accent-deep disabled:opacity-40"
         >
           {busy ? 'Publishing' : 'Publish'}
         </button>
       </div>
 
-      {invalid && <p className="mt-1.5 text-micro leading-relaxed text-bad">{invalid}</p>}
+      {invalid && <p className="mt-1.5 text-[11.5px] leading-relaxed text-site-plan">{invalid}</p>}
 
       {/* WHAT IS LIVE, beside what you are typing. Without it a pre-filled
           input and an edited one look the same. */}
-      <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line-soft pt-2">
-        <span className="text-micro text-ink-3">live now</span>
-        <span className="truncate text-right font-mono text-micro text-ink-2">
+      <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-site-line pt-2">
+        <span className="text-[11px] text-site-ink-3">live now</span>
+        <span className="truncate text-right font-mono text-[11px] text-site-ink-2">
           {item.value ?? 'not set'}
         </span>
       </div>
 
-      <p className="mt-1.5 text-micro leading-relaxed text-ink-3">
+      <p className="mt-1.5 text-[11px] leading-relaxed text-site-ink-3">
         Read by {item.readBy}. Devices fetch on their own schedule, typically
         within twelve hours or on a cold start, so a change here is not
         immediate anywhere.

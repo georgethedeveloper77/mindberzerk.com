@@ -1,14 +1,13 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { Shell } from '@/app/components/shell';
-import { Banner } from '@/app/components/ui';
-import { Breadcrumb } from '@/components/console/breadcrumb';
 import { IconBuilder } from '@/app/components/icon-builder';
+import { StudioShell } from '@/components/studio/shell';
+import { AppSlab } from '@/components/studio/ui';
 import { readLiveIndex } from '@/lib/core/catalogue';
 import { readPublishedHeroPack, type RehydratedPack } from '@/lib/core/cdn';
-import { listPlayProducts, playLite } from '@/lib/core/play';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
+import { skuCatalogue } from '@/lib/core/sku-catalogue';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,34 +29,33 @@ export const dynamic = 'force-dynamic';
  * ─── `?id=` USED TO BE READ AND THROWN AWAY ─────────────────────────────────
  *
  * The second URL above was already documented, already linked to from the Edit
- * button on every card in `/icons`, and already destructured here. It reached
+ * button on every row in `/icons`, and already destructured here. It reached
  * the breadcrumb and stopped. `IconBuilder` never received it and starts every
  * field blank, so Edit opened an empty builder WITH THE PACK'S ID IN THE
  * BREADCRUMB, which reads as loaded rather than as broken. Publishing from that
  * screen wrote an empty pack over a real one at the next version number.
  *
- * So the pack is now read back and handed down. See `lib/cdn.ts` for why that
+ * So the pack is read back and handed down. See `lib/core/cdn.ts` for why that
  * read goes over public HTTPS rather than through `pack-content.ts`.
  *
- * ─── AND AN UNREADABLE INDEX NOW REFUSES, RATHER THAN PUBLISHING v1 ─────────
+ * ─── AND AN UNREADABLE INDEX REFUSES, RATHER THAN PUBLISHING v1 ─────────────
  *
- * `readLiveIndex` reports three separate states and this route checked none of
- * them. When the bucket cannot be read, `packs` is empty, so `publishedVersion`
- * is empty, so the builder computes version 1 for a pack that is already live at
- * 4, and publishing it is a silent no-op on every device that has it. That is
- * exactly the failure the paragraph above warns about, arriving through the one
- * path that was not guarded.
+ * `readLiveIndex` reports three separate states. When the bucket cannot be
+ * read, `packs` is empty, so `publishedVersion` is empty, so the builder
+ * computes version 1 for a pack already live at 4, and publishing it is a
+ * silent no-op on every device that has it.
  *
- * It is worse with rehydration than it was without: an unreadable index also
- * means an empty editor that looks loaded. So the builder does not render at all
- * until the catalogue is known.
+ * It is worse with rehydration than without: an unreadable index also means an
+ * empty editor that looks loaded. So the builder does not render at all until
+ * the catalogue is known.
  *
- * ─── PLAY IS READ TOO, AND ITS FAILURE DOES NOT CLOSE THE BUILDER ───────────
+ * ─── THE PRODUCT ID COMES FROM THE MERGED CATALOGUE ─────────────────────────
  *
- * The product ID field becomes a picker over what exists in Play, with a
- * status line. Unlike the index, nothing about publishing depends on Play, so
- * an unreachable Play degrades the field to a plain input with the reason
- * rather than refusing the page. `listPlayProducts` never throws.
+ * `skuCatalogue` rather than `listPlayProducts` directly, so the picker still
+ * has options when Play answers 403: the snapshot of the last successful read,
+ * and the product ids the signed index already uses. Nothing about publishing
+ * depends on Play, so its failure degrades the field rather than closing the
+ * page.
  */
 export default async function IconBuilderPage({
   params,
@@ -73,19 +71,21 @@ export default async function IconBuilderPage({
   if (!isAppId(app)) notFound();
 
   const { id } = await searchParams;
-  const [live, playRaw] = await Promise.all([
+  const meta = appMeta(app);
+  const [live, play] = await Promise.all([
     readLiveIndex(app),
-    listPlayProducts(appMeta(app)?.pkg ?? null),
+    skuCatalogue(app, meta?.pkg ?? null),
   ]);
-  const play = playLite(playRaw);
 
-  const crumbs = (
-    <Breadcrumb
-      items={[
-        { label: appName(app), href: `/apps/${app}/packs` },
-        { label: 'Icons', href: `/apps/${app}/icons` },
-        { label: id ?? 'new' },
-      ]}
+  const bad = 'rounded-[14px] bg-site-plan-soft px-4 py-3 text-[13px] leading-relaxed text-site-plan';
+
+  const slab = (meta_: ReturnType<typeof appMeta>, title: string, sub?: string) => (
+    <AppSlab
+      tint={meta_?.tint ?? '#6d4ae8'}
+      mark={meta_?.mark ?? '?'}
+      crumb={`${appName(app)} / Icons`}
+      title={title}
+      meta={sub}
     />
   );
 
@@ -94,14 +94,14 @@ export default async function IconBuilderPage({
   // reports success and changes nothing on any phone.
   if (live.unreachable || live.corrupt) {
     return (
-      <Shell app={app} subtitle={`cdn.mindberzerk.com / ${app}`}>
-        {crumbs}
-        <Banner tone="bad">
+      <StudioShell app={app}>
+        {slab(meta, id ?? 'New icon pack')}
+        <p className={bad}>
           {live.unreachable
             ? `The catalogue could not be read, so the next version number is unknown and nothing can be published safely. ${live.unreachable}`
             : 'The live index is present but does not parse. Publishing would rebuild it from an unreadable state, so the builder is closed until someone looks at the bucket.'}
-        </Banner>
-      </Shell>
+        </p>
+      </StudioShell>
     );
   }
 
@@ -115,14 +115,20 @@ export default async function IconBuilderPage({
   if (entry) initial = await readPublishedHeroPack(app, entry);
 
   return (
-    <Shell app={app} subtitle={`cdn.mindberzerk.com / ${app}`}>
-      {crumbs}
+    <StudioShell app={app}>
+      {slab(
+        meta,
+        entry ? entry.title || entry.packId : 'New icon pack',
+        entry
+          ? `editing v${entry.version}, publishing writes v${entry.version + 1}`
+          : `${hero.length} hero ${hero.length === 1 ? 'pack' : 'packs'} published`,
+      )}
 
       {id && !entry && (
-        <Banner tone="bad">
-          No published hero pack has the id {id}. Starting a new pack instead, so
-          nothing is overwritten by accident.
-        </Banner>
+        <p className={bad}>
+          No published hero pack has the id {id}. Starting a new pack instead, so nothing is
+          overwritten by accident.
+        </p>
       )}
 
       {/* `pack.json` is the only place the package-to-filename map exists, so a
@@ -130,19 +136,19 @@ export default async function IconBuilderPage({
           builder on the real pack id would republish it with every mapping
           gone. See readPublishedHeroPack. */}
       {entry && !initial && (
-        <Banner tone="bad">
-          {entry.packId} is published, but its pack.json could not be read from
-          the CDN, and that file is the only record of which icon belongs to
-          which app. Editing it would republish it with no icons at all, so the
-          builder has been left empty. Republish this pack from its source art.
-        </Banner>
+        <p className={bad}>
+          {entry.packId} is published, but its pack.json could not be read from the CDN, and that
+          file is the only record of which icon belongs to which app. Editing it would republish it
+          with no icons at all, so the builder has been left empty. Republish this pack from its
+          source art.
+        </p>
       )}
 
       {initial && initial.notes.length > 0 && (
-        <Banner tone="bad">
-          {initial.packId} opened with problems. Publishing before fixing them
-          ships the pack as shown here. {initial.notes.join(' ')}
-        </Banner>
+        <p className={bad}>
+          {initial.packId} opened with problems. Publishing before fixing them ships the pack as
+          shown here. {initial.notes.join(' ')}
+        </p>
       )}
 
       <IconBuilder
@@ -152,6 +158,6 @@ export default async function IconBuilderPage({
         initial={initial}
         play={play}
       />
-    </Shell>
+    </StudioShell>
   );
 }

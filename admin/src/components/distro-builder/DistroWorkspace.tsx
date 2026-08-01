@@ -904,7 +904,9 @@ function PricingTab(props: {
           <Toggle value={props.free} label="Free distro (no purchase)" onChange={props.setFree} />
         </div>
         {!props.free ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <>
+            <SkuSourceNote play={props.play} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <SkuField
               label="whole-distro sku"
               hint="unlocks theme + icons"
@@ -925,7 +927,8 @@ function PricingTab(props: {
               setRaw={props.setIconsSkuRaw}
               play={props.play}
             />
-          </div>
+            </div>
+          </>
         ) : null}
       </Section>
 
@@ -1079,12 +1082,24 @@ function SkuField(props: {
   }
 
   const options = ['', ...listed.map((p) => p.productId), '__custom'];
+
+  // THE LABEL DEPENDS ON WHERE THE ID CAME FROM. '(not active)' is a
+  // measurement and may only be said about a product read from Play just now;
+  // for a snapshot or an index-derived id, activeOptions is a placeholder zero
+  // and rendering it as "not active" would be a fabricated verdict on
+  // something nobody checked.
   const labels: Record<string, string> = {
     '': props.derived ? `derived: ${props.derived}` : 'derived from distro id',
     ...Object.fromEntries(
       listed.map((p) => [
         p.productId,
-        p.activeOptions === 0 ? `${p.productId} (not active)` : p.productId,
+        p.source === 'play'
+          ? p.activeOptions === 0
+            ? `${p.productId} (not active)`
+            : p.productId
+          : p.source === 'snapshot'
+            ? `${p.productId} (last seen in Play)`
+            : `${p.productId} (in the catalogue)`,
       ]),
     ),
     __custom: 'custom ID',
@@ -1112,6 +1127,37 @@ function SkuField(props: {
       ) : null}
       {effective ? <PlayNote play={props.play} sku={effective} /> : null}
     </Field>
+  );
+}
+
+/**
+ * Said once above the pricing fields when the ids below did not come from Play.
+ *
+ * Per-field it would repeat four times for one fact, and the fact is about the
+ * whole list rather than about any one product.
+ */
+function SkuSourceNote({ play }: { play: PlayLite }) {
+  if (!play.ok || !play.degraded) return null;
+  const at = play.degraded.snapshotAt
+    ? new Date(play.degraded.snapshotAt * 1000).toISOString().slice(0, 10)
+    : null;
+  return (
+    <div
+      style={{
+        fontFamily: C.mono,
+        fontSize: 11.5,
+        lineHeight: 1.6,
+        color: C.warn,
+        border: `1px solid ${C.line}`,
+        borderRadius: 8,
+        padding: '9px 11px',
+        marginBottom: 12,
+      }}
+    >
+      Play could not be read, so these product IDs come from{' '}
+      {at ? `the last successful read on ${at} and ` : ''}the published catalogue. The IDs are
+      real; whether Play can charge for them is unknown until it answers. {play.degraded.reason}
+    </div>
   );
 }
 

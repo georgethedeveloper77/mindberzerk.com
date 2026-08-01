@@ -8,13 +8,14 @@ import { blankApp, validateApp, STARTER_APPS, type RegistryApp } from '@/lib/g-l
 /**
  * THE APP REGISTRY EDITOR: rows on the left, one app in the panel.
  *
- * ─── MOVED OFF THE BUILDER CHROME ───────────────────────────────────────────
+ * ─── MOVED OFF THE BUILDER CHROME, THEN ONTO THE SOFT REGISTER ──────────────
  *
- * This used `BuilderShell` and the `C` inline-style register, which is the
+ * It first used `BuilderShell` and the `C` inline-style register, which is the
  * theme builder's language, on a screen that is a list of records rather than a
- * design surface. It also meant this page drew its own crumbs and title while
- * every other list screen drew them from the shell, so the two disagreed about
- * where the page began. The page owns the frame now and this owns the editing.
+ * design surface. It then carried the console's dark-only tokens, which on the
+ * redesigned page rendered as dark inputs on a light card. Both are gone: the
+ * page owns the frame, this owns the editing, and every colour here is a
+ * `site-` token with a value in both modes.
  *
  * ─── SELECTION IS CLIENT STATE, LIKE BUNDLES AND FOR THE SAME REASON ────────
  *
@@ -98,16 +99,16 @@ export function RegistryEditor({
         <button
           onClick={save}
           disabled={!dirty || saving || !!blocked}
-          className="rounded-lg bg-accent px-4 py-2 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-[10px] bg-site-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-site-accent-deep disabled:opacity-40"
         >
           {saving ? 'Saving' : dirty ? 'Save registry' : 'No changes'}
         </button>
         {blocked ? (
-          <span className="text-micro text-warn">{blocked}</span>
+          <span className="text-[11.5px] font-semibold text-site-plan">{blocked}</span>
         ) : dirty ? (
-          <span className="text-micro text-ink-3">unsaved changes</span>
+          <span className="text-[11.5px] text-site-ink-3">unsaved changes</span>
         ) : null}
-        <span className="ml-auto font-mono text-micro text-ink-3">
+        <span className="ml-auto font-mono text-[11.5px] text-site-ink-3">
           {apps.length} {apps.length === 1 ? 'app' : 'apps'} · {publishers}{' '}
           {publishers === 1 ? 'publisher' : 'publishers'}
         </span>
@@ -121,12 +122,12 @@ export function RegistryEditor({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by package, name, or publisher"
               spellCheck={false}
-              className="min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 py-1.5"
+              className="min-w-0 flex-1 rounded-xl border border-site-line bg-site-sunk px-3 py-2 text-[13px] text-site-ink focus:border-site-accent focus:outline-none"
             />
             <button
               onClick={add}
               disabled={readOnly}
-              className="shrink-0 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-data text-ink-2 transition hover:bg-surface-3 disabled:opacity-40"
+              className="shrink-0 rounded-xl border border-site-line bg-site-card px-3 py-2 text-[13px] font-semibold text-site-ink transition hover:border-site-ink-3/45 disabled:opacity-40"
             >
               Add app
             </button>
@@ -136,22 +137,22 @@ export function RegistryEditor({
                   setApps(STARTER_APPS.map((a) => ({ ...a })));
                   setSel(0);
                 }}
-                className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-data text-accent transition hover:bg-surface-2"
+                className="shrink-0 rounded-xl border border-site-accent/35 bg-site-accent-soft px-3 py-2 text-[13px] font-semibold text-site-accent-deep transition"
               >
                 Seed common apps
               </button>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-card border border-line-soft bg-surface-1">
+          <div className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
             {apps.length === 0 ? (
-              <p className="px-3 py-8 text-center text-data leading-relaxed text-ink-3">
+              <p className="px-3 py-10 text-center text-[13px] leading-relaxed text-site-ink-3">
                 {readOnly
                   ? 'Nothing can be listed while the registry is unreadable.'
                   : 'No apps yet. Add one, or seed the common set.'}
               </p>
             ) : shown.length === 0 ? (
-              <p className="px-3 py-8 text-center text-data text-ink-3">
+              <p className="px-3 py-10 text-center text-[13px] text-site-ink-3">
                 Nothing matches that filter.
               </p>
             ) : (
@@ -161,23 +162,23 @@ export function RegistryEditor({
                   <button
                     key={i}
                     onClick={() => setSel(i)}
-                    className={`flex w-full items-center gap-2.5 border-b border-line-soft px-2.5 py-2 text-left transition last:border-b-0 sm:px-3 ${
-                      bad ? 'border-l-2 border-l-warn' : ''
-                    } ${sel === i ? 'bg-surface-2' : 'hover:bg-surface-2/60'}`}
+                    className={`flex w-full items-center gap-2.5 border-b border-site-line px-3 py-2.5 text-left transition last:border-b-0 sm:px-4 ${
+                      bad ? 'border-l-2 border-l-site-plan' : ''
+                    } ${sel === i ? 'bg-site-accent-soft' : 'hover:bg-site-sunk'}`}
                   >
                     <span className="min-w-0 flex-1">
                       <span
-                        className={`block truncate text-data ${
-                          sel === i ? 'text-ink' : 'text-ink-2'
+                        className={`block truncate text-[13.5px] font-semibold ${
+                          sel === i ? 'text-site-ink' : 'text-site-ink-2'
                         }`}
                       >
                         {a.name || 'unnamed'}
                       </span>
-                      <span className="block truncate font-mono text-micro text-ink-3">
+                      <span className="block truncate font-mono text-[11.5px] text-site-ink-3">
                         {a.pkg || 'no package'}
                       </span>
                     </span>
-                    <span className="shrink-0 truncate text-micro text-ink-3">
+                    <span className="shrink-0 truncate text-[11.5px] text-site-ink-3">
                       {a.publisher || '-'}
                     </span>
                   </button>
@@ -188,17 +189,15 @@ export function RegistryEditor({
 
           {msg && (
             <p
-              className={`mt-3 rounded-card border px-3 py-2 text-data leading-relaxed ${
-                msg.tone === 'ok'
-                  ? 'border-ok/40 bg-ok-dim text-ok'
-                  : 'border-bad/40 bg-bad-dim text-bad'
+              className={`mt-3 rounded-[14px] px-4 py-3 text-[13px] leading-relaxed ${
+                msg.tone === 'ok' ? 'bg-site-ok-soft text-site-ok' : 'bg-site-plan-soft text-site-plan'
               }`}
             >
               {msg.text}
             </p>
           )}
 
-          <p className="mt-3 text-micro leading-relaxed text-ink-3">
+          <p className="mt-3 px-0.5 text-[11.5px] leading-relaxed text-site-ink-3">
             The publisher field is the one that answers same-publisher questions
             in data rather than in code. Stored unsigned, the same way site
             content is; it never reaches a device through the pack pipeline.
@@ -206,8 +205,8 @@ export function RegistryEditor({
         </div>
 
         {current && (
-          <aside className="w-full shrink-0 rounded-card border border-line-soft bg-surface-1 p-3 lg:sticky lg:top-6 lg:w-72">
-            <div className="font-mono text-micro text-ink-3">editing</div>
+          <aside className="w-full shrink-0 overflow-hidden rounded-[18px] border border-site-line bg-site-card p-4 shadow-site-soft lg:sticky lg:top-4 lg:w-[306px]">
+            <div className="font-mono text-[11.5px] text-site-ink-3">editing</div>
 
             <div className="mt-2 space-y-2">
               <Field
@@ -255,20 +254,20 @@ export function RegistryEditor({
             </div>
 
             {currentProblems.length > 0 && (
-              <ul className="mt-2 space-y-1 border-t border-line-soft pt-2">
+              <ul className="mt-3 space-y-2 border-t border-site-line pt-3">
                 {currentProblems.map((p) => (
-                  <li key={p} className="text-micro leading-relaxed text-bad">
+                  <li key={p} className="rounded-lg bg-site-plan-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-site-plan">
                     {p}
                   </li>
                 ))}
               </ul>
             )}
 
-            <div className="mt-3 border-t border-line-soft pt-2.5">
+            <div className="mt-3 border-t border-site-line pt-3">
               <button
                 onClick={() => remove(sel)}
                 disabled={readOnly}
-                className="text-micro text-ink-3 transition hover:text-bad disabled:opacity-40"
+                className="text-[11.5px] font-semibold text-site-ink-3 transition hover:text-site-plan disabled:opacity-40"
               >
                 Delete app
               </button>
@@ -297,7 +296,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-micro text-ink-3">{label}</label>
+      <label className="block text-[11.5px] text-site-ink-3">{label}</label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -305,8 +304,8 @@ function Field({
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        className={`mt-1 w-full rounded-lg border bg-surface-2 px-2.5 py-1.5 ${
-          invalid ? 'border-bad/60' : 'border-line'
+        className={`mt-1 w-full rounded-xl border bg-site-sunk px-3 py-2 text-[13px] text-site-ink focus:outline-none ${
+          invalid ? 'border-site-plan' : 'border-site-line focus:border-site-accent'
         } ${mono ? 'font-mono' : ''}`}
       />
     </div>

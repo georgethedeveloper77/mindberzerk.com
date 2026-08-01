@@ -3,6 +3,12 @@
 import * as React from 'react';
 import { C, cssColor } from './console';
 
+/**
+ * Two literals used to live in this file: `#1A1200` on the segmented control
+ * and `#0B1A0E` on the toggle knob, both hand-picked to sit on terminal amber.
+ * They are `C.onAccent` now, so the accent can change without leaving two
+ * near-black smudges behind on a violet fill.
+ */
 export function Section(props: {
   title: string;
   hint?: string;
@@ -178,7 +184,7 @@ export function Segmented<T extends string>(props: {
               border: 'none',
               borderLeft: i === 0 ? 'none' : `1px solid ${C.line}`,
               background: on ? C.amber : 'transparent',
-              color: on ? '#1A1200' : C.dim,
+              color: on ? C.onAccent : C.dim,
               fontWeight: on ? 700 : 400,
             }}
           >
@@ -224,7 +230,7 @@ export function Toggle(props: { value: boolean; onChange: (v: boolean) => void; 
             width: 14,
             height: 14,
             borderRadius: '50%',
-            background: props.value ? '#0B1A0E' : C.dim,
+            background: props.value ? C.onAccent : C.dim,
             transition: 'left .12s',
           }}
         />

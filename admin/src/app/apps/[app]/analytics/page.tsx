@@ -1,54 +1,37 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
+import { StudioShell } from '@/components/studio/shell';
+import { AppSlab, Bar, SlabButton, SlabCell, SoftPanel } from '@/components/studio/ui';
 import { retentionByDistro, setupFunnel, type Analytics } from '@/lib/core/analytics';
-import { appName, isAppId } from '@/lib/core/registry';
-import { Shell } from '@/app/components/shell';
-import { Breadcrumb } from '@/components/console/breadcrumb';
-import {
-  Banner,
-  BarRow,
-  Button,
-  Filter,
-  Metric,
-  PageHead,
-  Panel,
-  Table,
-  Td,
-  Th,
-  Toolbar,
-  Tr,
-} from '@/app/components/ui';
+import { appMeta, appName, isAppId } from '@/lib/core/registry';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C9 - analytics.
+ * ANALYTICS - only what the console cannot express.
  *
  * ## What this page is, and is not
  *
- * It is NOT the Firebase console rebuilt. Active users, retention overview and
- * raw event counts are rendered well there and are one link away. This page
- * shows only the two questions the console cannot express - the setup funnel by
- * step, and retention split by first distro - and both come from the BigQuery
- * export.
+ * It is NOT the Firebase console rebuilt. Active users, the retention overview
+ * and raw event counts render well there and are one link away. This shows the
+ * two questions the console cannot express, the setup funnel by step and
+ * retention split by first distro, and both come from the BigQuery export.
  *
  * ## When the export is off, it says so, and that is the whole design
  *
- * The export is a project setting that is not on yet. Every panel renders its
- * own not-connected state with the exact reason, and NOTHING shows a made-up
- * number to fill the space. This page is in the dashboard register like the
- * landing and the overview, which raises the stakes on that rule rather than
- * lowering them: a big empty metric card is honest, a big invented one is the
- * thing that makes every other number on every other screen suspect.
+ * The export is a project setting that is not on. Every panel renders its own
+ * not-connected state with the exact reason, and NOTHING shows a made-up number
+ * to fill the space. A big empty figure is honest; a big invented one is what
+ * makes every other number on every other screen suspect.
  *
  * ## The data-safety correction lives here on purpose
  *
- * The publishing screens still describe the launcher as collecting no data. That
- * is not true while Firebase Analytics ships a pseudonymous instance id to
- * Google, and Play requires it declared. The note at the foot of this page is
- * the reminder to fix the store listing, phrased as the claim that IS true: no
- * sale, no ads, no account, installs and crashes counted.
+ * The store listing must not claim no data is collected while Firebase
+ * Analytics ships a pseudonymous instance id to Google. The note at the foot is
+ * phrased as the claim that IS true: no sale, no ads, no account, installs and
+ * crashes counted.
  */
 export default async function AnalyticsPage({
   params,
@@ -66,10 +49,7 @@ export default async function AnalyticsPage({
   const { days: daysRaw } = await searchParams;
   const days = daysRaw === '7' || daysRaw === '90' ? Number(daysRaw) : 30;
 
-  const [funnel, retention] = await Promise.all([
-    setupFunnel(app, days),
-    retentionByDistro(app),
-  ]);
+  const [funnel, retention] = await Promise.all([setupFunnel(app, days), retentionByDistro(app)]);
 
   // The funnel's first step is the denominator for a conversion rate.
   const funnelTop = funnel.connected ? (funnel.data[0]?.users ?? 0) : 0;
@@ -77,140 +57,148 @@ export default async function AnalyticsPage({
     ? (funnel.data.find((s) => s.step === 'setup_complete')?.users ?? 0)
     : 0;
   const completeRate = funnelTop ? Math.round((funnelEnd / funnelTop) * 100) : 0;
+  const cohort = retention.connected ? retention.data.reduce((n, r) => n + r.cohort, 0) : 0;
 
-  const cohort = retention.connected
-    ? retention.data.reduce((n, r) => n + r.cohort, 0)
-    : 0;
+  const meta = appMeta(app);
 
   return (
-    <Shell app={app} subtitle={`${app} / analytics`}>
-      <Breadcrumb
-        items={[{ label: appName(app), href: `/apps/${app}/packs` }, { label: 'Analytics' }]}
-      />
-
-      <PageHead
-        title={`${appName(app)} analytics`}
+    <StudioShell app={app}>
+      <AppSlab
+        tint={meta?.tint ?? '#6d4ae8'}
+        mark={meta?.mark ?? '?'}
+        crumb={appName(app)}
+        title="Analytics"
         meta={`last ${days} days`}
         actions={
-          <Button href="https://console.firebase.google.com/">Firebase console</Button>
+          <SlabButton href="https://console.firebase.google.com/" external>
+            Firebase console
+          </SlabButton>
+        }
+        metrics={
+          <>
+            {/* NOT MEASURED, NEVER A ZERO. An unconnected export has counted
+                nothing, and a confident 0% beside "setup completion" is a claim
+                that people are failing setup rather than an admission that
+                nobody is counting. */}
+            <SlabCell
+              label="Setup completion"
+              value={funnel.connected ? `${completeRate}%` : 'not measured'}
+              measured={funnel.connected}
+              note={
+                funnel.connected
+                  ? `${funnelEnd.toLocaleString()} of ${funnelTop.toLocaleString()}`
+                  : 'export is off'
+              }
+            />
+            <SlabCell
+              label="Reached setup"
+              value={funnel.connected ? funnelTop.toLocaleString() : 'not measured'}
+              measured={funnel.connected}
+              note={`last ${days} days`}
+            />
+            <SlabCell
+              label="Cohort"
+              value={retention.connected ? cohort.toLocaleString() : 'not measured'}
+              measured={retention.connected}
+              note={retention.connected ? 'with a first distro' : 'export is off'}
+            />
+            <SlabCell
+              label="Export"
+              value={funnel.connected ? 'connected' : 'off'}
+              measured={false}
+              note={funnel.connected ? 'BigQuery' : 'nothing is counted'}
+            />
+          </>
         }
       />
 
-      <Toolbar>
+      <div className="flex flex-wrap gap-2">
         {[7, 30, 90].map((d) => (
-          <Filter key={d} href={`/apps/${app}/analytics?days=${d}`} active={days === d}>
-            {`${d}d`}
-          </Filter>
+          <Link
+            key={d}
+            href={`/apps/${app}/analytics?days=${d}`}
+            className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition ${
+              days === d
+                ? 'border-site-accent/30 bg-site-accent-soft text-site-accent-deep'
+                : 'border-site-line bg-site-card text-site-ink-3 hover:text-site-ink'
+            }`}
+          >
+            {d}d
+          </Link>
         ))}
-      </Toolbar>
-
-      {/* A DASH, NEVER A ZERO. An unconnected export has measured nothing, and
-          a big confident 0% next to "setup completion" is a claim that people
-          are failing setup rather than an admission that nobody is counting. */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <Metric
-          label="Setup completion"
-          value={funnel.connected ? `${completeRate}%` : '-'}
-          sub={funnel.connected ? `${funnelEnd.toLocaleString()} of ${funnelTop.toLocaleString()}` : 'not measured'}
-          tone={funnel.connected ? 'plain' : 'warn'}
-        />
-        <Metric
-          label="Reached setup"
-          value={funnel.connected ? funnelTop.toLocaleString() : '-'}
-          sub={`last ${days} days`}
-          tone={funnel.connected ? 'plain' : 'warn'}
-        />
-        <Metric
-          label="Cohort"
-          value={retention.connected ? cohort.toLocaleString() : '-'}
-          sub={retention.connected ? 'with a first distro' : 'not measured'}
-          tone={retention.connected ? 'plain' : 'warn'}
-        />
-        <Metric
-          label="Export"
-          value={funnel.connected ? 'connected' : 'off'}
-          sub={funnel.connected ? 'BigQuery' : 'nothing is counted'}
-          tone={funnel.connected ? 'ok' : 'warn'}
-        />
       </div>
 
-      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-2">
-        <Panel title="Setup funnel">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SoftPanel title="Setup funnel" note="by the step names the launcher logs">
           <NotConnected result={funnel}>
             {funnel.connected && (
-              <div className="space-y-2">
+              <div>
                 {funnel.data.map((s) => (
-                  <BarRow
+                  <Bar
                     key={s.step}
                     label={s.step}
                     value={s.users.toLocaleString()}
                     pct={funnelTop ? (s.users / funnelTop) * 100 : 0}
+                    colour="var(--color-site-accent)"
                   />
                 ))}
               </div>
             )}
           </NotConnected>
-        </Panel>
+        </SoftPanel>
 
-        <Panel title="Retention by first distro">
+        <SoftPanel title="Retention by first distro" note="the segment the console cannot produce">
           <NotConnected result={retention}>
             {retention.connected && (
-              <Table
-                head={
-                  <>
-                    <Th>Distro</Th>
-                    <Th num>Cohort</Th>
-                    <Th num>D1</Th>
-                    <Th num>D7</Th>
-                    <Th num>D30</Th>
-                  </>
-                }
-              >
+              <div>
+                <div className="flex items-center gap-3 border-b border-site-line pb-2 text-[10.5px] font-bold uppercase tracking-[0.06em] text-site-ink-3">
+                  <span className="flex-1">distro</span>
+                  <span className="w-14 text-right">cohort</span>
+                  <span className="w-10 text-right">D1</span>
+                  <span className="w-10 text-right">D7</span>
+                  <span className="w-10 text-right">D30</span>
+                </div>
                 {retention.data.map((r) => (
-                  <Tr key={r.distro}>
-                    <Td mono>{r.distro}</Td>
-                    <Td num>{r.cohort.toLocaleString()}</Td>
-                    <Td num dim>
-                      {r.d1 || '-'}
-                    </Td>
-                    <Td num dim>
-                      {r.d7 || '-'}
-                    </Td>
-                    <Td num dim>
-                      {r.d30 || '-'}
-                    </Td>
-                  </Tr>
+                  <div
+                    key={r.distro}
+                    className="flex items-center gap-3 border-b border-site-line py-2 text-[12px] last:border-b-0"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-mono text-site-ink">{r.distro}</span>
+                    <span className="w-14 text-right font-mono text-site-ink tnum">
+                      {r.cohort.toLocaleString()}
+                    </span>
+                    {/* An absent retention day renders as a dash rather than a
+                        zero: the query does not compute them yet, and a 0 would
+                        read as "nobody came back". */}
+                    <span className="w-10 text-right font-mono text-site-ink-3 tnum">{r.d1 || '-'}</span>
+                    <span className="w-10 text-right font-mono text-site-ink-3 tnum">{r.d7 || '-'}</span>
+                    <span className="w-10 text-right font-mono text-site-ink-3 tnum">{r.d30 || '-'}</span>
+                  </div>
                 ))}
-              </Table>
+              </div>
             )}
           </NotConnected>
-        </Panel>
+        </SoftPanel>
       </div>
 
-      <div className="mt-2 sm:mt-3">
-        <Panel title="Everything else">
-          <p className="text-micro leading-relaxed text-ink-3">
-            Active users, the retention overview and raw event counts are rendered
-            in the Firebase console and are not rebuilt here. This page holds only
-            what the console cannot express.
-          </p>
-        </Panel>
-      </div>
+      <SoftPanel title="Everything else" note="rendered in Firebase, not rebuilt here">
+        <p className="max-w-[70ch] text-[12.5px] leading-relaxed">
+          Active users, the retention overview and raw event counts are rendered in the Firebase
+          console. This page holds only what the console cannot express, which is why it is short.
+        </p>
+      </SoftPanel>
 
-      <div className="mt-2 sm:mt-3">
-        <Banner tone="warn">
-          Data safety: while Analytics is on, the launcher shares a pseudonymous
-          app instance id with Google, so the store listing must not say &quot;no
-          data collected&quot;. The accurate claim is: no sale, no ads, no
-          account, installs and crashes counted.
-        </Banner>
-      </div>
-    </Shell>
+      <p className="rounded-[14px] bg-site-plan-soft px-4 py-3 text-[12.5px] leading-relaxed text-site-plan">
+        Data safety: while Analytics is on, the launcher shares a pseudonymous app instance id with
+        Google, so the store listing must not say &quot;no data collected&quot;. The accurate claim
+        is: no sale, no ads, no account, installs and crashes counted.
+      </p>
+    </StudioShell>
   );
 }
 
 /**
- * Renders children when connected, or the reason when not. One component so the
+ * Children when connected, the reason when not. One component so the
  * not-connected state looks identical everywhere and never gets faked past.
  */
 function NotConnected<T>({
@@ -222,9 +210,9 @@ function NotConnected<T>({
 }) {
   if (result.connected) return <>{children}</>;
   return (
-    <div className="rounded-lg border border-dashed border-line px-3 py-6 text-center">
-      <p className="text-data text-ink-3">Not connected</p>
-      <p className="mx-auto mt-1 max-w-sm text-micro leading-relaxed text-ink-3">
+    <div className="rounded-[14px] border border-dashed border-site-line bg-site-sunk px-4 py-7 text-center">
+      <p className="text-[13px] font-semibold text-site-ink">Not connected</p>
+      <p className="mx-auto mt-1.5 max-w-[46ch] text-[11.5px] leading-relaxed text-site-ink-3">
         {result.reason}
       </p>
     </div>

@@ -32,14 +32,43 @@ export async function adminGate(): Promise<React.ReactElement | null> {
   }
 }
 
+/**
+ * The not-authorised screen.
+ *
+ * ON THE SOFT REGISTER, and it carries `data-surface="soft"` itself, because it
+ * REPLACES the page rather than rendering inside `StudioShell`: without the
+ * marker it would inherit the console's dark canvas from globals.css and render
+ * light text on light card over a black page.
+ *
+ * It states what worked as well as what did not. "Not authorised" alone reads
+ * as a sign-in failure, and the whole point is that sign-in succeeded, so the
+ * next action is an allowlist edit rather than another attempt at logging in.
+ */
 function NotAuthorisedScreen() {
   return (
-    <main className="flex min-h-[100dvh] items-center justify-center p-6">
-      <div className="max-w-sm text-data leading-relaxed text-ink-2">
-        <p className="text-ink">Not authorised.</p>
-        <p className="mt-2">
-          Your Google sign-in worked; your Firebase UID is not on the allowlist.
-          Add it to the <code className="font-mono text-micro">admin-uids</code>{' '}
+    <main
+      data-surface="soft"
+      className="flex min-h-[100dvh] items-center justify-center bg-site-page p-6 font-site-sans"
+    >
+      <div className="w-full max-w-md rounded-[18px] border border-site-line bg-site-card p-6 shadow-site-soft">
+        <span className="grid size-10 place-items-center rounded-xl bg-site-plan-soft text-site-plan">
+          <svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="7" width="10" height="6.5" rx="1.6" />
+            <path d="M5.5 7V5a2.5 2.5 0 015 0" />
+          </svg>
+        </span>
+        <h1 className="mt-3.5 font-site-display text-[19px] font-bold tracking-tight text-site-ink">
+          Not authorised.
+        </h1>
+        <p className="mt-2 text-[13px] leading-relaxed text-site-ink-2">
+          Your Google sign-in worked. Your Firebase UID is not on the allowlist, so this is not
+          something signing in again will fix.
+        </p>
+        <p className="mt-2.5 text-[12.5px] leading-relaxed text-site-ink-3">
+          Add the UID to the{' '}
+          <code className="rounded bg-site-sunk px-1.5 py-0.5 font-mono text-[11.5px] text-site-ink-2">
+            admin-uids
+          </code>{' '}
           secret and redeploy.
         </p>
       </div>
