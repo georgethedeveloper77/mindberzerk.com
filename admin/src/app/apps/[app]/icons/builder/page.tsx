@@ -8,6 +8,7 @@ import { readLiveIndex } from '@/lib/core/catalogue';
 import { readPublishedHeroPack, type RehydratedPack } from '@/lib/core/cdn';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuCatalogue } from '@/lib/core/sku-catalogue';
+import { draftAssetUrl, readIconDraft } from '@/lib/g-launcher/icon-drafts';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,17 @@ export const dynamic = 'force-dynamic';
  * It is worse with rehydration than without: an unreadable index also means an
  * empty editor that looks loaded. So the builder does not render at all until
  * the catalogue is known.
+ *
+ * ─── THREE THINGS `?id=` CAN NAME, CHECKED IN THIS ORDER ────────────────────
+ *
+ *   1. A PUBLISHED pack. Rehydrated from the CDN, editing bumps the version.
+ *   2. A DRAFT. Rehydrated from `admin/icon-drafts/`, nothing is live yet.
+ *   3. Neither, which starts a new pack rather than 404ing.
+ *
+ * Published wins when both exist, because the published pack is what devices
+ * have and is therefore the thing being edited. The banner says which one
+ * opened, since the two look identical once the fields are full and the
+ * difference decides whether pressing publish changes anything on a phone.
  *
  * ─── THE PRODUCT ID COMES FROM THE MERGED CATALOGUE ─────────────────────────
  *
@@ -114,20 +126,54 @@ export default async function IconBuilderPage({
   let initial: RehydratedPack | null = null;
   if (entry) initial = await readPublishedHeroPack(app, entry);
 
+  // Only consulted when nothing is published under this id, so a draft can
+  // never shadow the pack devices actually hold.
+  const draft = id && !entry ? await readIconDraft(app, id) : null;
+  if (draft) {
+    initial = {
+      packId: draft.packId,
+      name: draft.name,
+      minAppVersion: draft.minAppVersion,
+      masked: draft.masked,
+      sku: draft.sku || null,
+      // NEVER PUBLISHED, so the builder computes version 1 from this. A draft
+      // that claimed a published version would offer v2 for a pack no device
+      // has, which is the exact silent no-op the version guard exists to stop.
+      publishedVersion: 0,
+      // The SAME shape `readPublishedHeroPack` returns, which is why the
+      // builder needed no new prop: it rehydrates from URLs either way.
+      icons: draft.icons.map((i) => ({
+        pkg: i.pkg,
+        file: i.file,
+        url: draftAssetUrl(app, draft.packId, i.file),
+      })),
+      notes: [],
+    };
+  }
+
   return (
     <StudioShell app={app}>
       {slab(
         meta,
-        entry ? entry.title || entry.packId : 'New icon pack',
+        entry ? entry.title || entry.packId : draft ? draft.name || draft.packId : 'New icon pack',
         entry
           ? `editing v${entry.version}, publishing writes v${entry.version + 1}`
-          : `${hero.length} hero ${hero.length === 1 ? 'pack' : 'packs'} published`,
+          : draft
+            ? `draft, ${draft.icons.length} ${draft.icons.length === 1 ? 'icon' : 'icons'}, never published`
+            : `${hero.length} hero ${hero.length === 1 ? 'pack' : 'packs'} published`,
       )}
 
-      {id && !entry && (
+      {draft && (
+        <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[13px] leading-relaxed text-site-info">
+          Opened from a draft. Nothing here is live: publishing will create {draft.packId} at
+          version 1 and it will reach devices on their next sync.
+        </p>
+      )}
+
+      {id && !entry && !draft && (
         <p className={bad}>
-          No published hero pack has the id {id}. Starting a new pack instead, so nothing is
-          overwritten by accident.
+          No published hero pack and no draft has the id {id}. Starting a new pack instead, so
+          nothing is overwritten by accident.
         </p>
       )}
 

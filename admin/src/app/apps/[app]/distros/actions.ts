@@ -1,10 +1,13 @@
 'use server';
 
-import { requireAdmin } from '@/lib/core/admin';
+import { revalidatePath } from 'next/cache';
+
+import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
 import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { publishDistro, type DistroPublishResult } from '@/lib/g-launcher/distro-publish';
 import type { ThemeDraft, ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
-import { deleteDraft, distroIconPackIds, readAllDrafts } from '@/lib/g-launcher/themes';
+import { writeDraftAssets, type DraftAsset } from '@/lib/g-launcher/distro-draft-assets';
+import { deleteDraft, distroIconPackIds, readAllDrafts, writeDraft } from '@/lib/g-launcher/themes';
 import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
 
 interface DistroMeta {
@@ -35,6 +38,8 @@ async function bytesFor(formData: FormData, key: string): Promise<Buffer | null>
   if (!(part instanceof File)) return null;
   return Buffer.from(await part.arrayBuffer());
 }
+
+export type DistroDraftResult = { ok: true; assets: number } | { ok: false; error: string };
 
 export async function publishDistroAction(formData: FormData): Promise<DistroPublishResult> {
   await requireAdmin();
@@ -131,6 +136,83 @@ export async function publishDistroAction(formData: FormData): Promise<DistroPub
  * still editable. The reverse order could leave a live paid pack with no draft
  * to open, which is exactly the half-deleted state this action exists to avoid.
  */
+/**
+ * SAVE A DISTRO DRAFT.
+ *
+ * Two stores, one press, and they are deliberately separate:
+ *
+ *   the SPEC  -> `writeDraft` in themes.ts, which validates and merges
+ *   the ART   -> `writeDraftAssets`, because a ThemeDraft references wallpapers
+ *                by filename and has never carried the bytes behind them
+ *
+ * Until this existed, a distro could be edited and only published. Closing the
+ * tab discarded every uploaded wallpaper and logo, which on a distro is most of
+ * the work.
+ *
+ * ─── ASSETS FIRST, SPEC LAST ────────────────────────────────────────────────
+ *
+ * If the spec saved first and the asset write then failed, the draft would name
+ * five wallpapers that are not stored, and reopening it would look exactly like
+ * the bug this is fixing. The other order fails safe: art with no draft is
+ * unreferenced bytes under `admin/`, which nothing serves and nothing sweeps.
+ *
+ * ─── A DRAFT IS STILL VALIDATED, AND THAT IS NOT A MISTAKE ──────────────────
+ *
+ * `writeDraft` refuses an invalid spec, and this does not work around it. The
+ * rules it enforces are structural (an id, a title, a name, hex colours, a
+ * shell that exists), and the workspace holds a valid spec from the moment it
+ * mounts because every field has a default. What is genuinely unfinished on a
+ * half-built distro is the ART, and that is the half this action adds.
+ */
+export async function saveDistroDraftAction(form: FormData): Promise<DistroDraftResult> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { ok: false, error: 'Not authorised' };
+    throw e;
+  }
+
+  const app = String(form.get('app') ?? '');
+  if (!APPS.includes(app as AppId)) return { ok: false, error: `Unknown app '${app}'` };
+  const appId = app as AppId;
+
+  let draft: ThemeDraft;
+  try {
+    draft = JSON.parse(String(form.get('draft') ?? '')) as ThemeDraft;
+  } catch {
+    return { ok: false, error: 'The draft did not parse.' };
+  }
+  if (!draft?.id) return { ok: false, error: 'A distro id is required before a draft can be saved.' };
+
+  const files = form.getAll('files').filter((f): f is File => f instanceof File);
+  const names = form.getAll('paths').map((p) => String(p));
+  if (files.length !== names.length) {
+    return { ok: false, error: 'Every file needs exactly one name.' };
+  }
+
+  const assets: DraftAsset[] = [];
+  for (let i = 0; i < files.length; i++) {
+    assets.push({
+      name: names[i],
+      bytes: Buffer.from(await files[i].arrayBuffer()),
+      contentType: files[i].type || 'application/octet-stream',
+    });
+  }
+
+  const stored = await writeDraftAssets(appId, draft.id, assets);
+  if (!stored.ok) return { ok: false, error: stored.error };
+
+  try {
+    await writeDraft(appId, draft);
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+
+  revalidatePath(`/apps/${appId}/distros`);
+  revalidatePath(`/apps/${appId}/distros/builder`);
+  return { ok: true, assets: stored.count };
+}
+
 export async function deleteDistroAction(
   app: string,
   id: string,

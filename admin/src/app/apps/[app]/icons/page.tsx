@@ -12,6 +12,7 @@ import { isListed, readListingResult } from '@/lib/core/listing';
 import { readPackJson } from '@/lib/core/pack-content';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { importTheme } from '@/lib/g-launcher/theme-spec';
+import { readIconDraftsSafe } from '@/lib/g-launcher/icon-drafts';
 import { readAllDraftsSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
@@ -131,10 +132,14 @@ export default async function IconsPage({
   // `readListingResult`, NOT `readListing`. An unreadable bucket collapses to
   // an empty map, and an empty map reads as "everything is listed", so a
   // refused credential rendered as a screen of confident toggles.
-  const [live, listingResult, draftsResult] = await Promise.all([
+  const [live, listingResult, draftsResult, iconDrafts] = await Promise.all([
     readLiveIndex(appId),
     readListingResult(appId),
     readAllDraftsSafe(appId),
+    // Unfinished packs. A draft you cannot find again is not a draft, so they
+    // list here beside the published ones rather than only at a URL you have
+    // to remember.
+    readIconDraftsSafe(appId),
   ]);
   const listing = listingResult.listing;
 
@@ -281,6 +286,43 @@ export default async function IconsPage({
           );
         })}
       </div>
+
+      {iconDrafts.drafts.length > 0 && (
+        <section className="overflow-hidden rounded-[18px] border border-dashed border-site-line bg-site-card shadow-site-soft">
+          <header className="flex items-center gap-3 px-[18px] py-3.5">
+            <span className="grid size-[30px] place-items-center rounded-[9px] bg-site-info-soft text-site-info">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M11.3 2.9l1.8 1.8L5.8 12H4v-1.8l7.3-7.3z" />
+              </svg>
+            </span>
+            <h2 className="font-site-display text-[15px] font-bold text-site-ink">Drafts</h2>
+            <span className="text-[11.5px] text-site-ink-3">not published, visible only here</span>
+          </header>
+          {iconDrafts.drafts.map((d) => (
+            <Link
+              key={d.packId}
+              href={`/apps/${appId}/icons/builder?id=${d.packId}`}
+              className="flex items-center gap-3.5 border-t border-site-line px-4 py-2.5 transition hover:bg-site-sunk"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13.5px] font-semibold text-site-ink">
+                  {d.name || d.packId}
+                </span>
+                <span className="mt-0.5 block truncate font-mono text-[11px] text-site-ink-3">
+                  {d.packId} {'\u00b7'} {d.icons.filter((i) => i.pkg).length} mapped of{' '}
+                  {d.icons.length}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-site-info-soft px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] text-site-info">
+                draft
+              </span>
+              <span className="w-[86px] shrink-0 text-right font-mono text-[11.5px] text-site-ink-3">
+                {new Date(d.updatedAt * 1000).toISOString().slice(0, 10)}
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
         <section className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">

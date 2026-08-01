@@ -32,12 +32,16 @@
  *   index     derived from the signed index: a pack's own sku, or an
  *             entitlement's. The id is one WE published, so it certainly
  *             exists in our catalogue and may not exist in Play at all.
+ *   manual    typed into the panel's own list because it was created in Play
+ *             and has not been attached to anything yet. It means "George says
+ *             this exists", which is a claim about existence and never about
+ *             whether it is active or priced.
  *
  * The distinction is the whole point of the merge. Without it a picker offering
  * an id it inferred would read exactly like one Play confirmed, and the status
  * line under it would be a guess dressed as a fact.
  */
-export type SkuSource = 'play' | 'snapshot' | 'index';
+export type SkuSource = 'play' | 'snapshot' | 'index' | 'manual';
 
 export interface PlayLiteProduct {
   productId: string;
@@ -96,6 +100,12 @@ export function playSkuNote(
       return {
         tone: 'unknown',
         text: `Play could not be read, and '${sku}' is not in anything we have cached, so whether it exists is unknown.`,
+      };
+    }
+    if (p.source === 'manual') {
+      return {
+        tone: 'unknown',
+        text: `Play could not be read. '${sku}' is on the panel's own list of product IDs, so it should exist in Play, but whether it is active is unknown.`,
       };
     }
     if (p.source === 'snapshot') {

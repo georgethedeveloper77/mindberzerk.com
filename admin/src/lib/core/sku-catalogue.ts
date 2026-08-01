@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { readManualProducts } from '@/lib/core/product-ids';
 import { listPlayProducts, playLite } from '@/lib/core/play';
 import { getObject, putObject } from '@/lib/core/r2';
 import type { PlayLite, PlayLiteProduct } from '@/lib/core/play-lite';
@@ -31,6 +32,11 @@ import type { PlayLite, PlayLiteProduct } from '@/lib/core/play-lite';
  *      entitlement carries one. These are ids WE published, so they certainly
  *      exist in our catalogue, and may not exist in Play at all. This source
  *      works today, with the 403 in place and nothing configured.
+ *   4. THE PANEL'S OWN LIST. Ids typed in by hand after being created in Play
+ *      Console but before being attached to anything here. Nothing else can
+ *      know about those, because every other source is derived from something
+ *      that already references them, and a brand new product references
+ *      nothing.
  *
  * Deduplicated by id, first source wins. `source` travels with each product so
  * `playSkuNote` can say what is actually known rather than implying Play
@@ -148,12 +154,30 @@ export async function skuCatalogue(app: AppId, pkg: string | null): Promise<Play
 
   const reason = live.ok ? 'Play returned an unreadable catalogue.' : live.error;
 
-  const [snapshot, index] = await Promise.all([readSnapshot(app), readLiveIndex(app)]);
+  const [snapshot, index, manual] = await Promise.all([
+    readSnapshot(app),
+    readLiveIndex(app),
+    readManualProducts(app),
+  ]);
 
   const merged = new Map<string, PlayLiteProduct>();
   for (const p of snapshot?.products ?? []) merged.set(p.productId, p);
   for (const p of fromIndex(index.packs, index.entitlements)) {
     if (!merged.has(p.productId)) merged.set(p.productId, p);
+  }
+  // Last, so a snapshot or the index wins on the same id: both know more about
+  // it than a hand-kept note does.
+  for (const p of manual.products) {
+    if (!merged.has(p.productId)) {
+      merged.set(p.productId, {
+        productId: p.productId,
+        title: p.note || p.productId,
+        // NOT a measurement. `source` is what stops it reading as one.
+        activeOptions: 0,
+        samplePrice: null,
+        source: 'manual',
+      });
+    }
   }
 
   if (merged.size === 0) return { ok: false, error: reason };

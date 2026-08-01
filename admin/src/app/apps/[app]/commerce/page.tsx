@@ -7,6 +7,8 @@ import { AppSlab, KVRow, SoftPanel } from '@/components/studio/ui';
 import { commerceReport, worstTone, type SkuRow } from '@/lib/core/commerce';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuKindLabel } from '@/lib/core/skus';
+import { readManualProducts } from '@/lib/core/product-ids';
+import { ProductIds } from '@/components/studio/product-ids';
 
 /**
  * COMMERCE - is everything that has a price actually for sale?
@@ -73,7 +75,7 @@ export default async function CommercePage({
   const { sel, filter } = await searchParams;
   const active: FilterName = isFilter(filter) ? filter : 'all';
 
-  const report = await commerceReport(app);
+  const [report, manual] = await Promise.all([commerceReport(app), readManualProducts(app)]);
 
   // With the bucket unreachable there is no catalogue to compare against, so
   // "orphan" would be a lie about every product. Show the Play side plainly
@@ -275,6 +277,20 @@ export default async function CommercePage({
               ))}
             </SoftPanel>
           )}
+
+          <SoftPanel
+            title="Product IDs"
+            note="kept by hand, offered by every builder"
+            right={<span className="font-mono text-[11.5px] text-site-ink-3">{manual.products.length}</span>}
+          >
+            {manual.unreachable ? (
+              <p className="text-[12px] leading-relaxed text-site-plan">
+                The list could not be read, so nothing can be added. {manual.unreachable}
+              </p>
+            ) : (
+              <ProductIds app={app} initial={manual.products} />
+            )}
+          </SoftPanel>
 
           {report.unlistedPaid.length > 0 && (
             <p className="rounded-[14px] bg-site-plan-soft px-4 py-3 text-[12px] leading-relaxed text-site-plan">

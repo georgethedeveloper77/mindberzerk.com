@@ -8,7 +8,7 @@ import { PaletteEditor, LayoutEditor, GesturesEditor, IconStyleEditor, Passthrou
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
 import { AppGrid, type Assignment } from './AppGrid';
-import { publishDistroAction } from '@/app/apps/[app]/distros/actions';
+import { publishDistroAction, saveDistroDraftAction } from '@/app/apps/[app]/distros/actions';
 import {
   blankDraft,
   importTheme,
@@ -552,6 +552,67 @@ export function DistroWorkspace({
     set({ name, blob, url: URL.createObjectURL(blob) });
   }
 
+  // ── SAVE DRAFT ────────────────────────────────────────────────────────
+  //
+  // A distro is wallpapers, a palette, a boot log and an icon set, and that is
+  // not a one-sitting job. Until this existed the only exit from this screen
+  // was publish: closing the tab discarded every uploaded wallpaper and logo,
+  // which on a distro is most of the work.
+  //
+  // TWO STORES, ONE PRESS. The spec goes through `writeDraft`, which validates
+  // and merges; the images go to `admin/distro-drafts/<id>/`, because a
+  // ThemeDraft references wallpapers BY FILENAME and has never carried the
+  // bytes. The action writes art first and spec last, so a partial failure
+  // leaves unreferenced bytes rather than a draft naming files that are not
+  // stored.
+  //
+  // It publishes nothing: no version bump, no index write, no signature, and
+  // no device sees anything.
+  const [savingDraft, setSavingDraft] = React.useState(false);
+
+  async function saveDraft() {
+    if (!base.trim()) {
+      toast.error('A distro id is needed before a draft can be saved.');
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const fd = new FormData();
+      fd.append('app', app);
+      // The SAME `themeDraft` the rest of this component already derives, so a
+      // draft and a publish can never disagree about what is being edited.
+      fd.append('draft', JSON.stringify(themeDraft));
+
+      // Wallpapers and logos only. Icon art belongs to the icon pack and is
+      // saved with it; duplicating it here would give one image two owners.
+      for (const w of wallpapers) {
+        fd.append('files', new File([w.blob], w.name, { type: w.blob.type || 'image/webp' }));
+        fd.append('paths', w.name);
+      }
+      if (logoLight) {
+        fd.append('files', new File([logoLight.blob], logoLight.name, { type: logoLight.blob.type || 'image/png' }));
+        fd.append('paths', logoLight.name);
+      }
+      if (logoDark && logoDark.name !== logoLight?.name) {
+        fd.append('files', new File([logoDark.blob], logoDark.name, { type: logoDark.blob.type || 'image/png' }));
+        fd.append('paths', logoDark.name);
+      }
+
+      const res = await saveDistroDraftAction(fd);
+      if (res.ok) {
+        toast.success(
+          `Draft saved. ${res.assets} ${res.assets === 1 ? 'asset' : 'assets'} kept. Nothing published.`,
+        );
+      } else {
+        toast.error(res.error);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
   async function publish() {
     setPublishing(true);
     try {
@@ -617,6 +678,22 @@ export function DistroWorkspace({
           >
             import theme.json
           </button>
+
+          {/* SAVE DRAFT SITS BEFORE PUBLISH AND HAS NO `valid` GATE. The reason
+              to save a draft is that the distro is not finished, so disabling
+              it whenever publish is disabled would disable it exactly when it
+              is needed. The only requirement is an id, which is the draft's
+              address. */}
+          <button
+            type="button"
+            className="tb-btn"
+            disabled={savingDraft || !base.trim()}
+            onClick={saveDraft}
+            style={{ fontFamily: C.mono, fontSize: 12.5, color: C.ink, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '8px 14px', marginRight: 8 }}
+          >
+            {savingDraft ? 'saving' : 'save draft'}
+          </button>
+
           <button type="button" className="tb-btn" disabled={!valid || publishing} onClick={publish} style={{ fontFamily: C.mono, fontWeight: 700, fontSize: 12.5, color: C.onAccent, background: C.amber, border: 'none', borderRadius: 7, padding: '8px 16px' }}>
             {publishing ? 'publishing' : 'publish distro'}
           </button>

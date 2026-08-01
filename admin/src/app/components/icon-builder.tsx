@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { saveIconDraftAction } from '@/app/apps/[app]/icons/builder/actions';
 import { useRouter } from 'next/navigation';
 
 import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
@@ -252,6 +253,69 @@ export function IconBuilder({
         backgroundPosition: '0 0,0 5px,5px -5px,-5px 0',
         borderRadius: '18%',
       };
+
+  // ── DRAFTS ────────────────────────────────────────────────────────────
+  //
+  // A pack of two hundred icons is not a one-sitting job, and until this
+  // existed the only exit from this screen was publish: closing the tab threw
+  // away every blob in `entries`, which is the whole afternoon.
+  //
+  // A draft saves the SAME blobs to `admin/icon-drafts/<packId>/` and the same
+  // metadata beside them, so reopening is the identical rehydration path a
+  // published pack uses. It does NOT bump a version, touch the index, or sign
+  // anything: a draft is invisible to every device.
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftNote, setDraftNote] = useState<string | null>(null);
+
+  async function saveDraft() {
+    // The one rule a draft has to satisfy, because the id is its filename and
+    // its address. Everything else may legitimately be unfinished.
+    if (!packId.trim()) {
+      setError('A pack id is needed before a draft can be saved.');
+      return;
+    }
+    setDraftBusy(true);
+    setError(null);
+    setDraftNote(null);
+
+    const body = new FormData();
+    body.set('app', app);
+    body.set('packId', packId.trim());
+    body.set('name', name);
+    body.set('minAppVersion', minAppVersion);
+    body.set('masked', masked ? '1' : '0');
+    body.set('sku', sku.trim());
+    body.set('plate', plate);
+    body.set('radius', String(radius));
+
+    const icons: { pkg: string; file: string }[] = [];
+    for (const e of entries) {
+      if (!e.blob) continue;
+      // Entries with no package yet are still saved, under a name derived from
+      // the entry id. Dropping them would lose exactly the work a draft exists
+      // to protect: art uploaded but not yet matched to an app.
+      const fileName = e.pkg ? fileNameFor(e.pkg) : `unmapped-${e.id}.png`;
+      body.append('files', new File([e.blob], fileName, { type: 'image/png' }));
+      body.append('paths', fileName);
+      icons.push({ pkg: e.pkg, file: fileName });
+    }
+    body.set('icons', JSON.stringify(icons));
+
+    try {
+      const res = await saveIconDraftAction(body);
+      if (res.ok) {
+        setDraftNote(
+          `Draft saved. ${icons.length} ${icons.length === 1 ? 'icon' : 'icons'} kept. Nothing published.`,
+        );
+      } else {
+        setError(res.error);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDraftBusy(false);
+    }
+  }
 
   async function publish() {
     setBusy(true);
@@ -694,7 +758,13 @@ export function IconBuilder({
         </p>
       )}
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] md:static">
+      {draftNote && (
+        <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[12.5px] leading-relaxed text-site-info">
+          {draftNote}
+        </p>
+      )}
+
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] flex flex-col gap-2.5 md:static md:flex-row md:items-center">
         <button
           onClick={publish}
           disabled={!ready}
@@ -702,6 +772,24 @@ export function IconBuilder({
         >
           {busy ? 'Signing and uploading' : `Publish ${entries.length} icons as v${version}`}
         </button>
+
+        {/* SAVE DRAFT SITS BESIDE PUBLISH AND IS ALWAYS AVAILABLE. It has no
+            `ready` gate on purpose: the reason to save a draft is precisely
+            that the pack is not ready, so disabling it whenever publish is
+            disabled would disable it exactly when it is needed. The only
+            requirement is a pack id, which is the draft's address. */}
+        <button
+          onClick={saveDraft}
+          disabled={draftBusy || !packId.trim()}
+          className="w-full rounded-lg border border-site-line bg-site-card px-4 py-3 text-[13px] font-semibold text-site-ink transition hover:border-site-ink-3/45 disabled:opacity-40 md:w-auto md:py-2"
+        >
+          {draftBusy ? 'Saving' : 'Save draft'}
+        </button>
+
+        <span className="text-[11.5px] leading-relaxed text-site-ink-3 md:max-w-[34ch]">
+          A draft is stored for you alone. It publishes nothing, bumps no version and reaches no
+          device.
+        </span>
         {!licensed && entries.length > 0 && (
           <p className="mt-2 text-[11.5px] text-site-plan">
             Publishing needs the license attestation above.
