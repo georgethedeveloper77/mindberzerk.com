@@ -86,7 +86,12 @@ class KickoffDrawer extends ConsumerWidget {
     // ancestor they require. Same crash the desktop bar hit; fixed here before
     // it can fire, since it only shows on a KDE theme.
     return Material(
-      color: theme.palette.bar,
+      // Kickoff is the plasma shell's drawer, so it takes the DRAWER setting,
+      // not the bar one, even though it is painted in the panel colour: what
+      // the user is adjusting is the app list, and `palette.bar` is only where
+      // the colour comes from. Breeze's Kickoff is near-solid by design, so
+      // this scales an opaque base rather than an authored alpha.
+      color: theme.palette.bar.withValues(alpha: theme.drawerOpacity),
       child: SafeArea(
         // The footer draws its own bottom inset, so the menu meets the panel.
         bottom: false,

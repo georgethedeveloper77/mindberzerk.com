@@ -128,11 +128,22 @@ const defaultGestures = <String, String>{
 /// app is not installed, via the existing uninstalled guard in [runGesture];
 /// service-gated theme defaults are allowed and simply no-op when the service
 /// is off, which is the contract every binding already lives under.
-GestureBinding bindingFor(EffectiveTheme theme, Gesture gesture) {
-  final user = theme.prefs.gestures[gesture.id];
+GestureBinding bindingFor(EffectiveTheme theme, Gesture gesture) =>
+    resolveGestureBinding(theme.prefs.gestures, theme.spec.gestures, gesture);
+
+/// The resolution itself, over plain maps, so the unit tests exercise the real
+/// precedence without constructing an [EffectiveTheme]. [bindingFor] is the
+/// only production caller; anything else reaching for this directly should be
+/// asking why it has maps instead of a theme.
+GestureBinding resolveGestureBinding(
+  Map<String, String> userGestures,
+  Map<String, String> themeGestures,
+  Gesture gesture,
+) {
+  final user = userGestures[gesture.id];
   if (user != null) return GestureBinding.decode(user);
 
-  final themed = theme.spec.gestures[gesture.id];
+  final themed = themeGestures[gesture.id];
   final themedKnown = themed != null &&
       (themed.startsWith('app:') || GestureAction.parse(themed) != null);
   if (themedKnown) return GestureBinding.decode(themed);

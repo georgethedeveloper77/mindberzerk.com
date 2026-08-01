@@ -517,7 +517,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // Super key or a swipe, and Android's back gesture already does that
         // here via the shell's PopScope).
         return ColoredBox(
-          color: theme.palette.bgBottom.withValues(alpha: 0.92),
+          // The drawer's own setting, scaling the authored 0.92. This wash is
+          // what everything else on the shell is hidden behind while the
+          // drawer is open, which is exactly why it earns a separate slider.
+          color: theme.palette.bgBottom
+              .withValues(alpha: 0.92 * theme.drawerOpacity),
           child: SafeArea(
             child: Column(
               children: [

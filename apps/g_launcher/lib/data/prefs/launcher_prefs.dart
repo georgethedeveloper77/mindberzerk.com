@@ -34,6 +34,9 @@ class LauncherPrefs {
     this.topBarSide,
     this.topBarStats,
     this.surfaceOpacity,
+    this.dockOpacity,
+    this.drawerOpacity,
+    this.barOpacity,
     this.workspaceCount,
     this.verboseBoot,
     this.iconSizeDp,
@@ -221,6 +224,40 @@ class LauncherPrefs {
   /// will be, and the person doing it will read the result as the app being
   /// broken rather than as their own setting.
   final double? surfaceOpacity;
+
+  // ── PER-SECTION OPACITY ──────────────────────────────────────────────────
+  //
+  // Each is null by default and FALLS BACK TO [surfaceOpacity], so the single
+  // slider still governs everything until someone deliberately splits one out.
+  // Nobody's phone changes on upgrade, and a user who never opens these three
+  // rows keeps exactly the behaviour they have.
+  //
+  // The earlier reasoning against per-section opacity was that a settings page
+  // and a sheet over it disagreeing about how solid they are reads as a
+  // rendering fault. That still holds, and it is why the split is NOT
+  // arbitrary: it covers the three surfaces that are PERMANENT chrome over the
+  // wallpaper. Sheets, dialogs and menus are transient and stay on the one
+  // slider, so nothing that stacks can disagree with the thing under it.
+  //
+  // Resolved in [EffectiveTheme], never read raw: a widget reading these would
+  // miss the fallback and paint its section solid the moment the user moved
+  // the main slider without having touched that section.
+
+  /// The dock or task strip. Multiplied INTO the palette's own dock alpha
+  /// rather than replacing it: Ubuntu authors 0xBD deliberately, and
+  /// overwriting it would make every distro's dock equally solid.
+  final double? dockOpacity;
+
+  /// The app drawer's full-screen wash. Its own setting because the drawer is
+  /// the one surface people genuinely disagree about: a solid drawer is easier
+  /// to read, and a translucent one is half the reason to run this launcher.
+  final double? drawerOpacity;
+
+  /// The top bar or panel. Inert on GNOME, whose bar paints no fill at all,
+  /// and live on Plasma's panel, the tiling waybar and Aqua's frosted menu
+  /// bar. Inert-where-inapplicable is the same honest arrangement
+  /// `drawerScrollStyle` already has, and it needs no clamping code.
+  final double? barOpacity;
 
   /// How many vertical workspaces the desktop has, 1–5. null = default (3).
   ///
@@ -486,6 +523,9 @@ class LauncherPrefs {
     String? topBarSide,
     bool? topBarStats,
     double? surfaceOpacity,
+    double? dockOpacity,
+    double? drawerOpacity,
+    double? barOpacity,
     int? workspaceCount,
     bool? verboseBoot,
     double? iconSizeDp,
@@ -537,6 +577,9 @@ class LauncherPrefs {
       topBarSide: topBarSide ?? this.topBarSide,
       topBarStats: topBarStats ?? this.topBarStats,
       surfaceOpacity: surfaceOpacity ?? this.surfaceOpacity,
+      dockOpacity: dockOpacity ?? this.dockOpacity,
+      drawerOpacity: drawerOpacity ?? this.drawerOpacity,
+      barOpacity: barOpacity ?? this.barOpacity,
       workspaceCount: workspaceCount ?? this.workspaceCount,
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
@@ -578,6 +621,7 @@ class LauncherPrefs {
   LauncherPrefs clearing({
     bool dockSide = false,
     bool dockGridButton = false,
+    bool topBar = false,
     bool rows = false,
     bool cols = false,
     bool drawerCols = false,
@@ -591,12 +635,16 @@ class LauncherPrefs {
     bool topBarSide = false,
     bool topBarStats = false,
     bool surfaceOpacity = false,
+    bool dockOpacity = false,
+    bool drawerOpacity = false,
+    bool barOpacity = false,
     /// Clearable, because removing the wallpaper you had chosen has to
     /// leave NO choice rather than a path pointing at a picture that is no
     /// longer in the list. `effective_theme` treats a non-null value here
     /// as "the user picked this", so a dangling one is a choice nobody can
     /// see or change.
     bool wallpaperCurrent = false,
+    bool wallpaperLock = false,
     bool wallpaperRotationMinutes = false,
     bool wallpaperRotationSource = false,
     bool wallpaperFit = false,
@@ -618,7 +666,10 @@ class LauncherPrefs {
     return LauncherPrefs(
       dockSide: dockSide ? null : this.dockSide,
       dockGridButton: dockGridButton ? null : this.dockGridButton,
-      topBar: topBar,
+      // Clearable now, for the section resets. It was pass-through, so
+      // "restore defaults" on Icons and bar could turn the bar back ON but
+      // could never hand it back to the distro's own answer.
+      topBar: topBar ? null : this.topBar,
       rows: rows ? null : this.rows,
       cols: cols ? null : this.cols,
       drawerCols: drawerCols ? null : this.drawerCols,
@@ -648,6 +699,9 @@ class LauncherPrefs {
       topBarSide: topBarSide ? null : this.topBarSide,
       topBarStats: topBarStats ? null : this.topBarStats,
       surfaceOpacity: surfaceOpacity ? null : this.surfaceOpacity,
+      dockOpacity: dockOpacity ? null : this.dockOpacity,
+      drawerOpacity: drawerOpacity ? null : this.drawerOpacity,
+      barOpacity: barOpacity ? null : this.barOpacity,
       workspaceCount: workspaceCount ? null : this.workspaceCount,
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
@@ -673,7 +727,6 @@ class LauncherPrefs {
       folderOrderCustom:
           folderOrderCustom ? null : this.folderOrderCustom,
       wallpapers: wallpapers,
-      wallpaperLock: wallpaperLock,
       // Pass-through, not clearable. A field OMITTED from this method is
       // dropped rather than preserved, which is how drawerScrollStyle was
       // once silently reset by every unrelated clear.
@@ -683,6 +736,7 @@ class LauncherPrefs {
       // Off forever. Nothing re-read it then; rescheduleRotation does now, and
       // a stale interval would resurrect a rotation the user turned off the
       // next time a collection changed.
+      wallpaperLock: wallpaperLock ? null : this.wallpaperLock,
       wallpaperRotationMinutes:
           wallpaperRotationMinutes ? null : this.wallpaperRotationMinutes,
       wallpaperRotationSource:
@@ -714,6 +768,9 @@ class LauncherPrefs {
         if (topBarSide != null) 'topBarSide': topBarSide,
         if (topBarStats != null) 'topBarStats': topBarStats,
         if (surfaceOpacity != null) 'surfaceOpacity': surfaceOpacity,
+        if (dockOpacity != null) 'dockOpacity': dockOpacity,
+        if (drawerOpacity != null) 'drawerOpacity': drawerOpacity,
+        if (barOpacity != null) 'barOpacity': barOpacity,
         if (drawerSearchPosition != null)
           'drawerSearchPosition': drawerSearchPosition,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
@@ -780,6 +837,9 @@ class LauncherPrefs {
       topBarSide: j['topBarSide'] as String?,
       topBarStats: j['topBarStats'] as bool?,
       surfaceOpacity: (j['surfaceOpacity'] as num?)?.toDouble(),
+      dockOpacity: (j['dockOpacity'] as num?)?.toDouble(),
+      drawerOpacity: (j['drawerOpacity'] as num?)?.toDouble(),
+      barOpacity: (j['barOpacity'] as num?)?.toDouble(),
       workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
@@ -872,6 +932,9 @@ class LauncherPrefs {
         other.topBarSide == topBarSide &&
         other.topBarStats == topBarStats &&
         other.surfaceOpacity == surfaceOpacity &&
+        other.dockOpacity == dockOpacity &&
+        other.drawerOpacity == drawerOpacity &&
+        other.barOpacity == barOpacity &&
         other.workspaceCount == workspaceCount &&
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
@@ -927,6 +990,9 @@ class LauncherPrefs {
         topBarSide,
         topBarStats,
         surfaceOpacity,
+        dockOpacity,
+        drawerOpacity,
+        barOpacity,
         workspaceCount,
         verboseBoot,
         iconSizeDp,

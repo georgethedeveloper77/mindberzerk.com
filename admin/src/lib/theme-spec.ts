@@ -106,6 +106,25 @@ export interface PanelJson {
 }
 
 export const WORKSPACE_AXES = ['vertical', 'horizontal'] as const;
+
+/**
+ * The drawer's motion and grouping, as a distro may DEFAULT them.
+ *
+ * A default, never an override. The device consults these only for a user who
+ * has never touched the setting, because both were promoted to global prefs
+ * and a promoted value is a deliberate choice the distro is not allowed to
+ * overrule. See `ThemeLayout.drawerScrollStyle` on the device for the rule and
+ * the marker that enforces it.
+ *
+ * `pages` is the engine default when neither the user nor the distro has an
+ * opinion, which is why 'inherit' below emits nothing at all rather than
+ * emitting 'pages'.
+ */
+export const DRAWER_SCROLLS = ['vertical', 'pages', 'cube'] as const;
+export type DrawerScrollName = (typeof DRAWER_SCROLLS)[number];
+
+export const DRAWER_GROUPINGS = ['none', 'az'] as const;
+export type DrawerGroupingName = (typeof DRAWER_GROUPINGS)[number];
 export type WorkspaceAxisName = (typeof WORKSPACE_AXES)[number];
 
 export interface ThemeLayoutJson {
@@ -130,6 +149,13 @@ export interface ThemeLayoutJson {
   workspaceAxis?: WorkspaceAxisName;
   grid?: { rows: number; cols: number };
   iconScale?: number;
+  /** The distro's DEFAULT drawer motion and grouping. Absent means no opinion,
+   *  which is not the same as 'pages': absent lets the engine decide, and the
+   *  engine may change its mind in a later build. Honoured only where there is
+   *  a paged grid to honour it, so Plasma's Kickoff and the tiling prompt
+   *  ignore both, which needs no clamping here. */
+  drawerScrollStyle?: DrawerScrollName;
+  drawerGrouping?: DrawerGroupingName;
 }
 
 export interface IconStyleJson {
@@ -176,9 +202,54 @@ export interface ThemeSpecJson {
   boot?: unknown;
   splash?: unknown;
   desklets?: unknown;
+  /**
+   * The distro's DEFAULT gesture bindings: gesture id to a GestureAction id, or
+   * "app:<componentKey>".
+   *
+   * ─── A DISTRO NEVER REBINDS A GESTURE THE USER SET ─────────────────────────
+   *
+   * These apply only to gestures the user has never bound. Several actions ride
+   * an accessibility service the user granted for a specific purpose, so a
+   * distro quietly rebinding one is not the same class of choice as a distro
+   * picking a dock side. The device enforces it in `resolveGestureBinding`; the
+   * panel's job is only to avoid implying more than that.
+   *
+   * An id this build does not recognise is carried through rather than dropped:
+   * the catalogue outlives any one panel build, and the device screens theme
+   * defaults it cannot decode by falling back to its own.
+   */
+  gestures?: Record<string, string>;
   /** Editor hint only, never emitted to the payload. */
   seededFromPreview?: boolean;
 }
+
+/**
+ * Every key a theme.json may carry, and the ONLY list the importer checks.
+ *
+ * ─── IT WAS A LOCAL SET INSIDE THE IMPORTER, AND IT WAS WRONG ───────────────
+ *
+ * That copy omitted `paletteLight` and `fonts`, so importing a theme with a
+ * light palette reported "Ignored 1 key(s) nothing reads: paletteLight" while
+ * the importer was, in the same pass, parsing it correctly and the device was
+ * rendering light mode from it. The note is designed to be believed, and the
+ * advice attached to it is not to publish until the notes are clear, so a
+ * false positive here costs an author a real light palette.
+ *
+ * Up here beside [ThemeSpecJson] because that is the only place someone adding
+ * a field will be looking. TypeScript cannot enumerate an interface at runtime,
+ * so this cannot be derived; the next best thing is putting it where the
+ * omission is obvious.
+ *
+ * `wallpaper` is the pre-list legacy key, read by `importTheme` and by the
+ * device's own resolver. `seededFromPreview` is never emitted, but a draft
+ * pasted back in should not be scolded for carrying it.
+ */
+export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
+  'id', 'name', 'version', 'shell', 'tier', 'chromeFamily',
+  'palette', 'paletteLight', 'typography', 'layout', 'icons', 'logo',
+  'wallpapers', 'wallpaper', 'fonts', 'minAppVersion',
+  'boot', 'splash', 'desklets', 'gestures', 'seededFromPreview',
+]);
 
 export interface ThemeDraft {
   id: string;
@@ -314,6 +385,15 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
       ? { grid: { rows: spec.layout.grid.rows, cols: spec.layout.grid.cols } }
       : {}),
     ...(spec.layout.iconScale != null ? { iconScale: spec.layout.iconScale } : {}),
+    // Absent when the distro has no opinion. Emitting 'pages' to mean "the
+    // default" would freeze this theme on today's default forever, which is
+    // the opposite of what leaving the control on inherit says.
+    ...(spec.layout.drawerScrollStyle
+      ? { drawerScrollStyle: spec.layout.drawerScrollStyle }
+      : {}),
+    ...(spec.layout.drawerGrouping
+      ? { drawerGrouping: spec.layout.drawerGrouping }
+      : {}),
   };
 
   if (spec.icons && Object.keys(pruneIcons(spec.icons)).length) {
@@ -330,6 +410,20 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
   if (spec.boot != null) out.boot = spec.boot;
   if (spec.splash != null) out.splash = spec.splash;
   if (spec.desklets != null) out.desklets = spec.desklets;
+
+  // Sorted and emitted only when non-empty, for the same reason the hero pack
+  // sorts its icon keys: identical content has to sign to identical bytes, and
+  // object key order in JS is insertion order, which the editor decides.
+  const boundGestures = Object.entries(spec.gestures ?? {}).filter(
+    ([k, v]) => k.trim() !== '' && typeof v === 'string' && v.trim() !== '',
+  );
+  if (boundGestures.length) {
+    const g: Record<string, string> = {};
+    for (const [k, v] of boundGestures.sort((a, b) => a[0].localeCompare(b[0]))) {
+      g[k] = v;
+    }
+    out.gestures = g;
+  }
 
   return JSON.stringify(out, null, 2) + '\n';
 }
@@ -701,6 +795,19 @@ export function importTheme(
       ...(num(layoutRaw.iconScale) !== undefined
         ? { iconScale: num(layoutRaw.iconScale) }
         : {}),
+      // Unknown values become absent rather than fatal, matching
+      // `ThemeLayout.fromJson` on the device: a value from a newer catalogue
+      // has to degrade to "no opinion", not stop the import.
+      ...((DRAWER_SCROLLS as readonly string[]).includes(
+        str(layoutRaw.drawerScrollStyle) ?? '',
+      )
+        ? { drawerScrollStyle: str(layoutRaw.drawerScrollStyle) as DrawerScrollName }
+        : {}),
+      ...((DRAWER_GROUPINGS as readonly string[]).includes(
+        str(layoutRaw.drawerGrouping) ?? '',
+      )
+        ? { drawerGrouping: str(layoutRaw.drawerGrouping) as DrawerGroupingName }
+        : {}),
     },
     wallpapers,
     minAppVersion: Math.trunc(num(j.minAppVersion) ?? 0),
@@ -725,14 +832,22 @@ export function importTheme(
   if (j.splash != null) spec.splash = j.splash;
   if (j.desklets != null) spec.desklets = j.desklets;
 
+  // String pairs only. An action id this build does not know is KEPT, not
+  // dropped: the catalogue outlives any one panel build, and the device
+  // already screens a theme default it cannot decode. Dropping it here would
+  // silently strip a working binding on a round trip through an older panel.
+  const gestureRaw = obj(j.gestures);
+  if (gestureRaw) {
+    const g: Record<string, string> = {};
+    for (const [k, v] of Object.entries(gestureRaw)) {
+      if (typeof v === 'string' && v.trim() !== '') g[k] = v;
+    }
+    if (Object.keys(g).length) spec.gestures = g;
+  }
+
   // Keys nothing reads. Usually a typo, occasionally a field from a newer
   // build, and either way worth naming: the device ignores both silently.
-  const known = new Set([
-    'id', 'name', 'version', 'shell', 'tier', 'chromeFamily', 'palette',
-    'typography', 'layout', 'icons', 'logo', 'wallpapers', 'wallpaper',
-    'minAppVersion', 'boot', 'splash', 'desklets',
-  ]);
-  const unknownKeys = Object.keys(j).filter((k) => !known.has(k));
+  const unknownKeys = Object.keys(j).filter((k) => !THEME_SPEC_KEYS.has(k));
   if (unknownKeys.length) {
     notes.push(`Ignored ${unknownKeys.length} key(s) nothing reads: ${unknownKeys.join(', ')}. A typo and a field from a newer build look the same here.`);
   }

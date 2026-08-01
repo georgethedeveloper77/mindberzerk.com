@@ -11,20 +11,18 @@ import { appName, isAppId } from '@/lib/registry';
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C13 — an app's privacy policy and terms.
+ * PHASE C13 - an app's privacy policy and terms.
  *
  * PER APP, not under /site, and that is the whole reason this page exists
  * separately. `site/content.json` is the publisher's homepage: one hero, one
  * stat strip, an ordered set of registry ids, nothing about any single app.
- * A privacy policy is the opposite — G Launcher's names its accessibility
+ * A privacy policy is the opposite: G Launcher's names its accessibility
  * service and its three analytics events, and G Recovery's will name storage
  * access and a home server it uploads to. One document could only be wrong for
  * one of them.
  *
- * The URLs are shown here because they are the deliverable. Play wants the
- * privacy link in Data safety and in App content, and the terms link in the
- * store listing, and hunting for the right path in a bucket browser is how the
- * wrong one gets pasted.
+ * The URLs are the deliverable, so they live in the form's right-hand panel
+ * beside the problems that are stopping them being safe to paste into Play.
  */
 export default async function LegalPage({
   params,
@@ -42,31 +40,29 @@ export default async function LegalPage({
   return (
     <Shell app={app} subtitle={`cdn.mindberzerk.com / ${app}`}>
       <Breadcrumb
-        items={[
-          { label: appName(app), href: `/apps/${app}/packs` },
-          { label: 'Legal' },
-        ]}
+        items={[{ label: appName(app), href: `/apps/${app}/packs` }, { label: 'Legal' }]}
       />
 
       {unreachable && (
         <Banner tone="bad">
-          The bucket could not be read, so what is shown below is the starting
-          draft rather than what is published. {unreachable}
+          The bucket could not be read, so the editor below holds the starting
+          draft rather than what is published. Publishing now would overwrite a
+          live policy with that draft. {unreachable}
         </Banner>
       )}
 
       {corrupt && (
         <Banner tone="bad">
-          site/legal/{app}.json is present but does not parse. Publishing
-          overwrites it with a clean document; the editor below is seeded from
-          the starting draft.
+          The stored document is present but does not parse. Publishing
+          overwrites it with a clean one; the editor below is seeded from the
+          starting draft.
         </Banner>
       )}
 
       {!exists && !unreachable && (
         <Banner tone="warn">
           Nothing published yet. The draft below is written against this app&apos;s
-          real manifest — read it before you publish it, because it is a promise
+          real manifest. Read it before you publish it, because it is a promise
           about what the app does.
         </Banner>
       )}

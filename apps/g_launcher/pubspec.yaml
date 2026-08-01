@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+8
+version: 6.0.0+9
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -59,6 +59,39 @@ dependencies:
     sdk: flutter
   fl_chart: ^1.2.0
   path_provider: ^2.1.6
+  # ─── PINNED TO A PRERELEASE, DELIBERATELY, AND HERE IS WHY ────────────────
+  #
+  # EVERY `*_plus` package pins `win32 ^6`, and this app depends on three of
+  # them: device_info_plus and battery_plus are read by terminal_tokens.dart,
+  # and a Pigeon getDeviceInfo chain replacing them was built and fully
+  # reverted once already, so they are not going anywhere.
+  #
+  # file_picker 8.3.3 through 11.x pins `win32 ^5`. There is therefore NO
+  # version of stable file_picker that resolves against this tree; the first
+  # failure blamed share_plus, and removing share_plus only revealed
+  # device_info_plus behind it. 12.0.0-beta.1 is where file_picker moved to
+  # `win32 ^6`, which pub's own solver told us when it drew its incompatibility
+  # range at `<12.0.0-beta.1`.
+  #
+  # PINNED EXACTLY, no caret. A caret on a prerelease accepts every later beta,
+  # and a beta is by definition allowed to change its API between them. Move to
+  # `^12.0.0` the day 12 goes stable and delete this comment.
+  #
+  # The rejected alternatives, so nobody walks these again:
+  #
+  #   win32 override         resolves, but file_picker 11's Windows
+  #                          implementation calls win32 5.x APIs from the same
+  #                          Dart package the Android build compiles. Forcing
+  #                          it onto 6.x risks a compile error in a plugin's
+  #                          Windows code on an Android build, which is a far
+  #                          worse thing to debug than this comment.
+  #   file_selector          no ANDROID implementation at all.
+  #   share_plus for export  removed already and correctly: file_picker saves
+  #                          as well as opens, and a backup is filed rather
+  #                          than sent. Bringing it back would not have helped
+  #                          anyway, since device_info_plus was the real
+  #                          blocker.
+  file_picker: 12.0.0-beta.7
 
 flutter_gen:
   assets:

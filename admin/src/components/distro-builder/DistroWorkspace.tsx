@@ -4,7 +4,7 @@ import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { BuilderShell, useToast } from '@/components/console';
 import { Section, Field, TextInput, NumberInput, SelectInput, Segmented, Toggle } from '@/components/theme-builder/primitives';
-import { PaletteEditor, LayoutEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
+import { PaletteEditor, LayoutEditor, GesturesEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
 import { AppGrid, type Assignment } from './AppGrid';
@@ -21,7 +21,7 @@ import {
   CHROMES,
   SHELLS,
 } from '@/lib/theme-spec';
-import { COMMON_APPS, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pack';
+import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry } from '@/lib/hero-pack';
 import { playSkuNote, type PlayLite } from '@/lib/play-lite';
 import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
 
@@ -30,10 +30,13 @@ import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/skus';
  *
  * REPLACES `assetNamesOf`, which returned the bare FILENAMES a theme referenced
  * so they could be matched one-for-one against what the author uploaded. That
- * match could never succeed. Wallpaper uploads are named `wall_<timestamp>` and
- * the references are authored names, so a theme that already had wallpapers had
- * its publish button disabled forever. Names are no longer compared; only
- * presence is, per kind.
+ * match could never succeed AT THE TIME: wallpaper uploads were renamed to
+ * `wall_<timestamp>` while the references were authored names, so a theme that
+ * already had wallpapers had its publish button disabled forever. Names are no
+ * longer compared; only presence is, per kind. Uploads now KEEP their names
+ * (see [wallpaperNameFor]), but that does not resurrect the name match: an
+ * author re-uploading under a different name is legitimate, `effectiveSpec`
+ * follows the uploads, and presence remains the honest guard.
  *
  * ─── WHAT PRESENCE STILL HAS TO CATCH ────────────────────────────────────────
  *
@@ -97,6 +100,62 @@ function extFor(file: File): string {
   const m = /\.([a-zA-Z0-9]+)$/.exec(file.name);
   const raw = (m ? m[1] : file.type.split('/')[1] || 'webp').toLowerCase();
   return raw.replace(/[^a-z0-9]/g, '') || 'webp';
+}
+
+/**
+ * OPTION A OF THE UPLOADER NAMING DECISION: an upload keeps its own name.
+ *
+ * A wallpaper used to be renamed to `wall_<timestamp>.<ext>` on the way in.
+ * With the presence guard replacing the name match, that rename no longer
+ * deadlocks publish, but it still costs two real things:
+ *
+ *   - `effectiveSpec` writes `wallpapers` from the uploads, so every published
+ *     theme.json carried opaque timestamp names and could never diff cleanly
+ *     against the bundled copy it came from.
+ *   - `effectiveSpec` does NOT rewrite `splash`, so a `splash.logo` reference
+ *     had to match an uploaded name exactly, and no upload could EVER match an
+ *     authored name, because this function destroyed it. The flat gate then
+ *     refused the pack at publish with nothing the author could do about it
+ *     from this screen. Keeping the name is what makes that reference
+ *     satisfiable at all.
+ *
+ * The name is sanitised to the bare-filename contract the device enforces
+ * (`PackPaths.installedFile` refuses separators; runs of dots would smuggle
+ * `..`): path stripped, whitespace to underscores, anything outside
+ * [A-Za-z0-9._-] dropped, dot runs collapsed, edge punctuation trimmed. Case
+ * is kept, because the point is matching the file the author manages. Only
+ * when nothing survives sanitising does the timestamp name return as a
+ * fallback, and `isBareFilename` gates the result so this function cannot
+ * drift from the validator the icon path already trusts.
+ */
+function wallpaperNameFor(file: File): string {
+  const fallback = `wall_${Date.now().toString(36)}.${extFor(file)}`;
+  const base = file.name.split(/[\\/]/).pop() ?? '';
+  const dot = base.lastIndexOf('.');
+  const stem = (dot > 0 ? base.slice(0, dot) : base)
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9._-]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[._-]+|[._-]+$/g, '');
+  if (!stem) return fallback;
+  const name = `${stem}.${extFor(file)}`;
+  return isBareFilename(name) ? name : fallback;
+}
+
+/**
+ * Add an asset, or replace the one already holding its name.
+ *
+ * Under kept names, the name IS the identity: uploading `numbat_color.webp`
+ * again means "use this file for numbat_color", exactly as re-picking a logo
+ * slot does, so the second upload replaces the first in place rather than
+ * shipping two files whose FormData keys would collide anyway. The replaced
+ * preview URL is revoked; nothing else holds it.
+ */
+function upsertAsset(list: Asset[], a: Asset): Asset[] {
+  const prev = list.find((x) => x.name === a.name);
+  if (!prev) return [...list, a];
+  URL.revokeObjectURL(prev.url);
+  return list.map((x) => (x.name === a.name ? a : x));
 }
 
 export function DistroWorkspace({
@@ -658,6 +717,14 @@ export function DistroWorkspace({
 
                 <Section title="layout">
                   <LayoutEditor layout={spec.layout} setLayout={(p) => setSpec((s) => ({ ...s, layout: { ...s.layout, ...p } }))} />
+                  <GesturesEditor
+                    gestures={spec.gestures}
+                    // Undefined rather than {} when the last binding is
+                    // cleared, so `canonicalThemeJson` omits the key and a
+                    // theme that ends up with no gesture opinion signs to the
+                    // same bytes it did before anyone opened this editor.
+                    setGestures={(g) => setSpec((s) => ({ ...s, gestures: g }))}
+                  />
                 </Section>
 
                 <Section title="icon shape" hint="the general look; specific app icons live in the Icons tab">
@@ -668,7 +735,7 @@ export function DistroWorkspace({
                   <AssetList
                     label="wallpapers"
                     assets={wallpapers}
-                    onAdd={(file) => pickAsset(file, `wall_${Date.now().toString(36)}.${extFor(file)}`, (a) => setWallpapers((w) => [...w, a]))}
+                    onAdd={(file) => pickAsset(file, wallpaperNameFor(file), (a) => setWallpapers((w) => upsertAsset(w, a)))}
                     onRemove={(name) => setWallpapers((w) => w.filter((x) => x.name !== name))}
                   />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
@@ -895,7 +962,7 @@ function Unlock({ label, by }: { label: string; by: string[] }) {
 function AssetList(props: { label: string; assets: Asset[]; onAdd: (file: File) => void; onRemove: (name: string) => void }) {
   const ref = React.useRef<HTMLInputElement>(null);
   return (
-    <Field label={props.label} hint="webp or png; shipped at full resolution">
+    <Field label={props.label} hint="webp or png; keeps its filename, which theme.json will reference; re-uploading a name replaces it">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
         {props.assets.map((a) => (
           <div key={a.name} style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.line}` }}>

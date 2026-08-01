@@ -13,6 +13,15 @@ abstract class PrefsStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
   Future<void> delete(String key);
+
+  /// Every key currently stored.
+  ///
+  /// Added for backups, which have to find EVERY distro's prefs file. The
+  /// alternative was a list of known theme ids threaded down from the
+  /// registry, which would silently miss a theme whose pack had been
+  /// uninstalled while its settings were still on disk, and those settings are
+  /// exactly the ones a backup is for.
+  Future<Set<String>> keys();
 }
 
 class SharedPrefsStore implements PrefsStore {
@@ -28,6 +37,9 @@ class SharedPrefsStore implements PrefsStore {
 
   @override
   Future<void> delete(String key) async => _prefs.remove(key);
+
+  @override
+  Future<Set<String>> keys() async => _prefs.getKeys();
 }
 
 /// In-memory. Tests, and nothing else.
@@ -42,6 +54,9 @@ class MemoryPrefsStore implements PrefsStore {
 
   @override
   Future<void> delete(String key) async => _data.remove(key);
+
+  @override
+  Future<Set<String>> keys() async => _data.keys.toSet();
 }
 
 /// Overridden in main() once SharedPreferences has resolved. Left throwing so a
@@ -199,10 +214,43 @@ class PrefsNotifier extends AsyncNotifier<LauncherPrefs> {
   static LauncherPrefs _withOwn(LauncherPrefs own, LauncherPrefs merged) =>
       GlobalPrefs.from(own).applyTo(merged);
 
+  /// THIS THEME'S FILE ONLY. The global bucket survives, so every promoted
+  /// field (icon shape, label lines, text scale, opacity, theme mode, folder
+  /// size, drawer behaviour) comes straight back on the next build, because
+  /// `build` re-applies the global overlay.
+  ///
+  /// That is correct for what it is, and it is NOT what a user means by
+  /// "reset". Use [resetEverything] for the settings row; this stays because
+  /// the distinction is real and something may yet want the narrow one.
   Future<void> resetAll() async {
     state = const AsyncData(LauncherPrefs());
     _own = const LauncherPrefs();
     await ref.read(prefsRepositoryProvider).reset(themeId);
+  }
+
+  /// This theme's overrides AND the settings shared by every distro.
+  ///
+  /// ─── WHY THIS EXISTS: THE OLD RESET DID NOT DO WHAT IT SAID ─────────────
+  ///
+  /// The Settings row promised "your layout, icon shape and hidden apps go
+  /// back to the distro defaults" and called [resetAll], which clears one
+  /// theme's file. Icon shape is PROMOTED. So was label length, text scale,
+  /// surface opacity and the light/dark choice. Every one of those was
+  /// re-applied from the global bucket the instant the provider rebuilt, and
+  /// the user watched the settings they most wanted gone survive a reset.
+  ///
+  /// Other distros keep their OWN per-theme overrides, which is the same
+  /// promise the row has always made and the reason this is not a wipe of
+  /// every stored theme. It cannot be one anyway: [PrefsStore] cannot
+  /// enumerate its keys, by design.
+  ///
+  /// Theme file first, global second, the same ordering [edit] documents:
+  /// writing global first invalidates this provider and `build` would reload
+  /// the theme file before the reset had landed.
+  Future<void> resetEverything() async {
+    _own = const LauncherPrefs();
+    await ref.read(prefsRepositoryProvider).reset(themeId);
+    await ref.read(globalPrefsProvider.notifier).write(const GlobalPrefs());
   }
 }
 
@@ -262,11 +310,17 @@ final prefsProvider =
 // which the engine resolves to bundled Ubuntu.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _selectedThemeKey = 'selectedThemeId.v1';
+/// PUBLIC, because a backup writes it directly.
+///
+/// It was private, which was right while the notifier below was the only
+/// thing that touched it. A restore writes every key in one pass and then
+/// invalidates, rather than going through each notifier, so that ordering
+/// cannot produce a half-applied state visible on screen.
+const selectedThemeKey = 'selectedThemeId.v1';
 
 class SelectedThemeNotifier extends AsyncNotifier<String?> {
   @override
-  Future<String?> build() => ref.watch(prefsStoreProvider).read(_selectedThemeKey);
+  Future<String?> build() => ref.watch(prefsStoreProvider).read(selectedThemeKey);
 
   /// Optimistic, same contract as [PrefsNotifier.edit]: state moves now, disk
   /// catches up. The shell watches [activeThemeSpecProvider] (which watches
@@ -274,13 +328,13 @@ class SelectedThemeNotifier extends AsyncNotifier<String?> {
   /// waiting on a write.
   Future<void> select(String themeId) async {
     state = AsyncData(themeId);
-    await ref.read(prefsStoreProvider).write(_selectedThemeKey, themeId);
+    await ref.read(prefsStoreProvider).write(selectedThemeKey, themeId);
   }
 
   /// Back to "nothing chosen" → the engine falls to bundled Ubuntu.
   Future<void> clear() async {
     state = const AsyncData(null);
-    await ref.read(prefsStoreProvider).delete(_selectedThemeKey);
+    await ref.read(prefsStoreProvider).delete(selectedThemeKey);
   }
 }
 

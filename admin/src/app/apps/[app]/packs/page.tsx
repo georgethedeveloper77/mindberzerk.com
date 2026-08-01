@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
@@ -8,19 +7,23 @@ import { isAppId, appName } from '@/lib/registry';
 import { KNOWN_PACK_TYPES } from '@/lib/sign';
 import { Shell } from '@/app/components/shell';
 import { SweepOrphans } from '@/components/packs/SweepOrphans';
+import { UnpublishButton } from '@/app/components/unpublish-button';
 import {
   Banner,
   Button,
   Card,
   Chip,
   Empty,
-  Grid,
+  Filter,
+  Inspector,
   KV,
   PageHead,
-  Stat,
+  Row,
+  Rows,
   Table,
   Td,
   Th,
+  Toolbar,
   Tr,
   bytes,
   when,
@@ -29,36 +32,46 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 - the catalogue for one app.
+ * CDN OBJECTS - the catalogue for one app, and the substrate under Distros and
+ * Icons.
  *
- * ## The route moved
+ * Everything on the CDN is a pack; `packType` says which kind. Distros filters
+ * to `theme`, Icons filters to the icon families, and this shows all of them
+ * plus the delivery detail neither product view has: the bucket path, the
+ * version, the signed manifest, and the objects nothing references any more.
  *
- * This was `/`, hardcoded to g-launcher. `APPS` has always had two entries and
- * G Recovery is next, so the app is now a path segment and the page reads it.
- * `params` is a PROMISE in this version of Next; destructuring it directly is
- * the mistake that produces "params should be awaited" at runtime rather than
- * at build.
+ * ─── ROWS AND AN INSPECTOR, AND NO THUMBNAILS ───────────────────────────────
  *
- * ## One table, not two layouts
+ * The other two list screens draw the pack: a gradient swatch for a distro, a
+ * mosaic of real icons for an icon pack. NOT HERE, and the reason is arithmetic
+ * rather than taste. This page holds every pack kind at once, so a thumbnail
+ * would mean fetching every theme.json AND every pack.json to draw a 26px
+ * square, on the one screen that already does the most reads. What identifies a
+ * pack here is its type and its path, so those are what the row carries. The
+ * art is one click away on the screen that is about art.
  *
- * The previous version rendered cards below `md` and a table above it, which is
- * two copies of every field and two places to forget one. The table wrapper
- * scrolls horizontally instead, so a phone scrolls the row rather than the page
- * and the pack id - the one column you actually need - stays pinned at the left
- * where it is readable.
+ * ─── FOUR STAT TILES BECAME ONE INDEX STRIP ─────────────────────────────────
  *
- * ## The filter costs no JavaScript
+ * Packs, size and paid were three tiles restating what the rows and the meta
+ * line already say. What is actually worth a permanent line is the INDEX: is it
+ * signed, which key signed it, when, and which prefix. Those four sat in a card
+ * at the very bottom of the page, three screens below the banner warning that
+ * the index was unsigned. Now the facts and the warning about them are adjacent.
  *
- * Type filtering is a set of links that set a search param, read on the server.
- * A client-side filter would mean shipping the whole pack list to the browser to
- * hide four rows of it.
+ * ─── UNPUBLISH IS HERE AND ON THE DETAIL PAGE, DELIBERATELY ─────────────────
+ *
+ * The same component, the same route, the same two-step confirm. The detail
+ * page keeps it because that is where you verify against the manifest and the
+ * file list before pulling. It is here too because this is where you are
+ * standing when the orphan sweep below is what you came for, and making a
+ * delisting a page-load away from its own cleanup is how leftovers accumulate.
  */
 export default async function PacksPage({
   params,
   searchParams,
 }: {
   params: Promise<{ app: string }>;
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; sel?: string }>;
 }) {
   const gate = await adminGate();
   if (gate) return gate;
@@ -68,23 +81,32 @@ export default async function PacksPage({
   // would reach R2 with an attacker-supplied prefix.
   if (!isAppId(app)) notFound();
 
-  const { type } = await searchParams;
+  const { type, sel } = await searchParams;
   const live = await readLiveIndex(app);
   // The report shares the live read's guards internally, so an unreachable or
   // corrupt index yields `ok: false` here rather than a bucket-wide false
-  // alarm. Rendered as one quiet line, not a banner: orphans are housekeeping.
+  // alarm. Rendered as a section, not a banner: orphans are housekeeping.
   const [signed, orphans] = await Promise.all([
     live.exists ? indexIsSigned(app) : Promise.resolve(false),
     orphanReport(app),
   ]);
 
-  const filtered =
-    type && (KNOWN_PACK_TYPES as readonly string[]).includes(type)
-      ? live.packs.filter((p) => p.packType === type)
-      : live.packs;
+  const activeType =
+    type && (KNOWN_PACK_TYPES as readonly string[]).includes(type) ? type : null;
+  const shown = activeType
+    ? live.packs.filter((p) => p.packType === activeType)
+    : live.packs;
 
   const size = live.packs.reduce((n, p) => n + p.sizeBytes, 0);
   const paid = live.packs.filter((p) => p.sku).length;
+
+  // Same fallback as the other list screens: after an unpublish, `sel` names a
+  // pack that is no longer in the catalogue, and the first row quietly takes
+  // over rather than leaving an inspector describing something that is gone.
+  const selected = shown.find((p) => p.packId === sel) ?? shown[0] ?? null;
+
+  const href = (id: string) =>
+    `/apps/${app}/packs?${activeType ? `type=${activeType}&` : ''}sel=${id}#detail`;
 
   return (
     <Shell app={app} subtitle={`cdn.mindberzerk.com / ${app}`}>
@@ -100,182 +122,173 @@ export default async function PacksPage({
           keeps the catalogue it already had. Republish to regenerate both.
         </Banner>
       )}
+      {live.unreachable && (
+        <Banner tone="bad">
+          The bucket could not be read, so nothing below reflects what is
+          published. {live.unreachable}
+        </Banner>
+      )}
 
       <PageHead
         title={`${appName(app)} packs`}
-        meta={`${live.packs.length} live · updated ${when(live.generatedAt)}`}
+        meta={`${live.packs.length} live · ${bytes(size)} · ${paid} paid · updated ${when(live.generatedAt)}`}
         actions={
           <Button href={`/apps/${app}/publish`} variant="primary">
-            Publish
+            Upload pack
           </Button>
         }
       />
 
-      <Grid cols={4}>
-        <Stat label="Packs" value={live.packs.length} />
-        <Stat label="Size" value={bytes(size)} />
-        <Stat label="Paid" value={paid} sub={`${live.packs.length - paid} free`} />
-        <Stat
-          label="Index"
-          value={signed ? 'signed' : live.exists ? 'unsigned' : 'none'}
-          tone={signed ? 'ok' : live.exists ? 'bad' : 'plain'}
-        />
-      </Grid>
-
-      <div className="mt-3 sm:mt-4">
-        <Card
-          title="Catalogue"
-          flush
-          right={
-            <div className="flex gap-1">
-              <FilterLink app={app} active={!type}>
-                All
-              </FilterLink>
-              {KNOWN_PACK_TYPES.map((t) => (
-                <FilterLink key={t} app={app} type={t} active={type === t}>
-                  {t}
-                </FilterLink>
-              ))}
-            </div>
-          }
-        >
-          {filtered.length === 0 ? (
-            <div className="p-4">
-              <Empty action={<Button href={`/apps/${app}/publish`}>Publish a pack</Button>}>
-                {live.packs.length === 0
-                  ? 'Nothing published yet.'
-                  : `No ${type} packs.`}
-              </Empty>
-            </div>
-          ) : (
-            <Table
-              head={
-                <>
-                  <Th>Pack</Th>
-                  <Th>Type</Th>
-                  <Th num>Ver</Th>
-                  <Th num>Min app</Th>
-                  <Th num>Size</Th>
-                  <Th>Price</Th>
-                  <Th>Path</Th>
-                </>
-              }
-            >
-              {filtered.map((p) => (
-                <Tr key={p.packId}>
-                  <Td>
-                    {/* The title is the affordance, not a trailing "view" cell:
-                        the thing you want to open is the thing you point at. */}
-                    <Link
-                      href={`/apps/${app}/packs/${p.packId}`}
-                      className="block hover:text-accent"
-                    >
-                      {p.title}
-                    </Link>
-                    <span className="block font-mono text-micro text-ink-3">{p.packId}</span>
-                  </Td>
-                  <Td>
-                    <Chip>{p.packType}</Chip>
-                  </Td>
-                  {/* Pack versions are monotonic INTEGERS, not semver. The
-                      device refuses anything that does not increase, so the
-                      number is the whole contract. */}
-                  <Td num>{p.version}</Td>
-                  <Td num dim>
-                    {p.minAppVersion}
-                  </Td>
-                  <Td num>{bytes(p.sizeBytes)}</Td>
-                  <Td>
-                    {p.sku ? <Chip tone="warn">{p.sku}</Chip> : <Chip tone="ok">free</Chip>}
-                  </Td>
-                  <Td mono dim>
-                    {p.path}
-                  </Td>
-                </Tr>
-              ))}
-            </Table>
-          )}
-        </Card>
+      {/* The index, as one line. See the note above on why this replaced four
+          tiles and a card at the bottom of the page. */}
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 rounded-card border border-line-soft px-3 py-2 font-mono text-micro text-ink-3">
+        <span>
+          index{' '}
+          <span className={signed ? 'text-ok' : live.exists ? 'text-bad' : 'text-ink-2'}>
+            {signed ? 'signed' : live.exists ? 'unsigned' : 'none'}
+          </span>
+        </span>
+        <span>
+          key <span className="text-ink-2">{live.keyId}</span>
+        </span>
+        <span>
+          generatedAt <span className="text-ink-2 tnum">{live.generatedAt || '-'}</span>
+        </span>
+        <span>
+          prefix <span className="text-ink-2">{app}/</span>
+        </span>
       </div>
 
-      {orphans.ok && orphans.groups.length > 0 && (
-        <div className="mt-3 sm:mt-4">
-          <Card
-            title="Orphaned objects"
-            flush
-            right={
-              <span className="font-mono text-micro text-ink-3">
-                {orphans.objectCount} objects · {bytes(orphans.totalBytes)}
-              </span>
-            }
-          >
-            {/* Left behind on purpose by unpublish and delete, so in-flight
-                device downloads finish. This is the deliberate second half:
-                reviewed, grouped, and gone only on an explicit confirm. The
-                catalogue, admin state, site files, and every live pack's
-                current version are never listed here and can never be swept. */}
-            <SweepOrphans app={app} groups={orphans.groups} />
-          </Card>
-        </div>
-      )}
+      <Toolbar>
+        <Filter href={`/apps/${app}/packs`} active={!activeType}>
+          all
+        </Filter>
+        {KNOWN_PACK_TYPES.map((t) => (
+          <Filter key={t} href={`/apps/${app}/packs?type=${t}`} active={activeType === t}>
+            {t}
+          </Filter>
+        ))}
+      </Toolbar>
 
-      <div className="mt-3 grid gap-3 sm:mt-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card title="Bundles" flush>
-          {live.entitlements.length === 0 ? (
-            <div className="p-4">
-              <Empty>No bundles. Every paid pack is sold on its own SKU.</Empty>
-            </div>
-          ) : (
-            <Table
-              head={
-                <>
-                  <Th>SKU</Th>
-                  <Th>Title</Th>
-                  <Th num>Grants</Th>
-                </>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1">
+          {shown.length === 0 ? (
+            <Empty
+              action={
+                activeType ? (
+                  <Button href={`/apps/${app}/packs`}>Show all</Button>
+                ) : (
+                  <Button href={`/apps/${app}/publish`}>Upload a pack</Button>
+                )
               }
             >
-              {live.entitlements.map((e) => (
-                <Tr key={e.sku}>
-                  <Td mono>{e.sku}</Td>
-                  <Td>{e.title}</Td>
-                  <Td num>{e.grants.includes('*') ? 'everything' : e.grants.length}</Td>
-                </Tr>
+              {live.packs.length === 0 ? 'Nothing published yet.' : `No ${activeType} packs.`}
+            </Empty>
+          ) : (
+            <Rows>
+              {shown.map((p) => (
+                <Row
+                  key={p.packId}
+                  href={href(p.packId)}
+                  selected={selected?.packId === p.packId}
+                  title={p.title || p.packId}
+                  subtitle={p.path}
+                  chip={<Chip>{p.packType}</Chip>}
+                  right={
+                    <>
+                      <span className="inline-block w-8 text-right">v{p.version}</span>
+                      <span className="inline-block w-14 text-right">{bytes(p.sizeBytes)}</span>
+                    </>
+                  }
+                />
               ))}
-            </Table>
+            </Rows>
           )}
-        </Card>
 
-        <Card title="Index">
-          <KV k="generatedAt" v={live.generatedAt || '-'} />
-          <KV k="Key id" v={live.keyId} />
-          <KV k="Signature" v={signed ? 'present' : 'missing'} />
-          <KV k="Prefix" v={`${app}/`} />
-        </Card>
+          {orphans.ok && orphans.groups.length > 0 && (
+            <div className="mt-3">
+              <Card
+                title="Orphaned objects"
+                flush
+                right={
+                  <span className="font-mono text-micro text-ink-3">
+                    {orphans.objectCount} objects · {bytes(orphans.totalBytes)}
+                  </span>
+                }
+              >
+                {/* Left behind on purpose by unpublish and delete, so in-flight
+                    device downloads finish. This is the deliberate second half:
+                    reviewed, grouped, and gone only on an explicit confirm. The
+                    catalogue, admin state, site files, and every live pack's
+                    current version are never listed here and can never be
+                    swept. */}
+                <SweepOrphans app={app} groups={orphans.groups} />
+              </Card>
+            </div>
+          )}
+
+          {live.entitlements.length > 0 && (
+            <div className="mt-3">
+              <Card title="Bundles" flush>
+                <Table
+                  head={
+                    <>
+                      <Th>SKU</Th>
+                      <Th>Title</Th>
+                      <Th num>Grants</Th>
+                    </>
+                  }
+                >
+                  {live.entitlements.map((e) => (
+                    <Tr key={e.sku}>
+                      <Td mono>{e.sku}</Td>
+                      <Td>{e.title}</Td>
+                      <Td num>{e.grants.includes('*') ? 'everything' : e.grants.length}</Td>
+                    </Tr>
+                  ))}
+                </Table>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <Inspector>
+            <div className="truncate text-data font-medium text-ink">
+              {selected.title || selected.packId}
+            </div>
+            <div className="truncate font-mono text-micro text-ink-3">{selected.packId}</div>
+
+            <div className="mt-2.5 border-t border-line-soft pt-1">
+              <KV k="type" v={selected.packType} />
+              {/* Pack versions are monotonic INTEGERS, not semver. The device
+                  refuses anything that does not increase, so the number is the
+                  whole contract. */}
+              <KV k="version" v={selected.version} />
+              <KV k="min app" v={selected.minAppVersion} />
+              <KV k="size" v={bytes(selected.sizeBytes)} />
+              <KV k="product" v={selected.sku ?? 'free'} />
+            </div>
+
+            {selected.summary && (
+              <p className="mt-2 text-micro leading-relaxed text-ink-2">{selected.summary}</p>
+            )}
+
+            <div className="mt-2 break-all font-mono text-micro leading-relaxed text-ink-3">
+              {app}/{selected.path}
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line-soft pt-2.5">
+              <Button href={`/apps/${app}/packs/${selected.packId}`}>Open</Button>
+              <UnpublishButton app={app} packId={selected.packId} />
+            </div>
+            <p className="mt-2 text-micro leading-relaxed text-ink-3">
+              Open shows the manifest, the file list and every sha256. Pulling
+              leaves the objects in the bucket; they appear above as orphans.
+            </p>
+          </Inspector>
+        )}
       </div>
     </Shell>
-  );
-}
-
-function FilterLink({
-  app,
-  type,
-  active,
-  children,
-}: {
-  app: string;
-  type?: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={type ? `/apps/${app}/packs?type=${type}` : `/apps/${app}/packs`}
-      className={`rounded-md px-1.5 py-0.5 font-mono text-micro transition ${
-        active ? 'bg-surface-3 text-ink' : 'text-ink-3 hover:text-ink-2'
-      }`}
-    >
-      {children}
-    </a>
   );
 }

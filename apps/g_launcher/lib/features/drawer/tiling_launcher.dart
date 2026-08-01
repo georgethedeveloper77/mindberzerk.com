@@ -110,7 +110,11 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
               constraints: const BoxConstraints(maxWidth: 420, maxHeight: 460),
               child: Container(
                 decoration: BoxDecoration(
-                  color: palette.bar.withValues(alpha: 0.98),
+                  // The rofi box itself. The black scrim above is deliberately
+                  // NOT scaled: it is the dimming of the desktop behind, not a
+                  // surface of ours, and fading it with this setting would make
+                  // a translucent launcher unreadable over a bright wallpaper.
+                  color: palette.bar.withValues(alpha: 0.98 * theme.drawerOpacity),
                   // Tiling WMs draw a hard accent border round the focused
                   // window. That border is the whole aesthetic; do not round it
                   // away.

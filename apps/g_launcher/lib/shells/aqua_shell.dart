@@ -209,6 +209,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
               opacity: activitiesOpen ? 0 : 1,
               child: AquaMenuBar(
                 palette: theme.palette,
+                opacity: theme.barOpacity,
                 title: theme.spec.name,
                 logo: theme.spec.logo,
                 displayFontFamily: theme.typography.display,
@@ -250,6 +251,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
           child: AquaDock(
             entries: entries,
             palette: theme.palette,
+            opacity: theme.dockOpacity,
             onLaunchpad: _openLaunchpad,
           ),
         ),

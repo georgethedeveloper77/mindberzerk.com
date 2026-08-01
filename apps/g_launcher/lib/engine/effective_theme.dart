@@ -126,6 +126,26 @@ class EffectiveTheme {
   double get surfaceOpacity =>
       (prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
 
+  /// The three surfaces that are PERMANENT chrome over the wallpaper, each
+  /// resolved as: the section's own setting, else the main slider, else solid.
+  ///
+  /// Read THESE, never `prefs.dockOpacity`. A widget reading the raw field
+  /// would miss the fallback and paint its section solid the moment the user
+  /// moved the main slider without having touched that section, which is the
+  /// one way this could make the single slider look broken.
+  ///
+  /// Same 0.6 floor and the same reason: below it a surface stops being
+  /// readable over an arbitrary photograph, and clamping here means a value
+  /// from a newer build or a hand-edited prefs file cannot get past it either.
+  double get dockOpacity =>
+      (prefs.dockOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+
+  double get drawerOpacity =>
+      (prefs.drawerOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+
+  double get barOpacity =>
+      (prefs.barOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+
   /// The palette actually on screen.
   ///
   /// `spec.palette` is the DARK variant and keeps that name for

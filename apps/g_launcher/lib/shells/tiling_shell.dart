@@ -103,7 +103,7 @@ class _Waybar extends ConsumerWidget {
     ];
 
     return Material(
-      color: theme.palette.bar.withValues(alpha: 0.92),
+      color: theme.palette.bar.withValues(alpha: 0.92 * theme.barOpacity),
       child: SizedBox(
         height: 30,
         child: Row(

@@ -4,7 +4,21 @@ import { adminGate } from '@/app/components/admin-gate';
 import { retentionByDistro, setupFunnel, type Analytics } from '@/lib/analytics';
 import { appName, isAppId } from '@/lib/registry';
 import { Shell } from '@/app/components/shell';
-import { Banner, Card, Grid, PageHead, Stat, Table, Td, Th, Tr } from '@/app/components/ui';
+import { Breadcrumb } from '@/components/console/breadcrumb';
+import {
+  Banner,
+  BarRow,
+  Button,
+  Filter,
+  Metric,
+  PageHead,
+  Panel,
+  Table,
+  Td,
+  Th,
+  Toolbar,
+  Tr,
+} from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +33,14 @@ export const dynamic = 'force-dynamic';
  * step, and retention split by first distro - and both come from the BigQuery
  * export.
  *
- * ## When the export is off, it says so
+ * ## When the export is off, it says so, and that is the whole design
  *
- * The export is a project setting that is not on yet. Every panel below renders
- * its own not-connected state with the exact reason, and NOTHING shows a made-up
- * number to fill the space. The first fabricated figure would make every real
- * one suspect.
+ * The export is a project setting that is not on yet. Every panel renders its
+ * own not-connected state with the exact reason, and NOTHING shows a made-up
+ * number to fill the space. This page is in the dashboard register like the
+ * landing and the overview, which raises the stakes on that rule rather than
+ * lowering them: a big empty metric card is honest, a big invented one is the
+ * thing that makes every other number on every other screen suspect.
  *
  * ## The data-safety correction lives here on purpose
  *
@@ -56,79 +72,87 @@ export default async function AnalyticsPage({
   ]);
 
   // The funnel's first step is the denominator for a conversion rate.
-  const funnelTop = funnel.connected ? funnel.data[0]?.users ?? 0 : 0;
+  const funnelTop = funnel.connected ? (funnel.data[0]?.users ?? 0) : 0;
   const funnelEnd = funnel.connected
-    ? funnel.data.find((s) => s.step === 'setup_complete')?.users ?? 0
+    ? (funnel.data.find((s) => s.step === 'setup_complete')?.users ?? 0)
     : 0;
   const completeRate = funnelTop ? Math.round((funnelEnd / funnelTop) * 100) : 0;
 
+  const cohort = retention.connected
+    ? retention.data.reduce((n, r) => n + r.cohort, 0)
+    : 0;
+
   return (
     <Shell app={app} subtitle={`${app} / analytics`}>
+      <Breadcrumb
+        items={[{ label: appName(app), href: `/apps/${app}/packs` }, { label: 'Analytics' }]}
+      />
+
       <PageHead
         title={`${appName(app)} analytics`}
         meta={`last ${days} days`}
         actions={
-          <div className="flex gap-1">
-            {[7, 30, 90].map((d) => (
-              <a
-                key={d}
-                href={`/apps/${app}/analytics?days=${d}`}
-                className={`rounded-md px-2 py-1 font-mono text-micro transition ${
-                  days === d ? 'bg-surface-3 text-ink' : 'text-ink-3 hover:text-ink-2'
-                }`}
-              >
-                {d}d
-              </a>
-            ))}
-          </div>
+          <Button href="https://console.firebase.google.com/">Firebase console</Button>
         }
       />
 
-      <Grid cols={4}>
-        <Stat
+      <Toolbar>
+        {[7, 30, 90].map((d) => (
+          <Filter key={d} href={`/apps/${app}/analytics?days=${d}`} active={days === d}>
+            {`${d}d`}
+          </Filter>
+        ))}
+      </Toolbar>
+
+      {/* A DASH, NEVER A ZERO. An unconnected export has measured nothing, and
+          a big confident 0% next to "setup completion" is a claim that people
+          are failing setup rather than an admission that nobody is counting. */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <Metric
           label="Setup completion"
           value={funnel.connected ? `${completeRate}%` : '-'}
-          tone={funnel.connected ? 'plain' : 'plain'}
+          sub={funnel.connected ? `${funnelEnd.toLocaleString()} of ${funnelTop.toLocaleString()}` : 'not measured'}
+          tone={funnel.connected ? 'plain' : 'warn'}
         />
-        <Stat label="Reached setup" value={funnel.connected ? funnelTop.toLocaleString() : '-'} />
-        <Stat label="Completed" value={funnel.connected ? funnelEnd.toLocaleString() : '-'} />
-        <Stat
+        <Metric
+          label="Reached setup"
+          value={funnel.connected ? funnelTop.toLocaleString() : '-'}
+          sub={`last ${days} days`}
+          tone={funnel.connected ? 'plain' : 'warn'}
+        />
+        <Metric
+          label="Cohort"
+          value={retention.connected ? cohort.toLocaleString() : '-'}
+          sub={retention.connected ? 'with a first distro' : 'not measured'}
+          tone={retention.connected ? 'plain' : 'warn'}
+        />
+        <Metric
           label="Export"
           value={funnel.connected ? 'connected' : 'off'}
+          sub={funnel.connected ? 'BigQuery' : 'nothing is counted'}
           tone={funnel.connected ? 'ok' : 'warn'}
         />
-      </Grid>
+      </div>
 
-      <div className="mt-3 grid gap-3 sm:mt-4 lg:grid-cols-2">
-        <Card title="Setup funnel">
+      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-2">
+        <Panel title="Setup funnel">
           <NotConnected result={funnel}>
             {funnel.connected && (
               <div className="space-y-2">
-                {funnel.data.map((s) => {
-                  const pct = funnelTop ? Math.round((s.users / funnelTop) * 100) : 0;
-                  return (
-                    <div key={s.step}>
-                      <div className="flex items-baseline justify-between text-data">
-                        <span className="font-mono text-micro text-ink-2">{s.step}</span>
-                        <span className="tnum text-ink-3">
-                          {s.users.toLocaleString()} · {pct}%
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 rounded bg-surface-2">
-                        <div
-                          className="h-full rounded bg-accent"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                {funnel.data.map((s) => (
+                  <BarRow
+                    key={s.step}
+                    label={s.step}
+                    value={s.users.toLocaleString()}
+                    pct={funnelTop ? (s.users / funnelTop) * 100 : 0}
+                  />
+                ))}
               </div>
             )}
           </NotConnected>
-        </Card>
+        </Panel>
 
-        <Card title="Retention by first distro">
+        <Panel title="Retention by first distro">
           <NotConnected result={retention}>
             {retention.connected && (
               <Table
@@ -160,33 +184,25 @@ export default async function AnalyticsPage({
               </Table>
             )}
           </NotConnected>
-        </Card>
+        </Panel>
       </div>
 
-      <div className="mt-3 sm:mt-4">
-        <Card title="Everything else">
-          <p className="text-data leading-relaxed text-ink-2">
+      <div className="mt-2 sm:mt-3">
+        <Panel title="Everything else">
+          <p className="text-micro leading-relaxed text-ink-3">
             Active users, the retention overview and raw event counts are rendered
             in the Firebase console and are not rebuilt here. This page holds only
             what the console cannot express.
           </p>
-          <a
-            href="https://console.firebase.google.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block text-data text-accent hover:brightness-110"
-          >
-            Open Firebase console →
-          </a>
-        </Card>
+        </Panel>
       </div>
 
-      <div className="mt-3 sm:mt-4">
+      <div className="mt-2 sm:mt-3">
         <Banner tone="warn">
           Data safety: while Analytics is on, the launcher shares a pseudonymous
-          app instance id with Google, so the store listing must not say “no data
-          collected”. The accurate claim is: no sale, no ads, no account, installs
-          and crashes counted.
+          app instance id with Google, so the store listing must not say &quot;no
+          data collected&quot;. The accurate claim is: no sale, no ads, no
+          account, installs and crashes counted.
         </Banner>
       </div>
     </Shell>

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/wallpaper_collections.dart';
 import '../../data/repositories/app_repository.dart';
@@ -162,6 +163,68 @@ Future<void> rescheduleRotation(
 /// and family. The rotation control was a Material [DropdownButton] (which reads
 /// the ambient theme); it is now a themed [ThemedSheet], matching how Settings
 /// does every other picker.
+/// Bring a theme's legacy "Yours" entries into app storage, once.
+///
+/// ─── WHY THIS RUNS AT ALL, AND WHY IT IS BEST EFFORT ────────────────────────
+///
+/// Entries stored before the copy rule point into `image_picker`'s cache. Some
+/// of those files still exist and some were evicted months ago, and there is no
+/// way to tell which from the string. So: every entry we can still READ is
+/// copied into our own directory and the entry rewritten to the copy; every
+/// entry we cannot read is LEFT EXACTLY AS IT WAS.
+///
+/// Leaving the dead ones is deliberate. Dropping them would be the launcher
+/// silently deleting records the user created, to fix a problem the user cannot
+/// see, with no way to tell afterwards what went missing. A broken thumbnail
+/// they can remove themselves is the more honest failure, and Forget already
+/// handles it.
+///
+/// PER THEME, because `wallpapers` is. Another distro's list migrates the first
+/// time its wallpaper screen is opened, which is also the first moment it could
+/// matter.
+///
+/// Once per process: the flag stops a rebuild storm from re-running it, and the
+/// work is idempotent anyway, since a migrated entry already sits under our own
+/// directory and is skipped.
+final Set<String> _migratedThemes = <String>{};
+
+Future<void> migrateOwnWallpapers(WidgetRef ref, EffectiveTheme theme) async {
+  if (!_migratedThemes.add(theme.spec.id)) return;
+
+  final mine = theme.prefs.wallpapers;
+  if (mine.isEmpty) return;
+
+  // Resolved ONCE. `isOwnWallpaperCopy` crosses a platform channel for the
+  // support directory, and asking per entry would put a channel round trip in
+  // a loop for an answer that cannot change.
+  final dir = await ownWallpapersDir();
+
+  // Absolute paths only. A theme preset is an asset reference and a picked
+  // document can be a content:// URI; neither is a file we may copy.
+  final legacy = [
+    for (final w in mine)
+      if (w.startsWith('/') && !w.startsWith('${dir.path}/')) w,
+  ];
+  if (legacy.isEmpty) return;
+  final moved = <String, String>{};
+  for (final old in legacy) {
+    if (!await File(old).exists()) continue;
+    final copy = await copyWallpaperInto(dir, old);
+    if (copy != null) moved[old] = copy;
+  }
+  if (moved.isEmpty) return;
+
+  await ref.read(prefsProvider(theme.spec.id).notifier).edit(
+        (p) => p.copyWith(
+          wallpapers: [for (final w in p.wallpapers) moved[w] ?? w],
+          // The applied wallpaper follows its entry. Without this the record
+          // would point at a cache path the list no longer contains, which is
+          // the dangling state Forget exists to prevent.
+          wallpaperCurrent: moved[p.wallpaperCurrent] ?? p.wallpaperCurrent,
+        ),
+      );
+}
+
 class WallpaperScreen extends ConsumerWidget {
   const WallpaperScreen({super.key, required this.theme});
 
@@ -178,6 +241,13 @@ class WallpaperScreen extends ConsumerWidget {
     final theme = async.hasValue ? async.requireValue : this.theme;
     final api = ref.read(launcherHostApiProvider);
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+    // POST-FRAME, because it writes prefs and Riverpod forbids writing a
+    // provider during build. Self-guarded and idempotent, so scheduling it on
+    // every build costs one set lookup after the first run.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => migrateOwnWallpapers(ref, theme),
+    );
 
     // Theme presets first, then whatever the user added: the distro pool.
     // Rotation may draw wider than it (every collection) or narrower (one
@@ -330,11 +400,28 @@ class WallpaperScreen extends ConsumerWidget {
               );
               if (picked == null) return;
 
-              // Store the URI, not a copy. Copying every wallpaper into app
-              // storage doubles disk use for no benefit — and the photo is
-              // already on the device.
+              // ── COPIED, NOT REFERENCED ────────────────────────────────
+              //
+              // This used to store `picked.path` and say copying "doubles
+              // disk use for no benefit, the photo is already on the
+              // device". The photo is; that PATH is not. image_picker hands
+              // back a file in cacheDir, the OS evicts caches whenever
+              // storage gets tight, and the entry then outlives the file it
+              // names. Every user photo here would eventually become a
+              // broken thumbnail nobody removed. See [copyWallpaperInto].
+              final copy = await copyWallpaperInto(
+                await ownWallpapersDir(),
+                picked.path,
+              );
+              if (copy == null) {
+                if (context.mounted) {
+                  context.showMessage('Could not add that photo');
+                }
+                return;
+              }
+
               await notifier.edit(
-                (p) => p.copyWith(wallpapers: [...p.wallpapers, picked.path]),
+                (p) => p.copyWith(wallpapers: [...p.wallpapers, copy]),
               );
             },
           ),
@@ -492,6 +579,38 @@ class WallpaperScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right, size: 18),
               onTap: openSourcePicker,
             ),
+
+          if (PrefsReset.canReset(theme.prefs, PrefsSection.wallpaper))
+            ThemedListRow(
+              icon: Icons.settings_backup_restore,
+              title: 'Reset wallpaper settings',
+              subtitle: 'Rotation, fit and lock screen',
+              onTap: () async {
+                final ok = await ThemedDialog.confirm(
+                  context,
+                  title: 'Reset wallpaper settings?',
+                  message: 'Rotation, fit and the lock-screen switch go back '
+                      'to their defaults. Your photos, your collections and '
+                      'the wallpaper on screen right now are untouched.',
+                  confirmLabel: 'Reset',
+                );
+                if (ok != true) return;
+
+                await notifier.edit(
+                  (p) => PrefsReset.section(p, PrefsSection.wallpaper),
+                );
+                // Rotation is the one setting here with a live schedule behind
+                // it. Clearing the interval is what turns it off, so the worker
+                // has to be told; otherwise the screen says off and the
+                // wallpaper keeps changing.
+                await ref
+                    .read(launcherHostApiProvider)
+                    .cancelWallpaperRotation();
+                if (context.mounted) {
+                  context.showMessage('Wallpaper settings reset');
+                }
+              },
+            ),
         ],
       ),
     );
@@ -608,6 +727,16 @@ Future<void> _forget(
     // clearing(), not copyWith: copyWith cannot write null, and leaving a
     // dangling path here is the exact state described above.
     await notifier.edit((p) => p.clearing(wallpaperCurrent: true));
+  }
+
+  // The RECORD goes first and the file second, so a failed delete leaves an
+  // orphaned file rather than a listed wallpaper that cannot be opened. Only
+  // our own copies: a legacy cache path or a theme asset is not ours to
+  // remove on the strength of a string.
+  if (await isOwnWallpaperCopy(src)) {
+    try {
+      await File(src).delete();
+    } catch (_) {}
   }
 
   if (context.mounted) context.showMessage(context.t('wallpaper.removed'));

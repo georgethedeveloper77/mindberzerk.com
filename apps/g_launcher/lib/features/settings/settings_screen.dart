@@ -11,6 +11,8 @@ import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart' show ChromeFamily;
 import '../../system/system_stats.dart';
 import '../gestures/gesture_actions.dart';
+import 'backup_screen.dart';
+import 'restore_screen.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../icons/icon_theme_screen.dart';
 import '../themes/themes_screen.dart';
@@ -468,10 +470,32 @@ class _Skin {
 /// The card is a [Material] so the rows' ink splashes have a surface to land on.
 /// Radius, inset and header case fork on the theme's [ChromeFamily].
 class _Group extends StatelessWidget {
-  const _Group({required this.label, required this.rows, this.query = ''});
+  const _Group({
+    required this.label,
+    required this.rows,
+    this.query = '',
+    this.onReset,
+  });
 
   final String label;
   final List<_FilterRow> rows;
+
+  /// Restore this group's settings, or null for no affordance.
+  ///
+  /// ─── CURRENTLY ALWAYS NULL, AND KEPT ON PURPOSE ─────────────────────────
+  ///
+  /// Six groups passed this until `RestoreScreen` arrived. Two surfaces for
+  /// one feature is worse than either alone, especially with DIFFERENT section
+  /// boundaries: this screen groups the bar with the icons, that one groups it
+  /// with the desktop, and a user who reset "Icons and bar" here and "Icons"
+  /// there would get two different results from the same word. The dedicated
+  /// page won because it can say "settings only, nothing you made is removed"
+  /// once, at the top, where it is read.
+  ///
+  /// The parameter stays because the header slot is the right home if a group
+  /// ever wants a local action, and because deleting it would take the layout
+  /// with it for no gain. It renders nothing while null.
+  final VoidCallback? onReset;
 
   /// Already trimmed; may be empty (no search active).
   final String query;
@@ -505,14 +529,38 @@ class _Group extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
-            child: Text(
-              f.headerUpper ? label.toUpperCase() : label,
-              style: TextStyle(
-                color: s.mut,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                letterSpacing: f.headerUpper ? 0.6 : 0,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    f.headerUpper ? label.toUpperCase() : label,
+                    style: TextStyle(
+                      color: s.mut,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: f.headerUpper ? 0.6 : 0,
+                    ),
+                  ),
+                ),
+                if (onReset != null)
+                  GestureDetector(
+                    onTap: onReset,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      // Padding rather than a bare Text: the tap target has to
+                      // be reachable with a thumb, and the glyph is small.
+                      padding: const EdgeInsets.fromLTRB(10, 2, 2, 4),
+                      child: Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: ChromeScope.of(context).colors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           ClipRRect(
@@ -1383,16 +1431,28 @@ Future<void> _confirmReset(
   // ThemedDialog captures + re-provides the chrome across the route boundary and
   // pops on the dialog's own context — the two things the old hand-rolled
   // AlertDialog got right only by luck of a single navigator.
+  // ─── THE COPY USED TO OVERSTATE WHAT THIS DID ─────────────────────────
+  //
+  // It promised icon shape would go back to the distro default and called
+  // `resetAll`, which clears one theme's file. Icon shape is a PROMOTED
+  // field, so it lived in the global bucket and was re-applied the instant
+  // the provider rebuilt. `resetEverything` clears both, which is what this
+  // message has always described.
+  //
+  // And it said "hidden apps", which is content. A reset does not un-hide
+  // apps; the drawer's own screen does that.
   final ok = await ThemedDialog.confirm(
     context,
     title: context.t('settings.resetSettings'),
     message:
-        'Your ${theme.spec.name} layout, icon shape and hidden apps go back to '
-        'the distro defaults. Other distros are untouched.',
+        'Every setting for ${theme.spec.name}, and the settings shared by all '
+        'distros, go back to their defaults. Other distros keep their own '
+        'layouts. Nothing you made is removed: your folders, pinned apps, '
+        'hidden apps, widgets and photos are untouched.',
     confirmLabel: context.t('settings.reset'),
     cancelLabel: context.t('common.cancel'),
   );
-  if (ok == true) notifier.resetAll();
+  if (ok == true) notifier.resetEverything();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1664,14 +1724,25 @@ List<Widget> _appearanceSection(
     // the setup wizard's Appearance step does; see GlobalPrefs.themeMode.
     // ─── SURFACES ──────────────────────────────────────────────────
     //
-    // One slider for the whole launcher rather than a control per screen. How
-    // much wallpaper someone wants to see is a single preference, and a
-    // per-page version would mean a settings page and a sheet over it
-    // disagreeing about how solid they are, which reads as a rendering fault.
+    // The main slider governs EVERYTHING, and the three below it split out one
+    // section each from that number.
     //
-    // The top bar is absent from the list below because it paints no fill at
-    // all: it has been fully transparent since the day the clock and tray came
-    // out of it, so there is nothing for this to make more transparent.
+    // The old reasoning here was that a per-page version would mean a settings
+    // page and a sheet over it disagreeing about how solid they are, which
+    // reads as a rendering fault. That still holds, and it is why the split
+    // stops where it does: only the three PERMANENT chrome surfaces get their
+    // own control. Sheets, dialogs and menus are transient and stay on this
+    // slider, so nothing that stacks over something else can disagree with it.
+    //
+    // ─── AND THE THREE LIVE WITH THEIR SECTIONS, NOT HERE ──────────────
+    //
+    // Dock opacity sits under Layout beside the dock's position, drawer
+    // opacity under App drawer, bar opacity under Icons and bar beside the
+    // top-bar switch. Someone adjusting the dock is already on the dock's
+    // rows; making them come here instead means the one screen that knows
+    // what a dock is has nothing to say about how solid it looks. This slider
+    // remains the one that governs everything, and each section follows it
+    // until moved.
     _Group(
       label: context.t('settings.surfaces'),
       query: q,
@@ -1884,6 +1955,20 @@ List<Widget> _appearanceSection(
             onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
           ),
         ),
+        // Directly under the switch that turns the bar on, which is where
+        // someone deciding how the bar should look already is.
+        _FilterRow(
+          const ['opacity', 'bar', 'panel', 'transparency', 'top'],
+          _OpacityRow(
+            label: 'Top bar opacity',
+            sub: 'Panels and menu bars. This distro paints no bar fill',
+            subWhenInert: true,
+            value: theme.barOpacity,
+            following: theme.prefs.barOpacity == null,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(barOpacity: v)),
+            onFollow: () => notifier.edit((p) => p.clearing(barOpacity: true)),
+          ),
+        ),
       ],
     ),
     _Group(
@@ -1977,6 +2062,20 @@ List<Widget> _desktopSection(
               },
               onChanged: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
             ),
+          ),
+        ),
+        // Beside the dock's position, because it is the dock's own look. The
+        // main slider under Surfaces still governs it until this is moved.
+        _FilterRow(
+          const ['opacity', 'dock', 'transparency', 'panel'],
+          _OpacityRow(
+            label: 'Dock opacity',
+            sub: 'The dock or task strip',
+            value: theme.dockOpacity,
+            following: theme.prefs.dockOpacity == null,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(dockOpacity: v)),
+            onFollow: () =>
+                notifier.edit((p) => p.clearing(dockOpacity: true)),
           ),
         ),
         _FilterRow(
@@ -2077,6 +2176,19 @@ List<Widget> _applicationsSection(
       label: context.t('settings.appDrawer_2'),
       query: q,
       rows: [
+        _FilterRow(
+          const ['opacity', 'drawer', 'transparency', 'apps'],
+          _OpacityRow(
+            label: 'Opacity',
+            sub: 'The wash behind the app list',
+            value: theme.drawerOpacity,
+            following: theme.prefs.drawerOpacity == null,
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(drawerOpacity: v)),
+            onFollow: () =>
+                notifier.edit((p) => p.clearing(drawerOpacity: true)),
+          ),
+        ),
         _FilterRow(
           const ['drawer columns', 'app drawer', 'columns'],
           _Row(
@@ -2245,7 +2357,11 @@ List<Widget> _gesturesSection(
 ) {
   // Derived here rather than passed, so the signature never has to name the
   // Pigeon host API type, which this file does not import.
-  ref.read(prefsProvider(theme.spec.id).notifier);
+  //
+  // The prefs notifier is BOUND now: the group's Reset writes through it. It
+  // was a bare `ref.read(...)` with the result discarded, which reads as a
+  // deliberate warm-up and is really just a leftover.
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
   ref.read(launcherHostApiProvider);
 
   return [
@@ -2331,6 +2447,32 @@ List<Widget> _systemSection(
                 context.showMessage(context.t('settings.iconCacheCleared'));
               }
             },
+          ),
+        ),
+        _FilterRow(
+          const ['backup', 'export', 'restore', 'drive', 'transfer', 'new phone'],
+          _Row(
+            icon: Icons.backup_outlined,
+            title: 'Backup',
+            subtitle: 'Save your settings, or bring them to a new phone',
+            trailing: const _Chevron(),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BackupScreen()),
+            ),
+          ),
+        ),
+        _FilterRow(
+          const ['restore', 'defaults', 'reset', 'sections'],
+          _Row(
+            icon: Icons.settings_backup_restore,
+            title: 'Restore defaults',
+            subtitle: 'One section at a time, or everything',
+            trailing: const _Chevron(),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RestoreScreen(),
+              ),
+            ),
           ),
         ),
         _FilterRow(
@@ -2466,10 +2608,38 @@ class _RowIcons extends InheritedWidget {
 /// `_SuggestionRow` in folders_screen is, which is the established way this app
 /// makes a row that the primitive does not cover.
 class _OpacityRow extends StatelessWidget {
-  const _OpacityRow({required this.value, required this.onChanged});
+  const _OpacityRow({
+    required this.value,
+    required this.onChanged,
+    this.label,
+    this.sub,
+    this.subWhenInert = false,
+    this.following = false,
+    this.onFollow,
+  });
 
   final double value;
   final ValueChanged<double> onChanged;
+
+  /// Null for the main slider, which keeps its translated strings. The three
+  /// section rows pass their own; those join the i18n backlog with the rest of
+  /// this round's copy rather than minting keys ahead of the sweep.
+  final String? label;
+  final String? sub;
+
+  /// Marks a row whose subtitle names a case where it does nothing on the
+  /// shell currently on screen. Drawn quieter, and never hidden: a row that
+  /// vanishes per distro is worse than one that says why it is idle.
+  final bool subWhenInert;
+
+  /// True while this section has no value of its own and is tracking the main
+  /// slider. The Follow action only appears once it has stopped.
+  final bool following;
+
+  /// Clears the section's own value so it tracks the main slider again.
+  /// Without it a section could be split out and never rejoined, which is the
+  /// state that makes a settings screen feel like a one-way door.
+  final VoidCallback? onFollow;
 
   @override
   Widget build(BuildContext context) {
@@ -2486,9 +2656,19 @@ class _OpacityRow extends StatelessWidget {
               Icon(Icons.opacity, size: 20, color: c.textMuted),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(context.t('settings.surfaceOpacity'),
+                child: Text(label ?? context.t('settings.surfaceOpacity'),
                     style: d.text.body),
               ),
+              if (!following && onFollow != null)
+                GestureDetector(
+                  onTap: onFollow,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Text('Follow',
+                        style: d.text.caption.copyWith(color: c.accent)),
+                  ),
+                ),
               Text('${(value * 100).round()}%',
                   style: d.text.value.copyWith(color: c.textMuted)),
             ],
@@ -2508,8 +2688,10 @@ class _OpacityRow extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 34, bottom: 4),
             child: Text(
-              context.t('settings.surfaceOpacitySub'),
-              style: d.text.caption.copyWith(color: c.textMuted),
+              sub ?? context.t('settings.surfaceOpacitySub'),
+              style: d.text.caption.copyWith(
+                color: subWhenInert ? c.textFaint : c.textMuted,
+              ),
             ),
           ),
         ],

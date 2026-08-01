@@ -44,10 +44,19 @@ class AquaDock extends StatefulWidget {
     required this.entries,
     required this.palette,
     required this.onLaunchpad,
+    this.opacity = 1.0,
   });
 
   final List<DockEntry> entries;
   final ThemePalette palette;
+
+  /// How solid the dock is, from `EffectiveTheme.dockOpacity`.
+  ///
+  /// This dock painted `palette.dock` raw and therefore ignored the surface
+  /// slider entirely, while the GNOME dock beside it honoured it. Same
+  /// multiply-into-the-authored-alpha rule as that one, so an Aqua palette
+  /// that authors its own translucency keeps it.
+  final double opacity;
 
   /// Launchpad's own slot, pinned at the right end past a separator — the
   /// position a Mac keeps Trash in, and the one place in the dock that is not
@@ -137,7 +146,9 @@ class _AquaDockState extends State<AquaDock> {
                   width: available + _padding * 2,
                   padding: const EdgeInsets.all(_padding),
                   decoration: BoxDecoration(
-                    color: palette.dock,
+                    color: palette.dock.withValues(
+                      alpha: palette.dock.a * widget.opacity,
+                    ),
                     border: Border.all(color: onDark.withValues(alpha: 0.14)),
                     borderRadius: BorderRadius.circular(tallest * 0.28),
                   ),

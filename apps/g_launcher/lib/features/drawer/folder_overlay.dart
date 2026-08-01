@@ -242,7 +242,8 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
       typography: theme.typography,
       textScale: theme.textScale,
       family: theme.chromeFamily,
-      opacity: theme.surfaceOpacity,
+      // The drawer's own knob, falling back to the single slider when unset.
+    opacity: theme.drawerOpacity,
     );
 
     return ChromeScope(

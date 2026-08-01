@@ -89,35 +89,30 @@ export function LegalForm({
     }
   }
 
-  return (
-    <div className="space-y-3">
-      {/* ── where these end up ─────────────────────────────────────────────
-          Shown whether or not anything is published, because these are the
-          strings that get pasted into Play and they do not change. */}
-      <section className="rounded-card border border-line-soft bg-surface-1 p-3 sm:p-4">
-        <h2 className="mb-2 text-data font-medium">Public URLs</h2>
-        <div className="space-y-1.5">
-          {(['privacy', 'terms'] as DocKind[]).map((k) => (
-            <div key={k} className="flex items-baseline gap-2">
-              <span className="w-16 shrink-0 text-micro text-ink-3">{k}</span>
-              <a
-                href={urls[k]}
-                target="_blank"
-                rel="noreferrer"
-                className="min-w-0 flex-1 truncate font-mono text-micro text-accent"
-              >
-                {urls[k]}
-              </a>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-micro leading-relaxed text-ink-3">
-          {published
-            ? 'Privacy goes in Play Console under Data safety and App content. Terms goes in the store listing.'
-            : 'These will 404 until the first publish.'}
-        </p>
-      </section>
+  const blocked =
+    problems.length > 0
+      ? `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'} to fix`
+      : null;
 
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <button
+          onClick={save}
+          disabled={!dirty || busy || problems.length > 0}
+          className="rounded-lg bg-accent px-4 py-2 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+        >
+          {busy ? 'Publishing' : dirty ? 'Publish privacy and terms' : 'No changes'}
+        </button>
+        {blocked ? (
+          <span className="text-micro text-warn">{blocked}</span>
+        ) : dirty ? (
+          <span className="text-micro text-ink-3">unsaved changes</span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1 space-y-3">
       {/* ── the two values that must not be placeholders ───────────────────── */}
       <section className="grid gap-3 rounded-card border border-line-soft bg-surface-1 p-3 sm:grid-cols-2 sm:p-4">
         <Field
@@ -190,40 +185,74 @@ export function LegalForm({
         </footer>
       </section>
 
-      {problems.length > 0 && (
-        <ul className="space-y-1 rounded-card border border-bad/40 bg-bad-dim px-3 py-2 text-data leading-relaxed text-bad">
-          {problems.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
-      )}
-
       {msg && (
-        <p
-          className={`rounded-card border px-3 py-2 text-data leading-relaxed ${
-            msg.tone === 'ok'
-              ? 'border-ok/40 bg-ok-dim text-ok'
-              : 'border-bad/40 bg-bad-dim text-bad'
-          }`}
-        >
-          {msg.text}
-        </p>
-      )}
+            <p
+              className={`rounded-card border px-3 py-2 text-data leading-relaxed ${
+                msg.tone === 'ok'
+                  ? 'border-ok/40 bg-ok-dim text-ok'
+                  : 'border-bad/40 bg-bad-dim text-bad'
+              }`}
+            >
+              {msg.text}
+            </p>
+          )}
+        </div>
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] md:static">
-        <button
-          onClick={save}
-          disabled={!dirty || busy || problems.length > 0}
-          className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink shadow-lg transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none md:w-auto md:py-2"
-        >
-          {busy
-            ? 'Publishing'
-            : problems.length > 0
-              ? 'Fix the problems above'
-              : dirty
-                ? 'Publish privacy and terms'
-                : 'No changes'}
-        </button>
+        {/* ── where these end up, and what is stopping them ──────────────
+            THE CONSEQUENCE PANEL. These URLs are the deliverable: Play wants
+            the privacy link in Data safety and in App content, and the terms
+            link in the store listing, and hunting for the right path in a
+            bucket browser is how the wrong one gets pasted. The problems sit
+            beside them because every one of them is a reason those URLs are
+            not yet safe to hand to a reviewer. */}
+        <aside className="w-full shrink-0 rounded-card border border-line-soft bg-surface-1 p-3 lg:sticky lg:top-6 lg:w-64">
+          <div className="font-mono text-micro text-ink-3">public URLs</div>
+          <div className="mt-2 space-y-2">
+            {(['privacy', 'terms'] as DocKind[]).map((k) => (
+              <div key={k}>
+                <div className="text-micro capitalize text-ink-3">{k}</div>
+                <a
+                  href={urls[k]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block break-all font-mono text-micro leading-relaxed text-accent"
+                >
+                  {urls[k]}
+                </a>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-micro leading-relaxed text-ink-3">
+            {published
+              ? 'Privacy goes in Play Console under Data safety and App content. Terms goes in the store listing.'
+              : 'These 404 until the first publish.'}
+          </p>
+
+          <div className="mt-3 border-t border-line-soft pt-2.5">
+            <div className="font-mono text-micro text-ink-3">before publishing</div>
+            {problems.length === 0 ? (
+              <p className="mt-1 text-micro leading-relaxed text-ok">
+                Nothing to fix. Both documents are publishable.
+              </p>
+            ) : (
+              <ul className="mt-1 space-y-1.5">
+                {problems.map((p) => (
+                  <li
+                    key={p}
+                    className="border-l-2 border-bad pl-2 text-micro leading-relaxed text-bad"
+                  >
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <p className="mt-3 border-t border-line-soft pt-2.5 text-micro leading-relaxed text-ink-3">
+            One button writes both pages. A privacy page from today beside terms
+            from last month is a state Play would notice and nobody else would.
+          </p>
+        </aside>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/folder_suggestions.dart';
+import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
@@ -180,6 +181,31 @@ class FoldersScreen extends ConsumerWidget {
             // obvious inverse to reach for afterwards. The wording leads with
             // what SURVIVES, because "remove" next to folders reads as
             // uninstall to someone skimming.
+            if (PrefsReset.canReset(theme.prefs, PrefsSection.folders))
+              ThemedListRow(
+                icon: Icons.settings_backup_restore,
+                title: 'Reset folder appearance',
+                subtitle: 'Size and shape only. Your folders stay',
+                onTap: () async {
+                  final ok = await ThemedDialog.confirm(
+                    context,
+                    title: 'Reset folder appearance?',
+                    message: 'Folder size, shape and sort order go back to '
+                        'their defaults. The folders themselves and everything '
+                        'in them are untouched.',
+                    confirmLabel: 'Reset',
+                  );
+                  if (ok != true) return;
+                  await notifier
+                      .edit((p) => PrefsReset.section(p, PrefsSection.folders));
+                  if (context.mounted) {
+                    context.showMessage('Folder appearance reset');
+                  }
+                },
+              ),
+            // Below the appearance reset deliberately: one restores a look and
+            // the other dissolves what the user built, and the destructive one
+            // should not be the first thing under the thumb.
             ThemedListRow(
               icon: Icons.folder_off_outlined,
               title: 'Ungroup all folders',

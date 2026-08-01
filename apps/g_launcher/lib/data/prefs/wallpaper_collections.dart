@@ -33,6 +33,73 @@ import 'prefs_repository.dart';
 /// paths). Copies are what make the per-file photo picker sufficient: no
 /// folder access, no `MANAGE_EXTERNAL_STORAGE`, no Play declaration. The
 /// user's originals are never touched, including on delete.
+/// Where the launcher keeps ITS OWN copies of the user's images.
+///
+/// ─── COPIES ARE THE POINT, NOT AN OPTIMISATION ──────────────────────────────
+///
+/// `image_picker` hands back a path inside `cacheDir`, and the OS is free to
+/// evict a cache whenever storage gets tight. A wallpaper list built from those
+/// paths therefore ROTS: the entries survive in prefs, the files do not, and
+/// the user sees broken thumbnails for photos they never removed. The screen
+/// that stored them said "the photo is already on the device", which is true of
+/// the ORIGINAL and not of the path we were given.
+///
+/// Copying also makes the per-file picker sufficient for everything: no folder
+/// access, no MANAGE_EXTERNAL_STORAGE, no Play declaration. Support dir, never
+/// cache, for the same reason `WallpaperController` stashes to filesDir.
+Future<Directory> wallpaperStorageDir(String relative) async {
+  final base = await getApplicationSupportDirectory();
+  final d = Directory('${base.path}/$relative');
+  if (!await d.exists()) await d.create(recursive: true);
+  return d;
+}
+
+/// The loose photos a user adds under "Yours", as opposed to a collection.
+Future<Directory> ownWallpapersDir() =>
+    wallpaperStorageDir('wallpapers_own');
+
+/// Is [path] one of OUR copies?
+///
+/// The question a delete has to ask. A legacy entry still points into the
+/// picker's cache, which is not ours to remove, and a theme preset is an asset
+/// reference; deleting either would be reaching outside our own storage on the
+/// strength of a string.
+Future<bool> isOwnWallpaperCopy(String path) async {
+  if (!path.startsWith('/')) return false;
+  final base = await getApplicationSupportDirectory();
+  return path.startsWith('${base.path}/wallpapers_own/') ||
+      path.startsWith('${base.path}/wallpaper_collections/');
+}
+
+/// Copy [source] into [dir], returning the new absolute path, or null when the
+/// source could not be read.
+///
+/// Null rather than a throw: the picker can hand back a path the OS has
+/// already evicted, and losing nine other photos to it would be the worse
+/// outcome. Callers count the nulls by omission.
+Future<String?> copyWallpaperInto(Directory dir, String source) async {
+  final ext =
+      RegExp(r'\.([A-Za-z0-9]+)$').firstMatch(source)?.group(1)?.toLowerCase() ??
+          'jpg';
+
+  // A tight import loop can read the same microsecond twice on a coarse
+  // clock, and the second photo silently overwriting the first would look
+  // exactly like the picker having dropped it.
+  var stamp = DateTime.now().microsecondsSinceEpoch;
+  var dest = File('${dir.path}/$stamp.$ext');
+  while (await dest.exists()) {
+    stamp += 1;
+    dest = File('${dir.path}/$stamp.$ext');
+  }
+
+  try {
+    await File(source).copy(dest.path);
+    return dest.path;
+  } catch (_) {
+    return null;
+  }
+}
+
 class WallpaperCollection {
   const WallpaperCollection({
     required this.id,
@@ -80,12 +147,15 @@ class WallpaperCollection {
 
 class WallpaperCollectionsNotifier
     extends AsyncNotifier<List<WallpaperCollection>> {
-  static const _key = 'wallpaperCollections.v1';
+  /// PUBLIC, because [PrefsBackup] writes this key directly rather than
+  /// going through this notifier: a restore lands every key in one pass and
+  /// then invalidates, so no half-applied state is ever on screen.
+  static const storageKey = 'wallpaperCollections.v1';
   static const schemaVersion = 1;
 
   @override
   Future<List<WallpaperCollection>> build() async {
-    final raw = await ref.watch(prefsStoreProvider).read(_key);
+    final raw = await ref.watch(prefsStoreProvider).read(storageKey);
     if (raw == null) return const [];
 
     try {
@@ -117,7 +187,7 @@ class WallpaperCollectionsNotifier
   Future<void> _write(List<WallpaperCollection> next) async {
     state = AsyncData(next);
     await ref.read(prefsStoreProvider).write(
-          _key,
+          storageKey,
           jsonEncode({
             'schemaVersion': schemaVersion,
             'collections': [for (final c in next) c.toJson()],
@@ -127,12 +197,8 @@ class WallpaperCollectionsNotifier
 
   /// Where one collection's copies live. Support dir, NOT cache; see the
   /// class doc for why that distinction is the whole feature.
-  Future<Directory> _dirFor(String id) async {
-    final base = await getApplicationSupportDirectory();
-    final d = Directory('${base.path}/wallpaper_collections/$id');
-    if (!await d.exists()) await d.create(recursive: true);
-    return d;
-  }
+  Future<Directory> _dirFor(String id) =>
+      wallpaperStorageDir('wallpaper_collections/$id');
 
   /// Returns the new collection, or null when the name was blank. Blank is
   /// refused rather than stored, same rule `DrawerLayout.rename` follows: an
@@ -174,19 +240,12 @@ class WallpaperCollectionsNotifier
     if (current.every((c) => c.id != id)) return 0;
 
     final dir = await _dirFor(id);
-    final stamp = DateTime.now().microsecondsSinceEpoch;
     final added = <String>[];
     for (final src in sourcePaths) {
-      final ext =
-          RegExp(r'\.([A-Za-z0-9]+)$').firstMatch(src)?.group(1)?.toLowerCase() ??
-              'jpg';
-      final dest = '${dir.path}/${stamp}_${added.length}.$ext';
-      try {
-        await File(src).copy(dest);
-        added.add(dest);
-      } catch (_) {
-        // Skipped; counted by omission.
-      }
+      // Shared with the "Yours" import, so both paths name and place a copy
+      // identically and a delete can recognise either.
+      final copied = await copyWallpaperInto(dir, src);
+      if (copied != null) added.add(copied);
     }
     if (added.isEmpty) return 0;
 

@@ -7,8 +7,8 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * This runs on the Edge runtime, which has no Node crypto and therefore cannot
  * run firebase-admin. So it cannot verify a session; it can only see whether a
- * cookie is present. Its entire job is sending a logged-out browser to /login
- * without a wasted round trip.
+ * cookie is present. Its entire job is sending a logged-out browser to the
+ * sign-in page without a wasted round trip.
  *
  * Every route handler and server component that reads the signing key, touches
  * R2, or returns anything non-public calls `requireAdmin()` ITSELF. If you ever
@@ -20,28 +20,35 @@ import { NextResponse, type NextRequest } from 'next/server';
  * DEFAULT export, unlike `middleware` which was a named one - keeping the named
  * export as well would silently do nothing.
  */
+
+/** Where a signed-out browser is sent. A real page, not a redirect target. */
+const SIGN_IN = '/admin';
+
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── /admin/* → /* ─────────────────────────────────────────────────────────
+  // ── /admin IS THE SIGN-IN PAGE; /admin/* IS STILL STRIPPED ────────────────
   //
-  // A CONVENIENCE REDIRECT, NOT A BASE PATH, and the difference is the point.
+  // The panel is served at the root of admin.mindberzerk.com, so a URL like
+  // admin.mindberzerk.com/admin/apps/g-launcher/commerce is the app directory
+  // name leaking into the path. That prefix is still stripped, so a pasted deep
+  // link lands where it meant to.
   //
-  // The Next app's project directory is `admin/`, so typing /admin is the
-  // natural reflex, and it 404s because a project directory is not a URL
-  // segment. The panel is served at the root of admin.mindberzerk.com.
+  // BARE `/admin` NO LONGER STRIPS, because it is now a page: the sign-in
+  // screen lives at `app/admin/page.tsx`. That is the one visible URL an
+  // unauthenticated visitor sees, and `/admin` reads as the front door in a way
+  // `/login` does not.
   //
-  // The alternative was `basePath: '/admin'` in next.config.ts, which was
-  // rejected: the host is ALREADY `admin.`, so every URL would read
-  // admin.mindberzerk.com/admin/…, and basePath quietly changes the asset
-  // prefix, the cookie path the session route writes, and what `pathname` means
-  // inside this very function. That is three subtle breakages to buy a
-  // redundant path segment.
+  // The order matters. Checking `startsWith('/admin/')` BEFORE the equality
+  // check would send `/admin` itself into the strip branch and redirect it to
+  // `/`, which redirects back to `/admin`, which is a loop. The exact match is
+  // handled by falling through to the auth checks below.
   //
-  // The prefix is stripped rather than the request being sent to `/`, so a
-  // pasted deep link like /admin/apps/g-launcher/commerce lands where it meant
-  // to. This runs BEFORE the auth check so /admin/login resolves too.
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+  // basePath: '/admin' in next.config.ts remains the wrong tool: the host is
+  // ALREADY `admin.`, and basePath quietly changes the asset prefix, the cookie
+  // path the session route writes, and what `pathname` means inside this very
+  // function.
+  if (pathname !== SIGN_IN && pathname.startsWith('/admin/')) {
     const url = request.nextUrl.clone();
     url.pathname = pathname.slice('/admin'.length) || '/';
     return NextResponse.redirect(url);
@@ -49,13 +56,13 @@ export default function proxy(request: NextRequest) {
 
   const hasCookie = request.cookies.has('__session');
 
-  if (!hasCookie && pathname !== '/login') {
+  if (!hasCookie && pathname !== SIGN_IN) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
+    url.pathname = SIGN_IN;
     return NextResponse.redirect(url);
   }
 
-  if (hasCookie && pathname === '/login') {
+  if (hasCookie && pathname === SIGN_IN) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);

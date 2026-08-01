@@ -2,7 +2,21 @@ import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
 import { Shell } from '@/app/components/shell';
-import { Banner, Button, Chip, PageHead, type Tone } from '@/app/components/ui';
+import {
+  Banner,
+  Button,
+  Chip,
+  Empty,
+  Filter,
+  Inspector,
+  KV,
+  PageHead,
+  Row,
+  Rows,
+  Swatch,
+  Toolbar,
+  hexColor,
+} from '@/app/components/ui';
 import { Breadcrumb } from '@/components/console/breadcrumb';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { ListToggle } from '@/components/theme-list/ListToggle';
@@ -17,47 +31,58 @@ import { distroIconPackIds, ensureSeededSafe, mergeThemeRows } from '@/lib/theme
 export const dynamic = 'force-dynamic';
 
 /**
- * DISTROS — the inventory, and the only one.
+ * DISTROS - the inventory, and the only one.
  *
  * This replaces the `/themes` table. A theme and a distro were always the same
  * artifact: a distro is a theme pack, plus an optional icon pack, plus optional
  * SKUs. Two lists and two builders for one thing meant two places for the schema
  * to drift and two answers to "where is Ubuntu".
  *
- * ─── CARDS, NOT ROWS, AND THE PREVIEW IS THE REASON ─────────────────────────
+ * ─── ROWS AND ONE INSPECTOR, NOT A GRID OF PREVIEWS ─────────────────────────
  *
- * A table row can tell you a distro's id, version and price. It cannot tell you
- * whether it LOOKS like Kali, and that is the only question worth asking about
- * a distro at a glance. `ThemePreview` already renders the desktop from the
- * palette and layout — it is the same component the workspace shows while you
- * type — so every card gets a real preview with nothing to upload, nothing to
- * screenshot, and nothing that can go stale against the theme it depicts.
+ * The previous pass gave every distro a full phone preview on the grounds that
+ * the only question worth asking is what a distro LOOKS like. Half right. It
+ * cost about 300px of vertical space each, so four distros filled a laptop
+ * screen, and the fields that actually differ between them - state, version,
+ * price, whether anything is listed - ended up three lines apart inside
+ * separate boxes, which is the worst possible shape for comparing them.
  *
- * That is the same call `theme_catalog.dart` made in the app: no screenshots,
- * render the thing.
+ * So the preview renders ONCE, in the inspector, for the selected distro, at a
+ * size worth looking at. The rows carry a gradient swatch instead, which is
+ * what actually identifies a distro at 26px, plus one state chip and the price.
+ * Ten distros now fit where four did, and the column reads down.
  *
- * ─── BUNDLED AND CDN DISTROS SHARE ONE GRID ─────────────────────────────────
+ * ─── SELECTION IS A SEARCH PARAM ────────────────────────────────────────────
  *
- * A judgement call. They behave differently — the bundled three ship inside the
- * APK, cannot be unpublished, and have no price — so separating them is
- * defensible. But "where is Ubuntu" having two possible answers is exactly the
- * problem this page exists to remove, and a chip says everything the separation
- * would have said. Bundled sort first, because they are the floor everything
- * else falls back to.
+ * `?sel=<packId>`, not React state, so this page stays a server component with
+ * no JavaScript in the list, so selection survives the `router.refresh()` that
+ * follows every delete and every listing toggle, and so a distro can be linked
+ * to directly. An unknown or missing `sel` falls back to the first row rather
+ * than rendering an empty panel, which is also what makes delete safe: the row
+ * it pointed at is gone, and the fallback quietly takes over.
+ *
+ * ─── BUNDLED AND CDN DISTROS SHARE ONE LIST ─────────────────────────────────
+ *
+ * They behave differently, so separating them is defensible. But "where is
+ * Ubuntu" having two possible answers is the problem this page exists to
+ * remove, a chip says everything the separation would have said, and the filter
+ * row covers the case where you genuinely want one kind. Bundled sort first,
+ * because they are the floor everything else falls back to.
  */
 
-function tagTone(tag: string): Tone {
-  if (tag === 'Paid') return 'accent';
-  if (tag === 'Bundled') return 'info';
-  if (tag.startsWith('Live')) return 'ok';
-  if (tag === 'Draft ahead' || tag.startsWith('Seed')) return 'warn';
-  return 'plain';
+const FILTERS = ['all', 'live', 'bundled', 'paid', 'unlisted'] as const;
+type FilterName = (typeof FILTERS)[number];
+
+function isFilter(v: string | undefined): v is FilterName {
+  return !!v && (FILTERS as readonly string[]).includes(v);
 }
 
 export default async function DistrosPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ app: string }>;
+  searchParams: Promise<{ sel?: string; filter?: string }>;
 }) {
   const gate = await adminGate();
   if (gate) return gate;
@@ -65,6 +90,9 @@ export default async function DistrosPage({
   const { app } = await params;
   if (!APPS.includes(app as AppId)) notFound();
   const appId = app as AppId;
+
+  const { sel, filter } = await searchParams;
+  const active: FilterName = isFilter(filter) ? filter : 'all';
 
   // `ensureSeededSafe`, not `ensureSeeded`. The plain one reads and then WRITES
   // through `readMap`, which throws by design so a failed read can never become
@@ -79,15 +107,15 @@ export default async function DistrosPage({
   const { drafts, unreachable: draftsUnreachable } = seeded;
   const rows = mergeThemeRows(drafts, live);
 
-  const draftSpecs = new Map(drafts.map((d) => [d.id, d.spec]));
+  const specs = new Map(drafts.map((d) => [d.id, d.spec]));
 
   // A theme published out-of-band has no local draft, so its spec has to come
   // out of the pack itself. One GET per such distro, on a page with a handful
-  // of them, in exchange for every card having a real preview instead of a grey
-  // rectangle. Failures resolve to null and the card renders without one.
+  // of them. Failures resolve to null and the row falls back to a neutral
+  // swatch rather than disappearing.
   const fetched = await Promise.all(
     rows
-      .filter((r) => !draftSpecs.has(r.id))
+      .filter((r) => !specs.has(r.id))
       .map(async (r) => {
         const pack = live.packs.find((p) => p.packId === r.id);
         if (!pack) return [r.id, null] as const;
@@ -97,12 +125,37 @@ export default async function DistrosPage({
         return [r.id, 'error' in imported ? null : imported.spec] as const;
       }),
   );
-  for (const [id, spec] of fetched) if (spec) draftSpecs.set(id, spec);
+  for (const [id, spec] of fetched) if (spec) specs.set(id, spec);
 
   const sorted = [...rows].sort((a, b) => {
     if (a.bundled !== b.bundled) return a.bundled ? -1 : 1;
     return (a.title || a.id).localeCompare(b.title || b.id);
   });
+
+  const shown = sorted.filter((r) => {
+    switch (active) {
+      case 'live':
+        return r.publishedVersion != null;
+      case 'bundled':
+        return r.bundled;
+      case 'paid':
+        return !!r.sku;
+      case 'unlisted':
+        return !isListed(listing, r.id) && !r.bundled;
+      default:
+        return true;
+    }
+  });
+
+  // The fallback is load-bearing: after a delete, `sel` names a row that no
+  // longer exists, and without this the inspector would render empty beside a
+  // list that is fine.
+  const selected = shown.find((r) => r.id === sel) ?? shown[0] ?? null;
+  const selectedSpec = selected ? (specs.get(selected.id) ?? null) : null;
+  const selectedIcons = selected ? distroIconPackIds(live, selected.id) : null;
+
+  const href = (id: string) =>
+    `/apps/${appId}/distros?${active === 'all' ? '' : `filter=${active}&`}sel=${id}#detail`;
 
   return (
     <Shell app={appId}>
@@ -127,176 +180,175 @@ export default async function DistrosPage({
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {sorted.map((r) => {
-          // `distroIconPackIds` is the same helper the delete action reads, so
-          // the count on the card and what a delete would pull cannot drift.
-          // The card shows present and pending together, because the bundle
-          // advertises a granted pack whether or not it has shipped; a delete
-          // only pulls the present ones.
-          const icons = distroIconPackIds(live, r.id);
-          return (
-            <DistroCard
-              key={r.id}
-              app={appId}
-              id={r.id}
-              title={r.title}
-              summary={r.summary}
-              sku={r.sku}
-              bundled={r.bundled}
-              tags={r.tags}
-              version={r.publishedVersion ?? r.draftVersion}
-              published={r.publishedVersion != null}
-              listed={isListed(listing, r.id)}
-              spec={draftSpecs.get(r.id) ?? null}
-              iconPacks={[...icons.present, ...icons.pending]}
-              liveIconPacks={icons.present}
-            />
-          );
-        })}
+      <Toolbar>
+        {FILTERS.map((f) => (
+          <Filter
+            key={f}
+            href={`/apps/${appId}/distros${f === 'all' ? '' : `?filter=${f}`}`}
+            active={active === f}
+          >
+            {f}
+          </Filter>
+        ))}
+      </Toolbar>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1">
+          {shown.length === 0 ? (
+            <Empty
+              action={
+                active === 'all' ? (
+                  <Button href={`/apps/${appId}/distros/builder`}>New distro</Button>
+                ) : (
+                  <Button href={`/apps/${appId}/distros`}>Show all</Button>
+                )
+              }
+            >
+              {active === 'all' ? 'No distros yet.' : `No ${active} distros.`}
+            </Empty>
+          ) : (
+            <Rows>
+              {shown.map((r) => {
+                const p = specs.get(r.id)?.palette;
+                return (
+                  <Row
+                    key={r.id}
+                    href={href(r.id)}
+                    selected={selected?.id === r.id}
+                    thumb={
+                      <Swatch
+                        top={hexColor(p?.bgTop, 'var(--color-surface-2)')}
+                        bottom={hexColor(p?.bgBottom, 'var(--color-surface-0)')}
+                        accent={hexColor(p?.accent, 'var(--color-line)')}
+                      />
+                    }
+                    title={r.title || r.id}
+                    subtitle={`${r.id}${specs.get(r.id)?.shell ? ` · ${specs.get(r.id)!.shell}` : ''}`}
+                    chip={<StateChip row={r} listed={isListed(listing, r.id)} />}
+                    right={r.sku ?? 'free'}
+                  />
+                );
+              })}
+            </Rows>
+          )}
+        </div>
+
+        {selected && (
+          <Inspector>
+            <div className="flex justify-center rounded-lg border border-line-soft bg-surface-0 py-3">
+              {selectedSpec ? (
+                /* THE CLIP BOX IS SIZED FROM ThemePreview'S OWN GEOMETRY: a
+                   232x480 phone inside 7px of padding is 246x494, times the
+                   scale. The inner width must be the component's REAL 246px,
+                   because `transform: scale` happens at paint time, after
+                   layout: laid out inside a narrow box first, its centring flex
+                   column would start the phone at a negative offset and clip
+                   the left edge. 246 x 0.62 = 152.5, which is where the clip
+                   box below comes from; change one and change the other. */
+                <div className="h-[306px] w-[152px] overflow-hidden">
+                  <div className="w-[246px] origin-top-left scale-[0.62]">
+                    <ThemePreview spec={selectedSpec} />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-[306px] w-[152px] items-center justify-center px-3 text-center text-micro leading-relaxed text-ink-3">
+                  no theme.json to preview
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2.5 truncate text-data font-medium text-ink">
+              {selected.title || selected.id}
+            </div>
+            <div className="truncate font-mono text-micro text-ink-3">{selected.id}</div>
+            {selected.summary && (
+              <div className="mt-0.5 truncate text-micro text-ink-2">{selected.summary}</div>
+            )}
+
+            <div className="mt-2.5 border-t border-line-soft pt-1">
+              <KV k="shell" v={selectedSpec?.shell ?? '-'} />
+              <KV
+                k="version"
+                v={
+                  selected.publishedVersion != null
+                    ? `v${selected.publishedVersion}`
+                    : selected.draftVersion != null
+                      ? `draft v${selected.draftVersion}`
+                      : '-'
+                }
+              />
+              <KV k="product" v={selected.sku ?? 'free'} />
+              <KV
+                k="icon packs"
+                v={
+                  selectedIcons && selectedIcons.present.length + selectedIcons.pending.length > 0
+                    ? [...selectedIcons.present, ...selectedIcons.pending].join(', ')
+                    : 'none'
+                }
+              />
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-line-soft pt-2.5">
+              <span className="text-micro text-ink-3">
+                {selected.bundled ? 'bundled' : isListed(listing, selected.id) ? 'listed' : 'hidden'}
+              </span>
+              <ListToggle
+                app={appId}
+                packId={selected.id}
+                initial={isListed(listing, selected.id)}
+                disabled={selected.bundled}
+              />
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-3 border-t border-line-soft pt-2.5">
+              <Button href={`/apps/${appId}/distros/builder?id=${selected.id}`}>Edit</Button>
+              {!selected.bundled && (
+                <DeleteDistro
+                  app={appId}
+                  id={selected.id}
+                  published={selected.publishedVersion != null}
+                  sku={selected.sku}
+                  iconPacks={selectedIcons?.present ?? []}
+                />
+              )}
+            </div>
+
+            {selected.bundled && (
+              <p className="mt-2 text-micro leading-relaxed text-ink-3">
+                Bundled distros ship inside the APK, so they are always available
+                and cannot be delisted or deleted.
+              </p>
+            )}
+          </Inspector>
+        )}
       </div>
 
       <p className="mt-3 text-micro leading-relaxed text-ink-3">
         A distro is a theme pack plus an optional icon pack. Product ID is the
-        Play SKU; blank is free. Listed is the storefront switch, and bundled
-        distros ship inside the APK so they are always available. To pull a live
-        CDN pack from every device, use Unpublish on the Packs screen.
+        Play SKU; blank is free. To pull a live CDN pack from every device, use
+        Unpublish on the CDN objects screen.
       </p>
     </Shell>
   );
 }
 
-function DistroCard({
-  app,
-  id,
-  title,
-  summary,
-  sku,
-  bundled,
-  tags,
-  version,
-  published,
+/**
+ * ONE chip, not three.
+ *
+ * Cards carried Free, Bundled and Not published as separate chips, which is
+ * three pieces of jewellery to say one thing. State is a single fact with a
+ * precedence order, and price already has its own column on the right.
+ */
+function StateChip({
+  row,
   listed,
-  spec,
-  iconPacks,
-  liveIconPacks,
 }: {
-  app: AppId;
-  id: string;
-  title: string;
-  summary: string;
-  sku: string | null;
-  bundled: boolean;
-  tags: string[];
-  version: number | null;
-  published: boolean;
+  row: { bundled: boolean; publishedVersion: number | null; needsPublish: boolean };
   listed: boolean;
-  spec: ThemeSpecJson | null;
-  iconPacks: string[];
-  /** The subset of [iconPacks] actually in the live index; what a delete pulls. */
-  liveIconPacks: string[];
 }) {
-  return (
-    <section className="flex flex-col overflow-hidden rounded-card border border-line-soft bg-surface-1">
-      {/* ── THE PREVIEW LEADS ──────────────────────────────────────────────
-          It was a 100px strip down the side of a text block, which is the
-          wrong emphasis for this page: the only question you open a distro
-          gallery to answer is what the thing LOOKS like, and at that size the
-          phone was clipped at the bezel and the dock fell off the bottom.
-
-          Full width, on its own stage, at a size where the dock, the top bar
-          and the gradient are all legible. The text below is the caption to
-          it rather than the other way round.
-
-          THE CLIP BOX IS SIZED FROM ThemePreview'S OWN GEOMETRY: a 232x480
-          phone inside 7px of padding is 246x494, times the scale. It is a
-          literal because the component's dimensions are literals; if those
-          change, this crops and the fix is here. That is the cost of scaling
-          a fixed-size component rather than parameterising it, and it is
-          still cheaper than two previews drifting apart.
-
-          The caption ThemePreview draws underneath is deliberately cropped
-          out: it repeats the shell and name that the card already shows. */}
-      <div className="flex justify-center border-b border-line-soft bg-surface-0 py-4">
-        {spec ? (
-          <div className="h-[296px] w-[148px] overflow-hidden">
-            {/* THE INNER WIDTH IS EXPLICIT, and leaving it out was the bug.
-                `transform: scale` happens at PAINT time, after layout. So the
-                unscaled ThemePreview was laid out inside a 148px box first, and
-                its outer flex column centres its children: a 246px phone
-                centred in 148px starts at -49px and loses its left edge. That
-                is the clipping in the cards — Ubuntu's dock and the terminal's
-                first character were cut off, and the space that should have
-                held them sat empty on the right.
-
-                Giving the wrapper the component's real 246px lets it lay out at
-                full size and only then shrink. 246 x 0.6 = 147.6, which is what
-                the 148px clip box is derived from; change one and the other
-                follows. */}
-            <div className="w-[246px] origin-top-left scale-[0.6]">
-              <ThemePreview spec={spec} />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-[296px] w-[148px] items-center justify-center rounded-lg border border-dashed border-line px-3 text-center text-micro leading-relaxed text-ink-3">
-            no theme.json to preview
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col p-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-data font-medium text-ink">{title || id}</span>
-          {version != null && (
-            <span className="shrink-0 font-mono text-micro text-ink-3">v{version}</span>
-          )}
-        </div>
-        <div className="truncate font-mono text-micro text-ink-3">{id}</div>
-        {summary && <div className="mt-1 truncate text-micro text-ink-2">{summary}</div>}
-
-        <div className="mt-2 flex flex-wrap gap-1">
-          {tags.map((t) => (
-            <Chip key={t} tone={tagTone(t)}>
-              {t}
-            </Chip>
-          ))}
-        </div>
-
-        <div className="mt-2 text-micro text-ink-3">
-          <span className="text-ink-2">
-            {iconPacks.length === 0
-              ? 'no icon pack'
-              : `${iconPacks.length} icon pack${iconPacks.length === 1 ? '' : 's'}`}
-          </span>
-          <span className="ml-2 font-mono">{sku ?? 'free'}</span>
-        </div>
-        {iconPacks.length > 0 && (
-          <div className="truncate font-mono text-micro text-ink-3">
-            {iconPacks.join(', ')}
-          </div>
-        )}
-
-        {/* flex-wrap so the delete confirm text can take a full line of its
-            own instead of crushing the toggle. Bundled distros get no delete
-            at all: their packs ship in the APK and the unpublish layer refuses
-            their ids, so a disabled button would promise something the server
-            never allows. */}
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
-          <ListToggle app={app} packId={id} initial={listed} disabled={bundled} />
-          <div className="flex items-center gap-3">
-            {!bundled && (
-              <DeleteDistro
-                app={app}
-                id={id}
-                published={published}
-                sku={sku}
-                iconPacks={liveIconPacks}
-              />
-            )}
-            <Button href={`/apps/${app}/distros/builder?id=${id}`}>Edit</Button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  if (row.bundled) return <Chip tone="info">bundled</Chip>;
+  if (row.publishedVersion == null) return <Chip tone="warn">draft</Chip>;
+  if (!listed) return <Chip tone="warn">unlisted</Chip>;
+  if (row.needsPublish) return <Chip tone="warn">draft ahead</Chip>;
+  return <Chip tone="ok">{`live v${row.publishedVersion}`}</Chip>;
 }

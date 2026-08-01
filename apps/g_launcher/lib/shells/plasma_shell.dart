@@ -113,7 +113,10 @@ class _PlasmaPanel extends ConsumerWidget {
     ];
 
     return Material(
-      color: theme.palette.bar.withValues(alpha: 0.96),
+      // The authored 0.96 scaled by the user's bar setting, not replaced: a
+      // Breeze panel is very nearly solid on purpose, and this keeps that
+      // relationship at every slider position.
+      color: theme.palette.bar.withValues(alpha: 0.96 * theme.barOpacity),
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: SizedBox(

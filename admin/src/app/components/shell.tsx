@@ -157,7 +157,10 @@ export function Shell({
 
   async function out() {
     await signOut();
-    router.replace('/login');
+    // The sign-in page is `/admin`, not `/login`. The proxy would bounce a
+    // cookieless browser here anyway, but redirecting straight to the real
+    // page avoids a visible double navigation on sign out.
+    router.replace('/admin');
     router.refresh();
   }
 

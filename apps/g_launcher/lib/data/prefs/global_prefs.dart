@@ -58,6 +58,9 @@ class GlobalPrefs {
     this.hiddenAppsSearchable,
     this.themeMode,
     this.surfaceOpacity,
+    this.dockOpacity,
+    this.drawerOpacity,
+    this.barOpacity,
   });
 
   // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -107,6 +110,15 @@ class GlobalPrefs {
   /// for the floor and why it exists.
   final double? surfaceOpacity;
 
+  /// The per-section splits, promoted for the same reason the slider above is:
+  /// how see-through you like your dock is a fact about you, not about Ubuntu.
+  /// Each is null until deliberately split out and falls back to
+  /// [surfaceOpacity], so promoting them changes nothing for anyone who has
+  /// never touched them.
+  final double? dockOpacity;
+  final double? drawerOpacity;
+  final double? barOpacity;
+
   /// Read the promoted fields off a [LauncherPrefs].
   ///
   /// Used for the one-time migration and for splitting an edit.
@@ -128,6 +140,9 @@ class GlobalPrefs {
         hiddenAppsSearchable: p.hiddenAppsSearchable,
         themeMode: p.themeMode,
         surfaceOpacity: p.surfaceOpacity,
+        dockOpacity: p.dockOpacity,
+        drawerOpacity: p.drawerOpacity,
+        barOpacity: p.barOpacity,
       );
 
   /// Overlay these values onto [p], replacing whatever the per-theme store held
@@ -156,6 +171,9 @@ class GlobalPrefs {
       hiddenAppsSearchable: hiddenAppsSearchable == null,
       themeMode: themeMode == null,
       surfaceOpacity: surfaceOpacity == null,
+      dockOpacity: dockOpacity == null,
+      drawerOpacity: drawerOpacity == null,
+      barOpacity: barOpacity == null,
     );
 
     return cleared.copyWith(
@@ -176,6 +194,9 @@ class GlobalPrefs {
       hiddenAppsSearchable: hiddenAppsSearchable,
       themeMode: themeMode,
       surfaceOpacity: surfaceOpacity,
+      dockOpacity: dockOpacity,
+      drawerOpacity: drawerOpacity,
+      barOpacity: barOpacity,
     );
   }
 
@@ -200,6 +221,9 @@ class GlobalPrefs {
           'hiddenAppsSearchable': hiddenAppsSearchable,
         if (themeMode != null) 'themeMode': themeMode,
         if (surfaceOpacity != null) 'surfaceOpacity': surfaceOpacity,
+        if (dockOpacity != null) 'dockOpacity': dockOpacity,
+        if (drawerOpacity != null) 'drawerOpacity': drawerOpacity,
+        if (barOpacity != null) 'barOpacity': barOpacity,
       };
 
   factory GlobalPrefs.fromJson(Map<String, dynamic> j) => GlobalPrefs(
@@ -220,6 +244,9 @@ class GlobalPrefs {
         hiddenAppsSearchable: j['hiddenAppsSearchable'] as bool?,
         themeMode: j['themeMode'] as String?,
         surfaceOpacity: (j['surfaceOpacity'] as num?)?.toDouble(),
+        dockOpacity: (j['dockOpacity'] as num?)?.toDouble(),
+        drawerOpacity: (j['drawerOpacity'] as num?)?.toDouble(),
+        barOpacity: (j['barOpacity'] as num?)?.toDouble(),
       );
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
@@ -253,6 +280,9 @@ class GlobalPrefs {
         hiddenAppsSearchable,
         themeMode,
         surfaceOpacity,
+        dockOpacity,
+        drawerOpacity,
+        barOpacity,
       ]);
 }
 

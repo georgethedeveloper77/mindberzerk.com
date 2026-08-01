@@ -6,6 +6,8 @@ import { Field, TextInput, NumberInput, SelectInput, Segmented, Toggle, ColorFie
 import {
   CHROMES,
   DOCKS,
+  DRAWER_GROUPINGS,
+  DRAWER_SCROLLS,
   ICON_TREATMENTS,
   SHELLS,
   isHexColor,
@@ -17,6 +19,8 @@ import {
   type ThemeDraft,
   type ThemeLayoutJson,
   type ThemePaletteJson,
+  type DrawerGroupingName,
+  type DrawerScrollName,
   type ThemeSpecJson,
   type TopBarSideName,
 } from '@/lib/theme-spec';
@@ -362,6 +366,144 @@ export function LayoutEditor(props: {
           />
         </Field>
       </div>
+
+      {/* A DEFAULT, NOT AN OVERRIDE, and the labels have to say so. Both of
+          these are promoted to global prefs on the device, so they apply only
+          to a user who has never touched the setting; anyone who has chosen
+          keeps their choice through a distro switch. An author who reads this
+          as "my distro forces a list drawer" will file the resulting bug
+          against the device. */}
+      <Field
+        label="drawer motion"
+        hint="the distro's default for someone who has not chosen"
+      >
+        <Segmented<DrawerScrollName | 'inherit'>
+          value={layout.drawerScrollStyle ?? 'inherit'}
+          options={['inherit', ...DRAWER_SCROLLS] as (DrawerScrollName | 'inherit')[]}
+          onChange={(v) =>
+            setLayout({
+              // 'inherit' emits nothing at all rather than emitting 'pages'.
+              // Writing today's engine default into the file would freeze this
+              // theme on it forever.
+              drawerScrollStyle: v === 'inherit' ? undefined : v,
+            })
+          }
+        />
+      </Field>
+      <Field
+        label="drawer grouping"
+        hint="only applies where the drawer is a list"
+      >
+        <Segmented<DrawerGroupingName | 'inherit'>
+          value={layout.drawerGrouping ?? 'inherit'}
+          options={['inherit', ...DRAWER_GROUPINGS] as (DrawerGroupingName | 'inherit')[]}
+          onChange={(v) =>
+            setLayout({ drawerGrouping: v === 'inherit' ? undefined : v })
+          }
+        />
+      </Field>
+    </>
+  );
+}
+
+/// The gestures a device can bind, and what a binding may name.
+///
+/// Mirrors `Gesture` and `GestureAction` in gesture_actions.dart. Duplicated
+/// rather than shared because nothing crosses from Dart to this panel at build
+/// time, and a stale entry here is survivable in a way the reverse is not: an
+/// id the device does not recognise is screened at resolve and falls back to
+/// the built-in default, so the worst case is a binding that does nothing
+/// rather than a gesture that does the wrong thing.
+const GESTURES: { id: string; label: string }[] = [
+  { id: 'doubleTapLeftEdge', label: 'Double-tap left edge' },
+  { id: 'swipeUp', label: 'Swipe up' },
+  { id: 'swipeDown', label: 'Swipe down' },
+  { id: 'swipeLeft', label: 'Swipe left' },
+  { id: 'swipeRight', label: 'Swipe right' },
+  { id: 'doubleTapHome', label: 'Double-tap home' },
+  { id: 'twoFingerSwipeDown', label: 'Two-finger swipe down' },
+];
+
+/// `needsService` marks the four that ride the accessibility service. They are
+/// allowed as theme defaults and simply no-op when the service is off, which is
+/// the contract every binding already lives under, but the editor says so: an
+/// author choosing one should know it can be inert on a phone that never
+/// granted it.
+const GESTURE_ACTIONS: { id: string; label: string; needsService?: boolean }[] = [
+  { id: '', label: 'inherit' },
+  { id: 'none', label: 'Nothing' },
+  { id: 'activities', label: 'Open Activities' },
+  { id: 'showDock', label: 'Show dock' },
+  { id: 'search', label: 'Search apps' },
+  { id: 'notifications', label: 'Notification shade', needsService: true },
+  { id: 'quickSettings', label: 'Quick settings', needsService: true },
+  { id: 'recents', label: 'Recent apps', needsService: true },
+  { id: 'lockScreen', label: 'Lock screen', needsService: true },
+];
+
+/// `labels` is how [SelectInput] renders a value; an id with no entry falls
+/// back to the raw id, which is exactly what an unrecognised binding from an
+/// imported theme should show.
+const gestureActionLabels: Record<string, string> = Object.fromEntries(
+  GESTURE_ACTIONS.map((a) => [a.id, a.label]),
+);
+
+export function GesturesEditor(props: {
+  gestures: Record<string, string> | undefined;
+  setGestures: (next: Record<string, string> | undefined) => void;
+}) {
+  const { gestures, setGestures } = props;
+  const current = gestures ?? {};
+
+  const set = (id: string, action: string) => {
+    const next = { ...current };
+    // Absent, not empty-string: absent is what "this distro has no opinion"
+    // means all the way down, and an empty value would ship a key the device
+    // then has to decide how to read.
+    if (action === '') delete next[id];
+    else next[id] = action;
+    setGestures(Object.keys(next).length ? next : undefined);
+  };
+
+  return (
+    <>
+      <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, marginBottom: 12, lineHeight: 1.6 }}>
+        Defaults for a user who has never bound that gesture. A gesture someone
+        has set is never rebound by switching distro, so these change nothing
+        for an existing user who has been through the gestures screen.
+      </div>
+      {GESTURES.map((g) => {
+        const value = current[g.id] ?? '';
+        const action = GESTURE_ACTIONS.find((a) => a.id === value);
+        // A binding carried in from an imported theme that this panel does not
+        // model. Shown as itself rather than silently reset to inherit, which
+        // would delete an author's work on a round trip.
+        const unknown = value !== '' && !action;
+        return (
+          <Field
+            key={g.id}
+            label={g.label}
+            hint={
+              unknown
+                ? `'${value}' is not an action this panel knows. It is kept as written.`
+                : action?.needsService
+                  ? 'needs the accessibility service; does nothing without it'
+                  : undefined
+            }
+          >
+            <SelectInput<string>
+              value={value}
+              options={
+                unknown
+                  ? [...GESTURE_ACTIONS.map((a) => a.id), value]
+                  : GESTURE_ACTIONS.map((a) => a.id)
+              }
+              labels={gestureActionLabels}
+              onChange={(v) => set(g.id, v)}
+            />
+          </Field>
+        );
+      })}
     </>
   );
 }

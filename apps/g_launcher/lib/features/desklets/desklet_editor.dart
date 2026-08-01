@@ -285,6 +285,42 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                   child: _Handle(palette: p, icon: Icons.open_in_full),
                 ),
               ),
+
+              // ── A HANDLE FOR MOVING, NOT ONLY THE WHOLE TILE ──────────
+              //
+              // Panning the tile itself already moves it, and it still does;
+              // this changes nothing about that path. But an invisible
+              // affordance is one nobody finds: the tile shows a resize handle
+              // and a remove badge, so a user reasonably concludes that
+              // resizing and removing are what a selected tile offers, and
+              // reaches for the long-press menu to move. The menu row had to
+              // be renamed to "Move or resize" for exactly this reason, which
+              // was a missing word standing in for a missing control.
+              //
+              // Top-right, so the three sit at three corners and none of them
+              // overlaps another's touch target. It drives the SAME
+              // _drag/_moveEnd path as the tile, so there is one move
+              // implementation and the grid snapping cannot diverge between
+              // them.
+              Positioned(
+                right: -10,
+                top: -10,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (_) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _moving = true);
+                  },
+                  onPanUpdate: (e) => setState(() => _drag += e.delta),
+                  onPanEnd: (_) => _moveEnd(),
+                  onPanCancel: () => setState(() {
+                    _drag = Offset.zero;
+                    _moving = false;
+                  }),
+                  child: _Handle(palette: p, icon: Icons.open_with),
+                ),
+              ),
+
               Positioned(
                 left: -10,
                 top: -10,
@@ -299,7 +335,12 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                   // remove too, two copies of "remember to free the native
                   // thing" is one copy too many.
                   onTap: () => removeDesklet(ref, widget.theme, _d),
-                  child: _Handle(palette: p, icon: Icons.close, danger: true),
+                  child: _Handle(
+                    palette: p,
+                    icon: Icons.close,
+                    danger: true,
+                    size: _Handle.remove,
+                  ),
                 ),
               ),
             ],
@@ -369,23 +410,40 @@ class _Handle extends StatelessWidget {
     required this.palette,
     required this.icon,
     this.danger = false,
+    this.size = _base,
   });
+
+  /// The move and resize handles. 28 rather than the old 26 so the pair reads
+  /// as a set with the larger remove badge beside them.
+  static const _base = 28.0;
+
+  /// Remove is BIGGER, and deliberately the odd one out.
+  ///
+  /// It sits at a corner, half of it outside the tile, and it is the only
+  /// destructive control on the desktop. At 26 with a 14dp glyph it was under
+  /// the 48dp Material minimum by a wide margin and the most-missed target on
+  /// the screen. Bigger also reads as more consequential, which is honest: the
+  /// other two rearrange, this one deletes.
+  static const remove = 34.0;
 
   final ThemePalette palette;
   final IconData icon;
   final bool danger;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 26,
-      height: 26,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: danger ? palette.bar : palette.accent,
         shape: BoxShape.circle,
         border: Border.all(color: palette.onDark.withValues(alpha: 0.5)),
       ),
-      child: Icon(icon, size: 14, color: palette.onDark),
+      // Derived rather than a second constant, so a handle cannot be resized
+      // without its glyph following.
+      child: Icon(icon, size: size * 0.53, color: palette.onDark),
     );
   }
 }

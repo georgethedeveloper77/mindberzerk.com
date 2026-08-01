@@ -10,6 +10,8 @@ import '../../engine/effective_theme.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../design/components/components.dart';
+import '../../design/grid_metrics.dart';
+import '../../design/icon_sizing.dart';
 import '../drawer/app_icon.dart';
 
 /// The home workspace: apps, folders, drag-and-drop.
@@ -34,27 +36,84 @@ class HomeGrid extends ConsumerWidget {
     // user drags ANYTHING, their layout takes over completely.
     final seeded = prefs.homeItems.isEmpty;
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(12),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: theme.cols,
-        childAspectRatio: theme.labelLines > 1 ? 0.72 : 0.8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: capacity,
-      itemBuilder: (context, index) {
-        if (seeded) {
-          if (index >= apps.length) return const SizedBox.shrink();
-          return _AppCell(theme: theme, entry: apps[index], slot: null);
-        }
+    // ─── THE CELL IS MEASURED, NOT GUESSED ────────────────────────────────
+    //
+    // This was `labelLines > 1 ? 0.72 : 0.8`, a number that knew nothing about
+    // the icon size, the font size or the SYSTEM font scale. The drawer had the
+    // same constant and it was wrong in both directions: too short clipped a
+    // second label line, too tall left dead space inside every tile so the row
+    // gaps read as uneven. `GridMetrics` replaced it there and the home grid
+    // was never brought across, which is how one phone ended up with two grids
+    // measuring the same content differently.
+    //
+    // LayoutBuilder rather than MediaQuery width: the home grid sits inside a
+    // workspace that a vertical panel can narrow, and sizing to the screen
+    // would overflow by the panel's width on exactly the distros that have one.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const pad = 12.0;
+        const crossGap = 8.0;
+        final cols = theme.cols;
+        final cellW =
+            (constraints.maxWidth - pad * 2 - (cols - 1) * crossGap) / cols;
 
-        final item = HomeLayout.itemAt(prefs, 0, index);
-        return _Slot(theme: theme, index: index, item: item, byKey: byKey);
+        // Through IconSizing, so a distro's `iconScale` reaches the home grid
+        // the same way it reaches the drawer and the dock. `theme.iconSizeDp`
+        // is the legacy flat number and is deliberately not consulted here.
+        final iconSize = IconSizing.inCell(cellW, scale: theme.iconScale);
+        final fontSize = _labelFontSize(theme);
+
+        // The AMBIENT scaler, on top of the theme's own textScale. Omitting it
+        // makes the measurement wrong by exactly the amount the user has turned
+        // their system font up, which is the setting most likely to clip a
+        // label in the first place.
+        final textScaler = MediaQuery.textScalerOf(context).scale(1.0);
+
+        return GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(pad),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            crossAxisSpacing: crossGap,
+            childAspectRatio: GridMetrics.aspectFor(
+              cellWidth: cellW,
+              iconSize: iconSize,
+              labelLines: theme.labelLines,
+              fontSize: fontSize,
+              textScaler: textScaler,
+            ),
+            mainAxisSpacing: 8,
+          ),
+          itemCount: capacity,
+          itemBuilder: (context, index) {
+            if (seeded) {
+              if (index >= apps.length) return const SizedBox.shrink();
+              return _AppCell(
+                theme: theme,
+                entry: apps[index],
+                slot: null,
+                iconSize: iconSize,
+              );
+            }
+
+            final item = HomeLayout.itemAt(prefs, 0, index);
+            return _Slot(
+              theme: theme,
+              index: index,
+              item: item,
+              byKey: byKey,
+              iconSize: iconSize,
+            );
+          },
+        );
       },
     );
   }
 }
+
+/// The label's point size. One place, because the cell arithmetic and the
+/// TextStyle have to be the same number or the measurement is fiction.
+double _labelFontSize(EffectiveTheme theme) => 11 * theme.textScale;
 
 /// An empty or filled slot. Empty slots are still DragTargets — that is what
 /// makes "drag an icon into the gap" work.
@@ -64,12 +123,17 @@ class _Slot extends ConsumerWidget {
     required this.index,
     required this.item,
     required this.byKey,
+    required this.iconSize,
   });
 
   final EffectiveTheme theme;
   final int index;
   final HomeItem? item;
   final Map<String, AppEntry> byKey;
+
+  /// Measured from the cell by the grid above, so every tile in a row is the
+  /// same size by construction rather than by each one recomputing it.
+  final double iconSize;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -104,7 +168,12 @@ class _Slot extends ConsumerWidget {
       if (folder == null) return const SizedBox.expand();
       return _Draggable(
         index: index,
-        child: _FolderCell(theme: theme, folder: folder, byKey: byKey),
+        child: _FolderCell(
+          theme: theme,
+          folder: folder,
+          byKey: byKey,
+          iconSize: iconSize,
+        ),
       );
     }
 
@@ -113,7 +182,12 @@ class _Slot extends ConsumerWidget {
 
     return _Draggable(
       index: index,
-      child: _AppCell(theme: theme, entry: entry, slot: index),
+      child: _AppCell(
+        theme: theme,
+        entry: entry,
+        slot: index,
+        iconSize: iconSize,
+      ),
     );
   }
 
@@ -180,10 +254,12 @@ class _AppCell extends ConsumerWidget {
     required this.theme,
     required this.entry,
     required this.slot,
+    required this.iconSize,
   });
 
   final EffectiveTheme theme;
   final AppEntry entry;
+  final double iconSize;
 
   /// null when this cell is part of the un-arranged seed layout — there is no
   /// slot to remove it from yet.
@@ -205,8 +281,8 @@ class _AppCell extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppIcon(entry: entry, size: theme.iconSizeDp),
-          const SizedBox(height: 4),
+          AppIcon(entry: entry, size: iconSize),
+          const SizedBox(height: GridMetrics.labelGap),
           _Label(theme: theme, text: entry.label),
         ],
       ),
@@ -250,11 +326,13 @@ class _FolderCell extends ConsumerWidget {
     required this.theme,
     required this.folder,
     required this.byKey,
+    required this.iconSize,
   });
 
   final EffectiveTheme theme;
   final AppFolder folder;
   final Map<String, AppEntry> byKey;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -272,12 +350,17 @@ class _FolderCell extends ConsumerWidget {
           // A 2x2 preview of the first four. The convention everyone already
           // knows — do not invent a new folder glyph.
           Container(
-            width: theme.iconSizeDp,
-            height: theme.iconSizeDp,
+            width: iconSize,
+            height: iconSize,
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: theme.palette.onDark.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(theme.iconSizeDp * 0.22),
+              // The THEME's corner radius, not a hardcoded 0.22. A distro on
+              // circular icons was getting rounded-square folders sitting
+              // beside them, which is the one place on the desktop where the
+              // icon shape setting visibly did not apply.
+              borderRadius:
+                  BorderRadius.circular(iconSize * theme.icons.cornerRadius),
             ),
             child: GridView.count(
               crossAxisCount: 2,
@@ -286,11 +369,11 @@ class _FolderCell extends ConsumerWidget {
               crossAxisSpacing: 2,
               children: [
                 for (final m in members.take(4))
-                  AppIcon(entry: m, size: theme.iconSizeDp / 2 - 5),
+                  AppIcon(entry: m, size: iconSize / 2 - 5),
               ],
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: GridMetrics.labelGap),
           _Label(theme: theme, text: folder.name),
         ],
       ),
@@ -392,16 +475,43 @@ class _Label extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(
+  Widget build(BuildContext context) {
+    final fontSize = _labelFontSize(theme);
+
+    // ─── THE BOX IS THE MEASUREMENT, ENFORCED ─────────────────────────────
+    //
+    // `GridMetrics.cellHeightFor` reserves exactly this much for the label, and
+    // nothing used to make the label that tall, so the two agreed only while
+    // the font's own metrics matched the multiplier. Ubuntu's do not match
+    // Inter's, and a fallback face for a script the bundled font lacks matches
+    // neither. The difference always lands on the bottom row, where there is no
+    // row beneath to lend it space.
+    //
+    // Sized here, so the arithmetic and the widget are the same number by
+    // construction. A taller face ellipsises inside its own box instead of
+    // pushing the grid past its cell.
+    return SizedBox(
+      height: GridMetrics.labelBlockFor(
+        labelLines: theme.labelLines,
+        fontSize: fontSize,
+        textScaler: MediaQuery.textScalerOf(context).scale(1.0),
+      ),
+      child: Text(
         text,
         maxLines: theme.labelLines,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
         style: TextStyle(
           color: theme.palette.onDark,
-          fontSize: 11 * theme.textScale,
+          fontSize: fontSize,
+          // Explicit, because the measurement above assumes it. Left to the
+          // font's own default these two disagree by whatever that default
+          // happens to be.
+          height: GridMetrics.labelLineHeight,
           fontFamily: theme.typography.display,
           shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
         ),
-      );
+      ),
+    );
+  }
 }

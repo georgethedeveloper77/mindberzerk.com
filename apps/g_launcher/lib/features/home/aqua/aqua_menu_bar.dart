@@ -43,9 +43,17 @@ class AquaMenuBar extends StatelessWidget {
     required this.onSpotlight,
     this.logo,
     this.displayFontFamily,
+    this.opacity = 1.0,
   });
 
   final ThemePalette palette;
+
+  /// How solid the frosted strip is, from `EffectiveTheme.barOpacity`.
+  ///
+  /// Multiplied into the authored 0.55 rather than replacing it. The frosted
+  /// strip IS the macOS tell, so this scales the translucency the bar already
+  /// has and never turns it into a plain opaque toolbar.
+  final double opacity;
 
   /// The theme's name, set semibold where a Mac shows the frontmost app. Read
   /// from the spec rather than hardcoded to "Finder" so a second Aqua-family
@@ -83,7 +91,7 @@ class AquaMenuBar extends StatelessWidget {
           decoration: BoxDecoration(
             // Translucent, not opaque: the wallpaper reads through it the way a
             // real menu bar's does.
-            color: palette.bar.withValues(alpha: 0.55),
+            color: palette.bar.withValues(alpha: 0.55 * opacity),
             border: Border(
               bottom: BorderSide(color: onDark.withValues(alpha: 0.08)),
             ),

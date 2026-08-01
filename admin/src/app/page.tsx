@@ -1,265 +1,247 @@
 import { adminGate } from '@/app/components/admin-gate';
-import { indexIsSigned, readLiveIndex, type LiveIndex } from '@/lib/catalogue';
+import { indexIsSigned, readLiveIndex } from '@/lib/catalogue';
 import { MANAGED, REGISTRY, type AppId } from '@/lib/registry';
 import { Shell } from './components/shell';
-import {
-  Banner,
-  Button,
-  Card,
-  Chip,
-  Grid,
-  KV,
-  PageHead,
-  Stat,
-  Table,
-  Td,
-  Th,
-  Tr,
-  bytes,
-  when,
-} from './components/ui';
+import { Banner, Button, Chip, KV, Metric, PageHead, Panel, when } from './components/ui';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C5 - the overview, and the entry point.
+ * ALL APPS - the portfolio, and ONLY the portfolio.
  *
- * ## Every number here is read from the bucket
+ * ## What this page stopped doing, and why
  *
- * There are no installs, no DAU, no revenue. Firebase Analytics is aggregated
- * and sampled in the console and has no per-user drill-down, so anything of that
- * shape has to come from the BigQuery export, which is not wired. A dashboard
- * that shows a plausible number it did not measure is worse than one that shows
- * nothing, because you stop checking the source.
+ * It used to lead with packs live, bytes on the CDN, index signed and last
+ * publish, summed across every managed app. Those are CATALOGUE figures, and
+ * summing them across a portfolio produces numbers that mean nothing: two apps
+ * where one has a catalogue and the other has never published gives "2 packs
+ * live" as a portfolio metric, which is really G Launcher's 2 with a zero
+ * added. It reads as a measurement of the whole business and is a measurement
+ * of one app.
  *
- * What this screen does answer: what is published, is it signed, how big is it,
- * and when did it last change. That is the question you actually open the panel
- * with.
+ * Those figures belong on the app that owns them, and that is exactly where
+ * they are: `/apps/g-launcher` carries packs, storage, composition and the task
+ * list for its own catalogue. This page answers the question one level up:
+ * WHICH APPS EXIST, what state is each in, and is any of them shouting.
  *
- * ## Reading both apps must not let one break the other
+ * ## So the metrics are counts of apps, not counts of packs
  *
- * `readLiveIndex` reaches R2, so a missing credential or a network blip has to
- * be survivable: the overview is the page you load to find out something is
- * wrong, so it has to work while things are wrong.
+ * Live, building, planned, external. Those come from the registry, which is the
+ * only thing here that is genuinely portfolio-shaped, and they stay meaningful
+ * as the registry grows with every app that ships on the stores.
  *
- * ## The catch is no longer where that happens, and this page regressed on it
+ * ## Per-app cards carry a status line, not a dashboard
  *
- * `readLiveIndex` used to THROW on a read failure and the try/catch below was
- * the only thing standing between one bad credential and a dead panel. It now
- * returns `unreachable` instead, so every other screen degrades rather than
- * dying - and this page, which had been correctly shouting "could not read the
- * bucket", quietly stopped. The catch never fired again, `error` was always
- * null, and an unreadable bucket started rendering as the `none` chip: the exact
- * same thing a fresh bucket with nothing published shows.
+ * Each managed app shows whether its bucket answered and whether its index is
+ * signed, because that is the one fact you want without clicking. Everything
+ * else is one tap away on the app's own overview. An app card is a door with a
+ * light on it, not a second dashboard.
  *
- * So the flag is read explicitly below. The try/catch stays as a backstop for
- * `indexIsSigned` and for anything that starts throwing later.
+ * ## Reading every app must not let one break the others
+ *
+ * `readLiveIndex` reaches R2, so a missing credential has to be survivable:
+ * this is the page you load to find out something is wrong. The read reports
+ * `unreachable` rather than throwing, and that flag is read explicitly; the
+ * try/catch is a backstop for `indexIsSigned` and anything that starts throwing
+ * later.
  */
 
-interface AppRow {
+interface AppStatus {
   id: AppId;
-  live: LiveIndex | null;
+  packs: number;
   signed: boolean;
+  exists: boolean;
+  corrupt: boolean;
+  generatedAt: number;
   error: string | null;
 }
 
-async function readApp(id: AppId): Promise<AppRow> {
+async function readApp(id: AppId): Promise<AppStatus> {
   try {
     const live = await readLiveIndex(id);
     // Only ask about the signature when there is an index to sign. A bucket with
     // no index for an app that has not shipped is the normal case, not a fault.
     const signed = live.exists ? await indexIsSigned(id) : false;
-    // `unreachable` rather than null: the read failing is now reported, not
-    // thrown, and treating it as success turns "we cannot see the bucket" into
-    // "the bucket is empty".
-    return { id, live, signed, error: live.unreachable };
+    return {
+      id,
+      packs: live.packs.length,
+      signed,
+      exists: live.exists,
+      corrupt: live.corrupt,
+      generatedAt: live.generatedAt,
+      error: live.unreachable,
+    };
   } catch (e) {
-    return { id, live: null, signed: false, error: (e as Error).message };
+    return {
+      id,
+      packs: 0,
+      signed: false,
+      exists: false,
+      corrupt: false,
+      generatedAt: 0,
+      error: (e as Error).message,
+    };
   }
 }
 
-export default async function OverviewPage() {
+export default async function AllAppsPage() {
   const gate = await adminGate();
   if (gate) return gate;
 
-  const rows = await Promise.all(MANAGED.map((a) => readApp(a.id as AppId)));
+  const statuses = await Promise.all(MANAGED.map((a) => readApp(a.id as AppId)));
+  const byId = new Map(statuses.map((s) => [s.id as string, s]));
 
-  const packs = rows.reduce((n, r) => n + (r.live?.packs.length ?? 0), 0);
-  const size = rows.reduce(
-    (n, r) => n + (r.live?.packs.reduce((m, p) => m + p.sizeBytes, 0) ?? 0),
-    0,
-  );
-  const lastPublish = Math.max(0, ...rows.map((r) => r.live?.generatedAt ?? 0));
-  const paid = rows.reduce(
-    (n, r) => n + (r.live?.packs.filter((p) => p.sku).length ?? 0),
-    0,
-  );
+  const live = REGISTRY.filter((a) => a.state === 'live').length;
+  const building = REGISTRY.filter((a) => a.state === 'build').length;
+  const planned = REGISTRY.filter((a) => a.state === 'planned').length;
+  const external = REGISTRY.filter((a) => a.state === 'external').length;
 
-  const unsigned = rows.filter((r) => r.live?.exists && !r.signed);
-  const corrupt = rows.filter((r) => r.live?.corrupt);
-  const unreachable = rows.filter((r) => r.error);
-
-  // Not "some app failed" but "we learned nothing at all", which is when the
-  // aggregate figures stop meaning anything. One app unreachable out of two
-  // still gives a real number for the other.
-  const blind = unreachable.length === rows.length && rows.length > 0;
+  const unreachable = statuses.filter((s) => s.error);
+  const unsigned = statuses.filter((s) => s.exists && !s.signed);
+  const corrupt = statuses.filter((s) => s.corrupt);
 
   return (
     <Shell>
-      {corrupt.map((r) => (
-        <Banner key={r.id} tone="bad">
-          {r.id}: index.json is present but does not parse. Publishing is blocked
+      {corrupt.map((s) => (
+        <Banner key={s.id} tone="bad">
+          {s.id}: index.json is present but does not parse. Publishing is blocked
           rather than overwriting it, because a bad merge drops every pack from
           the store.
         </Banner>
       ))}
-      {unsigned.map((r) => (
-        <Banner key={r.id} tone="bad">
-          {r.id}: index.json is published without index.sig. Every device refuses
+      {unsigned.map((s) => (
+        <Banner key={s.id} tone="bad">
+          {s.id}: index.json is published without index.sig. Every device refuses
           it and keeps the catalogue it already had. Republish to regenerate both.
         </Banner>
       ))}
-      {/* `bad`, not `warn`. It was a warning when a failed read took the page
-          down anyway and you could not miss it. Now that every screen degrades
-          politely, this banner is the only thing distinguishing an empty panel
-          from a blind one, and every number below it is a zero it invented. */}
-      {unreachable.map((r) => (
-        <Banner key={r.id} tone="bad">
-          {r.id}: could not read the bucket, so every figure below is a default
-          rather than a measurement. {r.error}
+      {unreachable.map((s) => (
+        <Banner key={s.id} tone="bad">
+          {s.id}: the bucket could not be read, so its card below shows what is
+          unknown rather than what is published. {s.error}
         </Banner>
       ))}
 
       <PageHead
         title="All apps"
-        meta={`${MANAGED.length} managed · ${REGISTRY.length} published`}
-        actions={<Button href="/apps/g-launcher/publish" variant="primary">Publish</Button>}
+        meta={`${REGISTRY.length} in the registry · ${MANAGED.length} managed here`}
+        actions={<Button href="/site" variant="primary">Site content</Button>}
       />
 
-      {/* A dash, not a zero, when the bucket did not answer. "0 packs, 0 B,
-          never" beside a red banner reads as a real measurement of an empty
-          store, and it is the reading that cost an afternoon: the panel looked
-          like a fresh install rather than a broken credential. */}
-      <Grid cols={4}>
-        <Stat
-          label="Packs live"
-          value={blind ? '\u2014' : packs}
-          sub={blind ? 'bucket unreachable' : `${paid} paid`}
-          tone={blind ? 'warn' : 'plain'}
-        />
-        <Stat label="On the CDN" value={blind ? '\u2014' : bytes(size)} />
-        <Stat label="Last publish" value={blind ? '\u2014' : when(lastPublish)} />
-        <Stat
-          label="Index signed"
-          value={`${rows.filter((r) => r.signed).length}/${rows.filter((r) => r.live?.exists).length || 0}`}
-          tone={unsigned.length ? 'bad' : 'ok'}
-        />
-      </Grid>
-
-      <div className="mt-3 sm:mt-4">
-        <Card title="Managed here" flush>
-          <Table
-            head={
-              <>
-                <Th>App</Th>
-                <Th>Package</Th>
-                <Th num>Packs</Th>
-                <Th num>Size</Th>
-                <Th>Index</Th>
-                <Th>Updated</Th>
-                <Th />
-              </>
-            }
-          >
-            {rows.map((r) => {
-              const meta = REGISTRY.find((a) => a.id === r.id)!;
-              const size = r.live?.packs.reduce((m, p) => m + p.sizeBytes, 0) ?? 0;
-              return (
-                <Tr key={r.id}>
-                  <Td>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="grid size-5 shrink-0 place-items-center rounded font-mono text-micro font-bold text-surface-0"
-                        style={{ background: meta.tint }}
-                      >
-                        {meta.mark}
-                      </span>
-                      {meta.name}
-                    </span>
-                  </Td>
-                  <Td mono dim>
-                    {meta.pkg ?? '-'}
-                  </Td>
-                  <Td num>{r.live?.packs.length ?? '-'}</Td>
-                  <Td num>{size ? bytes(size) : '-'}</Td>
-                  <Td>
-                    {r.error ? (
-                      <Chip tone="warn">unreachable</Chip>
-                    ) : r.live?.corrupt ? (
-                      <Chip tone="bad">corrupt</Chip>
-                    ) : !r.live?.exists ? (
-                      <Chip>none</Chip>
-                    ) : r.signed ? (
-                      <Chip tone="ok">signed</Chip>
-                    ) : (
-                      <Chip tone="bad">unsigned</Chip>
-                    )}
-                  </Td>
-                  <Td mono dim>
-                    {when(r.live?.generatedAt ?? 0)}
-                  </Td>
-                  <Td num>
-                    <Button href={`/apps/${r.id}/packs`}>Open</Button>
-                  </Td>
-                </Tr>
-              );
-            })}
-          </Table>
-        </Card>
+      {/* COUNTS OF APPS, NOT OF PACKS. A portfolio metric has to be about the
+          portfolio; anything summed out of one app's catalogue belongs on that
+          app's own overview, where it is not pretending to describe the rest. */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <Metric label="Live on the store" value={live} sub="published" tone={live ? 'ok' : 'plain'} />
+        <Metric label="In build" value={building} sub="not shipped yet" />
+        <Metric label="Planned" value={planned} sub="no package yet" />
+        <Metric label="External" value={external} sub="own Firebase project" />
       </div>
 
-      <div className="mt-3 grid gap-3 sm:mt-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card title="Published, administered elsewhere" flush>
-          <Table
-            head={
-              <>
-                <Th>App</Th>
-                <Th>Package</Th>
-                <Th>State</Th>
-                <Th>Firebase</Th>
-              </>
-            }
-          >
-            {REGISTRY.filter((a) => !a.managed).map((a) => (
-              <Tr key={a.id}>
-                <Td>{a.name}</Td>
-                <Td mono dim>
-                  {a.pkg ?? '-'}
-                </Td>
-                <Td>
-                  <Chip tone={a.state === 'live' ? 'ok' : a.state === 'planned' ? 'plain' : 'info'}>
-                    {a.state}
-                  </Chip>
-                </Td>
-                <Td mono dim>
-                  {a.state === 'external' ? 'own project' : 'mindhunter'}
-                </Td>
-              </Tr>
-            ))}
-          </Table>
-        </Card>
+      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-2">
+        {REGISTRY.map((a) => {
+          const s = byId.get(a.id) ?? null;
+          return (
+            <section key={a.id} className="rounded-card bg-surface-1 p-3 sm:p-4">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="grid size-7 shrink-0 place-items-center rounded-lg font-mono text-data font-bold text-surface-0"
+                  style={{ background: a.tint }}
+                >
+                  {a.mark}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-data font-medium text-ink">{a.name}</span>
+                  <span className="block truncate font-mono text-micro text-ink-3">
+                    {a.pkg ?? 'no package yet'}
+                  </span>
+                </span>
+                <Chip
+                  tone={
+                    a.state === 'live'
+                      ? 'ok'
+                      : a.state === 'build'
+                        ? 'info'
+                        : a.state === 'external'
+                          ? 'info'
+                          : 'plain'
+                  }
+                >
+                  {a.state}
+                </Chip>
+              </div>
 
-        <Card title="Signing and delivery">
+              {a.blurb && (
+                <p className="mt-2 text-micro leading-relaxed text-ink-3">{a.blurb}</p>
+              )}
+
+              {/* THE STATUS LINE, and only for apps this panel administers.
+                  An externally administered app has no catalogue here, so a
+                  status line about one would be an invented fact. */}
+              {s && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-micro">
+                  {s.error ? (
+                    <span className="text-warn">bucket unreachable</span>
+                  ) : s.corrupt ? (
+                    <span className="text-bad">index corrupt</span>
+                  ) : !s.exists ? (
+                    <span className="text-ink-3">nothing published</span>
+                  ) : (
+                    <>
+                      <span className={s.signed ? 'text-ok' : 'text-bad'}>
+                        {s.signed ? 'index signed' : 'index unsigned'}
+                      </span>
+                      <span className="text-ink-3">
+                        {s.packs} {s.packs === 1 ? 'pack' : 'packs'}
+                      </span>
+                      <span className="text-ink-3">updated {when(s.generatedAt)}</span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {a.managed ? (
+                  <Button href={`/apps/${a.id}`}>Open</Button>
+                ) : (
+                  <span className="text-micro text-ink-3">
+                    Administered outside this panel.
+                  </span>
+                )}
+                {a.pkg && a.state === 'live' && (
+                  <Button href={`https://play.google.com/store/apps/details?id=${a.pkg}`}>
+                    Store listing
+                  </Button>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-2">
+        <Panel title="Signing and delivery">
+          {/* GENUINELY PORTFOLIO-LEVEL: one bucket, one signing key and one CDN
+              serve every managed app, so these belong here rather than being
+              repeated on each app's overview. */}
           <KV k="Bucket" v={process.env.R2_BUCKET ?? 'mindberzerk-cdn'} />
-          <KV k="Key id" v={rows[0]?.live?.keyId ?? process.env.PACK_KEY_ID ?? '-'} />
-          <KV
-            k="Bundles"
-            v={rows.reduce((n, r) => n + (r.live?.entitlements.length ?? 0), 0)}
-          />
-          <KV k="generatedAt" v={lastPublish || '-'} />
-        </Card>
+          <KV k="Key id" v={process.env.PACK_KEY_ID ?? 'mh-2026-07'} />
+          <KV k="CDN" v={process.env.CDN_BASE_URL ?? 'cdn.mindberzerk.com'} />
+          <KV k="Apps with a catalogue" v={`${statuses.filter((s) => s.exists).length} of ${MANAGED.length}`} />
+        </Panel>
+
+        <Panel title="Publisher">
+          <p className="text-micro leading-relaxed text-ink-3">
+            The public site lists every app from this same registry, so adding an
+            app here is what makes it appear there. Installs and revenue live in
+            Play and Firebase, which are the systems of record.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button href="/site">Site content</Button>
+            <Button href="https://play.google.com/console/u/0/developers">Play Console</Button>
+          </div>
+        </Panel>
       </div>
     </Shell>
   );
 }
-
