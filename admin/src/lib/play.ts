@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { PlayLite } from './play-lite';
+import type { PlayLite } from '@/lib/play-lite';
 
 /**
  * WHAT PLAY ACTUALLY THINKS IS FOR SALE.

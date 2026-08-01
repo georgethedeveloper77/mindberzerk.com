@@ -1,18 +1,18 @@
 import 'server-only';
 
-import { deleteObject, getObject, putObject } from './r2';
-import { type IndexPack } from './sign';
-import type { AppId, LiveIndex } from './catalogue';
+import { deleteObject, getObject, putObject } from '@/lib/r2';
+import { type IndexPack } from '@/lib/sign';
+import type { AppId, LiveIndex } from '@/lib/catalogue';
 import {
   validateDraft,
   type ThemeDraft,
   type ThemeSpecJson,
-} from './theme-spec';
+} from '@/lib/theme-spec';
 
 // The shape, serializer and validators live in the client-safe schema module so
 // the builder UI and this server layer can never sign different bytes than the
 // preview shows. Re-exported so existing `from '@/lib/themes'` imports still work.
-export * from './theme-spec';
+export * from '@/lib/theme-spec';
 
 /**
  * ITEM 1 - free themes as editable data.

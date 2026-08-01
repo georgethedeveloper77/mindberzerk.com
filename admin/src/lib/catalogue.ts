@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { getObject, listPrefix } from './r2';
+import { getObject, listPrefix } from '@/lib/r2';
 import {
   INDEX_NAME,
   INDEX_SIGNATURE_NAME,
   type IndexEntitlement,
   type IndexPack,
-} from './sign';
+} from '@/lib/sign';
 
 /**
  * PHASE C4 - reading what is actually deployed.
@@ -45,8 +45,8 @@ import {
  * DO NOT re-declare APPS below. Two lists in two files drift, and the failure is
  * a nav item that links to a 404 for one app only.
  */
-export { APPS, type AppId } from './registry';
-import type { AppId } from './registry';
+export { APPS, type AppId } from '@/lib/registry';
+import type { AppId } from '@/lib/registry';
 
 export interface LiveIndex {
   generatedAt: number;

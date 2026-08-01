@@ -1,5 +1,5 @@
-import { REGISTRY, type AppMeta } from './registry';
-import type { SiteContent, Stat } from './site-content';
+import { REGISTRY, type AppMeta } from '@/lib/registry';
+import type { SiteContent, Stat } from '@/lib/site-content';
 
 /**
  * The READ side of the site-content track, for the public landing.

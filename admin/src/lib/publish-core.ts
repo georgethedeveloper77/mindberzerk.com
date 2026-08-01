@@ -5,8 +5,8 @@ import {
   upsertPack,
   type AppId,
   type LiveIndex,
-} from './catalogue';
-import { putObject, putPack } from './r2';
+} from '@/lib/catalogue';
+import { putObject, putPack } from '@/lib/r2';
 import {
   INDEX_NAME,
   INDEX_SIGNATURE_NAME,
@@ -16,7 +16,7 @@ import {
   type IndexPack,
   type PackFile,
   type PackType,
-} from './sign';
+} from '@/lib/sign';
 
 /**
  * ONE PUBLISH PATH.

@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { getObject, putObject } from './r2';
-import { esc, renderMarkdown } from './markdown';
-import { validate, type DocKind, type LegalDoc } from './legal-schema';
-import { appMeta, isAppId, type AppId } from './registry';
+import { getObject, putObject } from '@/lib/r2';
+import { esc, renderMarkdown } from '@/lib/markdown';
+import { validate, type DocKind, type LegalDoc } from '@/lib/legal-schema';
+import { appMeta, isAppId, type AppId } from '@/lib/registry';
 
 /**
  * PHASE C13 — the per-app legal pages, as markdown this panel writes.
@@ -53,7 +53,7 @@ import { appMeta, isAppId, type AppId } from './registry';
  * there is no path in this panel that offers to.
  */
 
-export { validate, type DocKind, type LegalDoc, type LegalDraft } from './legal-schema';
+export { validate, type DocKind, type LegalDoc, type LegalDraft } from '@/lib/legal-schema';
 
 /**
  * ── THE RESERVED STUDIO ID ───────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { AppMeta, AppState } from './registry';
+import type { AppMeta, AppState } from '@/lib/registry';
 
 /**
  * Client-safe derivations from the registry, shared by the featured module and

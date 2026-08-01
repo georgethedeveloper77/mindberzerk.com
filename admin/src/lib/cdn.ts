@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { PackManifest } from './pack-content';
+import type { PackManifest } from '@/lib/pack-content';
 
 /**
  * THE PUBLIC DOOR.

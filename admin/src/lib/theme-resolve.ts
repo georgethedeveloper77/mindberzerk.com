@@ -70,8 +70,8 @@ export type DockName = 'left' | 'bottom' | 'off';
  * and the writer could drift, and the symptom would be the panel reporting a
  * treatment as degraded that its own dropdown had just offered.
  */
-export { ICON_TREATMENTS as TREATMENTS } from './theme-spec';
-import { ICON_TREATMENTS as TREATMENT_LIST } from './theme-spec';
+export { ICON_TREATMENTS as TREATMENTS } from '@/lib/theme-spec';
+import { ICON_TREATMENTS as TREATMENT_LIST } from '@/lib/theme-spec';
 export type TreatmentName = (typeof TREATMENT_LIST)[number];
 
 export const BOOT_KINDS = [
