@@ -73,9 +73,134 @@
   --text-micro--line-height: 1rem;
 
   --radius-card: 12px;
+
+  /* ── THE PUBLIC SITE'S TOKENS ────────────────────────────────────────────
+     PREFIXED WITH `site-`, AND THAT PREFIX IS LOAD-BEARING. The console and
+     the landing disagree about what `ink`, `accent`, `line` and `ok` mean:
+     ink is near-white here and near-black there. Sharing the names would mean
+     every console screen inverts the day the landing merged in. So the site
+     gets its own namespace, `bg-site-page` and `text-site-ink`, and NOTHING in
+     src/app/apps, src/app/dashboard or the builders changes appearance.
+
+     These defaults are the LIGHT values. The dark pair lives in the two
+     override blocks below, which must stay identical to each other. */
+  /* Studio register additions. `sunk` is a recessed surface (track, ghost,
+     dashed panel); info and bad complete the status set the site did not need
+     but a dashboard does. `plan` doubles as warn, which it already reads as. */
+  --color-site-sunk: #f1eef7;
+  --color-site-info: #2b5fa8;
+  --color-site-info-soft: #e5edfb;
+  --color-site-bad: #ad2f2a;
+  --color-site-bad-soft: #fbe6e4;
+
+  --color-site-page: #faf9f7;
+  --color-site-card: #ffffff;
+  --color-site-lav: #ece6fb;
+  --color-site-peach: #fdeee0;
+
+  --color-site-ink: #1c1526;
+  --color-site-ink-2: #514a5e;
+  --color-site-ink-3: #736b80;
+
+  --color-site-line: #e9e5ef;
+
+  --color-site-accent: #6d4ae8;
+  --color-site-accent-deep: #55379f;
+  --color-site-accent-soft: #efeafd;
+
+  /* Filled controls. Flips with the mode, so a button is never ink: ink is
+     text and text inverts, and a CTA that inverted with it would vanish. */
+  --color-site-solid: #1c1526;
+  --color-site-solid-hover: #2a2138;
+  --color-site-solid-ink: #ffffff;
+
+  --color-site-ok: #14735d;
+  --color-site-ok-soft: #e2f4ec;
+  --color-site-plan: #a4552a;
+  --color-site-plan-soft: #fdeee0;
+
+  --font-site-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-site-display: var(--font-bricolage), var(--font-jakarta), sans-serif;
+
+  --shadow-site-soft: 0 8px 20px rgba(28, 21, 38, 0.07);
+  --shadow-site-lift: 0 16px 40px rgba(28, 21, 38, 0.08);
+  --shadow-site-deep: 0 22px 48px rgba(28, 21, 38, 0.22);
+
+  --radius-site: 24px;
 }
 
 @layer base {
+  /* ── THE SITE'S DARK MODE ────────────────────────────────────────────────
+     Two blocks, deliberately duplicated: one for an explicit choice from the
+     toggle, one for a system preference that the toggle has not overridden.
+     They must stay identical; when a value changes, change it in both.
+
+     Console-only pages are unaffected either way. They never use a `site-`
+     token, and their own tokens are not redefined here. */
+  [data-theme='dark'] {
+      --color-site-sunk: #1d1828;
+      --color-site-info: #7fb0ff;
+      --color-site-info-soft: #121d30;
+      --color-site-bad: #ff8b83;
+      --color-site-bad-soft: #2a1412;
+      --color-site-page: #0f0c16;
+      --color-site-card: #17121f;
+      --color-site-lav: #251c3e;
+      --color-site-peach: #2e2118;
+
+      --color-site-ink: #f2eef8;
+      --color-site-ink-2: #b6adc6;
+      --color-site-ink-3: #857c96;
+
+      --color-site-line: #272033;
+
+      --color-site-accent: #8f70ff;
+      --color-site-accent-deep: #a68cff;
+      --color-site-accent-soft: #241b3d;
+
+      --color-site-solid: #f2eef8;
+      --color-site-solid-hover: #ffffff;
+      --color-site-solid-ink: #17121f;
+
+      --color-site-ok: #4ad3a5;
+      --color-site-ok-soft: #12291f;
+      --color-site-plan: #ffb27a;
+      --color-site-plan-soft: #2e1f14;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --color-site-sunk: #1d1828;
+      --color-site-info: #7fb0ff;
+      --color-site-info-soft: #121d30;
+      --color-site-bad: #ff8b83;
+      --color-site-bad-soft: #2a1412;
+      --color-site-page: #0f0c16;
+      --color-site-card: #17121f;
+      --color-site-lav: #251c3e;
+      --color-site-peach: #2e2118;
+
+      --color-site-ink: #f2eef8;
+      --color-site-ink-2: #b6adc6;
+      --color-site-ink-3: #857c96;
+
+      --color-site-line: #272033;
+
+      --color-site-accent: #8f70ff;
+      --color-site-accent-deep: #a68cff;
+      --color-site-accent-soft: #241b3d;
+
+      --color-site-solid: #f2eef8;
+      --color-site-solid-hover: #ffffff;
+      --color-site-solid-ink: #17121f;
+
+      --color-site-ok: #4ad3a5;
+      --color-site-ok-soft: #12291f;
+      --color-site-plan: #ffb27a;
+      --color-site-plan-soft: #2e1f14;
+    }
+  }
+
   html {
     color-scheme: dark;
   }
@@ -99,6 +224,49 @@
     background: var(--color-accent);
     color: var(--color-accent-ink);
   }
+
+  /* ── THE CANVAS, CHOSEN BY THE ROUTE, WITHOUT A SCRIPT ──────────────────
+     `body` is painted with surface-0 and `html` is pinned to `color-scheme:
+     dark` above, which is right for the console and wrong for the two screens
+     built on the site tokens. A wrapper div cannot fix it: overscroll, the
+     scrollbar and the area below short content are painted by `html` itself.
+
+     THE FIRST VERSION OF THIS WAS AN INLINE SCRIPT that set `html.style`
+     before paint. It worked, and it cost two problems: Next 16 warns about a
+     raw script tag inside a component (it does not run on client navigation),
+     and writing an attribute onto `html` before hydration is exactly the
+     mismatch React refuses to patch up.
+
+     So the route declares itself instead. A soft route renders one element
+     carrying `data-surface="soft"`, and `:has()` lets the canvas follow. No
+     script, no hydration mismatch, and it survives client-side navigation
+     because it is a style rule rather than a one-time write.
+
+     Specificity: `html:has([data-surface='soft'])` is (0,1,1) and beats the
+     bare `html` rule at (0,0,1), so ordering here is a courtesy, not a load
+     bearing detail. */
+  html:has([data-surface='soft']) {
+    background: var(--color-site-page);
+    color-scheme: light;
+  }
+
+  html:has([data-surface='soft']) body {
+    background: var(--color-site-page);
+    color: var(--color-site-ink-2);
+  }
+
+  /* The site tokens already flip in the two blocks above, so only the scrollbar
+     and form-control rendering need saying twice here. */
+  html[data-theme='dark']:has([data-surface='soft']) {
+    color-scheme: dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme='light']):has([data-surface='soft']) {
+      color-scheme: dark;
+    }
+  }
+
 
   /* iOS Safari zooms the page when a font-size under 16px is focused, and never
      zooms back. Every input in this panel is therefore 16px on a phone and

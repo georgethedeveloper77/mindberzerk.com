@@ -3,7 +3,7 @@ import 'server-only';
 import { getObject, putObject } from './r2';
 import { esc, renderMarkdown } from './markdown';
 import { validate, type DocKind, type LegalDoc } from './legal-schema';
-import { appMeta, type AppId } from './registry';
+import { appMeta, isAppId, type AppId } from './registry';
 
 /**
  * PHASE C13 — the per-app legal pages, as markdown this panel writes.
@@ -55,8 +55,45 @@ import { appMeta, type AppId } from './registry';
 
 export { validate, type DocKind, type LegalDoc, type LegalDraft } from './legal-schema';
 
-const sourceKey = (app: AppId) => `site/legal/${app}.json`;
-const pageKey = (app: AppId, doc: DocKind) => `site/legal/${app}/${doc}.html`;
+/**
+ * ── THE RESERVED STUDIO ID ───────────────────────────────────────────────
+ *
+ * mindberzerk.com needs its own terms and privacy, separate from every app's.
+ * The site collects things no app does (a contact form, web analytics) and
+ * collects nothing an app does, so folding it into one of theirs would make
+ * that one wrong, which is the same argument that split these documents from
+ * `site/content.json` in the first place.
+ *
+ * TWO WAYS TO DO IT, and this is the cheaper one by a wide margin. A separate
+ * module beside `site-content.ts` would duplicate the reader, the writer, the
+ * validator, the markdown renderer and the entire HTML template, and the second
+ * copy of a template drifts from the first the first time one is edited.
+ * Reserving an id instead means the studio's documents are rendered by the same
+ * `page()` that renders G Launcher's, published to the same layout, and served
+ * from the same place. One pipeline, one more caller.
+ *
+ * `studio` cannot collide with a route segment: `APPS` is a closed tuple and
+ * `isAppId` refuses anything outside it, so no app can ever be given this id.
+ */
+export type LegalId = AppId | 'studio';
+
+export const STUDIO_ID = 'studio' as const;
+
+/** Every id that has a legal document, studio first. */
+export const LEGAL_IDS: LegalId[] = [STUDIO_ID, 'g-launcher', 'g-recovery'];
+
+export function isLegalId(value: string): value is LegalId {
+  return value === STUDIO_ID || isAppId(value);
+}
+
+/** Display name for any legal id. The studio is not in the app registry. */
+export function legalName(id: LegalId): string {
+  if (id === STUDIO_ID) return 'Mindberzerk';
+  return appMeta(id)?.name ?? id;
+}
+
+const sourceKey = (app: LegalId) => `site/legal/${app}.json`;
+const pageKey = (app: LegalId, doc: DocKind) => `site/legal/${app}/${doc}.html`;
 
 export interface LegalState {
   doc: LegalDoc;
@@ -298,6 +335,104 @@ To the extent the law allows, Mindberzerk is not liable for indirect or conseque
 These terms may change; the date at the top changes with them and the previous version is replaced here. You can end this agreement at any time by uninstalling the app. We may suspend access to paid content if it is being redistributed or if the signature checks are being circumvented.`;
 
 /**
+ * THE STUDIO'S OWN DOCUMENTS, written against what mindberzerk.com actually
+ * does and nothing else.
+ *
+ * The same checkability rule as G Launcher's policy: every collection named
+ * here corresponds to something in the site's source. The site runs one
+ * analytics script, has one form, sets no cookies of its own, and has no
+ * accounts. A studio policy that hedged about "partners" and "affiliates" would
+ * be describing a company that does not exist.
+ *
+ * These are a STARTING DRAFT, not legal advice. Read them before publishing;
+ * the editor refuses to publish until a contact address and a jurisdiction are
+ * filled in, which are the two things nobody can guess for you.
+ */
+const STUDIO_PRIVACY = `This policy covers the website at mindberzerk.com, published by Mindberzerk. It does not cover the apps: each app has its own privacy policy describing what that app collects, linked from its page on this site and from its store listing.
+
+> This site has no accounts, no logins and no advertising. It does not sell or share anything with advertisers. It sets no cookies of its own.
+
+## What the site collects
+
+### Anonymous usage measurement
+
+The site uses Google Analytics to count visits and see which pages people read. This records a randomly generated identifier, the pages you viewed, the site or search that sent you, your device type and browser, and an approximate location derived from your IP address. Google truncates the IP address and does not store it in the reports we see. Google Analytics sets its own cookies to recognise a returning browser within a session. None of it names you, and none of it is combined with anything else.
+
+You can opt out entirely with Google's [browser add-on](https://tools.google.com/dlpage/gaoptout), or with any content blocker, and the site works exactly the same without it.
+
+### The contact form
+
+If you send a message, we receive what you typed: your name, your email address and the body of the message, plus which of the three subjects you picked. It is delivered to our own mailbox over an encrypted connection and is not passed to any third party. Your address is used to reply to you and for nothing else. Messages are kept while the conversation is useful and deleted when it is not.
+
+The form applies a rate limit, which briefly holds your network address in memory to count recent submissions. Nothing about that is written to disk or retained.
+
+### Server logs
+
+Like any web server, ours records requests: the page requested, the time, your IP address and your browser's user agent. These are operational records used to keep the site running and to investigate abuse. They are not used to build a profile of you.
+
+## What the site does not collect
+
+There is no account to create, no newsletter, no tracking pixel from an advertiser, no session replay, no fingerprinting, and no data broker anywhere in this. The site does not ask for your location, and it holds no payment information: everything sold by Mindberzerk is sold through Google Play or the App Store, which handle payment themselves and never pass us your card details.
+
+## Who processes what
+
+- **Google Analytics**, for the usage measurement above, under the [Google Privacy Policy](https://policies.google.com/privacy).
+- **Google Cloud**, which hosts the site and holds the server logs.
+- **Our own mail server**, which receives contact form messages.
+
+That is the complete list. Nothing else receives anything from this site.
+
+## Your rights
+
+Depending on where you live you may have the right to ask what we hold about you, to have it corrected, to have it deleted, or to object to it being processed. Because this site holds almost nothing that identifies you, the honest answer is usually that there is nothing to retrieve. If you have written to us, we hold that correspondence, and you can ask us to delete it at any time using the address below.
+
+## Children
+
+This site is not directed at children and does not knowingly collect information from anyone under 13.
+
+## Changes
+
+If this policy changes, the date at the top changes with it and the previous version is replaced here.`;
+
+const STUDIO_TERMS = `These terms cover your use of the website at mindberzerk.com, published by Mindberzerk. They do not cover the apps: each app has its own terms, linked from its page here and from its store listing. Using this site means you accept these terms.
+
+## What this site is
+
+A description of the software Mindberzerk publishes, and a way to contact us. Nothing is sold here. Every purchase happens inside Google Play or the App Store, under their terms, and the links here simply take you to those listings.
+
+## Accuracy
+
+We describe our apps as accurately as we can, including which are shipped and which are still being built. Descriptions of unreleased software are statements of intent rather than promises, and features can change or be dropped before release. Where this site and a store listing disagree, the store listing is the one that governs what you are actually installing.
+
+## Your content
+
+If you send us a message, you keep whatever rights you have in it. You give us permission to read it and reply, which is the whole of what we do with it. Do not send confidential material through the form; email is not a secure channel and the form is not covered by any confidentiality agreement.
+
+Unsolicited product ideas are a difficult category. If you send one, you accept that we may already be working on something similar and that receiving your message creates no obligation to you and no claim over anything we ship.
+
+## Our content
+
+The text, layout, logos and artwork on this site belong to Mindberzerk. You may link to any page, quote a reasonable extract with attribution, and take screenshots for reviews or reporting. You may not copy the site wholesale, present it as your own, or use the Mindberzerk name or marks in a way that suggests we endorse you.
+
+Other names and marks that appear here belong to their owners and are used descriptively. Google Play and the Google Play logo are trademarks of Google LLC. App Store is a trademark of Apple Inc. Mindberzerk is not affiliated with, endorsed by, or sponsored by either.
+
+## Links out
+
+This site links to Google Play, the App Store and other places we do not control. We are not responsible for what those pages say or do, and their terms apply once you are there.
+
+## Availability
+
+The site is provided as it is, without warranty of any kind. We do not promise it is always reachable, and we may change or remove any part of it at any time.
+
+## Limitation of liability
+
+To the extent the law allows, Mindberzerk is not liable for indirect or consequential loss arising from your use of this site. Nothing here limits rights you have under consumer law that cannot be waived, and nothing here limits liability for death, personal injury or fraud.
+
+## Changes
+
+These terms may change; the date at the top changes with them and the previous version is replaced here.`;
+
+/**
  * Everything that is not G Launcher starts from a skeleton, not from a copy.
  *
  * Copying G Launcher's policy would be worse than starting blank: it names
@@ -359,13 +494,14 @@ You can end this agreement at any time by uninstalling the app.`,
   };
 }
 
-function seed(app: AppId): LegalDoc {
-  const meta = appMeta(app);
-  const name = meta?.name ?? app;
+function seed(app: LegalId): LegalDoc {
+  const name = legalName(app);
   const body =
-    app === 'g-launcher'
-      ? { privacy: G_LAUNCHER_PRIVACY, terms: G_LAUNCHER_TERMS }
-      : skeleton(name);
+    app === STUDIO_ID
+      ? { privacy: STUDIO_PRIVACY, terms: STUDIO_TERMS }
+      : app === 'g-launcher'
+        ? { privacy: G_LAUNCHER_PRIVACY, terms: G_LAUNCHER_TERMS }
+        : skeleton(name);
 
   return {
     privacy: body.privacy,
@@ -378,7 +514,7 @@ function seed(app: AppId): LegalDoc {
 
 // ─── read and write ──────────────────────────────────────────────────────────
 
-export async function readLegal(app: AppId): Promise<LegalState> {
+export async function readLegal(app: LegalId): Promise<LegalState> {
   // Same guard as readLiveIndex and readSiteContent: this is called from a page
   // and `getObject` rethrows anything that is not a missing key, so a credential
   // problem would render as a stack trace where a sentence belongs.
@@ -425,15 +561,16 @@ export async function readLegal(app: AppId): Promise<LegalState> {
  * state the bucket does not have.
  */
 export async function writeLegal(
-  app: AppId,
+  app: LegalId,
   next: Omit<LegalDoc, 'updatedAt'>,
 ): Promise<{ ok: true; updatedAt: number } | { ok: false; error: string }> {
   const problems = validate(next);
   if (problems.length > 0) return { ok: false, error: problems.join(' ') };
 
-  const meta = appMeta(app);
-  const name = meta?.name ?? app;
-  const pkg = meta?.pkg ?? '';
+  const name = legalName(app);
+  // The studio has no package, and the template already omits the field when it
+  // is blank, so this is the whole of the difference at publish time.
+  const pkg = appMeta(app)?.pkg ?? '';
   const updatedAt = Math.floor(Date.now() / 1000);
 
   const contact = `## Contact
@@ -477,8 +614,55 @@ These terms are governed by the laws of ${next.jurisdiction}, without affecting 
   return { ok: true, updatedAt };
 }
 
+// ─── status, for the dashboard ───────────────────────────────────────────────
+
+export interface LegalStatus {
+  id: LegalId;
+  name: string;
+  /** A document has been published at least once. */
+  published: boolean;
+  updatedAt: number;
+  /** The bucket could not be read, so `published` says nothing. */
+  unknown: boolean;
+}
+
+/**
+ * Every legal document's state, for the dashboard's Legal panel.
+ *
+ * READS ARE INDEPENDENT AND FAILURES ARE LOCAL. This runs on the one screen you
+ * open to discover something is broken, so one unreadable document must not
+ * take the panel with it. An unreadable one reports `unknown: true`, and the
+ * caller renders that as its own state rather than as "not written", because
+ * those are different facts and only one of them is a task.
+ */
+export async function readLegalStatuses(): Promise<LegalStatus[]> {
+  return Promise.all(
+    LEGAL_IDS.map(async (id) => {
+      const name = legalName(id);
+      try {
+        const state = await readLegal(id);
+        if (state.unreachable) {
+          return { id, name, published: false, updatedAt: 0, unknown: true };
+        }
+        return {
+          id,
+          name,
+          // `exists` alone is not published: a document can be stored with
+          // updatedAt 0 by an older path. The timestamp is what the publish
+          // writes, so it is what "published" means.
+          published: state.exists && state.doc.updatedAt > 0,
+          updatedAt: state.doc.updatedAt,
+          unknown: state.corrupt,
+        };
+      } catch {
+        return { id, name, published: false, updatedAt: 0, unknown: true };
+      }
+    }),
+  );
+}
+
 /** Where the published pages are served. Shown in the editor, pasted into Play. */
-export function publicUrl(app: AppId, doc: DocKind): string {
+export function publicUrl(app: LegalId, doc: DocKind): string {
   const base = (process.env.CDN_BASE_URL ?? 'https://cdn.mindberzerk.com').replace(/\/+$/, '');
   return `${base}/${pageKey(app, doc)}`;
 }

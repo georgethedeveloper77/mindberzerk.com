@@ -1,0 +1,45 @@
+# Firebase App Hosting configuration for the public studio site.
+#
+# The SMTP values are Secret Manager references, same pattern as the admin
+# panel. Create each secret in the console, grant the App Hosting service
+# account access, and this file never changes. Only NEXT_PUBLIC_* values are
+# safe as plain env vars; everything credential-shaped is a secret.
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+
+env:
+  # Where site/content.json and cdn/index.json are fetched from.
+  - variable: CDN_BASE_URL
+    value: https://cdn.mindberzerk.com
+    availability: [RUNTIME]
+
+  # Shown in the contact section and used for the mailto fallback when SMTP is
+  # not configured yet. Public by design.
+  - variable: NEXT_PUBLIC_CONTACT_EMAIL
+    value: info@mindberzerk.com
+    availability: [BUILD, RUNTIME]
+
+  # Optional. Set to a GA4 measurement id (G-XXXXXXX) to turn analytics on.
+  # Absent means no analytics script is rendered at all.
+  # - variable: NEXT_PUBLIC_GA_MEASUREMENT_ID
+  #   value: G-XXXXXXXXXX
+  #   availability: [BUILD, RUNTIME]
+
+  # Contact form delivery over Plesk SMTP. Port 465 (implicit TLS) or 587
+  # (STARTTLS); Cloud Run blocks only port 25.
+  - variable: SITE_SMTP_HOST
+    secret: SITE_SMTP_HOST
+    availability: [RUNTIME]
+  - variable: SITE_SMTP_PORT
+    secret: SITE_SMTP_PORT
+    availability: [RUNTIME]
+  - variable: SITE_SMTP_USER
+    secret: SITE_SMTP_USER
+    availability: [RUNTIME]
+  - variable: SITE_SMTP_PASS
+    secret: SITE_SMTP_PASS
+    availability: [RUNTIME]
+  - variable: SITE_CONTACT_TO
+    secret: SITE_CONTACT_TO
+    availability: [RUNTIME]

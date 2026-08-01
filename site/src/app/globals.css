@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/**
+ * The soft register, as tokens.
+ *
+ * Light only, deliberately: this is a marketing page in the soft SaaS canon and
+ * every colour decision was made once, against one background. The --color-*
+ * namespace generates the utilities (bg-card, text-ink-2, border-line), so a
+ * token added here is a class that exists everywhere.
+ */
+@theme {
+  /* Page, card, and the two hero washes. */
+  --color-page: #faf9f7;
+  --color-card: #ffffff;
+  --color-lav: #ece6fb;
+  --color-peach: #fdeee0;
+
+  /* Text, three levels. ink is headings, ink-2 body, ink-3 captions and metas. */
+  --color-ink: #1c1526;
+  --color-ink-2: #514a5e;
+  --color-ink-3: #736b80;
+
+  --color-line: #e9e5ef;
+
+  /* One accent, violet. deep for hover, soft for tinted chips and fills. */
+  --color-accent: #6d4ae8;
+  --color-accent-deep: #55379f;
+  --color-accent-soft: #efeafd;
+
+  /* Status tints for the state chips. Meaningful, never decorative. */
+  --color-ok: #14735d;
+  --color-ok-soft: #e2f4ec;
+  --color-plan: #a4552a;
+  --color-plan-soft: #fdeee0;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-jakarta), sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, monospace;
+
+  --radius-card: 24px;
+
+  --shadow-soft: 0 8px 20px rgba(28, 21, 38, 0.07);
+  --shadow-lift: 0 16px 40px rgba(28, 21, 38, 0.08);
+  --shadow-deep: 0 22px 48px rgba(28, 21, 38, 0.22);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--color-page);
+    color: var(--color-ink-2);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Visible focus on a light page: the accent, not the browser default. */
+  :focus-visible {
+    outline: 3px solid rgba(109, 74, 232, 0.45);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: #ffffff;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}

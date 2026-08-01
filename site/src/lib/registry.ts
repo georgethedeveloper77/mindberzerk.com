@@ -45,60 +45,6 @@ export interface AppMeta {
   state: AppState;
   /** One line, for the publisher site. Not shown in the panel chrome. */
   blurb: string;
-
-  // ── store identity ────────────────────────────────────────────────────
-  //
-  // FOUR LINKS PER APP, TWO PUBLIC AND TWO PRIVATE, all derived from ids
-  // rather than stored as URLs. A stored URL is a string that rots, and a
-  // registry full of pasted links is a registry nobody trusts. Ids are
-  // stable, so the URL shapes live in the helpers below and a path change is
-  // one edit here rather than seven.
-  //
-  // Absent means "no such record", which is information the dashboard shows
-  // rather than hides: an app with no App Store id is dimmed, not omitted.
-
-  /** Numeric app id inside Play Console. Taken from the console URL. */
-  playConsoleAppId?: string;
-  /** Numeric App Store id. The same id serves the listing and Connect. */
-  appStoreAppId?: string;
-}
-
-/** The Play publisher account every app of ours sits under. */
-export const PLAY_DEVELOPER_ID = '8965127905950081681';
-
-export const PLAY_DEVELOPER_URL = `https://play.google.com/store/apps/dev?id=${PLAY_DEVELOPER_ID}`;
-export const APP_STORE_DEVELOPER_URL =
-  'https://apps.apple.com/us/developer/george-gakuubi/id1701828476';
-
-// ── link helpers ─────────────────────────────────────────────────────────
-//
-// All four return null rather than a broken URL when the id they need is
-// absent. A caller that renders null as a disabled control is correct; one
-// that renders a link to nowhere is not.
-
-/** Public Play listing. Needs a package, and only once the app has shipped. */
-export function playListingUrl(app: AppMeta): string | null {
-  if (!app.pkg) return null;
-  if (app.state === 'planned' || app.state === 'build') return null;
-  return `https://play.google.com/store/apps/details?id=${app.pkg}`;
-}
-
-/** Public App Store listing. */
-export function appStoreUrl(app: AppMeta): string | null {
-  if (!app.appStoreAppId) return null;
-  return `https://apps.apple.com/app/id${app.appStoreAppId}`;
-}
-
-/** Play Console dashboard. Private; the link only works with a session. */
-export function playConsoleUrl(app: AppMeta): string | null {
-  if (!app.playConsoleAppId) return null;
-  return `https://play.google.com/console/u/0/developers/${PLAY_DEVELOPER_ID}/app/${app.playConsoleAppId}/app-dashboard`;
-}
-
-/** App Store Connect record. Private. */
-export function appStoreConnectUrl(app: AppMeta): string | null {
-  if (!app.appStoreAppId) return null;
-  return `https://appstoreconnect.apple.com/apps/${app.appStoreAppId}/distribution/info`;
 }
 
 export const REGISTRY: AppMeta[] = [
@@ -112,7 +58,6 @@ export const REGISTRY: AppMeta[] = [
     state: 'live',
     blurb:
       'A Linux desktop for your home screen. Free distros included, packs sold once.',
-    playConsoleAppId: '4975715356489098445',
   },
   {
     id: 'g-recovery',
@@ -174,11 +119,6 @@ export const REGISTRY: AppMeta[] = [
     managed: false,
     state: 'external',
     blurb: 'Separate Firebase project. Listed here, administered elsewhere.',
-    // CONFIRM THIS ID BEFORE TRUSTING THE LINK. It came from an App Store
-    // Connect URL pasted as an example of the shape, not as a statement that it
-    // is Fructa's. Check it in Connect; a wrong id here links to another app's
-    // record, which is worse than no link at all.
-    appStoreAppId: '6789087329',
   },
 ];
 

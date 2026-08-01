@@ -25,6 +25,14 @@ import { MANAGED, appName } from '@/lib/registry';
  * the bar becomes a left rail, because a bottom bar on a wide screen is a phone
  * app in a browser.
  *
+ * ## `/` IS THE PUBLIC SITE NOW
+ *
+ * Every link that used to point at `/` for the overview points at `/dashboard`.
+ * The brand mark, the "All apps" item and the mobile bottom bar all moved
+ * together; a stray `/` here would drop an admin onto the marketing page. The
+ * one deliberate exception is the "View the site" link, which means exactly
+ * that.
+ *
  * `pb-[calc(...)]` on the content and `pb-[env(safe-area-inset-bottom)]` on the
  * bar are both load-bearing on iOS: without them the last row of content sits
  * under the nav, and the nav itself sits under the home indicator.
@@ -185,7 +193,7 @@ export function Shell({
     <div className="md:flex">
       {/* ── rail, desktop ───────────────────────────────────────────────── */}
       <aside className="hidden md:flex md:h-[100dvh] md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line-soft md:bg-surface-1 md:p-3">
-        <Link href="/" className="mb-4 flex items-center gap-2.5 px-2 py-1">
+        <Link href="/dashboard" className="mb-4 flex items-center gap-2.5 px-2 py-1">
           <span className="grid size-6 shrink-0 place-items-center rounded-md bg-accent font-mono text-micro font-bold text-accent-ink">
             M
           </span>
@@ -198,12 +206,12 @@ export function Shell({
         </Link>
 
         <Link
-          href="/"
+          href="/dashboard"
           className={`rounded-lg px-2.5 py-1.5 text-data transition ${
-            pathname === '/' ? 'bg-surface-3 text-ink' : 'text-ink-2 hover:bg-surface-2'
+            pathname === '/dashboard' ? 'bg-surface-3 text-ink' : 'text-ink-2 hover:bg-surface-2'
           }`}
         >
-          All apps
+          Dashboard
         </Link>
 
         <Link
@@ -212,8 +220,29 @@ export function Shell({
             pathname === '/site' ? 'bg-surface-3 text-ink' : 'text-ink-2 hover:bg-surface-2'
           }`}
         >
-          Public site
+          Site content
         </Link>
+
+        <Link
+          href="/legal/studio"
+          className={`rounded-lg px-2.5 py-1.5 text-data transition ${
+            pathname === '/legal/studio' ? 'bg-surface-3 text-ink' : 'text-ink-2 hover:bg-surface-2'
+          }`}
+        >
+          Studio legal
+        </Link>
+
+        {/* The only `/` in this file, and it means the public homepage. Opens
+            in a new tab so a look at the live site does not cost the console
+            state you were in. */}
+        <a
+          href="/"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg px-2.5 py-1.5 text-data text-ink-2 transition hover:bg-surface-2"
+        >
+          View the site
+        </a>
 
         <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
           {MANAGED.map((a) => {
@@ -293,7 +322,7 @@ export function Shell({
         {/* ── header, mobile ───────────────────────────────────────────── */}
         <header className="border-b border-line-soft md:hidden">
           <div className="flex items-baseline justify-between px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-            <Link href="/">
+            <Link href="/dashboard">
               <span className="block text-data font-semibold tracking-tight">
                 {app ? appName(app) : 'Mindberzerk'}
               </span>
@@ -344,7 +373,7 @@ export function Shell({
       {/* ── bottom nav, mobile ─────────────────────────────────────────── */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-line-soft bg-surface-1/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {[
-          { href: '/', label: 'Apps', icon: '\u25A6' },
+          { href: '/dashboard', label: 'Dashboard', icon: '\u25A6' },
           // Defaulting to g-launcher keeps the bar's shape constant on the
           // overview, where there is no current app to be contextual about.
           { href: `/apps/${app ?? 'g-launcher'}/packs`, label: 'Packs', icon: '\u25C8' },

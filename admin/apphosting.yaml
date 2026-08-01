@@ -1,4 +1,9 @@
-# Firebase App Hosting configuration for admin.mindberzerk.com.
+# Firebase App Hosting configuration for mindberzerk.com.
+#
+# ONE BACKEND SERVES TWO AUDIENCES NOW: `/` is the public site, everything else
+# is the console behind the UID allowlist. That makes the notes below MORE
+# important, not less: the signing key lives on an origin a stranger can reach
+# the front page of.
 #
 # THE MOST IMPORTANT LINES IN THIS REPO ARE THE `secret:` ONES BELOW.
 #
@@ -67,7 +72,7 @@ env:
     availability:
       - RUNTIME
 
-  # Client-side Firebase config. Public by design — these identify the project,
+  # Client-side Firebase config. Public by design: these identify the project,
   # they do not authorise anything. Auth is enforced server-side against the
   # allowlist above.
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
@@ -92,3 +97,73 @@ env:
     value: mindberzerk-3eaf5
     availability:
       - RUNTIME
+
+  # ── the public site ──────────────────────────────────────────────────────
+  # Where the landing reads site/content.json and the live index from. The
+  # PUBLIC CDN, with no credential: the landing must render when the R2 S3
+  # token is rejected, which is the state it is in today.
+  - variable: CDN_BASE_URL
+    value: https://cdn.mindberzerk.com
+    availability:
+      - RUNTIME
+
+  # Shown on the landing and used for the mailto fallback before SMTP exists.
+  # Public by design, hence the prefix.
+  - variable: NEXT_PUBLIC_CONTACT_EMAIL
+    value: info@mindberzerk.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Contact form delivery over the studio's own Plesk SMTP. Cloud Run permits
+  # outbound 465 and 587; only port 25 is blocked. Until all five exist the
+  # route answers 503 and the form degrades to a mailto link, so the section
+  # works before the secrets do.
+  - variable: SITE_SMTP_HOST
+    secret: site-smtp-host
+    availability:
+      - RUNTIME
+
+  - variable: SITE_SMTP_PORT
+    secret: site-smtp-port
+    availability:
+      - RUNTIME
+
+  - variable: SITE_SMTP_USER
+    secret: site-smtp-user
+    availability:
+      - RUNTIME
+
+  - variable: SITE_SMTP_PASS
+    secret: site-smtp-pass
+    availability:
+      - RUNTIME
+
+  - variable: SITE_CONTACT_TO
+    secret: site-contact-to
+    availability:
+      - RUNTIME
+
+  # ── analytics ────────────────────────────────────────────────────────────
+  # TWO DIFFERENT NUMBERS, and confusing them is the whole trap.
+  #
+  # The measurement id is what the SITE SENDS WITH. Public, inlined into the
+  # browser bundle by the NEXT_PUBLIC_ prefix, which is correct: it identifies
+  # a data stream and authorises nothing.
+  - variable: NEXT_PUBLIC_GA_MEASUREMENT_ID
+    value: G-8RHHEN2X07
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # The property id is what the DASHBOARD READS WITH, via the GA4 Data API. A
+  # different, numeric id, found in GA4 admin under Property details. Putting
+  # the G- id here produces a permission error rather than a clear one, so the
+  # reader checks for that specific mistake by name.
+  #
+  # Also add the App Hosting service account as a Viewer in GA4 admin, Property
+  # access management, or every read returns PERMISSION_DENIED.
+  # - variable: GA4_PROPERTY_ID
+  #   value: "000000000"
+  #   availability:
+  #     - RUNTIME
