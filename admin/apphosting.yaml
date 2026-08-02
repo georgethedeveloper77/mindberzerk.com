@@ -34,12 +34,12 @@ env:
       - RUNTIME
 
   - variable: R2_ACCESS_KEY_ID
-    secret: r2-access-key-id
+    secret: r2-access-key-id@2
     availability:
       - RUNTIME
 
   - variable: R2_SECRET_ACCESS_KEY
-    secret: r2-secret-access-key
+    secret: r2-secret-access-key@2
     availability:
       - RUNTIME
 
