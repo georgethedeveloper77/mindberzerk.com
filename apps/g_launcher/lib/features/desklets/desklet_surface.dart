@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/desklet_layout.dart';
@@ -6,7 +7,6 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
 import 'desklet_edit.dart';
-import 'desklet_menu.dart';
 import 'desklet_settings.dart';
 import 'desklet_editor.dart';
 import 'desklet_picker.dart';
@@ -194,88 +194,46 @@ class DeskletSurfaceView extends ConsumerWidget {
                     cellH: cellH,
                   ),
                 ),
+              // ─── ONE WIDGET IN BOTH STATES ────────────────────────
+              //
+              // This used to pick between `_ResizableTile` at rest and
+              // `EditableDesklet` while editing. That conditional is what made
+              // hold-to-move impossible: a hold entered edit mode, edit mode
+              // rebuilt this list, the swap unmounted the widget the finger was
+              // on, and the drag died at the moment it should have begun. No
+              // amount of gesture tuning inside either widget could have fixed
+              // it, because the widget doing the listening ceased to exist.
+              //
+              // The KEY matters as much as the merge. Without it these are
+              // positional children, so removing a desklet would shift every
+              // later tile's state onto its neighbour: the tile you were
+              // dragging keeps its drag offset and the wrong desklet inherits
+              // it. Keyed by id, state follows the desklet it belongs to.
               for (final d in items)
                 Positioned(
+                  key: ValueKey(d.id),
                   left: d.col * cellW,
                   top: d.row * cellH,
-                  // While editing, the tile sizes ITSELF (it grows live under a
-                  // resize drag), so the Positioned must not also constrain it.
-                  width: editing ? null : d.spanX * cellW,
-                  height: editing ? null : d.spanY * cellH,
-                  child: editing
-                      ? EditableDesklet(
-                          theme: theme,
-                          desklet: d,
-                          cellW: cellW,
-                          cellH: cellH,
-                          child: Padding(
-                            padding: const EdgeInsets.all(gutter / 2),
-                            child: _Tile(theme: theme, desklet: d),
-                          ),
-                        )
-                      : _ResizableTile(theme: theme, desklet: d),
+                  // The tile sizes ITSELF in both states now, because it grows
+                  // live under a resize drag and the Positioned must not fight
+                  // that. At rest it computes exactly the span this used to
+                  // pass down, so nothing about the resting layout changed.
+                  child: EditableDesklet(
+                    theme: theme,
+                    desklet: d,
+                    cellW: cellW,
+                    cellH: cellH,
+                    editing: editing,
+                    child: Padding(
+                      padding: const EdgeInsets.all(gutter / 2),
+                      child: _Tile(theme: theme, desklet: d),
+                    ),
+                  ),
                 ),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-/// A desklet at rest, that a long press turns into an editable one. PHASE D4+.
-///
-/// ─── HOLD-TO-RESIZE WITHOUT A MENU ──────────────────────────────────────────
-///
-/// The whole resize machinery already exists ([EditableDesklet] draws the
-/// handle and drives the tested [DeskletLayout.resize]); the only thing missing
-/// was a way to reach it from the desktop other than the long-press MENU's
-/// Widgets action. So a held press on the tile itself enters edit mode and
-/// selects THIS tile, which is exactly the state in which its resize handle is
-/// already showing. One gesture, no sheet, and everything downstream is the
-/// path the Add button already used.
-///
-/// [HitTestBehavior.translucent] so a desklet that owns an `onTap` — the note
-/// opens its editor, the search tile opens the drawer — keeps it. A long press
-/// and a tap are different gestures; the inner tap wins its arena and this wins
-/// the long-press arena, so neither eats the other.
-///
-/// The edit-mode EXIT is the system BACK gesture (handled shell-side), so
-/// entering edit mode from here always has a way back out.
-class _ResizableTile extends ConsumerWidget {
-  const _ResizableTile({required this.theme, required this.desklet});
-
-  final EffectiveTheme theme;
-  final Desklet desklet;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      // ─── THE HOLD OPENS A MENU, IT DOES NOT ENTER EDIT MODE ──────────
-      //
-      // This used to call `enter()` and `select()` straight away, so the whole
-      // desktop became draggable the instant a thumb rested on a tile. A menu
-      // ought to freeze the thing it is about; a modal sheet does that for
-      // free, and only Resize inside it makes anything movable.
-      //
-      // It also gives remove, and eventually per-widget settings and stacks,
-      // somewhere to live. The old vocabulary was two handles on the selected
-      // tile, which is why nobody found anything but resize.
-      onLongPress: () {
-        // The tile's own rectangle, so the menu opens beside it rather than at
-        // the bottom of the screen. Measured at press time because the tile
-        // moves whenever the grid reflows.
-        final box = context.findRenderObject() as RenderBox?;
-        final anchor = (box != null && box.hasSize)
-            ? box.localToGlobal(Offset.zero) & box.size
-            : null;
-        showDeskletMenu(context, ref, theme, desklet, anchor: anchor);
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(DeskletSurfaceView.gutter / 2),
-        child: _Tile(theme: theme, desklet: desklet),
-      ),
     );
   }
 }
@@ -431,10 +389,34 @@ class _EmptyCells extends ConsumerWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      // Which cell, from where the tap landed. `placeAt` already refuses an
-      // occupied cell and the caller falls back to the packer, so an occupied
-      // hit is handled and does not need excluding here.
+      // ─── AN OUTSIDE TAP WHILE EDITING ONE TILE MEANS "DONE" ───────────
+      //
+      // This opened the picker unconditionally, which made edit mode leak in
+      // the most irritating way available: you select a widget, adjust it,
+      // touch anywhere off it to finish, and the launcher offers to add a
+      // SECOND widget at the cell you happened to hit. Every OS widget editor
+      // treats an outside tap as commit-and-exit, and so does this now.
+      //
+      // "Commit" needs no write. A move or a resize already persisted through
+      // DeskletLayout on drop; the pending state this leaves is nothing but the
+      // handles being drawn. So exiting IS the commit, and there is no
+      // half-applied geometry for this path to flush.
+      //
+      // The split is on SELECTION, not on edit mode. Nothing selected is the
+      // arrange posture you enter from the desktop menu's Widgets action, where
+      // tapping a cell to place something there is the entire purpose of the
+      // grid being drawn. Collapsing both states onto one behaviour would fix
+      // this annoyance by deleting a feature.
       onTapUp: (d) {
+        if (ref.read(deskletEditProvider).selected != null) {
+          HapticFeedback.selectionClick();
+          ref.read(deskletEditProvider.notifier).exit();
+          return;
+        }
+
+        // Which cell, from where the tap landed. `placeAt` already refuses an
+        // occupied cell and the caller falls back to the packer, so an occupied
+        // hit is handled and does not need excluding here.
         final c = (d.localPosition.dx / cellW).floor().clamp(0, cols - 1);
         final r = (d.localPosition.dy / cellH).floor().clamp(0, rows - 1);
         showDeskletPicker(context, ref, theme, page: page, col: c, row: r);

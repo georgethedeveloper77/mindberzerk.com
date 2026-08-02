@@ -101,14 +101,72 @@ function mimeFor(file: string): string {
  * `r2.ts` set a year-long cache header on it. Re-reading the same version can
  * never see different bytes, so caching it is free.
  */
-async function getPublic(url: string): Promise<Buffer | null> {
+async function getPublic(url: string, cache: RequestCache = 'force-cache'): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, { cache: 'force-cache' });
+    const res = await fetch(url, { cache });
     if (!res.ok) return null;
     return Buffer.from(await res.arrayBuffer());
   } catch {
     return null;
   }
+}
+
+/**
+ * Icons named by URL, read into the shape the builder starts from.
+ *
+ * ─── WHY THIS EXISTS AT ALL ─────────────────────────────────────────────────
+ *
+ * A draft's assets live at `<app>/admin/icon-drafts/<packId>/<file>` and are
+ * reachable over the same public door as a published pack, so `icon-drafts.ts`
+ * is right that reopening a draft and reopening a pack should be the same code.
+ * The draft path used to hand the builder those URLs directly, which does not
+ * work and does not fail quietly: `blobFromDataUrl` runs `atob` on everything
+ * after the first comma, and an https URL has no comma, so it decodes the whole
+ * string and throws on the colon. The builder crashes during render.
+ *
+ * The bytes have to be fetched server-side and inlined, exactly as
+ * `readPublishedHeroPack` does. This is that step, shared.
+ *
+ * ─── NO-STORE, AND THAT IS THE POINT ────────────────────────────────────────
+ *
+ * A published pack path carries its version and is immutable, which is what
+ * makes `force-cache` free there. A DRAFT PATH CARRIES NO VERSION and is
+ * overwritten on every save, so caching it would reopen a draft showing the art
+ * from two saves ago with no indication anything was stale.
+ *
+ * ─── A MISSING ASSET IS A NOTE, NEVER A SILENT DROP ─────────────────────────
+ *
+ * Same rule the published path follows. Dropping an icon quietly means the next
+ * publish ships without it and the pack that reaches devices is the broken one.
+ */
+export async function rehydrateIconsFromUrls(
+  wanted: { pkg: string; file: string; url: string }[],
+): Promise<{ icons: RehydratedIcon[]; notes: string[] }> {
+  const notes: string[] = [];
+
+  const fetched = await Promise.all(
+    wanted.map(async (w) => {
+      const bytes = await getPublic(w.url, 'no-store');
+      if (!bytes) return null;
+      return {
+        pkg: w.pkg,
+        file: w.file,
+        dataUrl: `data:${mimeFor(w.file)};base64,${bytes.toString('base64')}`,
+      };
+    }),
+  );
+
+  const icons: RehydratedIcon[] = [];
+  for (let i = 0; i < fetched.length; i++) {
+    const got = fetched[i];
+    if (got) icons.push(got);
+    else
+      notes.push(
+        `${wanted[i].file} is listed but could not be read from the CDN, so ${wanted[i].pkg} has no icon here. Publishing now would drop it.`,
+      );
+  }
+
+  return { icons, notes };
 }
 
 /**

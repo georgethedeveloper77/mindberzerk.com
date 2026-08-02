@@ -5,7 +5,11 @@ import { IconBuilder } from '@/app/components/icon-builder';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab } from '@/components/studio/ui';
 import { readLiveIndex } from '@/lib/core/catalogue';
-import { readPublishedHeroPack, type RehydratedPack } from '@/lib/core/cdn';
+import {
+  readPublishedHeroPack,
+  rehydrateIconsFromUrls,
+  type RehydratedPack,
+} from '@/lib/core/cdn';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuCatalogue } from '@/lib/core/sku-catalogue';
 import { draftAssetUrl, readIconDraft } from '@/lib/g-launcher/icon-drafts';
@@ -130,6 +134,17 @@ export default async function IconBuilderPage({
   // never shadow the pack devices actually hold.
   const draft = id && !entry ? await readIconDraft(app, id) : null;
   if (draft) {
+    // The bytes are FETCHED, not linked. `IconBuilder` decodes every icon with
+    // `atob`, so handing it an https URL is not a degraded preview, it is an
+    // exception during render. See rehydrateIconsFromUrls.
+    const rehydrated = await rehydrateIconsFromUrls(
+      draft.icons.map((i) => ({
+        pkg: i.pkg,
+        file: i.file,
+        url: draftAssetUrl(app, draft.packId, i.file),
+      })),
+    );
+
     initial = {
       packId: draft.packId,
       name: draft.name,
@@ -141,13 +156,11 @@ export default async function IconBuilderPage({
       // has, which is the exact silent no-op the version guard exists to stop.
       publishedVersion: 0,
       // The SAME shape `readPublishedHeroPack` returns, which is why the
-      // builder needed no new prop: it rehydrates from URLs either way.
-      icons: draft.icons.map((i) => ({
-        pkg: i.pkg,
-        file: i.file,
-        url: draftAssetUrl(app, draft.packId, i.file),
-      })),
-      notes: [],
+      // builder needs no new prop: both arrive as inlined bytes.
+      icons: rehydrated.icons,
+      // A draft asset that cannot be read is reported for the same reason a
+      // published one is: publishing from here would drop it permanently.
+      notes: rehydrated.notes,
     };
   }
 

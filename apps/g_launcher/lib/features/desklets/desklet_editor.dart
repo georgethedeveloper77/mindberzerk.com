@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,7 @@ class EditableDesklet extends ConsumerStatefulWidget {
     required this.desklet,
     required this.cellW,
     required this.cellH,
+    required this.editing,
     required this.child,
   });
 
@@ -51,6 +53,22 @@ class EditableDesklet extends ConsumerStatefulWidget {
   final Desklet desklet;
   final double cellW;
   final double cellH;
+
+  /// Whether the desktop is in edit mode.
+  ///
+  /// ─── ONE WIDGET FOR BOTH STATES, AND THAT IS THE WHOLE FIX ──────────────
+  ///
+  /// The surface used to swap between `_ResizableTile` at rest and this while
+  /// editing. That swap is why hold-to-move could not work: a long press on a
+  /// tile entered edit mode, edit mode rebuilt the surface, the swap unmounted
+  /// the widget the finger was pressing, and the gesture died with it. The
+  /// user's thumb was still down, and nothing was listening any more.
+  ///
+  /// So the tile no longer changes identity. Edit mode changes what it DRAWS,
+  /// the drag survives across the transition, and a hold flows straight into a
+  /// move the way it does on every other launcher.
+  final bool editing;
+
   final Widget child;
 
   @override
@@ -66,6 +84,15 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
 
   bool _moving = false;
   bool _resizing = false;
+
+  /// Held-down state for the remove badge.
+  ///
+  /// Move and resize get theirs free from `_moving` and `_resizing`, which are
+  /// already set on pan start. Remove is a plain tap and had nothing equivalent,
+  /// so it is the one handle that needed a flag of its own to light up. Without
+  /// it, the destructive control would be the only one on the tile that gives no
+  /// feedback before it fires.
+  bool _removeDown = false;
 
   Desklet get _d => widget.desklet;
 
@@ -112,6 +139,113 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
 
     HapticFeedback.selectionClick();
     _edit((_) => after);
+  }
+
+  // ── hold to move ──────────────────────────────────────────────────────────
+  //
+  // ─── WHY THIS IS A LONG PRESS AND NOT A PAN ───────────────────────────────
+  //
+  // Moving a tile used to be `onPanStart` / `onPanUpdate`, and it felt dead for
+  // three compounding reasons, none of which was fixable by tuning a number.
+  //
+  //  1. PAN SLOP. A PanGestureRecognizer does not fire until the finger has
+  //     travelled kPanSlop, which is DOUBLE the ordinary touch slop, about 36
+  //     logical pixels. So the tile sat perfectly still through the first third
+  //     of an inch of movement and then jumped to catch up. That reads as lag
+  //     even though nothing is slow.
+  //
+  //  2. THE HORIZONTAL SWIPE WON FIRST. GestureLayer wraps the whole desktop in
+  //     a HorizontalDragGestureRecognizer, which declares at the ordinary 18px
+  //     slop, on the horizontal axis, well before pan reaches 36 in any
+  //     direction. Dragging a widget sideways therefore did not move the widget
+  //     at all; it fired the swipe gesture. That one is fixed in gesture_layer.
+  //
+  //  3. THE DESKTOP LONG PRESS WON THE HOLD. The shell wraps the pager in a
+  //     long press for the desktop menu. Holding a tile handed the arena to
+  //     that recognizer, and pan, having lost, then ignored the drag entirely.
+  //
+  // A long press with move updates sidesteps all three. It claims the arena on
+  // the hold, so nothing else can take the drag off it; and once won, its move
+  // updates carry NO slop whatsoever, so the tile tracks from the first pixel.
+  //
+  // 300ms rather than the 500 default. Long enough not to trip on a scroll that
+  // starts over a tile, short enough that the pick-up feels like a response
+  // instead of a wait.
+  static const _holdToLift = Duration(milliseconds: 300);
+
+  /// How far the finger must travel for a hold to count as a MOVE rather than
+  /// as a request for the menu.
+  ///
+  /// A hold that never moves is the menu gesture and always was. Without a
+  /// threshold, the two would be the same gesture and the tiny tremor in any
+  /// real thumb would decide which one you got.
+  static const _dragThreshold = 8.0;
+
+  void _liftStart(LongPressStartDetails _) {
+    // A handle already owns this pointer. Handles sit at the tile's corners and
+    // tuck INSIDE it when the tile is against an edge, so the two hit areas can
+    // genuinely overlap; without this, holding the resize handle for 300ms
+    // would start a move as well.
+    if (_resizing) return;
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _moving = true;
+      _drag = Offset.zero;
+    });
+  }
+
+  void _liftMove(LongPressMoveUpdateDetails e) {
+    if (!_moving) return;
+    // ABSOLUTE, not accumulated deltas. offsetFromOrigin is measured from where
+    // the press began, so a dropped frame cannot leave the tile permanently
+    // offset from the finger the way a running sum of deltas can.
+    setState(() => _drag = e.offsetFromOrigin);
+  }
+
+  void _liftEnd(LongPressEndDetails _) {
+    if (!_moving) return;
+
+    // A hold that went nowhere is the MENU, which is what a hold has always
+    // meant on this desktop. Everything the menu offers (settings, stack,
+    // remove) is still exactly one hold away, and now a hold that keeps moving
+    // is a move instead of a dead gesture.
+    if (_drag.distance < _dragThreshold) {
+      setState(() {
+        _drag = Offset.zero;
+        _moving = false;
+      });
+      _openMenu();
+      return;
+    }
+
+    _moveEnd();
+
+    // Committed a move, so the desktop is being arranged: turn edit mode on and
+    // select this tile, which is the state where its handles are showing. Done
+    // AFTER the commit, so entering edit mode cannot rebuild anything out from
+    // under the write.
+    final edit = ref.read(deskletEditProvider.notifier);
+    if (!widget.editing) edit.enter();
+    edit.select(_d.id);
+  }
+
+  void _liftCancel() {
+    if (!_moving) return;
+    setState(() {
+      _drag = Offset.zero;
+      _moving = false;
+    });
+  }
+
+  void _openMenu() {
+    // The tile's own rectangle, so the menu opens beside it rather than at the
+    // bottom of the screen. Measured at press time because the tile moves
+    // whenever the grid reflows.
+    final box = context.findRenderObject() as RenderBox?;
+    final anchor =
+        (box != null && box.hasSize) ? box.localToGlobal(Offset.zero) & box.size : null;
+    showDeskletMenu(context, ref, widget.theme, _d, anchor: anchor);
   }
 
   // ── resize ────────────────────────────────────────────────────────────────
@@ -220,129 +354,216 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                 ),
               ),
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => ref
-                    .read(deskletEditProvider.notifier)
-                    .select(selected ? null : _d.id),
-                // Pan and not a long-press-drag: the long press already
-                // happened, on the desktop, to get here. Requiring a second one
-                // to pick a tile up would feel like the edit mode had not
-                // actually started.
-                onPanStart: (_) {
-                  HapticFeedback.selectionClick();
-                  ref.read(deskletEditProvider.notifier).select(_d.id);
-                  setState(() => _moving = true);
+              child: RawGestureDetector(
+                // TRANSLUCENT, so a tile that owns an onTap keeps it while the
+                // desktop is at rest: the note opens its editor, the search
+                // tile opens the drawer. Only edit mode takes those away, via
+                // the IgnorePointer below.
+                behavior: HitTestBehavior.translucent,
+                // ─── RAW, BECAUSE THE DELAY IS THE POINT ──────────────
+                //
+                // GestureDetector.onLongPress hardcodes the 500ms default and
+                // gives no way to shorten it. A pick-up that takes half a
+                // second is the single largest part of what "not responsive"
+                // meant here, so the recognizer is built directly.
+                gestures: <Type, GestureRecognizerFactory>{
+                  LongPressGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          LongPressGestureRecognizer>(
+                    () => LongPressGestureRecognizer(duration: _holdToLift),
+                    (r) => r
+                      ..onLongPressStart = _liftStart
+                      ..onLongPressMoveUpdate = _liftMove
+                      ..onLongPressEnd = _liftEnd
+                      ..onLongPressCancel = _liftCancel,
+                  ),
+                  // Tap only means something while editing, where it selects
+                  // and deselects. At rest the tile's own children own their
+                  // taps, and registering a competing recognizer here would
+                  // make a note take two taps to open.
+                  if (widget.editing)
+                    TapGestureRecognizer:
+                        GestureRecognizerFactoryWithHandlers<
+                            TapGestureRecognizer>(
+                      () => TapGestureRecognizer(),
+                      (r) => r.onTap = () => ref
+                          .read(deskletEditProvider.notifier)
+                          .select(selected ? null : _d.id),
+                    ),
                 },
-                onPanUpdate: (e) => setState(() => _drag += e.delta),
-                onPanEnd: (_) => _moveEnd(),
-                // A cancelled pan must not leave the tile stranded off-grid.
-                onPanCancel: () => setState(() {
-                  _drag = Offset.zero;
-                  _moving = false;
-                }),
                 child: _Frame(
                   palette: p,
+                  editing: widget.editing,
                   selected: selected,
                   lifted: _moving || _resizing,
                   // IGNORE POINTERS ON THE TILE CONTENT WHILE EDITING.
                   //
-                  // EditableDesklet only ever renders in edit mode, so the tile
-                  // itself must not be interactive here — the editor owns tap
-                  // (select), pan (move) and the handles. Without this a hosted
-                  // AppWidget (an AndroidView / PlatformView) claims the touch
-                  // and eats the drag, so you cannot move a widget around the
-                  // screen; a note or search tile would also swallow the tap
-                  // that is meant to select it. Ignoring pointers on the child
-                  // hands every gesture to the surrounding GestureDetector and
-                  // the handles, which is exactly what edit mode wants.
-                  child: IgnorePointer(child: widget.child),
+                  // In edit mode the tile itself must not be interactive: the
+                  // editor owns tap (select), hold (move) and the handles.
+                  // Without this a hosted AppWidget (an AndroidView, so a
+                  // PlatformView) claims the touch and eats the drag, so you
+                  // cannot move a widget around the screen; a note or search
+                  // tile would also swallow the tap that is meant to select it.
+                  //
+                  // CONDITIONAL now, where it used to be unconditional, because
+                  // this widget renders at rest too. Ignoring pointers all the
+                  // time would make every interactive desklet permanently dead.
+                  child: widget.editing
+                      ? IgnorePointer(child: widget.child)
+                      : widget.child,
                 ),
               ),
             ),
 
-            // Handles only on the selected tile. Showing them on every desklet
-            // at once turns an eight-tile desktop into a field of targets, and
-            // the remove badges become easy to hit by accident.
-            if (selected) ...[
-              Positioned(
-                right: -10,
-                bottom: -10,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: (_) => setState(() => _resizing = true),
-                  onPanUpdate: (e) => setState(() {
-                    _grow = Size(
-                      _grow.width + e.delta.dx,
-                      _grow.height + e.delta.dy,
-                    );
-                  }),
-                  onPanEnd: (_) => _resizeEnd(),
-                  onPanCancel: () => setState(() {
-                    _grow = Size.zero;
-                    _resizing = false;
-                  }),
-                  child: _Handle(palette: p, icon: Icons.open_in_full),
-                ),
-              ),
-
-              // ── A HANDLE FOR MOVING, NOT ONLY THE WHOLE TILE ──────────
-              //
-              // Panning the tile itself already moves it, and it still does;
-              // this changes nothing about that path. But an invisible
-              // affordance is one nobody finds: the tile shows a resize handle
-              // and a remove badge, so a user reasonably concludes that
-              // resizing and removing are what a selected tile offers, and
-              // reaches for the long-press menu to move. The menu row had to
-              // be renamed to "Move or resize" for exactly this reason, which
-              // was a missing word standing in for a missing control.
-              //
-              // Top-right, so the three sit at three corners and none of them
-              // overlaps another's touch target. It drives the SAME
-              // _drag/_moveEnd path as the tile, so there is one move
-              // implementation and the grid snapping cannot diverge between
-              // them.
-              Positioned(
-                right: -10,
-                top: -10,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: (_) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _moving = true);
-                  },
-                  onPanUpdate: (e) => setState(() => _drag += e.delta),
-                  onPanEnd: (_) => _moveEnd(),
-                  onPanCancel: () => setState(() {
-                    _drag = Offset.zero;
-                    _moving = false;
-                  }),
-                  child: _Handle(palette: p, icon: Icons.open_with),
-                ),
-              ),
-
-              Positioned(
-                left: -10,
-                top: -10,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  // One removal, shared with the long-press menu.
+            // ─── HANDLES SIT WHERE THERE IS ROOM FOR THEM ──────────────
+            //
+            // The three corners used to be hardcoded: remove top-left, move
+            // top-right, resize bottom-right, each at -10 so half the badge
+            // hangs outside the tile. That is correct for a tile in the middle
+            // of the grid and wrong for every tile against an edge, where the
+            // overhanging half lands off the workspace and the handle becomes
+            // unhittable. The bottom row and the first column are exactly where
+            // a clock or a monitor tends to live, so the broken case was the
+            // common one.
+            //
+            // So the corners are RESOLVED per tile. Each handle carries a
+            // preference order, they are allocated in turn, and a corner that
+            // would clip is skipped in favour of the next free one. Move now
+            // prefers bottom-left, which is the reachable corner on a phone and
+            // leaves the top of the tile clear to read while you drag it.
+            //
+            // A tile that fills the whole grid clips all four, so the resolver
+            // cannot fall back forever: the last resort tucks the handle INSIDE
+            // the tile edge instead of outside it. Slightly cramped and always
+            // reachable beats correctly placed and off the screen.
+            if (widget.editing && selected) ...[
+              for (final placed in _resolveHandles(
+                _d,
+                cols: widget.theme.deskletCols,
+                rows: widget.theme.deskletRows,
+              ).entries)
+                (switch (placed.key) {
+                  // ─── A LISTENER, NOT A PAN RECOGNIZER ─────────────
                   //
-                  // A hosted AppWidget owns a native allocation that has to be
-                  // released or it leaks for the life of the install, and that
-                  // knowledge used to live only here, in the badge that was
-                  // then the only way to remove anything. Now that the menu can
-                  // remove too, two copies of "remember to free the native
-                  // thing" is one copy too many.
-                  onTap: () => removeDesklet(ref, widget.theme, _d),
-                  child: _Handle(
-                    palette: p,
-                    icon: Icons.close,
-                    danger: true,
-                    size: _Handle.remove,
-                  ),
-                ),
-              ),
+                  // Same complaint as the move drag and a worse version of it:
+                  // kPanSlop meant the corner had to travel about 36 logical
+                  // pixels before the tile grew by a single cell, on a grid
+                  // whose cells are roughly 42 by 47. So the first cell of
+                  // every resize was free and invisible, and the handle felt
+                  // stuck to the tile.
+                  //
+                  // A handle is a dedicated target with nothing to disambiguate
+                  // against, so there is nothing for an arena to decide and a
+                  // raw Listener is the honest tool: it tracks from the first
+                  // pixel of movement, with no threshold at all.
+                  //
+                  // Safe here only because the two recognizers that used to
+                  // steal this pointer are now gone: the desktop long press is
+                  // not built in edit mode, and GestureLayer stands down. A
+                  // Listener does not enter the arena, so it cannot defend
+                  // itself against either.
+                  _HandleRole.resize => _positioned(
+                      placed.value,
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (_) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _resizing = true);
+                        },
+                        onPointerMove: (e) => setState(() {
+                          _grow = Size(
+                            _grow.width + e.delta.dx,
+                            _grow.height + e.delta.dy,
+                          );
+                        }),
+                        onPointerUp: (_) => _resizeEnd(),
+                        onPointerCancel: (_) => setState(() {
+                          _grow = Size.zero;
+                          _resizing = false;
+                        }),
+                        child: _Handle(
+                          palette: p,
+                          icon: Icons.open_in_full,
+                          // The flag the resize drag already sets. A handle
+                          // that lights up while it is doing its job is the
+                          // whole feedback story: you can see WHICH control
+                          // your thumb captured, which matters most on a small
+                          // tile where three of them sit within a thumb-width.
+                          active: _resizing,
+                        ),
+                      ),
+                    ),
+
+                  // ── A HANDLE FOR MOVING, NOT ONLY THE WHOLE TILE ────
+                  //
+                  // Panning the tile itself already moves it, and it still
+                  // does; this changes nothing about that path. But an
+                  // invisible affordance is one nobody finds: the tile shows a
+                  // resize handle and a remove badge, so a user reasonably
+                  // concludes that resizing and removing are what a selected
+                  // tile offers, and reaches for the long-press menu to move.
+                  //
+                  // It drives the SAME _drag/_moveEnd path as the tile, so
+                  // there is one move implementation and the grid snapping
+                  // cannot diverge between them.
+                  _HandleRole.move => _positioned(
+                      placed.value,
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (_) {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _moving = true;
+                            _drag = Offset.zero;
+                          });
+                        },
+                        onPointerMove: (e) => setState(() => _drag += e.delta),
+                        onPointerUp: (_) => _moveEnd(),
+                        onPointerCancel: (_) => setState(() {
+                          _drag = Offset.zero;
+                          _moving = false;
+                        }),
+                        child: _Handle(
+                          palette: p,
+                          icon: Icons.open_with,
+                          active: _moving,
+                        ),
+                      ),
+                    ),
+
+                  _HandleRole.remove => _positioned(
+                      placed.value,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        // Down and up drive the highlight; the tap itself still
+                        // does the work. Cancel is handled too, or a touch that
+                        // slides off the badge would leave it lit forever on a
+                        // control that never fired.
+                        onTapDown: (_) => setState(() => _removeDown = true),
+                        onTapCancel: () => setState(() => _removeDown = false),
+                        // One removal, shared with the long-press menu.
+                        //
+                        // A hosted AppWidget owns a native allocation that has
+                        // to be released or it leaks for the life of the
+                        // install, and that knowledge used to live only here,
+                        // in the badge that was then the only way to remove
+                        // anything. Now that the menu can remove too, two
+                        // copies of "remember to free the native thing" is one
+                        // copy too many.
+                        onTap: () {
+                          setState(() => _removeDown = false);
+                          removeDesklet(ref, widget.theme, _d);
+                        },
+                        child: _Handle(
+                          palette: p,
+                          icon: Icons.close,
+                          danger: true,
+                          size: _Handle.remove,
+                          active: _removeDown,
+                        ),
+                      ),
+                    ),
+                }),
             ],
           ],
         ),
@@ -351,16 +572,164 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
   }
 }
 
+/// The four places a handle can sit.
+enum _Corner { topLeft, topRight, bottomLeft, bottomRight }
+
+/// The three handles a selected tile carries.
+enum _HandleRole { remove, resize, move }
+
+/// Where one handle ended up: which corner, and whether it had to tuck inside
+/// the tile because that corner sits against the edge of the workspace.
+typedef _Placement = ({_Corner corner, bool inset});
+
+/// Which corners would push a handle off the workspace.
+///
+/// A handle overhangs its corner by [_overhang], so a tile in the first column
+/// cannot carry one on its left and a tile on the last row cannot carry one
+/// below. Computed in CELLS rather than pixels: the tile's own geometry already
+/// knows whether it is against an edge, and asking the render box would mean
+/// measuring during layout to decide what to lay out.
+Set<_Corner> _clippedCorners(Desklet d, {required int cols, required int rows}) {
+  final atLeft = d.col <= 0;
+  final atTop = d.row <= 0;
+  final atRight = d.col + d.spanX >= cols;
+  final atBottom = d.row + d.spanY >= rows;
+
+  return {
+    if (atLeft || atTop) _Corner.topLeft,
+    if (atRight || atTop) _Corner.topRight,
+    if (atLeft || atBottom) _Corner.bottomLeft,
+    if (atRight || atBottom) _Corner.bottomRight,
+  };
+}
+
+/// Hand each handle a corner.
+///
+/// ─── THE ORDER OF THE PREFERENCES IS THE DESIGN ─────────────────────────────
+///
+/// Move starts BOTTOM-LEFT: it is the corner a thumb reaches without covering
+/// the tile, and dragging from the bottom of something you are positioning
+/// leaves the thing itself visible above your hand. Resize keeps bottom-right,
+/// where dragging away from the origin grows the tile, which is the only corner
+/// where the gesture and the result point the same way. Remove keeps top-left,
+/// furthest from both.
+///
+/// Allocation runs remove, then resize, then move. Remove goes first because it
+/// is the one handle that must never be hard to hit or easy to hit by accident,
+/// so it should not inherit whatever is left over. On a tile with room, the
+/// three land on their preferred corners and the fourth stays empty.
+///
+/// A clipped corner is SKIPPED, not reassigned to a neighbour that is also
+/// clipped: the fallback walks the whole preference list. When every corner
+/// clips, which is a tile spanning the entire grid, the last resort keeps the
+/// preferred corner and marks it inset so the caller draws it inside the tile
+/// rather than off the screen.
+Map<_HandleRole, _Placement> _resolveHandles(
+  Desklet d, {
+  required int cols,
+  required int rows,
+}) {
+  const preferences = <_HandleRole, List<_Corner>>{
+    _HandleRole.remove: [
+      _Corner.topLeft,
+      _Corner.topRight,
+      _Corner.bottomLeft,
+      _Corner.bottomRight,
+    ],
+    _HandleRole.resize: [
+      _Corner.bottomRight,
+      _Corner.topRight,
+      _Corner.bottomLeft,
+      _Corner.topLeft,
+    ],
+    _HandleRole.move: [
+      _Corner.bottomLeft,
+      _Corner.topRight,
+      _Corner.topLeft,
+      _Corner.bottomRight,
+    ],
+  };
+
+  final clipped = _clippedCorners(d, cols: cols, rows: rows);
+  final taken = <_Corner>{};
+  final out = <_HandleRole, _Placement>{};
+
+  for (final role in _HandleRole.values) {
+    final wanted = preferences[role]!;
+
+    _Corner? corner;
+    var inset = false;
+
+    // First choice: free, and far enough from the edge to hang outside.
+    for (final c in wanted) {
+      if (!taken.contains(c) && !clipped.contains(c)) {
+        corner = c;
+        break;
+      }
+    }
+
+    // Second choice: free, but against an edge, so it tucks inside instead.
+    if (corner == null) {
+      inset = true;
+      for (final c in wanted) {
+        if (!taken.contains(c)) {
+          corner = c;
+          break;
+        }
+      }
+    }
+
+    // Cannot happen with three handles and four corners. The floor is here so
+    // that a fourth handle added later lands on its own preferred corner
+    // rather than throwing on a null.
+    corner ??= wanted.first;
+
+    taken.add(corner);
+    out[role] = (corner: corner, inset: inset);
+  }
+
+  return out;
+}
+
+/// How far a handle hangs past the tile's corner. Half of it outside is what
+/// makes it read as attached to the tile rather than drawn on top of it.
+const double _overhang = -10;
+
+/// Where it sits instead when that corner is against the workspace edge. A
+/// small positive inset, so the badge lands just inside the tile's own border.
+const double _tuck = 2;
+
+Positioned _positioned(_Placement at, {required Widget child}) {
+  final o = at.inset ? _tuck : _overhang;
+
+  return switch (at.corner) {
+    _Corner.topLeft => Positioned(left: o, top: o, child: child),
+    _Corner.topRight => Positioned(right: o, top: o, child: child),
+    _Corner.bottomLeft => Positioned(left: o, bottom: o, child: child),
+    _Corner.bottomRight => Positioned(right: o, bottom: o, child: child),
+  };
+}
+
 /// The dashed-ish outline that says "this is movable".
 class _Frame extends StatelessWidget {
   const _Frame({
     required this.palette,
+    required this.editing,
     required this.selected,
     required this.lifted,
     required this.child,
   });
 
   final ThemePalette palette;
+
+  /// Draw the edit chrome at all.
+  ///
+  /// This widget renders at rest now, so the outline and the wash have to be
+  /// able to switch off. What stays on in both states is the LIFT: a tile held
+  /// and dragged on a desktop that is not yet in edit mode still has to look
+  /// picked up, and the shadow is what says so before any outline appears.
+  final bool editing;
+
   final bool selected;
   final bool lifted;
   final Widget child;
@@ -373,14 +742,22 @@ class _Frame extends StatelessWidget {
         // The theme's accent, so edit mode looks like Ubuntu's edit mode under
         // Ubuntu and Breeze's under KDE. A fixed blue here would be the one
         // place the whole app forgot it was a distro.
-        color: palette.onDark.withValues(alpha: lifted ? 0.14 : 0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: selected
-              ? palette.accent
-              : palette.onDark.withValues(alpha: 0.28),
-          width: selected ? 1.6 : 1,
+        color: palette.onDark.withValues(
+          alpha: editing
+              ? (lifted ? 0.14 : 0.06)
+              // At rest the tile paints nothing of its own, except while it is
+              // actually being carried.
+              : (lifted ? 0.14 : 0),
         ),
+        borderRadius: BorderRadius.circular(10),
+        border: editing
+            ? Border.all(
+                color: selected
+                    ? palette.accent
+                    : palette.onDark.withValues(alpha: 0.28),
+                width: selected ? 1.6 : 1,
+              )
+            : null,
         // A SHADOW IS NOT A SURFACE, so it does not follow the palette into
         // light mode. This was the theme's own background at half alpha, which
         // reads as a deep aubergine drop under a dark desktop and as nothing at
@@ -399,8 +776,13 @@ class _Frame extends StatelessWidget {
       ),
       // The desklet keeps rendering underneath. Editing a live clock rather
       // than a grey placeholder is what makes the layout decision an informed
-      // one — you are arranging the thing, not a box labelled with its name.
-      child: IgnorePointer(child: child),
+      // one: you are arranging the thing, not a box labelled with its name.
+      //
+      // NO IgnorePointer here any more. It moved up to the caller, which is the
+      // only place that knows whether the desktop is being edited; leaving it
+      // here would have made every interactive desklet dead at rest, since this
+      // frame now draws in both states.
+      child: child,
     );
   }
 }
@@ -411,6 +793,7 @@ class _Handle extends StatelessWidget {
     required this.icon,
     this.danger = false,
     this.size = _base,
+    this.active = false,
   });
 
   /// The move and resize handles. 28 rather than the old 26 so the pair reads
@@ -431,19 +814,63 @@ class _Handle extends StatelessWidget {
   final bool danger;
   final double size;
 
+  /// Held down, or driving a live drag.
+  ///
+  /// ─── WHY A HANDLE HAS TO ANSWER BACK ────────────────────────────────────
+  ///
+  /// Three targets sit within a thumb-width of each other on a small tile, and
+  /// two of them are drags whose first few pixels look identical to a missed
+  /// touch. So a press that captured nothing and a press that captured the
+  /// wrong control were indistinguishable until something moved, by which point
+  /// the mistake is already made and one of these controls deletes the widget.
+  ///
+  /// Lighting the captured one says WHICH action is now in progress before it
+  /// has visibly done anything, which is the whole request: the handles should
+  /// communicate the action the user is about to take.
+  final bool active;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: danger ? palette.bar : palette.accent,
-        shape: BoxShape.circle,
-        border: Border.all(color: palette.onDark.withValues(alpha: 0.5)),
+    final base = danger ? palette.bar : palette.accent;
+
+    // Toward the palette's own foreground rather than toward white: a fixed
+    // white lift reads as a different material on a light-chrome distro, where
+    // onDark resolves to something dark and the handle would flash pale against
+    // its own theme.
+    final fill = active ? Color.lerp(base, palette.onDark, 0.26)! : base;
+
+    return AnimatedScale(
+      scale: active ? 1.15 : 1,
+      duration: const Duration(milliseconds: 110),
+      curve: Curves.easeOut,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 110),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: fill,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: palette.onDark.withValues(alpha: active ? 0.9 : 0.5),
+            width: active ? 2 : 1,
+          ),
+          // A SHADOW IS NOT A SURFACE, so it does not follow the palette into
+          // light mode, for the same reason _Frame's does not. Shadows are dark
+          // on every desktop because they are absence of light, not a colour.
+          boxShadow: active
+              ? const [
+                  BoxShadow(
+                    color: Color(0x59000000), // theme-exempt: a shadow is not a surface
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        // Derived rather than a second constant, so a handle cannot be resized
+        // without its glyph following.
+        child: Icon(icon, size: size * 0.53, color: palette.onDark),
       ),
-      // Derived rather than a second constant, so a handle cannot be resized
-      // without its glyph following.
-      child: Icon(icon, size: size * 0.53, color: palette.onDark),
     );
   }
 }

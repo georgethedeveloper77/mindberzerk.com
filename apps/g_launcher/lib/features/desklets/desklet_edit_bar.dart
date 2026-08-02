@@ -28,7 +28,20 @@ class DeskletEditBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(deskletEditProvider).active) return const SizedBox.shrink();
+    final edit = ref.watch(deskletEditProvider);
+    if (!edit.active) return const SizedBox.shrink();
+
+    // ─── EDITING ONE WIDGET IS NOT THE SAME MODE AS ARRANGING ─────────────
+    //
+    // The bar offered Add unconditionally, so the whole time you were sizing a
+    // clock the only labelled action on screen invited you to place a second
+    // widget. While a tile is selected the subject is THAT tile, and the bar
+    // should carry nothing that changes the subject.
+    //
+    // Nothing selected is the other posture, entered from the desktop menu's
+    // Widgets action or after a tile is dropped, and there Add is exactly the
+    // right offer.
+    final focused = edit.selected != null;
 
     final p = theme.palette;
     final insets = MediaQuery.viewPaddingOf(context);
@@ -42,12 +55,16 @@ class DeskletEditBar extends ConsumerWidget {
         color: p.bar.withValues(alpha: 0.94),
         child: Row(
           children: [
-            Icon(Icons.dashboard_customize_outlined,
-                size: 18, color: p.onDark.withValues(alpha: 0.7)),
+            Icon(
+                focused
+                    ? Icons.open_with
+                    : Icons.dashboard_customize_outlined,
+                size: 18,
+                color: p.onDark.withValues(alpha: 0.7)),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Editing workspace',
+                focused ? 'Editing widget' : 'Editing workspace',
                 style: TextStyle(
                   fontFamily: theme.typography.display,
                   fontSize: 14,
@@ -55,26 +72,28 @@ class DeskletEditBar extends ConsumerWidget {
                 ),
               ),
             ),
-            TextButton(
-              onPressed: () => showDeskletPicker(
-                context,
-                ref,
-                theme,
-                // No col/row: the Add button means "somewhere", and the packer
-                // finds the first free rectangle. Tapping a specific empty cell
-                // is the way to say WHERE.
-                page: ref.read(activeWorkspaceProvider),
-              ),
-              child: Text(
-                'Add',
-                style: TextStyle(
-                  fontFamily: theme.typography.display,
-                  color: p.accent,
-                  fontWeight: FontWeight.w600,
+            if (!focused) ...[
+              TextButton(
+                onPressed: () => showDeskletPicker(
+                  context,
+                  ref,
+                  theme,
+                  // No col/row: the Add button means "somewhere", and the
+                  // packer finds the first free rectangle. Tapping a specific
+                  // empty cell is the way to say WHERE.
+                  page: ref.read(activeWorkspaceProvider),
+                ),
+                child: Text(
+                  'Add',
+                  style: TextStyle(
+                    fontFamily: theme.typography.display,
+                    color: p.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
+              const SizedBox(width: 4),
+            ],
             TextButton(
               onPressed: () {
                 HapticFeedback.selectionClick();

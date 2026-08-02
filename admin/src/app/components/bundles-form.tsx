@@ -3,19 +3,25 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import type { PlayLiteProduct } from '@/lib/core/play-lite';
+
 interface PackRef {
   packId: string;
   title: string;
   sku?: string | null;
 }
 
-/** One option for the product ID field. Shape mirrors PlayLiteProduct. */
-interface ProductRef {
-  productId: string;
-  title: string | null;
-  activeOptions: number;
-  source: 'play' | 'snapshot' | 'index';
-}
+/**
+ * One option for the product ID field.
+ *
+ * DERIVED from PlayLiteProduct rather than restated. This was a hand-copied
+ * union of the three sources that existed when it was written, and it went
+ * stale silently the day `sku-catalogue.ts` added a fourth. A Pick cannot.
+ *
+ * `import type` is erased at compile time, so naming a server module here puts
+ * nothing in the client bundle.
+ */
+type ProductRef = Pick<PlayLiteProduct, 'productId' | 'title' | 'activeOptions' | 'source'>;
 
 export interface BundleDraft {
   sku: string;
@@ -346,6 +352,33 @@ export function BundlesForm({
  * Play confirmed something nobody checked. Same rule as the distro builder's
  * SkuField, and for the same reason.
  */
+/**
+ * What a suggestion says about itself.
+ *
+ * A SWITCH RATHER THAN A TERNARY CHAIN, because the chain this replaced ended
+ * in an else that meant "in the catalogue" and therefore labelled a manual
+ * entry as published the moment that source was added. A manual id is the
+ * opposite: created in Play Console and attached to nothing here yet.
+ *
+ * The default is deliberate rather than an oversight. A new source should show
+ * a plain title rather than a claim about where it came from.
+ */
+function sourceLabel(p: ProductRef): string {
+  const name = p.title ?? p.productId;
+  switch (p.source) {
+    case 'play':
+      return p.activeOptions === 0 ? `${name} (not active)` : name;
+    case 'snapshot':
+      return `${name} (last seen in Play)`;
+    case 'index':
+      return `${name} (in the catalogue)`;
+    case 'manual':
+      return `${name} (noted by hand)`;
+    default:
+      return name;
+  }
+}
+
 function SkuInput({
   value,
   onChange,
@@ -377,15 +410,7 @@ function SkuInput({
             <option
               key={p.productId}
               value={p.productId}
-              label={
-                p.source === 'play'
-                  ? p.activeOptions === 0
-                    ? `${p.title ?? p.productId} (not active)`
-                    : (p.title ?? p.productId)
-                  : p.source === 'snapshot'
-                    ? `${p.title ?? p.productId} (last seen in Play)`
-                    : `${p.title ?? p.productId} (in the catalogue)`
-              }
+              label={sourceLabel(p)}
             />
           ))}
         </datalist>

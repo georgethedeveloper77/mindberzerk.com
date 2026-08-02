@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
+import '../desklets/desklet_edit.dart';
 import '../drawer/drawer_state.dart';
 import 'gesture_actions.dart';
 
@@ -87,13 +88,45 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
 
   @override
   Widget build(BuildContext context) {
+    // ─── THE SWIPE LAYER STANDS DOWN WHILE THE DESKTOP IS EDITED ───────────
+    //
+    // This layer's horizontal drag recognizer declares at the ordinary touch
+    // slop, roughly 18 logical pixels on one axis. A tile drag has to clear
+    // considerably more than that before its own recognizer can claim the
+    // pointer. The arena therefore handed EVERY sideways drag to this layer,
+    // and dragging a widget left or right did not move the widget at all: it
+    // fired swipeLeft or swipeRight and opened the drawer.
+    //
+    // That is the same class of problem the class comment above already
+    // describes for the vertical axis, where the fix was to cede the axis
+    // outright. The horizontal axis cannot be ceded permanently, because the
+    // drawer lives on it. So it is ceded for the duration of edit mode, which
+    // is exactly as long as something else needs it.
+    //
+    // NULL CALLBACKS, not an early return of the child.
+    //
+    // The only way to lose an arena is not to enter it, and a recognizer that
+    // returns early from its handler has still won: the gesture stays stolen
+    // and merely stops doing anything visible, which is strictly worse. But
+    // returning `widget.child` here would change the SHAPE of the tree, and
+    // this layer wraps the workspace PageView. A shape change unmounts it, a
+    // remounted PageView is a brand new PageController, and the desktop would
+    // silently jump back to workspace one every time edit mode toggled. That is
+    // the identical failure home_screen documents at length under
+    // skipLoadingOnReload.
+    //
+    // GestureDetector builds a recognizer only for each NON-NULL callback, so
+    // nulling them registers nothing and competes for nothing, while the tree
+    // keeps exactly the shape it had.
+    final editing = ref.watch(deskletEditProvider).active;
+
     return Stack(
       children: [
         GestureDetector(
           behavior: HitTestBehavior.translucent,
           // HORIZONTAL only. Vertical drags fall straight through to the
           // workspaces PageView underneath — see the class comment.
-          onHorizontalDragEnd: (details) {
+          onHorizontalDragEnd: editing ? null : (details) {
             final v = details.primaryVelocity ?? 0;
             // 300 px/s: below that it is a hesitant touch, not a fling. Too low
             // and every wobble fires a gesture.
@@ -105,7 +138,7 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
               _fire(Gesture.swipeLeft);
             }
           },
-          onDoubleTap: () => _fire(Gesture.doubleTapHome),
+          onDoubleTap: editing ? null : () => _fire(Gesture.doubleTapHome),
           child: widget.child,
         ),
 
@@ -119,7 +152,8 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
           width: 20,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onDoubleTap: () => _fire(Gesture.doubleTapLeftEdge),
+            onDoubleTap:
+                editing ? null : () => _fire(Gesture.doubleTapLeftEdge),
           ),
         ),
       ],

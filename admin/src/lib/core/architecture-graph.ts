@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
+import { indexIsSigned, readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { cdnBase } from '@/lib/core/cdn';
 import { isAppId } from '@/lib/core/registry';
 
@@ -646,7 +646,7 @@ export function viewsFor(app: string): GraphView[] {
  * the Overview. Nothing is invented: a node that cannot be measured reports
  * `unknown` rather than a cheerful green.
  */
-export async function graphStatus(app: string): Promise<GraphStatus> {
+export async function graphStatus(app: AppId): Promise<GraphStatus> {
   const live = await readLiveIndex(app).catch(() => null);
   const signed = live?.exists ? await indexIsSigned(app).catch(() => false) : false;
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/components.dart';
 import '../../../engine/effective_theme.dart';
+import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_picker.dart';
 import '../../settings/settings_screen.dart';
 import '../../settings/wallpaper_screen.dart';
@@ -36,13 +37,25 @@ Future<void> showDesktopMenu(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
-) {
+) async {
+  // ─── THE GATE LIVES AT THE DOOR, NOT IN EACH SHELL ────────────────────────
+  //
+  // Every shell wires its own desktop long-press, so gating them one by one
+  // means the next shell added inherits the bug by default. This menu is about
+  // the DESKTOP, and while a widget is being edited the subject is that widget,
+  // so the correct answer is the same for every caller and belongs here.
+  //
+  // The GNOME shell also checks before firing its haptic, because a buzz
+  // followed by nothing reads as a dropped input rather than as a refusal. This
+  // is the floor beneath that, for the shells that do not.
+  if (ref.read(deskletEditProvider).active) return;
+
   final navigator = Navigator.of(context);
   // ChromeScope does not cross a route boundary on its own — capture it here
   // and re-provide it inside the route, the same trick ThemedSheet uses.
   final chrome = ChromeScope.of(context);
 
-  return showGeneralDialog<void>(
+  await showGeneralDialog<void>(
     context: context,
     // Light, not the usual heavy modal black: the desktop behind this is the
     // subject, not a distraction.
