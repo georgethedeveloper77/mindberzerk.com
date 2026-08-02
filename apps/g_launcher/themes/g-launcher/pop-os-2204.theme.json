@@ -1,0 +1,43 @@
+{
+  "id": "pop-os-2204",
+  "name": "Pop!_OS",
+  "version": "22.04",
+  "shell": "gnome",
+  "tier": "pro",
+  "chromeFamily": "adwaita",
+  "palette": {
+    "bgTop": "#333333",
+    "bgBottom": "#1B1B1B",
+    "bar": "#141414",
+    "dock": "#CC141414",
+    "accent": "#FBB86C",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F7F7F7",
+    "bgBottom": "#FFFFFF",
+    "bar": "#EDEDED",
+    "dock": "#CCEDEDED",
+    "accent": "#C4772F",
+    "onDark": "#1B1B1B"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

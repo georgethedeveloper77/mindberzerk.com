@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../design/components/anchored_menu.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../search/search_page.dart';
@@ -284,9 +285,11 @@ class _Row extends ConsumerWidget {
       onTap: () => activateDrawerItem(context, ref, theme, item),
       onLongPress: switch (item) {
         AppDrawerItem(:final entry) => () =>
-            showDrawerAppMenu(context, ref, theme, entry),
+            showDrawerAppMenu(context, ref, theme, entry,
+                anchor: AnchoredMenu.anchorOf(context)),
         final FolderDrawerItem f => () =>
-            drawerFolderSettings(context, ref, theme, f),
+            drawerFolderSettings(context, ref, theme, f,
+                anchor: AnchoredMenu.anchorOf(context)),
         // Neither pin nor uninstall nor rename applies to a launcher entry, and
         // an empty sheet is worse than none.
         LauncherSettingsItem() || DeviceSettingsItem() => null,

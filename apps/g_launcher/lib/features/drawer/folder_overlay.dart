@@ -12,6 +12,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
+import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
@@ -812,185 +813,134 @@ void showFolderMemberMenu(
   final notifier = ref.read(appListProvider.notifier);
   final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
 
-  const width = 236.0;
-  const rowH = 52.0;
-  const pad = 12.0;
-
-  showGeneralDialog<void>(
+  // ─── POSITIONING MOVED TO AnchoredMenu ────────────────────────────────
+  //
+  // This file wrote the clamp-and-flip first and two other menus copied it with
+  // different constants. It is one primitive now, so the disagreements (14
+  // versus 16 radius, three different widths) are gone and the two menus that
+  // were still bottom sheets could be converted without writing it a fifth
+  // time.
+  //
+  // The height arithmetic is gone with it. `rowCount * rowH + pad` was a guess
+  // about a panel that had not been built, and it was wrong for any row that
+  // wrapped, any longer translation and any larger system font. AnchoredMenu
+  // measures the child instead.
+  //
+  // Anchored at the FINGER here, deliberately, unlike the drawer's grid where
+  // the tile's own rectangle is the better anchor. A folder's contents are laid
+  // out tightly and the member you held is small, so the pointer is the more
+  // precise statement of which one you meant.
+  AnchoredMenu.show(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    // Barely there. A context menu is not a modal — what is behind it must stay
-    // readable, because the entire reason the menu is at the pointer is so you
-    // can still see the thing you are acting on.
-    // theme-exempt: a scrim is not chrome. It is a neutral dim over whatever
-    // wallpaper happens to be behind, and tinting it with the distro's palette
-    // would make a light theme's scrim tint the photo underneath it.
-    barrierColor: const Color(0x33000000), // theme-exempt: neutral scrim
-    transitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (ctx, _, __) {
-      final size = MediaQuery.sizeOf(ctx);
+    chrome: chrome,
+    anchor: Rect.fromCenter(center: at, width: 1, height: 1),
+    width: 236,
+    rows: (ctx) {
       final canUninstall = !entry.isSystem && !entry.isWorkProfile;
 
       // Being in a folder does not bar an app from the dock: pinToDock takes
       // any componentKey and has no idea where the drawer files it. Pinned
-      // members get Unpin; unpinned ones get Pin only while the dock has
-      // room, because offering a pin that can only be refused is a button
-      // that exists to say no.
+      // members get Unpin; unpinned ones get Pin only while the dock has room,
+      // because offering a pin that can only be refused is a button that exists
+      // to say no.
       //
       // Read off the snapshot the menu opened with, same as everything else
       // here and the same pattern showDrawerAppMenu uses. A pin landing from
       // another surface while this menu is up can slip past the on-tap check
-      // below, in which case pinToDock inside the edit refuses against the
-      // LIVE prefs and nothing is lost; the window is a tap wide.
+      // below, in which case pinToDock inside the edit refuses against the LIVE
+      // prefs and nothing is lost; the window is a tap wide.
       final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
       final dockHasSpace =
           theme.prefs.favourites.length < DockMetrics.maxCapacity;
       final showPinRow = isPinned || dockHasSpace;
 
-      final rowCount = (canUninstall ? 3 : 2) + (showPinRow ? 1 : 0);
-      final height = rowCount * rowH + pad;
-
-      // Clamp into the screen with an 8px margin, so it never kisses an edge.
-      final left = (at.dx - width / 2).clamp(8.0, size.width - width - 8);
-      // Prefer BELOW the finger; flip above when there is no room, the way
-      // every context menu on every platform does.
-      final below = at.dy + 12;
-      final top = below + height > size.height - 8
-          ? (at.dy - height - 12).clamp(8.0, size.height - height - 8)
-          : below;
-
-      return ChromeScope(
-        data: chrome,
-        child: Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
-              width: width,
-              // The same glass every sheet and dialog uses. An anchored menu
-              // is a floating panel over the desktop too, and leaving it an
-              // opaque grey slab while everything else turned translucent is
-              // the sort of inconsistency nobody can name and everybody feels.
-              child: GlassPanel(
-                borderRadius: BorderRadius.circular(14),
-                child: Material(
-                color: Colors.transparent,
-                elevation: 0,
-                borderRadius: BorderRadius.circular(14),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: pad / 2),
-                    // Pin first, matching showDrawerAppMenu's ordering so the
-                    // same action sits in the same place whichever surface the
-                    // long-press came from.
-                    if (showPinRow)
-                      ThemedListRow(
-                        icon: isPinned
-                            ? Icons.push_pin_outlined
-                            : Icons.push_pin,
-                        title: ctx.t(
-                          isPinned
-                              ? 'shell.unpinFromDock'
-                              : 'shell.pinToDock',
-                        ),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          if (isPinned) {
-                            prefs.edit(
-                              (p) => HomeLayout.unpinFromDock(
-                                p,
-                                entry.componentKey,
-                              ),
-                            );
-                            return;
-                          }
-                          // The space check above ran when the menu OPENED; a
-                          // pin from another surface can fill the dock before
-                          // this tap lands. Same refusal contract as the
-                          // drawer menu: compare identity, say so, drop it.
-                          final before = theme.prefs;
-                          final after = HomeLayout.pinToDock(
-                            before,
-                            entry.componentKey,
-                            capacity: DockMetrics.maxCapacity,
-                          );
-                          if (identical(before, after)) {
-                            if (context.mounted) {
-                              context.showMessage(
-                                context.t('drawer.dockIsFull'),
-                              );
-                            }
-                            return;
-                          }
-                          prefs.edit(
-                            (p) => HomeLayout.pinToDock(
-                              p,
-                              entry.componentKey,
-                              capacity: DockMetrics.maxCapacity,
-                            ),
-                          );
-                        },
-                      ),
-                    ThemedListRow(
-                      icon: Icons.folder_off_outlined,
-                      title: ctx.t('drawer.removeFromFolder'),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        prefs.edit(
-                          (p) => DrawerLayout.removeFromFolder(
-                            p,
-                            folderId,
-                            entry.componentKey,
-                          ),
-                        );
-                      },
-                    ),
-                    ThemedListRow(
-                      icon: Icons.info_outline,
-                      title: ctx.t('shell.appInfo'),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        notifier.openInfo(entry);
-                      },
-                    ),
-                    // System apps cannot be uninstalled. A button that silently
-                    // does nothing is worse than no button.
-                    if (canUninstall)
-                      ThemedListRow(
-                        icon: Icons.delete_outline,
-                        title: ctx.t('drawer.uninstall'),
-                        danger: true,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          notifier.uninstall(entry);
-                        },
-                      ),
-                    const SizedBox(height: pad / 2),
-                  ],
-                ),
-              ),
-              ),
+      return [
+        // Pin first, matching showDrawerAppMenu's ordering so the
+        // same action sits in the same place whichever surface the
+        // long-press came from.
+        if (showPinRow)
+          ThemedListRow(
+            icon: isPinned
+                ? Icons.push_pin_outlined
+                : Icons.push_pin,
+            title: ctx.t(
+              isPinned
+                  ? 'shell.unpinFromDock'
+                  : 'shell.pinToDock',
             ),
-          ],
+            onTap: () {
+              Navigator.pop(ctx);
+              if (isPinned) {
+                prefs.edit(
+                  (p) => HomeLayout.unpinFromDock(
+                    p,
+                    entry.componentKey,
+                  ),
+                );
+                return;
+              }
+              // The space check above ran when the menu OPENED; a
+              // pin from another surface can fill the dock before
+              // this tap lands. Same refusal contract as the
+              // drawer menu: compare identity, say so, drop it.
+              final before = theme.prefs;
+              final after = HomeLayout.pinToDock(
+                before,
+                entry.componentKey,
+                capacity: DockMetrics.maxCapacity,
+              );
+              if (identical(before, after)) {
+                if (context.mounted) {
+                  context.showMessage(
+                    context.t('drawer.dockIsFull'),
+                  );
+                }
+                return;
+              }
+              prefs.edit(
+                (p) => HomeLayout.pinToDock(
+                  p,
+                  entry.componentKey,
+                  capacity: DockMetrics.maxCapacity,
+                ),
+              );
+            },
+          ),
+        ThemedListRow(
+          icon: Icons.folder_off_outlined,
+          title: ctx.t('drawer.removeFromFolder'),
+          onTap: () {
+            Navigator.pop(ctx);
+            prefs.edit(
+              (p) => DrawerLayout.removeFromFolder(
+                p,
+                folderId,
+                entry.componentKey,
+              ),
+            );
+          },
         ),
-      );
-    },
-    transitionBuilder: (_, animation, __, child) {
-      final curved =
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      // Grows from its top edge, so it reads as coming out of what you held
-      // rather than as appearing over it.
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.90, end: 1).animate(curved),
-          alignment: Alignment.topCenter,
-          child: child,
+        ThemedListRow(
+          icon: Icons.info_outline,
+          title: ctx.t('shell.appInfo'),
+          onTap: () {
+            Navigator.pop(ctx);
+            notifier.openInfo(entry);
+          },
         ),
-      );
+        // System apps cannot be uninstalled. A button that silently
+        // does nothing is worse than no button.
+        if (canUninstall)
+          ThemedListRow(
+            icon: Icons.delete_outline,
+            title: ctx.t('drawer.uninstall'),
+            danger: true,
+            onTap: () {
+              Navigator.pop(ctx);
+              notifier.uninstall(entry);
+            },
+          ),
+      ];
     },
   );
 }

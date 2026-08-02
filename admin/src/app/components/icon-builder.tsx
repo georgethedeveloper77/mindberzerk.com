@@ -16,6 +16,7 @@ import { renderHeroIcon } from '@/lib/core/image-trim';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
 import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 import type { RehydratedPack } from '@/lib/core/cdn';
+import { ICON_TREATMENTS } from '@/lib/g-launcher/theme-spec';
 
 /**
  * RESTYLED ONTO THE SOFT REGISTER. This file was the one builder that did NOT
@@ -50,6 +51,78 @@ import type { RehydratedPack } from '@/lib/core/cdn';
  * Browser produces PNGs plus pack.json; posted as files[]/paths[] with
  * packType: hero. Same manifest, signature and rollback floor as every pack.
  */
+
+/**
+ * THE SIX SHAPES THE DEVICE CAN ACTUALLY APPLY, AS CSS.
+ *
+ * Imported from `theme-spec` rather than listed again here, because that array
+ * is what a theme's `icons.treatment` is validated against. A seventh shape in
+ * the builder that no theme can request would be a control that does nothing,
+ * and a shape missing from the builder is one an author cannot check their art
+ * against.
+ *
+ * `original` is the odd one and is the honest answer for a pack of final art:
+ * no clip at all, drawn as authored, which is literally what `renderHero` does
+ * on the `masked: false` branch.
+ */
+const SQUIRCLE_CLIP = (() => {
+  // A superellipse, |x|^n + |y|^n = 1 with n = 4, sampled as a polygon. The
+  // usual shortcut is a large border-radius, which is a rounded rectangle and
+  // visibly not the same curve: the difference is exactly the flat run along
+  // each edge that makes a squircle read as one.
+  const pts: string[] = [];
+  const steps = 72;
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * 2 * Math.PI;
+    const c = Math.cos(t);
+    const sn = Math.sin(t);
+    const x = Math.sign(c) * Math.pow(Math.abs(c), 0.5);
+    const y = Math.sign(sn) * Math.pow(Math.abs(sn), 0.5);
+    pts.push(`${(50 + x * 50).toFixed(2)}% ${(50 + y * 50).toFixed(2)}%`);
+  }
+  return `polygon(${pts.join(',')})`;
+})();
+
+/** How each treatment masks the tile. `radius` is only read by roundedSquare. */
+function maskFor(shape: string, radius: number): React.CSSProperties {
+  switch (shape) {
+    case 'circle':
+      return { borderRadius: '50%' };
+    case 'square':
+      return { borderRadius: 0 };
+    case 'squircle':
+      return { clipPath: SQUIRCLE_CLIP };
+    case 'teardrop':
+      // Three rounded corners and one square, which is the AOSP teardrop.
+      return { borderRadius: '50% 50% 50% 12%' };
+    case 'original':
+      // No clip. Art is drawn exactly as authored.
+      return {};
+    case 'roundedSquare':
+    default:
+      return { borderRadius: `${radius}%` };
+  }
+}
+
+/** Sentence-case label for a treatment id. */
+function shapeLabel(shape: string): string {
+  switch (shape) {
+    case 'roundedSquare':
+      return 'Rounded';
+    case 'squircle':
+      return 'Squircle';
+    case 'circle':
+      return 'Circle';
+    case 'square':
+      return 'Square';
+    case 'teardrop':
+      return 'Teardrop';
+    case 'original':
+      return 'As authored';
+    default:
+      return shape;
+  }
+}
 
 interface Entry {
   id: string;
@@ -117,6 +190,7 @@ export function IconBuilder({
   publishedIds,
   publishedVersion,
   initial,
+  preview,
   play,
 }: {
   app: string;
@@ -124,6 +198,22 @@ export function IconBuilder({
   publishedVersion: Record<string, number>;
   /** A published pack to edit, or null for a new one. See `lib/cdn.ts`. */
   initial?: RehydratedPack | null;
+  /**
+   * The preview settings a DRAFT was saved with.
+   *
+   * ─── THE DRAFT WAS STORING THESE AND NEVER GETTING THEM BACK ───────────
+   *
+   * `IconDraft` carries `plate` and `radius` with a comment saying they are
+   * "kept so a reopened draft looks the same as the one you left", and the
+   * save action has always written them. Nothing ever read them back: the two
+   * useState calls below were hardcoded to #E95420 and 22, so reopening a
+   * draft silently discarded both and the comment was untrue.
+   *
+   * A separate prop rather than fields on RehydratedPack, because that type
+   * describes a PUBLISHED pack read off the CDN and a published pack genuinely
+   * has no preview settings to carry. Only the draft branch passes this.
+   */
+  preview?: { plate: string; radius: number; shape: string } | null;
   /**
    * What Play actually sells, slimmed, read on the server. `ok: false`
    * degrades the product ID field to the plain input it used to be, with the
@@ -148,8 +238,11 @@ export function IconBuilder({
     if (play.products.some((p) => p.productId === s)) return false;
     return s !== (initial?.packId ? iconsSkuFor(initial.packId) : '');
   });
-  const [plate, setPlate] = useState('#E95420'); // preview only, not in pack.json
-  const [radius, setRadius] = useState(22); // preview only, percent
+  // Preview only, none of the three reach pack.json. Seeded from the draft
+  // when one opened; see the `preview` prop for why they were being dropped.
+  const [plate, setPlate] = useState(preview?.plate ?? '#E95420');
+  const [radius, setRadius] = useState(preview?.radius ?? 22);
+  const [shape, setShape] = useState(preview?.shape ?? 'roundedSquare');
   const [entries, setEntries] = useState<Entry[]>(() => entriesFrom(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,8 +336,14 @@ export function IconBuilder({
   const missing = CORE_PACKAGES.filter((c) => !covered.has(c.pkg));
 
   // CSS that mirrors renderHero's two branches for the preview tile.
+  //
+  // The MASK is the chosen treatment on the masked branch, because that branch
+  // is `clipPath(maskPath)` on the device and the treatment is what decides the
+  // path. On the unmasked branch the art is drawn as authored and there is no
+  // clip at all, so the checkerboard keeps a soft corner purely so a
+  // transparent PNG reads as a tile rather than bleeding into the page.
   const tileStyle: React.CSSProperties = masked
-    ? { background: plate, borderRadius: `${radius}%` }
+    ? { background: plate, ...maskFor(shape, radius) }
     : {
         // neutral checkerboard so transparent art is legible without implying a plate
         backgroundImage:
@@ -287,6 +386,7 @@ export function IconBuilder({
     body.set('sku', sku.trim());
     body.set('plate', plate);
     body.set('radius', String(radius));
+    body.set('shape', shape);
 
     const icons: { pkg: string; file: string }[] = [];
     for (const e of entries) {
@@ -553,16 +653,57 @@ export function IconBuilder({
               <p className="mt-1 text-[11.5px] text-site-ink-3">Preview only. The real plate comes from the theme.</p>
             </div>
             <div>
-              <label className="block text-[11.5px] text-site-ink-3">Preview corner radius {radius}%</label>
-              <input
-                type="range"
-                min={0}
-                max={50}
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-                className="mt-3 w-full"
-              />
+              {/* ── THE SHAPE, NAMED AS THE DEVICE NAMES IT ──────────────
+                  A free-form radius percentage previews a rounded rectangle
+                  and nothing else, so an author working on art destined for a
+                  circular distro had no way to see it clipped. These are the
+                  six values `icons.treatment` accepts, so what you preview is
+                  a mask some theme can genuinely ask for. */}
+              <label className="block text-[11.5px] text-site-ink-3">Preview shape</label>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {ICON_TREATMENTS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setShape(t)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-[12px] ${
+                      shape === t
+                        ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep'
+                        : 'border-site-line text-site-ink-2'
+                    }`}
+                  >
+                    <span
+                      className="mr-1.5 inline-block size-3 align-[-1px] bg-current opacity-70"
+                      style={maskFor(t, radius)}
+                    />
+                    {shapeLabel(t)}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[11.5px] text-site-ink-3">
+                Preview only. A pack carries no shape: the distro wearing it decides, so the same
+                art is a circle under one and a squircle under another.
+              </p>
             </div>
+
+            {/* The radius is only meaningful for the one treatment that has
+                one. Shown conditionally rather than greyed, because a slider
+                that moves and changes nothing is worse than an absent one. */}
+            {shape === 'roundedSquare' && (
+              <div>
+                <label className="block text-[11.5px] text-site-ink-3">
+                  Preview corner radius {radius}%
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={50}
+                  value={radius}
+                  onChange={(e) => setRadius(Number(e.target.value))}
+                  className="mt-3 w-full"
+                />
+              </div>
+            )}
           </div>
         )}
 

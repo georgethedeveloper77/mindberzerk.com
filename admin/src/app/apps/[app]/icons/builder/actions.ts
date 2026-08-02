@@ -77,6 +77,11 @@ export async function saveIconDraftAction(form: FormData): Promise<DraftResult> 
       sku: String(form.get('sku') ?? '').trim(),
       plate: String(form.get('plate') ?? '#E95420'),
       radius: Number(form.get('radius') ?? 22) || 22,
+      // Not validated against ICON_TREATMENTS here, matching the rest of this
+      // action: a draft is unfinished work and the only rules enforced are the
+      // two that would make it unopenable. An unknown shape falls back to the
+      // default in the builder rather than refusing a save.
+      shape: String(form.get('shape') ?? 'roundedSquare'),
       icons,
     },
     assets,

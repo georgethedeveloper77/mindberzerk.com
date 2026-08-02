@@ -5,4 +5,11 @@
     <!-- Shown verbatim in the system permission screen. Say exactly what it
          does and nothing else; vagueness here is what makes people refuse. -->
     <string name="accessibility_description">Lets G Launcher open the notification shade, quick settings, recents, and lock the screen from a gesture. It does not read your screen and it does not watch other apps.</string>
+
+    <!-- Shown in Android's notification-access list, which is where the user
+         grants this. The label is the only text they see beside our checkbox,
+         so it names the FEATURE rather than the app: "G Launcher" alone in a
+         list of notification listeners tells them nothing about why it wants
+         in. -->
+    <string name="notification_listener_label">G Launcher notification badges</string>
 </resources>

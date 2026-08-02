@@ -9,6 +9,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
+import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
@@ -131,23 +132,58 @@ void openLauncherSettings(BuildContext context, EffectiveTheme theme) {
 }
 
 /// The app long-press menu: pin/unpin, app info, uninstall.
+///
+/// ─── IT WAS A BOTTOM SHEET, AND IT WAS THE LAST ONE ─────────────────────────
+///
+/// Every other contextual menu in the drawer had already been converted to a
+/// panel anchored at the thing it is about: the folder-member menu (the comment
+/// a few lines below records its conversion), the drawer's overflow menu, the
+/// desklet menu. This one and [drawerFolderSettings] were missed, which is why
+/// the single most-used menu in the launcher was also the only one still
+/// climbing up from the bottom edge.
+///
+/// That is the same category error the folder overlay documents at length: the
+/// bottom sheet is the nearest primitive to hand on Android, so every secondary
+/// surface becomes one, and a launcher imitating a desktop stops looking like
+/// one. A menu about ONE APP belongs beside that app. On a full-screen grid the
+/// app you held is usually nowhere near the bottom of the screen, so the sheet
+/// opened as far from its subject as the display allows, with the subject
+/// itself behind the scrim.
 void showDrawerAppMenu(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
-  AppEntry entry,
-) {
+  AppEntry entry, {
+  /// Where the menu opens. Null centres it, which is what a caller that cannot
+  /// measure itself gets; see [AnchoredMenu.show].
+  Rect? anchor,
+}) {
   HapticFeedback.mediumImpact();
   final notifier = ref.read(appListProvider.notifier);
   final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
   final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
-  final host = context; // outlives the sheet; safe for showMessage post-pop
+  final host = context; // outlives the menu; safe for showMessage post-pop
 
-  ThemedSheet.show<void>(
-    context,
-    builder: (sheet) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+  // Built from the theme rather than looked up. The drawer body is not
+  // guaranteed to sit under a ChromeScope, and the tiling launcher and Kickoff
+  // both call this from surfaces that certainly do not.
+  final chrome = ChromeData.fromPalette(
+    theme.palette,
+    typography: theme.typography,
+    textScale: theme.textScale,
+    family: theme.chromeFamily,
+    opacity: theme.surfaceOpacity,
+    panelBlur: theme.panelBlur,
+    panelTint: theme.panelTint,
+    panelRadius: theme.panelRadius,
+  );
+
+  AnchoredMenu.show(
+    context: context,
+    chrome: chrome,
+    anchor: anchor,
+    width: 236,
+    rows: (sheet) => [
         // "Add to home" became "Pin to dock": the authentic desktop has no
         // grid, so the old item added apps to a screen that displays nothing.
         // The dock is where home apps live now.
@@ -237,9 +273,7 @@ void showDrawerAppMenu(
               notifier.uninstall(entry);
             },
           ),
-        const SizedBox(height: 8),
-      ],
-    ),
+    ],
   );
 }
 
@@ -276,18 +310,39 @@ void openDrawerFolder(
 // how two paths drift until one of them is subtly wrong.
 
 /// Folder settings from a long-press, without opening the folder first.
+///
+/// Anchored, for the same reason [showDrawerAppMenu] is: it is about ONE
+/// folder, and it was the other menu the conversion missed.
 void drawerFolderSettings(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
-  FolderDrawerItem item,
-) {
+  FolderDrawerItem item, {
+  Rect? anchor,
+}) {
   HapticFeedback.mediumImpact();
-  ThemedSheet.show<void>(
-    context,
-    builder: (sheet) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+
+  final chrome = ChromeData.fromPalette(
+    theme.palette,
+    typography: theme.typography,
+    textScale: theme.textScale,
+    family: theme.chromeFamily,
+    opacity: theme.surfaceOpacity,
+    panelBlur: theme.panelBlur,
+    panelTint: theme.panelTint,
+    panelRadius: theme.panelRadius,
+  );
+
+  AnchoredMenu.show(
+    context: context,
+    chrome: chrome,
+    anchor: anchor,
+    // The folder's own name as the header. A three-row menu with Open, Rename
+    // and Ungroup on it says nothing about WHICH folder when two are adjacent,
+    // which is exactly the case a long-press menu appears in.
+    title: item.folder.name,
+    width: 236,
+    rows: (sheet) => [
         ThemedListRow(
           icon: Icons.folder_open_outlined,
           title: context.t('drawer.open'),
@@ -321,9 +376,7 @@ void drawerFolderSettings(
                 );
           },
         ),
-        const SizedBox(height: 8),
-      ],
-    ),
+    ],
   );
 }
 

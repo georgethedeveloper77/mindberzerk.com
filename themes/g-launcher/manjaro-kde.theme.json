@@ -1,0 +1,43 @@
+{
+  "id": "manjaro-kde",
+  "name": "Manjaro",
+  "version": "24",
+  "shell": "plasma",
+  "tier": "pro",
+  "chromeFamily": "breeze",
+  "palette": {
+    "bgTop": "#2D3A35",
+    "bgBottom": "#1A211E",
+    "bar": "#141A18",
+    "dock": "#CC141A18",
+    "accent": "#35BF5C",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F3F6F4",
+    "bgBottom": "#FFFFFF",
+    "bar": "#E7ECE9",
+    "dock": "#CCE7ECE9",
+    "accent": "#2A9648",
+    "onDark": "#1A211E"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

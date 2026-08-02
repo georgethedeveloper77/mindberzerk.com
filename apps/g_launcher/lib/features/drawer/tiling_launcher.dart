@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../palette/fuzzy.dart';
@@ -296,7 +297,8 @@ class _Results extends ConsumerWidget {
             launchDrawerApp(ref, entry);
             ref.read(paletteQueryProvider.notifier).state = '';
           },
-          onLongPress: () => showDrawerAppMenu(context, ref, theme, entry),
+          onLongPress: () => showDrawerAppMenu(context, ref, theme, entry,
+                anchor: AnchoredMenu.anchorOf(context)),
         );
       },
     );
@@ -363,9 +365,11 @@ class _AllList extends ConsumerWidget {
           onTap: () => activateDrawerItem(context, ref, theme, item),
           onLongPress: switch (item) {
             AppDrawerItem(:final entry) => () =>
-                showDrawerAppMenu(context, ref, theme, entry),
+                showDrawerAppMenu(context, ref, theme, entry,
+                anchor: AnchoredMenu.anchorOf(context)),
             final FolderDrawerItem f => () =>
-                drawerFolderSettings(context, ref, theme, f),
+                drawerFolderSettings(context, ref, theme, f,
+                anchor: AnchoredMenu.anchorOf(context)),
             LauncherSettingsItem() || DeviceSettingsItem() => null,
           },
         );

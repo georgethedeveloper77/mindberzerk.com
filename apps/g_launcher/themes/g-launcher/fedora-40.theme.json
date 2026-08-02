@@ -1,0 +1,43 @@
+{
+  "id": "fedora-40",
+  "name": "Fedora",
+  "version": "40",
+  "shell": "gnome",
+  "tier": "free",
+  "chromeFamily": "adwaita",
+  "palette": {
+    "bgTop": "#2E3436",
+    "bgBottom": "#1C2023",
+    "bar": "#16191B",
+    "dock": "#CC16191B",
+    "accent": "#3C6EB4",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F6F5F4",
+    "bgBottom": "#FFFFFF",
+    "bar": "#EBEBEB",
+    "dock": "#CCEBEBEB",
+    "accent": "#3C6EB4",
+    "onDark": "#241F31"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

@@ -1,0 +1,47 @@
+{
+  "id": "kali-2024",
+  "name": "Kali Linux",
+  "version": "2024.3",
+  "shell": "gnome",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#1B2733",
+    "bgBottom": "#0D1117",
+    "bar": "#0A0E13",
+    "dock": "#CC0A0E13",
+    "accent": "#367BF0",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "network",
+          "memory",
+          "storage"
+        ]
+      }
+    ]
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

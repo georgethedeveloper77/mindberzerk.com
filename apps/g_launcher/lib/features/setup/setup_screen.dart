@@ -17,6 +17,7 @@ import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 // AppEntry, for resolving a suggestion's componentKeys into icons.
 import '../../platform/launcher_api.g.dart';
+import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/folder_glyph.dart';
@@ -492,6 +493,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
         _SetupStep.folders => ref.t('setup.title.folders'),
+        _SetupStep.notifications => ref.t('setup.title.notifications'),
         _SetupStep.install => ref.t('setup.title.install'),
       };
 
@@ -503,6 +505,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
         _SetupStep.folders => ref.t('setup.subtitle.folders'),
+        _SetupStep.notifications => ref.t('setup.subtitle.notifications'),
         _SetupStep.install => ref.t('setup.subtitle.install'),
       };
 
@@ -525,6 +528,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             createFolders: _createFolders,
             onCreateFoldersChanged: (v) => setState(() => _createFolders = v),
           ),
+        _SetupStep.notifications =>
+          _StepNotifications(theme: theme, mono: skin.mono),
         _SetupStep.install =>
           _StepInstall(theme: theme, skin: skin, onDone: _finish),
       };
@@ -539,6 +544,7 @@ enum _SetupStep {
   dock('Dock'),
   drawer('App drawer'),
   folders('Folders'),
+  notifications('Badges'),
   install('Install');
 
   const _SetupStep(this.label);
@@ -582,6 +588,20 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
     _SetupStep.dock,
     _SetupStep.drawer,
     _SetupStep.folders,
+    // ─── AFTER THE ICONS EXIST, BEFORE THE INSTALL ────────────────────
+    //
+    // Late on purpose. This is the only step that asks for a PERMISSION, and
+    // Android is about to show a full page warning that the launcher can read
+    // every notification on the phone. Someone who has just watched their dock
+    // and drawer take shape has a picture of what a badge would sit on and can
+    // weigh that warning; someone three screens into a wizard has nothing to
+    // weigh it against and will refuse by default.
+    //
+    // NOT in the terminal list above, and that is not an oversight: the tui and
+    // tiling shells resolve to BadgeStyle.none, so asking for notification
+    // access there would be asking for a sensitive permission the shell can
+    // never use. The same honesty that gives the terminal four steps.
+    _SetupStep.notifications,
     _SetupStep.install,
   ];
 }
@@ -1438,6 +1458,111 @@ class _NagLine extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Notification badges: the one step that asks for a permission.
+///
+/// ─── WHY IT ASKS HERE AND NOT SILENTLY LATER ────────────────────────────────
+///
+/// Notification access has no runtime prompt. Android gates it behind a full
+/// settings page and a confirmation dialog warning that this app will be able
+/// to read every notification, including personal content. That warning is
+/// accurate about the API and wrong about this launcher, which counts
+/// notifications per package and reads no title, body, sender or image.
+///
+/// A user who meets that dialog cold, with no idea why the launcher wants it,
+/// makes a sensible decision on bad information and says no. So the ask happens
+/// here, where there is room for a sentence, after the dock and the drawer have
+/// already drawn the icons a badge would sit on.
+///
+/// ─── SKIPPING IS A REAL ANSWER ──────────────────────────────────────────────
+///
+/// There is no Skip button because there does not need to be one: the wizard's
+/// own Continue is the skip. Nothing on this screen is required, nothing is
+/// written unless the user acts, and the launcher works identically without it.
+/// Adding a Skip beside Continue would imply the two do different things.
+class _StepNotifications extends ConsumerStatefulWidget {
+  const _StepNotifications({required this.theme, required this.mono});
+
+  final EffectiveTheme theme;
+  final bool mono;
+
+  @override
+  ConsumerState<_StepNotifications> createState() => _StepNotificationsState();
+}
+
+class _StepNotificationsState extends ConsumerState<_StepNotifications>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// ─── THE GRANT ARRIVES WITH NO EVENT ──────────────────────────────────
+  ///
+  /// Tapping the row leaves the app for a system settings page. There is no
+  /// result to await and no broadcast to listen for, so the only signal that
+  /// anything happened is the launcher being resumed. Without this the row
+  /// would still read "Allow" after a successful grant, and the user would
+  /// reasonably conclude it had failed and go round again.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    ref.invalidate(notificationAccessProvider);
+    ref.read(badgeCountsProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final granted = ref.watch(notificationAccessProvider);
+    final on = granted.asData?.value ?? false;
+
+    // What this distro would draw, named rather than described in the abstract.
+    // "Badges" means a dot on GNOME and a number on Plasma, and the person is
+    // deciding whether they want the thing they are about to see.
+    final style = badgeStyleFor(widget.theme);
+    final what = switch (style) {
+      BadgeStyle.dot => ref.t('setup.notifications.asDot'),
+      BadgeStyle.count => ref.t('setup.notifications.asCount'),
+      BadgeStyle.none => ref.t('setup.notifications.asDot'),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SetupRow(
+          title: on
+              ? ref.t('setup.notifications.allowed')
+              : ref.t('setup.notifications.allow'),
+          subtitle: on ? what : ref.t('setup.notifications.countsOnly'),
+          selected: on,
+          marker: on ? SetupMarker.check : SetupMarker.chevron,
+          mono: widget.mono,
+          // Already granted: tapping again would bounce the user out to a
+          // settings page to change nothing. A row that does nothing is better
+          // than a row that does something pointless.
+          onTap: on
+              ? () {}
+              : () => openNotificationAccessSettings(),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          ref.t('setup.notifications.note'),
+          softWrap: true,
+          style: d.text.caption.copyWith(color: d.colors.textMuted),
+        ),
+      ],
     );
   }
 }

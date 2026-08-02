@@ -1,0 +1,44 @@
+{
+  "id": "deepin-23",
+  "name": "Deepin",
+  "version": "23",
+  "shell": "aqua",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#2B3138",
+    "bgBottom": "#171B1F",
+    "bar": "#12161A",
+    "dock": "#CC12161A",
+    "accent": "#0081FF",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F4F6F8",
+    "bgBottom": "#FFFFFF",
+    "bar": "#E8ECEF",
+    "dock": "#CCE8ECEF",
+    "accent": "#0081FF",
+    "onDark": "#171B1F"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "workspaceAxis": "horizontal"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

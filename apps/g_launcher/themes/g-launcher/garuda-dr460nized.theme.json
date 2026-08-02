@@ -1,0 +1,35 @@
+{
+  "id": "garuda-dr460nized",
+  "name": "Garuda Dr460nized",
+  "version": "2024",
+  "shell": "plasma",
+  "tier": "pro",
+  "chromeFamily": "breeze",
+  "palette": {
+    "bgTop": "#2E3440",
+    "bgBottom": "#1E1E2E",
+    "bar": "#181825",
+    "dock": "#CC181825",
+    "accent": "#C574DD",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.3,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

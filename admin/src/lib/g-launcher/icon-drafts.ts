@@ -60,6 +60,27 @@ export interface IconDraft {
    *  same as the one you left. */
   plate: string;
   radius: number;
+  /**
+   * The mask previewed behind the art. One of ICON_TREATMENTS.
+   *
+   * ─── PREVIEW-ONLY, AND THAT IS NOT A LIMITATION ─────────────────────────
+   *
+   * A hero pack cannot carry a shape. `HeroIconResolver` reads an id, a name,
+   * one `masked` flag and a package-to-filename map, and nothing else; the
+   * SHAPE comes from the theme's `icons.treatment`, which is a property of the
+   * distro wearing the pack rather than of the pack itself. The same art is
+   * clipped to a circle under one distro and a squircle under another, and
+   * that is the design.
+   *
+   * So this joins `plate` and `radius` as an author's-eye setting: it says
+   * which distro's mask you want to LOOK at while you work. Naming the six
+   * real treatments rather than offering a free-form percentage means what you
+   * preview is a shape the device can actually apply.
+   *
+   * Optional so a draft written before this field existed still parses; the
+   * reader below fills it.
+   */
+  shape?: string;
   icons: IconDraftIcon[];
   updatedAt: number;
 }

@@ -1,0 +1,43 @@
+{
+  "id": "zorin-os-17",
+  "name": "Zorin OS",
+  "version": "17",
+  "shell": "gnome",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#2A3138",
+    "bgBottom": "#171C21",
+    "bar": "#12161A",
+    "dock": "#CC12161A",
+    "accent": "#0F7EC8",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F2F5F7",
+    "bgBottom": "#FFFFFF",
+    "bar": "#E6EBEF",
+    "dock": "#CCE6EBEF",
+    "accent": "#0F7EC8",
+    "onDark": "#171C21"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

@@ -1,0 +1,44 @@
+{
+  "id": "elementary-os-8",
+  "name": "elementary OS",
+  "version": "8",
+  "shell": "aqua",
+  "tier": "pro",
+  "chromeFamily": "aqua",
+  "palette": {
+    "bgTop": "#3A4048",
+    "bgBottom": "#20252B",
+    "bar": "#1A1E23",
+    "dock": "#CC1A1E23",
+    "accent": "#64BAFF",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F5F6F7",
+    "bgBottom": "#FFFFFF",
+    "bar": "#E9ECEF",
+    "dock": "#CCE9ECEF",
+    "accent": "#3689E6",
+    "onDark": "#20252B"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "workspaceAxis": "horizontal"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

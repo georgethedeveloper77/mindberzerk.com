@@ -215,6 +215,26 @@ export default async function IconBuilderPage({
         publishedIds={hero.map((p) => p.packId)}
         publishedVersion={publishedVersion}
         initial={initial}
+        // ── THE DRAFT'S PREVIEW SETTINGS, WHICH WERE BEING DROPPED ──────
+        //
+        // `IconDraft` has carried `plate` and `radius` since drafts existed,
+        // with a comment promising a reopened draft looks like the one you
+        // left, and the save action has always written them. Nothing read them
+        // back: the builder hardcoded its two useState defaults, so every
+        // reopen silently reset both. `shape` joins them rather than becoming
+        // the second field with the same bug.
+        //
+        // Only on the draft branch. A published pack read off the CDN has no
+        // preview settings to restore, because pack.json does not carry any.
+        preview={
+          draft
+            ? {
+                plate: draft.plate,
+                radius: draft.radius,
+                shape: draft.shape ?? 'roundedSquare',
+              }
+            : null
+        }
         play={play}
       />
     </StudioShell>

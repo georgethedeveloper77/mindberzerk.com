@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_spec.dart';
@@ -102,90 +103,28 @@ Future<void> showDeskletMenu(
     panelRadius: theme.panelRadius,
   );
 
-  return showGeneralDialog<void>(
+  // ─── POSITIONING LIVES IN AnchoredMenu NOW ────────────────────────────
+  //
+  // This file used to compute its own: a width constant, a height GUESSED from
+  // the row count times 56 plus a 44 header, a clamp and a flip. Two other
+  // menus had written the same arithmetic with different constants, and two
+  // more still needed it, so it moved to one primitive.
+  //
+  // The guessed height was the part worth losing. It was a claim about a widget
+  // that had not been built, so a row that wrapped, a longer translation or a
+  // larger system font positioned the panel against a height it did not have.
+  // AnchoredMenu measures the child instead.
+  return AnchoredMenu.show(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.black.withValues(alpha: 0.38),
-    transitionDuration: const Duration(milliseconds: 140),
-    pageBuilder: (sheet, _, __) {
-      // `context`, the CALLER's, is passed alongside the route's own. Anything
-      // that opens a second surface must push from a context that OUTLIVES this
-      // panel: `sheet` is dead the instant the row pops it, and pushing onto a
-      // dead route silently does nothing. Same trap desktop_menu documents.
-      final rows =
-          _rows(context, sheet, ref, theme, desklet, label, isStack);
-      final size = MediaQuery.sizeOf(sheet);
-      final pad = MediaQuery.viewPaddingOf(sheet);
-
-      const width = 244.0;
-      // Header plus rows, close enough to place it without measuring.
-      final height = 44.0 + rows.length * 56.0;
-
-      final a = anchor ??
-          Rect.fromCenter(
-            center: size.center(Offset.zero),
-            width: 1,
-            height: 1,
-          );
-
-      // ── BESIDE THE TILE, NOT AT THE BOTTOM OF THE SCREEN ──────────────
-      //
-      // This was a bottom sheet, which is what every other menu in the app is
-      // and which is wrong here: a bottom sheet is for something about the
-      // SCREEN, and this is about one tile. Most desklets sit in the upper
-      // half, so the menu opened as far from its subject as the display allows
-      // and the tile it referred to was behind the scrim.
-      //
-      // Below the tile when there is room, above it otherwise, clamped to the
-      // safe area either way.
-      final below = a.bottom + 8;
-      final top = below + height <= size.height - pad.bottom - 8
-          ? below
-          : (a.top - height - 8)
-              .clamp(pad.top + 8, size.height - height - pad.bottom - 8);
-
-      final left = (a.center.dx - width / 2)
-          .clamp(8.0, size.width - width - 8);
-
-      return ChromeScope(
-        data: chrome,
-        child: Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
-              width: width,
-              child: GlassPanel(
-                child: Material(
-                  // Transparent: the glass paints. Material is here because a
-                  // ThemedListRow's ink needs an ancestor and showGeneralDialog
-                  // builds outside the app's Scaffold.
-                  color: Colors.transparent,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: chrome.text.title,
-                        ),
-                      ),
-                      ...rows,
-                      const SizedBox(height: 6),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
+    chrome: chrome,
+    anchor: anchor,
+    title: label,
+    width: 244,
+    // `context`, the CALLER's, is what the rows close over. Anything that opens
+    // a second surface must push from a context that OUTLIVES this panel: the
+    // menu's own is dead the instant a row pops it, and pushing onto a dead
+    // route silently does nothing. Same trap desktop_menu documents.
+    rows: (menu) => _rows(context, menu, ref, theme, desklet, label, isStack),
   );
 }
 

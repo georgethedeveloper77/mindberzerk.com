@@ -1,0 +1,44 @@
+{
+  "id": "linux-mint-22",
+  "name": "Linux Mint",
+  "version": "22",
+  "shell": "gnome",
+  "tier": "free",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#2F3436",
+    "bgBottom": "#1E2224",
+    "bar": "#191C1D",
+    "dock": "#CC191C1D",
+    "accent": "#8FB33B",
+    "onDark": "#FFFFFF"
+  },
+  "paletteLight": {
+    "bgTop": "#F4F4F2",
+    "bgBottom": "#FFFFFF",
+    "bar": "#E8E8E6",
+    "dock": "#CCE8E8E6",
+    "accent": "#5E8C1E",
+    "onDark": "#1E2224"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "topBarSide": "bottom",
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

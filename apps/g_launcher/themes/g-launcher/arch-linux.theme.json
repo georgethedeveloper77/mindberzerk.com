@@ -1,0 +1,48 @@
+{
+  "id": "arch-linux",
+  "name": "Arch Linux",
+  "version": "rolling",
+  "shell": "tiling",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#1F2B38",
+    "bgBottom": "#0F1720",
+    "bar": "#0B1219",
+    "dock": "#CC0B1219",
+    "accent": "#1793D1",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "network",
+          "memory",
+          "storage"
+        ],
+        "height": 28
+      }
+    ]
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}

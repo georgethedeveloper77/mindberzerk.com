@@ -8,6 +8,7 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
+import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
@@ -826,7 +827,16 @@ class _AppTileState extends ConsumerState<_AppTile> {
             // menu would have stopped opening entirely.
             final from = _downAt;
             if (from == null || (offset - from).distance < _slop) {
-              showDrawerAppMenu(context, ref, widget.theme, widget.entry);
+              showDrawerAppMenu(
+                context,
+                ref,
+                widget.theme,
+                widget.entry,
+                // The TILE's rectangle, not the finger. A menu about an app
+                // should sit under the app, and on a grid the finger can be
+                // most of a tile away from the icon it landed on.
+                anchor: AnchoredMenu.anchorOf(context),
+              );
             }
           },
           // Centred on the finger. The pointer anchor puts the feedback's
@@ -1240,7 +1250,13 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
             // against the pointer-down position.
             final from = _downAt;
             if (from == null || (offset - from).distance < _slop) {
-              drawerFolderSettings(context, ref, theme, item);
+              drawerFolderSettings(
+                context,
+                ref,
+                theme,
+                item,
+                anchor: AnchoredMenu.anchorOf(context),
+              );
             }
           },
           feedback: FractionalTranslation(
@@ -1685,29 +1701,26 @@ void _showDrawerOverflowMenu(
     panelRadius: theme.panelRadius,
   );
 
-  const width = 220.0;
-  const rowH = 52.0;
-  const pad = 12.0;
-
-  showGeneralDialog<void>(
+  // ─── PREFERS ABOVE, AND THAT IS THE WHOLE REASON IT TAKES A SIDE ──────
+  //
+  // The three-dot button lives on the search bar, which sits at the BOTTOM of
+  // the drawer, so a menu that opens downward opens off the screen every time.
+  // Every other menu in the app prefers below. That difference is why
+  // AnchoredMenu takes the side as an argument rather than picking one: it is a
+  // real disagreement between surfaces, not an inconsistency to be normalised
+  // away.
+  //
+  // The row count and the height arithmetic that used to live here are gone.
+  // AnchoredMenu measures the panel it is positioning, so adding a row is now
+  // just adding a row.
+  AnchoredMenu.show(
     context: context,
-    barrierDismissible: true,
+    chrome: chrome,
+    anchor: Rect.fromCenter(center: at, width: 1, height: 1),
+    width: 220,
+    below: AnchoredMenu.preferAbove,
     barrierLabel: context.t('drawer.dismiss'),
-    // theme-exempt: a scrim is not chrome. Neutral dim over the wallpaper,
-    // same reasoning as the folder member menu.
-    barrierColor: const Color(0x33000000), // theme-exempt: neutral scrim
-    transitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (ctx, _, __) {
-      final size = MediaQuery.sizeOf(ctx);
-      final rowCount = 2 + (showCleanUp ? 1 : 0);
-      final height = rowCount * rowH + pad;
-
-      final left = (at.dx - width / 2).clamp(8.0, size.width - width - 8);
-      final above = at.dy - height - 12;
-      final top = above < 8
-          ? (at.dy + 12).clamp(8.0, size.height - height - 8)
-          : above;
-
+    rows: (ctx) {
       Widget row(IconData icon, String title, VoidCallback go) {
         return ThemedListRow(
           icon: icon,
@@ -1719,50 +1732,20 @@ void _showDrawerOverflowMenu(
         );
       }
 
-      return ChromeScope(
-        data: chrome,
-        child: Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
-              width: width,
-              // The same glass every sheet and dialog uses. An anchored menu
-              // is a floating panel over the desktop too, and leaving it an
-              // opaque grey slab while everything else turned translucent is
-              // the sort of inconsistency nobody can name and everybody feels.
-              child: GlassPanel(
-                borderRadius: BorderRadius.circular(14),
-                child: Material(
-                color: Colors.transparent,
-                elevation: 0,
-                borderRadius: BorderRadius.circular(14),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: pad / 2),
-                    row(Icons.sort, ctx.t('drawer.sort'), onSort),
-                    if (showCleanUp)
-                      row(
-                        Icons.cleaning_services_outlined,
-                        ctx.t('drawer.cleanUpPages'),
-                        onCleanUp,
-                      ),
-                    row(
-                      Icons.settings_outlined,
-                      ctx.t('drawer.gLauncherSettings'),
-                      onSettings,
-                    ),
-                    const SizedBox(height: pad / 2),
-                  ],
-                ),
-              ),
-              ),
-            ),
-          ],
+      return [
+        row(Icons.sort, ctx.t('drawer.sort'), onSort),
+        if (showCleanUp)
+          row(
+            Icons.cleaning_services_outlined,
+            ctx.t('drawer.cleanUpPages'),
+            onCleanUp,
+          ),
+        row(
+          Icons.settings_outlined,
+          ctx.t('drawer.gLauncherSettings'),
+          onSettings,
         ),
-      );
+      ];
     },
   );
 }

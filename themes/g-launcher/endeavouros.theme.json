@@ -1,0 +1,47 @@
+{
+  "id": "endeavouros",
+  "name": "EndeavourOS",
+  "version": "2024",
+  "shell": "tiling",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#3A2B4D",
+    "bgBottom": "#1D162A",
+    "bar": "#171122",
+    "dock": "#CC171122",
+    "accent": "#7F3FBF",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "network",
+          "storage"
+        ],
+        "height": 28
+      }
+    ]
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1.0
+  },
+  "wallpapers": [],
+  "minAppVersion": 6
+}
