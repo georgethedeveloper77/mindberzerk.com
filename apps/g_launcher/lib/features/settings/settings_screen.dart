@@ -9,6 +9,7 @@ import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart' show ChromeFamily;
+import '../../system/notification_badges.dart';
 import '../../system/system_stats.dart';
 import '../gestures/gesture_actions.dart';
 import 'backup_screen.dart';
@@ -1758,6 +1759,113 @@ List<Widget> _appearanceSection(
       ],
     ),
 
+    // ─── PANELS ────────────────────────────────────────────────────────
+    //
+    // Directly under the main opacity slider, because the first row here is
+    // the same material question one level down: that slider governs pages,
+    // these govern the things that float over them.
+    //
+    // The PREVIEW is the reason this group is worth having rather than four
+    // loose rows. Blur, tint and corner radius are the three settings in the
+    // app whose effect is impossible to describe in a subtitle and obvious the
+    // instant you see it, and the surface they change is one that only appears
+    // when you are no longer looking at this screen.
+    _Group(
+      label: 'Panels',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['panel', 'sheet', 'dialog', 'menu', 'preview', 'glass'],
+          _PanelPreview(theme: theme),
+        ),
+        _FilterRow(
+          const ['panel', 'sheet', 'opacity', 'transparency', 'glass'],
+          _OpacityRow(
+            label: 'Panel opacity',
+            sub: 'Sheets, dialogs and menus',
+            value: theme.panelOpacity,
+            following: theme.prefs.panelOpacity == null,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(panelOpacity: v)),
+            onFollow: () =>
+                notifier.edit((p) => p.clearing(panelOpacity: true)),
+          ),
+        ),
+        _FilterRow(
+          const ['blur', 'panel', 'glass', 'frosted', 'performance', 'lag'],
+          _PanelSlider(
+            icon: Icons.blur_on,
+            label: 'Blur',
+            // The honest reason this is exposed, said plainly. Someone whose
+            // launcher stutters is not going to guess that the frosted glass
+            // is what costs them the frames.
+            sub: 'Turn it down if the launcher feels slow',
+            value: theme.panelBlur,
+            min: 0,
+            max: 24,
+            divisions: 12,
+            format: (v) => v <= 0 ? 'Off' : v.round().toString(),
+            onChanged: (v) => notifier.edit((p) => p.copyWith(panelBlur: v)),
+          ),
+        ),
+        _FilterRow(
+          const ['tint', 'colour', 'color', 'panel', 'distro'],
+          _PanelSlider(
+            icon: Icons.palette_outlined,
+            label: 'Tint',
+            sub: 'How much distro colour the glass carries',
+            value: theme.panelTint,
+            min: 0,
+            max: 1,
+            divisions: 10,
+            format: (v) => '${(v * 100).round()}%',
+            onChanged: (v) => notifier.edit((p) => p.copyWith(panelTint: v)),
+          ),
+        ),
+        _FilterRow(
+          const ['corner', 'radius', 'rounded', 'panel', 'shape'],
+          _PanelSlider(
+            icon: Icons.rounded_corner_outlined,
+            label: 'Corners',
+            sub: 'Shared by every panel, so none of them disagree',
+            value: theme.panelRadius,
+            min: 0,
+            max: 28,
+            divisions: 14,
+            format: (v) => '${v.round()}',
+            onChanged: (v) => notifier.edit((p) => p.copyWith(panelRadius: v)),
+          ),
+        ),
+      ],
+    ),
+
+    // ─── NOTIFICATION BADGES ───────────────────────────────────────────
+    //
+    // Its own group rather than a row under Icons, because the first thing in
+    // it is a PERMISSION and permissions deserve to be asked for somewhere the
+    // user can read a sentence about what they are granting. Android's own
+    // dialog is going to tell them this app can read every notification on the
+    // phone, which is true of the API and not true of what we do with it, and
+    // the only place to say so is here.
+    _Group(
+      label: 'Notification badges',
+      query: q,
+      rows: [
+        _FilterRow(
+          const ['badge', 'notification', 'unread', 'dot', 'count', 'permission'],
+          const _BadgeAccessRow(),
+        ),
+        _FilterRow(
+          const ['badge', 'notification', 'dot', 'count', 'unread', 'style'],
+          _BadgeStyleRow(
+            theme: theme,
+            onPick: (v) => v == null
+                ? notifier.edit((p) => p.clearing(badgeStyle: true))
+                : notifier.edit((p) => p.copyWith(badgeStyle: v)),
+          ),
+        ),
+      ],
+    ),
+
     _Group(
       label: context.t('settings.lightAndDark'),
       query: q,
@@ -2692,6 +2800,373 @@ class _OpacityRow extends StatelessWidget {
               style: d.text.caption.copyWith(
                 color: subWhenInert ? c.textFaint : c.textMuted,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A live panel, drawn with the settings currently being dragged.
+///
+/// ─── WHY A PREVIEW AND NOT THREE SUBTITLES ──────────────────────────────────
+///
+/// Blur, tint and corner radius are the three settings in this app whose effect
+/// cannot be put into words that mean anything. "18" is not a blur, "72%" is
+/// not a tint, and the surface all three describe is one that by definition is
+/// not on screen while you are on this screen: you can only see a sheet by
+/// leaving the page that configures it.
+///
+/// So the group opens with one. It is a REAL [GlassPanel] under a real
+/// [ChromeScope], not a mock painted to look like one, which is what makes it
+/// trustworthy: if the preview and the sheet ever disagreed, the preview would
+/// be worse than nothing.
+///
+/// The strip behind it exists because a panel is a translucent thing and a
+/// translucent thing over a flat settings page shows nothing at all. Bands of
+/// the distro's own palette stand in for a wallpaper, so the blur has edges to
+/// soften and the tint has something to sit over.
+class _PanelPreview extends StatelessWidget {
+  const _PanelPreview({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 132,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The stand-in wallpaper. Diagonal so the blur has edges running
+              // through the panel rather than a flat field, which is the only
+              // way a blur is visible at all.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.palette.bgTop,
+                      theme.palette.accent,
+                      theme.palette.bgBottom,
+                    ],
+                    stops: const [0, 0.5, 1],
+                  ),
+                ),
+              ),
+
+              // A REAL scope carrying the live values, so this panel resolves
+              // exactly what a sheet will. Built here rather than inherited
+              // because the settings screen's own chrome is the page's, and
+              // the page is not what is being previewed.
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 0,
+                child: ChromeScope(
+                  data: ChromeData.fromPalette(
+                    theme.palette,
+                    typography: theme.typography,
+                    textScale: theme.textScale,
+                    family: theme.chromeFamily,
+                    opacity: theme.panelOpacity,
+                    panelBlur: theme.panelBlur,
+                    panelTint: theme.panelTint,
+                    panelRadius: theme.panelRadius,
+                  ),
+                  child: Builder(
+                    builder: (inner) {
+                      final p = ChromeScope.of(inner);
+                      return GlassPanel(
+                        // Top corners only, the shape a real sheet takes.
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(p.panelRadius),
+                        ),
+                        border: Border(
+                          top: BorderSide(color: p.colors.lineStrong),
+                        ),
+                        child: SizedBox(
+                          height: 86,
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 10, bottom: 8),
+                                child: Container(
+                                  width: 36,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: p.colors.lineStrong,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 18),
+                                  child: Text('Sheet', style: p.text.title),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 18),
+                                  child: Text(
+                                    'Menus and dialogs match this',
+                                    style: p.text.caption,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A labelled slider for one panel setting.
+///
+/// Shaped like [_OpacityRow] on purpose, since they sit in the same group and
+/// two slider layouts a row apart is the sort of inconsistency nobody names and
+/// everybody feels. It carries no Follow action because these three have no
+/// parent slider to follow: the panel OPACITY does, and it uses the existing
+/// row for exactly that reason.
+class _PanelSlider extends StatelessWidget {
+  const _PanelSlider({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.format,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final String sub;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: c.textMuted),
+              const SizedBox(width: 14),
+              Expanded(child: Text(label, style: d.text.body)),
+              Text(
+                format(value),
+                style: d.text.value.copyWith(color: c.textMuted),
+              ),
+            ],
+          ),
+          ThemedSlider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: format(value),
+            onChanged: onChanged,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 34, bottom: 4),
+            child: Text(sub, style: d.text.caption.copyWith(color: c.textMuted)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Notification access: the state, and the way to change it.
+///
+/// ─── WHY THIS ROW SAYS MORE THAN "ALLOW" ────────────────────────────────────
+///
+/// Tapping it opens Android's notification-access page, which presents a
+/// confirmation dialog warning that this app will be able to read every
+/// notification, including personal information. That warning is accurate about
+/// the API and wrong about this launcher, which counts notifications per package
+/// and reads no title, body, sender or image.
+///
+/// A user who reads that dialog and backs out has made a sensible decision on
+/// bad information. The subtitle here is the only chance to give them the real
+/// one, so it says what is read rather than reassuring them in the abstract.
+///
+/// The state is asked FRESH rather than stored, because access is revocable
+/// from Android's settings at any moment and nothing tells us. A cached flag
+/// would leave this row claiming badges are on while none were drawn.
+class _BadgeAccessRow extends ConsumerWidget {
+  const _BadgeAccessRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final granted = ref.watch(notificationAccessProvider);
+    final on = granted.asData?.value ?? false;
+
+    return _Row(
+      icon: on ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+      accent: true,
+      title: on ? 'Notification access is on' : 'Allow notification access',
+      subtitle: on
+          ? 'Counts only. No message content is read or stored'
+          : 'Needed to show badges. Counts only, never message content',
+      // ALWAYS a widget: _Row.trailing is required and non-nullable. An empty
+      // box when access is granted, because there is nothing left to tap
+      // through to and a chevron would promise a screen that is not there.
+      trailing: on ? const SizedBox.shrink() : const _Chevron(),
+      onTap: () async {
+        await openNotificationAccessSettings();
+
+        // NOTHING TELLS US A GRANT HAPPENED. There is no result to await and
+        // no broadcast to listen for, so the state is re-asked when the user
+        // comes back. Invalidating alone is not enough: the counts themselves
+        // were cached by the bridge while the service was unbound, so they are
+        // pulled too or the row would say granted over an empty drawer.
+        ref.invalidate(notificationAccessProvider);
+        await ref.read(badgeCountsProvider.notifier).refresh();
+      },
+    );
+  }
+}
+
+/// Dot, count, or off, with the distro's own answer as the default.
+///
+/// Written here rather than reaching for the shape sheet, the same call
+/// `_Choices` in desklet_settings makes: four mutually exclusive options is a
+/// segmented row, and a sheet for it is a route push to answer a question that
+/// fits on one line.
+///
+/// The first option is AUTO and it clears the stored value rather than writing
+/// today's resolved answer. A user on auto who switches from Ubuntu to Plasma
+/// should get Plasma's numbers, not the dot they were silently frozen into.
+class _BadgeStyleRow extends StatelessWidget {
+  const _BadgeStyleRow({required this.theme, required this.onPick});
+
+  final EffectiveTheme theme;
+
+  /// Null means auto, which clears the preference.
+  final ValueChanged<String?> onPick;
+
+  static const _options = <({String? value, String label})>[
+    (value: null, label: 'Auto'),
+    (value: 'dot', label: 'Dot'),
+    (value: 'count', label: 'Count'),
+    (value: 'off', label: 'Off'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    final stored = theme.prefs.badgeStyle;
+    // An unknown string from a newer build reads as auto here, which is the
+    // same way badgeStyleFor resolves it. Two places, one answer.
+    final selected = _options.indexWhere((o) => o.value == stored);
+    final index = selected < 0 ? 0 : selected;
+
+    // What auto currently resolves to, named rather than left implicit. "Auto"
+    // on its own tells the user nothing about what they are about to see.
+    // Only ever READ on the auto branch below, where the stored value is null
+    // and badgeStyleFor therefore returns the distro's own answer. That is why
+    // it can be computed straight from the theme without stripping anything.
+    final resolved = switch (badgeStyleFor(theme)) {
+      BadgeStyle.dot => 'a dot',
+      BadgeStyle.count => 'a number',
+      BadgeStyle.none => 'nothing',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.circle_notifications_outlined,
+                  size: 20, color: c.textMuted),
+              const SizedBox(width: 14),
+              Expanded(child: Text('Badge style', style: d.text.body)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: c.line),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              children: [
+                for (var i = 0; i < _options.length; i++)
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onPick(_options[i].value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: i == index ? c.accent : null,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _options[i].label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: d.text.caption.copyWith(
+                            color: i == index ? c.onAccent : c.text,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 34, top: 8),
+            child: Text(
+              stored == null
+                  ? 'This distro shows $resolved'
+                  : 'Every distro, whichever desktop you are wearing',
+              style: d.text.caption.copyWith(color: c.textMuted),
             ),
           ),
         ],

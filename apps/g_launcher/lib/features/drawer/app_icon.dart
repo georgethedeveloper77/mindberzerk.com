@@ -8,6 +8,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../data/cdn/pack_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../../system/notification_badges.dart';
 
 /// Dart-side icon access.
 ///
@@ -107,9 +108,22 @@ class AppIcon extends ConsumerWidget {
     super.key,
     required this.entry,
     required this.size,
+    this.showBadge = true,
   });
 
   final AppEntry entry;
+
+  /// Draw the notification badge when there is one.
+  ///
+  /// True nearly everywhere, and the exceptions are the surfaces where an icon
+  /// is standing in for something rather than being the thing you tap: a
+  /// folder's four-up preview, the settings previews, the setup wizard. A badge
+  /// on a folder's thumbnail claims the FOLDER has that many notifications,
+  /// which is not what it means.
+  ///
+  /// There is a size floor below this as well, because most of those callers
+  /// are also drawing small and a threshold catches the ones that forget.
+  final bool showBadge;
 
   /// Logical pixels. The native side is asked for the DEVICE-pixel size, since
   /// upscaling a 96px bitmap to 144px looks exactly as bad as it sounds.
@@ -197,7 +211,7 @@ class AppIcon extends ConsumerWidget {
       ),
     );
 
-    return SizedBox(
+    final art = SizedBox(
       width: size,
       height: size,
       child: icon.when(
@@ -218,6 +232,149 @@ class AppIcon extends ConsumerWidget {
         },
         loading: () => const SizedBox.shrink(),
         error: (_, __) => const SizedBox.shrink(),
+      ),
+    );
+
+    // ── THE BADGE ────────────────────────────────────────────────────────
+    //
+    // Gated three ways before anything is watched, and the ORDER is chosen so
+    // the cheap tests come first: an icon that is too small, or a caller that
+    // said no, never subscribes to the counts at all.
+    //
+    // The size floor is not arbitrary. A badge on a 20dp folder thumbnail is a
+    // coloured speck that reads as a rendering artefact, and the number inside
+    // a counted one would be sub-pixel. 28 is roughly where a dot is still
+    // legible as a deliberate mark.
+    if (!showBadge || size < _badgeFloor) return art;
+
+    // Resolved per distro, then the user's override. `.select` for the same
+    // reason as the cache id above: effectiveThemeProvider re-emits on every
+    // prefs write and without a selector every icon on the phone would rebuild.
+    final style = ref.watch(
+      effectiveThemeProvider.select(
+        (t) => t.hasValue ? badgeStyleFor(t.requireValue) : BadgeStyle.none,
+      ),
+    );
+    if (style == BadgeStyle.none) return art;
+
+    // Watched with a selector down to THIS app's number, so a notification
+    // arriving for one app rebuilds one icon rather than every icon in the
+    // drawer. Without it, a chatty group chat would rebuild the whole grid on
+    // every message.
+    final count = ref.watch(
+      badgeCountsProvider.select(
+        (c) => badgeFor(c, entry.packageName, entry.userSerial),
+      ),
+    );
+    if (count <= 0) return art;
+
+    return _Badged(art: art, size: size, style: style, count: count);
+  }
+
+  /// Below this, a badge is a speck rather than a mark. See the note above.
+  static const double _badgeFloor = 28;
+}
+
+/// An icon with its notification badge.
+///
+/// Split out so [AppIcon] returns early in the common case and this subtree is
+/// not even constructed for the overwhelming majority of icons, which have no
+/// notifications.
+class _Badged extends ConsumerWidget {
+  const _Badged({
+    required this.art,
+    required this.size,
+    required this.style,
+    required this.count,
+  });
+
+  final Widget art;
+  final double size;
+  final BadgeStyle style;
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(effectiveThemeProvider);
+    if (!theme.hasValue) return art;
+    final p = theme.requireValue.palette;
+
+    final dot = style == BadgeStyle.dot;
+
+    // ─── DERIVED HERE, NOT READ FROM ChromeScope ─────────────────────────
+    //
+    // `onAccent` lives on ChromeColors, not on ThemePalette, and AppIcon is
+    // deliberately scope-free: it is built from the dock, the home grid, the
+    // drawer, folder tiles, settings previews and the setup wizard, and
+    // requiring a ChromeScope ancestor would make it throw on whichever of
+    // those turns out not to have one.
+    //
+    // Same rule as ChromeColors.fromPalette, kept identical on purpose: relative
+    // luminance picks the ink, so Ubuntu orange takes white and a pastel accent
+    // flips to dark. If that rule ever changes, it changes in both places.
+    final onAccent = p.accent.computeLuminance() > 0.5
+        ? const Color(0xFF12080D) // theme-exempt: mirrors ChromeColors.onAccent, which is the one place this pair is authored
+        : const Color(0xFFFFFFFF); // theme-exempt: mirrors ChromeColors.onAccent
+
+    // Proportional to the icon, not a fixed dp. The same badge has to sit on a
+    // 32dp dock icon and a 64dp drawer icon, and a fixed size is conspicuous on
+    // one of them whichever number is chosen.
+    final d = dot ? size * 0.28 : size * 0.42;
+
+    // 99+ rather than a four-digit number that would not fit and would shrink
+    // the type until it is unreadable. Nobody distinguishes 214 from 217 unread.
+    final label = count > 99 ? '99+' : '$count';
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: art),
+          Positioned(
+            // Top-right, and slightly OUTSIDE the artwork on both axes. A badge
+            // inset into the icon covers the corner of the artwork, which on a
+            // square-ish icon is where a lot of logos put something.
+            right: -d * 0.18,
+            top: -d * 0.18,
+            child: Container(
+              constraints: BoxConstraints(minWidth: d),
+              height: d,
+              padding: dot
+                  ? EdgeInsets.zero
+                  : EdgeInsets.symmetric(horizontal: d * 0.22),
+              decoration: BoxDecoration(
+                color: p.accent,
+                borderRadius: BorderRadius.circular(d),
+                // The ring is what separates the badge from whatever it lands
+                // on. Without it an accent-coloured dot on an accent-coloured
+                // icon disappears entirely, and the distros most likely to hit
+                // that are the ones whose icon packs are built from the palette.
+                border: Border.all(
+                  color: p.bgBottom.withValues(alpha: 0.85),
+                  width: d * 0.10,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: dot
+                  ? null
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: onAccent,
+                          fontSize: d * 0.58,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

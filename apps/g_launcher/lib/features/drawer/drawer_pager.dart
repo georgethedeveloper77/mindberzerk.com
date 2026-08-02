@@ -96,6 +96,38 @@ class DrawerPager extends StatefulWidget {
   /// rowsFor.
   static const double _edgeSlack = 8;
 
+  /// The page-dots strip, in logical pixels.
+  ///
+  /// ─── THE HEIGHT THE PAGES NEVER GOT ────────────────────────────────────
+  ///
+  /// The dots are a SIBLING of the pages, not an overlay: the build below
+  /// returns `Column[ Expanded(pages), _Dots ]`. So the pages receive the
+  /// pager's height MINUS this strip, while every piece of arithmetic that
+  /// decided how many rows to draw was measured against the full height.
+  ///
+  /// The grid was therefore laid out believing in space that had already been
+  /// spent, and the excess came off the bottom. A tile is icon-then-label, so
+  /// what the page edge cuts is the label, and the reported symptom is the
+  /// bottom row showing icons with no app names under them.
+  ///
+  /// This is also why [_edgeSlack] never cured it. Eight pixels of headroom
+  /// cannot absorb a forty pixel strip; it was sized against the few-pixel
+  /// causes that came before, and each of those really was fixed.
+  ///
+  /// Both numbers are read off [_Dots] rather than guessed. Plain: 2 top plus
+  /// 10 bottom padding around a 6dp dot. With the add button: the same padding
+  /// around its hit box, which is 8 vertical either side of a 12dp glyph, and
+  /// the taller child is what the Row takes.
+  static const double dotsStripPlain = 18;
+  static const double dotsStripWithAdd = 40;
+
+  /// How much height the strip costs, for a caller that has to estimate rows
+  /// before this widget has laid out. Shared rather than copied: app_drawer
+  /// seeds and keys a grid provider on its own estimate, and two derivations
+  /// that drift is the exact failure the row count already had.
+  static double dotsStripFor({required bool withAdd}) =>
+      withAdd ? dotsStripWithAdd : dotsStripPlain;
+
   static int rowsFor({
     required double maxHeight,
     required double tileHeight,
@@ -257,22 +289,58 @@ class _DrawerPagerState extends State<DrawerPager> {
             widget.columns;
         final tileH = tileW / widget.aspectRatio;
 
-        // At least one row, however cramped: a pager with zero rows per page
-        // would divide by zero and show nothing at all. The override wins;
-        // see its doc for why the custom drawer must not re-derive.
-        final derived = DrawerPager.rowsFor(
-          maxHeight: constraints.maxHeight,
-          tileHeight: tileH,
-          topPadding: widget.topPadding,
-        );
-        final rows = widget.rowsOverride ?? derived;
+        // ── RESERVE THE DOTS BEFORE COUNTING ROWS ───────────────────────
+        //
+        // See [DrawerPager.dotsStripPlain]: the strip is a sibling of the
+        // pages and its height was never taken out of theirs.
+        //
+        // Whether it appears depends on the page count, and the page count
+        // depends on the row count, which is what we are trying to compute.
+        // Rather than guess at that loop, it is resolved in two passes, which
+        // terminates because the second pass only ever ADDS height.
+        //
+        // Pass one assumes the strip is there. If that turns out to give a
+        // single page and there is no add button, the strip is not drawn after
+        // all, so pass two hands the height back.
+        //
+        // At least one row either way, however cramped: a pager with zero rows
+        // per page would divide by zero and show nothing at all. The override
+        // wins; see its doc for why the custom drawer must not re-derive.
+        int deriveRows(double strip) =>
+            widget.rowsOverride ??
+            DrawerPager.rowsFor(
+              maxHeight: constraints.maxHeight - strip,
+              tileHeight: tileH,
+              topPadding: widget.topPadding,
+            );
 
+        int pagesFor(int rows) => math.max(
+              1,
+              (widget.itemCount / math.max(1, rows * widget.columns)).ceil(),
+            );
+
+        var strip =
+            DrawerPager.dotsStripFor(withAdd: widget.onAddPage != null);
+        var rows = deriveRows(strip);
+        var pageCount = pagesFor(rows);
+
+        // The one case where the strip is not drawn: a single page with no add
+        // button. Give the height back and recount.
+        if (pageCount <= 1 && widget.onAddPage == null) {
+          strip = 0;
+          rows = deriveRows(strip);
+          pageCount = pagesFor(rows);
+        }
+
+        // REPORTS THE STRIP-AWARE COUNT. app_drawer keys its grid provider on
+        // this, so handing back a number measured against a height the pages
+        // never had would put the provider and the screen on different grids.
         if (widget.rowsOverride == null &&
             widget.onRows != null &&
-            derived != _reportedRows) {
-          _reportedRows = derived;
+            rows != _reportedRows) {
+          _reportedRows = rows;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) widget.onRows?.call(derived);
+            if (mounted) widget.onRows?.call(rows);
           });
         }
 
@@ -305,8 +373,12 @@ class _DrawerPagerState extends State<DrawerPager> {
         // get slightly smaller and every label survives, which is the right
         // trade: a grid one notch tighter still reads, a row of headless
         // captions does not.
+        // `strip` here for the same reason it is in the row count: the leftover
+        // is spread back into the row gaps below, so measuring it against a
+        // height the pages do not have would hand the overflow straight back
+        // as spacing and clip the bottom row exactly as before.
         final available =
-            constraints.maxHeight - vPad * 2 - widget.topPadding;
+            constraints.maxHeight - strip - vPad * 2 - widget.topPadding;
         final wanted = rows * tileH + (rows - 1) * mainGap;
 
         final tileHFit = wanted > available && rows > 0
@@ -329,7 +401,6 @@ class _DrawerPagerState extends State<DrawerPager> {
         final centre = (slack - absorbed) / 2;
 
         final perPage = rows * widget.columns;
-        final pageCount = math.max(1, (widget.itemCount / perPage).ceil());
 
         // One page has nothing to wrap to. The unbounded builder would happily
         // repeat it side by side, which reads as the drawer having duplicated

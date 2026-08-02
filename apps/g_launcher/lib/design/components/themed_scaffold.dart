@@ -46,11 +46,28 @@ class ThemedScaffold extends ConsumerWidget {
     // maybeWhen keeps the loading + error cases collapsed onto the same floor
     // so there is never an un-themed flash of a different kind.
     final data = ref.watch(effectiveThemeProvider).maybeWhen(
+          // ─── THE OPACITY WAS BEING DROPPED HERE ──────────────────
+          //
+          // Every other builder of ChromeData passes it; this one did not, so
+          // a sheet opened from a settings screen rendered fully solid while
+          // the identical sheet opened from the desktop honoured the user's
+          // setting. Same widget, two looks, depending only on where you
+          // opened it from, which reads as a rendering fault rather than as a
+          // setting that does not reach here.
+          //
+          // The panel material rides along for the same reason: a blur turned
+          // off to stop a budget phone stuttering must be off in the sheets
+          // this screen opens too, or the setting has a hole in it exactly
+          // where the person went looking for it.
           data: (t) => ChromeData.fromPalette(
             t.palette,
             typography: t.typography,
             textScale: t.textScale,
             family: t.chromeFamily,
+            opacity: t.surfaceOpacity,
+            panelBlur: t.panelBlur,
+            panelTint: t.panelTint,
+            panelRadius: t.panelRadius,
           ),
           orElse: () => ChromeData.bootstrap,
         );

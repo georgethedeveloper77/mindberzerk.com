@@ -146,6 +146,33 @@ class EffectiveTheme {
   double get barOpacity =>
       (prefs.barOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
 
+  // ── PANELS ───────────────────────────────────────────────────────────────
+  //
+  // Every floating glass surface reads these: sheets, dialogs, the desktop
+  // menu, the desklet menu. They were constants inside GlassPanel, and each
+  // default below is the exact number it used, so an untouched install renders
+  // pixel-identically to before these existed.
+  //
+  // Clamped here rather than at the sliders, the same guarantee the opacities
+  // get: a value from a newer build or a hand-edited prefs file cannot make a
+  // panel unreadable or give it a corner radius larger than the panel.
+
+  /// Falls back to the main slider, so a panel stays in step with the page
+  /// behind it until someone deliberately splits it out.
+  double get panelOpacity =>
+      (prefs.panelOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+
+  /// 0 to 24. Zero is a real setting and switches the BackdropFilter off; see
+  /// [LauncherPrefs.panelBlur] for why that is exposed at all.
+  double get panelBlur => (prefs.panelBlur ?? 18.0).clamp(0.0, 24.0);
+
+  /// 0 is neutral grey, 1 is fully the distro's own colour.
+  double get panelTint => (prefs.panelTint ?? 0.72).clamp(0.0, 1.0);
+
+  /// Logical pixels. Capped at 28 because past roughly that a sheet's top
+  /// corners eat into the grab handle and the title beside it.
+  double get panelRadius => (prefs.panelRadius ?? 16.0).clamp(0.0, 28.0);
+
   /// The palette actually on screen.
   ///
   /// `spec.palette` is the DARK variant and keeps that name for

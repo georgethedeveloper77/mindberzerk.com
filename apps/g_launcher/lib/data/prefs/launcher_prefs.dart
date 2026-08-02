@@ -37,6 +37,11 @@ class LauncherPrefs {
     this.dockOpacity,
     this.drawerOpacity,
     this.barOpacity,
+    this.panelOpacity,
+    this.panelBlur,
+    this.panelTint,
+    this.panelRadius,
+    this.badgeStyle,
     this.workspaceCount,
     this.verboseBoot,
     this.iconSizeDp,
@@ -234,10 +239,24 @@ class LauncherPrefs {
   //
   // The earlier reasoning against per-section opacity was that a settings page
   // and a sheet over it disagreeing about how solid they are reads as a
-  // rendering fault. That still holds, and it is why the split is NOT
-  // arbitrary: it covers the three surfaces that are PERMANENT chrome over the
-  // wallpaper. Sheets, dialogs and menus are transient and stay on the one
-  // slider, so nothing that stacks can disagree with the thing under it.
+  // rendering fault. That is why the split covers the surfaces that are
+  // PERMANENT chrome over the wallpaper.
+  //
+  // ─── AND WHY PANELS JOINED THEM, WITH THE RISK WRITTEN DOWN ────────────
+  //
+  // Sheets, dialogs and menus were deliberately excluded on exactly that
+  // ground. They are now [panelOpacity] below, which reopens the case the
+  // paragraph above closed: a sheet CAN now be set to disagree with the page
+  // under it.
+  //
+  // Two things make that acceptable rather than a reversal. It is opt-in, and
+  // it falls back to [surfaceOpacity], so no phone changes and the stacking
+  // stays consistent until someone deliberately splits it. And the setting
+  // that people actually wanted from this group is not the opacity at all: it
+  // is the blur and the tint, which have no equivalent on a flat page and
+  // therefore nothing to disagree with. Opacity comes along because a panel
+  // section that governed everything about a panel EXCEPT how solid it is
+  // would be the odd one out.
   //
   // Resolved in [EffectiveTheme], never read raw: a widget reading these would
   // miss the fallback and paint its section solid the moment the user moved
@@ -258,6 +277,61 @@ class LauncherPrefs {
   /// bar. Inert-where-inapplicable is the same honest arrangement
   /// `drawerScrollStyle` already has, and it needs no clamping code.
   final double? barOpacity;
+
+  // ── PANELS ───────────────────────────────────────────────────────────────
+  //
+  // Every floating glass surface: sheets, dialogs, the desktop menu, the
+  // desklet menu. ONE material, so one set of settings; a dialog that blurred
+  // differently from the sheet it opened from would read as two design
+  // languages in one app.
+  //
+  // All four are null by default and every default below reproduces exactly
+  // what GlassPanel hardcoded before this existed, so an untouched install
+  // renders identically.
+  //
+  // Resolved in [EffectiveTheme], never read raw, same contract as the
+  // opacities above.
+
+  /// How solid a floating panel is. Falls back to [surfaceOpacity].
+  final double? panelOpacity;
+
+  /// Backdrop blur radius, 0 to 24. Default 18.
+  ///
+  /// ZERO IS A REAL SETTING, not just the low end. [BackdropFilter] rasterises
+  /// what is behind it and this app targets budget Infinix and Tecno hardware;
+  /// GlassPanel's own doc already names the sigma as the first thing to cut if
+  /// the launcher ever janks. Exposing it means the person on the slow phone
+  /// can cut it without waiting for a release, and a tinted opaque panel still
+  /// looks deliberate.
+  final double? panelBlur;
+
+  /// How much of the distro's own colour comes through, 0 to 1. Default 0.72.
+  ///
+  /// STRENGTH, NOT HUE, and the distinction is deliberate. A colour picker
+  /// here would let someone paint a GNOME desktop's sheets pink, which is the
+  /// same argument desklet_settings makes for offering a short swatch list
+  /// rather than an arbitrary hex: this launcher's whole claim is that a
+  /// distro owns its colour. Zero is neutral grey, one is fully the distro's.
+  final double? panelTint;
+
+  /// Corner radius for every floating panel, in logical pixels. Default 16,
+  /// which is GRadius.lg, the value the sheet and the dialog both hardcoded.
+  final double? panelRadius;
+
+  // ── NOTIFICATION BADGES ──────────────────────────────────────────────────
+
+  /// 'auto' | 'dot' | 'count' | 'off'. null means auto.
+  ///
+  /// A STRING, not an enum, and for once the reason is not Pigeon: this never
+  /// crosses the bridge. It is the same rule every other stored choice in this
+  /// class follows (`iconTreatment`, `drawerScrollStyle`, `folderShape`) so
+  /// that a value written by a NEWER build lands in an older one as an unknown
+  /// string and falls through to auto, rather than failing to parse and taking
+  /// the whole prefs file down with it.
+  ///
+  /// Auto is the distro's own answer: a dot under GNOME, a number under Plasma,
+  /// nothing on a tiling or terminal shell. See `badgeStyleFor`.
+  final String? badgeStyle;
 
   /// How many vertical workspaces the desktop has, 1–5. null = default (3).
   ///
@@ -526,6 +600,11 @@ class LauncherPrefs {
     double? dockOpacity,
     double? drawerOpacity,
     double? barOpacity,
+    double? panelOpacity,
+    double? panelBlur,
+    double? panelTint,
+    double? panelRadius,
+    String? badgeStyle,
     int? workspaceCount,
     bool? verboseBoot,
     double? iconSizeDp,
@@ -580,6 +659,11 @@ class LauncherPrefs {
       dockOpacity: dockOpacity ?? this.dockOpacity,
       drawerOpacity: drawerOpacity ?? this.drawerOpacity,
       barOpacity: barOpacity ?? this.barOpacity,
+      panelOpacity: panelOpacity ?? this.panelOpacity,
+      panelBlur: panelBlur ?? this.panelBlur,
+      panelTint: panelTint ?? this.panelTint,
+      panelRadius: panelRadius ?? this.panelRadius,
+      badgeStyle: badgeStyle ?? this.badgeStyle,
       workspaceCount: workspaceCount ?? this.workspaceCount,
       verboseBoot: verboseBoot ?? this.verboseBoot,
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
@@ -638,6 +722,11 @@ class LauncherPrefs {
     bool dockOpacity = false,
     bool drawerOpacity = false,
     bool barOpacity = false,
+    bool panelOpacity = false,
+    bool panelBlur = false,
+    bool panelTint = false,
+    bool panelRadius = false,
+    bool badgeStyle = false,
     /// Clearable, because removing the wallpaper you had chosen has to
     /// leave NO choice rather than a path pointing at a picture that is no
     /// longer in the list. `effective_theme` treats a non-null value here
@@ -702,6 +791,11 @@ class LauncherPrefs {
       dockOpacity: dockOpacity ? null : this.dockOpacity,
       drawerOpacity: drawerOpacity ? null : this.drawerOpacity,
       barOpacity: barOpacity ? null : this.barOpacity,
+      panelOpacity: panelOpacity ? null : this.panelOpacity,
+      panelBlur: panelBlur ? null : this.panelBlur,
+      panelTint: panelTint ? null : this.panelTint,
+      panelRadius: panelRadius ? null : this.panelRadius,
+      badgeStyle: badgeStyle ? null : this.badgeStyle,
       workspaceCount: workspaceCount ? null : this.workspaceCount,
       verboseBoot: verboseBoot ? null : this.verboseBoot,
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
@@ -771,6 +865,11 @@ class LauncherPrefs {
         if (dockOpacity != null) 'dockOpacity': dockOpacity,
         if (drawerOpacity != null) 'drawerOpacity': drawerOpacity,
         if (barOpacity != null) 'barOpacity': barOpacity,
+        if (panelOpacity != null) 'panelOpacity': panelOpacity,
+        if (panelBlur != null) 'panelBlur': panelBlur,
+        if (panelTint != null) 'panelTint': panelTint,
+        if (panelRadius != null) 'panelRadius': panelRadius,
+        if (badgeStyle != null) 'badgeStyle': badgeStyle,
         if (drawerSearchPosition != null)
           'drawerSearchPosition': drawerSearchPosition,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
@@ -840,6 +939,11 @@ class LauncherPrefs {
       dockOpacity: (j['dockOpacity'] as num?)?.toDouble(),
       drawerOpacity: (j['drawerOpacity'] as num?)?.toDouble(),
       barOpacity: (j['barOpacity'] as num?)?.toDouble(),
+      panelOpacity: (j['panelOpacity'] as num?)?.toDouble(),
+      panelBlur: (j['panelBlur'] as num?)?.toDouble(),
+      panelTint: (j['panelTint'] as num?)?.toDouble(),
+      panelRadius: (j['panelRadius'] as num?)?.toDouble(),
+      badgeStyle: j['badgeStyle'] as String?,
       workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
       verboseBoot: j['verboseBoot'] as bool?,
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
@@ -935,6 +1039,11 @@ class LauncherPrefs {
         other.dockOpacity == dockOpacity &&
         other.drawerOpacity == drawerOpacity &&
         other.barOpacity == barOpacity &&
+        other.panelOpacity == panelOpacity &&
+        other.panelBlur == panelBlur &&
+        other.panelTint == panelTint &&
+        other.panelRadius == panelRadius &&
+        other.badgeStyle == badgeStyle &&
         other.workspaceCount == workspaceCount &&
         other.verboseBoot == verboseBoot &&
         other.iconSizeDp == iconSizeDp &&
@@ -993,6 +1102,11 @@ class LauncherPrefs {
         dockOpacity,
         drawerOpacity,
         barOpacity,
+        panelOpacity,
+        panelBlur,
+        panelTint,
+        panelRadius,
+        badgeStyle,
         workspaceCount,
         verboseBoot,
         iconSizeDp,

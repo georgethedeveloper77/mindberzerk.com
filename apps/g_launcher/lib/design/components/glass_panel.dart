@@ -38,24 +38,33 @@ class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
     required this.child,
-    this.borderRadius = BorderRadius.zero,
+    this.borderRadius,
     this.border,
-    this.blurSigma = 18,
+    this.blurSigma,
   });
 
   final Widget child;
-  final BorderRadius borderRadius;
+
+  /// Null takes the chrome's shared panel radius, which is what every caller
+  /// should do now that the radius is a setting. Pass one only for a shape the
+  /// setting cannot express: a sheet's top-only rounding builds its own from
+  /// [ChromeData.panelRadius] rather than overriding the number.
+  final BorderRadius? borderRadius;
 
   /// Defaults to a hairline on every side. A sheet passes a top-only edge,
   /// because its other three run off the screen.
   final BoxBorder? border;
 
-  final double blurSigma;
+  /// Null takes the chrome's blur. See [ChromeData.panelBlur].
+  final double? blurSigma;
 
-  /// How much of the distro's own colour comes through.
-  static const _tintAlpha = 0.72;
-
-  /// How much neutral chrome sits on top of it.
+  /// How much neutral chrome sits on top of the tint.
+  ///
+  /// Still a constant, and deliberately the one of the pair that did NOT
+  /// become a setting. The grey is what makes this read as a tinted grey panel
+  /// rather than a coloured one, which is the whole argument in the note
+  /// above; exposing both would let someone dissolve the panel into a wash of
+  /// distro colour with no structure in it. The tint rides over this.
   static const _surfaceAlpha = 0.62;
 
   @override
@@ -72,27 +81,42 @@ class GlassPanel extends StatelessWidget {
     // page went see-through would read as a bug rather than a setting.
     final o = d.opacity;
 
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: c.tint.withValues(alpha: _tintAlpha * o),
-            borderRadius: borderRadius,
-            // The edge is not decoration. A translucent panel over a busy
-            // wallpaper has no boundary at all without one.
-            border: border ?? Border.all(color: c.lineStrong),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: c.surface.withValues(alpha: _surfaceAlpha * o),
-              borderRadius: borderRadius,
-            ),
-            child: child,
-          ),
+    final radius = borderRadius ?? BorderRadius.circular(d.panelRadius);
+    final sigma = blurSigma ?? d.panelBlur;
+
+    // ─── ZERO SIGMA SKIPS THE FILTER, IT DOES NOT PASS ZERO TO IT ─────────
+    //
+    // A BackdropFilter with a zero-sigma blur still rasterises the layer
+    // behind it, so it costs the whole expense of the effect and produces none
+    // of it. Since zero is now a real user setting, and specifically the one a
+    // person reaches for when the launcher stutters, honouring it has to mean
+    // not building the filter at all.
+    Widget fill = DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.tint.withValues(alpha: d.panelTint * o),
+        borderRadius: radius,
+        // The edge is not decoration. A translucent panel over a busy
+        // wallpaper has no boundary at all without one, and it matters more
+        // now: a panel with the blur turned off and the tint low has the
+        // hairline as its only boundary.
+        border: border ?? Border.all(color: c.lineStrong),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: c.surface.withValues(alpha: _surfaceAlpha * o),
+          borderRadius: radius,
         ),
+        child: child,
       ),
     );
+
+    if (sigma > 0) {
+      fill = BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: fill,
+      );
+    }
+
+    return ClipRRect(borderRadius: radius, child: fill);
   }
 }

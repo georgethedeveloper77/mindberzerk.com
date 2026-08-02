@@ -6,6 +6,7 @@ import com.mindhunter.g_launcher.cdn.PackHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackSyncWorker
 import com.mindhunter.g_launcher.pack.PackFlutterApi
 import com.mindhunter.g_launcher.pack.PackHostApi
+import com.mindhunter.g_launcher.system.BadgeBridge
 import com.mindhunter.g_launcher.widgets.WidgetHostController
 import com.mindhunter.g_launcher.widgets.WidgetPlatformViewFactory
 import io.flutter.embedding.engine.FlutterEngine
@@ -87,6 +88,20 @@ class LauncherApplication : Application() {
         // ids that a shipped APK already agrees on.
         packApi = PackHostApiImpl(this, PackFlutterApi(messenger))
         PackHostApi.setUp(messenger, packApi)
+
+        // Notification badges. A plain MethodChannel rather than a third
+        // Pigeon API: see the note in NotificationBadges.kt for why a badge
+        // feature must not go anywhere near the launcher schema's codec.
+        //
+        // Registered here, on the warmed engine, because the LISTENER SERVICE
+        // is constructed by the system on its own schedule and may well have
+        // connected before this line runs. BadgeBridge caches what it has, so
+        // setting the channel up late still delivers the current counts rather
+        // than an empty screen until the next notification arrives.
+        //
+        // Costs nothing when the user has not granted access: the service is
+        // never bound, nothing publishes, and the channel sits idle.
+        BadgeBridge.setUp(this, messenger)
 
         FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
 

@@ -155,6 +155,10 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The chrome the route re-provided above. Read for the shared panel
+    // radius; the colours still come from the glass itself.
+    final d = ChromeScope.of(context);
+
     return SafeArea(
       top: false,
       // MATERIAL, not a plain Container. showGeneralDialog builds this outside
@@ -179,7 +183,10 @@ class _Bar extends StatelessWidget {
         // colour. The wallpaper reads through it, which is the entire point of
         // this gesture.
         child: GlassPanel(
-          borderRadius: BorderRadius.circular(20),
+          // No literal: the shared panel radius, like every other floating
+          // surface. This bar carried its own 20 while the sheet carried 16,
+          // which is the drift a single setting exists to end.
+          borderRadius: BorderRadius.circular(d.panelRadius),
           child: Material(
             // Transparent: the glass paints the surface. Material stays because
             // showGeneralDialog builds this outside the app's Scaffold, so the
@@ -188,7 +195,7 @@ class _Bar extends StatelessWidget {
             color: Colors.transparent,
             clipBehavior: Clip.antiAlias,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(d.panelRadius),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),

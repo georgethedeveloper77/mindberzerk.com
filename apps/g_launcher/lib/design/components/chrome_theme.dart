@@ -402,6 +402,9 @@ class ChromeData {
   const ChromeData({
     required this.colors,
     this.opacity = 1.0,
+    this.panelBlur = 18,
+    this.panelTint = 0.72,
+    this.panelRadius = 16,
     required this.text,
     this.family = ChromeFamily.generic,
   });
@@ -415,6 +418,27 @@ class ChromeData {
   /// has to scale them by the same amount, and because a panel that stayed
   /// solid while every page behind it went translucent would look like a bug.
   final double opacity;
+
+  // ── PANEL MATERIAL ───────────────────────────────────────────────────────
+  //
+  // Read by [GlassPanel] and by the surfaces that shape themselves to match
+  // it. These were private constants inside that widget, and the defaults here
+  // are the same numbers, so a ChromeData built without them is byte-identical
+  // to what the panel drew before.
+  //
+  // On ChromeData rather than passed to each panel because there are four call
+  // sites across sheets, dialogs and two menus, and a per-call parameter is
+  // four chances for one of them to be forgotten and drift.
+
+  /// Backdrop blur radius. Zero switches the filter off entirely.
+  final double panelBlur;
+
+  /// How much of the distro's colour the panel carries. 0 is neutral grey.
+  final double panelTint;
+
+  /// Corner radius, in logical pixels, shared by every floating panel.
+  final double panelRadius;
+
   final ChromeText text;
 
   /// The structural design language (see [ChromeFamily]). Surfaces that fork on
@@ -440,11 +464,17 @@ class ChromeData {
     double textScale = 1.0,
     ChromeFamily family = ChromeFamily.generic,
     double opacity = 1.0,
+    double panelBlur = 18,
+    double panelTint = 0.72,
+    double panelRadius = 16,
   }) {
     final colors = ChromeColors.fromPalette(palette).withOpacity(opacity);
     return ChromeData(
       colors: colors,
       opacity: opacity,
+      panelBlur: panelBlur,
+      panelTint: panelTint,
+      panelRadius: panelRadius,
       text: ChromeText.resolve(
         colors,
         typography: typography,

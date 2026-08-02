@@ -200,6 +200,33 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!--
+          Notification badges. Strictly opt-in, exactly like the gesture
+          service above: declaring it here does NOT enable it. The user must
+          turn it on in Android's notification-access screen, and until they do
+          the launcher simply shows no badges.
+
+          There is no runtime-permission form of this. Android gates it behind
+          a full page and a confirmation dialog because a listener CAN read the
+          content of every notification on the phone. This one does not: it
+          counts them, by package, and reads no title, body, sender or image.
+          Say that where we ask, because the system dialog will imply otherwise.
+
+          NOTE for Play: this triggers a sensitive-permission declaration in the
+          console, the same as the accessibility service. Answer it the same
+          way, honestly and specifically - "counting notifications per app to
+          draw a badge on the launcher icon" - and link the opt-in screen.
+        -->
+        <service
+            android:name=".system.NotificationBadgeService"
+            android:exported="false"
+            android:label="@string/notification_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

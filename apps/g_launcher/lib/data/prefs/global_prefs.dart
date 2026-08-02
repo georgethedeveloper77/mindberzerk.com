@@ -61,6 +61,11 @@ class GlobalPrefs {
     this.dockOpacity,
     this.drawerOpacity,
     this.barOpacity,
+    this.panelOpacity,
+    this.panelBlur,
+    this.panelTint,
+    this.panelRadius,
+    this.badgeStyle,
   });
 
   // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -119,6 +124,21 @@ class GlobalPrefs {
   final double? drawerOpacity;
   final double? barOpacity;
 
+  /// Every floating glass surface: sheets, dialogs, the desktop and desklet
+  /// menus. Promoted for the same reason the opacities are, and with a sharper
+  /// case: blur is a PERFORMANCE setting as much as a taste one, and a person
+  /// who turned it off because their Tecno stutters means it off everywhere,
+  /// not off on Ubuntu and back on the moment they try Plasma.
+  final double? panelOpacity;
+  final double? panelBlur;
+  final double? panelTint;
+  final double? panelRadius;
+
+  /// Badge style. Promoted because "I do not want numbers on my icons" is a
+  /// fact about the person, not about Ubuntu, and having to say it again on
+  /// every distro is exactly the complaint this bucket exists to answer.
+  final String? badgeStyle;
+
   /// Read the promoted fields off a [LauncherPrefs].
   ///
   /// Used for the one-time migration and for splitting an edit.
@@ -143,6 +163,11 @@ class GlobalPrefs {
         dockOpacity: p.dockOpacity,
         drawerOpacity: p.drawerOpacity,
         barOpacity: p.barOpacity,
+        panelOpacity: p.panelOpacity,
+        panelBlur: p.panelBlur,
+        panelTint: p.panelTint,
+        panelRadius: p.panelRadius,
+        badgeStyle: p.badgeStyle,
       );
 
   /// Overlay these values onto [p], replacing whatever the per-theme store held
@@ -174,6 +199,11 @@ class GlobalPrefs {
       dockOpacity: dockOpacity == null,
       drawerOpacity: drawerOpacity == null,
       barOpacity: barOpacity == null,
+      panelOpacity: panelOpacity == null,
+      panelBlur: panelBlur == null,
+      panelTint: panelTint == null,
+      panelRadius: panelRadius == null,
+      badgeStyle: badgeStyle == null,
     );
 
     return cleared.copyWith(
@@ -197,6 +227,11 @@ class GlobalPrefs {
       dockOpacity: dockOpacity,
       drawerOpacity: drawerOpacity,
       barOpacity: barOpacity,
+      panelOpacity: panelOpacity,
+      panelBlur: panelBlur,
+      panelTint: panelTint,
+      panelRadius: panelRadius,
+      badgeStyle: badgeStyle,
     );
   }
 
@@ -224,6 +259,11 @@ class GlobalPrefs {
         if (dockOpacity != null) 'dockOpacity': dockOpacity,
         if (drawerOpacity != null) 'drawerOpacity': drawerOpacity,
         if (barOpacity != null) 'barOpacity': barOpacity,
+        if (panelOpacity != null) 'panelOpacity': panelOpacity,
+        if (panelBlur != null) 'panelBlur': panelBlur,
+        if (panelTint != null) 'panelTint': panelTint,
+        if (panelRadius != null) 'panelRadius': panelRadius,
+        if (badgeStyle != null) 'badgeStyle': badgeStyle,
       };
 
   factory GlobalPrefs.fromJson(Map<String, dynamic> j) => GlobalPrefs(
@@ -247,6 +287,11 @@ class GlobalPrefs {
         dockOpacity: (j['dockOpacity'] as num?)?.toDouble(),
         drawerOpacity: (j['drawerOpacity'] as num?)?.toDouble(),
         barOpacity: (j['barOpacity'] as num?)?.toDouble(),
+        panelOpacity: (j['panelOpacity'] as num?)?.toDouble(),
+        panelBlur: (j['panelBlur'] as num?)?.toDouble(),
+        panelTint: (j['panelTint'] as num?)?.toDouble(),
+        panelRadius: (j['panelRadius'] as num?)?.toDouble(),
+        badgeStyle: j['badgeStyle'] as String?,
       );
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
@@ -283,6 +328,11 @@ class GlobalPrefs {
         dockOpacity,
         drawerOpacity,
         barOpacity,
+        panelOpacity,
+        panelBlur,
+        panelTint,
+        panelRadius,
+        badgeStyle,
       ]);
 }
 

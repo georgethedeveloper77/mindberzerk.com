@@ -93,6 +93,13 @@ Future<void> showDeskletMenu(
     textScale: theme.textScale,
     family: theme.chromeFamily,
     opacity: theme.surfaceOpacity,
+    // The panel material, so this menu is cut and blurred like every other
+    // floating surface. Built here rather than read from a scope because the
+    // desktop is not guaranteed to sit under one and this route is not a
+    // descendant of it, which is also why it is the one place that can forget.
+    panelBlur: theme.panelBlur,
+    panelTint: theme.panelTint,
+    panelRadius: theme.panelRadius,
   );
 
   return showGeneralDialog<void>(
@@ -150,7 +157,6 @@ Future<void> showDeskletMenu(
               top: top,
               width: width,
               child: GlassPanel(
-                borderRadius: BorderRadius.circular(16),
                 child: Material(
                   // Transparent: the glass paints. Material is here because a
                   // ThemedListRow's ink needs an ancestor and showGeneralDialog

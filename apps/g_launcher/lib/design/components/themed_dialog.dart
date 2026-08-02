@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../tokens/radii.dart';
 import '../tokens/spacing.dart';
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
@@ -38,6 +37,9 @@ class ThemedDialog {
       barrierColor: Colors.black.withValues(alpha: 0.38),
       builder: (ctx) {
         final resolvedActions = actionsBuilder?.call(ctx) ?? actions;
+        // The shared panel radius, so a dialog and the sheet it was opened
+        // beside are cut to the same corner.
+        final radius = BorderRadius.circular(data.panelRadius);
         return ChromeScope(
           data: data,
           child: Dialog(
@@ -47,9 +49,9 @@ class ThemedDialog {
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            shape: const RoundedRectangleBorder(borderRadius: GRadius.lgAll),
+            shape: RoundedRectangleBorder(borderRadius: radius),
             child: GlassPanel(
-              borderRadius: GRadius.lgAll,
+              borderRadius: radius,
               child: Padding(
                 padding: const EdgeInsets.all(GSpace.xl),
                 child: Column(

@@ -235,7 +235,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // while the screen drew another.
         final rowsNow = _pagedRows ??
             DrawerPager.rowsFor(
-              maxHeight: constraints.maxHeight - (showSearch ? 66 : 0),
+              // The page-dots strip is subtracted for the same reason the
+              // search bar is: neither is part of the height the pages get.
+              // Leaving it out made this estimate one row too generous, so the
+              // grid provider seeded and keyed itself on a shape the pager
+              // could not draw, and the first frame reflowed. Shared constant,
+              // not a copied number: two derivations of this drift.
+              maxHeight: constraints.maxHeight -
+                  (showSearch ? 66 : 0) -
+                  DrawerPager.dotsStripFor(withAdd: mode == 'custom'),
               tileHeight: tileH,
               topPadding: topGap,
             );
@@ -1669,6 +1677,12 @@ void _showDrawerOverflowMenu(
     textScale: theme.textScale,
     family: theme.chromeFamily,
     opacity: theme.surfaceOpacity,
+    // Same reason as the desklet menu: this route builds its own chrome rather
+    // than inheriting one, so it is a place the panel material can be
+    // forgotten and the menu would quietly keep the old hardcoded look.
+    panelBlur: theme.panelBlur,
+    panelTint: theme.panelTint,
+    panelRadius: theme.panelRadius,
   );
 
   const width = 220.0;

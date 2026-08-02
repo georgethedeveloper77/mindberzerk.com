@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../tokens/radii.dart';
 import '../tokens/spacing.dart';
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
@@ -29,6 +28,13 @@ class ThemedSheet {
     final data = ChromeScope.of(context);
     final c = data.colors;
 
+    // TOP CORNERS ONLY, from the shared setting. The sheet cannot pass the
+    // radius straight to GlassPanel because its bottom two corners run off the
+    // screen and rounding them would cut a notch out of the display edge; so it
+    // builds its own shape from the same number rather than keeping a literal
+    // that the setting would silently fail to move.
+    final top = BorderRadius.vertical(top: Radius.circular(data.panelRadius));
+
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
@@ -39,9 +45,7 @@ class ThemedSheet {
       // Lighter than it was. The sheet is now see-through, so a heavy scrim
       // behind it darkens the very wallpaper the translucency exists to show.
       barrierColor: Colors.black.withValues(alpha: 0.38),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: GRadius.lg),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: top),
       builder: (ctx) => Theme(
         // CRITICAL FIX: Override the bottomSheetTheme specifically
         data: Theme.of(context).copyWith(
@@ -52,7 +56,7 @@ class ThemedSheet {
         child: ChromeScope(
           data: data,
           child: GlassPanel(
-            borderRadius: const BorderRadius.vertical(top: GRadius.lg),
+            borderRadius: top,
             // Top edge only: the other three run off the screen, and a full
             // border would draw two hairlines down the sides of the display.
             border: Border(top: BorderSide(color: c.lineStrong)),

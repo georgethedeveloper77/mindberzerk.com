@@ -124,6 +124,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               textScale: t.textScale,
               family: t.chromeFamily,
               opacity: t.surfaceOpacity,
+              // The panel material travels with the chrome, so every sheet,
+              // dialog and menu this shell spawns is cut, blurred and tinted
+              // the same way without any of them naming a number.
+              panelBlur: t.panelBlur,
+              panelTint: t.panelTint,
+              panelRadius: t.panelRadius,
             ),
             child: BootGate(
               colors: BootColors.fromPalette(
