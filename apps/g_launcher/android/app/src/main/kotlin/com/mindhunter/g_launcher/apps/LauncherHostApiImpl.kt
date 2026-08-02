@@ -218,6 +218,44 @@ class LauncherHostApiImpl(
 
     override fun openAndroidSettings(action: String) = roles.openSettings(action)
 
+    /**
+     * A general view intent, resolved by the system.
+     *
+     * RESOLVED BEFORE IT IS FIRED, which is the whole reason this returns a
+     * boolean. `startActivity` on an unhandled intent throws
+     * ActivityNotFoundException, and a launcher that crashes because the phone
+     * ships no gallery is worse than a tile that says so. Budget devices are
+     * exactly where a missing handler is plausible.
+     *
+     * `setDataAndType` rather than setData followed by setType: each of those
+     * two CLEARS the other, so calling them in sequence silently drops whichever
+     * came first. It is the single most common way this intent is built wrong.
+     */
+    override fun openIntent(action: String, uri: String?, type: String?): Boolean {
+        val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        val parsed = uri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+        when {
+            parsed != null && type != null -> intent.setDataAndType(parsed, type)
+            parsed != null -> intent.data = parsed
+            type != null -> intent.type = type
+        }
+
+        // resolveActivity is package-visibility filtered on Android 11+, but a
+        // launcher holds the HOME role and these are ordinary public viewers, so
+        // it answers honestly here. The try/catch stays anyway: the resolve and
+        // the start are two moments, and the answer can change between them.
+        return try {
+            appContext.startActivity(intent)
+            true
+        } catch (_: android.content.ActivityNotFoundException) {
+            false
+        } catch (_: SecurityException) {
+            // A handler exists but will not take it from a background context.
+            false
+        }
+    }
+
     // ---- wallpaper -------------------------------------------------------
 
     override fun setWallpaper(

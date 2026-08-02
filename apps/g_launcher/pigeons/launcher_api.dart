@@ -743,6 +743,41 @@ abstract class LauncherHostApi {
   /// taps a radio button.
   @async
   void setIconPack(String? packageName);
+
+  // ─── A GENERAL INTENT SEAM ─────────────────────────────────────────────────
+
+  /// Fire an arbitrary view intent and let Android pick who handles it.
+  ///
+  /// ─── WHY THIS IS NOT `openAndroidSettings` WITH A WIDER DOC ───────────────
+  ///
+  /// That method's contract says [action] is a `Settings.ACTION_*` string, and
+  /// `RoleRequester.openSettings` is written to that promise. Downloads happens
+  /// to be action-only, so passing `android.intent.action.VIEW_DOWNLOADS` there
+  /// would probably work today, and that is exactly the kind of "probably" that
+  /// breaks silently the next time someone tightens the helper to validate its
+  /// own documented input.
+  ///
+  /// Screenshots settles it regardless: there is no action-only intent for a
+  /// media folder. It needs ACTION_VIEW with a MediaStore URI and a MIME type,
+  /// which a one-string method cannot express at all.
+  ///
+  /// ─── APPENDED, WHICH IS THE SAFE HALF OF THE PIGEON RULE ──────────────────
+  ///
+  /// Codec ids are positional over CLASSES and ENUMS. A method carries no id,
+  /// so adding one renumbers nothing and a shipped APK keeps agreeing with this
+  /// schema. That is the whole reason this is a method taking three strings
+  /// rather than an `IntentRequest` class, which WOULD take an id: the class
+  /// would land last today and be safe, and be a trap the first time someone
+  /// inserts another one above it.
+  ///
+  /// [uri] and [type] are null for an action-only intent. Setting both is the
+  /// `setDataAndType` case, which is what a media folder needs and which is NOT
+  /// the same as calling setData then setType, since each clears the other.
+  ///
+  /// Returns false when nothing on the device can handle it, so the caller can
+  /// say so instead of the tap doing nothing. A phone with no gallery and no
+  /// file manager is not a crash.
+  bool openIntent(String action, String? uri, String? type);
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

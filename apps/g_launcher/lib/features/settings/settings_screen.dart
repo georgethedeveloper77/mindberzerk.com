@@ -1850,9 +1850,9 @@ List<Widget> _appearanceSection(
       label: 'Notification badges',
       query: q,
       rows: [
-        _FilterRow(
-          const ['badge', 'notification', 'unread', 'dot', 'count', 'permission'],
-          const _BadgeAccessRow(),
+        const _FilterRow(
+          ['badge', 'notification', 'unread', 'dot', 'count', 'permission'],
+          _BadgeAccessRow(),
         ),
         _FilterRow(
           const ['badge', 'notification', 'dot', 'count', 'unread', 'style'],
@@ -2834,8 +2834,6 @@ class _PanelPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = ChromeScope.of(context);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
       child: ClipRRect(

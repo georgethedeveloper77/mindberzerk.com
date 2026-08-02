@@ -9,6 +9,7 @@ import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../../design/components/anchored_menu.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
@@ -78,6 +79,53 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
     ref.read(appListProvider.notifier).launch(e);
     ref.read(usageProvider.notifier).record(e.componentKey);
+  }
+
+  /// Hold a result for the same menu the drawer gives: pin, app info, hide,
+  /// uninstall.
+  ///
+  /// ─── SEARCH WAS THE ONE APP SURFACE WITH NO HOLD ────────────────────────
+  ///
+  /// The drawer grid, the Kickoff list, the tiling prompt, the dock and a
+  /// folder's contents all answer a long press with a menu. Search did not, so
+  /// the one place you go when you already know which app you want was the one
+  /// place you could not act on it: finding an app in order to pin or uninstall
+  /// it meant finding it, closing search, and finding it again in the drawer.
+  ///
+  /// [showDrawerAppMenu] rather than a menu of its own, for the reason its own
+  /// conversion note gives: two implementations of "pin this app" drift, and
+  /// the pin here refusing differently from the pin in the drawer is the kind
+  /// of bug nobody reports because it looks like the dock being full.
+  void _hold(BuildContext cellContext, AppEntry e) {
+    showDrawerAppMenu(
+      context,
+      ref,
+      widget.theme,
+      e,
+      // The CELL's rectangle, not this page's: `context` here is the search
+      // page, whose box is the whole screen, and anchoring to that would centre
+      // the menu regardless of which result was held. The cell's own context is
+      // passed in for exactly this.
+      anchor: AnchoredMenu.anchorOf(cellContext),
+    );
+  }
+
+  /// Hand the intent to Android, and say so when nothing can take it.
+  ///
+  /// The refusal matters. `openIntent` resolves before it fires and returns
+  /// false rather than throwing, so a phone with no gallery gets a sentence
+  /// instead of a tap that does nothing, which is indistinguishable from the
+  /// launcher being broken.
+  Future<void> _openIntent(
+    String action, {
+    String? uri,
+    String? type,
+    required String missing,
+  }) async {
+    final ok = await ref
+        .read(launcherHostApiProvider)
+        .openIntent(action, uri, type);
+    if (!ok && mounted) context.showMessage(missing);
   }
 
   /// Enter records the term and opens the top hit, matching the drawer's
@@ -178,6 +226,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             apps: suggestedFilled,
             iconSize: widget.theme.iconSizeDp,
             onTap: (e) => _launch(e),
+            onHold: _hold,
           ),
         ),
         _Block(
@@ -208,10 +257,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   d: d,
                   icon: Icons.folder_outlined,
                   label: 'Downloads',
-                  // No view-intent seam on the host API yet; opening the real
-                  // folder needs a Pigeon method (see the handoff note). Honest
-                  // placeholder until it lands, same rule as the widgets menu.
-                  onTap: () => context.showMessage('Files browsing is coming soon'),
+                  // ── THE SEAM LANDED, SO THESE OPEN THE REAL THING ──────
+                  //
+                  // Both tiles said "Files browsing is coming soon" because
+                  // the host API had no way to fire a view intent. It has one
+                  // now, and the answer is still NOT to browse files ourselves:
+                  // the phone already has a downloads viewer and a gallery, and
+                  // reimplementing either is how a launcher rots, which is the
+                  // same argument openAndroidSettings makes about settings.
+                  //
+                  // Downloads is action-only, so no uri and no type.
+                  onTap: () => _openIntent(
+                    'android.intent.action.VIEW_DOWNLOADS',
+                    missing: 'No downloads app on this phone',
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -220,7 +279,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   d: d,
                   icon: Icons.image_outlined,
                   label: 'Screenshots',
-                  onTap: () => context.showMessage('Files browsing is coming soon'),
+                  // ACTION_VIEW at the external images collection, which is
+                  // what every gallery registers for. There is no screenshots
+                  // intent: the folder is a MediaStore bucket, not a
+                  // destination, so this opens the gallery and the user is one
+                  // album from the shots. Honest, and it works on the OEM
+                  // galleries a Tecno actually ships.
+                  onTap: () => _openIntent(
+                    'android.intent.action.VIEW',
+                    uri: 'content://media/external/images/media',
+                    type: 'image/*',
+                    missing: 'No gallery app on this phone',
+                  ),
                 ),
               ),
             ],
@@ -390,6 +460,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           iconSize: widget.theme.iconSizeDp,
           labelColor: d.colors.text,
           onTap: () => _launch(e, recordTerm: _query),
+          onHold: (cell) => _hold(cell, e),
         );
       },
     );
@@ -542,11 +613,16 @@ class _SuggestedGrid extends StatelessWidget {
     required this.apps,
     required this.iconSize,
     required this.onTap,
+    this.onHold,
   });
 
   final List<AppEntry> apps;
   final double iconSize;
   final void Function(AppEntry) onTap;
+
+  /// Threaded through rather than built here: the grid has no ref and no theme,
+  /// and giving it either would make a dumb layout widget a consumer.
+  final void Function(BuildContext cellContext, AppEntry entry)? onHold;
 
   @override
   Widget build(BuildContext context) {
@@ -567,6 +643,7 @@ class _SuggestedGrid extends StatelessWidget {
         iconSize: iconSize,
         labelColor: ChromeScope.of(context).colors.text,
         onTap: () => onTap(apps[i]),
+        onHold: onHold == null ? null : (cell) => onHold!(cell, apps[i]),
       ),
     );
   }
@@ -578,6 +655,7 @@ class _AppCell extends StatelessWidget {
     required this.iconSize,
     required this.labelColor,
     required this.onTap,
+    this.onHold,
   });
 
   final AppEntry entry;
@@ -585,11 +663,19 @@ class _AppCell extends StatelessWidget {
   final Color labelColor;
   final VoidCallback onTap;
 
+  /// Receives THIS cell's context, so the menu can anchor to the cell rather
+  /// than to the page. Null leaves the cell tap-only.
+  final void Function(BuildContext cellContext)? onHold;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      // Null when no handler was given, so no recognizer is registered at all
+      // and nothing competes for the pointer. See the gesture layer for why an
+      // inert callback is not the same as an absent one.
+      onLongPress: onHold == null ? null : () => onHold!(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -223,7 +223,7 @@ class _AnchorDelegate extends SingleChildLayoutDelegate {
     // The clamp bounds are ordered before use. On a screen narrower than the
     // menu the max would fall below the min and `clamp` throws, which is a
     // crash on a tablet-sized menu on a small phone rather than a squeeze.
-    final minX = _margin;
+    const minX = _margin;
     final maxX = size.width - childSize.width - _margin;
     final x = maxX <= minX
         ? minX
