@@ -1,0 +1,816 @@
+import 'server-only';
+
+import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
+import { cdnBase } from '@/lib/core/cdn';
+import { isAppId } from '@/lib/core/registry';
+
+/**
+ * THE ARCHITECTURE MAP, as data.
+ *
+ * ## Why this is code and the prose is markdown
+ *
+ * `docs/<app>/architecture.md` holds the explanation and the mermaid diagrams,
+ * and it stays markdown because it belongs in a diff beside the code it
+ * describes. This is the other half: a graph whose nodes carry LIVE STATUS, and
+ * status cannot come from a document. A node saying "credential refused" is
+ * reading the same bucket every other screen reads.
+ *
+ * So the page renders both: this map on top, that document underneath.
+ *
+ * ## Every node names its source files
+ *
+ * The point of a map is to get from "something is wrong at this step" to the
+ * file that implements it without a search. Paths are relative to the repo
+ * root, and a node in the launcher app says so, because those live in a
+ * different tree from the panel.
+ *
+ * ## And every node names the invariant that bites
+ *
+ * These are the rules that have cost real time: the signature covering exact
+ * bytes, generatedAt having to increase, the cache being keyed by pack id
+ * rather than version, bundled being checked before installed. They are
+ * attached to the step they belong to rather than collected in a list nobody
+ * reads twice.
+ *
+ * ## Positions are hand-placed, deliberately
+ *
+ * An auto-layout would re-arrange the map every time a node was added, and the
+ * value of a diagram you look at weekly is that it stays where you left it. The
+ * coordinates are in a 780 by 560 space the client scales.
+ */
+
+export type NodeState = 'ok' | 'bad' | 'unknown';
+
+export interface GraphNode {
+  key: string;
+  title: string;
+  /** One line under the title. Usually a path or an identifier. */
+  sub: string;
+  /** Hand-placed, in the 780x560 canvas space. */
+  x: number;
+  y: number;
+  /** Which column this belongs to, for the lane it sits in. */
+  lane: 'panel' | 'store' | 'device';
+  what: string;
+  io: [string, string][];
+  /** The rule that bites at this step. */
+  invariant: string;
+  /** Repo-relative source paths. */
+  files: string[];
+  /** True when those files live in the launcher app rather than the panel. */
+  inLauncher?: boolean;
+  /** Where to go to do something about it. */
+  goto?: { label: string; href: string };
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  /** An orthogonal path in canvas space. Drawn as given. */
+  d: string;
+  /** Which node's state decides whether this edge is flowing. */
+  gate?: string;
+}
+
+export interface Graph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+/**
+ * FOUR VIEWS, because one canvas cannot answer four questions.
+ *
+ *   delivery  what happens between pressing publish and a phone redrawing
+ *   signing   which bytes are covered by which signature, and in what order
+ *   device    what the launcher does with a pack once it has one
+ *   bucket    what is stored where, and which of it can be deleted
+ *
+ * They share a status map, so a node key is unique across all four and is
+ * prefixed by its view where it could collide.
+ */
+export type ViewKey = 'delivery' | 'signing' | 'device' | 'bucket';
+
+export interface GraphView {
+  key: ViewKey;
+  label: string;
+  /** One line under the tabs, saying what this view is for. */
+  blurb: string;
+  graph: Graph;
+}
+
+/** Live status per node key, resolved separately from the shape. */
+export type GraphStatus = Record<string, { state: NodeState; note: string; live: [string, string][] }>;
+
+// ── the launcher's delivery graph ───────────────────────────────────────────
+
+function launcherGraph(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'builder',
+      title: 'Distro builder',
+      sub: `/apps/${app}/distros/builder`,
+      x: 46,
+      y: 78,
+      lane: 'panel',
+      what: 'Where a distro is authored: palette, layout, boot log, wallpapers and its icon pack. Nothing here reaches a device until publish is pressed.',
+      io: [
+        ['reads', 'admin/theme-drafts.json'],
+        ['writes', 'draft plus its assets'],
+        ['on publish', 'distro-publish'],
+      ],
+      invariant:
+        'A draft publishes nothing. The pack version only moves on a publish, and a pack only reaches a phone when that number increases.',
+      files: [
+        'admin/src/components/distro-builder/DistroWorkspace.tsx',
+        'admin/src/app/apps/[app]/distros/builder/page.tsx',
+        'admin/src/app/apps/[app]/distros/actions.ts',
+        'admin/src/lib/g-launcher/theme-spec.ts',
+        'admin/src/lib/g-launcher/themes.ts',
+      ],
+      goto: { label: 'Open Distros', href: `/apps/${app}/distros` },
+    },
+    {
+      key: 'sign',
+      title: 'publish-core and sign',
+      sub: 'ed25519, one path for every publish',
+      x: 46,
+      y: 174,
+      lane: 'panel',
+      what: 'Builds the manifest, signs it, uploads the payload, then merges and re-signs the index. Every publish goes through here, so a pack cannot be written by a route that skips a check.',
+      io: [
+        ['reads', 'the live index'],
+        ['writes', 'manifest.json + .sig'],
+        ['then', 'index.json + .sig'],
+      ],
+      invariant:
+        'The signature covers the EXACT bytes written. Parse a manifest, edit it and re-stringify it and it verifies in the panel while failing BadSignature on every device.',
+      files: [
+        'admin/src/lib/core/sign.ts',
+        'admin/src/lib/core/publish-core.ts',
+        'admin/src/lib/g-launcher/distro-publish.ts',
+        'admin/src/lib/g-launcher/flat-check.ts',
+      ],
+      goto: { label: 'Open Upload pack', href: `/apps/${app}/publish` },
+    },
+    {
+      key: 'packs',
+      title: 'Pack objects',
+      sub: 'themes/<packId>/<version>/',
+      x: 294,
+      y: 78,
+      lane: 'store',
+      what: 'The payload for one pack at one version: its files, manifest.json and manifest.sig, under a path that carries the version and is therefore immutable.',
+      io: [
+        ['cache', 'one year, immutable'],
+        ['written by', 'publish-core'],
+        ['read by', 'the device, and the panel via CDN'],
+      ],
+      invariant:
+        'PackPaths.installedFile refuses slashes, so every asset reference inside a pack must be a bare filename. A nested reference with a flat file renders; the reverse goes black.',
+      files: [
+        'admin/src/lib/core/r2.ts',
+        'admin/src/lib/core/pack-content.ts',
+        'admin/src/lib/core/orphans.ts',
+      ],
+      goto: { label: 'Open CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'index',
+      title: 'index.json and index.sig',
+      sub: 'the catalogue every device reads first',
+      x: 294,
+      y: 192,
+      lane: 'store',
+      what: 'The catalogue. A device reads this before anything else and refuses the lot if the signature does not verify.',
+      io: [
+        ['cache', 'no-cache'],
+        ['merged by', 'publish-core'],
+        ['signed by', 'sign'],
+      ],
+      invariant:
+        'generatedAt must increase, and a pack with a perfect manifest inside an unsigned index is invisible: the index is rejected before any pack is read.',
+      files: ['admin/src/lib/core/catalogue.ts', 'admin/src/lib/core/sign.ts'],
+      goto: { label: 'Open CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'cdn',
+      title: 'cdn.mindberzerk.com',
+      sub: 'the public door, no credential',
+      x: 294,
+      y: 300,
+      lane: 'store',
+      what: 'Reads here need no credential, which is why the site renders and icon previews load while the S3 token is being refused.',
+      io: [
+        ['origin', 'the R2 bucket'],
+        ['auth', 'none'],
+        ['used by', 'devices and the panel'],
+      ],
+      invariant:
+        'The S3 API and this are different doors. One being refused says nothing about the other, which is why publishing by wrangler works while the panel cannot write.',
+      files: ['admin/src/lib/core/cdn.ts'],
+    },
+    {
+      key: 'sync',
+      title: 'PackSyncWorker',
+      sub: 'reads cdn_base_url from Remote Config',
+      x: 542,
+      y: 78,
+      lane: 'device',
+      what: 'The device job that fetches the catalogue, compares versions and downloads what changed. Its base URL comes from Remote Config rather than the APK, so the CDN can move without a release.',
+      io: [
+        ['reads', 'cdn_base_url'],
+        ['fetches', 'index.json and index.sig'],
+        ['schedules', 'pack downloads'],
+      ],
+      invariant:
+        'refreshCatalogue returns false both for "rejected" and for "nothing changed", so a phone cannot tell you which of the two happened.',
+      files: [
+        'apps/g_launcher/lib/data/cdn/pack_repository.dart',
+        'apps/g_launcher/android/.../packs/PackSyncWorker.kt',
+      ],
+      inLauncher: true,
+      goto: { label: 'Open Config', href: `/apps/${app}/config` },
+    },
+    {
+      key: 'verify',
+      title: 'PackVerifier',
+      sub: 'PackKeys.ACCEPTED_HEX',
+      x: 542,
+      y: 186,
+      lane: 'device',
+      what: 'Checks the index signature, then each pack manifest, then every file hash. Nothing is installed until all three pass.',
+      io: [
+        ['key', 'compiled into the APK'],
+        ['checks', 'index, manifest, files'],
+        ['refuses', 'on any mismatch'],
+      ],
+      invariant:
+        'A missing manifest.sig fails as MissingSignature and the pack is refused outright, which on the phone looks exactly like nothing having been published.',
+      files: [
+        'apps/g_launcher/android/.../packs/PackVerifier.kt',
+        'apps/g_launcher/android/.../packs/PackKeys.kt',
+      ],
+      inLauncher: true,
+    },
+    {
+      key: 'install',
+      title: 'files/packs/',
+      sub: 'where a verified pack lands',
+      x: 542,
+      y: 294,
+      lane: 'device',
+      what: 'Once verified, a pack is installed here and its assets are read from disk rather than from the APK bundle.',
+      io: [
+        ['path', 'files/packs/<packId>/'],
+        ['written by', 'PackVerifier'],
+        ['read by', 'ThemeSource'],
+      ],
+      invariant:
+        'The disk cache is keyed by pack id, NOT by version, so republishing at the same number changes the bytes in the bucket and nothing at all on a phone.',
+      files: [
+        'apps/g_launcher/android/.../packs/PackPaths.kt',
+        'apps/g_launcher/lib/engine/theme_source.dart',
+      ],
+      inLauncher: true,
+    },
+    {
+      key: 'engine',
+      title: 'theme_engine',
+      sub: 'bundled, then installed, then Ubuntu',
+      x: 542,
+      y: 402,
+      lane: 'device',
+      what: 'Decides which theme the launcher draws, and hands an EffectiveTheme to every shell. Shells read that and never a ThemeSpec or a constant.',
+      io: [
+        ['reads', 'the installed theme.json'],
+        ['falls back', 'ubuntu-24-04'],
+        ['feeds', 'EffectiveTheme'],
+      ],
+      invariant:
+        'Bundled is checked BEFORE installed, unconditionally, so the three free distros cannot currently be overridden by a CDN pack. That is an open decision rather than a settled rule.',
+      files: [
+        'apps/g_launcher/lib/engine/theme_engine.dart',
+        'apps/g_launcher/lib/engine/effective_theme.dart',
+      ],
+      inLauncher: true,
+      goto: { label: 'Open Distros', href: `/apps/${app}/distros` },
+    },
+  ];
+
+  // Orthogonal, hand-routed. `gate` names the node whose state decides whether
+  // this edge animates: an edge into a refused bucket must not look like
+  // traffic.
+  const edges: GraphEdge[] = [
+    { from: 'builder', to: 'sign', d: 'M130 128 L130 168', gate: 'sign' },
+    { from: 'sign', to: 'packs', d: 'M214 190 L250 190 L250 106 L286 106', gate: 'packs' },
+    { from: 'sign', to: 'index', d: 'M214 202 L250 202 L250 220 L286 220', gate: 'index' },
+    { from: 'packs', to: 'cdn', d: 'M378 134 L378 300', gate: 'cdn' },
+    { from: 'index', to: 'cdn', d: 'M420 248 L420 300', gate: 'cdn' },
+    { from: 'cdn', to: 'sync', d: 'M462 320 L498 320 L498 106 L534 106', gate: 'cdn' },
+    { from: 'sync', to: 'verify', d: 'M626 134 L626 176', gate: 'sync' },
+    { from: 'verify', to: 'install', d: 'M626 244 L626 286', gate: 'verify' },
+    { from: 'install', to: 'engine', d: 'M626 354 L626 396', gate: 'install' },
+  ];
+
+  return { nodes, edges };
+}
+
+
+// ── signing: which bytes, in which order ────────────────────────────────────
+
+function signingGraph(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'sig.files',
+      title: 'The picked files',
+      sub: 'a folder or a zip',
+      x: 46, y: 88, lane: 'panel',
+      what: 'What the publisher chose. Relative paths matter: they become the manifest, so a folder picked at the wrong level ships a pack whose every reference is one directory off.',
+      io: [['from', 'the builder or Upload pack'], ['checked by', 'flat-check'], ['becomes', 'the manifest']],
+      invariant:
+        'A pack asset must be a bare filename on the device, so flat-check refuses anything the launcher could not resolve after install.',
+      files: ['admin/src/lib/g-launcher/flat-check.ts', 'admin/src/app/components/publish-form.tsx'],
+      goto: { label: 'Open Upload pack', href: `/apps/${app}/publish` },
+    },
+    {
+      key: 'sig.manifest',
+      title: 'manifest.json',
+      sub: 'path, size and sha256 per file',
+      x: 46, y: 200, lane: 'panel',
+      what: 'The list of every file in the pack with its hash. Built once, serialised once, and signed as exactly those bytes.',
+      io: [['built by', 'sign.ts'], ['covers', 'every file hash'], ['newline', 'none at the end']],
+      invariant:
+        'NO TRAILING NEWLINE, and never re-stringified. Parse this, change a field and write it back and it verifies in the panel while failing BadSignature on every phone.',
+      files: ['admin/src/lib/core/sign.ts'],
+    },
+    {
+      key: 'sig.msig',
+      title: 'manifest.sig',
+      sub: 'ed25519 over those exact bytes',
+      x: 46, y: 312, lane: 'panel',
+      what: 'The detached signature for one pack. Written beside the manifest, in the same versioned directory.',
+      io: [['algorithm', 'ed25519'], ['key id', 'mh-2026-07'], ['verified by', 'PackVerifier']],
+      invariant:
+        'Present but unreadable is the same as missing: the device reports MissingSignature and refuses the pack, which looks exactly like nothing having been published.',
+      files: ['admin/src/lib/core/sign.ts', 'admin/src/lib/core/publish-core.ts'],
+    },
+    {
+      key: 'sig.read',
+      title: 'Read the live index',
+      sub: 'before anything is merged',
+      x: 294, y: 88, lane: 'store',
+      what: 'The current catalogue is fetched first. A publish is a merge into what is live, not a replacement of it, so this read has to succeed before a write is allowed.',
+      io: [['reads', 'index.json'], ['guards', 'guardIndex'], ['refuses on', 'unreachable or corrupt']],
+      invariant:
+        'An unreadable index must never become the merge base. Merging into an empty read would drop every pack from the store in one write.',
+      files: ['admin/src/lib/core/publish-core.ts', 'admin/src/lib/core/catalogue.ts'],
+    },
+    {
+      key: 'sig.merge',
+      title: 'Merge and stamp',
+      sub: 'generatedAt must increase',
+      x: 294, y: 200, lane: 'store',
+      what: 'The new pack entry replaces any older one with the same id, and the document is stamped with a fresh generatedAt.',
+      io: [['adds', 'one pack entry'], ['stamps', 'generatedAt'], ['keeps', 'every other pack']],
+      invariant:
+        'generatedAt must exceed what is live. It is what stops a stale edge or a replayed document from hiding an update indefinitely.',
+      files: ['admin/src/lib/core/publish-core.ts'],
+    },
+    {
+      key: 'sig.isig',
+      title: 'index.json + index.sig',
+      sub: 'trailing newline, no-cache',
+      x: 294, y: 312, lane: 'store',
+      what: 'The catalogue and its detached signature, written together and served without caching.',
+      io: [['newline', 'one, at the end'], ['cache', 'no-cache'], ['read first by', 'every device']],
+      invariant:
+        'index.json HAS a trailing newline and manifest.json does not. Both are signed as written, so the difference is not cosmetic.',
+      files: ['admin/src/lib/core/sign.ts'],
+      goto: { label: 'Open CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'sig.verify',
+      title: 'Verification on device',
+      sub: 'index, then manifest, then files',
+      x: 542, y: 200, lane: 'device',
+      what: 'Three checks in order. The index signature gates everything; a pack manifest gates that pack; each file hash gates the install.',
+      io: [['1', 'index.sig'], ['2', 'manifest.sig'], ['3', 'every sha256']],
+      invariant:
+        'The order matters. A perfectly signed pack inside an unsigned index is invisible, because the index is rejected before any pack is looked at.',
+      files: ['apps/g_launcher/android/.../packs/PackVerifier.kt'],
+      inLauncher: true,
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'sig.files', to: 'sig.manifest', d: 'M130 138 L130 194', gate: 'sig.manifest' },
+    { from: 'sig.manifest', to: 'sig.msig', d: 'M130 250 L130 306', gate: 'sig.msig' },
+    { from: 'sig.msig', to: 'sig.isig', d: 'M214 336 L250 336 L250 336 L286 336', gate: 'sig.isig' },
+    { from: 'sig.read', to: 'sig.merge', d: 'M378 138 L378 194', gate: 'sig.read' },
+    { from: 'sig.merge', to: 'sig.isig', d: 'M378 250 L378 306', gate: 'sig.isig' },
+    { from: 'sig.isig', to: 'sig.verify', d: 'M462 336 L500 336 L500 226 L534 226', gate: 'sig.verify' },
+  ];
+
+  return { nodes, edges };
+}
+
+// ── on device: what the launcher does with a pack ───────────────────────────
+
+function deviceGraph(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'dev.rc',
+      title: 'Remote Config',
+      sub: 'cdn_base_url',
+      x: 46, y: 88, lane: 'panel',
+      what: 'The one value the launcher reads remotely. It decides where packs are fetched from, so the CDN can move without an app release.',
+      io: [['key', 'cdn_base_url'], ['read by', 'PackSyncWorker'], ['managed at', 'Config']],
+      invariant:
+        'Devices fetch on their own schedule, typically within twelve hours or on a cold start, so a change here is not immediate anywhere.',
+      files: ['admin/src/lib/core/remote-config.ts', 'apps/g_launcher/lib/data/cdn/cdn_config.dart'],
+      goto: { label: 'Open Config', href: `/apps/${app}/config` },
+    },
+    {
+      key: 'dev.sync',
+      title: 'PackSyncWorker',
+      sub: 'fetch, compare, download',
+      x: 294, y: 88, lane: 'store',
+      what: 'Fetches the catalogue, compares each pack version against what is installed, and downloads only what moved.',
+      io: [['fetches', 'index.json + sig'], ['compares', 'version per pack'], ['downloads', 'the difference']],
+      invariant:
+        'refreshCatalogue returns false for both "rejected" and "nothing changed", so a device cannot report which of the two happened.',
+      files: ['apps/g_launcher/lib/data/cdn/pack_repository.dart'],
+      inLauncher: true,
+    },
+    {
+      key: 'dev.install',
+      title: 'files/packs/',
+      sub: 'keyed by pack id',
+      x: 294, y: 200, lane: 'store',
+      what: 'Where a verified pack is unpacked. Assets are read from here rather than from the APK once a theme is installed.',
+      io: [['path', 'files/packs/<packId>/'], ['flat', 'bare filenames only'], ['read by', 'ThemeSource']],
+      invariant:
+        'THE CACHE IS KEYED BY PACK ID, NOT VERSION. Republishing at the same number changes the bucket and nothing on the phone.',
+      files: ['apps/g_launcher/android/.../packs/PackPaths.kt'],
+      inLauncher: true,
+    },
+    {
+      key: 'dev.engine',
+      title: 'theme_engine',
+      sub: 'bundled, installed, fallback',
+      x: 294, y: 312, lane: 'store',
+      what: 'Resolves which theme is active and produces the EffectiveTheme every shell reads.',
+      io: [['order', 'bundled, installed, ubuntu'], ['produces', 'EffectiveTheme'], ['prefs', 'per theme bucket']],
+      invariant:
+        'Bundled is checked BEFORE installed, unconditionally, so the three free distros cannot be overridden by a CDN pack. That is an open decision, not a settled rule.',
+      files: ['apps/g_launcher/lib/engine/theme_engine.dart', 'apps/g_launcher/lib/engine/effective_theme.dart'],
+      inLauncher: true,
+      goto: { label: 'Open Distros', href: `/apps/${app}/distros` },
+    },
+    {
+      key: 'dev.icons',
+      title: 'IconCache',
+      sub: 'hero, brand, then generated',
+      x: 542, y: 200, lane: 'device',
+      what: 'Layers icon sources: a hero pack image if one exists, then a brand glyph, then the native generator using the theme recipe.',
+      io: [['memory', 'LRU'], ['disk', 'keyed by pack id'], ['falls back', 'the generator']],
+      invariant:
+        'Adding one field to IconStyle touches eight places, and missing either the cache id or the fingerprint fails silently by serving stale bitmaps that look identical to unwired code.',
+      files: ['apps/g_launcher/android/.../icons/IconCache.kt', 'apps/g_launcher/android/.../icons/IconRenderer.kt'],
+      inLauncher: true,
+      goto: { label: 'Open Icons', href: `/apps/${app}/icons` },
+    },
+    {
+      key: 'dev.shell',
+      title: 'The shell',
+      sub: 'gnome, plasma, tui, aqua',
+      x: 542, y: 312, lane: 'device',
+      what: 'Draws the desktop: top bar, dock, workspaces. Each shell reads EffectiveTheme and nothing else.',
+      io: [['reads', 'EffectiveTheme'], ['never reads', 'ThemeSpec or constants'], ['wallpaper', 'the system wallpaper']],
+      invariant:
+        'The system wallpaper is the ONLY route to a visible wallpaper, because gnome_shell runs transparent over the WindowManager.',
+      files: ['apps/g_launcher/lib/shells/'],
+      inLauncher: true,
+    },
+    {
+      key: 'dev.billing',
+      title: 'Entitlements',
+      sub: 'Play Billing, resolved locally',
+      x: 542, y: 88, lane: 'device',
+      what: 'Decides whether a paid pack is usable: free, owned directly, or granted by a bundle carried in the index.',
+      io: [['reads', 'Play Billing'], ['plus', 'index entitlements'], ['gates', 'paid packs only']],
+      invariant:
+        'A product ID that does not exist in Play resolves to not-owned forever, so a price advertised for a missing product is a purchase nobody can complete.',
+      files: ['apps/g_launcher/lib/data/billing/', 'admin/src/lib/core/commerce.ts'],
+      inLauncher: true,
+      goto: { label: 'Open Commerce', href: `/apps/${app}/commerce` },
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'dev.rc', to: 'dev.sync', d: 'M214 114 L286 114', gate: 'dev.sync' },
+    { from: 'dev.sync', to: 'dev.install', d: 'M378 138 L378 194', gate: 'dev.install' },
+    { from: 'dev.install', to: 'dev.engine', d: 'M378 250 L378 306', gate: 'dev.engine' },
+    { from: 'dev.install', to: 'dev.icons', d: 'M462 226 L534 226', gate: 'dev.icons' },
+    { from: 'dev.engine', to: 'dev.shell', d: 'M462 338 L534 338', gate: 'dev.shell' },
+    { from: 'dev.icons', to: 'dev.shell', d: 'M626 250 L626 306', gate: 'dev.shell' },
+    { from: 'dev.billing', to: 'dev.install', d: 'M626 138 L626 160 L500 160 L500 226 L462 226', gate: 'dev.install' },
+  ];
+
+  return { nodes, edges };
+}
+
+// ── bucket layout: what is stored where ─────────────────────────────────────
+
+function bucketGraph(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'buk.root',
+      title: 'mindberzerk-cdn',
+      sub: 'one bucket, two prefixes',
+      x: 46, y: 200, lane: 'panel',
+      what: 'Everything the studio serves lives here: the launcher catalogue under its app id, and the public site under site/.',
+      io: [['origin for', 'cdn.mindberzerk.com'], ['written by', 'the panel and wrangler'], ['auth', 'S3 for writes']],
+      invariant:
+        'The S3 API and the CDN are different doors. A refused token blocks the panel and not wrangler, which uses account OAuth.',
+      files: ['admin/src/lib/core/r2.ts', 'admin/src/lib/core/cdn.ts'],
+    },
+    {
+      key: 'buk.index',
+      title: 'g-launcher/index.json',
+      sub: 'plus index.sig, no-cache',
+      x: 294, y: 88, lane: 'store',
+      what: 'The catalogue. Never swept, never cached, and the first thing a device reads.',
+      io: [['cache', 'no-cache'], ['signed', 'always'], ['swept', 'never']],
+      invariant: 'This can never appear in an orphan sweep, whatever else is in the directory.',
+      files: ['admin/src/lib/core/catalogue.ts'],
+      goto: { label: 'Open CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'buk.packs',
+      title: 'themes, heropacks, brandpacks',
+      sub: '<packId>/<version>/',
+      x: 294, y: 200, lane: 'store',
+      what: 'Pack payloads, one directory per version. Immutable, because the version is in the path.',
+      io: [['cache', 'one year'], ['immutable', 'yes'], ['superseded', 'become orphans']],
+      invariant:
+        'An old version is left behind on purpose when a new one publishes, so a device mid-download finishes rather than failing an install.',
+      files: ['admin/src/lib/core/publish-core.ts', 'admin/src/lib/core/orphans.ts'],
+    },
+    {
+      key: 'buk.admin',
+      title: 'g-launcher/admin/',
+      sub: 'drafts, listing, product ids',
+      x: 294, y: 312, lane: 'store',
+      what: 'Panel state that no device ever reads: theme drafts, icon drafts and their assets, listing flags, the Play snapshot and the hand-kept product ids.',
+      io: [['read by', 'the panel only'], ['served', 'never to devices'], ['swept', 'never']],
+      invariant:
+        'Nothing under admin/ is ever listed as an orphan, which is what makes it safe to keep half-finished drafts here.',
+      files: ['admin/src/lib/g-launcher/themes.ts', 'admin/src/lib/g-launcher/icon-drafts.ts', 'admin/src/lib/core/product-ids.ts'],
+    },
+    {
+      key: 'buk.site',
+      title: 'site/',
+      sub: 'content, registry, legal',
+      x: 542, y: 140, lane: 'device',
+      what: 'What mindberzerk.com renders: the hero and featured order, the app registry, and every legal document with its rendered HTML.',
+      io: [['cache', '300 seconds'], ['read by', 'the public site'], ['signed', 'never']],
+      invariant:
+        'Unsigned on purpose. No device reads these, so a signature would be ceremony, and the five minute cache is why a publish is not instant.',
+      files: ['admin/src/lib/studio/site-content.ts', 'admin/src/lib/studio/legal.ts', 'admin/src/lib/studio/apps.ts'],
+      goto: { label: 'Open Site content', href: '/site' },
+    },
+    {
+      key: 'buk.orphans',
+      title: 'Orphans',
+      sub: 'stale, unpublished, loose',
+      x: 542, y: 300, lane: 'device',
+      what: 'Objects nothing references: superseded versions, packs never in the index, and files outside the pack layout. Reviewed and swept only on an explicit confirm.',
+      io: [['grouped by', 'kind'], ['deleted', 'on confirm only'], ['recomputed', 'at delete time']],
+      invariant:
+        'The catalogue, admin state, site files and every live pack current version are never listed here and can never be swept.',
+      files: ['admin/src/lib/core/orphans.ts', 'admin/src/components/packs/SweepOrphans.tsx'],
+      goto: { label: 'Open CDN objects', href: `/apps/${app}/packs` },
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'buk.root', to: 'buk.index', d: 'M214 226 L250 226 L250 114 L286 114', gate: 'buk.index' },
+    { from: 'buk.root', to: 'buk.packs', d: 'M214 226 L286 226', gate: 'buk.packs' },
+    { from: 'buk.root', to: 'buk.admin', d: 'M214 226 L250 226 L250 338 L286 338', gate: 'buk.admin' },
+    { from: 'buk.root', to: 'buk.site', d: 'M130 250 L130 470 L500 470 L500 166 L534 166', gate: 'buk.site' },
+    { from: 'buk.packs', to: 'buk.orphans', d: 'M462 226 L498 226 L498 326 L534 326', gate: 'buk.orphans' },
+  ];
+
+  return { nodes, edges };
+}
+
+export function viewsFor(app: string): GraphView[] {
+  if (!isAppId(app)) return [];
+  // Only the launcher has a map so far. G Recovery gets one when its delivery
+  // path exists, and an empty list is what makes the page say so honestly.
+  if (app !== 'g-launcher') return [];
+
+  return [
+    {
+      key: 'delivery',
+      label: 'Delivery',
+      blurb: 'from a publish to a phone drawing a new desktop',
+      graph: launcherGraph(app),
+    },
+    {
+      key: 'signing',
+      label: 'Signing',
+      blurb: 'which bytes are covered by which signature, and in what order',
+      graph: signingGraph(app),
+    },
+    {
+      key: 'device',
+      label: 'On device',
+      blurb: 'what the launcher does with a pack once it has one',
+      graph: deviceGraph(app),
+    },
+    {
+      key: 'bucket',
+      label: 'Bucket layout',
+      blurb: 'what is stored where, and which of it can be deleted',
+      graph: bucketGraph(app),
+    },
+  ];
+}
+
+/**
+ * Resolve live status for every node.
+ *
+ * READS THE SAME SOURCES AS EVERY OTHER SCREEN, so the map cannot disagree with
+ * the Overview. Nothing is invented: a node that cannot be measured reports
+ * `unknown` rather than a cheerful green.
+ */
+export async function graphStatus(app: string): Promise<GraphStatus> {
+  const live = await readLiveIndex(app).catch(() => null);
+  const signed = live?.exists ? await indexIsSigned(app).catch(() => false) : false;
+
+  const bucketOk = !!live && !live.unreachable && !live.corrupt;
+  const bucketNote = !live
+    ? 'the read threw'
+    : live.unreachable
+      ? 'S3 credential refused'
+      : live.corrupt
+        ? 'index does not parse'
+        : 'reachable';
+
+  // The PUBLIC door, probed separately, because it is the whole point of the
+  // cdn node that these two can disagree.
+  let cdnOk = false;
+  let cdnNote = 'not reachable';
+  try {
+    const res = await fetch(`${cdnBase()}/${app}/index.json`, {
+      method: 'HEAD',
+      cache: 'no-store',
+    });
+    cdnOk = res.ok;
+    cdnNote = res.ok ? 'serving' : `HTTP ${res.status}`;
+  } catch (e) {
+    cdnNote = (e as Error).message || 'not reachable';
+  }
+
+  const packCount = live?.packs.length ?? 0;
+  const bytes = live?.packs.reduce((n, p) => n + p.sizeBytes, 0) ?? 0;
+
+  const unknown = (note: string, live2: [string, string][] = []): GraphStatus[string] => ({
+    state: 'unknown',
+    note,
+    live: live2,
+  });
+
+  return {
+    builder: {
+      state: 'ok',
+      note: 'available',
+      live: [['runs in', 'the panel']],
+    },
+    sign: {
+      state: process.env.PACK_SIGNING_KEY ? 'ok' : 'unknown',
+      note: process.env.PACK_SIGNING_KEY ? 'key loaded' : 'no signing key configured',
+      live: [
+        ['key id', process.env.PACK_KEY_ID ?? '-'],
+        ['algorithm', 'ed25519'],
+      ],
+    },
+    packs: {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketNote,
+      live: bucketOk
+        ? [
+            ['packs', String(packCount)],
+            ['bytes', String(bytes)],
+          ]
+        : [['packs', 'unknown']],
+    },
+    index: {
+      state: bucketOk ? (signed ? 'ok' : 'bad') : 'bad',
+      note: !bucketOk ? bucketNote : signed ? 'signed' : 'published without a signature',
+      live: bucketOk
+        ? [
+            ['generatedAt', String(live?.generatedAt ?? 0)],
+            ['key id', live?.keyId || '-'],
+          ]
+        : [['generatedAt', 'unknown']],
+    },
+    cdn: {
+      state: cdnOk ? 'ok' : 'bad',
+      note: cdnNote,
+      live: [
+        ['host', cdnBase().replace(/^https?:\/\//, '')],
+        ['auth', 'none'],
+      ],
+    },
+    // The device side cannot be measured from here, and saying so is the point.
+    // A green dot on PackVerifier would be a claim about somebody's phone.
+    sync: unknown('not measurable from the panel', [['cadence', 'about 12 hours']]),
+    verify: unknown('not measurable from the panel', [['key', 'compiled into the APK']]),
+    install: unknown('not measurable from the panel'),
+    engine: unknown('not measurable from the panel'),
+
+    // ── signing ────────────────────────────────────────────────────────────
+    // These describe a publish that is happening rather than a resource that
+    // can be probed, so most are `ok` in the sense of "this step is wired" and
+    // the two that touch the bucket carry the bucket's real state.
+    'sig.files': { state: 'ok', note: 'checked by flat-check', live: [] },
+    'sig.manifest': {
+      state: process.env.PACK_SIGNING_KEY ? 'ok' : 'unknown',
+      note: process.env.PACK_SIGNING_KEY ? 'signable' : 'no signing key configured',
+      live: [['newline', 'none']],
+    },
+    'sig.msig': {
+      state: process.env.PACK_SIGNING_KEY ? 'ok' : 'unknown',
+      note: process.env.PACK_SIGNING_KEY ? 'key loaded' : 'no signing key configured',
+      live: [['key id', process.env.PACK_KEY_ID ?? '-']],
+    },
+    'sig.read': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketNote,
+      live: [['packs read', bucketOk ? String(packCount) : 'unknown']],
+    },
+    'sig.merge': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketOk ? 'mergeable' : 'no base to merge into',
+      live: [['generatedAt', bucketOk ? String(live?.generatedAt ?? 0) : 'unknown']],
+    },
+    'sig.isig': {
+      state: bucketOk ? (signed ? 'ok' : 'bad') : 'bad',
+      note: !bucketOk ? bucketNote : signed ? 'signed' : 'published without a signature',
+      live: [['newline', 'one']],
+    },
+    'sig.verify': unknown('not measurable from the panel'),
+
+    // ── on device ──────────────────────────────────────────────────────────
+    // Only the Remote Config side is visible from here. Everything past it is
+    // a phone, and a green dot on any of it would be a claim about someone
+    // else's device.
+    'dev.rc': {
+      state: process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT ? 'ok' : 'unknown',
+      note:
+        process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT
+          ? 'project configured'
+          : 'GCP_PROJECT is not set',
+      live: [['key', 'cdn_base_url']],
+    },
+    'dev.sync': unknown('not measurable from the panel', [['cadence', 'about 12 hours']]),
+    'dev.install': unknown('not measurable from the panel'),
+    'dev.engine': unknown('not measurable from the panel'),
+    'dev.icons': unknown('not measurable from the panel'),
+    'dev.shell': unknown('not measurable from the panel'),
+    'dev.billing': unknown('not measurable from the panel'),
+
+    // ── bucket ─────────────────────────────────────────────────────────────
+    'buk.root': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketNote,
+      live: [['bucket', process.env.R2_BUCKET ?? 'mindberzerk-cdn']],
+    },
+    'buk.index': {
+      state: bucketOk ? (signed ? 'ok' : 'bad') : 'bad',
+      note: !bucketOk ? bucketNote : signed ? 'signed' : 'unsigned',
+      live: [['packs', bucketOk ? String(packCount) : 'unknown']],
+    },
+    'buk.packs': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketNote,
+      live: [['bytes', bucketOk ? String(bytes) : 'unknown']],
+    },
+    // Read by the panel alone, so its reachability is the bucket's.
+    'buk.admin': { state: bucketOk ? 'ok' : 'bad', note: bucketNote, live: [] },
+    // Served over the public door, which is the one that currently works.
+    'buk.site': {
+      state: cdnOk ? 'ok' : 'unknown',
+      note: cdnOk ? 'served publicly' : 'not probed',
+      live: [['cache', '300 seconds']],
+    },
+    'buk.orphans': {
+      state: bucketOk ? 'ok' : 'unknown',
+      note: bucketOk ? 'computable' : 'needs the bucket',
+      live: [],
+    },
+  };
+}

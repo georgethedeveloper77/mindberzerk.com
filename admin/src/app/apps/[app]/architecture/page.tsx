@@ -4,6 +4,8 @@ import { adminGate } from '@/app/components/admin-gate';
 import { ArchitectureView } from '@/components/studio/architecture-view';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, SlabButton } from '@/components/studio/ui';
+import { ArchitectureMap } from '@/components/studio/architecture-map';
+import { graphStatus, viewsFor } from '@/lib/core/architecture-graph';
 import { readArchitecture } from '@/lib/core/docs';
 import { renderMarkdown } from '@/lib/core/markdown';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
@@ -45,7 +47,14 @@ export default async function ArchitecturePage({
   const { app } = await params;
   if (!isAppId(app)) notFound();
 
-  const doc = await readArchitecture(app);
+  const views = viewsFor(app);
+  // The map's statuses are read live, so a node saying "credential refused" is
+  // reading the same bucket the Overview reads. Fetched alongside the document
+  // rather than after it, since neither depends on the other.
+  const [doc, status] = await Promise.all([
+    readArchitecture(app),
+    views.length > 0 ? graphStatus(app) : Promise.resolve({}),
+  ]);
   const meta = appMeta(app);
 
   // Prose is rendered here, index-aligned with the segments, so the client
@@ -67,9 +76,14 @@ export default async function ArchitecturePage({
         crumb={appName(app)}
         title="Architecture"
         meta={
-          doc
-            ? `${diagrams} ${diagrams === 1 ? 'diagram' : 'diagrams'} · docs/${app}/architecture.md`
-            : 'no document yet'
+          [
+            views.length > 0
+              ? `${views.length} ${views.length === 1 ? 'view' : 'views'}, read live`
+              : null,
+            doc ? `${diagrams} ${diagrams === 1 ? 'diagram' : 'diagrams'} in docs/${app}/architecture.md` : null,
+          ]
+            .filter(Boolean)
+            .join(' \u00b7 ') || 'nothing documented yet'
         }
         actions={
           <SlabButton
@@ -81,29 +95,25 @@ export default async function ArchitecturePage({
         }
       />
 
-      {!doc ? (
-        <div className="rounded-[18px] border border-dashed border-site-line bg-site-card px-6 py-12 text-center shadow-site-soft">
-          <p className="text-[14px] font-semibold text-site-ink">
-            {appName(app)} has no architecture document yet.
-          </p>
-          <p className="mx-auto mt-2 max-w-[56ch] text-[12.5px] leading-relaxed text-site-ink-3">
-            Create{' '}
-            <code className="rounded bg-site-sunk px-1.5 py-0.5 font-mono text-[11.5px] text-site-ink-2">
-              admin/docs/{app}/architecture.md
-            </code>{' '}
-            with mermaid blocks in it and this page renders them. It lives in the repo rather than
-            in a form so that a change to the diagrams shows up in the same diff as the change they
-            describe.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* The prose styling lives here rather than in globals.css: it applies
-              to exactly one component's output and putting it in the global
-              sheet would make it look like a site-wide contract. */}
+          {/* RENDERED UNCONDITIONALLY. The keyframes belong to the map and the
+          prose rules to the document, and a page can have either without the
+          other, so gating this on the document cost the map its animation.
+          The prose styling and the map's keyframes live here rather than in
+              globals.css: they apply to exactly one route's output, and putting
+              them in the global sheet would make them look like a site-wide
+              contract. */}
           <style
             dangerouslySetInnerHTML={{
               __html: `
+@keyframes arch-dash { to { stroke-dashoffset: -32; } }
+.arch-flow { animation: arch-dash 1.1s linear infinite; }
+@keyframes arch-ping { 0% { transform: scale(.6); opacity: .6; } 100% { transform: scale(1.5); opacity: 0; } }
+.arch-ping { animation: arch-ping 1.8s ease-out infinite; }
+/* MOVEMENT IS THE FIRST THING TO GO. The colours already carry the whole state,
+   so nothing is lost by stopping it. */
+@media (prefers-reduced-motion: reduce) {
+  .arch-flow, .arch-ping { animation: none; }
+}
 .arch-prose h1 { font-family: var(--font-site-display); font-size: 22px; font-weight: 800; letter-spacing: -0.025em; color: var(--color-site-ink); margin: 8px 0 10px; }
 .arch-prose h2 { font-family: var(--font-site-display); font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--color-site-ink); margin: 22px 0 8px; }
 .arch-prose h3 { font-family: var(--font-site-display); font-size: 14.5px; font-weight: 700; color: var(--color-site-ink); margin: 16px 0 6px; }
@@ -124,6 +134,28 @@ export default async function ArchitecturePage({
 `,
             }}
           />
+      {/* THE MAP FIRST, THE DOCUMENT UNDER IT. The map answers "is this working
+          and where is the code"; the document answers "why is it shaped like
+          this". Both are worth having and they are not the same question. */}
+      {views.length > 0 && <ArchitectureMap views={views} status={status} />}
+
+      {!doc ? (
+        <div className="rounded-[18px] border border-dashed border-site-line bg-site-card px-6 py-12 text-center shadow-site-soft">
+          <p className="text-[14px] font-semibold text-site-ink">
+            {appName(app)} has no architecture {views.length > 0 ? 'document' : 'map or document'} yet.
+          </p>
+          <p className="mx-auto mt-2 max-w-[56ch] text-[12.5px] leading-relaxed text-site-ink-3">
+            Create{' '}
+            <code className="rounded bg-site-sunk px-1.5 py-0.5 font-mono text-[11.5px] text-site-ink-2">
+              admin/docs/{app}/architecture.md
+            </code>{' '}
+            with mermaid blocks in it and this page renders them. It lives in the repo rather than
+            in a form so that a change to the diagrams shows up in the same diff as the change they
+            describe.
+          </p>
+        </div>
+      ) : (
+        <>
           <ArchitectureView segments={doc.segments} html={html} />
         </>
       )}
