@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
-import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_spec.dart';

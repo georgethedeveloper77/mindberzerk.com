@@ -9,7 +9,6 @@ import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../../design/components/anchored_menu.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';

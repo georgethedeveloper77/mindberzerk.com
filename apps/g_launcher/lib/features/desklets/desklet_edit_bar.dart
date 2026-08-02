@@ -64,7 +64,9 @@ class DeskletEditBar extends ConsumerWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                focused ? 'Editing widget' : 'Editing workspace',
+                focused
+                    ? context.t('desklets.editingWidget')
+                    : context.t('desklets.editingWorkspace'),
                 style: TextStyle(
                   fontFamily: theme.typography.display,
                   fontSize: 14,
@@ -84,7 +86,7 @@ class DeskletEditBar extends ConsumerWidget {
                   page: ref.read(activeWorkspaceProvider),
                 ),
                 child: Text(
-                  'Add',
+                  context.t('common.add'),
                   style: TextStyle(
                     fontFamily: theme.typography.display,
                     color: p.accent,

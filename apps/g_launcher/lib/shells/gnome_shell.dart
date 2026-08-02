@@ -502,34 +502,15 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
       ],
     );
 
-    // ── ONE BACK OWNER, IN PRIORITY ORDER ───────────────────────────────
+    // ── BACK IS NOT THIS SHELL'S TO OWN ─────────────────────────────────
     //
-    // Back used to be handled by whichever overlay happened to be mounted,
-    // which worked while there was exactly one. There are two now, and two
-    // PopScopes in the same route BOTH fire: closing the drawer and leaving
-    // edit mode on a single press is not a behaviour anyone asked for.
-    //
-    // So the shell owns it and walks the stack top-down. The final `else` is
-    // deliberately empty: back must never leave the launcher, and doing
-    // nothing IS the correct behaviour on a bare desktop.
-    //
-    // NOTE: none of this fires while LauncherActivity.onBackPressed is an
-    // empty override. It has to call super, which is what sends popRoute over
-    // the navigation channel; super does not finish the activity, so the
-    // "never leaves the launcher" promise is kept here, in Dart, where the
-    // shell can see what is open.
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (ref.read(deskletEditProvider).active) {
-          ref.read(deskletEditProvider.notifier).exit();
-        } else if (ref.read(activitiesOpenProvider)) {
-          ref.read(activitiesOpenProvider.notifier).state = false;
-        }
-      },
-      child: body,
-    );
+    // This file used to hold the priority chain, on the grounds that the shell
+    // is the thing that can see what is open. That was right about the problem
+    // and wrong about the place: home_screen wraps EVERY shell, this wraps one,
+    // and the other four had no edit-mode handler at all. The chain lives there
+    // now, and having it in both was itself the double-fire the old comment
+    // here warned about.
+    return body;
   }
 }
 
@@ -540,16 +521,17 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
 /// translucent wash over the wallpaper, and an opaque box here would paint over
 /// exactly the thing that makes it read as Activities rather than as an app
 /// list. Same reason there is no arrow: GNOME closes Activities with the Super
-/// key, and Android's back gesture is the honest local equivalent, which the
-/// PopScope below already provides.
+/// key, and Android's back gesture is the honest local equivalent, which
+/// home_screen's single PopScope provides for every shell.
 class _Activities extends ConsumerWidget {
   const _Activities({required this.theme});
 
   final EffectiveTheme theme;
 
-  /// NO PopScope here any more. The shell owns back for the whole tree, in
-  /// priority order, because there are now two things a back press could mean
-  /// and two PopScopes in one route both fire.
+  /// NO PopScope here, and none in the shell above either any more. home_screen
+  /// owns back for the whole tree in priority order, because it is the only
+  /// widget that wraps all five shells, and any second scope in the same route
+  /// fires on the same press.
   @override
   Widget build(BuildContext context, WidgetRef ref) => ShellDrawer(theme: theme);
 }

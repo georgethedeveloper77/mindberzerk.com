@@ -12,7 +12,6 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
-import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';

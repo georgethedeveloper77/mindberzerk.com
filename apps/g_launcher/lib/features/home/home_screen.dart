@@ -16,6 +16,7 @@ import '../boot/boot_controller.dart';
 import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
+import '../drawer/drawer_state.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -40,9 +41,11 @@ import '../desklets/desklet_edit.dart';
 /// swiping while it is on, so back doubling as its exit is the single thing a
 /// user needs to know, and it is the gesture they already reach for.
 ///
-/// The [PopScope] lives in a thin [Consumer] so only it rebuilds when edit mode
-/// toggles; the shell subtree below is passed through as a captured child and is
-/// not rebuilt.
+/// The [PopScope] here is the ONLY one in the tree, and it owns back for every
+/// shell in priority order: drawer first, then edit mode, then nothing. See the
+/// note at the widget itself for why it lives here rather than in a shell, and
+/// for the five it replaced. It watches nothing, so the Consumer never rebuilds
+/// and the shell subtree is passed through as a captured child.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -169,18 +172,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 monoFontFamily: t.typography.mono ?? 'UbuntuMono',
               ),
               monoFontFamily: t.spec.typography.mono ?? 'UbuntuMono',
-              // BACK leaves edit mode. Only this Consumer rebuilds when edit
-              // toggles; the shell is a captured child and is not rebuilt.
+              // ─── THE ONE BACK OWNER, FOR EVERY SHELL ─────────────────
+              //
+              // There were SIX PopScopes in this tree and they all fired on the
+              // same press, which is the bug gnome_shell's own comment warns
+              // about and then reproduces: this one, gnome_shell's, and one
+              // inside each of Kickoff, the tiling launcher and Launchpad.
+              //
+              // The visible symptom needed two things open at once. Enter edit
+              // mode, then open the drawer, then press back: this scope exited
+              // edit mode and the drawer's scope closed the drawer, so one
+              // press did two things and the user lost a mode they were still
+              // using. Nobody reports that, because it looks like back working
+              // slightly too well.
+              //
+              // Owning it HERE rather than in gnome_shell, which is where the
+              // previous attempt put it. This widget wraps every shell; that
+              // one wraps GNOME. Four of the five shells had no edit-mode
+              // handler of their own at all, and tui_shell has no PopScope
+              // whatsoever, so the shell-level answer was only ever going to be
+              // correct on one desktop out of five.
+              //
+              // canPop is FALSE unconditionally, which is the contract the
+              // shells already documented: back must never leave the launcher.
+              // LauncherActivity.onBackPressed calls super, which only sends
+              // popRoute, so refusing here is what keeps that promise.
+              //
+              // Nothing is watched, so this Consumer never rebuilds and the
+              // shell below is untouched by a back press that does nothing.
               child: Consumer(
                 child: shell,
                 builder: (context, ref, child) {
-                  final editing = ref.watch(deskletEditProvider).active;
                   return PopScope(
-                    canPop: !editing,
+                    canPop: false,
+                    // TOP DOWN, and the order is the behaviour: the most
+                    // recently entered thing is the one back should leave. Edit
+                    // mode is entered from the desktop and survives the drawer
+                    // opening over it, so a press with both open closes the
+                    // drawer first and leaves edit mode on the second press.
                     onPopInvokedWithResult: (didPop, _) {
-                      if (!didPop && editing) {
+                      if (didPop) return;
+                      if (ref.read(activitiesOpenProvider)) {
+                        ref.read(activitiesOpenProvider.notifier).state = false;
+                      } else if (ref.read(deskletEditProvider).active) {
                         ref.read(deskletEditProvider.notifier).exit();
                       }
+                      // No final else, deliberately. Back on a bare desktop
+                      // does nothing, which is what a launcher's back means.
                     },
                     child: child!,
                   );

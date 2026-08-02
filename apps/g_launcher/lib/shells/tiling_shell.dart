@@ -65,7 +65,10 @@ class _TilingShellState extends ConsumerState<TilingShell> {
           right: 0,
           child: SafeArea(bottom: false, child: _Waybar(theme: theme)),
         ),
-        if (activitiesOpen) Positioned.fill(child: _Launcher(theme: theme)),
+        // ShellDrawer directly; `_Launcher` was a back contract and nothing
+        // else, and that contract moved to home_screen. The rofi-shaped
+        // presentation comes from ShellDrawer, not from the wrapper.
+        if (activitiesOpen) Positioned.fill(child: ShellDrawer(theme: theme)),
       ],
     );
   }
@@ -188,32 +191,6 @@ class _Module extends StatelessWidget {
           color: onDark.withValues(alpha: 0.85),
         ),
       ),
-    );
-  }
-}
-
-/// The launcher popup, opened from the bar glyph or a swipe.
-///
-/// A back contract and nothing else. [ShellDrawer] resolves this shell to the
-/// rofi/wofi launcher, which draws its own scrim, its own centred box and its
-/// own tap-outside-to-dismiss. Wrapping it in an opaque background would defeat
-/// the point: a tiling launcher FLOATS over the desktop, dimming it rather than
-/// replacing it.
-class _Launcher extends ConsumerWidget {
-  const _Launcher({required this.theme});
-
-  final EffectiveTheme theme;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          ref.read(activitiesOpenProvider.notifier).state = false;
-        }
-      },
-      child: ShellDrawer(theme: theme),
     );
   }
 }

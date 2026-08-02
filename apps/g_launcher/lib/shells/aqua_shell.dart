@@ -256,37 +256,12 @@ class _AquaShellState extends ConsumerState<AquaShell> {
           ),
         ),
 
-        if (activitiesOpen) Positioned.fill(child: _Launchpad(theme: theme)),
+        // ShellDrawer directly; `_Launchpad` was a back contract and nothing
+        // else. The interim note about real Launchpad being paged rather than
+        // scrolling lives in shell_drawer.dart, which is where the decision
+        // actually is.
+        if (activitiesOpen) Positioned.fill(child: ShellDrawer(theme: theme)),
       ],
-    );
-  }
-}
-
-/// Launchpad.
-///
-/// A back contract and nothing else, exactly like GNOME's `_Activities` and
-/// KDE's `_Kickoff`: [ShellDrawer] owns the presentation, and wrapping it in an
-/// opaque background here would paint over the blurred desktop that makes it
-/// read as Launchpad rather than as an app list.
-///
-/// Today that resolves to the shared Activities grid — see the interim note in
-/// shell_drawer.dart. Real Launchpad is paged rather than scrolling, which is
-/// its own sitting.
-class _Launchpad extends ConsumerWidget {
-  const _Launchpad({required this.theme});
-
-  final EffectiveTheme theme;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          ref.read(activitiesOpenProvider.notifier).state = false;
-        }
-      },
-      child: ShellDrawer(theme: theme),
     );
   }
 }

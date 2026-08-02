@@ -475,6 +475,12 @@ class _Group extends StatelessWidget {
     required this.label,
     required this.rows,
     this.query = '',
+    // KEPT AND SILENCED, not deleted. The doc on the field below argues at
+    // length for holding the slot open, and it is right: the header is where a
+    // group-local action belongs if one ever returns, and removing the
+    // parameter takes the header layout with it. What the analyser is
+    // reporting is true and not a defect, so it is answered rather than obeyed.
+    // ignore: unused_element_parameter
     this.onReset,
   });
 
@@ -1771,7 +1777,7 @@ List<Widget> _appearanceSection(
     // instant you see it, and the surface they change is one that only appears
     // when you are no longer looking at this screen.
     _Group(
-      label: 'Panels',
+      label: context.t('settings.panels'),
       query: q,
       rows: [
         _FilterRow(
@@ -1781,8 +1787,8 @@ List<Widget> _appearanceSection(
         _FilterRow(
           const ['panel', 'sheet', 'opacity', 'transparency', 'glass'],
           _OpacityRow(
-            label: 'Panel opacity',
-            sub: 'Sheets, dialogs and menus',
+            label: context.t('settings.panels.opacity'),
+            sub: context.t('settings.panels.opacitySub'),
             value: theme.panelOpacity,
             following: theme.prefs.panelOpacity == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelOpacity: v)),
@@ -1794,16 +1800,17 @@ List<Widget> _appearanceSection(
           const ['blur', 'panel', 'glass', 'frosted', 'performance', 'lag'],
           _PanelSlider(
             icon: Icons.blur_on,
-            label: 'Blur',
+            label: context.t('settings.panels.blur'),
             // The honest reason this is exposed, said plainly. Someone whose
             // launcher stutters is not going to guess that the frosted glass
             // is what costs them the frames.
-            sub: 'Turn it down if the launcher feels slow',
+            sub: context.t('settings.panels.blurSub'),
             value: theme.panelBlur,
             min: 0,
             max: 24,
             divisions: 12,
-            format: (v) => v <= 0 ? 'Off' : v.round().toString(),
+            format: (v) =>
+                v <= 0 ? context.t('settings.panels.blurOff') : v.round().toString(),
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelBlur: v)),
           ),
         ),
@@ -1811,8 +1818,8 @@ List<Widget> _appearanceSection(
           const ['tint', 'colour', 'color', 'panel', 'distro'],
           _PanelSlider(
             icon: Icons.palette_outlined,
-            label: 'Tint',
-            sub: 'How much distro colour the glass carries',
+            label: context.t('settings.panels.tint'),
+            sub: context.t('settings.panels.tintSub'),
             value: theme.panelTint,
             min: 0,
             max: 1,
@@ -1825,8 +1832,8 @@ List<Widget> _appearanceSection(
           const ['corner', 'radius', 'rounded', 'panel', 'shape'],
           _PanelSlider(
             icon: Icons.rounded_corner_outlined,
-            label: 'Corners',
-            sub: 'Shared by every panel, so none of them disagree',
+            label: context.t('settings.panels.corners'),
+            sub: context.t('settings.panels.cornersSub'),
             value: theme.panelRadius,
             min: 0,
             max: 28,
@@ -1847,7 +1854,7 @@ List<Widget> _appearanceSection(
     // phone, which is true of the API and not true of what we do with it, and
     // the only place to say so is here.
     _Group(
-      label: 'Notification badges',
+      label: context.t('settings.badges'),
       query: q,
       rows: [
         const _FilterRow(
@@ -2068,8 +2075,8 @@ List<Widget> _appearanceSection(
         _FilterRow(
           const ['opacity', 'bar', 'panel', 'transparency', 'top'],
           _OpacityRow(
-            label: 'Top bar opacity',
-            sub: 'Panels and menu bars. This distro paints no bar fill',
+            label: context.t('settings.barOpacity'),
+            sub: context.t('settings.barOpacitySub'),
             subWhenInert: true,
             value: theme.barOpacity,
             following: theme.prefs.barOpacity == null,
@@ -2177,8 +2184,8 @@ List<Widget> _desktopSection(
         _FilterRow(
           const ['opacity', 'dock', 'transparency', 'panel'],
           _OpacityRow(
-            label: 'Dock opacity',
-            sub: 'The dock or task strip',
+            label: context.t('settings.dockOpacity'),
+            sub: context.t('settings.dockOpacitySub'),
             value: theme.dockOpacity,
             following: theme.prefs.dockOpacity == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(dockOpacity: v)),
@@ -2287,8 +2294,8 @@ List<Widget> _applicationsSection(
         _FilterRow(
           const ['opacity', 'drawer', 'transparency', 'apps'],
           _OpacityRow(
-            label: 'Opacity',
-            sub: 'The wash behind the app list',
+            label: context.t('settings.drawerOpacity'),
+            sub: context.t('settings.drawerOpacitySub'),
             value: theme.drawerOpacity,
             following: theme.prefs.drawerOpacity == null,
             onChanged: (v) =>
@@ -2463,13 +2470,15 @@ List<Widget> _gesturesSection(
   int workspaces,
   String q,
 ) {
-  // Derived here rather than passed, so the signature never has to name the
-  // Pigeon host API type, which this file does not import.
+  // Read and discarded, which instantiates the provider here rather than making
+  // this function's signature name the Pigeon host API type.
   //
-  // The prefs notifier is BOUND now: the group's Reset writes through it. It
-  // was a bare `ref.read(...)` with the result discarded, which reads as a
-  // deliberate warm-up and is really just a leftover.
-  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  // The prefs notifier that used to sit beside it is GONE. It was bound for the
+  // group's own Reset action, and that moved to RestoreScreen when
+  // `_Group.onReset` stopped being passed anywhere, so it has been unused ever
+  // since. The comment claiming it was "BOUND now" outlived the thing it
+  // described by a whole feature, which is the usual way a stale comment
+  // survives: it was true when written.
   ref.read(launcherHostApiProvider);
 
   return [
@@ -2773,7 +2782,7 @@ class _OpacityRow extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.only(right: 10),
-                    child: Text('Follow',
+                    child: Text(context.t('settings.follow'),
                         style: d.text.caption.copyWith(color: c.accent)),
                   ),
                 ),
@@ -2912,7 +2921,10 @@ class _PanelPreview extends StatelessWidget {
                                 child: Padding(
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 18),
-                                  child: Text('Sheet', style: p.text.title),
+                                  child: Text(
+                                    inner.t('settings.panels.previewTitle'),
+                                    style: p.text.title,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -2922,7 +2934,7 @@ class _PanelPreview extends StatelessWidget {
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 18),
                                   child: Text(
-                                    'Menus and dialogs match this',
+                                    inner.t('settings.panels.previewSub'),
                                     style: p.text.caption,
                                   ),
                                 ),
@@ -3041,10 +3053,12 @@ class _BadgeAccessRow extends ConsumerWidget {
     return _Row(
       icon: on ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
       accent: true,
-      title: on ? 'Notification access is on' : 'Allow notification access',
-      subtitle: on
-          ? 'Counts only. No message content is read or stored'
-          : 'Needed to show badges. Counts only, never message content',
+      title: context.t(
+        on ? 'settings.badges.accessOn' : 'settings.badges.accessOff',
+      ),
+      subtitle: context.t(
+        on ? 'settings.badges.accessOnSub' : 'settings.badges.accessOffSub',
+      ),
       // ALWAYS a widget: _Row.trailing is required and non-nullable. An empty
       // box when access is granted, because there is nothing left to tap
       // through to and a chevron would promise a screen that is not there.
@@ -3082,11 +3096,15 @@ class _BadgeStyleRow extends StatelessWidget {
   /// Null means auto, which clears the preference.
   final ValueChanged<String?> onPick;
 
-  static const _options = <({String? value, String label})>[
-    (value: null, label: 'Auto'),
-    (value: 'dot', label: 'Dot'),
-    (value: 'count', label: 'Count'),
-    (value: 'off', label: 'Off'),
+  /// KEYS, not sentences. A top-level `const` list is built before any widget
+  /// exists, so it cannot call `context.t` at all; the labels resolve where they
+  /// are drawn. Same shape `_cornerChoices` takes in desklet_settings and for
+  /// the same reason.
+  static const _options = <({String? value, String labelKey})>[
+    (value: null, labelKey: 'settings.badges.auto'),
+    (value: 'dot', labelKey: 'settings.badges.dot'),
+    (value: 'count', labelKey: 'settings.badges.count'),
+    (value: 'off', labelKey: 'settings.badges.off'),
   ];
 
   @override
@@ -3102,14 +3120,20 @@ class _BadgeStyleRow extends StatelessWidget {
 
     // What auto currently resolves to, named rather than left implicit. "Auto"
     // on its own tells the user nothing about what they are about to see.
+    //
     // Only ever READ on the auto branch below, where the stored value is null
     // and badgeStyleFor therefore returns the distro's own answer. That is why
     // it can be computed straight from the theme without stripping anything.
-    final resolved = switch (badgeStyleFor(theme)) {
-      BadgeStyle.dot => 'a dot',
-      BadgeStyle.count => 'a number',
-      BadgeStyle.none => 'nothing',
-    };
+    //
+    // WHOLE SENTENCES behind the switch, rather than a fragment interpolated
+    // into a stem. "This distro shows" plus "a dot" composes in English and
+    // falls apart in a language that inflects the noun or moves the verb, and a
+    // translator handed "a dot" alone cannot see which sentence it lands in.
+    final resolved = context.t(switch (badgeStyleFor(theme)) {
+      BadgeStyle.dot => 'settings.badges.showsDot',
+      BadgeStyle.count => 'settings.badges.showsCount',
+      BadgeStyle.none => 'settings.badges.showsNone',
+    });
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
@@ -3121,7 +3145,9 @@ class _BadgeStyleRow extends StatelessWidget {
               Icon(Icons.circle_notifications_outlined,
                   size: 20, color: c.textMuted),
               const SizedBox(width: 14),
-              Expanded(child: Text('Badge style', style: d.text.body)),
+              Expanded(
+                child: Text(context.t('settings.badges.style'), style: d.text.body),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -3144,7 +3170,7 @@ class _BadgeStyleRow extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _options[i].label,
+                          context.t(_options[i].labelKey),
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -3162,8 +3188,8 @@ class _BadgeStyleRow extends StatelessWidget {
             padding: const EdgeInsets.only(left: 34, top: 8),
             child: Text(
               stored == null
-                  ? 'This distro shows $resolved'
-                  : 'Every distro, whichever desktop you are wearing',
+                  ? resolved
+                  : context.t('settings.badges.everyDistro'),
               style: d.text.caption.copyWith(color: c.textMuted),
             ),
           ),

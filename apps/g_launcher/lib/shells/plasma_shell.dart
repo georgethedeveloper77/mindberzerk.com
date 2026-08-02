@@ -75,7 +75,12 @@ class _PlasmaShellState extends ConsumerState<PlasmaShell> {
           bottom: 0,
           child: _PlasmaPanel(theme: theme, bottomInset: insets.bottom),
         ),
-        if (activitiesOpen) Positioned.fill(child: _Kickoff(theme: theme)),
+        // ShellDrawer DIRECTLY. `_Kickoff` wrapped it purely to carry a back
+        // contract, and its own doc said so: "a back contract and nothing
+        // else". home_screen owns back for every shell now, so the wrapper
+        // had nothing left to do. Kickoff's presentation was never here
+        // anyway; ShellDrawer resolves this shell to it.
+        if (activitiesOpen) Positioned.fill(child: ShellDrawer(theme: theme)),
       ],
     );
   }
@@ -321,32 +326,6 @@ class _PanelClock extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Kickoff, opened from the panel button.
-///
-/// A back contract and nothing else: [ShellDrawer] resolves this shell to the
-/// Kickoff presentation (rail + list + system footer), and that widget paints
-/// its own solid panel-attached surface. No wrapper background and no back
-/// arrow — KDE closes Kickoff by pressing the launcher again or clicking away,
-/// and Android's back gesture stands in for that here.
-class _Kickoff extends ConsumerWidget {
-  const _Kickoff({required this.theme});
-
-  final EffectiveTheme theme;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          ref.read(activitiesOpenProvider.notifier).state = false;
-        }
-      },
-      child: ShellDrawer(theme: theme),
     );
   }
 }

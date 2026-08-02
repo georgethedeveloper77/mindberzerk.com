@@ -9,7 +9,6 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
-import '../../design/components/anchored_menu.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
