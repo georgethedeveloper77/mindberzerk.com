@@ -9,9 +9,23 @@
  * Everything else is re-exported so the builders reach one implementation.
  */
 
-import { CORE_PACKAGES, fileNameFor, isPackageName, type HeroPack } from '@/lib/g-launcher/icon-pack';
+import {
+  CORE_ROLES,
+  fileNameFor,
+  isPackageName,
+  type HeroPack,
+} from '@/lib/g-launcher/icon-pack';
 
-export { CORE_PACKAGES, fileNameFor, guessPackage, isPackageName } from '@/lib/g-launcher/icon-pack';
+export {
+  CORE_PACKAGES,
+  CORE_ROLES,
+  expandRoleEntries,
+  fileNameFor,
+  guessPackage,
+  isPackageName,
+  roleForPackage,
+} from '@/lib/g-launcher/icon-pack';
+export type { CoreRole } from '@/lib/g-launcher/icon-pack';
 export type { HeroPack as HeroPackJson } from '@/lib/g-launcher/icon-pack';
 
 // ── validators icon-pack.ts does not provide ─────────────────────────────────
@@ -52,10 +66,17 @@ export interface HeroPackDraftMeta {
 
 /** The apps grid, as {pkg,label}. Sourced from CORE_PACKAGES so the builder and
  *  the launcher's own reader agree on which apps matter. */
-export const COMMON_APPS: { pkg: string; label: string }[] = CORE_PACKAGES.map(({ pkg, label }) => ({
-  pkg,
-  label,
-}));
+/**
+ * The builder grid: ONE SLOT PER ROLE, not per package.
+ *
+ * `pkg` carries the ROLE ID now, and it keeps that field name because it is
+ * the key every grid, assignment map and saved draft in both builders is
+ * already keyed by; renaming it would touch a dozen files to say the same
+ * thing. `expandRoleEntries` turns these slots into real package ids at
+ * publish, and `packages` is here so a tile can say how many apps it covers.
+ */
+export const COMMON_APPS: { pkg: string; label: string; packages: string[] }[] =
+  CORE_ROLES.map((r) => ({ pkg: r.id, label: r.label, packages: r.packages }));
 
 /**
  * Byte-stable pack.json. Package keys sorted so identical content signs to
@@ -84,6 +105,10 @@ export function validateHeroPack(meta: HeroPackDraftMeta, entries: HeroIconEntry
   if (drawn.length === 0) p.push('Draw or upload at least one icon');
 
   const seenPkg = new Set<string>();
+  // Entries reach here ALREADY EXPANDED by `expandRoleEntries`, so every `pkg`
+  // is a real package id and the check below is the same one it always was.
+  // A role id would fail it, which is correct: a role that never expanded is a
+  // slot that would ship as a package name no device has.
   const seenFile = new Set<string>();
   for (const e of drawn) {
     if (!isValidPackage(e.pkg)) p.push(`'${e.pkg}' is not a valid Android package name`);

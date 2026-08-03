@@ -100,33 +100,124 @@ export function fileNameFor(pkg: string): string {
  * The launcher has no app-icon grid, so the only icons a user sees are the dock
  * and the first drawer page - roughly the 25 to 40 slots below.
  */
-export const CORE_PACKAGES: { pkg: string; label: string; hints: string[] }[] = [
-  { pkg: 'com.android.dialer', label: 'Phone', hints: ['phone', 'dialer', 'call'] },
-  { pkg: 'com.android.mms', label: 'Messages', hints: ['message', 'sms', 'chat'] },
-  { pkg: 'com.android.camera2', label: 'Camera', hints: ['camera', 'photo'] },
-  { pkg: 'com.android.gallery3d', label: 'Gallery', hints: ['gallery', 'image', 'pictures'] },
-  { pkg: 'com.android.settings', label: 'Settings', hints: ['settings', 'preferences', 'config'] },
-  { pkg: 'com.android.deskclock', label: 'Clock', hints: ['clock', 'alarm', 'time'] },
-  { pkg: 'com.android.calculator2', label: 'Calculator', hints: ['calculator', 'calc'] },
-  { pkg: 'com.android.documentsui', label: 'Files', hints: ['files', 'file', 'nautilus', 'folder'] },
-  { pkg: 'com.android.chrome', label: 'Chrome', hints: ['chrome', 'browser'] },
-  { pkg: 'com.android.vending', label: 'Play Store', hints: ['store', 'play', 'shop'] },
-  { pkg: 'com.google.android.youtube', label: 'YouTube', hints: ['youtube'] },
-  { pkg: 'com.google.android.gm', label: 'Gmail', hints: ['gmail', 'mail', 'thunderbird'] },
-  { pkg: 'com.google.android.apps.maps', label: 'Maps', hints: ['maps', 'map'] },
-  { pkg: 'com.android.calendar', label: 'Calendar', hints: ['calendar'] },
-  { pkg: 'com.whatsapp', label: 'WhatsApp', hints: ['whatsapp'] },
-  { pkg: 'com.zhiliaoapp.musically', label: 'TikTok', hints: ['tiktok'] },
-  { pkg: 'com.facebook.lite', label: 'Facebook Lite', hints: ['facebook', 'fblite'] },
-  { pkg: 'com.instagram.android', label: 'Instagram', hints: ['instagram'] },
-  { pkg: 'com.opera.mini.native', label: 'Opera Mini', hints: ['opera'] },
-  { pkg: 'com.spotify.music', label: 'Spotify', hints: ['spotify'] },
-  { pkg: 'org.telegram.messenger', label: 'Telegram', hints: ['telegram'] },
-  { pkg: 'com.boomplay', label: 'Boomplay', hints: ['boomplay'] },
-  { pkg: 'com.lenovo.anyshare.gps', label: 'SHAREit', hints: ['shareit'] },
-  { pkg: 'cn.xender', label: 'Xender', hints: ['xender'] },
-  { pkg: 'com.mindhunter.g_recovery', label: 'G Recovery', hints: ['recovery'] },
+/**
+ * ── ROLES, NOT PACKAGES ─────────────────────────────────────────────────────
+ *
+ * The table used to be one row per package id, and one row per package is a
+ * lie about how phones are actually built. "Phone" is `com.android.dialer` on
+ * AOSP, `com.google.android.dialer` on a Pixel and
+ * `com.samsung.android.dialer` on the S22 that this project tests on. Under
+ * the flat table an artist drew one Phone icon, it matched one of those three,
+ * and on the other two the app fell through to the generator SILENTLY, which
+ * is this codebase's most expensive recurring failure mode.
+ *
+ * So a row is now a ROLE: one label, one piece of art, and every package id
+ * that plays that role, most standard first. The builders show one tile per
+ * role and expand it at publish, so `pack.json` still ships the flat
+ * package-to-filename map `HeroIconResolver` already reads. NOTHING ON THE
+ * DEVICE CHANGES: the wire format, the resolver and the signed manifest are
+ * untouched, the map is simply complete now.
+ *
+ * ── WHERE THESE IDS COME FROM ───────────────────────────────────────────────
+ *
+ * Samsung ids were read off the S22 with
+ * `adb shell cmd package query-activities -a android.intent.action.MAIN
+ *  -c android.intent.category.LAUNCHER`, so they are what that device actually
+ * resolves rather than what a blog says. Google and AOSP ids are verified the
+ * same way or against the Play listing URL.
+ *
+ * TRANSSION (HiOS/XOS) IS DELIBERATELY ABSENT. Those ids vary by ROM version,
+ * there is no Transsion device on hand to enumerate, and a guessed id is worse
+ * than no id: it looks handled and matches nothing. They go in when a device
+ * or a verified source provides them.
+ */
+export interface CoreRole {
+  /** Stable key for the role. Used by the builders as the grid slot id. */
+  id: string;
+  label: string;
+  hints: string[];
+  /** Every package that plays this role, most standard first. */
+  packages: string[];
+}
+
+export const CORE_ROLES: CoreRole[] = [
+  { id: 'phone', label: 'Phone', hints: ['phone', 'dialer', 'call'], packages: ['com.android.dialer', 'com.google.android.dialer', 'com.samsung.android.dialer'] },
+  { id: 'messages', label: 'Messages', hints: ['message', 'sms', 'chat'], packages: ['com.android.mms', 'com.google.android.apps.messaging', 'com.samsung.android.messaging'] },
+  { id: 'contacts', label: 'Contacts', hints: ['contact', 'people', 'address'], packages: ['com.android.contacts', 'com.google.android.contacts', 'com.samsung.android.app.contacts'] },
+  { id: 'camera', label: 'Camera', hints: ['camera', 'photo'], packages: ['com.android.camera2', 'com.sec.android.app.camera'] },
+  { id: 'gallery', label: 'Gallery', hints: ['gallery', 'image', 'pictures', 'photos', 'shotwell'], packages: ['com.android.gallery3d', 'com.google.android.apps.photos', 'com.sec.android.gallery3d'] },
+  { id: 'settings', label: 'Settings', hints: ['settings', 'preferences', 'config'], packages: ['com.android.settings'] },
+  { id: 'clock', label: 'Clock', hints: ['clock', 'alarm', 'time'], packages: ['com.android.deskclock', 'com.google.android.deskclock', 'com.sec.android.app.clockpackage'] },
+  { id: 'calculator', label: 'Calculator', hints: ['calculator', 'calc'], packages: ['com.android.calculator2', 'com.google.android.calculator', 'com.sec.android.app.popupcalculator'] },
+  { id: 'files', label: 'Files', hints: ['files', 'file', 'nautilus', 'folder'], packages: ['com.android.documentsui', 'com.google.android.apps.nbu.files', 'com.sec.android.app.myfiles'] },
+  { id: 'calendar', label: 'Calendar', hints: ['calendar'], packages: ['com.android.calendar', 'com.google.android.calendar', 'com.samsung.android.calendar'] },
+  { id: 'browser', label: 'Browser', hints: ['chrome', 'browser'], packages: ['com.android.chrome', 'com.sec.android.app.sbrowser'] },
+  { id: 'store', label: 'App store', hints: ['store', 'play', 'shop', 'software'], packages: ['com.android.vending', 'com.sec.android.app.samsungapps'] },
+  { id: 'voice', label: 'Recorder', hints: ['record', 'voice', 'memo'], packages: ['com.sec.android.app.voicenote'] },
+  { id: 'notes', label: 'Notes', hints: ['note', 'memo', 'keep'], packages: ['com.google.android.keep', 'com.samsung.android.app.notes'] },
+  { id: 'search', label: 'Search', hints: ['search', 'google'], packages: ['com.google.android.googlequicksearchbox'] },
+  { id: 'youtube', label: 'YouTube', hints: ['youtube'], packages: ['com.google.android.youtube'] },
+  { id: 'gmail', label: 'Gmail', hints: ['gmail', 'mail', 'thunderbird'], packages: ['com.google.android.gm'] },
+  { id: 'maps', label: 'Maps', hints: ['maps', 'map'], packages: ['com.google.android.apps.maps'] },
+  { id: 'music', label: 'Music', hints: ['music', 'ytmusic'], packages: ['com.google.android.apps.youtube.music', 'com.sec.android.app.music'] },
+  { id: 'whatsapp', label: 'WhatsApp', hints: ['whatsapp'], packages: ['com.whatsapp', 'com.whatsapp.w4b'] },
+  { id: 'tiktok', label: 'TikTok', hints: ['tiktok'], packages: ['com.zhiliaoapp.musically'] },
+  { id: 'facebook', label: 'Facebook', hints: ['facebook', 'fblite'], packages: ['com.facebook.katana', 'com.facebook.lite'] },
+  { id: 'messenger', label: 'Messenger', hints: ['messenger', 'orca'], packages: ['com.facebook.orca'] },
+  { id: 'instagram', label: 'Instagram', hints: ['instagram'], packages: ['com.instagram.android'] },
+  { id: 'x', label: 'X', hints: ['twitter'], packages: ['com.twitter.android'] },
+  { id: 'snapchat', label: 'Snapchat', hints: ['snapchat', 'snap'], packages: ['com.snapchat.android'] },
+  { id: 'telegram', label: 'Telegram', hints: ['telegram'], packages: ['org.telegram.messenger'] },
+  { id: 'opera', label: 'Opera Mini', hints: ['opera'], packages: ['com.opera.mini.native', 'com.opera.browser'] },
+  { id: 'spotify', label: 'Spotify', hints: ['spotify'], packages: ['com.spotify.music'] },
+  { id: 'boomplay', label: 'Boomplay', hints: ['boomplay'], packages: ['com.afmobi.boomplayer'] },
+  { id: 'audiomack', label: 'Audiomack', hints: ['audiomack'], packages: ['com.audiomack'] },
+  { id: 'netflix', label: 'Netflix', hints: ['netflix'], packages: ['com.netflix.mediaclient'] },
+  { id: 'capcut', label: 'CapCut', hints: ['capcut'], packages: ['com.lemon.lvoverseas'] },
+  { id: 'shareit', label: 'SHAREit', hints: ['shareit'], packages: ['com.lenovo.anyshare.gps'] },
+  { id: 'xender', label: 'Xender', hints: ['xender'], packages: ['cn.xender'] },
+  { id: 'mpesa', label: 'M-PESA', hints: ['mpesa'], packages: ['com.safaricom.mpesa.lifestyle'] },
+  { id: 'opay', label: 'OPay', hints: ['opay'], packages: ['team.opay.pay'] },
+  { id: 'palmpay', label: 'PalmPay', hints: ['palmpay'], packages: ['com.transsnet.palmpay'] },
+  { id: 'grecovery', label: 'G Recovery', hints: ['recovery'], packages: ['com.mindhunter.g_recovery'] },
 ];
+
+/** The role a package plays, or null when no role claims it. */
+export function roleForPackage(pkg: string): CoreRole | null {
+  return CORE_ROLES.find((r) => r.packages.includes(pkg)) ?? null;
+}
+
+/**
+ * Expand one assignment per ROLE into one entry per PACKAGE.
+ *
+ * This is the whole trick: the builder holds `role -> file`, the pack ships
+ * `package -> file`, and every vendor's id lands on the art that was drawn
+ * once. A slot whose id is not a known role passes through untouched, which
+ * is what keeps hand-typed package ids working.
+ */
+export function expandRoleEntries(
+  assigned: { slot: string; file: string }[],
+): { pkg: string; file: string }[] {
+  const out: { pkg: string; file: string }[] = [];
+  const seen = new Set<string>();
+  for (const a of assigned) {
+    const role = CORE_ROLES.find((r) => r.id === a.slot);
+    const pkgs = role ? role.packages : [a.slot];
+    for (const pkg of pkgs) {
+      if (seen.has(pkg)) continue;
+      seen.add(pkg);
+      out.push({ pkg, file: a.file });
+    }
+  }
+  return out;
+}
+
+/**
+ * Flat view, kept because `guessPackage` and older callers want one row per
+ * package. Derived rather than maintained, so the two can never disagree.
+ */
+export const CORE_PACKAGES: { pkg: string; label: string; hints: string[] }[] =
+  CORE_ROLES.flatMap((r) => r.packages.map((pkg) => ({ pkg, label: r.label, hints: r.hints })));
 
 /**
  * Guess a package from a file name. A guess, never an assignment: it fills the

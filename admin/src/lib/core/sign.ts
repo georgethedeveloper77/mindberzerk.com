@@ -1,6 +1,12 @@
 import 'server-only';
 
-import { createHash, createPrivateKey, sign as nodeSign } from 'node:crypto';
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign as nodeSign,
+  verify as nodeVerify,
+} from 'node:crypto';
 
 /**
  * PHASE C4 - pack and index signing, server-side.
@@ -39,6 +45,59 @@ export type PackType = (typeof KNOWN_PACK_TYPES)[number];
 
 /** Fixed-length DER prefix for a PKCS8 ed25519 private key. */
 const PRIV_DER_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+
+/** Fixed-length DER prefix for an SPKI ed25519 public key. */
+const PUB_DER_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+
+/**
+ * The public keys devices actually accept, by key id. MIRRORS
+ * `PackKeys.ACCEPTED_HEX` in the launcher; keep them edited together.
+ *
+ * ─── WHY THIS TABLE EXISTS IN THE PANEL AT ALL ──────────────────────────────
+ *
+ * The first index this panel ever signed was signed with a PACK_SIGNING_KEY
+ * that did not match this key, and the failure was the worst shape a failure
+ * can take: publish reported success, the index was valid JSON, `keyId` SAID
+ * mh-2026-07, and every device silently rejected the signature and showed an
+ * empty catalogue. Nothing errored anywhere on either end.
+ *
+ * [assertTrustedKey] closes that hole: before anything is signed for a key id
+ * this table knows, a probe is signed and verified against the pubkey devices
+ * hold. A wrong secret now fails the publish with one precise sentence instead
+ * of blanking every phone's store.
+ *
+ * A key id NOT in this table is deliberately let through unchecked: during a
+ * rotation the panel may legitimately sign with a key the table has not
+ * learned yet, and devices report those visibly as UnknownKey rather than
+ * silently.
+ */
+const ACCEPTED_PUBKEYS: Record<string, string> = {
+  'mh-2026-07': 'a5482077e685b0078706166a55836e094fd63143c926f097e7f340fe9781bea0',
+};
+
+const trustedKeyChecked = new Set<string>();
+
+export function assertTrustedKey(keyId: string): void {
+  if (trustedKeyChecked.has(keyId)) return;
+  const acceptedHex = ACCEPTED_PUBKEYS[keyId];
+  if (!acceptedHex) return;
+
+  const pub = createPublicKey({
+    key: Buffer.concat([PUB_DER_PREFIX, Buffer.from(acceptedHex, 'hex')]),
+    format: 'der',
+    type: 'spki',
+  });
+  const probe = Buffer.from('mindberzerk-signing-probe');
+  const ok = nodeVerify(null, probe, pub, nodeSign(null, probe, privateKey()));
+  if (!ok) {
+    throw new Error(
+      `PACK_SIGNING_KEY does not match the public key devices trust for key id '${keyId}'. ` +
+        'Publishing with it would make every device silently reject the whole catalogue. ' +
+        'Fix the Secret Manager value behind PACK_SIGNING_KEY in apphosting.yaml.',
+    );
+  }
+  trustedKeyChecked.add(keyId);
+}
 
 function privateKey(): ReturnType<typeof createPrivateKey> {
   const hex = (process.env.PACK_SIGNING_KEY ?? '').trim();
@@ -140,6 +199,8 @@ export function signPack(opts: {
     throw new Error('a pack with no payload is not a pack');
   }
 
+  assertTrustedKey(opts.keyId);
+
   const files = [...opts.files].sort((a, b) => a.path.localeCompare(b.path));
 
   const seen = new Set<string>();
@@ -233,6 +294,7 @@ export function signIndex(opts: {
     throw new Error('generatedAt must be positive unix seconds');
   }
   if (opts.packs.length === 0) throw new Error('an index with no packs is not useful');
+  assertTrustedKey(opts.keyId);
 
   const seen = new Set<string>();
   for (const p of opts.packs) {
@@ -271,7 +333,14 @@ export function signIndex(opts: {
       summary: p.summary,
       ...(p.sku ? { sku: p.sku } : {}),
     })),
-    ...(opts.entitlements?.length ? { entitlements: opts.entitlements } : {}),
+    // ALWAYS PRESENT, even when empty. Every index publish-index.sh ever wrote
+    // carried this field, so the on-device parser has only ever been exercised
+    // against indexes that have it; the one index that omitted it was also the
+    // first one this panel signed, and untested shapes do not belong in a
+    // document every phone parses. An empty list and an absent field mean the
+    // same thing to us and are not guaranteed to mean the same thing to a
+    // parser written against the other one.
+    entitlements: opts.entitlements ?? [],
   };
 
   // Stringify ONCE and sign those exact bytes. The temptation is to pretty-print

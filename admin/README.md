@@ -108,3 +108,7 @@ edited together.
 - The pack editor UI and its publish route
 - The index rebuild route (read live index, bump `generatedAt`, re-sign)
 - Multi-app scoping beyond `g-launcher`
+
+
+`node tools/iconlab.mjs`
+`open iconlab/index.html`

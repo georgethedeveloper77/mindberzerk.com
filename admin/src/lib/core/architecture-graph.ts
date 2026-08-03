@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { indexIsSigned, readLiveIndex, type AppId } from '@/lib/core/catalogue';
+import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
 import { cdnBase } from '@/lib/core/cdn';
 import { isAppId } from '@/lib/core/registry';
 
@@ -41,9 +41,45 @@ import { isAppId } from '@/lib/core/registry';
 
 export type NodeState = 'ok' | 'bad' | 'unknown';
 
+/**
+ * WHAT A NODE IS, drawn rather than read.
+ *
+ * A map is scanned before it is read, and a shape carries "this is storage" or
+ * "this is a device" faster than a label does. The set is deliberately small:
+ * one icon per KIND of thing, reused across views, so `box` always means a pack
+ * payload and `key` always means a signature no matter which tab you are on.
+ *
+ * Adding a twenty-second icon should feel like a decision. If a node does not
+ * fit one of these, the question is usually whether it is really two nodes.
+ */
+export type IconKey =
+  | 'edit'
+  | 'key'
+  | 'box'
+  | 'list'
+  | 'cloud'
+  | 'refresh'
+  | 'shield'
+  | 'folder'
+  | 'layers'
+  | 'files'
+  | 'doc'
+  | 'download'
+  | 'merge'
+  | 'sliders'
+  | 'grid'
+  | 'phone'
+  | 'tag'
+  | 'database'
+  | 'lock'
+  | 'globe'
+  | 'trash';
+
 export interface GraphNode {
   key: string;
   title: string;
+  /** Drawn on the node, so its kind is legible before the label is read. */
+  icon: IconKey;
   /** One line under the title. Usually a path or an identifier. */
   sub: string;
   /** Hand-placed, in the 780x560 canvas space. */
@@ -107,6 +143,7 @@ function launcherGraph(app: string): Graph {
   const nodes: GraphNode[] = [
     {
       key: 'builder',
+      icon: 'edit',
       title: 'Distro builder',
       sub: `/apps/${app}/distros/builder`,
       x: 46,
@@ -131,6 +168,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'sign',
+      icon: 'key',
       title: 'publish-core and sign',
       sub: 'ed25519, one path for every publish',
       x: 46,
@@ -154,6 +192,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'packs',
+      icon: 'box',
       title: 'Pack objects',
       sub: 'themes/<packId>/<version>/',
       x: 294,
@@ -176,6 +215,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'index',
+      icon: 'list',
       title: 'index.json and index.sig',
       sub: 'the catalogue every device reads first',
       x: 294,
@@ -194,6 +234,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'cdn',
+      icon: 'cloud',
       title: 'cdn.mindberzerk.com',
       sub: 'the public door, no credential',
       x: 294,
@@ -211,6 +252,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'sync',
+      icon: 'refresh',
       title: 'PackSyncWorker',
       sub: 'reads cdn_base_url from Remote Config',
       x: 542,
@@ -233,6 +275,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'verify',
+      icon: 'shield',
       title: 'PackVerifier',
       sub: 'PackKeys.ACCEPTED_HEX',
       x: 542,
@@ -254,6 +297,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'install',
+      icon: 'folder',
       title: 'files/packs/',
       sub: 'where a verified pack lands',
       x: 542,
@@ -275,6 +319,7 @@ function launcherGraph(app: string): Graph {
     },
     {
       key: 'engine',
+      icon: 'layers',
       title: 'theme_engine',
       sub: 'bundled, then installed, then Ubuntu',
       x: 542,
@@ -322,6 +367,7 @@ function signingGraph(app: string): Graph {
   const nodes: GraphNode[] = [
     {
       key: 'sig.files',
+      icon: 'files',
       title: 'The picked files',
       sub: 'a folder or a zip',
       x: 46, y: 88, lane: 'panel',
@@ -334,6 +380,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.manifest',
+      icon: 'doc',
       title: 'manifest.json',
       sub: 'path, size and sha256 per file',
       x: 46, y: 200, lane: 'panel',
@@ -345,6 +392,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.msig',
+      icon: 'key',
       title: 'manifest.sig',
       sub: 'ed25519 over those exact bytes',
       x: 46, y: 312, lane: 'panel',
@@ -356,6 +404,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.read',
+      icon: 'download',
       title: 'Read the live index',
       sub: 'before anything is merged',
       x: 294, y: 88, lane: 'store',
@@ -367,6 +416,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.merge',
+      icon: 'merge',
       title: 'Merge and stamp',
       sub: 'generatedAt must increase',
       x: 294, y: 200, lane: 'store',
@@ -378,6 +428,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.isig',
+      icon: 'key',
       title: 'index.json + index.sig',
       sub: 'trailing newline, no-cache',
       x: 294, y: 312, lane: 'store',
@@ -390,6 +441,7 @@ function signingGraph(app: string): Graph {
     },
     {
       key: 'sig.verify',
+      icon: 'shield',
       title: 'Verification on device',
       sub: 'index, then manifest, then files',
       x: 542, y: 200, lane: 'device',
@@ -420,6 +472,7 @@ function deviceGraph(app: string): Graph {
   const nodes: GraphNode[] = [
     {
       key: 'dev.rc',
+      icon: 'sliders',
       title: 'Remote Config',
       sub: 'cdn_base_url',
       x: 46, y: 88, lane: 'panel',
@@ -432,6 +485,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.sync',
+      icon: 'refresh',
       title: 'PackSyncWorker',
       sub: 'fetch, compare, download',
       x: 294, y: 88, lane: 'store',
@@ -444,6 +498,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.install',
+      icon: 'folder',
       title: 'files/packs/',
       sub: 'keyed by pack id',
       x: 294, y: 200, lane: 'store',
@@ -456,6 +511,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.engine',
+      icon: 'layers',
       title: 'theme_engine',
       sub: 'bundled, installed, fallback',
       x: 294, y: 312, lane: 'store',
@@ -469,6 +525,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.icons',
+      icon: 'grid',
       title: 'IconCache',
       sub: 'hero, brand, then generated',
       x: 542, y: 200, lane: 'device',
@@ -482,6 +539,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.shell',
+      icon: 'phone',
       title: 'The shell',
       sub: 'gnome, plasma, tui, aqua',
       x: 542, y: 312, lane: 'device',
@@ -494,6 +552,7 @@ function deviceGraph(app: string): Graph {
     },
     {
       key: 'dev.billing',
+      icon: 'tag',
       title: 'Entitlements',
       sub: 'Play Billing, resolved locally',
       x: 542, y: 88, lane: 'device',
@@ -526,6 +585,7 @@ function bucketGraph(app: string): Graph {
   const nodes: GraphNode[] = [
     {
       key: 'buk.root',
+      icon: 'database',
       title: 'mindberzerk-cdn',
       sub: 'one bucket, two prefixes',
       x: 46, y: 200, lane: 'panel',
@@ -537,6 +597,7 @@ function bucketGraph(app: string): Graph {
     },
     {
       key: 'buk.index',
+      icon: 'list',
       title: 'g-launcher/index.json',
       sub: 'plus index.sig, no-cache',
       x: 294, y: 88, lane: 'store',
@@ -548,6 +609,7 @@ function bucketGraph(app: string): Graph {
     },
     {
       key: 'buk.packs',
+      icon: 'box',
       title: 'themes, heropacks, brandpacks',
       sub: '<packId>/<version>/',
       x: 294, y: 200, lane: 'store',
@@ -559,6 +621,7 @@ function bucketGraph(app: string): Graph {
     },
     {
       key: 'buk.admin',
+      icon: 'lock',
       title: 'g-launcher/admin/',
       sub: 'drafts, listing, product ids',
       x: 294, y: 312, lane: 'store',
@@ -570,6 +633,7 @@ function bucketGraph(app: string): Graph {
     },
     {
       key: 'buk.site',
+      icon: 'globe',
       title: 'site/',
       sub: 'content, registry, legal',
       x: 542, y: 140, lane: 'device',
@@ -582,6 +646,7 @@ function bucketGraph(app: string): Graph {
     },
     {
       key: 'buk.orphans',
+      icon: 'trash',
       title: 'Orphans',
       sub: 'stale, unpublished, loose',
       x: 542, y: 300, lane: 'device',
@@ -646,9 +711,18 @@ export function viewsFor(app: string): GraphView[] {
  * the Overview. Nothing is invented: a node that cannot be measured reports
  * `unknown` rather than a cheerful green.
  */
-export async function graphStatus(app: AppId): Promise<GraphStatus> {
-  const live = await readLiveIndex(app).catch(() => null);
-  const signed = live?.exists ? await indexIsSigned(app).catch(() => false) : false;
+export async function graphStatus(app: string): Promise<GraphStatus> {
+  // NARROWED, NOT CAST. `readLiveIndex` takes an AppId and this takes a string
+  // off a route param, so the two only met by luck. A cast would have compiled
+  // and then read the catalogue of an app that does not exist, which surfaces
+  // as an empty index: exactly the shape that means "the bucket is unreachable"
+  // everywhere else in this panel. An unknown app is honestly unmeasurable, so
+  // it reports the same `null` a failed read does and every node degrades to
+  // `unknown` rather than to a cheerful green.
+  const appId = isAppId(app) ? app : null;
+  const live = appId ? await readLiveIndex(appId).catch(() => null) : null;
+  const signed =
+    appId && live?.exists ? await indexIsSigned(appId).catch(() => false) : false;
 
   const bucketOk = !!live && !live.unreachable && !live.corrupt;
   const bucketNote = !live

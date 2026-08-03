@@ -131,6 +131,44 @@ export async function writeDraftAssets(
 }
 
 /**
+ * Copy every asset from one draft to another.
+ *
+ * For DUPLICATE, which without this produces a spec naming five wallpapers and
+ * a draft directory holding none: the copy would open looking exactly like the
+ * vanished-assets bug `readDraftAssets` exists to fix. The bytes are read and
+ * REWRITTEN rather than the new draft being pointed at the original's
+ * directory, because two drafts sharing one directory means editing either one
+ * silently rewrites the other's art.
+ *
+ * Never throws. A duplicate whose art fails to copy is still a usable draft
+ * with a complete spec, and the caller reports how many files landed.
+ */
+export async function copyDraftAssets(
+  app: AppId,
+  fromId: string,
+  toId: string,
+): Promise<number> {
+  const names = await readDraftAssets(app, fromId);
+  if (names.length === 0) return 0;
+
+  const from = ASSET_DIR(app, fromId);
+  const copied: DraftAsset[] = [];
+  for (const name of names) {
+    try {
+      const bytes = await getObject(`${from}/${name}`);
+      if (!bytes) continue;
+      copied.push({ name, bytes, contentType: 'application/octet-stream' });
+    } catch {
+      // One unreadable asset costs its own file and nothing else.
+    }
+  }
+  if (copied.length === 0) return 0;
+
+  const stored = await writeDraftAssets(app, toId, copied);
+  return stored.ok ? stored.count : 0;
+}
+
+/**
  * Drop a draft's assets.
  *
  * Called when the DRAFT is deleted, never when it is published: publishing

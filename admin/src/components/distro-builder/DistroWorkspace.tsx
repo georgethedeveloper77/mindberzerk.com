@@ -9,6 +9,7 @@ import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
 import { AppGrid, type Assignment } from './AppGrid';
 import { publishDistroAction, saveDistroDraftAction } from '@/app/apps/[app]/distros/actions';
+import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
 import {
   blankDraft,
   importTheme,
@@ -21,7 +22,7 @@ import {
   CHROMES,
   SHELLS,
 } from '@/lib/g-launcher/theme-spec';
-import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry } from '@/lib/g-launcher/hero-pack';
+import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry, expandRoleEntries } from '@/lib/g-launcher/hero-pack';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
 import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 
@@ -86,7 +87,62 @@ interface Asset {
   url: string;
 }
 
+/**
+ * Decode one `data:` URL into a Blob, synchronously.
+ *
+ * Synchronous is the point, same as the icon builder's copy: a saved draft
+ * becomes real assets inside a `useState` initialiser, with no effect, no
+ * loading state and no frame in which the workspace is mounted but empty.
+ */
+function blobFromDataUrl(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  const head = dataUrl.slice(0, comma);
+  const mime = /:(.*?);/.exec(head)?.[1] ?? 'image/png';
+  const binary = atob(dataUrl.slice(comma + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+/** A rehydrated draft asset as workspace state. The data URL is a valid `src`,
+ *  so nothing needs `URL.createObjectURL` and there is no handle to revoke. */
+function assetFromDataUrl(name: string, dataUrl: string): Asset {
+  return { name, blob: blobFromDataUrl(dataUrl), url: dataUrl };
+}
+
+/**
+ * The logo filenames a spec references, if any.
+ *
+ * `ThemeSpecJson.logo` is deliberately `unknown`: it is passthrough JSON the
+ * importer never fills with defaults, so the names are narrowed here rather
+ * than trusted. A hand-written draft can put anything in that block, and
+ * anything that is not a string simply is not a logo filename.
+ */
+function logoNamesOf(
+  spec: ThemeSpecJson | null | undefined,
+): { light: string | null; dark: string | null } {
+  const raw = spec?.logo;
+  if (!raw || typeof raw !== 'object') return { light: null, dark: null };
+  const o = raw as { light?: unknown; dark?: unknown };
+  return {
+    light: typeof o.light === 'string' ? o.light : null,
+    dark: typeof o.dark === 'string' ? o.dark : null,
+  };
+}
+
 type Tab = 'theme' | 'icons' | 'pricing';
+
+/**
+ * Recover the distro id from a theme pack id.
+ *
+ * ONE suffix, and only at the end. A distro legitimately named `plasma-theme`
+ * would round-trip through here as `plasma`, which is why this is a suffix
+ * strip rather than a replace: the alternative eats the word wherever it
+ * appears and renames the distro.
+ */
+function stripThemeSuffix(id: string): string {
+  return id.endsWith('-theme') ? id.slice(0, -'-theme'.length) : id;
+}
 
 const shellLabels: Record<ShellName, string> = {
   gnome: 'GNOME',
@@ -161,10 +217,24 @@ function upsertAsset(list: Asset[], a: Asset): Asset[] {
 export function DistroWorkspace({
   app,
   initial = null,
+  initialAssets = [],
+  initialIcons = null,
+  rehydrateNotes = [],
   heroPacks = [],
   heroPacksUnreadable = false,
   play,
 }: {
+  /**
+   * The draft's saved wallpapers and logos, read back off `admin/distro-drafts/`
+   * and inlined as data URLs on the server. Without this the bytes were SAVED
+   * faithfully and never read again: every reopen showed empty asset slots over
+   * a spec that still referenced them.
+   */
+  initialAssets?: { file: string; dataUrl: string }[];
+  /** The distro's own icon-pack draft (`<base>-icons`), if one was saved. */
+  initialIcons?: { name: string; icons: { pkg: string; file: string; dataUrl: string }[] } | null;
+  /** Assets the server could not read back. Shown, never silently dropped. */
+  rehydrateNotes?: string[];
   app: string;
   /**
    * An existing draft to open, or null for a new distro.
@@ -198,10 +268,41 @@ export function DistroWorkspace({
 }) {
   const [tab, setTab] = React.useState<Tab>('theme');
 
+  /**
+   * BUNDLED DISTROS PUBLISH UNDER THEIR OWN BARE ID.
+   *
+   * The theme baked into the APK is `ubuntu-24-04`, and the launcher's catalog
+   * pairs a CDN pack with a bundled theme BY ID. Suffixing `-theme` here
+   * published `ubuntu-24-04-theme`, which paired with nothing: the Distros list
+   * grew a second Ubuntu, and no device could ever receive the update because
+   * the pack it downloaded did not name the theme it was meant to replace.
+   *
+   * So the suffix convention applies only to distros born in this workspace.
+   * A draft that arrived with `bundled: true` keeps its APK id end to end.
+   */
+  const isBundled = initial?.bundled === true;
+
   // The distro id, from which both pack ids and both SKUs derive. An existing
   // theme's pack id IS that id, so opening one seeds it and every derived
   // field falls out unchanged.
-  const [base, setBase] = React.useState(initial?.id ?? '');
+  /**
+   * THE DRAFT ID IS THE THEME PACK ID, AND `base` IS NOT.
+   *
+   * `themeDraft.id` is `${base}-theme` on purpose: it has to equal the packId
+   * the publish writes, or `mergeThemeRows` cannot pair a draft with the pack it
+   * became and the Distros list shows the same distro twice.
+   *
+   * The inverse was missing. Hydrating `base` straight from `initial.id` fed a
+   * pack id into the field that DERIVES pack ids, so reopening a saved draft
+   * produced `linux-mint-22-theme-theme` and, on publish, a theme.json whose
+   * `id` no longer equalled its `packId`. That mismatch is the silent one: the
+   * pack installs, inherits the bundled theme's preferences bucket, and the
+   * wallpaper never applies with nothing reported anywhere.
+   *
+   * Seeded bundled drafts carry a bare id (`ubuntu-24-04`), so stripping only a
+   * trailing `-theme` is correct for both shapes.
+   */
+  const [base, setBase] = React.useState(() => stripThemeSuffix(initial?.id ?? ''));
 
   const [spec, setSpec] = React.useState<ThemeSpecJson>(
     // THROUGH `importTheme`, NOT the draft's spec directly. A draft read back
@@ -251,15 +352,45 @@ export function DistroWorkspace({
   const [distroSkuRaw, setDistroSkuRaw] = React.useState(initial?.sku ?? '');
   const [iconsSkuRaw, setIconsSkuRaw] = React.useState('');
 
-  // theme assets
-  const [wallpapers, setWallpapers] = React.useState<Asset[]>([]);
-  const [logoLight, setLogoLight] = React.useState<Asset | null>(null);
-  const [logoDark, setLogoDark] = React.useState<Asset | null>(null);
+  // theme assets, seeded from what the draft actually stored. The spec's own
+  // `logo` references decide which saved file is a logo and which a wallpaper;
+  // a file the spec does not claim as a logo is a wallpaper, which also covers
+  // drafts saved before logos existed.
+  const initialLogoNames = logoNamesOf(initial?.spec);
+  const [wallpapers, setWallpapers] = React.useState<Asset[]>(() =>
+    initialAssets
+      .filter((a) => a.file !== initialLogoNames.light && a.file !== initialLogoNames.dark)
+      .map((a) => assetFromDataUrl(a.file, a.dataUrl)),
+  );
+  const [logoLight, setLogoLight] = React.useState<Asset | null>(() => {
+    const hit = initialLogoNames.light
+      ? initialAssets.find((a) => a.file === initialLogoNames.light)
+      : null;
+    return hit ? assetFromDataUrl(hit.file, hit.dataUrl) : null;
+  });
+  const [logoDark, setLogoDark] = React.useState<Asset | null>(() => {
+    const hit = initialLogoNames.dark
+      ? initialAssets.find((a) => a.file === initialLogoNames.dark)
+      : null;
+    return hit ? assetFromDataUrl(hit.file, hit.dataUrl) : null;
+  });
 
-  // icons
-  const [entries, setEntries] = React.useState<{ pkg: string; label: string }[]>(() => [...COMMON_APPS]);
-  const [assignments, setAssignments] = React.useState<Record<string, Assignment>>({});
-  const [iconName, setIconName] = React.useState('');
+  // icons, seeded the same way: the saved icon-pack draft's assignments land in
+  // their grid slots, and any package outside the common set gets its row back.
+  const [entries, setEntries] = React.useState<{ pkg: string; label: string }[]>(() => {
+    const extra = (initialIcons?.icons ?? [])
+      .filter((i) => !COMMON_APPS.some((c) => c.pkg === i.pkg))
+      .map((i) => ({ pkg: i.pkg, label: i.pkg.split('.').pop() ?? i.pkg }));
+    return [...extra, ...COMMON_APPS];
+  });
+  const [assignments, setAssignments] = React.useState<Record<string, Assignment>>(() => {
+    const out: Record<string, Assignment> = {};
+    for (const i of initialIcons?.icons ?? []) {
+      out[i.pkg] = { file: i.file, blob: blobFromDataUrl(i.dataUrl), url: i.dataUrl };
+    }
+    return out;
+  });
+  const [iconName, setIconName] = React.useState(initialIcons?.name ?? '');
 
   /**
    * WHERE THIS DISTRO'S HERO PACK COMES FROM.
@@ -365,7 +496,7 @@ export function DistroWorkspace({
 
   const setS = (p: Partial<ThemeSpecJson>) => setSpec((s) => ({ ...s, ...p }));
 
-  const themePackId = base ? `${base}-theme` : '';
+  const themePackId = base ? (isBundled ? base : `${base}-theme`) : '';
   const iconPackId = base ? `${base}-icons` : '';
   // ── SKU DERIVATION, THROUGH `skus.ts` AND NOT BY HAND ────────────────────
   //
@@ -383,10 +514,25 @@ export function DistroWorkspace({
   const distroSku = free ? null : distroSkuRaw.trim() || (base ? distroSkuFor(base) : '');
   const iconsSku = free ? null : iconsSkuRaw.trim() || (base ? iconsSkuFor(base) : '');
 
-  const order = React.useMemo(
-    () => entries.filter((e) => assignments[e.pkg]).map((e) => ({ pkg: e.pkg, file: assignments[e.pkg].file })),
+  /**
+   * The grid's own view: one row per SLOT, which is a role id for the core set
+   * and a raw package id for anything hand-added. Files are uploaded from this,
+   * because a file is uploaded once no matter how many packages it covers.
+   */
+  const slotOrder = React.useMemo(
+    () =>
+      entries
+        .filter((e) => assignments[e.pkg])
+        .map((e) => ({ slot: e.pkg, file: assignments[e.pkg].file })),
     [entries, assignments],
   );
+
+  /**
+   * The PACK'S view: one row per package. `expandRoleEntries` turns the Phone
+   * slot into the AOSP, Google and Samsung dialer ids all pointing at one file,
+   * which is what makes a single drawn icon land on every vendor's phone.
+   */
+  const order = React.useMemo(() => expandRoleEntries(slotOrder), [slotOrder]);
   // Only the 'build' source publishes an inline pack. In 'published' the grid is
   // not rendered at all, but its assignments survive a mode switch in state, and
   // sending them would upload a second pack nothing references.
@@ -470,7 +616,10 @@ export function DistroWorkspace({
     title: cardTitle || spec.name,
     summary: cardSummary,
     sku: distroSku,
-    bundled: false,
+    // Hardcoding false here is how editing bundled Ubuntu once produced a
+    // second, deletable, non-bundled copy of it. The flag is the draft's
+    // identity, not a form field, so it passes through untouched.
+    bundled: isBundled,
     packVersion: 1,
     updatedAt: 0,
     spec: effectiveSpec,
@@ -598,6 +747,36 @@ export function DistroWorkspace({
         fd.append('paths', logoDark.name);
       }
 
+      // The inline icon set, saved as the icon-pack draft it will publish as.
+      // The comment above used to claim icon art "is saved with the icon pack",
+      // and nothing saved it: closing the tab discarded every assignment. It
+      // goes to `icon-drafts` under `<base>-icons`, the same store the icon
+      // builder uses, so either screen can resume it.
+      if (iconSource === 'build' && order.length > 0) {
+        fd.append(
+          'iconDraft',
+          JSON.stringify({
+            packId: iconPackId,
+            name: iconName || `${spec.name} icons`,
+            minAppVersion: spec.minAppVersion,
+            masked: false,
+            sku: iconsSkuRaw.trim(),
+            plate: '#E95420',
+            radius: 22,
+            shape: spec.icons?.treatment ?? 'roundedSquare',
+            // SLOTS, not expanded packages: a reopened draft has to land back in
+            // the same role tiles it was drawn in, and expanding here would
+            // rehydrate as forty hand-added package rows.
+            icons: slotOrder.map((s) => ({ pkg: s.slot, file: s.file })),
+          }),
+        );
+        for (const s of slotOrder) {
+          const a = assignments[s.slot];
+          fd.append('iconFiles', new File([a.blob], s.file, { type: a.blob.type || 'image/png' }));
+          fd.append('iconPaths', s.file);
+        }
+      }
+
       const res = await saveDistroDraftAction(fd);
       if (res.ok) {
         toast.success(
@@ -639,6 +818,9 @@ export function DistroWorkspace({
               sku: iconsSku,
               name: iconName || `${spec.name} icons`,
               order,
+              // Composited below and shipped as a payload file, so the store
+              // card on device shows the pack's own art. See pack-preview.ts.
+              preview: true,
             }
           : null,
         distroSku,
@@ -651,7 +833,15 @@ export function DistroWorkspace({
       for (const w of wallpapers) fd.append(`asset:${w.name}`, w.blob, w.name);
       if (logoLight) fd.append(`asset:${logoLight.name}`, logoLight.blob, logoLight.name);
       if (logoDark && logoDark.name !== logoLight?.name) fd.append(`asset:${logoDark.name}`, logoDark.blob, logoDark.name);
-      for (const o of order) fd.append(`icon:${o.file}`, assignments[o.pkg].blob, o.file);
+      // One blob per FILE. `order` may name the same file three times (one per
+      // package in a role) and appending it three times would upload the same
+      // bytes three times and, worse, make the route's file list disagree with
+      // the manifest's.
+      for (const s of slotOrder) fd.append(`icon:${s.file}`, assignments[s.slot].blob, s.file);
+      if (hasIcons) {
+        const preview = await composePreviewPng(slotOrder.map((s) => assignments[s.slot].blob));
+        if (preview) fd.append(`icon:${PREVIEW_NAME}`, preview, PREVIEW_NAME);
+      }
 
       const res = await publishDistroAction(fd);
       if (res.ok) toast.success(`Published ${base}: theme v${res.themeVersion}${res.iconVersion ? `, icons v${res.iconVersion}` : ''}`);
@@ -739,14 +929,45 @@ export function DistroWorkspace({
         </div>
 
 
+        {(savingDraft || publishing) ? (
+          <>
+            <style>{'@keyframes dwSlide {0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'}</style>
+            <div style={{ position: 'relative', height: 3, overflow: 'hidden', borderRadius: 2, background: C.line, margin: '10px 0 0' }}>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '32%', background: C.inkStrong, animation: 'dwSlide 1.1s linear infinite' }} />
+            </div>
+          </>
+        ) : null}
+
+        {rehydrateNotes.length > 0 ? (
+          <div style={{ margin: '10px 0 0', padding: '10px 14px', border: `1px solid ${C.line}`, borderRadius: 10, fontFamily: C.mono, fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
+            {rehydrateNotes.map((n) => (
+              <div key={n}>{n}</div>
+            ))}
+          </div>
+        ) : null}
+
         <div className="dw-grid">
           <div>
             {tab === 'theme' ? (
               <>
                 <Section title="distro" hint="one id; the theme and icon packs derive from it">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0 14px' }}>
-                    <Field label="distro id" hint="lowercase, e.g. kali">
-                      <TextInput value={base} placeholder="kali" onChange={(v) => setBase(v.trim())} />
+                    <Field
+                      label="distro id"
+                      hint={initial ? 'locked; the id is this draft\u0027s address on device and in the index' : 'lowercase, e.g. kali'}
+                    >
+                      {/* IMMUTABLE ONCE A DRAFT EXISTS. Drafts, packs, asset
+                          folders, SKUs and the device catalog are all keyed by
+                          this string, so editing it does not rename a distro,
+                          it forks one. That fork is exactly how Ubuntu became
+                          two rows. */}
+                      {initial ? (
+                        <div style={{ fontFamily: C.mono, fontSize: 13, color: C.inkStrong, padding: '9px 10px', border: `1px solid ${C.line}`, borderRadius: 7, background: C.chip }}>
+                          {base}
+                        </div>
+                      ) : (
+                        <TextInput value={base} placeholder="kali" onChange={(v) => setBase(v.trim())} />
+                      )}
                     </Field>
                     <Field label="name">
                       <TextInput value={spec.name} placeholder="Kali Linux" mono={false} onChange={(v) => setS({ name: v })} />
@@ -1076,7 +1297,7 @@ function AssetList(props: { label: string; assets: Asset[]; onAdd: (file: File) 
 function AssetSlot(props: { label: string; asset: Asset | null; onPick: (file: File) => void; onClear: () => void }) {
   const ref = React.useRef<HTMLInputElement>(null);
   return (
-    <Field label={props.label} hint="svg or png">
+    <Field label={props.label} hint="svg, png or webp">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <button
           type="button"

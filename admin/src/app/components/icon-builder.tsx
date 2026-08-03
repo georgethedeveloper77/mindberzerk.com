@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
 import {
   CORE_PACKAGES,
+  CORE_ROLES,
+  expandRoleEntries,
   buildHeroPackJson,
   fileNameFor,
   guessPackage,
@@ -15,6 +17,7 @@ import {
 import { renderHeroIcon } from '@/lib/core/image-trim';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
 import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
+import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
 import type { RehydratedPack } from '@/lib/core/cdn';
 import { ICON_TREATMENTS } from '@/lib/g-launcher/theme-spec';
 
@@ -191,6 +194,7 @@ export function IconBuilder({
   publishedVersion,
   initial,
   preview,
+  distros = [],
   play,
 }: {
   app: string;
@@ -198,6 +202,13 @@ export function IconBuilder({
   publishedVersion: Record<string, number>;
   /** A published pack to edit, or null for a new one. See `lib/cdn.ts`. */
   initial?: RehydratedPack | null;
+  /**
+   * Every distro this pack could belong to: base id plus display title, read
+   * from the theme drafts and the live theme packs on the server. Belonging is
+   * the id-prefix convention, so this list only feeds the picker and the
+   * derived "belongs to" line; nothing is stored beyond the pack id itself.
+   */
+  distros?: { base: string; title: string }[];
   /**
    * The preview settings a DRAFT was saved with.
    *
@@ -225,6 +236,54 @@ export function IconBuilder({
   const router = useRouter();
 
   const [packId, setPackId] = useState(initial?.packId ?? '');
+
+  /**
+   * ── THE DISTRO LINK IS THE ID PREFIX, AND THIS MAKES IT VISIBLE ──────────
+   *
+   * A hero pack belongs to the distro whose base id prefixes its own:
+   * `ubuntu-24-04-icons` and `ubuntu-24-04-circle-icons` both belong to
+   * `ubuntu-24-04`. The launcher's icons screen groups its shelves by exactly
+   * this rule, derived from ids alone, so the association survives clean
+   * builds, needs no schema, and cannot drift between panel and device.
+   *
+   * The picker below EDITS the id rather than storing a second field: choosing
+   * a distro prefixes the pack id, choosing standalone strips the prefix, and
+   * `belongsTo` is always re-derived FROM the id so typing in the id field and
+   * using the picker can never disagree about where the pack will shelve.
+   * Longest base wins, mirroring the device, so `ubuntu` could not claim an
+   * `ubuntu-24-04-` pack.
+   */
+  const knownBases = useMemo(
+    () => [...distros].sort((a, b) => b.base.length - a.base.length),
+    [distros],
+  );
+  const belongsTo = useMemo(
+    () => knownBases.find((d) => packId.startsWith(`${d.base}-`)) ?? null,
+    [packId, knownBases],
+  );
+  const stripBase = useCallback(
+    (id: string) => {
+      for (const d of knownBases) {
+        if (id.startsWith(`${d.base}-`)) return id.slice(d.base.length + 1);
+      }
+      return id;
+    },
+    [knownBases],
+  );
+  function setBelongs(base: string) {
+    // The picker EDITS the pack id, so it is disabled for the same reason the
+    // field is: on an existing pack it would fork rather than re-shelve.
+    if (initial) return;
+    if (!base) {
+      setPackId((id) => stripBase(id));
+      return;
+    }
+    setPackId((id) => {
+      const rest = stripBase(id);
+      return rest && rest !== 'icons' ? `${base}-${rest}` : `${base}-icons`;
+    });
+  }
+
   const [name, setName] = useState(initial?.name ?? '');
   const [minAppVersion, setMinAppVersion] = useState(String(initial?.minAppVersion ?? 6));
   const [masked, setMasked] = useState(initial?.masked ?? false);
@@ -307,6 +366,29 @@ export function IconBuilder({
     }
   }
 
+  /**
+   * Add one file FOR a known package, from the core-set tiles below.
+   *
+   * The package is not guessed, it is the tile that was tapped, so the row
+   * arrives already mapped. Same render pipeline as [addFiles]; a tile pick is
+   * one file, so no zip expansion and no refusal list to manage.
+   */
+  async function addForPackage(pkg: string, file: File) {
+    const entry: Entry = {
+      id: `${Date.now()}-${pkg}`,
+      file,
+      pkg,
+      url: null,
+      blob: null,
+      aspect: 1,
+      error: null,
+      busy: true,
+    };
+    setEntries((e) => [...e, entry]);
+    const done = await render(entry);
+    setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
+  }
+
   function patchPkg(id: string, pkg: string) {
     setEntries((all) => all.map((e) => (e.id === id ? { ...e, pkg } : e)));
   }
@@ -321,19 +403,46 @@ export function IconBuilder({
     return dupes;
   }, [entries]);
 
+  /**
+   * A slot is publishable when it is a KNOWN ROLE or a real package id.
+   *
+   * This used to be `isPackageName(e.pkg)` alone, which was right while every
+   * row carried a package. With roles it silently disabled publish for every
+   * pack built from the core grid: `phone` and `store` are not package names
+   * and never will be, so the button greyed out with nothing on screen saying
+   * why. The check now matches what actually ships, since `expandRoleEntries`
+   * turns a role into its package list before anything is signed.
+   */
+  /**
+   * Is this slot something the pack can ship?
+   *
+   * A known ROLE (which expands into its package list at publish) or a real
+   * package id typed by hand. Defined once because five places ask the same
+   * question: the publish gate, the "N mapped" count, the unmapped warning,
+   * the row sort and the row tint. They were all asking `isPackageName`, which
+   * says no to every role, so a pack built from the core grid reported itself
+   * unmapped and refused to publish with nothing on screen explaining it.
+   */
+  const slotMapped = useCallback(
+    (slot: string) => CORE_ROLES.some((r) => r.id === slot) || isPackageName(slot),
+    [],
+  );
+
   const ready = useMemo(
     () =>
       entries.length > 0 &&
-      entries.every((e) => e.blob && isPackageName(e.pkg)) &&
+      entries.every(
+        (e) => e.blob && slotMapped(e.pkg),
+      ) &&
       duplicates.size === 0 &&
       /^[a-z0-9._-]+$/.test(packId) &&
       licensed &&
       !busy,
-    [entries, duplicates, packId, licensed, busy],
+    [entries, duplicates, packId, licensed, busy, slotMapped],
   );
 
   const covered = new Set(entries.map((e) => e.pkg));
-  const missing = CORE_PACKAGES.filter((c) => !covered.has(c.pkg));
+  const missing = CORE_ROLES.filter((r) => !covered.has(r.id));
 
   // CSS that mirrors renderHero's two branches for the preview tile.
   //
@@ -439,6 +548,13 @@ export function IconBuilder({
     // Blank still means free, which is correct and is the common case.
     body.set('sku', sku.trim());
 
+    // ── SLOTS UPLOAD, PACKAGES SHIP ───────────────────────────────────────
+    //
+    // An entry's `pkg` is a ROLE ID for anything added from the core grid and
+    // a raw package id for anything hand-typed. The file is uploaded ONCE per
+    // entry; `expandRoleEntries` then maps every package in the role onto that
+    // same filename, so one drawn Phone icon covers the AOSP, Google and
+    // Samsung dialers instead of whichever one the author happened to pick.
     for (const e of entries) {
       if (!e.blob) continue;
       const fileName = fileNameFor(e.pkg);
@@ -450,7 +566,9 @@ export function IconBuilder({
       packId,
       name || packId,
       masked,
-      entries.map((e) => ({ pkg: e.pkg, file: fileNameFor(e.pkg) })),
+      expandRoleEntries(
+        entries.map((e) => ({ slot: e.pkg, file: fileNameFor(e.pkg) })),
+      ),
     );
     body.append(
       'files',
@@ -458,12 +576,26 @@ export function IconBuilder({
     );
     body.append('paths', 'pack.json');
 
+    // The shelf preview: the pack's own first six icons, composited exactly
+    // as the grid above shows them. A listed, signed payload file like any
+    // other; old clients ignore it, new ones draw it before install.
+    const preview = await composePreviewPng(
+      entries.filter((e) => e.blob).map((e) => e.blob as Blob),
+    );
+    if (preview) {
+      body.append('files', new File([preview], PREVIEW_NAME, { type: 'image/png' }));
+      body.append('paths', PREVIEW_NAME);
+    }
+
     try {
       const res = await fetch('/api/publish/pack', { method: 'POST', body });
       const json = await res.json();
       if (!res.ok) setError(json.error ?? 'Publish failed');
       else {
-        setResult(`${json.packId} v${json.version} · ${json.fileCount} files · ${(json.sizeBytes / 1024).toFixed(0)} KB`);
+        setResult(
+          `${json.packId} v${json.version} · ${json.fileCount} files · ${(json.sizeBytes / 1024).toFixed(0)} KB` +
+            (json.grantedTo ? ` · included with ${json.grantedTo}` : ''),
+        );
         router.refresh();
       }
     } catch (e) {
@@ -475,19 +607,66 @@ export function IconBuilder({
 
   return (
     <div className="space-y-3">
+      {(busy || draftBusy) && (
+        <>
+          <style>{'@keyframes ibSlide {0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'}</style>
+          <div className="relative h-[3px] overflow-hidden rounded bg-site-line">
+            <div
+              className="absolute inset-y-0 left-0 w-1/3 bg-site-ink"
+              style={{ animation: 'ibSlide 1.1s linear infinite' }}
+            />
+          </div>
+        </>
+      )}
       {/* ── pack ─────────────────────────────────────────────────────────── */}
       <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <div>
+            <label className="block text-[11.5px] text-site-ink-3">Belongs to</label>
+            <select
+              value={belongsTo?.base ?? ''}
+              disabled={!!initial}
+              onChange={(e) => setBelongs(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
+            >
+              <option value="">standalone</option>
+              {distros.map((d) => (
+                <option key={d.base} value={d.base}>
+                  {d.title === d.base ? d.base : `${d.title} · ${d.base}`}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-[11.5px] text-site-ink-3">Pack id</label>
-            <input
-              value={packId}
-              onChange={(e) => setPackId(e.target.value)}
-              placeholder="hero-ubuntu"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
-            />
+            {/* ── IMMUTABLE ONCE THE PACK EXISTS ──────────────────────────
+                Editing this while a pack was open did not RENAME anything: the
+                id is the primary key of the draft, the bucket directory, the
+                index entry and the device's install path, so a changed id
+                published a SECOND pack at v1 and left the original live and
+                orphaned. That is the same fork that produced two Ubuntus, and
+                it is closed the same way. A new pack still types freely. */}
+            {initial ? (
+              <div className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono text-site-ink-2">
+                {packId}
+              </div>
+            ) : (
+              <input
+                value={packId}
+                onChange={(e) => setPackId(e.target.value)}
+                placeholder="hero-ubuntu"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="mt-1 w-full rounded-lg border border-site-line bg-site-sunk px-3 py-2 font-mono"
+              />
+            )}
+            <p className="mt-1 text-[11.5px] text-site-ink-3">
+              {belongsTo
+                ? `shelves under ${belongsTo.title} on device`
+                : packId
+                  ? 'shelves under Standalone packs on device'
+                  : 'the id decides the shelf: <distro>-<name>-icons'}
+            </p>
           </div>
           <div>
             <label className="block text-[11.5px] text-site-ink-3">Name</label>
@@ -781,9 +960,9 @@ export function IconBuilder({
           <header className="flex items-center gap-2 border-b border-site-line px-3 py-2.5 sm:px-4">
             <h2 className="text-[13px] font-medium">{entries.length} icons</h2>
             <span className="text-[11.5px] text-site-ink-3">
-              {entries.filter((e) => isPackageName(e.pkg)).length} mapped
+              {entries.filter((e) => slotMapped(e.pkg)).length} mapped
             </span>
-            {entries.some((e) => !isPackageName(e.pkg)) && (
+            {entries.some((e) => !slotMapped(e.pkg)) && (
               <button
                 onClick={() => setUnmappedFirst((v) => !v)}
                 className={`ml-auto text-[11.5px] transition ${unmappedFirst ? 'text-site-ink' : 'text-site-ink-3 hover:text-site-ink'}`}
@@ -797,9 +976,10 @@ export function IconBuilder({
               rather than typing a reverse-DNS string on a laptop keyboard.
               Free text still works: the datalist only suggests. */}
           <datalist id="core-pkgs">
-            {CORE_PACKAGES.map((c) => (
-              <option key={c.pkg} value={c.pkg}>
+            {CORE_ROLES.map((c) => (
+              <option key={c.id} value={c.id}>
                 {c.label}
+                {c.packages.length > 1 ? ` (${c.packages.length} apps)` : ''}
               </option>
             ))}
           </datalist>
@@ -807,7 +987,7 @@ export function IconBuilder({
           <div className="divide-y divide-site-line">
             {(unmappedFirst
               ? [...entries].sort(
-                  (a, b) => Number(isPackageName(a.pkg)) - Number(isPackageName(b.pkg)),
+                  (a, b) => Number(slotMapped(a.pkg)) - Number(slotMapped(b.pkg)),
                 )
               : entries
             ).map((e) => (
@@ -836,7 +1016,7 @@ export function IconBuilder({
                     className={`w-full rounded-lg border bg-site-sunk px-2.5 py-1.5 font-mono ${
                       !e.pkg
                         ? 'border-site-plan/50'
-                        : !isPackageName(e.pkg) || duplicates.has(e.pkg)
+                        : !slotMapped(e.pkg) || duplicates.has(e.pkg)
                           ? 'border-site-plan'
                           : 'border-site-line'
                     }`}
@@ -864,26 +1044,53 @@ export function IconBuilder({
         </section>
       )}
 
-      {/* ── coverage ─────────────────────────────────────────────────────── */}
-      {entries.length > 0 && missing.length > 0 && (
+      {/* ── coverage ─────────────────────────────────────────────────────────
+          ALWAYS RENDERED, not only once files exist. Hidden behind
+          `entries.length > 0` this doubled as the builder's app list and was
+          invisible on a new pack, so the screen opened with no package ids
+          anywhere and every mapping started from a filename guess. Now it is
+          the starting point: tap an app, pick its art, and the row arrives
+          already mapped to the right id. */}
+      {missing.length > 0 && (
         <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-[13px] font-medium">Core set</h2>
             <span className="text-[11.5px] text-site-ink-3">
-              {CORE_PACKAGES.length - missing.length} of {CORE_PACKAGES.length} covered
+              {CORE_ROLES.length - missing.length} of {CORE_ROLES.length} covered
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {missing.map((c) => (
-              <span key={c.pkg} title={c.pkg} className="rounded-md border border-site-line px-2 py-1 font-mono text-[11.5px] text-site-ink-3">
-                {c.label}
-              </span>
+              <label
+                key={c.id}
+                // Every package the role covers, so the tile can be checked
+                // against a real device without opening this file.
+                title={c.packages.join('\n')}
+                className="cursor-pointer rounded-md border border-dashed border-site-line px-2 py-1 font-mono text-[11.5px] text-site-ink-3 transition hover:border-site-ink-3 hover:text-site-ink"
+              >
+                + {c.label}
+                {c.packages.length > 1 ? (
+                  <span className="ml-1 opacity-60">x{c.packages.length}</span>
+                ) : null}
+                <input
+                  type="file"
+                  accept="image/png,image/webp,image/jpeg,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void addForPackage(c.id, f);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
             ))}
           </div>
           <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
-            The dock and first drawer page are the only icons a user sees. Ranked
-            by what the install base runs, not by what a desktop theme ships. A
-            real ranking arrives with the analytics export.
+            Tap an app to add its icon with the package id already set; hover
+            shows the id. The dock and first drawer page are the only icons a
+            user sees. Ranked by what the install base runs, not by what a
+            desktop theme ships. A real ranking arrives with the analytics
+            export.
           </p>
         </section>
       )}

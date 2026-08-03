@@ -8,8 +8,7 @@ import {
   guardIndex,
   nextVersionFor,
   packKeyId,
-  uploadPack,
-} from '@/lib/core/publish-core';
+  uploadPack, shelfOwnerBase } from '@/lib/core/publish-core';
 import type { IndexEntitlement, IndexPack, PackFile } from '@/lib/core/sign';
 import { canonicalThemeJson, type ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
 
@@ -32,6 +31,8 @@ export interface DistroPublishInput {
     sku: string | null;
     name: string;
     entries: { pkg: string; file: string; bytes: Buffer }[];
+    /** preview.png bytes, composited by the workspace. Null for none. */
+    preview?: Buffer | null;
   } | null;
   /** The whole-distro SKU that grants both packs. Null = free distro. */
   distroSku: string | null;
@@ -157,6 +158,10 @@ export async function publishDistro(
       const iconFiles: PackFile[] = [
         { path: 'pack.json', bytes: Buffer.from(canonicalHeroPackJson(packJson), 'utf8') },
         ...ic.entries.map((e) => ({ path: e.file, bytes: e.bytes })),
+        // A payload file like any other: listed, hashed, signed, immutable.
+        // pack.json does not name it, so HeroIconResolver never opens it and
+        // clients that predate previews are unaffected.
+        ...(ic.preview ? [{ path: 'preview.png', bytes: ic.preview }] : []),
       ];
 
       iconEntry = await uploadPack(
@@ -210,14 +215,39 @@ export async function publishDistro(
         named !== iconEntry?.packId &&
         live.packs.some((p) => p.packId === named);
 
+      /**
+       * THE SHELF SWEEP. Replacing this entitlement wholesale used to wipe any
+       * shelf grants added since the last distro publish, so republishing Kali
+       * would silently revoke packs its buyers already owned. Instead, every
+       * PAID hero pack in the index that this distro's base owns (longest
+       * prefix, same rule as everywhere) is granted here, which both preserves
+       * earlier route-side appends and picks up shelf packs that were
+       * published before the distro's entitlement first existed.
+       */
+      const base = themeEntry.packId.endsWith('-theme')
+        ? themeEntry.packId.slice(0, -'-theme'.length)
+        : themeEntry.packId;
+      const shelfGrants = live.packs
+        .filter(
+          (p) =>
+            p.packType === 'hero' &&
+            p.sku &&
+            p.packId !== iconEntry?.packId &&
+            shelfOwnerBase(p.packId, live) === base,
+        )
+        .map((p) => p.packId);
+
       const next: IndexEntitlement = {
         sku: input.distroSku,
         title: input.distroTitle,
         summary: input.distroSummary,
         grants: [
-          themeEntry.packId,
-          ...(iconEntry ? [iconEntry.packId] : []),
-          ...(namedIsPublished ? [named] : []),
+          ...new Set([
+            themeEntry.packId,
+            ...(iconEntry ? [iconEntry.packId] : []),
+            ...(namedIsPublished && named ? [named] : []),
+            ...shelfGrants,
+          ]),
         ],
       };
       entitlements = [

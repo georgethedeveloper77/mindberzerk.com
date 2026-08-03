@@ -5,6 +5,9 @@ import { adminGate } from '@/app/components/admin-gate';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SlabButton, SoftButton } from '@/components/studio/ui';
 import { ListToggle } from '@/components/theme-list/ListToggle';
+import { DeleteIconPack } from '@/components/icon-list/DeleteIconPack';
+import { BulkBar, BulkProvider, RowCheck } from '@/components/studio/bulk';
+import { bulkDeleteIconPacksAction } from './actions';
 import { bytes } from '@/app/components/ui';
 import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { cdnUrl } from '@/lib/core/cdn';
@@ -16,6 +19,9 @@ import { readIconDraftsSafe } from '@/lib/g-launcher/icon-drafts';
 import { readAllDraftsSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
+
+/** Mirrors BUNDLED_PACK_IDS; these ship in the APK and cannot be pulled. */
+const BULK_UNDELETABLE = new Set(['simple-icons', 'yaru']);
 
 /**
  * ICONS - the inventory, matching Distros.
@@ -245,7 +251,28 @@ export default async function IconsPage({
     updatedAt: d.updatedAt,
   }));
 
-  const cards = [...published, ...draftCards];
+  // ── ONE ROW PER PACK ID ───────────────────────────────────────────────────
+  //
+  // These two lists used to be concatenated, so saving a draft against a pack
+  // that is already published produced a SECOND ROW with the same id, reading
+  // exactly like the pack had been duplicated. Nothing was duplicated: a draft
+  // is unpublished work sitting on top of a published pack, which is one thing
+  // in two states, not two things. So a draft whose id is published merges into
+  // that row as a pending marker, and only a draft for an id nobody has
+  // published yet gets a row of its own.
+  const publishedIdSet = new Set(published.map((p) => p.packId));
+  const merged = published.map((p) => {
+    const d = iconDrafts.drafts.find((x) => x.packId === p.packId);
+    return d
+      ? { ...p, pendingDraft: { count: d.icons.length, updatedAt: d.updatedAt } }
+      : { ...p, pendingDraft: null as { count: number; updatedAt: number } | null };
+  });
+  const cards = [
+    ...merged,
+    ...draftCards
+      .filter((d) => !publishedIdSet.has(d.packId))
+      .map((d) => ({ ...d, pendingDraft: null as { count: number; updatedAt: number } | null })),
+  ];
   cards.sort((a, b) => a.title.localeCompare(b.title));
 
   const matches = (c: (typeof cards)[number], f: FilterName) => {
@@ -266,11 +293,16 @@ export default async function IconsPage({
   };
 
   const shown = cards.filter((c) => matches(c, active));
-  // The inspector describes a PUBLISHED pack, so a draft can never be selected
-  // into it: everything it shows (version, size, granted by, used by) is a fact
-  // about the index, and a draft is in none of it.
-  const selectable = shown.filter((c) => !c.draft);
-  const selected = selectable.find((c) => c.packId === sel) ?? selectable[0] ?? null;
+  // ── DRAFTS ARE SELECTABLE NOW ─────────────────────────────────────────────
+  //
+  // They were not, because every field the inspector shows (version, size,
+  // granted by, used by) is a fact about the INDEX and a draft is in none of
+  // it. True, and it left drafts as the one row type with no way to delete
+  // them: the row went straight to the builder, and the builder has no delete.
+  // So the index-only rows are hidden for a draft rather than the draft being
+  // hidden from the inspector, and every row now behaves the same way: click
+  // to inspect, then Edit or Delete.
+  const selected = shown.find((c) => c.packId === sel) ?? shown[0] ?? null;
 
   const meta = appMeta(appId);
   const href = (id: string) =>
@@ -324,6 +356,16 @@ export default async function IconsPage({
         })}
       </div>
 
+      <BulkProvider>
+      {/* The bar renders nothing until something is ticked, so the screen is
+          unchanged for the common case of browsing. */}
+      <BulkBar
+        noun="icon pack"
+        verb="Delete"
+        app={appId}
+        action={bulkDeleteIconPacksAction}
+      />
+
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
         <section className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
           {shown.length === 0 ? (
@@ -349,12 +391,23 @@ export default async function IconsPage({
               return (
                 <Link
                   key={`${c.draft ? 'draft' : 'live'}-${c.packId}`}
-                  href={c.draft ? `/apps/${appId}/icons/builder?id=${c.packId}` : href(c.packId)}
+                  // Both kinds select. A draft used to jump straight to the
+                  // builder, which is why it could never be inspected or
+                  // deleted; Edit in the inspector is one further click and is
+                  // the same click every published pack already takes.
+                  href={href(c.packId)}
                   className={`relative flex items-center gap-3.5 border-t border-site-line px-4 py-2.5 transition first:border-t-0 ${
                     on ? 'bg-site-accent-soft' : 'hover:bg-site-sunk'
                   }`}
                 >
                   {on && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-site-accent" />}
+                  {/* Bundled ids are refused by the action anyway; showing the
+                      box for them would offer a press that cannot succeed. */}
+                  <RowCheck
+                    id={c.packId}
+                    disabled={BULK_UNDELETABLE.has(c.packId)}
+                    why="ships inside the app"
+                  />
                   {c.draft ? (
                     <span
                       aria-hidden
@@ -377,6 +430,18 @@ export default async function IconsPage({
                         : `${c.packId} \u00b7 ${c.packType} \u00b7 v${c.version}`}
                     </span>
                   </span>
+                  {/* The pending-draft marker rides BESIDE the status chip
+                      rather than replacing it: the pack is still in a distro,
+                      still published, and also has unpublished work. One row,
+                      both facts. */}
+                  {!c.draft && c.pendingDraft ? (
+                    <span
+                      title={`${c.pendingDraft.count} icons saved, never published`}
+                      className="shrink-0 rounded-full bg-site-info-soft px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] text-site-info"
+                    >
+                      draft pending
+                    </span>
+                  ) : null}
                   <span
                     className={`shrink-0 rounded-full px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] ${
                       c.draft
@@ -405,7 +470,13 @@ export default async function IconsPage({
             <div className="border-b border-site-line bg-site-sunk p-3.5">
               {selected.art.length === 0 ? (
                 <div className="flex h-[120px] items-center justify-center rounded-xl border border-dashed border-site-line px-3 text-center text-[11.5px] leading-relaxed text-site-ink-3">
-                  pack.json could not be read, or names no art
+                  {/* A draft has art; it just lives under admin/ and is not
+                      fetched for a thumbnail strip. Saying pack.json failed
+                      would be a false alarm about a file that does not exist
+                      yet. */}
+                  {selected.draft
+                    ? 'Draft art opens in the builder'
+                    : 'pack.json could not be read, or names no art'}
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2 text-site-ink-2">
@@ -431,24 +502,38 @@ export default async function IconsPage({
 
               <div className="mt-3 border-t border-site-line">
                 <KVRow k="type" v={<span className="font-mono">{selected.packType}</span>} />
-                <KVRow k="version" v={<span className="font-mono">v{selected.version}</span>} />
-                <KVRow k="product" v={<span className="font-mono">{selected.sku ?? 'free'}</span>} />
-                <KVRow
-                  k="granted by"
-                  v={<span className="font-mono">{selected.distro ?? 'standalone'}</span>}
-                />
-                <KVRow
-                  k="used by"
-                  v={
-                    <span className="font-mono">
-                      {selected.used.length === 0 ? 'nothing' : selected.used.join(', ')}
-                    </span>
-                  }
-                />
-                <KVRow k="size" v={<span className="font-mono">{bytes(selected.sizeBytes)}</span>} />
+                {/* NOTHING THAT IS A FACT ABOUT THE INDEX IS SHOWN FOR A DRAFT.
+                    v0, 0 bytes and "granted by standalone" are not small
+                    inaccuracies on a draft, they are four confident answers to
+                    questions that have none yet. The one honest line replaces
+                    all of them. */}
+                {selected.draft ? (
+                  <KVRow
+                    k="state"
+                    v={<span className="font-mono">draft, never published</span>}
+                  />
+                ) : (
+                  <>
+                    <KVRow k="version" v={<span className="font-mono">v{selected.version}</span>} />
+                    <KVRow k="product" v={<span className="font-mono">{selected.sku ?? 'free'}</span>} />
+                    <KVRow
+                      k="granted by"
+                      v={<span className="font-mono">{selected.distro ?? 'standalone'}</span>}
+                    />
+                    <KVRow
+                      k="used by"
+                      v={
+                        <span className="font-mono">
+                          {selected.used.length === 0 ? 'nothing' : selected.used.join(', ')}
+                        </span>
+                      }
+                    />
+                    <KVRow k="size" v={<span className="font-mono">{bytes(selected.sizeBytes)}</span>} />
+                  </>
+                )}
               </div>
 
-              {selected.used.length === 0 && (
+              {!selected.draft && selected.used.length === 0 && (
                 <p className="mt-3 rounded-xl bg-site-plan-soft px-3 py-2.5 text-[11.5px] leading-relaxed text-site-plan">
                   No theme names this pack in icons.heroPack or icons.brandPack, so nothing on a
                   device would load it.
@@ -458,35 +543,64 @@ export default async function IconsPage({
               {/* Under 8KB means a pack.json and essentially no art beside it:
                   the yaru case, where a theme naming it gets the generator for
                   every app and reports no error anywhere. */}
-              {selected.sizeBytes < 8192 && selected.packType !== 'brand' && (
+              {!selected.draft && selected.sizeBytes < 8192 && selected.packType !== 'brand' && (
                 <p className="mt-2 rounded-xl bg-site-plan-soft px-3 py-2.5 text-[11.5px] leading-relaxed text-site-plan">
                   Under 8KB, so this is a pack.json with almost no art beside it. A theme naming it
                   falls back to the generated icons silently.
                 </p>
               )}
 
-              <div className="mt-3 flex items-center justify-between gap-3 border-t border-site-line pt-3">
-                <span className="text-[12px] text-site-ink-3">
-                  {selected.listed ? 'listed on device' : 'hidden'}
-                </span>
-                <ListToggle app={appId} packId={selected.packId} initial={selected.listed} />
-              </div>
+              {/* Listing writes a flag against an INDEX ENTRY, so a draft has
+                  nothing to toggle. Rendering it anyway would offer to hide
+                  something no device can see. */}
+              {!selected.draft && (
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-site-line pt-3">
+                  <span className="text-[12px] text-site-ink-3">
+                    {selected.listed ? 'listed on device' : 'hidden'}
+                  </span>
+                  <ListToggle app={appId} packId={selected.packId} initial={selected.listed} />
+                </div>
+              )}
+
+              {!selected.draft && selected.pendingDraft && (
+                <p className="mt-3 rounded-[10px] bg-site-info-soft px-3 py-2 text-[11.5px] leading-relaxed text-site-info">
+                  A draft of {selected.pendingDraft.count} icons is saved against this pack and has
+                  never been published. Edit opens the draft; publishing from there writes the next
+                  version.
+                </p>
+              )}
 
               <div className="mt-3 border-t border-site-line pt-3">
                 <SoftButton href={`/apps/${appId}/icons/builder?id=${selected.packId}`}>Edit</SoftButton>
               </div>
 
-              {/* Unpublish is NOT duplicated here. It lives on CDN objects
-                  beside the manifest and the file list, which is the context in
-                  which pulling a pack from every device is a decision rather
-                  than a button. */}
+              {/* ── DELETE LIVES HERE NOW, AND UNPUBLISH STILL LIVES THERE ──
+                  The note this replaces was right about one thing and wrong
+                  about another. Pulling an ARBITRARY pack by id is a delivery
+                  operation and stays on CDN objects beside the manifest it
+                  belongs to. Deleting a pack you are looking at, made on this
+                  screen, is an authoring operation, and sending someone to
+                  another screen to finish the CRUD they started here is how a
+                  panel grows orphans. This checks what only this screen knows:
+                  whether a distro still names the pack. */}
+              <DeleteIconPack
+                app={appId}
+                packId={selected.packId}
+                published={!selected.draft}
+                usedBy={selected.used}
+              />
+
               <p className="mt-3 text-[11px] leading-relaxed text-site-ink-3">
-                To pull this from every device, use Unpublish on CDN objects.
+                {selected.draft
+                  ? 'Nothing here is live yet. Publishing from the builder creates it at version 1.'
+                  : 'Deleting removes it from the catalogue. To pull an arbitrary pack by id, or to sweep the objects it leaves behind, use CDN objects.'}
               </p>
             </div>
           </aside>
         )}
       </div>
+
+      </BulkProvider>
 
       {/* The least obvious rule in the whole delivery path: the disk cache is
           keyed by pack id and not by version, so republishing at the same

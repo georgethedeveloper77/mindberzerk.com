@@ -4,7 +4,7 @@ import { adminGate } from '@/app/components/admin-gate';
 import { IconBuilder } from '@/app/components/icon-builder';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab } from '@/components/studio/ui';
-import { readLiveIndex } from '@/lib/core/catalogue';
+import { readLiveIndex, type AppId as CatalogueAppId } from '@/lib/core/catalogue';
 import {
   readPublishedHeroPack,
   rehydrateIconsFromUrls,
@@ -13,6 +13,7 @@ import {
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuCatalogue } from '@/lib/core/sku-catalogue';
 import { draftAssetUrl, readIconDraft } from '@/lib/g-launcher/icon-drafts';
+import { readAllDraftsSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,15 @@ export const dynamic = 'force-dynamic';
  * and the product ids the signed index already uses. Nothing about publishing
  * depends on Play, so its failure degrades the field rather than closing the
  * page.
+ *
+ * ─── AND NOW THE DISTRO LIST, FOR THE BELONGS-TO PICKER ─────────────────────
+ *
+ * A hero pack belongs to the distro whose base id prefixes its own, and the
+ * launcher shelves its icons screen by exactly that rule. The builder needs
+ * the list of bases so choosing a distro can prefix the pack id. Read from
+ * BOTH the theme drafts and the live theme packs: a draft-only distro is a
+ * legitimate shelf to build for before it publishes, and a theme published
+ * out-of-band has no draft. Union, keyed by base, drafts fill the gaps.
  */
 export default async function IconBuilderPage({
   params,
@@ -88,10 +98,27 @@ export default async function IconBuilderPage({
 
   const { id } = await searchParams;
   const meta = appMeta(app);
-  const [live, play] = await Promise.all([
+  const [live, play, themeDrafts] = await Promise.all([
     readLiveIndex(app),
     skuCatalogue(app, meta?.pkg ?? null),
+    readAllDraftsSafe(app as CatalogueAppId),
   ]);
+
+  const stripTheme = (s: string) =>
+    s.endsWith('-theme') ? s.slice(0, -'-theme'.length) : s;
+  const baseTitle = new Map<string, string>();
+  for (const p of live.packs) {
+    if (p.packType !== 'theme') continue;
+    const base = stripTheme(p.packId);
+    baseTitle.set(base, p.title || base);
+  }
+  for (const d of themeDrafts.drafts) {
+    const base = stripTheme(d.id);
+    if (!baseTitle.has(base)) baseTitle.set(base, d.title || base);
+  }
+  const distros = [...baseTitle]
+    .map(([base, title]) => ({ base, title }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 
   const bad = 'rounded-[14px] bg-site-plan-soft px-4 py-3 text-[13px] leading-relaxed text-site-plan';
 
@@ -130,9 +157,21 @@ export default async function IconBuilderPage({
   let initial: RehydratedPack | null = null;
   if (entry) initial = await readPublishedHeroPack(app, entry);
 
-  // Only consulted when nothing is published under this id, so a draft can
-  // never shadow the pack devices actually hold.
-  const draft = id && !entry ? await readIconDraft(app, id) : null;
+  // ── A DRAFT IS READ EVEN WHEN THE PACK IS PUBLISHED ───────────────────────
+  //
+  // This used to be `id && !entry`, so a published pack always won and a draft
+  // saved against it COULD NOT BE OPENED BY ANY ROUTE. Saving forty icons onto
+  // a live pack therefore wrote them somewhere the builder would never look
+  // again, and Edit reopened the fourteen that were published. That is the
+  // worst shape a save can have: it succeeds, it reports success, and the work
+  // is unreachable.
+  //
+  // The reasoning behind the old rule was that a draft must never SHADOW what
+  // devices hold. It still does not: the draft supplies the CONTENT, because it
+  // is the newer work, while `publishedVersion` below keeps coming from the
+  // index, so publishing writes v(entry+1) and cannot silently rewrite v1 over
+  // a live pack. The banner says which state the screen is in.
+  const draft = id ? await readIconDraft(app, id) : null;
   if (draft) {
     // The bytes are FETCHED, not linked. `IconBuilder` decodes every icon with
     // `atob`, so handing it an https URL is not a degraded preview, it is an
@@ -154,7 +193,10 @@ export default async function IconBuilderPage({
       // NEVER PUBLISHED, so the builder computes version 1 from this. A draft
       // that claimed a published version would offer v2 for a pack no device
       // has, which is the exact silent no-op the version guard exists to stop.
-      publishedVersion: 0,
+      // FROM THE INDEX when the pack is live, so a draft edited on top of v4
+      // publishes v5. Zero only when nothing is published under this id, which
+      // is what makes a never-published draft compute v1.
+      publishedVersion: entry?.version ?? 0,
       // The SAME shape `readPublishedHeroPack` returns, which is why the
       // builder needs no new prop: both arrive as inlined bytes.
       icons: rehydrated.icons,
@@ -170,7 +212,7 @@ export default async function IconBuilderPage({
         meta,
         entry ? entry.title || entry.packId : draft ? draft.name || draft.packId : 'New icon pack',
         entry
-          ? `editing v${entry.version}, publishing writes v${entry.version + 1}`
+          ? `${draft ? 'draft ahead of' : 'editing'} v${entry.version}, publishing writes v${entry.version + 1}`
           : draft
             ? `draft, ${draft.icons.length} ${draft.icons.length === 1 ? 'icon' : 'icons'}, never published`
             : `${hero.length} hero ${hero.length === 1 ? 'pack' : 'packs'} published`,
@@ -178,8 +220,9 @@ export default async function IconBuilderPage({
 
       {draft && (
         <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[13px] leading-relaxed text-site-info">
-          Opened from a draft. Nothing here is live: publishing will create {draft.packId} at
-          version 1 and it will reach devices on their next sync.
+          {entry
+            ? `Opened from a saved draft, which is ahead of the published v${entry.version}. Publishing writes v${entry.version + 1}; until then devices keep v${entry.version}.`
+            : `Opened from a draft. Nothing here is live: publishing will create ${draft.packId} at version 1 and it will reach devices on their next sync.`}
         </p>
       )}
 
@@ -215,6 +258,7 @@ export default async function IconBuilderPage({
         publishedIds={hero.map((p) => p.packId)}
         publishedVersion={publishedVersion}
         initial={initial}
+        distros={distros}
         // ── THE DRAFT'S PREVIEW SETTINGS, WHICH WERE BEING DROPPED ──────
         //
         // `IconDraft` has carried `plate` and `radius` since drafts existed,

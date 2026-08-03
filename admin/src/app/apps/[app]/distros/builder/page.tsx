@@ -5,7 +5,13 @@ import { adminGate } from '@/app/components/admin-gate';
 import { StudioShell } from '@/components/studio/shell';
 import { skuCatalogue } from '@/lib/core/sku-catalogue';
 import { appMeta } from '@/lib/core/registry';
+import { rehydrateFilesFromUrls, rehydrateIconsFromUrls } from '@/lib/core/cdn';
 import { readDraft } from '@/lib/g-launcher/themes';
+import { draftAssetUrl, readDraftAssets } from '@/lib/g-launcher/distro-draft-assets';
+import {
+  draftAssetUrl as iconDraftAssetUrl,
+  readIconDraft,
+} from '@/lib/g-launcher/icon-drafts';
 import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
 
 /**
@@ -29,6 +35,23 @@ import { DistroWorkspace } from '@/components/distro-builder/DistroWorkspace';
  * draft, which includes every theme that only exists as a published pack. The
  * workspace opens empty in that case rather than refusing, because an empty
  * builder is a usable thing and a 404 on an Edit button is not.
+ *
+ * ─── AND NOW THE DRAFT'S OWN ART, WHICH WAS SAVED AND NEVER READ ────────────
+ *
+ * `saveDistroDraftAction` has stored every wallpaper and logo under
+ * `admin/distro-drafts/<id>/` since it existed, and nothing ever read them
+ * back: the workspace mounted with empty asset slots over a spec that still
+ * referenced the files, so every reopen looked like the art was lost. It was
+ * in the bucket the whole time.
+ *
+ * The bytes are FETCHED server-side and INLINED as data URLs, not linked. The
+ * same rule the icon builder learned the hard way: the client decodes with
+ * `atob`, and an https URL handed to `atob` is an exception during render, not
+ * a degraded preview. See rehydrateFilesFromUrls in lib/core/cdn.
+ *
+ * The distro's inline icon set lives one store over, in `icon-drafts` under
+ * `<base>-icons`, written by the same save. It is read back through the exact
+ * path the icon builder uses, so the two screens can resume each other's work.
  *
  * ─── AND THE PUBLISHED HERO PACKS, FOR THE SAME REASON ──────────────────────
  *
@@ -87,6 +110,43 @@ export default async function DistroWorkspacePage({
     skuCatalogue(appId, appMeta(appId)?.pkg ?? null),
   ]);
 
+  // The saved art, when a draft actually opened. Keyed by the DRAFT id, which
+  // is what the save wrote under; the icon-pack draft's id is derived the same
+  // way the workspace derives it, so the two screens name one store.
+  let initialAssets: { file: string; dataUrl: string }[] = [];
+  let initialIcons: {
+    name: string;
+    icons: { pkg: string; file: string; dataUrl: string }[];
+  } | null = null;
+  const rehydrateNotes: string[] = [];
+
+  if (initial && id) {
+    const names = await readDraftAssets(appId, initial.id);
+    if (names.length > 0) {
+      const got = await rehydrateFilesFromUrls(
+        names.map((n) => ({ file: n, url: draftAssetUrl(appId, initial.id, n) })),
+      );
+      initialAssets = got.files;
+      rehydrateNotes.push(...got.notes);
+    }
+
+    // Bundled drafts carry a bare id; workspace-born ones end in `-theme`.
+    // Both derive their icon pack as `<base>-icons`.
+    const iconsId = `${initial.id.replace(/-theme$/, '')}-icons`;
+    const iconDraft = await readIconDraft(appId, iconsId);
+    if (iconDraft && iconDraft.icons.length > 0) {
+      const got = await rehydrateIconsFromUrls(
+        iconDraft.icons.map((i) => ({
+          pkg: i.pkg,
+          file: i.file,
+          url: iconDraftAssetUrl(appId, iconDraft.packId, i.file),
+        })),
+      );
+      initialIcons = { name: iconDraft.name, icons: got.icons };
+      rehydrateNotes.push(...got.notes);
+    }
+  }
+
   // 'hero' only. `brand` is the CC0 glyph layer and is chosen through
   // `icons.brandPack`, which is a different field with a different meaning, and
   // `icon`/`theme` are not hero art at all. Offering them here would let a
@@ -101,6 +161,9 @@ export default async function DistroWorkspacePage({
       <DistroWorkspace
         app={appId}
         initial={initial}
+        initialAssets={initialAssets}
+        initialIcons={initialIcons}
+        rehydrateNotes={rehydrateNotes}
         heroPacks={heroPacks}
         heroPacksUnreadable={!!live.unreachable || live.corrupt}
         play={play}

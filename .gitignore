@@ -56,3 +56,14 @@ mindberzerk-3eaf5-firebase-adminsdk-fbsvc-388e9a4d01.json
 *firebase-adminsdk*.json
 *service-account*.json
 *serviceAccount*.jsonfirebase-debug.log
+# ── iconlab ─────────────────────────────────────────────────────────────────
+#
+# Downloaded icon themes and everything derived from them. Hundreds of
+# megabytes of other people's GPL artwork, kept locally as drawing reference
+# and deliberately never committed: it does not belong in this repo's history,
+# and nothing here is used at build or publish time.
+#
+# `tools/iconlab.mjs` recreates `matches/` and `index.html` from `sources/` on
+# every run, so the only thing that would ever be worth keeping is the sources,
+# and those came from the internet.
+iconlab/

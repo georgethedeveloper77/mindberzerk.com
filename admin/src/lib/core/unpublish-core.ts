@@ -55,7 +55,18 @@ import {
  * on the frozen in-APK seed with no way forward, so they are refused here at
  * the shared layer rather than per caller.
  */
-export const BUNDLED_PACK_IDS = new Set(['simple-icons', 'yaru']);
+export const BUNDLED_PACK_IDS = new Set([
+  'simple-icons',
+  'yaru',
+  // The three bundled themes joined the launcher's auto-update set, which
+  // means every device now installs their CDN copies unprompted. Pulling one
+  // of those ids from the index would strand the whole install base on the
+  // frozen APK seed with no way forward, so they are refused here exactly
+  // like the two packs above. Keep in sync with PackPaths.bundledPackIds.
+  'ubuntu-24-04',
+  'kde-plasma-6',
+  'terminal',
+]);
 
 export type UnpublishOutcome =
   | {

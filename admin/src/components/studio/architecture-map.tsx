@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
-import type { GraphStatus, GraphView, NodeState } from '@/lib/core/architecture-graph';
+import type { GraphStatus, GraphView, IconKey, NodeState } from '@/lib/core/architecture-graph';
 
 /**
  * The live map: nodes you can click, arrows that show data moving.
@@ -24,6 +24,160 @@ import type { GraphStatus, GraphView, NodeState } from '@/lib/core/architecture-
  * The map is a reading surface rather than a place work happens, so there is
  * nothing to lose on a re-render and no reason to put a node in the URL.
  */
+
+/**
+ * One shape per kind of thing, at a single stroke weight.
+ *
+ * DRAWN RATHER THAN IMPORTED. A 21-icon set from a package would pull a
+ * dependency into a route that already carries mermaid, and these are simple
+ * enough that the paths are shorter than the import. They inherit
+ * `currentColor`, so the node tints them by state without a second set.
+ */
+const ICONS: Record<IconKey, React.ReactNode> = {
+  edit: <path d="M11.3 2.9l1.8 1.8L5.8 12H4v-1.8l7.3-7.3z" />,
+  key: (
+    <>
+      <circle cx="5.5" cy="10.5" r="2.5" />
+      <path d="M7.3 8.7L13 3M11 5l1.5 1.5M9.4 6.6L11 8.2" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="M8 1.8l5.5 3v6.4L8 14.2l-5.5-3V4.8l5.5-3z" />
+      <path d="M2.5 4.8L8 7.8l5.5-3M8 7.8v6.4" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M6 4h7M6 8h7M6 12h7" />
+      <path d="M3 4h.01M3 8h.01M3 12h.01" />
+    </>
+  ),
+  cloud: <path d="M4.6 12.5h6.6a2.9 2.9 0 00.4-5.8 4 4 0 00-7.7.9 2.5 2.5 0 00.7 4.9z" />,
+  refresh: (
+    <>
+      <path d="M13.2 7.2A5.3 5.3 0 003.4 5.6" />
+      <path d="M2.8 8.8a5.3 5.3 0 009.8 1.6" />
+      <path d="M13.2 3.4v3.8h-3.8M2.8 12.6V8.8h3.8" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M8 1.8l5.2 2.2v4.6c0 3-2.1 5.4-5.2 6.2-3.1-.8-5.2-3.2-5.2-6.2V4L8 1.8z" />
+      <path d="M5.8 7.9L7.4 9.5l3-3.2" />
+    </>
+  ),
+  folder: <path d="M2.2 4.6A1.4 1.4 0 013.6 3.2h2.9l1.4 1.8h4.5a1.4 1.4 0 011.4 1.4v5.2a1.4 1.4 0 01-1.4 1.4H3.6a1.4 1.4 0 01-1.4-1.4V4.6z" />,
+  layers: (
+    <>
+      <path d="M8 1.8l6 3-6 3-6-3 6-3z" />
+      <path d="M2 8.2l6 3 6-3M2 11.4l6 3 6-3" />
+    </>
+  ),
+  files: (
+    <>
+      <path d="M5.5 2.2h4l2.8 2.8v7.4a.9.9 0 01-.9.9H5.5a.9.9 0 01-.9-.9V3.1a.9.9 0 01.9-.9z" />
+      <path d="M9.4 2.2V5h2.9" />
+    </>
+  ),
+  doc: (
+    <>
+      <path d="M4.5 2.2h5l3 3v8a.9.9 0 01-.9.9H4.5a.9.9 0 01-.9-.9V3.1a.9.9 0 01.9-.9z" />
+      <path d="M6 8.4h4M6 11h3" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M8 2.4v7.2M5.2 7l2.8 2.8L10.8 7" />
+      <path d="M2.8 11.4v1.2a1 1 0 001 1h8.4a1 1 0 001-1v-1.2" />
+    </>
+  ),
+  merge: (
+    <>
+      <circle cx="4" cy="4" r="1.6" />
+      <circle cx="4" cy="12" r="1.6" />
+      <circle cx="12" cy="8" r="1.6" />
+      <path d="M4 5.6v4.8M5.6 4h2.6A2.2 2.2 0 0110.4 6.6v.2" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M2.6 5h10.8M2.6 11h10.8" />
+      <circle cx="6" cy="5" r="1.6" />
+      <circle cx="10.4" cy="11" r="1.6" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="2.4" y="2.4" width="4.8" height="4.8" rx="1.2" />
+      <rect x="8.8" y="2.4" width="4.8" height="4.8" rx="1.2" />
+      <rect x="2.4" y="8.8" width="4.8" height="4.8" rx="1.2" />
+      <rect x="8.8" y="8.8" width="4.8" height="4.8" rx="1.2" />
+    </>
+  ),
+  phone: (
+    <>
+      <rect x="4.4" y="1.6" width="7.2" height="12.8" rx="1.8" />
+      <path d="M7.2 12.4h1.6" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M7.6 2.2H13v5.4l-6 6-5.4-5.4 6-6z" />
+      <path d="M10.4 5h.01" />
+    </>
+  ),
+  database: (
+    <>
+      <ellipse cx="8" cy="4" rx="5.4" ry="2.2" />
+      <path d="M2.6 4v8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V4" />
+      <path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="3" y="7" width="10" height="6.6" rx="1.6" />
+      <path d="M5.6 7V5a2.4 2.4 0 014.8 0v2" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M2 8h12M8 2a9 9 0 010 12M8 2a9 9 0 000 12" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M2.8 4.4h10.4M6.2 4.4V3a.8.8 0 01.8-.8h2a.8.8 0 01.8.8v1.4" />
+      <path d="M4.2 4.4l.6 8.2a1 1 0 001 .9h4.4a1 1 0 001-.9l.6-8.2" />
+    </>
+  ),
+};
+
+function Glyph({ name }: { name: IconKey }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+/** The icon tile's tint, so a broken step is coloured rather than only dotted. */
+const TILE: Record<NodeState, string> = {
+  ok: 'bg-site-ok-soft text-site-ok',
+  bad: 'bg-site-plan-soft text-site-plan',
+  unknown: 'bg-site-sunk text-site-ink-3',
+};
 
 const DOT: Record<NodeState, string> = {
   ok: 'bg-site-ok',
@@ -160,18 +314,31 @@ export function ArchitectureMap({
                       : 'border-site-line hover:border-site-accent/45'
                   }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <span className={`relative size-[7px] shrink-0 rounded-full ${DOT[s]}`}>
-                      {s === 'ok' && (
-                        <span className="arch-ping absolute -inset-1 rounded-full border border-site-ok opacity-55" />
-                      )}
+                  <span className="flex items-center gap-2.5">
+                    {/* The icon says WHAT this is, the dot says HOW IT IS. Two
+                        different questions, so two marks rather than one doing
+                        both badly: a coloured icon alone cannot distinguish
+                        "storage, refused" from "storage, fine". */}
+                    <span
+                      className={`relative grid size-[26px] shrink-0 place-items-center rounded-lg ${TILE[s]}`}
+                    >
+                      <Glyph name={n.icon} />
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 size-[7px] rounded-full ring-2 ring-site-card ${DOT[s]}`}
+                      >
+                        {s === 'ok' && (
+                          <span className="arch-ping absolute -inset-1 rounded-full border border-site-ok opacity-55" />
+                        )}
+                      </span>
                     </span>
-                    <b className="truncate text-[12.5px] font-bold tracking-tight text-site-ink">
-                      {n.title}
-                    </b>
-                  </span>
-                  <span className="mt-1 block truncate font-mono text-[10px] text-site-ink-3">
-                    {n.sub}
+                    <span className="min-w-0">
+                      <b className="block truncate text-[12.5px] font-bold tracking-tight text-site-ink">
+                        {n.title}
+                      </b>
+                      <span className="mt-0.5 block truncate font-mono text-[10px] text-site-ink-3">
+                        {n.sub}
+                      </span>
+                    </span>
                   </span>
                 </button>
               );
@@ -199,6 +366,9 @@ export function ArchitectureMap({
       {node && (
         <aside className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft lg:sticky lg:top-4">
           <header className="flex flex-wrap items-center gap-2.5 border-b border-site-line px-[18px] py-3.5">
+            <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${TILE[st.state]}`}>
+              <Glyph name={node.icon} />
+            </span>
             <h2 className="font-site-display text-[15px] font-bold text-site-ink">{node.title}</h2>
             <span
               className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-bold ${PILL[st.state]}`}

@@ -170,6 +170,44 @@ export async function rehydrateIconsFromUrls(
 }
 
 /**
+ * Plain files named by URL, inlined the same way icons are.
+ *
+ * The distro workspace's wallpapers and logos have no package attached, so
+ * [rehydrateIconsFromUrls] does not fit them without lying in a field. Same
+ * no-store fetch, same missing-file-is-a-note rule: a draft asset that cannot
+ * be read must be reported, because saving the reopened draft would otherwise
+ * drop it from the stored set permanently.
+ */
+export async function rehydrateFilesFromUrls(
+  wanted: { file: string; url: string }[],
+): Promise<{ files: { file: string; dataUrl: string }[]; notes: string[] }> {
+  const notes: string[] = [];
+
+  const fetched = await Promise.all(
+    wanted.map(async (w) => {
+      const bytes = await getPublic(w.url, 'no-store');
+      if (!bytes) return null;
+      return {
+        file: w.file,
+        dataUrl: `data:${mimeFor(w.file)};base64,${bytes.toString('base64')}`,
+      };
+    }),
+  );
+
+  const files: { file: string; dataUrl: string }[] = [];
+  for (let i = 0; i < fetched.length; i++) {
+    const got = fetched[i];
+    if (got) files.push(got);
+    else
+      notes.push(
+        `${wanted[i].file} is saved with this draft but could not be read from the CDN, so it does not appear here. Saving now would drop it.`,
+      );
+  }
+
+  return { files, notes };
+}
+
+/**
  * Read a published hero pack back into an editable starting state.
  *
  * ─── pack.json IS THE ONLY SOURCE OF THE PACKAGE MAP ────────────────────────

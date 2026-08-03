@@ -5,6 +5,9 @@ import { adminGate } from '@/app/components/admin-gate';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SlabButton, SoftButton } from '@/components/studio/ui';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
+import { DuplicateDistro } from '@/components/theme-list/DuplicateDistro';
+import { BulkBar, BulkProvider, RowCheck } from '@/components/studio/bulk';
+import { bulkDeleteDistrosAction } from './actions';
 import { ListToggle } from '@/components/theme-list/ListToggle';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
@@ -225,6 +228,14 @@ export default async function DistrosPage({
         })}
       </div>
 
+      <BulkProvider>
+      <BulkBar
+        noun="distro"
+        verb="Delete"
+        app={appId}
+        action={bulkDeleteDistrosAction}
+      />
+
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
         <section className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
           {shown.length === 0 ? (
@@ -260,6 +271,10 @@ export default async function DistrosPage({
                   }`}
                 >
                   {on && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-site-accent" />}
+
+                  {/* A bundled distro cannot be deleted at all, so it gets a
+                      placeholder rather than a box that refuses on press. */}
+                  <RowCheck id={r.id} disabled={r.bundled} why="ships inside the app" />
 
                   {/* The wallpaper swatch. Phone-shaped on purpose: it is a
                       miniature of the thing, not a colour sample. */}
@@ -383,6 +398,11 @@ export default async function DistrosPage({
 
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <SoftButton href={`/apps/${appId}/distros/builder?id=${selected.id}`}>Edit</SoftButton>
+                {/* Duplicate is offered for BUNDLED distros too, and that is
+                    the point: copying Ubuntu into a new id is the fastest way
+                    to start a distro that shares its shell, and the copy is an
+                    ordinary draft with none of the bundled protections. */}
+                <DuplicateDistro app={appId} fromId={selected.id} />
                 {!selected.bundled && (
                   <DeleteDistro
                     app={appId}
@@ -404,6 +424,7 @@ export default async function DistrosPage({
           </aside>
         )}
       </div>
+      </BulkProvider>
 
       <p className="px-0.5 text-[11.5px] leading-relaxed text-site-ink-3">
         A distro is a theme pack plus an optional icon pack. Product ID is the Play SKU; blank is

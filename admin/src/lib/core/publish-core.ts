@@ -119,6 +119,70 @@ export function guardIndex(app: AppId, live: LiveIndex): string | null {
 }
 
 /** The next version for a pack id. Monotonic integers, never semver. */
+/**
+ * ── THE SHELF-OWNER RULE, in one shared place ───────────────────────────────
+ *
+ * A hero pack belongs to the distro whose base id prefixes its own, longest
+ * base wins. The launcher's icons screen shelves by exactly this rule, and the
+ * icon builder's picker writes ids to match, so this function is the third
+ * copy of the rule and therefore lives in core where both publish paths import
+ * it rather than re-deriving it.
+ */
+export function shelfOwnerBase(packId: string, live: LiveIndex): string | null {
+  let best: string | null = null;
+  for (const p of live.packs) {
+    if (p.packType !== 'theme') continue;
+    const base = p.packId.endsWith('-theme')
+      ? p.packId.slice(0, -'-theme'.length)
+      : p.packId;
+    if (packId !== base && packId.startsWith(`${base}-`)) {
+      if (best === null || base.length > best.length) best = base;
+    }
+  }
+  return best;
+}
+
+/**
+ * Append a PAID shelf pack to its distro's entitlement, when one exists.
+ *
+ * "Comes with the distro" has to be true for money, not just for shelving:
+ * a paid pack on a paid distro's shelf is included in the distro purchase, so
+ * its id joins that distro's grants. The operation is deliberately narrow:
+ *
+ *   APPEND-ONLY.  Ownership scope can grow here and never shrink; removing
+ *                 grants stays a deliberate act on the screens that own them.
+ *   PAID ONLY.    A free pack is unlocked for everyone already; granting it
+ *                 would be signed noise.
+ *   EXISTING ENTITLEMENT ONLY. A free distro has no entitlement, and this
+ *                 function will not invent one; the pack stays standalone.
+ *
+ * The distro's entitlement is identified by its grants containing the distro's
+ * theme pack id, which is ground truth rather than a naming convention.
+ */
+export function withShelfGrant(
+  live: LiveIndex,
+  packId: string,
+  packSku: string | null,
+): { entitlements: IndexEntitlement[]; grantedTo: string | null } {
+  const unchanged = { entitlements: live.entitlements, grantedTo: null };
+  if (!packSku) return unchanged;
+
+  const base = shelfOwnerBase(packId, live);
+  if (!base) return unchanged;
+
+  const themeIds = new Set([base, `${base}-theme`]);
+  const owner = live.entitlements.find((e) => e.grants.some((g) => themeIds.has(g)));
+  if (!owner) return unchanged;
+  if (owner.grants.includes(packId)) return unchanged;
+
+  return {
+    entitlements: live.entitlements.map((e) =>
+      e === owner ? { ...e, grants: [...e.grants, packId] } : e,
+    ),
+    grantedTo: owner.sku,
+  };
+}
+
 export function nextVersionFor(live: LiveIndex, packId: string): number {
   return (live.packs.find((p) => p.packId === packId)?.version ?? 0) + 1;
 }

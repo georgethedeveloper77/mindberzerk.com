@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
 import { readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { checkThemePackFlat, flatRefusal } from '@/lib/g-launcher/flat-check';
-import { commitIndex, packKeyId, uploadPack } from '@/lib/core/publish-core';
+import { commitIndex, packKeyId, uploadPack, withShelfGrant } from '@/lib/core/publish-core';
 import { unzipSync } from 'fflate';
 
 import {
@@ -293,12 +293,25 @@ export async function POST(request: Request) {
   // pack exists; advertising one whose files are still uploading produces a
   // wave of failed installs across the whole install base at once.
   //
-  // No entitlements argument, so the live list is carried through untouched.
-  // Bundle membership is edited on its own screen; a pack publish must never be
-  // able to change who owns what.
+  // ── the one entitlement edit a pack publish may make ──────────────────────
+  //
+  // The rule used to be absolute: a pack publish never touches who owns what.
+  // Phase 3 carves the single exception that makes shelf pricing honest: a
+  // PAID hero pack whose id a paid distro owns joins that distro's grants, so
+  // "comes with the distro" is true for the buyer and not just for the shelf.
+  // The helper is append-only and refuses everything else, so ownership scope
+  // can still only ever GROW here; shrinking stays on the screens that own it.
+  const shelf =
+    packType === 'hero' ? withShelfGrant(live, packId, sku) : { entitlements: live.entitlements, grantedTo: null };
+
   let generatedAt: number;
   try {
-    generatedAt = await commitIndex(app, live, [entry]);
+    generatedAt = await commitIndex(
+      app,
+      live,
+      [entry],
+      shelf.grantedTo ? shelf.entitlements : undefined,
+    );
   } catch (e) {
     // The pack is already uploaded and is perfectly valid; only the catalogue
     // failed. Say so precisely, because "publish failed" would send someone
@@ -316,6 +329,7 @@ export async function POST(request: Request) {
     ok: true,
     packId,
     version,
+    grantedTo: shelf.grantedTo,
     remoteDir: `${app}/${entry.path}`,
     fileCount: files.length,
     sizeBytes: total,
