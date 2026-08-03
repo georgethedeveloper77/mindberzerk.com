@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../design/theme_mark.dart';
 
 import '../../data/repositories/app_repository.dart';
 import '../../data/cdn/pack_repository.dart';
@@ -424,54 +424,49 @@ class LauncherBrandIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logo = theme.spec.logo;
     final onDark = theme.palette.onDark;
 
     // onDark is the colour chosen to read on this theme's chrome, so its own
     // luminance IS that chrome's brightness, read backwards. A light onDark
-    // (e.g. white on Ubuntu's aubergine) means a dark surface. No new theme
-    // field needed to know which artwork to show.
+    // (white on Ubuntu's aubergine) means a dark surface. No new theme field
+    // needed to know which artwork to show.
     final surfaceIsDark = onDark.computeLuminance() > 0.5;
 
-    if (logo != null) {
-      final asset = surfaceIsDark ? logo.dark : logo.light;
+    // ─── RESOLVED, NOT COMPOSED HERE ────────────────────────────────────
+    //
+    // This read `theme.spec.logo` and handed `logo.dark` straight to
+    // `Image.asset`. Correct while every theme shipped in the APK, and silently
+    // broken the day a free distro could be republished over the CDN: the same
+    // field then arrives as a bare `logo_dark.webp`, the asset bundle has no
+    // such entry, and the Activities button in the dock throws into the console
+    // on every rebuild while drawing nothing. See [ThemeSpec.logoAsset], which
+    // exists because this was the third reader to make the same mistake.
+    final mark = theme.spec.logoAsset(onDarkSurface: surfaceIsDark);
 
-      // The rule: light-surface art is rendered AS AUTHORED (the light variant
-      // is already dark-ink and reads on a pale background on its own), while
-      // the dark-surface variant is tinted to onDark. A coloured mark can go
-      // muddy on dark chrome, and srcIn-to-onDark guarantees contrast and makes
-      // it a matched pair with the label and the Device Settings gear beside it.
-      final ColorFilter? svgTint =
-          surfaceIsDark ? ColorFilter.mode(onDark, BlendMode.srcIn) : null;
-
-      final Widget mark = asset.endsWith('.svg')
-          ? SvgPicture.asset(
-              asset,
-              width: size,
-              height: size,
-              colorFilter: svgTint,
-            )
-          : Image.asset(
-              asset,
-              width: size,
-              height: size,
-              // color: null on a light surface leaves the raster untinted; the
-              // blend mode is ignored when color is null.
-              color: surfaceIsDark ? onDark : null,
-              colorBlendMode: BlendMode.srcIn,
-              filterQuality: FilterQuality.medium,
-            );
-      return SizedBox(width: size, height: size, child: mark);
-    }
-
-    final Widget fallback = Image.asset(
-      'assets/brand/mindhunter_mark.webp',
+    return SizedBox(
       width: size,
       height: size,
-      color: onDark,
-      colorBlendMode: BlendMode.srcIn,
-      filterQuality: FilterQuality.medium,
+      child: ThemeMark(
+        asset: mark,
+        size: size,
+        // BOTH variants are drawn as authored. Each one is already art for the
+        // surface it names, which is the whole reason [ThemeLogo] ships two;
+        // knocking the dark one out to onDark turned Ubuntu's orange mark into
+        // a white circle in the dock. The fallback below keeps its tint,
+        // because the Mindhunter mark IS a monochrome silhouette.
+        tint: null,
+        // No logo, or artwork that would not open: the Mindhunter mark, tinted.
+        // HERE srcIn earns its place unconditionally, because one monochrome
+        // silhouette has to read on every distro.
+        fallback: Image.asset(
+          'assets/brand/mindhunter_mark.webp',
+          width: size,
+          height: size,
+          color: onDark,
+          colorBlendMode: BlendMode.srcIn,
+          filterQuality: FilterQuality.medium,
+        ),
+      ),
     );
-    return SizedBox(width: size, height: size, child: fallback);
   }
 }

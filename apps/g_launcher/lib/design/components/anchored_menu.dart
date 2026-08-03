@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../engine/theme_spec.dart' show ChromeFamily;
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
+import 'themed_list_row.dart';
 
 /// A context menu that opens beside the thing it is about.
 ///
@@ -45,6 +47,49 @@ import 'glass_panel.dart';
 /// rule [ThemedSheet] and [ThemedDialog] follow. Callers on the desktop build
 /// their own [ChromeData] from the theme, because the shells are not guaranteed
 /// to sit under a scope at all.
+/// One of the three quick actions across the top of a menu.
+///
+/// Separate from [ThemedListRow] because it is drawn as a glyph over a word in
+/// a third of the panel's width, not as a row: the label sits under the icon,
+/// wraps to two lines, and has no subtitle. A row that needs a subtitle is not
+/// a quick action and belongs in the list below.
+class MenuAction {
+  const MenuAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+
+  /// Runs AFTER the menu has closed, and that is not a detail.
+  ///
+  /// ─── THE POP IS THE PRIMITIVE'S JOB, NOT THE CALLER'S ────────────────────
+  ///
+  /// A row in [AnchoredMenu.rows] receives the menu's own context and pops it
+  /// itself, which works and is a trap: the closure usually also needs the
+  /// CALLER's context, for a message or a push, and the two look identical at
+  /// the call site. Popping the wrong one closes the drawer instead of the
+  /// menu, and the symptom is a whole screen vanishing when you tap Hide.
+  ///
+  /// So an action never pops. It closes over whatever context it likes and this
+  /// runs once the panel is gone, which is also the right order for anything
+  /// that opens a system screen.
+  final VoidCallback onTap;
+
+  /// Uninstall and its relatives.
+  ///
+  /// Red rather than the palette accent, and that is the one colour in this
+  /// file that does not come from the distro. An accent is whatever the distro
+  /// chose, so on Kali it is already red and every action would read as
+  /// destructive, while on a green-accented distro nothing would. Destructive
+  /// is a meaning rather than a decoration, and it needs the colour everyone
+  /// already reads as one.
+  final bool danger;
+}
+
 class AnchoredMenu {
   const AnchoredMenu._();
 
@@ -90,6 +135,24 @@ class AnchoredMenu {
     required Rect? anchor,
     required List<Widget> Function(BuildContext menuContext) rows,
     String? title,
+
+    /// The three most common actions, drawn as glyphs across the top.
+    ///
+    /// ─── AND WHY THEY ARE NOT JUST MORE ROWS ────────────────────────────
+    ///
+    /// Because a menu about an APP has one or two things you came for and three
+    /// or four you did not, and a flat list makes you read all of them every
+    /// time. A row of glyphs is hit by muscle memory after the second use,
+    /// which is the same argument `desktop_menu` already makes for its bar.
+    ///
+    /// THREE, not four. At a readable label size on a 360dp phone a fourth
+    /// column forces the words to one line and then to an ellipsis, and an
+    /// action nobody can read is worse than one more row. Anything past three
+    /// goes in [rows] underneath.
+    List<MenuAction> actions = const [],
+
+    /// The (i) button beside the title. Null draws no button and no spacer.
+    VoidCallback? onInfo,
     double width = 240,
     bool below = preferBelow,
     String barrierLabel = 'Dismiss',
@@ -109,6 +172,11 @@ class AnchoredMenu {
       transitionDuration: const Duration(milliseconds: 130),
       pageBuilder: (menuContext, _, __) {
         final media = MediaQuery.of(menuContext);
+        // ONCE. The builder can be a real build rather than a list literal,
+        // and calling it twice to ask "are there any" would run every closure
+        // and every provider read in it a second time.
+        final rowWidgets = rows(menuContext);
+        final asList = chrome.family == ChromeFamily.aqua;
 
         return ChromeScope(
           data: chrome,
@@ -137,18 +205,54 @@ class AnchoredMenu {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (title != null)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: chrome.text.title,
-                        ),
+                      _Header(
+                        title: title,
+                        chrome: chrome,
+                        onInfo: onInfo,
+                        menuContext: menuContext,
                       )
                     else
                       const SizedBox(height: 6),
-                    ...rows(menuContext),
+
+                    // ── THE FORK IS ON THE FAMILY, NEVER ON THE DISTRO ──
+                    //
+                    // Eleven distros resolve into four families, and a twelfth
+                    // needs no code here. Same rule `BootSpec.defaultForShell`
+                    // states: keying on `theme.id == 'fedora'` is the trap the
+                    // whole theme layer exists to avoid.
+                    //
+                    // Aqua takes the list. A Mac answers a long press with a
+                    // plain vertical menu and no glyph strip, so giving it one
+                    // would be the single least Mac-like thing on that shell.
+                    // The actions are not lost: they fall into the rows below
+                    // in the same order.
+                    if (actions.isNotEmpty && !asList) ...[
+                      _Actions(
+                        actions: actions,
+                        chrome: chrome,
+                        menuContext: menuContext,
+                      ),
+                      if (rowWidgets.isNotEmpty)
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: chrome.colors.line,
+                        ),
+                    ],
+                    if (actions.isNotEmpty && asList)
+                      for (final a in actions)
+                        ThemedListRow(
+                          icon: a.icon,
+                          title: a.label,
+                          danger: a.danger,
+                          // Popped here too, so the Aqua list and the glyph row
+                          // give an action the same contract.
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                            a.onTap();
+                          },
+                        ),
+                    ...rowWidgets,
                     const SizedBox(height: 6),
                   ],
                 ),
@@ -255,4 +359,147 @@ class _AnchorDelegate extends SingleChildLayoutDelegate {
       old.safe != safe ||
       old.width != width ||
       old.below != below;
+}
+
+/// The app's name, centred, above everything else.
+///
+/// ─── CENTRED NEEDS AN INVISIBLE BOX ─────────────────────────────────────────
+///
+/// A centred title with a button on one side only is off-centre by half a
+/// button, and it reads as sloppy rather than as centred. So the leading spacer
+/// is exactly the trailing button's width and appears only when the button
+/// does. It looks like nothing and it is the whole difference.
+///
+/// ─── TWO LINES, WRAPPING, AND NO ELLIPSIS ───────────────────────────────────
+///
+/// App names are long and this panel can simply be taller. `TextOverflow.fade`
+/// rather than `ellipsis` past two lines: the ellipsis exists for a row whose
+/// height is fixed by the list around it, and nothing here is.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.title,
+    required this.chrome,
+    required this.menuContext,
+    this.onInfo,
+  });
+
+  final String title;
+  final ChromeData chrome;
+  final BuildContext menuContext;
+  final VoidCallback? onInfo;
+
+  static const _button = 34.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(onInfo == null ? 16 : 6, 12, 6, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (onInfo != null) const SizedBox(width: _button),
+          Expanded(
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.fade,
+              style: chrome.text.title,
+            ),
+          ),
+          if (onInfo != null)
+            SizedBox(
+              width: _button,
+              height: _button,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                iconSize: 19,
+                // Pops FIRST. Info opens Android's app settings, and leaving
+                // the menu up behind a system screen means coming back to a
+                // panel about an app you may have just uninstalled.
+                onPressed: () {
+                  Navigator.pop(menuContext);
+                  onInfo!();
+                },
+                icon: Icon(
+                  Icons.info_outline,
+                  color: chrome.colors.textMuted,
+                ),
+                tooltip: 'App info',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Three glyphs over words, evenly divided.
+///
+/// Shaped like `desktop_menu`'s bar on purpose: it is the same idea about a
+/// different subject, and two idioms for "a row of quick actions" in one app
+/// would be two things to keep in step.
+/// The destructive red. See [MenuAction.danger] for why this is not from the
+/// palette.
+const _danger = Color(0xFFFF6B6B); // theme-exempt: destructive is a meaning, not a distro colour
+
+class _Actions extends StatelessWidget {
+  const _Actions({
+    required this.actions,
+    required this.chrome,
+    required this.menuContext,
+  });
+
+  final List<MenuAction> actions;
+  final ChromeData chrome;
+
+  /// Popped before the action runs. See [MenuAction.onTap].
+  final BuildContext menuContext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
+      child: Row(
+        children: [
+          for (final a in actions)
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  Navigator.pop(menuContext);
+                  a.onTap();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        a.icon,
+                        size: 21,
+                        color: a.danger ? _danger : chrome.colors.text,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        a.label,
+                        textAlign: TextAlign.center,
+                        // Two lines here too, for the same reason as the title:
+                        // "Add to home" does not fit one line in a third of a
+                        // 236px panel, and it certainly does not fit in German.
+                        maxLines: 2,
+                        overflow: TextOverflow.fade,
+                        style: chrome.text.caption.copyWith(
+                          color: a.danger ? _danger : chrome.colors.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

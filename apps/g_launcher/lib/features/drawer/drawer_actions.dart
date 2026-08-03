@@ -177,102 +177,102 @@ void showDrawerAppMenu(
     panelRadius: theme.panelRadius,
   );
 
+  // ── THE THREE YOU CAME FOR, AND THE REST UNDERNEATH ─────────────────
+  //
+  // This was five list rows in a flat panel, which made pinning and hiding
+  // cost the same amount of reading as uninstalling. The three across the top
+  // are the ones a person actually reaches for, and App info moved into the
+  // header as the (i) button, which is where every launcher on the phone puts
+  // it and where nobody has to read a word to find it.
+  //
+  // Only Uninstall is left in the list, and only when it can work: a system app
+  // cannot be uninstalled and a button that silently does nothing is worse than
+  // no button.
   AnchoredMenu.show(
     context: context,
     chrome: chrome,
     anchor: anchor,
     width: 236,
-    rows: (sheet) => [
-        // "Add to home" became "Pin to dock": the authentic desktop has no
-        // grid, so the old item added apps to a screen that displays nothing.
-        // The dock is where home apps live now.
-        if (isPinned)
-          ThemedListRow(
-            icon: Icons.push_pin_outlined,
-            title: context.t('shell.unpinFromDock'),
-            onTap: () {
-              Navigator.pop(sheet);
-              prefs.edit(
-                (p) => HomeLayout.unpinFromDock(p, entry.componentKey),
-              );
-            },
-          )
-        else
-          ThemedListRow(
-            icon: Icons.push_pin,
-            title: context.t('shell.pinToDock'),
-            onTap: () {
-              Navigator.pop(sheet);
-              // Pin against the ceiling; the dock displays what fits its
-              // current side. Pinning #11 on a bottom dock isn't lost — it
-              // appears when the dock is moved to the left.
-              final before = theme.prefs;
-              final after = HomeLayout.pinToDock(
-                before,
-                entry.componentKey,
-                capacity: DockMetrics.maxCapacity,
-              );
-              if (identical(before, after)) {
-                // Refused = full. A silently dropped pin is worse than a
-                // refused one. Single-string message per the convention.
-                if (host.mounted) {
-                  host.showMessage(host.t('drawer.dockIsFull'));
-                }
-                return;
-              }
-              prefs.edit((p) => HomeLayout.pinToDock(
-                    p,
-                    entry.componentKey,
-                    capacity: DockMetrics.maxCapacity,
-                  ));
-            },
-          ),
-        ThemedListRow(
-          icon: Icons.info_outline,
-          title: context.t('shell.appInfo'),
+    title: entry.label,
+    onInfo: () => notifier.openInfo(entry),
+    actions: [
+      // "Add to home" became "Pin to dock": the authentic desktop has no grid,
+      // so the old item added apps to a screen that displays nothing. The dock
+      // is where home apps live now.
+      if (isPinned)
+        MenuAction(
+          icon: Icons.push_pin_outlined,
+          label: context.t('shell.unpinFromDock'),
+          onTap: () =>
+              prefs.edit((p) => HomeLayout.unpinFromDock(p, entry.componentKey)),
+        )
+      else
+        MenuAction(
+          icon: Icons.push_pin,
+          label: context.t('shell.pinToDock'),
           onTap: () {
-            Navigator.pop(sheet);
-            notifier.openInfo(entry);
-          },
-        ),
-
-        // Hide it from THIS theme's drawer. Per-theme, like the set it writes
-        // to: an app hidden under Ubuntu is still in KDE's drawer, because
-        // hiding is "off my desktop", not "gone from the phone".
-        //
-        // The message is doing real work, not decoration. A hidden app is not
-        // in the drawer to long-press, so the ONLY way back is the Apps and
-        // folders page — and a user who just hid their first app has no reason
-        // to know that exists. Naming it is the difference between a reversible
-        // action and one that feels permanent. Single string, per the
-        // convention.
-        ThemedListRow(
-          icon: Icons.visibility_off_outlined,
-          title: context.t('drawer.hideApp'),
-          subtitle: context.t('drawer.unhideItUnderApps'),
-          onTap: () {
-            Navigator.pop(sheet);
-            prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
-            if (host.mounted) {
-              host.showMessage(
-                host.t('drawer.appHidden', {'name': entry.label}),
-              );
+            // Pin against the ceiling; the dock displays what fits its current
+            // side. Pinning #11 on a bottom dock isn't lost — it appears when
+            // the dock is moved to the left.
+            final before = theme.prefs;
+            final after = HomeLayout.pinToDock(
+              before,
+              entry.componentKey,
+              capacity: DockMetrics.maxCapacity,
+            );
+            if (identical(before, after)) {
+              // Refused = full. A silently dropped pin is worse than a refused
+              // one. Single-string message per the convention.
+              if (host.mounted) host.showMessage(host.t('drawer.dockIsFull'));
+              return;
             }
+            prefs.edit((p) => HomeLayout.pinToDock(
+                  p,
+                  entry.componentKey,
+                  capacity: DockMetrics.maxCapacity,
+                ));
           },
         ),
 
-        // System apps cannot be uninstalled. A button that silently does
-        // nothing is worse than no button.
-        if (!entry.isSystem && !entry.isWorkProfile)
-          ThemedListRow(
-            icon: Icons.delete_outline,
-            title: context.t('drawer.uninstall'),
-            onTap: () {
-              Navigator.pop(sheet);
-              notifier.uninstall(entry);
-            },
-          ),
+      // Hide it from THIS theme's drawer. Per-theme, like the set it writes to:
+      // an app hidden under Ubuntu is still in KDE's drawer, because hiding is
+      // "off my desktop", not "gone from the phone".
+      //
+      // The message is doing real work, not decoration. A hidden app is not in
+      // the drawer to long-press, so the ONLY way back is the Apps and folders
+      // page, and a user who just hid their first app has no reason to know
+      // that exists. Naming it is the difference between a reversible action
+      // and one that feels permanent.
+      MenuAction(
+        icon: Icons.visibility_off_outlined,
+        label: context.t('drawer.hideApp'),
+        onTap: () {
+          prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
+          if (host.mounted) {
+            host.showMessage(host.t('drawer.appHidden', {'name': entry.label}));
+          }
+        },
+      ),
+
+      // System apps cannot be uninstalled, so the third slot goes to App info
+      // instead of leaving a gap. Two actions in a three-column row look like
+      // one is missing; the header's (i) is still there, and a duplicate is
+      // better than a hole.
+      if (!entry.isSystem && !entry.isWorkProfile)
+        MenuAction(
+          icon: Icons.delete_outline,
+          label: context.t('drawer.uninstall'),
+          danger: true,
+          onTap: () => notifier.uninstall(entry),
+        )
+      else
+        MenuAction(
+          icon: Icons.info_outline,
+          label: context.t('shell.appInfo'),
+          onTap: () => notifier.openInfo(entry),
+        ),
     ],
+    rows: (sheet) => const [],
   );
 }
 

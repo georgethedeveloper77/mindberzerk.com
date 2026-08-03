@@ -137,6 +137,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// find. Cleared folders remain available later in Settings > Folders.
   bool _createFolders = true;
 
+  /// Badges step: ON BY DEFAULT, and it is a WANT rather than a grant.
+  ///
+  /// ─── WHY A TOGGLE AND NOT A ROW THAT OPENS SETTINGS ───────────────────
+  ///
+  /// The first version was a row with a chevron: tap it, leave the app, find
+  /// the checkbox on Android's notification-access page, come back. Almost
+  /// nobody takes that trip during setup, and the ones who do not are not
+  /// declining badges, they are declining a detour. The wizard then moves on
+  /// and the feature is silently off forever.
+  ///
+  /// So the step asks the question it actually wants answered, in the language
+  /// the rest of the wizard already uses: a tick, exactly like the folders
+  /// step's "Create 8 folders". Saying yes here costs one tap, and the system
+  /// screen is opened on the way OUT of the step rather than in the middle of
+  /// it, which is when the user has finished deciding.
+  bool _wantBadges = true;
+
+  /// Whether the badges step has already sent the user to the system screen.
+  ///
+  /// ONE ASK, and this is what stops the step becoming a trap. Continue opens
+  /// the grant page when badges are wanted and not yet granted; if the user
+  /// comes back having said no, pressing Continue again ADVANCES rather than
+  /// sending them round the loop a second time. A wizard that cannot be left
+  /// except by granting a permission is a wizard people uninstall.
+  bool _badgeAsked = false;
+
   bool _isDefault = false;
 
   /// How many times Continue has been pressed on the home-role step.
@@ -246,6 +272,29 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         }
       } catch (e, s) {
         debugPrint('setup: creating suggested folders failed: $e\n$s');
+      }
+    }
+
+    // ── BADGES: THE ASK HAPPENS ON THE WAY OUT ────────────────────────
+    //
+    // Not on tapping the toggle. The toggle records what the user wants; this
+    // is the moment they have finished deciding and are leaving, which is the
+    // only point where handing them off to a system screen is not an
+    // interruption.
+    //
+    // Skipped entirely when the permission is already granted, and skipped
+    // after the first time either way. See `_badgeAsked` for why the second
+    // press must advance rather than ask again.
+    if (_step == _SetupStep.notifications && _wantBadges && !_badgeAsked) {
+      final granted =
+          ref.read(notificationAccessProvider).asData?.value ?? false;
+      if (!granted) {
+        _badgeAsked = true;
+        await openNotificationAccessSettings();
+        // STAYS on this step. The user is now looking at Android's page; when
+        // they come back, the step re-reads the permission on resume and shows
+        // the result, and Continue takes them onward whatever they chose.
+        return;
       }
     }
 
@@ -528,8 +577,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             createFolders: _createFolders,
             onCreateFoldersChanged: (v) => setState(() => _createFolders = v),
           ),
-        _SetupStep.notifications =>
-          _StepNotifications(theme: theme, mono: skin.mono),
+        _SetupStep.notifications => _StepNotifications(
+            theme: theme,
+            mono: skin.mono,
+            want: _wantBadges,
+            onWantChanged: (v) => setState(() => _wantBadges = v),
+          ),
         _SetupStep.install =>
           _StepInstall(theme: theme, skin: skin, onDone: _finish),
       };
@@ -1485,10 +1538,20 @@ class _NagLine extends StatelessWidget {
 /// written unless the user acts, and the launcher works identically without it.
 /// Adding a Skip beside Continue would imply the two do different things.
 class _StepNotifications extends ConsumerStatefulWidget {
-  const _StepNotifications({required this.theme, required this.mono});
+  const _StepNotifications({
+    required this.theme,
+    required this.mono,
+    required this.want,
+    required this.onWantChanged,
+  });
 
   final EffectiveTheme theme;
   final bool mono;
+
+  /// Whether the user wants badges. Owned by the wizard, because Continue is
+  /// what acts on it and Continue lives up there.
+  final bool want;
+  final ValueChanged<bool> onWantChanged;
 
   @override
   ConsumerState<_StepNotifications> createState() => _StepNotificationsState();
@@ -1510,11 +1573,11 @@ class _StepNotificationsState extends ConsumerState<_StepNotifications>
 
   /// ─── THE GRANT ARRIVES WITH NO EVENT ──────────────────────────────────
   ///
-  /// Tapping the row leaves the app for a system settings page. There is no
-  /// result to await and no broadcast to listen for, so the only signal that
-  /// anything happened is the launcher being resumed. Without this the row
-  /// would still read "Allow" after a successful grant, and the user would
-  /// reasonably conclude it had failed and go round again.
+  /// Continue sends the user to a system settings page. There is no result to
+  /// await and no broadcast to listen for, so the only signal that anything
+  /// happened is the launcher being resumed. Without this the row would still
+  /// read as ungranted after a successful grant, and the user would reasonably
+  /// conclude it had failed.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
@@ -1529,32 +1592,37 @@ class _StepNotificationsState extends ConsumerState<_StepNotifications>
     final on = granted.asData?.value ?? false;
 
     // What this distro would draw, named rather than described in the abstract.
-    // "Badges" means a dot on GNOME and a number on Plasma, and the person is
-    // deciding whether they want the thing they are about to see.
-    final style = badgeStyleFor(widget.theme);
-    final what = switch (style) {
-      BadgeStyle.dot => ref.t('setup.notifications.asDot'),
+    // "Badges" means a dot under GNOME and a number under Plasma, and the person
+    // is deciding whether they want the thing they are about to see.
+    final what = switch (badgeStyleFor(widget.theme)) {
       BadgeStyle.count => ref.t('setup.notifications.asCount'),
-      BadgeStyle.none => ref.t('setup.notifications.asDot'),
+      _ => ref.t('setup.notifications.asDot'),
     };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── A TICK, NOT A TRIP ────────────────────────────────────────
+        //
+        // The same control the folders step uses for the same kind of question:
+        // do you want this, yes or no, answered where you are standing. The
+        // system page is opened by Continue, not by this row, so deciding and
+        // being handed off are two separate moments.
+        //
+        // Locked ON and non-interactive once granted. Turning it off here would
+        // read as revoking access, which this cannot do: only Android's own
+        // screen can, and pretending otherwise would leave badges drawing under
+        // an unticked box.
         SetupRow(
           title: on
               ? ref.t('setup.notifications.allowed')
               : ref.t('setup.notifications.allow'),
           subtitle: on ? what : ref.t('setup.notifications.countsOnly'),
-          selected: on,
-          marker: on ? SetupMarker.check : SetupMarker.chevron,
+          selected: on || widget.want,
+          marker: SetupMarker.check,
           mono: widget.mono,
-          // Already granted: tapping again would bounce the user out to a
-          // settings page to change nothing. A row that does nothing is better
-          // than a row that does something pointless.
-          onTap: on
-              ? () {}
-              : () => openNotificationAccessSettings(),
+          enabled: !on,
+          onTap: on ? () {} : () => widget.onWantChanged(!widget.want),
         ),
         const SizedBox(height: 10),
         Text(

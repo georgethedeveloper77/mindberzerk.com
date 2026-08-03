@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import '../desklets/desklet_edit.dart';
 import '../drawer/drawer_state.dart';
+import 'accessibility_disclosure.dart';
 import 'gesture_actions.dart';
 
 /// Temporarily reveals the dock. Auto-hides — a dock summoned by a gesture that
@@ -66,15 +66,24 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
       onSearch: () => ref.read(activitiesOpenProvider.notifier).state = true,
     );
 
-    // Failed AND it needed the service -> the user turned it off (or never
-    // turned it on). Say so once, here, rather than letting them tap at a dead
-    // gesture and conclude the launcher is broken.
+    // ─── THE JUST-IN-TIME DISCLOSURE ────────────────────────────────────
+    //
+    // Failed AND it needed the service means the user has never turned it on,
+    // or has turned it back off. This used to show a one-line message pointing
+    // at Settings, which left them tapping at a dead gesture and, at best,
+    // hunting for a screen.
+    //
+    // It is now the moment Play's policy is actually written around: the user
+    // has just asked for a capability, the reason for the permission is
+    // therefore obvious and concrete, and the disclosure appears before any
+    // request is made. `requestGestureService` shows the full-screen consent
+    // and only opens Android's settings on an explicit Continue.
+    //
+    // NOT a nag: this fires when a gesture the user deliberately bound was
+    // deliberately triggered. It cannot appear unprompted, and declining costs
+    // one tap and is remembered by the simple fact that nothing changed.
     if (!ok && binding.action.needsService && mounted) {
-      context.showMessage(
-        'Enable gestures in Settings to use this',
-        tone: MessageTone.warning,
-        duration: const Duration(seconds: 2),
-      );
+      await requestGestureService(context, ref);
     }
   }
 

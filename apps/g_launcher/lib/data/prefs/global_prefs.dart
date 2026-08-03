@@ -33,6 +33,14 @@ import 'launcher_prefs.dart';
 ///
 /// ─── THE SHELL CLAMP IS STRUCTURAL, NOT A RULE ──────────────────────────────
 ///
+/// ─── SCHEMA 2 ADDED TWO ─────────────────────────────────────────────────────
+///
+/// `drawerSortMode`, which was simply missed, and `verboseBoot`, which was a
+/// real decision with an argument on both sides. Both are documented at their
+/// fields. Adding either meant bumping [schemaVersion] and writing a top-up,
+/// for the reason spelled out there: this bucket's migration only fires on a
+/// first run, so a field promoted without one is a setting silently lost.
+///
 /// `drawerScrollStyle` and `drawerGrouping` are promoted even though not every
 /// distro can honour them: Plasma's Kickoff is a list and the tiling launcher is
 /// a prompt, so neither has pages to cube. That needs no clamping code, because
@@ -54,7 +62,9 @@ class GlobalPrefs {
     this.drawerSearchPosition,
     this.drawerScrollStyle,
     this.drawerGrouping,
+    this.drawerSortMode,
     this.workspaceCount,
+    this.verboseBoot,
     this.hiddenAppsSearchable,
     this.themeMode,
     this.surfaceOpacity,
@@ -96,8 +106,35 @@ class GlobalPrefs {
   final String? drawerScrollStyle;
   final String? drawerGrouping;
 
+  /// How the list is ordered: alphabetical, by usage, by install date.
+  ///
+  /// PROMOTED IN SCHEMA 2, and it was an oversight rather than a decision. It
+  /// sat in `PrefsSection.drawer` beside `drawerGrouping` and
+  /// `drawerScrollStyle`, both of which were already here, and no distro has an
+  /// opinion about what order you like your apps in. Someone who sorts by usage
+  /// means it everywhere.
+  final String? drawerSortMode;
+
   // ── DESKTOP ───────────────────────────────────────────────────────────────
   final int? workspaceCount;
+
+  // ── BOOT ──────────────────────────────────────────────────────────────────
+
+  /// Play the full `[  OK  ]` log instead of the quick splash.
+  ///
+  /// PROMOTED IN SCHEMA 2, and this one is a genuine judgement rather than a
+  /// missed field. The case against: the boot log is part of the imitation, not
+  /// chrome, and wanting Arch to spew dmesg while Ubuntu comes up quietly is a
+  /// coherent thing to want.
+  ///
+  /// The case for won because of what the alternative costs. Per theme, someone
+  /// who finds six seconds of systemd tedious has to say so again on every
+  /// distro they try, and trying distros is the entire product. A preference
+  /// you have to re-state on each new thing you look at reads as a preference
+  /// that did not save, which is exactly the complaint this bucket exists to
+  /// answer. The per-distro version stays expressible in data: a theme that
+  /// ships no `boot` block still gets its family default.
+  final bool? verboseBoot;
 
   // ── PRIVACY ───────────────────────────────────────────────────────────────
   // Whether a hidden app can be reached by typing its whole name. The hidden
@@ -156,7 +193,9 @@ class GlobalPrefs {
         drawerSearchPosition: p.drawerSearchPosition,
         drawerScrollStyle: p.drawerScrollStyle,
         drawerGrouping: p.drawerGrouping,
+        drawerSortMode: p.drawerSortMode,
         workspaceCount: p.workspaceCount,
+        verboseBoot: p.verboseBoot,
         hiddenAppsSearchable: p.hiddenAppsSearchable,
         themeMode: p.themeMode,
         surfaceOpacity: p.surfaceOpacity,
@@ -192,7 +231,9 @@ class GlobalPrefs {
       drawerSearchPosition: drawerSearchPosition == null,
       drawerScrollStyle: drawerScrollStyle == null,
       drawerGrouping: drawerGrouping == null,
+      drawerSortMode: drawerSortMode == null,
       workspaceCount: workspaceCount == null,
+      verboseBoot: verboseBoot == null,
       hiddenAppsSearchable: hiddenAppsSearchable == null,
       themeMode: themeMode == null,
       surfaceOpacity: surfaceOpacity == null,
@@ -220,7 +261,9 @@ class GlobalPrefs {
       drawerSearchPosition: drawerSearchPosition,
       drawerScrollStyle: drawerScrollStyle,
       drawerGrouping: drawerGrouping,
+      drawerSortMode: drawerSortMode,
       workspaceCount: workspaceCount,
+      verboseBoot: verboseBoot,
       hiddenAppsSearchable: hiddenAppsSearchable,
       themeMode: themeMode,
       surfaceOpacity: surfaceOpacity,
@@ -251,7 +294,9 @@ class GlobalPrefs {
           'drawerSearchPosition': drawerSearchPosition,
         if (drawerScrollStyle != null) 'drawerScrollStyle': drawerScrollStyle,
         if (drawerGrouping != null) 'drawerGrouping': drawerGrouping,
+        if (drawerSortMode != null) 'drawerSortMode': drawerSortMode,
         if (workspaceCount != null) 'workspaceCount': workspaceCount,
+        if (verboseBoot != null) 'verboseBoot': verboseBoot,
         if (hiddenAppsSearchable != null)
           'hiddenAppsSearchable': hiddenAppsSearchable,
         if (themeMode != null) 'themeMode': themeMode,
@@ -280,7 +325,9 @@ class GlobalPrefs {
         drawerSearchPosition: j['drawerSearchPosition'] as String?,
         drawerScrollStyle: j['drawerScrollStyle'] as String?,
         drawerGrouping: j['drawerGrouping'] as String?,
+        drawerSortMode: j['drawerSortMode'] as String?,
         workspaceCount: (j['workspaceCount'] as num?)?.toInt(),
+        verboseBoot: j['verboseBoot'] as bool?,
         hiddenAppsSearchable: j['hiddenAppsSearchable'] as bool?,
         themeMode: j['themeMode'] as String?,
         surfaceOpacity: (j['surfaceOpacity'] as num?)?.toDouble(),
@@ -296,7 +343,58 @@ class GlobalPrefs {
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
   /// can grow a field without implying anything about the per-theme file.
-  static const int schemaVersion = 1;
+  ///
+  /// ─── 2: WHY GROWING THIS LIST NEEDS A VERSION AT ALL ──────────────────────
+  ///
+  /// Because the one-time migration in `GlobalPrefsNotifier.build` only runs
+  /// when NOTHING has ever been written here. Anyone already past the split has
+  /// a stored bucket, so a newly promoted field arrives as null, `applyTo`
+  /// clears the per-theme value that field used to hold, and the setting the
+  /// user chose is silently gone on the first launch after the update. It would
+  /// look exactly like the launcher forgetting a preference for no reason.
+  ///
+  /// So each bump owns a top-up: see [withV2PromotionsFrom]. A future 3 adds
+  /// its own method and the notifier walks the versions in order. The rule is
+  /// that promoting a field is never a one-line change to this class alone.
+  static const int schemaVersion = 2;
+
+  /// Fill the fields promoted in schema 2 from the active theme's own file.
+  ///
+  /// Only those two, and only when this bucket has no value for them. A generic
+  /// "fill every null from [p]" would be wrong in a way that is hard to spot:
+  /// it would resurrect stale per-theme values for fields the user had
+  /// deliberately cleared back to the distro default, and the theme file still
+  /// holds those, because `PrefsNotifier.edit` leaves the promoted half of the
+  /// file untouched rather than rewriting it.
+  GlobalPrefs withV2PromotionsFrom(LauncherPrefs p) => GlobalPrefs(
+        iconSizeDp: iconSizeDp,
+        iconTreatment: iconTreatment,
+        cornerRadius: cornerRadius,
+        systemIconPack: systemIconPack,
+        labelLines: labelLines,
+        textScale: textScale,
+        folderCols: folderCols,
+        folderRows: folderRows,
+        folderShape: folderShape,
+        folderOrderCustom: folderOrderCustom,
+        drawerSearchPosition: drawerSearchPosition,
+        drawerScrollStyle: drawerScrollStyle,
+        drawerGrouping: drawerGrouping,
+        drawerSortMode: drawerSortMode ?? p.drawerSortMode,
+        workspaceCount: workspaceCount,
+        verboseBoot: verboseBoot ?? p.verboseBoot,
+        hiddenAppsSearchable: hiddenAppsSearchable,
+        themeMode: themeMode,
+        surfaceOpacity: surfaceOpacity,
+        dockOpacity: dockOpacity,
+        drawerOpacity: drawerOpacity,
+        barOpacity: barOpacity,
+        panelOpacity: panelOpacity,
+        panelBlur: panelBlur,
+        panelTint: panelTint,
+        panelRadius: panelRadius,
+        badgeStyle: badgeStyle,
+      );
 
   /// Value equality, and it is load-bearing for the same reason it is on
   /// [LauncherPrefs]: `prefsProvider` rebuilds when this changes, and identity
@@ -321,7 +419,9 @@ class GlobalPrefs {
         drawerSearchPosition,
         drawerScrollStyle,
         drawerGrouping,
+        drawerSortMode,
         workspaceCount,
+        verboseBoot,
         hiddenAppsSearchable,
         themeMode,
         surfaceOpacity,

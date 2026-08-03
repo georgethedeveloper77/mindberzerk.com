@@ -55,6 +55,7 @@ class LauncherPrefs {
     this.hiddenApps = const {},
     this.hiddenAppsSearchable,
     this.favourites = const [],
+    this.dockExcluded = const {},
     this.homeItems = const [],
     this.folders = const [],
     this.drawerFolders = const [],
@@ -65,6 +66,7 @@ class LauncherPrefs {
     this.folderShape,
     this.folderOrderCustom,
     this.wallpapers = const [],
+    this.wallpapersHidden = const {},
     this.wallpaperLock,
     this.wallpaperCurrent,
     this.wallpaperRotationMinutes,
@@ -78,9 +80,9 @@ class LauncherPrefs {
   /// an unknown future version should reset to defaults, not throw on the home
   /// screen.
   ///
-  /// Still 1: `dockGridButton` and `workspaceCount` are additive and `fromJson`
-  /// tolerates their absence, so old prefs files parse unchanged. Additive
-  /// fields never bump the schema.
+  /// Still 1: `dockGridButton`, `workspaceCount` and `wallpapersHidden` are
+  /// additive and `fromJson` tolerates their absence, so old prefs files parse
+  /// unchanged. Additive fields never bump the schema.
   static const int schemaVersion = 1;
 
   // --- layout (null = inherit from ThemeSpec) ---
@@ -442,6 +444,31 @@ class LauncherPrefs {
   /// `HomeLayout.dockKeys`.
   final List<String> favourites; // componentKeys, dock order
 
+  /// Apps the user has taken OUT of the auto-filled dock, by component key.
+  ///
+  /// ─── ONLY THE FREQUENT PATH READS THIS ──────────────────────────────────
+  ///
+  /// `HomeLayout.dockKeys` has two modes. Pin anything and the dock is yours
+  /// entirely and stops moving; pin nothing and it is your most-used apps,
+  /// refilled from frequency. The second mode had no way out: long-press
+  /// offered "Pin to dock" and nothing else, so an app the filler kept putting
+  /// there could not be removed except by pinning around it, which nobody
+  /// would think to try.
+  ///
+  /// This is that way out, and it SUBTRACTS ONLY. The note on `dockKeys`
+  /// argues against pins-plus-autofill because things you never chose appear
+  /// beside your pins and swap themselves out; an exclusion cannot do that.
+  /// The dock keeps refilling and the next most-used app moves up, which is
+  /// what the auto mode already promises.
+  ///
+  /// NOT applied in pinned mode. There, unpinning already removes an app and it
+  /// stays gone, so a second mechanism would be two ways to say one thing.
+  ///
+  /// Per theme, like `favourites` and `hiddenApps`, and pruned with them: a key
+  /// for an app that has been uninstalled is a record of a decision about
+  /// something that no longer exists.
+  final Set<String> dockExcluded;
+
   final List<HomeItem> homeItems;
   final List<AppFolder> folders;
 
@@ -507,6 +534,32 @@ class LauncherPrefs {
   // --- wallpaper ---
   /// Content URIs the user added, on top of the theme's presets.
   final List<String> wallpapers;
+
+  /// Distro presets the user does not want, by their `theme.json` reference.
+  ///
+  /// ─── A CURATION, NOT A SETTING, AND THAT DECIDES WHERE IT LIVES ───────────
+  ///
+  /// Shipping a distro means shipping its wallpapers, and nobody likes all of
+  /// them. Hiding one drops it out of the rotation pool and greys it in the
+  /// strip; it is still there, because a preset belongs to the pack and is not
+  /// the user's to delete. The user's OWN photos are not in here: those have a
+  /// real Remove that deletes a real copy, which is the honest verb for a file
+  /// you own.
+  ///
+  /// Keyed on the REFERENCE STRING, not on a resolved path, so a distro
+  /// republished over the CDN with the same filename stays hidden. Resolved
+  /// paths carry the pack directory and would forget on every reinstall.
+  ///
+  /// PER THEME, like everything else here: Ubuntu's rejects are a fact about
+  /// Ubuntu, and one global set would hide an unrelated `numbat_dark.webp`
+  /// shipped by another distro that happened to pick the same name.
+  ///
+  /// NOT in any [PrefsSection]. `prefs_reset.dart` draws the line and this
+  /// falls on the content side of it, beside `dismissedSuggestions`: a setting
+  /// has a default to return to, and this has nothing but the user's own
+  /// judgement. A "restore wallpaper settings" tap that silently un-hid months
+  /// of pruning would be exactly the reset nobody can predict.
+  final Set<String> wallpapersHidden;
 
   /// Also set this theme's wallpaper on the LOCK screen. null = home only.
   ///
@@ -618,6 +671,7 @@ class LauncherPrefs {
     Set<String>? hiddenApps,
     bool? hiddenAppsSearchable,
     List<String>? favourites,
+    Set<String>? dockExcluded,
     List<HomeItem>? homeItems,
     List<AppFolder>? folders,
     List<AppFolder>? drawerFolders,
@@ -628,6 +682,7 @@ class LauncherPrefs {
     String? folderShape,
     bool? folderOrderCustom,
     List<String>? wallpapers,
+    Set<String>? wallpapersHidden,
     bool? wallpaperLock,
     String? wallpaperCurrent,
     int? wallpaperRotationMinutes,
@@ -678,6 +733,7 @@ class LauncherPrefs {
       hiddenAppsSearchable:
           hiddenAppsSearchable ?? this.hiddenAppsSearchable,
       favourites: favourites ?? this.favourites,
+      dockExcluded: dockExcluded ?? this.dockExcluded,
       homeItems: homeItems ?? this.homeItems,
       folders: folders ?? this.folders,
       drawerFolders: drawerFolders ?? this.drawerFolders,
@@ -687,6 +743,7 @@ class LauncherPrefs {
       folderShape: folderShape ?? this.folderShape,
       folderOrderCustom: folderOrderCustom ?? this.folderOrderCustom,
       wallpapers: wallpapers ?? this.wallpapers,
+      wallpapersHidden: wallpapersHidden ?? this.wallpapersHidden,
       wallpaperLock: wallpaperLock ?? this.wallpaperLock,
       wallpaperCurrent: wallpaperCurrent ?? this.wallpaperCurrent,
       wallpaperRotationMinutes:
@@ -810,6 +867,7 @@ class LauncherPrefs {
       hiddenAppsSearchable:
           hiddenAppsSearchable ? null : this.hiddenAppsSearchable,
       favourites: favourites,
+      dockExcluded: dockExcluded,
       homeItems: homeItems,
       folders: folders,
       drawerFolders: drawerFolders,
@@ -821,6 +879,10 @@ class LauncherPrefs {
       folderOrderCustom:
           folderOrderCustom ? null : this.folderOrderCustom,
       wallpapers: wallpapers,
+      // Pass-through. A Set has no null state, so there is no flag for it and
+      // never will be: emptying it is `copyWith(wallpapersHidden: const {})`,
+      // the same shape `PrefsSection.gestures` uses and for the same reason.
+      wallpapersHidden: wallpapersHidden,
       // Pass-through, not clearable. A field OMITTED from this method is
       // dropped rather than preserved, which is how drawerScrollStyle was
       // once silently reset by every unrelated clear.
@@ -886,6 +948,7 @@ class LauncherPrefs {
         if (hiddenAppsSearchable != null)
           'hiddenAppsSearchable': hiddenAppsSearchable,
         'favourites': favourites,
+        'dockExcluded': dockExcluded.toList(),
         'homeItems': homeItems.map((e) => e.toJson()).toList(),
         'folders': folders.map((e) => e.toJson()).toList(),
         'drawerFolders': drawerFolders.map((e) => e.toJson()).toList(),
@@ -896,6 +959,7 @@ class LauncherPrefs {
         if (folderShape != null) 'folderShape': folderShape,
         if (folderOrderCustom != null) 'folderOrderCustom': folderOrderCustom,
         'wallpapers': wallpapers,
+        'wallpapersHidden': wallpapersHidden.toList(),
         if (wallpaperLock != null) 'wallpaperLock': wallpaperLock,
         if (wallpaperCurrent != null) 'wallpaperCurrent': wallpaperCurrent,
         if (wallpaperRotationMinutes != null)
@@ -959,6 +1023,9 @@ class LauncherPrefs {
           .map((e) => e as String)
           .toSet(),
       hiddenAppsSearchable: j['hiddenAppsSearchable'] as bool?,
+      dockExcluded: ((j['dockExcluded'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toSet(),
       favourites: ((j['favourites'] as List?) ?? const [])
           .map((e) => e as String)
           .toList(),
@@ -984,6 +1051,9 @@ class LauncherPrefs {
       wallpapers: ((j['wallpapers'] as List?) ?? const [])
           .map((e) => e as String)
           .toList(),
+      wallpapersHidden: ((j['wallpapersHidden'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toSet(),
       wallpaperLock: j['wallpaperLock'] as bool?,
       wallpaperCurrent: j['wallpaperCurrent'] as String?,
       wallpaperRotationMinutes:
@@ -1057,6 +1127,8 @@ class LauncherPrefs {
         const SetEquality<String>().equals(other.hiddenApps, hiddenApps) &&
         other.hiddenAppsSearchable == hiddenAppsSearchable &&
         const ListEquality<String>().equals(other.favourites, favourites) &&
+        const SetEquality<String>()
+            .equals(other.dockExcluded, dockExcluded) &&
         const ListEquality<HomeItem>().equals(other.homeItems, homeItems) &&
         const ListEquality<AppFolder>().equals(other.folders, folders) &&
         const ListEquality<AppFolder>()
@@ -1069,6 +1141,8 @@ class LauncherPrefs {
         other.folderShape == folderShape &&
         other.folderOrderCustom == folderOrderCustom &&
         const ListEquality<String>().equals(other.wallpapers, wallpapers) &&
+        const SetEquality<String>()
+            .equals(other.wallpapersHidden, wallpapersHidden) &&
         other.wallpaperLock == wallpaperLock &&
         other.wallpaperCurrent == wallpaperCurrent &&
         other.wallpaperRotationMinutes == wallpaperRotationMinutes &&
@@ -1120,6 +1194,7 @@ class LauncherPrefs {
         const SetEquality<String>().hash(hiddenApps),
         hiddenAppsSearchable,
         const ListEquality<String>().hash(favourites),
+        const SetEquality<String>().hash(dockExcluded),
         const ListEquality<HomeItem>().hash(homeItems),
         const ListEquality<AppFolder>().hash(folders),
         const ListEquality<AppFolder>().hash(drawerFolders),
@@ -1133,6 +1208,7 @@ class LauncherPrefs {
         // Legal, but the asymmetry is exactly what bites in a Set or a Map key.
         folderOrderCustom,
         const ListEquality<String>().hash(wallpapers),
+        const SetEquality<String>().hash(wallpapersHidden),
         wallpaperLock,
         wallpaperCurrent,
         wallpaperRotationMinutes,

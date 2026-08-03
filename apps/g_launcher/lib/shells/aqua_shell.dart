@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
+import '../data/prefs/hidden_apps.dart';
 import '../data/prefs/home_layout.dart';
 import '../data/prefs/prefs_repository.dart';
 import '../data/repositories/app_repository.dart';
 import '../data/repositories/shell_apps.dart';
 import '../data/usage/usage_repository.dart';
+import '../design/branded_message.dart';
 import '../design/components/components.dart';
 import '../engine/effective_theme.dart';
 import '../features/dock/aqua_dock_metrics.dart';
@@ -72,52 +75,106 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     await ref.read(usageProvider.notifier).record(app.componentKey);
   }
 
-  void _dockLongPress(AppEntry app, bool isPinned, int capacity) {
-    final notifier = ref.read(prefsProvider(widget.theme.spec.id).notifier);
+  void _dockLongPress(
+    AppEntry app,
+    bool isPinned,
+    int capacity,
+    Rect? anchor,
+  ) {
+    final theme = widget.theme;
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final apps = ref.read(appListProvider.notifier);
+    final host = context;
 
-    ThemedSheet.show<void>(
-      context,
-      builder: (sheet) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isPinned)
-            ThemedListRow(
-              icon: Icons.push_pin_outlined,
-              title: 'Remove from Dock',
-              onTap: () {
-                Navigator.pop(sheet);
-                notifier.edit(
-                  (p) => HomeLayout.unpinFromDock(p, app.componentKey),
-                );
-              },
-            )
-          else
-            ThemedListRow(
-              icon: Icons.push_pin,
-              title: 'Keep in Dock',
-              subtitle: 'The Dock stops changing once you keep something',
-              onTap: () {
-                Navigator.pop(sheet);
-                notifier.edit(
-                  (p) => HomeLayout.pinToDock(
-                    p,
-                    app.componentKey,
-                    capacity: capacity,
-                  ),
-                );
-              },
+    // Built from the theme rather than read from a scope, the same reason
+    // `drawer_actions` and `desklet_menu` build their own: the desktop is not
+    // guaranteed to sit under a ChromeScope and this route is not a descendant
+    // of one.
+    final chrome = ChromeData.fromPalette(
+      theme.palette,
+      typography: theme.typography,
+      textScale: theme.textScale,
+      family: theme.chromeFamily,
+      opacity: theme.surfaceOpacity,
+      panelBlur: theme.panelBlur,
+      panelTint: theme.panelTint,
+      panelRadius: theme.panelRadius,
+    );
+
+    // ── THE MIDDLE SLOT CHANGES WITH THE MODE, AND HAS TO ────────────────
+    //
+    // Unpinned, the dock is filling itself and the useful verb is "stop putting
+    // this here", which is the exclusion. Pinned, unpinning ALREADY removes it,
+    // so a Remove button beside Unpin would be two glyphs doing one thing. The
+    // slot goes to Hide instead, which is the verb the drawer's own menu uses
+    // and the only other way an app leaves this shell.
+    AnchoredMenu.show(
+      context: context,
+      chrome: chrome,
+      anchor: anchor,
+      width: 244,
+      title: app.label,
+      onInfo: () => apps.openInfo(app),
+      actions: [
+        if (isPinned)
+          MenuAction(
+            icon: Icons.push_pin_outlined,
+            label: 'Remove from Dock',
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.unpinFromDock(p, app.componentKey),
             ),
-          ThemedListRow(
-            icon: Icons.info_outline,
-            title: 'App info',
-            onTap: () {
-              Navigator.pop(sheet);
-              ref.read(appListProvider.notifier).openInfo(app);
-            },
+          )
+        else
+          MenuAction(
+            icon: Icons.push_pin,
+            label: 'Keep in Dock',
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.pinToDock(
+                p,
+                app.componentKey,
+                capacity: capacity,
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        if (isPinned)
+          MenuAction(
+            icon: Icons.visibility_off_outlined,
+            label: 'Hide from Launchpad',
+            onTap: () {
+              notifier.edit((p) => HiddenApps.hide(p, app.componentKey));
+              if (host.mounted) {
+                host.showMessage(
+                  host.t('drawer.appHidden', {'name': app.label}),
+                );
+              }
+            },
+          )
+        else
+          MenuAction(
+            icon: Icons.remove_circle_outline,
+            label: 'Take out of the Dock',
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.excludeFromDock(p, app.componentKey),
+            ),
+          ),
+        // A system app cannot be uninstalled, so the third slot takes App info
+        // rather than leaving a hole: two glyphs in a three-column row look
+        // like one failed to draw.
+        if (!app.isSystem && !app.isWorkProfile)
+          MenuAction(
+            icon: Icons.delete_outline,
+            label: 'Uninstall',
+            danger: true,
+            onTap: () => apps.uninstall(app),
+          )
+        else
+          MenuAction(
+            icon: Icons.info_outline,
+            label: 'App info',
+            onTap: () => apps.openInfo(app),
+          ),
+      ],
+      rows: (menu) => const [],
     );
   }
 
@@ -187,10 +244,11 @@ class _AquaShellState extends ConsumerState<AquaShell> {
           // cannot afford.
           icon: AppIcon(entry: byKey[key]!, size: AquaDockMetrics.peakSlot),
           onTap: () => _launch(byKey[key]!),
-          onLongPress: () => _dockLongPress(
+          onLongPress: (anchor) => _dockLongPress(
             byKey[key]!,
             pinned.contains(key),
             capacity,
+            anchor,
           ),
         ),
     ];
@@ -211,7 +269,10 @@ class _AquaShellState extends ConsumerState<AquaShell> {
                 palette: theme.palette,
                 opacity: theme.barOpacity,
                 title: theme.spec.name,
-                logo: theme.spec.logo,
+                // RESOLVED here, so an installed Aqua pack's bare
+                // filename becomes a file rather than a bundle miss. The bar is
+                // frosted chrome, hence the dark-surface variant.
+                logo: theme.spec.logoAsset(onDarkSurface: true),
                 displayFontFamily: theme.typography.display,
                 onLaunchpad: _openLaunchpad,
                 onSpotlight: _openLaunchpad,

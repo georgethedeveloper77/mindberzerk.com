@@ -105,6 +105,35 @@ final packProgressProvider =
   PackProgressNotifier.new,
 );
 
+/// The distro that just updated UNDERNEATH the desktop, or null.
+///
+/// ─── WHY THIS NEEDS SAYING AT ALL ───────────────────────────────────────────
+///
+/// A background sync can replace the pack the user is currently wearing while
+/// they are looking at it. The wallpaper changes, the palette shifts, the icons
+/// re-render, and nothing explains why. Unexplained is the whole problem: an
+/// update reads as a glitch, and a launcher that appears to glitch on its own
+/// is one people stop trusting with their home screen.
+///
+/// Set only for the SELECTED distro and only for a BACKGROUND install; see
+/// [PackFlutterApiImpl.onPackInstalled] for how those two are told apart. It is
+/// a signal rather than a message, so the copy and the chrome belong to
+/// whatever is on screen rather than to this layer.
+class ActiveDistroUpdated extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void report(String packId) => state = packId;
+
+  /// Called by the displayer once it has said so. Not automatic on a timer:
+  /// the launcher can be backgrounded when this fires, and a signal that
+  /// expires unseen is a message the user never got.
+  void consume() => state = null;
+}
+
+final activeDistroUpdatedProvider =
+    NotifierProvider<ActiveDistroUpdated, String?>(ActiveDistroUpdated.new);
+
 /// Moves every time a pack lands. Part of the Dart icon cache key.
 ///
 /// ─── WHY A COUNTER AND NOT SOMETHING MORE PRECISE ───────────────────────────
@@ -159,6 +188,20 @@ class PackFlutterApiImpl extends PackFlutterApi {
 
   @override
   void onPackInstalled(String packId, int version) {
+    // ── FOREGROUND OR BACKGROUND, AND THE ANSWER IS ALREADY HERE ─────────
+    //
+    // Read BEFORE the clear below, because the clear is what destroys the
+    // evidence. `PackActions.install` reports 0 the instant the user taps Get,
+    // so a progress entry existing means a human started this and is watching a
+    // storefront card that will announce the result itself. No entry means
+    // `PackSyncWorker` did it with nobody looking, which is the only case that
+    // needs a word from us.
+    //
+    // Cheaper and more honest than threading a flag down through the native
+    // bridge: the two paths converge on one Pigeon call on purpose, and adding
+    // a parameter to tell them apart would undo that.
+    final fromBackground = !_ref.read(packProgressProvider).containsKey(packId);
+
     _ref.read(packProgressProvider.notifier).clear(packId);
 
     // ── EVERY ICON HAS TO BE RE-REQUESTED ────────────────────────────────
@@ -195,7 +238,15 @@ class PackFlutterApiImpl extends PackFlutterApi {
     // yet, the launcher falls back to Ubuntu, you install it, and the desktop
     // becomes the thing you chose.
     final selected = _ref.read(selectedThemeIdProvider).asData?.value;
-    if (selected == packId) _ref.invalidate(activeThemeSpecProvider);
+    if (selected == packId) {
+      _ref.invalidate(activeThemeSpecProvider);
+
+      // The desktop is about to change shape under someone's hands. See
+      // [ActiveDistroUpdated].
+      if (fromBackground) {
+        _ref.read(activeDistroUpdatedProvider.notifier).report(packId);
+      }
+    }
   }
 }
 

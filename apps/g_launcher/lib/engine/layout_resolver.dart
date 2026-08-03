@@ -183,6 +183,7 @@ abstract final class LayoutResolver {
         'left' => DockSide.left,
         'bottom' => DockSide.bottom,
         'off' => DockSide.off,
+        'right' => DockSide.right,
         _ => spec.layout.dock,
       },
       topBar: prefs.topBar ?? spec.layout.topBar,

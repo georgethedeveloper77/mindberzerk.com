@@ -91,6 +91,24 @@ object PackPaths {
      * on the device, already in use, and the download only makes an existing
      * feature more complete. Anything not listed here still requires a user
      * action in the storefront.
+     *
+     * THE THREE BUNDLED THEMES ARE IN THE SET for exactly the same reason the
+     * two packs above are. The engine resolves installed over bundled, so a
+     * republished Ubuntu reaches devices the moment its pack is on disk; but
+     * without this entry nothing ever put it on disk unless the user happened
+     * to visit the storefront and tap the distro they were already running.
+     * "Publish a fix to a free distro, every device picks it up" is the whole
+     * point of the pipeline, and this line is where that promise is kept.
+     *
+     * MIRRORED by `BUNDLED_PACK_IDS` in the panel's unpublish-core.ts, which
+     * refuses to pull these ids from the index. Keep the two lists edited
+     * together.
      */
-    val bundledPackIds: Set<String> = setOf("simple-icons", "yaru")
+    val bundledPackIds: Set<String> = setOf(
+        "simple-icons",
+        "yaru",
+        "ubuntu-24-04",
+        "kde-plasma-6",
+        "terminal",
+    )
 }

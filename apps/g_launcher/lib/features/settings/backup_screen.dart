@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -92,42 +91,35 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       // looking straight at. The contents are validated below, which is the
       // check that actually matters.
       //
-      // `withData` so the BYTES come back, not only a path. file_picker
-      // normally copies a picked document into the cache and hands over a real
-      // path, but a provider can decline to give one, and a backup that
-      // silently fails to import for some file managers and not others is the
-      // worst shape this bug could take. The path is the fallback, not the
-      // primary.
+      // ─── pickFile, NOT pickFiles WITH allowMultiple: false ────────────
       //
-      // `allowMultiple: false` is EXPLICIT because 12 flipped the default to
-      // multiple. This code takes `.first` regardless, so the flip would not
-      // have crashed anything; it would have shown a multi-select dialog for
-      // an action that can only ever use one file, and silently discarded the
-      // rest. A wrong dialog nobody can explain is worse than a compile error.
+      // Three deprecations went at once here and they are one migration, not
+      // three lint fixes. `pickFiles` + `allowMultiple: false` is now spelled
+      // `pickFile`, which returns the PlatformFile directly rather than a
+      // result to take `.first` off, so the "what if the list is empty" dance
+      // below went with it.
       //
-      // `withData` is deprecated in 12 and still honoured. Kept because it is
-      // what guarantees bytes from the providers that decline a path, and the
-      // day it goes the path branch below already covers that case, so nothing
-      // here has to change with it.
-      final picked = await FilePicker.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: true,
-      );
-      final file = picked?.files.isNotEmpty == true ? picked!.files.first : null;
+      // ─── AND THE BYTES COME FROM readAsBytes NOW ──────────────────────
+      //
+      // This is the part that mattered and the reason it is not a one-liner.
+      //
+      // The old code passed `withData: true` and read `file.bytes`, with a
+      // comment explaining why: file_picker normally copies a picked document
+      // into the cache and hands over a real path, but a provider can DECLINE
+      // to give one, and a backup that imports from some file managers and not
+      // others is the worst shape this bug could take.
+      //
+      // `pickFile` forces `withData: false` internally, so `bytes` is always
+      // null on this path and reading it would have silently reintroduced
+      // exactly that bug. `readAsBytes` is the replacement guarantee: on
+      // Android it reads through the SAF-backed XFile rather than through a
+      // cached path, so a provider that gives no path is still served. That is
+      // why the path fallback below is gone rather than kept alongside: it was
+      // the workaround, and this is the thing it was working around.
+      final file = await FilePicker.pickFile(type: FileType.any);
       if (file == null) return;
 
-      final bytes = file.bytes;
-      final path = file.path;
-      final String text;
-      if (bytes != null) {
-        text = utf8.decode(bytes);
-      } else if (path != null) {
-        text = await File(path).readAsString();
-      } else {
-        if (mounted) context.showMessage('Could not read that file');
-        return;
-      }
+      final text = utf8.decode(await file.readAsBytes());
 
       final summary = PrefsBackup.inspect(text);
       if (summary == null) {

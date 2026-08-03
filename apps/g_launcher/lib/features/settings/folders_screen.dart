@@ -520,7 +520,8 @@ class _SuggestionRow extends StatelessWidget {
                 onPressed: onDismiss,
               ),
               const SizedBox(width: 8),
-              ThemedButton(label: context.t('settings.create'), onPressed: onAccept),
+              ThemedButton(
+                  label: context.t('settings.create'), onPressed: onAccept),
             ],
           ),
         ],
@@ -641,9 +642,8 @@ class _HiddenAppsRow extends ConsumerWidget {
           ? 'Hold an app in the drawer to hide it'
           : '${hidden.length} hidden',
       enabled: hidden.isNotEmpty,
-      trailing: hidden.isEmpty
-          ? null
-          : const Icon(Icons.chevron_right, size: 18),
+      trailing:
+          hidden.isEmpty ? null : const Icon(Icons.chevron_right, size: 18),
       onTap: hidden.isEmpty ? null : () => _show(context, ref, hidden),
     );
   }

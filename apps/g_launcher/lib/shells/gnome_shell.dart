@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
+import '../data/prefs/hidden_apps.dart';
 import '../data/prefs/home_layout.dart';
 import '../data/prefs/prefs_repository.dart';
 import '../data/repositories/app_repository.dart';
 import '../data/repositories/shell_apps.dart';
 import '../data/usage/usage_repository.dart';
+import '../design/branded_message.dart';
 import '../design/components/components.dart';
 import '../engine/effective_theme.dart';
 // TopBarSide only. An unrestricted import of theme_spec into a file that also
@@ -75,53 +78,106 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     await ref.read(usageProvider.notifier).record(app.componentKey);
   }
 
-  void _dockLongPress(AppEntry app, bool isPinned, int capacity) {
+  void _dockLongPress(
+    AppEntry app,
+    bool isPinned,
+    int capacity,
+    Rect? anchor,
+  ) {
     final theme = widget.theme;
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final apps = ref.read(appListProvider.notifier);
+    final host = context;
 
-    ThemedSheet.show<void>(
-      context,
-      builder: (sheet) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isPinned)
-            ThemedListRow(
-              icon: Icons.push_pin_outlined,
-              title: 'Unpin from dock',
-              onTap: () {
-                Navigator.pop(sheet);
-                notifier.edit(
-                  (p) => HomeLayout.unpinFromDock(p, app.componentKey),
-                );
-              },
-            )
-          else
-            ThemedListRow(
-              icon: Icons.push_pin,
-              title: 'Pin to dock',
-              subtitle: 'The dock stops changing once you pin something',
-              onTap: () {
-                Navigator.pop(sheet);
-                notifier.edit(
-                  (p) => HomeLayout.pinToDock(
-                    p,
-                    app.componentKey,
-                    capacity: capacity,
-                  ),
-                );
-              },
+    // Built from the theme rather than read from a scope, the same reason
+    // `drawer_actions` and `desklet_menu` build their own: the desktop is not
+    // guaranteed to sit under a ChromeScope and this route is not a descendant
+    // of one.
+    final chrome = ChromeData.fromPalette(
+      theme.palette,
+      typography: theme.typography,
+      textScale: theme.textScale,
+      family: theme.chromeFamily,
+      opacity: theme.surfaceOpacity,
+      panelBlur: theme.panelBlur,
+      panelTint: theme.panelTint,
+      panelRadius: theme.panelRadius,
+    );
+
+    // ── THE MIDDLE SLOT CHANGES WITH THE MODE, AND HAS TO ────────────────
+    //
+    // Unpinned, the dock is filling itself and the useful verb is "stop putting
+    // this here", which is the exclusion. Pinned, unpinning ALREADY removes it,
+    // so a Remove button beside Unpin would be two glyphs doing one thing. The
+    // slot goes to Hide instead, which is the verb the drawer's own menu uses
+    // and the only other way an app leaves this shell.
+    AnchoredMenu.show(
+      context: context,
+      chrome: chrome,
+      anchor: anchor,
+      width: 244,
+      title: app.label,
+      onInfo: () => apps.openInfo(app),
+      actions: [
+        if (isPinned)
+          MenuAction(
+            icon: Icons.push_pin_outlined,
+            label: host.t('shell.unpinFromDock'),
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.unpinFromDock(p, app.componentKey),
             ),
-          ThemedListRow(
-            icon: Icons.info_outline,
-            title: 'App info',
-            onTap: () {
-              Navigator.pop(sheet);
-              ref.read(appListProvider.notifier).openInfo(app);
-            },
+          )
+        else
+          MenuAction(
+            icon: Icons.push_pin,
+            label: host.t('shell.pinToDock'),
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.pinToDock(
+                p,
+                app.componentKey,
+                capacity: capacity,
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        if (isPinned)
+          MenuAction(
+            icon: Icons.visibility_off_outlined,
+            label: host.t('drawer.hideApp'),
+            onTap: () {
+              notifier.edit((p) => HiddenApps.hide(p, app.componentKey));
+              if (host.mounted) {
+                host.showMessage(
+                  host.t('drawer.appHidden', {'name': app.label}),
+                );
+              }
+            },
+          )
+        else
+          MenuAction(
+            icon: Icons.remove_circle_outline,
+            label: 'Remove from dock',
+            onTap: () => notifier.edit(
+              (p) => HomeLayout.excludeFromDock(p, app.componentKey),
+            ),
+          ),
+        // A system app cannot be uninstalled, so the third slot takes App info
+        // rather than leaving a hole: two glyphs in a three-column row look
+        // like one failed to draw.
+        if (!app.isSystem && !app.isWorkProfile)
+          MenuAction(
+            icon: Icons.delete_outline,
+            label: host.t('drawer.uninstall'),
+            danger: true,
+            onTap: () => apps.uninstall(app),
+          )
+        else
+          MenuAction(
+            icon: Icons.info_outline,
+            label: host.t('shell.appInfo'),
+            onTap: () => apps.openInfo(app),
+          ),
+      ],
+      rows: (menu) => const [],
     );
   }
 
@@ -307,10 +363,11 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                           isPinned: pinned.contains(key),
                           icon: AppIcon(entry: byKey[key]!, size: glyph),
                           onTap: () => _launch(byKey[key]!),
-                          onLongPress: () => _dockLongPress(
+                          onLongPress: (anchor) => _dockLongPress(
                             byKey[key]!,
                             pinned.contains(key),
                             capacity,
+                            anchor,
                           ),
                         ),
                     ];
@@ -415,7 +472,20 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         // as a rendering fault rather than as chrome.
                         if (!activitiesOpen)
                         Positioned(
-                          right: 9,
+                          // ── THE DOTS GET OUT OF THE DOCK'S WAY ──────────
+                          //
+                          // Hardcoded `right: 9` while the dock only ever sat
+                          // on the left, which made the two edges a fixed pair
+                          // rather than a decision. A right dock lands the dots
+                          // and the dock on the same 9px strip, overlapping,
+                          // and the dots lose because they are drawn first.
+                          //
+                          // The rule is OPPOSITE THE DOCK, not "always right":
+                          // the pair is what reads as a workspace strip on one
+                          // side and apps on the other, and a bottom or absent
+                          // dock leaves them where Ubuntu keeps them.
+                          left: side == DockSide.right ? 9 : null,
+                          right: side == DockSide.right ? null : 9,
                           top: 0,
                           bottom: 0,
                           child: Center(
@@ -439,13 +509,24 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                               // Off + revealed by gesture shows it where Ubuntu
                               // keeps it: the left.
                               ? Positioned(
-                                  left: 9,
+                                  // `off` still reveals on the left, which is
+                                  // where Ubuntu keeps it; only an explicit
+                                  // `right` moves the strip across.
+                                  left: side == DockSide.right ? null : 9,
+                                  right: side == DockSide.right ? 9 : null,
                                   top: 0,
                                   bottom: 0,
                                   child: Center(
                                     child: GnomeDock(
                                       entries: entries,
-                                      side: DockSide.left,
+                                      // Passed through rather than pinned to
+                                      // left: the dock draws its running bars
+                                      // against whichever edge it is on, and
+                                      // hardcoding the side here is what used
+                                      // to make that decision unreachable.
+                                      side: side == DockSide.right
+                                          ? DockSide.right
+                                          : DockSide.left,
                                       gridButton: gridButton,
                                       slotSize: slot,
                                       palette: theme.palette,

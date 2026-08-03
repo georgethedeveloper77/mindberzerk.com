@@ -236,6 +236,36 @@ class ThemeSpec {
   /// something openable. Shorthand for `source.asset(path)`.
   ThemeAsset asset(String path) => source.asset(path);
 
+  /// The brand mark for a surface, RESOLVED.
+  ///
+  /// ─── THE THIRD TIME THIS BUG WAS FIXED, SO IT IS FIXED HERE INSTEAD ─────
+  ///
+  /// [logo] is a pair of strings and every reader has to do two things with
+  /// them: pick the variant matching the surface, and resolve the path through
+  /// [source] so an installed pack's bare `logo_dark.webp` becomes a file
+  /// rather than an asset-bundle lookup that finds nothing.
+  ///
+  /// Three readers did the first and skipped the second: the splash, the
+  /// drawer's `LauncherBrandIcon`, and the Aqua menu bar. Each produced the
+  /// same `Unable to load asset: "logo_dark.webp"` the moment a distro was
+  /// republished over the CDN, logged once into a console nobody watches, and
+  /// drew a hole where the mark should be. Fixing them one at a time was three
+  /// fixes and a fourth caller waiting to be written.
+  ///
+  /// So the composition lives here. A reader asks for the mark BY SURFACE and
+  /// gets something openable or null, with no string to mishandle on the way.
+  ///
+  /// [onDarkSurface] describes the surface the mark will be painted on, not the
+  /// ink of the artwork. See [ThemeLogo]: the semantics are by surface
+  /// precisely because getting that backwards is easy.
+  ThemeAsset? logoAsset({required bool onDarkSurface}) {
+    final l = logo;
+    if (l == null) return null;
+    final path = onDarkSurface ? l.dark : l.light;
+    if (path.isEmpty) return null;
+    return source.asset(path);
+  }
+
   static ThemeSpec fromJson(Map<String, dynamic> json) {
     final icons = (json['icons'] as Map?)?.cast<String, dynamic>() ?? const {};
 
@@ -631,7 +661,26 @@ enum WorkspaceAxis {
       raw == 'horizontal' ? WorkspaceAxis.horizontal : WorkspaceAxis.vertical;
 }
 
-enum DockSide { left, bottom, off }
+/// Which edge the dock lives on.
+///
+/// ─── `right` IS APPENDED, AND EVERY SWITCH OVER THIS IS EXHAUSTIVE ──────────
+///
+/// Same treatment `ShellKind.aqua` got and for the same reason: adding it
+/// breaks the build at every site that decides where a dock goes, and each one
+/// has to answer on purpose. A `_ =>` arm here would ship a launcher whose dock
+/// setting silently does nothing on four screens out of five, which is
+/// indistinguishable from the setting being broken.
+///
+/// APPENDED rather than slotted between `bottom` and `off` only out of habit:
+/// nothing serialises this by index. The stored pref is a STRING and every
+/// read goes through `.name` or one of the two parsers, so the order here is
+/// presentation and not wire format.
+///
+/// `right` mirrors `left` exactly: a vertical strip against the far edge. It is
+/// not a new kind of dock, which is what makes it cheap; what it is not cheap
+/// for is everything that assumed a vertical dock meant the LEFT edge, and
+/// those are the sites the compiler is about to list.
+enum DockSide { left, bottom, off, right }
 
 class ThemeLayout {
   const ThemeLayout({
@@ -781,6 +830,12 @@ class ThemeLayout {
       dock: switch (j['dock'] as String?) {
         'bottom' => DockSide.bottom,
         'off' => DockSide.off,
+        'right' => DockSide.right,
+        // Unknown, absent, or 'right' from a theme authored against a NEWER
+        // build than this one: left. A CDN distro that asks for a side this
+        // APK has never heard of gets the default rather than no dock, which
+        // is the same forward-compatibility contract every other field in this
+        // file keeps.
         _ => DockSide.left,
       },
       topBar: j['topBar'] as bool? ?? true,

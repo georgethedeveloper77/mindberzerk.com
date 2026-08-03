@@ -120,5 +120,47 @@ const wallpaperAppliedForKey = 'wallpaperAppliedFor.v1';
 /// for `ubuntu-24-04|dark`, concluded the wrong wallpaper was up, and stamped
 /// the theme's own preset back over the user's choice on the next rebuild.
 /// Picking a wallpaper appeared to work and then quietly undid itself.
-String wallpaperAppliedToken(String themeId, {required bool dark}) =>
-    '$themeId|${dark ? 'dark' : 'light'}';
+/// ─── AND NOW THE CONTENT, BECAUSE A DISTRO CAN BE REPUBLISHED ───────────────
+///
+/// The id and the mode were enough while a distro's wallpapers could only
+/// change in a Play release. They stopped being enough the moment a FREE distro
+/// could be re-uploaded over the CDN: the pack changes, the id does not, the
+/// mode does not, so this key still matched, the branch in `effective_theme`
+/// concluded the right wallpaper was already up, and the new artwork never
+/// reached the screen. The pipeline worked and had no visible effect, which is
+/// the same shape of bug as the render bridge and the splash logo before it.
+///
+/// [stamp] is REQUIRED rather than defaulted, deliberately. Two places compose
+/// this token and they have already drifted apart once, which is the whole
+/// reason it is a function; a defaulted parameter would let one of them quietly
+/// keep composing the old value. Adding it breaks both call sites, and that is
+/// the point.
+String wallpaperAppliedToken(
+  String themeId, {
+  required bool dark,
+  required String stamp,
+}) =>
+    '$themeId|${dark ? 'dark' : 'light'}|$stamp';
+
+/// A short, STABLE digest of a theme's wallpaper references.
+///
+/// FNV-1a rather than `Object.hash` or `String.hashCode`. Dart's hash codes are
+/// only promised to be consistent within one run, so a token built from one
+/// would change on an SDK bump and re-seed every phone for no reason. This is
+/// eight hex characters that mean the same thing forever.
+///
+/// It notices a pack that ships DIFFERENT wallpaper names, which is what a
+/// republish normally looks like. It does NOT notice the same filename holding
+/// new bytes; catching that needs the pack manifest's own version, which lives
+/// on the native side and is not worth a channel hop here. Author a new name
+/// when the picture changes and this is exact.
+String wallpaperContentStamp(List<String> dark, List<String> light) {
+  var h = 0x811c9dc5;
+  for (final ref in [...dark, '\u0000', ...light]) {
+    for (final unit in ref.codeUnits) {
+      h ^= unit;
+      h = (h * 0x01000193) & 0xFFFFFFFF;
+    }
+  }
+  return h.toRadixString(16).padLeft(8, '0');
+}

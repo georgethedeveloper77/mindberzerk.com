@@ -12,20 +12,29 @@ import io.flutter.plugin.platform.PlatformViewFactory
  * with an AndroidView. The view is inflated by the shared [WidgetHostController]
  * from the widget id passed as a creation param.
  *
+ * The creation params also carry the tile's footprint in dp (`widthDp`,
+ * `heightDp`), because the FIRST RemoteViews apply is where an Android 12+
+ * responsive widget picks its layout variant, and by then it is too late for a
+ * size update that went out post-frame from Dart. See
+ * [WidgetHostController.createView] for the full story; missing or zero sizes
+ * degrade to the old behaviour (inflate now, size when the resize path fires).
+ *
  * If the controller returns null (the provider was uninstalled since the widget
  * was placed), the container is left empty and the Dart side draws its own
- * fallback frame — never a crash and never a blank hole that reads as one.
+ * fallback frame - never a crash and never a blank hole that reads as one.
  */
 class WidgetPlatformView(
     context: Context,
     private val controller: WidgetHostController,
     private val widgetId: Int,
+    widthDp: Int,
+    heightDp: Int,
 ) : PlatformView {
 
     private val container = FrameLayout(context)
 
     init {
-        val view = controller.createView(widgetId)
+        val view = controller.createView(widgetId, widthDp, heightDp)
         if (view != null) {
             container.addView(
                 view,
@@ -58,7 +67,12 @@ class WidgetPlatformViewFactory(
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val params = args as? Map<*, *>
         val widgetId = (params?.get("widgetId") as? Number)?.toInt() ?: -1
-        return WidgetPlatformView(context, controller, widgetId)
+        // Absent on a params map written by an older Dart build; 0 means "no
+        // size yet" and the controller skips the initial sizing rather than
+        // telling the provider it has a zero-dp canvas.
+        val widthDp = (params?.get("widthDp") as? Number)?.toInt() ?: 0
+        val heightDp = (params?.get("heightDp") as? Number)?.toInt() ?: 0
+        return WidgetPlatformView(context, controller, widgetId, widthDp, heightDp)
     }
 
     companion object {

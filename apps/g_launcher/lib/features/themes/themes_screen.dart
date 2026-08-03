@@ -108,6 +108,17 @@ class ThemesScreen extends ConsumerWidget {
 
     Future<void> tapCard(ThemeCard c) async {
       if (isActive(c)) {
+        // The one useful thing a tap on the ACTIVE card can still do: pull the
+        // newer copy the catalogue is advertising. The early return used to
+        // swallow exactly this case, so the distro someone actually runs was
+        // the only one they could not update from this screen. `thenApply` is
+        // false because it is already applied; the engine resolves installed
+        // over bundled, so the repaint happens the moment the install lands.
+        if (c.status == CardStatus.updateAvailable ||
+            c.status == CardStatus.available) {
+          await download(c, thenApply: false);
+          return;
+        }
         context.showMessage('${c.name} is your current distro');
         return;
       }
@@ -404,6 +415,16 @@ class _Trailing extends ConsumerWidget {
     }
     if (!active && card.status == CardStatus.available) {
       return _MiniLabel('Get', c.accent);
+    }
+
+    // THE ACTIVE CARD SHOWS ITS UPDATE. Every branch above is `!active`
+    // guarded, which meant the distro someone actually runs was the one card
+    // that could never say a newer version exists - the user had to switch
+    // distros just to see the chip. Tap already pulls it; now the eye is told.
+    if (active &&
+        (card.status == CardStatus.updateAvailable ||
+            card.status == CardStatus.available)) {
+      return _MiniLabel('Update', c.accent);
     }
 
     if (active) {

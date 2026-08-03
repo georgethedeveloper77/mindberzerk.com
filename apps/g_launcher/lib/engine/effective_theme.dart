@@ -480,9 +480,20 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // Adding the mode means the flip re-applies exactly once per direction, and
   // the bug this key was built to fix stays fixed: it still answers "whose
   // wallpaper is on screen", with one more thing in the answer.
+  //
+  // ─── AND THE CONTENT, SO A REPUBLISHED DISTRO LANDS ────────────────────
+  //
+  // The same argument one step further. Re-uploading a free distro over the
+  // CDN changes its wallpapers without changing its id or the mode, so this
+  // key matched, this branch was skipped, and the phone kept the artwork from
+  // the copy it downloaded last month. See [wallpaperContentStamp] for what
+  // the digest does and does not notice.
   final store = ref.read(prefsStoreProvider);
-  final appliedToken =
-      wallpaperAppliedToken(spec.id, dark: effective.dark);
+  final appliedToken = wallpaperAppliedToken(
+    spec.id,
+    dark: effective.dark,
+    stamp: wallpaperContentStamp(spec.wallpapers, spec.wallpapersLight),
+  );
 
   if (await store.read(wallpaperAppliedForKey) != appliedToken) {
     // ── WHOSE WALLPAPER IS THIS ─────────────────────────────────────────
@@ -497,12 +508,40 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
         spec.wallpapers.contains(current) ||
         spec.wallpapersLight.contains(current);
 
-    final preset = !effective.dark && spec.wallpapersLight.isNotEmpty
+    final offered = !effective.dark && spec.wallpapersLight.isNotEmpty
         ? spec.wallpapersLight
         : spec.wallpapers;
 
+    // ── A HIDDEN PRESET IS NOT AN OFFER ────────────────────────────────
+    //
+    // Without this, hiding is a suggestion the launcher overrules on its own
+    // schedule: the strip greys the picture, the rotation drops it, and then
+    // the next mode flip or theme switch seeds it straight back onto the
+    // screen. Filtering HERE rather than in the strip is what makes the
+    // setting mean something, because this is the one place that applies a
+    // wallpaper nobody asked for.
+    //
+    // Every preset hidden leaves this empty, [source] falls to `current`, and
+    // when that is null nothing is applied and the key is not written, which is
+    // the same landing a theme shipping no wallpapers already gets.
+    final preset = [
+      for (final w in offered)
+        if (!prefs.wallpapersHidden.contains(w)) w,
+    ];
+
+    // ── A CHOICE AMONG THE PRESETS IS STILL A CHOICE ───────────────────
+    //
+    // `preset.first` unconditionally was fine while this branch only ran on a
+    // mode flip, where following the mode is the whole point. It is wrong now
+    // that a republish also runs it: someone who deliberately picked the third
+    // wallpaper would have been moved to the first one by an update they did
+    // not ask for. So when the current pick is still on offer, it is re-applied
+    // rather than replaced. The re-apply itself is not skippable, because the
+    // pack's files may have moved underneath the same reference.
     final source = themeManaged
-        ? (preset.isNotEmpty ? preset.first : current)
+        ? (preset.contains(current)
+            ? current
+            : (preset.isNotEmpty ? preset.first : current))
         : current;
 
     if (source != null) {

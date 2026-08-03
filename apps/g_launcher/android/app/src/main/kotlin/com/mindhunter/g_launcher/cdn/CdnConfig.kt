@@ -85,6 +85,18 @@ object PackChangeNotifier {
     }
 
     /**
+     * Drop a listener. Added for [PackHostApiImpl], which holds a reference to
+     * a Flutter messenger and therefore must not outlive it.
+     *
+     * `IconCache` still never calls this, and that is correct rather than an
+     * oversight: it is a process-lifetime singleton with nothing to leak into.
+     * A registration that genuinely lasts forever should look like one.
+     */
+    fun unregister(listener: (String, String) -> Unit) {
+        listeners.remove(listener)
+    }
+
+    /**
      * Called by the sync after a successful install. Never throws: a listener
      * that blows up must not roll back an install that already happened, and
      * this runs on a background thread where an exception is a silent process

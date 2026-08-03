@@ -21,6 +21,16 @@ enum DevicePreviewMode {
 
   /// An open folder — for the folder grid and folder shape.
   folder,
+
+  /// The LOCK screen: clock, date, nothing else.
+  ///
+  /// The one mode that is not a picture of this launcher. It exists because the
+  /// wallpaper setting can apply to the lock screen too, and that toggle is
+  /// otherwise a promise the user has to lock the phone to check. Android draws
+  /// the real thing, so this is a stand-in for the wallpaper behind it rather
+  /// than an imitation of any particular OEM's lock screen, and it deliberately
+  /// carries no launcher chrome for that reason.
+  lock,
 }
 
 class DevicePreview extends StatelessWidget {
@@ -34,6 +44,9 @@ class DevicePreview extends StatelessWidget {
     this.rows = 4,
     this.tileRadiusFraction = 0.22,
     this.framed = true,
+    this.background,
+    this.clockLabel,
+    this.dateLabel,
   });
 
   final ThemePalette palette;
@@ -51,6 +64,31 @@ class DevicePreview extends StatelessWidget {
   /// is visible rather than described.
   final double tileRadiusFraction;
 
+  /// The wallpaper, drawn behind everything instead of the palette gradient.
+  ///
+  /// ─── WHY THIS IS A PROVIDER AND NOT A PATH ──────────────────────────────
+  ///
+  /// Because a theme's wallpaper is a bundled asset on one device and a file
+  /// inside `packs/<id>/` on the next, and `ThemeAsset.image` is the one thing
+  /// that knows which. Taking a String here would put a fourth copy of that
+  /// decision in a widget whose whole job is drawing, and the app has already
+  /// paid for that mistake in the strip, the splash, the drawer and the Aqua
+  /// bar.
+  ///
+  /// Null keeps the gradient, which is right for every caller that is
+  /// previewing a LAYOUT rather than a picture.
+  final ImageProvider? background;
+
+  /// Clock face for [DevicePreviewMode.lock], and the date under it.
+  ///
+  /// Passed in rather than read here, because this widget has no Riverpod
+  /// import and should not gain one: it is drawn inside settings rows, inside
+  /// chooser tiles and at thumbnail size in a value chip, and a clock ticking
+  /// in six places at once on a settings page is a lot of rebuilds for a
+  /// picture. The caller formats them once.
+  final String? clockLabel;
+  final String? dateLabel;
+
   /// A bordered phone (Settings, folders) or edge to edge (setup).
   ///
   /// Setup runs the preview FULL BLEED: the whole screen is the desktop you are
@@ -64,33 +102,34 @@ class DevicePreview extends StatelessWidget {
       DevicePreviewMode.desktop => _desktop(),
       DevicePreviewMode.drawer => _grid(cols, 5, radius: 3),
       DevicePreviewMode.folder => _folder(),
+      DevicePreviewMode.lock => _lock(),
     };
 
+    // The gradient stays UNDER the wallpaper rather than being replaced by it.
+    // A photo that has not decoded yet, or one whose file has gone, then shows
+    // the distro's own colours for a frame instead of a white flash or a hole.
+    final fill = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [palette.bgTop, palette.bgBottom],
+      ),
+      image: background == null
+          ? null
+          : DecorationImage(image: background!, fit: BoxFit.cover),
+    );
+
     if (!framed) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [palette.bgTop, palette.bgBottom],
-          ),
-        ),
-        child: body,
-      );
+      return DecoratedBox(decoration: fill, child: body);
     }
 
     return AspectRatio(
       aspectRatio: 10 / 17,
       child: Container(
         clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
+        decoration: fill.copyWith(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: palette.onDark.withValues(alpha: 0.16)),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [palette.bgTop, palette.bgBottom],
-          ),
         ),
         child: body,
       ),
@@ -100,7 +139,10 @@ class DevicePreview extends StatelessWidget {
   Widget _desktop() {
     final strip = _DockStrip(
       palette: palette,
-      vertical: dock == DockSide.left,
+      // Both vertical sides. This read `== DockSide.left` and was correct
+      // while left was the only one, which is the shape of nearly every site
+      // the enum change is about to break.
+      vertical: dock == DockSide.left || dock == DockSide.right,
       gridButton: gridButton,
     );
 
@@ -110,12 +152,55 @@ class DevicePreview extends StatelessWidget {
         Expanded(
           child: switch (dock) {
             DockSide.left => Row(children: [strip, const Spacer()]),
+            DockSide.right => Row(children: [const Spacer(), strip]),
             DockSide.bottom => Column(children: [const Spacer(), strip]),
             // The authentic empty desktop: no dock at all.
             DockSide.off => const SizedBox.expand(),
           },
         ),
       ],
+    );
+  }
+
+  /// The lock screen: a clock, a date, and the wallpaper behind them.
+  ///
+  /// Scaled from the run like everything else here, because this widget is
+  /// drawn at 150px in a settings preview and at 26px in a value chip, and
+  /// fixed type sizes are the bug `_DockStrip` and `_folder` both already
+  /// documented.
+  Widget _lock() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final s = (constraints.maxWidth / 130).clamp(0.0, 1.0);
+        final ink = palette.onDark;
+
+        return Padding(
+          padding: EdgeInsets.only(top: constraints.maxHeight * 0.16),
+          child: Column(
+            children: [
+              Text(
+                clockLabel ?? '',
+                maxLines: 1,
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 26 * s,
+                  fontWeight: FontWeight.w300,
+                  height: 1.1,
+                ),
+              ),
+              SizedBox(height: 3 * s),
+              Text(
+                dateLabel ?? '',
+                maxLines: 1,
+                style: TextStyle(
+                  color: ink.withValues(alpha: 0.85),
+                  fontSize: 8.5 * s,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

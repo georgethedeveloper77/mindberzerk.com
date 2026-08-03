@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../design/theme_mark.dart';
 import '../../engine/splash_spec.dart';
+import '../../engine/theme_source.dart';
 
 /// Everything the splash renderer needs that is not in the [SplashSpec].
 ///
@@ -24,13 +25,30 @@ class SplashChrome {
   final Color accent;
   final Color onDark;
 
-  /// Distro name — the text style's content, and the fallback when a theme has
+  /// Distro name, the text style's content, and the fallback when a theme has
   /// no logo artwork.
   final String? title;
 
   /// Already resolved by the caller: the spec's own logo, else the theme's dark
   /// logo variant, else null.
-  final String? logoAsset;
+  ///
+  /// ─── THIS WAS A String AND THAT WAS THE BUG ─────────────────────────────
+  ///
+  /// A [ThemeAsset], because the same `theme.json` string means two different
+  /// things and only [ThemeSource] knows which. A bundled Ubuntu says
+  /// `assets/themes/ubuntu-24-04/logo_dark.webp`; the SAME distro republished
+  /// over the CDN says `logo_dark.webp`, a bare filename sitting in the pack
+  /// directory, because `PackPaths` refuses separators.
+  ///
+  /// Carrying a String across this boundary threw away the knowledge of which,
+  /// so the renderer below had no choice but to guess, and it guessed
+  /// `Image.asset` every time. On any installed pack that is
+  /// `Unable to load asset: "logo_dark.webp"`, raised inside the image
+  /// pipeline, swallowed by an errorBuilder, and visible only as a splash with
+  /// no mark on it. Every other consumer of a theme path in the app already
+  /// went through `source.asset(...)`; see `_Strip` in wallpaper_screen.dart,
+  /// which carries the same scar. The splash was the last one holding a String.
+  final ThemeAsset? logoAsset;
 
   final String? displayFontFamily;
   final String monoFontFamily;
@@ -63,7 +81,7 @@ class SplashSequence extends StatefulWidget {
   final SplashSpec spec;
 
   /// The distro's dark base, so the splash reads as THIS distro starting rather
-  /// than as a generic black screen — same rule the boot canvas follows.
+  /// than as a generic black screen, the same rule the boot canvas follows.
   final Color background;
   final Color accent;
   final Color onDark;
@@ -73,8 +91,9 @@ class SplashSequence extends StatefulWidget {
   final String? title;
 
   /// Resolved by the caller: the spec's own `logo`, else the theme's dark logo
-  /// variant, else null.
-  final String? logoAsset;
+  /// variant, else null. See [SplashChrome.logoAsset] for why this is a
+  /// [ThemeAsset] and not a path.
+  final ThemeAsset? logoAsset;
 
   final String monoFontFamily;
   final String? displayFontFamily;
@@ -127,8 +146,8 @@ class _SplashSequenceState extends State<SplashSequence>
   void _finish() {
     if (_fading || !mounted) return;
     setState(() => _fading = true);
-    // Fade out, then hand control back — the shell "comes up" underneath rather
-    // than hard-cutting in.
+    // Fade out, then hand control back, so the shell "comes up" underneath
+    // rather than hard-cutting in.
     Future<void>.delayed(const Duration(milliseconds: 220), () {
       if (mounted) widget.onComplete();
     });
@@ -162,12 +181,15 @@ class _SplashSequenceState extends State<SplashSequence>
     );
   }
 
-  Widget _logo() {
-    final asset = widget.logoAsset;
-    if (asset == null) {
-      // No artwork: the distro's name in its own display font is a better
-      // stand-in than a generic glyph nobody recognises.
-      return Text(
+  /// The distro's name in its own display font.
+  ///
+  /// Used for a theme that ships no artwork AND as the failure arm below, which
+  /// is the part that changed. A missing file used to render
+  /// `SizedBox.shrink`, so a broken logo path produced a splash with a hole in
+  /// it and no way to tell that apart from a theme that simply has no mark.
+  /// Landing on the wordmark means the worst case is a plainer splash rather
+  /// than an empty one.
+  Widget _wordmark() => Text(
         widget.title ?? '',
         style: TextStyle(
           fontFamily: widget.displayFontFamily,
@@ -177,34 +199,37 @@ class _SplashSequenceState extends State<SplashSequence>
           color: widget.onDark,
         ),
       );
-    }
 
-    const size = 96.0;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: asset.endsWith('.svg')
-          ? SvgPicture.asset(
-              asset,
-              width: size,
-              height: size,
-              // TINTED, matching LauncherBrandIcon. A splash paints on the
-              // distro's darkest colour, so the dark-surface logo variant has
-              // to be knocked out to onDark or it renders as dark ink on dark
-              // ground. LauncherBrandIcon already did this and this did not,
-              // which is why the mark is legible in the drawer and invisible
-              // on the splash: same asset, two readers, one rule.
-              colorFilter: ColorFilter.mode(widget.onDark, BlendMode.srcIn),
-            )
-          : Image.asset(
-              asset,
-              width: size,
-              height: size,
-              color: widget.onDark,
-              colorBlendMode: BlendMode.srcIn,
-              filterQuality: FilterQuality.medium,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
+  Widget _logo() {
+    // ── THE FOUR BRANCHES MOVED TO [ThemeMark] ─────────────────────────
+    //
+    // This file used to spell out svg-or-raster and file-or-asset itself, and
+    // it was the FIRST place that got the file-or-asset half right. Two other
+    // readers then made the original mistake independently, which is what
+    // turned a fixed bug into a shared widget: the branches live in one place
+    // now and this call site says only what is specific to a splash.
+    return ThemeMark(
+      asset: widget.logoAsset,
+      size: 96,
+      // ── AS AUTHORED, NOT KNOCKED OUT ───────────────────────────────
+      //
+      // This tinted to onDark, and on Ubuntu that turned the orange mark into
+      // a solid white circle: srcIn keeps the alpha and replaces every opaque
+      // pixel, so the disc and the friends inside it become one shape.
+      //
+      // The old argument was that a coloured mark can go muddy on dark chrome
+      // and a silhouette guarantees contrast. True of some artwork, and it
+      // contradicts the reason [ThemeLogo] is a PAIR: the dark variant is
+      // already artwork authored for a dark surface, so tinting it discards
+      // exactly what the second variant exists to preserve. A pack that ships a
+      // mark which does not read on its own has shipped the wrong file, and
+      // that is the pack author's problem rather than something to paper over
+      // by making every distro's logo white.
+      //
+      // The FALLBACK keeps its tint, because the Mindhunter mark genuinely is
+      // one monochrome silhouette that has to read on every distro.
+      tint: null,
+      fallback: _wordmark(),
     );
   }
 
@@ -285,7 +310,7 @@ class _Dots extends StatelessWidget {
 }
 
 /// KDE's determinate bar. Determinate, not indeterminate, because the splash
-/// has a known duration — a bar that spins forever while the thing behind it is
+/// has a known duration: a bar that spins forever while the thing behind it is
 /// already ready is the animation everyone has learned to distrust.
 class _Bar extends StatelessWidget {
   const _Bar({

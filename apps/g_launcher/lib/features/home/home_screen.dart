@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../engine/boot_spec.dart';
 import '../../engine/splash_spec.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/theme_source.dart';
 import '../../engine/theme_spec.dart';
+import '../../data/cdn/pack_repository.dart';
 import '../../data/prefs/setup_state.dart';
+import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../shells/aqua_shell.dart';
 import '../../shells/gnome_shell.dart';
@@ -21,13 +24,13 @@ import '../drawer/drawer_state.dart';
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
 ///
-/// Adding a distro should mean adding a ShellKind branch here AT MOST — and
+/// Adding a distro should mean adding a ShellKind branch here AT MOST, and
 /// usually not even that, since most distros reuse an existing shell with a
 /// different palette. That is the whole "themes are data, not code" bet.
 ///
 /// Also the home for the verbose-boot overlay: [BootGate] wraps the shell so a
 /// boot log can cover it and fade away. Nothing plays until someone calls
-/// `bootControllerProvider.notifier.play(...)` — cold start and theme switch do
+/// `bootControllerProvider.notifier.play(...)`; cold start and theme switch do
 /// that here (gated on the per-theme `verboseBoot` pref); first-run onboarding
 /// does it once, explicitly, from its own flow.
 ///
@@ -36,7 +39,7 @@ import '../drawer/drawer_state.dart';
 /// Long-pressing a desklet turns on edit mode (desklet_surface): the tile shows
 /// its resize and remove handles, and the dashed add-grid appears across the
 /// desktop, which is signal enough that the desktop is being arranged. There is
-/// no "Editing workspace" bar — the way out is the system BACK gesture, wired
+/// no "Editing workspace" bar. The way out is the system BACK gesture, wired
 /// here once so it works on every shell. Edit mode also disables workspace
 /// swiping while it is on, so back doubling as its exit is the single thing a
 /// user needs to know, and it is the gesture they already reach for.
@@ -59,6 +62,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// but keeps the same id, so it will not re-fire), while still firing on a
   /// real switch to a different distro.
   String? _bootedFor;
+
+  /// The splash mark, RESOLVED rather than passed as a path.
+  ///
+  /// `spec.asset` is `source.asset`, which is the one thing that knows whether
+  /// a theme's files live in the APK or in an installed pack directory. It has
+  /// to be called here because this is the wiring point: [SplashChrome] is
+  /// built here and nothing downstream has the [ThemeSpec] any more.
+  ///
+  /// This line used to read `t.spec.splash?.logo ?? t.spec.logo?.dark` and hand
+  /// the raw string over. That was correct for exactly as long as every theme
+  /// shipped in the APK. The moment a free distro could be REPUBLISHED over the
+  /// CDN, the same field started arriving as a bare `logo_dark.webp`, the
+  /// renderer's `Image.asset` could not find it, and the distro that had just
+  /// been updated came up with no mark on its splash. The pipeline worked and
+  /// the artwork did not arrive, which is the same class of bug the render
+  /// bridge in theme_engine was written to fix; this was the last call site
+  /// still holding a String.
+  ///
+  /// No `existsSync` here. It is cheap, but this runs in `build` and
+  /// [ThemeAsset] says so explicitly: a stat per frame for a file that has been
+  /// verified at install time is the wrong trade. A missing file lands on the
+  /// wordmark through the renderer's errorBuilder instead.
+  ThemeAsset? _splashLogo(ThemeSpec spec) {
+    // The splash's own artwork wins when a theme authors it, and it is resolved
+    // the same way. Everything else defers to [ThemeSpec.logoAsset], which is
+    // now the one place that turns a logo into something openable: this method
+    // composed `logo?.dark` itself, which was correct and was also the pattern
+    // two other readers copied incorrectly.
+    final own = spec.splash?.logo;
+    if (own != null && own.isNotEmpty) return spec.asset(own);
+    // Dark surface: a splash paints on the distro's darkest colour.
+    return spec.logoAsset(onDarkSurface: true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +170,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               panelTint: t.panelTint,
               panelRadius: t.panelRadius,
             ),
-            child: BootGate(
+            child: _PackUpdateMessenger(
+              name: t.spec.name,
+              child: BootGate(
               colors: BootColors.fromPalette(
                 accent: t.spec.palette.accent,
                 background: t.spec.palette.bgBottom,
@@ -167,7 +205,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 accent: t.spec.palette.accent,
                 onDark: t.spec.palette.onDark,
                 title: t.spec.name,
-                logoAsset: t.spec.splash?.logo ?? t.spec.logo?.dark,
+                logoAsset: _splashLogo(t.spec),
                 displayFontFamily: t.typography.display,
                 monoFontFamily: t.typography.mono ?? 'UbuntuMono',
               ),
@@ -223,6 +261,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: child!,
                   );
                 },
+                ),
               ),
             ),
           );
@@ -250,7 +289,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final controller = ref.read(bootControllerProvider.notifier);
 
     // FIRST RUN: the full install experience, once. You have just configured a
-    // Linux system, so you watch it come up — the whole boot log, then the
+    // Linux system, so you watch it come up: the whole boot log, then the
     // distro's splash, then your desktop. The flag is one-shot and consumed
     // here, so the second launch is the ordinary quiet path.
     if (ref.read(firstRunBootPendingProvider)) {
@@ -259,7 +298,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // CLEARED HERE, not above. This method runs during build, and Riverpod
-        // forbids writing to a provider mid-build — reading is fine, mutating
+        // forbids writing to a provider mid-build: reading is fine, mutating
         // is not. `_bootedFor` has already been set, so nothing replays in the
         // frames between the read and this clear.
         ref.read(firstRunBootPendingProvider.notifier).state = false;
@@ -287,5 +326,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         controller.playSplash(splash);
       }
     });
+  }
+}
+
+/// Says so when a background sync replaces the distro under the desktop.
+///
+/// ─── WHY IT IS A WIDGET AND WHY IT IS HERE ──────────────────────────────────
+///
+/// `PackFlutterApiImpl` fires in provider land with no [BuildContext], and the
+/// branded message needs one that sits inside the [ChromeScope] so the strip is
+/// dressed in the distro's own palette rather than Material's defaults. This is
+/// the shallowest place that satisfies both: below the scope, above every
+/// shell, and mounted for as long as the desktop is.
+///
+/// [name] comes from the theme that is already resolved above it, which is
+/// better than looking the pack up in the catalogue: a background install can
+/// happen on a device whose storefront has never been opened, so the catalogue
+/// may hold nothing at all, and the distro's own name is exactly the word the
+/// user would use for it.
+///
+/// The signal is CONSUMED rather than expiring, so the message survives the
+/// launcher being backgrounded when the sync lands. A notification the user
+/// never saw is not a notification.
+class _PackUpdateMessenger extends ConsumerWidget {
+  const _PackUpdateMessenger({required this.name, required this.child});
+
+  final String name;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // listen, not watch. This must never rebuild the shell subtree: the child
+    // is captured, and a rebuild here would remount every desktop below it for
+    // the sake of a one-line message.
+    ref.listen<String?>(activeDistroUpdatedProvider, (_, next) {
+      if (next == null) return;
+      // Post-frame, because this fires from a provider write and showing a
+      // message mounts an overlay entry.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        context.showMessage('$name updated');
+        ref.read(activeDistroUpdatedProvider.notifier).consume();
+      });
+    });
+
+    return child;
   }
 }

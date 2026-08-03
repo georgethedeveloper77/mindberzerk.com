@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +13,28 @@ import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../platform/pack_api.g.dart';
 import '../drawer/app_icon.dart';
+import 'icon_appearance_rows.dart';
 import '../themes/theme_catalog.dart' show CardStatus;
+
+/// One native handle for the preview lookup, mirroring theme_engine's rule:
+/// a new Pigeon wrapper per card is a new codec instance for no reason.
+final _previewApi = PackHostApi();
+
+/// Where a pack's preview.png can be drawn from, or null for the schematic.
+///
+/// Watches the catalogue so the URL flips from the CDN copy to the installed
+/// `file://` copy the moment an install lands, without any card doing its own
+/// bookkeeping. Any channel failure is "no preview", never an error: a store
+/// card must render something regardless of what the bridge is doing.
+final packPreviewUrlProvider =
+    FutureProvider.family<String?, String>((ref, packId) async {
+  ref.watch(catalogueProvider);
+  try {
+    return await _previewApi.packPreviewUrl(packId);
+  } catch (_) {
+    return null;
+  }
+});
 
 /// ICON THEMES — the distros screen's sibling.
 ///
@@ -150,6 +173,60 @@ class _Screen extends ConsumerWidget {
       for (final p in catalogue)
         if (p.packType == 'hero') p,
     ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
+    // ── grouped by distro, via the id prefix convention ────────────────────
+    //
+    // A hero pack belongs to the distro whose base id prefixes its own:
+    // `kali-2024-icons` and `kali-2024-neon-icons` both belong to
+    // `kali-2024-theme`. Derived from ids alone, deliberately: Dart can only
+    // read the ACTIVE distro's theme.json, so every other distro is just a
+    // theme pack in the catalogue, and its id is the one fact always present.
+    // Longest base wins, so a distro named `ubuntu` could not claim
+    // `ubuntu-24-04-icons` away from `ubuntu-24-04`.
+    final distroTitles = <String, String>{};
+    for (final p in catalogue) {
+      if (p.packType != 'theme') continue;
+      final base = p.packId.endsWith('-theme')
+          ? p.packId.substring(0, p.packId.length - '-theme'.length)
+          : p.packId;
+      distroTitles[base] = p.title.isEmpty ? base : p.title;
+    }
+    final currentBase = theme.spec.id.endsWith('-theme')
+        ? theme.spec.id.substring(0, theme.spec.id.length - '-theme'.length)
+        : theme.spec.id;
+    // The active distro may be bundled and never republished, so it can be
+    // absent from the catalogue. It still owns its packs.
+    distroTitles.putIfAbsent(currentBase, () => theme.spec.name);
+
+    String? distroOf(String packId) {
+      String? best;
+      for (final base in distroTitles.keys) {
+        if (packId.startsWith('$base-') &&
+            (best == null || base.length > best.length)) {
+          best = base;
+        }
+      }
+      return best;
+    }
+
+    final currentPacks = <PackInfo>[];
+    final byDistro = <String, List<PackInfo>>{};
+    final standalone = <PackInfo>[];
+    for (final p in packs) {
+      final base = distroOf(p.packId);
+      if (base == null) {
+        standalone.add(p);
+      } else if (base == currentBase) {
+        currentPacks.add(p);
+      } else {
+        (byDistro[base] ??= <PackInfo>[]).add(p);
+      }
+    }
+    final otherDistros = byDistro.keys.toList()
+      ..sort((a, b) => distroTitles[a]!
+          .toLowerCase()
+          .compareTo(distroTitles[b]!.toLowerCase()));
+
     final installed = ref.watch(installedIconThemesProvider);
     final progress = ref.watch(packProgressProvider);
 
@@ -274,44 +351,108 @@ class _Screen extends ConsumerWidget {
       }
     }
 
+    // One grid shape for every section, so the shelves read as one storefront.
+    Widget packGrid(List<Widget> children) => GridView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            // The same fixed extent the distros grid uses, so the two screens
+            // read as siblings rather than as two people's work.
+            mainAxisExtent: 150,
+          ),
+          children: children,
+        );
+
     return ThemedScaffold(
       title: 'Icons',
       body: ListView(
         padding: const EdgeInsets.only(bottom: 28),
         children: [
-          // ── ours ──────────────────────────────────────────────────────────
-          const ThemedSectionHeader('Icon themes'),
+          // ── ours, grouped by distro ───────────────────────────────────────
+          //
+          // One shelf per distro rather than one flat sea of cards. The first
+          // shelf is the active distro: its default card plus every pack whose
+          // id it owns. Other distros' packs follow, then packs that belong to
+          // no distro at all. The grouping is the prefix rule above, so
+          // publishing a pack under a distro's id is the whole of putting it
+          // on that distro's shelf; free or paid falls out of each card's own
+          // sku and entitlement, which `PackInfo.unlocked` already resolved.
+          ...iconAppearanceRows(context, ref, theme),
 
-          GridView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              // The same fixed extent the distros grid uses, so the two screens
-              // read as siblings rather than as two people's work.
-              mainAxisExtent: 150,
-            ),
-            children: [
-              _Card(
+          ThemedSectionHeader('Comes with ${theme.spec.name}'),
+
+          packGrid([
+            // ── THE DEFAULT CARD AND THE PACK IT NAMES ARE ONE CARD ─────────
+            //
+            // They used to be two: "Distro default" beside a _PackCard for the
+            // very pack the default resolves to. Selecting the pack left the
+            // default looking unselected, selecting the default never
+            // installed the pack behind it, and the shelf showed the same
+            // artifact twice. Now the default card carries the named pack's
+            // preview, progress, and Get/Update affordance, `currentPacks`
+            // skips it below, and choosing the default also installs it,
+            // because the named pack IS what "default" means and leaving the
+            // generator running after that tap reads as the choice failing.
+            Builder(builder: (context) {
+              PackInfo? defaultPack;
+              for (final p in currentPacks) {
+                if (p.packId == distroPack) {
+                  defaultPack = p;
+                  break;
+                }
+              }
+              final c = ChromeScope.of(context).colors;
+              final st = defaultPack == null
+                  ? null
+                  : CardStatus.parse(
+                      defaultPack.state,
+                      unlocked: defaultPack.unlocked,
+                      free: defaultPack.sku == null,
+                    );
+              return _Card(
                 title: 'Distro default',
-                // Naming the pack the distro actually asks for, so "default" is
-                // a fact rather than a shrug. Falls back to the generator's own
-                // name when a distro authors none, which is what actually runs.
-                subtitle: distroPack ?? 'Adaptive — every app covered',
-                active: selectedHero == null,
-                preview: _Schematic(theme: theme, accent: true),
+                // Naming the pack the distro actually asks for, so "default"
+                // is a fact rather than a shrug. Falls back to the generator's
+                // own name when a distro authors none, which is what runs.
+                subtitle: distroPack ?? 'Adaptive, every app covered',
+                // Selecting the named pack by hand and selecting the default
+                // are the same choice, so both light this card.
+                active: selectedHero == null ||
+                    (distroPack != null && selectedHero == distroPack),
+                progress:
+                    defaultPack == null ? null : progress[defaultPack.packId],
+                preview: defaultPack == null
+                    ? _Schematic(theme: theme, accent: true)
+                    : _PackPreview(theme: theme, packId: defaultPack.packId),
+                trailing: switch (st) {
+                  CardStatus.available => _Mini('Get', c.accent),
+                  CardStatus.updateAvailable => _Mini('Update', c.accent),
+                  _ => null,
+                },
                 onTap: () async {
-                  if (selectedHero == null) return;
-                  await chooseHero(null);
-                  if (context.mounted) {
-                    context.showMessage('Using the distro’s own icons');
+                  // A stable local, so promotion holds inside this closure
+                  // regardless of how the analyzer treats the captured var.
+                  final dp = defaultPack;
+                  if (dp != null &&
+                      (st == CardStatus.available ||
+                          st == CardStatus.updateAvailable)) {
+                    await download(dp, thenApply: false);
+                  }
+                  if (selectedHero != null) {
+                    await chooseHero(null);
+                    if (context.mounted) {
+                      context.showMessage('Using the distro’s own icons');
+                    }
                   }
                 },
-              ),
-              for (final p in packs)
+              );
+            }),
+            for (final p in currentPacks)
+              if (p.packId != distroPack)
                 _PackCard(
                   theme: theme,
                   pack: p,
@@ -319,13 +460,40 @@ class _Screen extends ConsumerWidget {
                   progress: progress[p.packId],
                   onTap: (status) => tapPack(p, status),
                 ),
-            ],
-          ),
+          ]),
+
+          for (final base in otherDistros) ...[
+            ThemedSectionHeader('${distroTitles[base]} packs'),
+            packGrid([
+              for (final p in byDistro[base]!)
+                _PackCard(
+                  theme: theme,
+                  pack: p,
+                  active: selectedHero == p.packId,
+                  progress: progress[p.packId],
+                  onTap: (status) => tapPack(p, status),
+                ),
+            ]),
+          ],
+
+          if (standalone.isNotEmpty) ...[
+            const ThemedSectionHeader('Standalone packs'),
+            packGrid([
+              for (final p in standalone)
+                _PackCard(
+                  theme: theme,
+                  pack: p,
+                  active: selectedHero == p.packId,
+                  progress: progress[p.packId],
+                  onTap: (status) => tapPack(p, status),
+                ),
+            ]),
+          ],
 
           if (packs.isEmpty)
             const _Note(
               text: 'Icon themes arrive with distros. Each one ships its own '
-                  'set, and they can be mixed — run the Kali desktop with '
+                  'set, and they can be mixed: run the Kali desktop with '
                   'Ubuntu icons if you want.',
             ),
 
@@ -386,7 +554,8 @@ class _Screen extends ConsumerWidget {
           // Both selections are live at once, and without this line someone who
           // has picked from both grids sees half their icons come from one and
           // reasonably concludes the other did not work.
-          const _Note(
+          const _Disclosure(
+            title: 'How the layers combine',
             text: 'An installed pack covers the apps it has art for. Anything '
                 'it misses falls back to the icon theme, then to the distro’s '
                 'own icons.',
@@ -549,7 +718,7 @@ class _PackCard extends ConsumerWidget {
       subtitle: pack.summary.isEmpty ? 'v${pack.version}' : pack.summary,
       active: active,
       progress: progress,
-      preview: _Schematic(theme: theme, accent: false),
+      preview: _PackPreview(theme: theme, packId: pack.packId),
       trailing: switch (status) {
         // "Update app" rather than Get, because the action is on the app and a
         // Get button here would fail in a way the user cannot diagnose.
@@ -562,6 +731,37 @@ class _PackCard extends ConsumerWidget {
         CardStatus.bundled || CardStatus.installed => null,
       },
       onTap: () => onTap(status),
+    );
+  }
+}
+
+/// The pack's own art, exactly as the admin grid composites it at publish.
+///
+/// The schematic stays as the honest fallback for packs published before
+/// previews existed, for a dead network, and for the frame before the image
+/// arrives, so a card never shows a broken-image glyph or an empty box.
+class _PackPreview extends ConsumerWidget {
+  const _PackPreview({required this.theme, required this.packId});
+
+  final EffectiveTheme theme;
+  final String packId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final url = ref.watch(packPreviewUrlProvider(packId)).asData?.value;
+    if (url == null) return _Schematic(theme: theme, accent: false);
+
+    final ImageProvider provider = url.startsWith('file://')
+        ? FileImage(File(url.substring('file://'.length)))
+        : NetworkImage(url);
+
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Image(
+        image: provider,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _Schematic(theme: theme, accent: false),
+      ),
     );
   }
 }
@@ -721,6 +921,62 @@ class _Note extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
       child: Text(text, style: d.text.caption.copyWith(height: 1.45)),
+    );
+  }
+}
+
+/// A caption that starts as one tappable line and expands on demand.
+///
+/// The store screens had grown paragraphs of standing explanation, which read
+/// as clutter to everyone except the one person who needed them. Empty states
+/// keep the plain [_Note], because an empty state IS the explanation; this is
+/// for prose that accompanies content that already speaks for itself.
+class _Disclosure extends StatefulWidget {
+  const _Disclosure({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  State<_Disclosure> createState() => _DisclosureState();
+}
+
+class _DisclosureState extends State<_Disclosure> {
+  var _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => setState(() => _open = !_open),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _open ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: d.colors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(widget.title, style: d.text.caption),
+              ],
+            ),
+            if (_open)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 22),
+                child: Text(
+                  widget.text,
+                  style: d.text.caption.copyWith(height: 1.45),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

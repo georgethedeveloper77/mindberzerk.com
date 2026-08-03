@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/aqua_dock_metrics.dart';
 import '../gnome/gnome_dock.dart' show DockEntry;
@@ -222,7 +223,12 @@ class _AquaSlotView extends StatelessWidget {
       label: entry.label,
       child: GestureDetector(
         onTap: entry.onTap,
-        onLongPress: entry.onLongPress,
+        // Same measured rect as the GNOME slot. A magnified slot is a different
+        // size every frame, and the menu opens beside whatever it is at the
+        // moment of the press, which is the honest answer.
+        onLongPress: entry.onLongPress == null
+            ? null
+            : () => entry.onLongPress!(AnchoredMenu.anchorOf(context)),
         behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,

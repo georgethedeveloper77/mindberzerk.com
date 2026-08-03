@@ -117,6 +117,28 @@ class PrefsRepository {
 
   Future<void> saveGlobal(GlobalPrefs prefs) =>
       _store.write(globalKey, jsonEncode(prefs.toJson()));
+
+  /// The schema version of the STORED bucket, which [loadGlobal] cannot report
+  /// because [GlobalPrefs] does not carry it as a field.
+  ///
+  /// Its own read rather than a second return value, so `loadGlobal`'s
+  /// signature stays what every existing caller expects. One extra read of one
+  /// short string, once, on a path that already does two.
+  ///
+  /// Absent or corrupt both answer with the CURRENT version, which means "do
+  /// not migrate": absent is the first-run seed's job, and corrupt has already
+  /// been handled by [loadGlobal] returning defaults. Topping up defaults from
+  /// a theme file would turn a corrupt bucket into a half-restored one.
+  Future<int> globalSchemaVersion() async {
+    final raw = await _store.read(globalKey);
+    if (raw == null) return GlobalPrefs.schemaVersion;
+    try {
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      return (j['schemaVersion'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return GlobalPrefs.schemaVersion;
+    }
+  }
 }
 
 final prefsRepositoryProvider = Provider<PrefsRepository>(
@@ -260,7 +282,33 @@ class GlobalPrefsNotifier extends AsyncNotifier<GlobalPrefs> {
   Future<GlobalPrefs> build() async {
     final repo = ref.watch(prefsRepositoryProvider);
     final stored = await repo.loadGlobal();
-    if (stored != null) return stored;
+
+    if (stored != null) {
+      // ── A LATER PROMOTION NEEDS ITS OWN MIGRATION ──────────────────────
+      //
+      // The seed below fires only when nothing has ever been written here, so
+      // it cannot help a user who is already past the split. For them a newly
+      // promoted field arrives null, `applyTo` clears the per-theme value it
+      // used to hold, and a setting they chose vanishes on the first launch
+      // after the update with nothing to explain it.
+      //
+      // The per-theme file still HOLDS that value, because `edit` leaves the
+      // promoted half of the file alone rather than rewriting it, so the top-up
+      // is a read rather than a reconstruction.
+      if (await repo.globalSchemaVersion() >= GlobalPrefs.schemaVersion) {
+        return stored;
+      }
+
+      final upgradeFrom = await ref.watch(selectedThemeIdProvider.future);
+      final upgraded = upgradeFrom == null
+          ? stored
+          : stored.withV2PromotionsFrom(await repo.load(upgradeFrom));
+
+      // Saved even when nothing was topped up, because the write is what
+      // stamps the new version and stops this running on every launch.
+      await repo.saveGlobal(upgraded);
+      return upgraded;
+    }
 
     // ── ONE-TIME MIGRATION ────────────────────────────────────────────────
     //

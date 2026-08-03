@@ -38,6 +38,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * and the point of using Play at all is that the device does not get to decide.
  * A restart starts from empty and re-asks, which fails CLOSED.
  */
+private const val PREVIEW_NAME = "preview.png"
+
 class PackHostApiImpl(
     context: Context,
     private val flutterApi: PackFlutterApi,
@@ -52,6 +54,60 @@ class PackHostApiImpl(
      * lie, and nobody is buying two themes in the same second.
      */
     private val io = Executors.newSingleThreadExecutor()
+
+    /**
+     * THE BACKGROUND SYNC'S ONLY ROUTE INTO DART.
+     *
+     * `PackSyncWorker` installs packs with no UI and no Dart involvement, and
+     * announced it by calling [PackChangeNotifier.notifyInstalled] and nothing
+     * else. `IconCache` was listening, so a new brand pack hot-swapped
+     * correctly; nothing forwarded to Flutter, so a new THEME pack did not.
+     *
+     * The consequence was narrow and bad. `PackFlutterApiImpl.onPackInstalled`
+     * already knows how to handle this: it clears the progress entry, bumps the
+     * icon generation, invalidates the catalogue, and invalidates
+     * `activeThemeSpecProvider` when the pack that landed is the distro you are
+     * currently wearing. Every one of those was reachable only from a
+     * foreground store tap. Republish a free distro, let the daily job pick it
+     * up, and the corrected pack sat verified on disk while the launcher went
+     * on rendering the copy it resolved at startup, until something killed the
+     * process. Which is indistinguishable from the publish having failed, and
+     * "publish a fix, every device picks it up" is the entire reason the
+     * pipeline exists.
+     *
+     * The VERSION is read back off disk rather than carried through the
+     * notifier. Widening `notifyInstalled` to a third parameter would break
+     * `IconCache`'s registration, and a cache that does not care about versions
+     * would have gained an argument it ignores purely so this could avoid one
+     * file read on a background thread.
+     *
+     * Held as a property so [shutdown] can unregister it: this lambda closes
+     * over a Flutter messenger, and a listener list that outlives the engine it
+     * posts to is a leak with a crash on the end of it.
+     */
+    private val onPackChange: (String, String) -> Unit = { _, packId ->
+        val version = loader.installedVersion(packId).toLong()
+        // Pigeon callbacks must be invoked on the main thread, same rule every
+        // other callback in this file follows. This one arrives on a WorkManager
+        // worker thread rather than [io], which makes the hop more necessary
+        // rather than less.
+        main.post { flutterApi.onPackInstalled(packId, version) {} }
+    }
+
+    init {
+        // The daily schedule is enqueued from HERE, not from an Activity: this
+        // object is constructed on every engine bind, the policy is KEEP so the
+        // call is idempotent, and therefore the job exists on every device that
+        // has ever opened the app - there is no MainActivity wiring to forget,
+        // and nothing to audit when the autonomy question comes up again.
+        PackSyncWorker.schedule(appContext)
+
+        // Registered here rather than from LauncherApplication, following the
+        // rule that file already states about IconCache: the object that knows
+        // it must react owns its own registration, because a wiring line in the
+        // Application is a line a later refactor deletes with nothing failing.
+        PackChangeNotifier.register(onPackChange)
+    }
 
     private val packsRoot: File get() = PackPaths.root(appContext)
 
@@ -138,7 +194,14 @@ class PackHostApiImpl(
      */
     private fun stateOf(packId: String, minApp: Int, remote: Int, installed: Int): String = when {
         minApp > verifier.appVersionCode -> "requiresAppUpdate"
-        installed == 0 && packId in PackPaths.bundledPackIds -> "bundled"
+        // A bundled pack with nothing installed used to report "bundled" here,
+        // which reads as "nothing to do" and hid the one action that matters:
+        // this function is only ever called for packs the INDEX advertises, so
+        // reaching this line means a CDN copy exists that the device does not
+        // hold, and that is an update by definition. The APK seed carries no
+        // version number to compare against, so the first pull may re-fetch
+        // content the seed already equals; after it, versions track normally.
+        installed == 0 && packId in PackPaths.bundledPackIds -> "updateAvailable"
         installed == 0 -> "available"
         remote > installed -> "updateAvailable"
         else -> "installed"
@@ -165,7 +228,16 @@ class PackHostApiImpl(
 
     override fun refreshCatalogue(callback: (Result<Boolean>) -> Unit) = onIo(callback) {
         when (downloader.refreshIndex()) {
-            is IndexResult.Updated -> true
+            is IndexResult.Updated -> {
+                // The user is looking at the store when this fires, so a new
+                // catalogue also triggers an immediate background pass over
+                // installed and bundled packs rather than waiting for the
+                // daily window. This is the line that makes publishing feel
+                // autonomous: index refresh finds the update, the worker
+                // installs it, the engine hot-swaps it.
+                PackSyncWorker.syncNow(appContext)
+                true
+            }
             // Unchanged, Stale, Failed and Rejected all mean "the catalogue you
             // already have is the one to show". Only Updated is worth a re-read.
             else -> false
@@ -204,10 +276,18 @@ class PackHostApiImpl(
                         // The hot-swap. Without this the pack sits on disk,
                         // verified, doing nothing until the process restarts,
                         // and that looks identical to the download failing.
+                        //
+                        // ONE ANNOUNCEMENT, not two. This used to post
+                        // `onPackInstalled` to Dart directly on the line below,
+                        // which was the only reason a foreground install
+                        // reached Flutter at all. Now that [onPackChange]
+                        // bridges the notifier, keeping the direct post would
+                        // fire every Dart-side consequence twice: two catalogue
+                        // invalidations, two icon-generation bumps, and two
+                        // rebuilds of the active theme, the last of which is a
+                        // visible hitch on the home screen.
                         PackChangeNotifier.notifyInstalled(sync.manifest.packType, packId)
-                        val v = sync.manifest.version
-                        main.post { flutterApi.onPackInstalled(packId, v.toLong()) {} }
-                        result(packId, "installed", "", v)
+                        result(packId, "installed", "", sync.manifest.version)
                     }
                     is SyncResult.UpToDate -> result(packId, "upToDate", "", sync.version)
                     is SyncResult.NotOffered -> result(packId, "notOffered", "not in the catalogue")
@@ -316,7 +396,34 @@ class PackHostApiImpl(
             PackPaths.installedDir(appContext, packId)?.absolutePath
         }
 
-    fun shutdown() = io.shutdown()
+    override fun packPreviewUrl(packId: String, callback: (Result<String?>) -> Unit) =
+        onIo(callback) {
+            // Installed wins: local file, works offline, and it is the version
+            // the device is actually holding rather than whatever the CDN has.
+            val local = PackPaths.installedFile(appContext, packId, PREVIEW_NAME)
+            if (local != null) {
+                "file://" + local.absolutePath
+            } else {
+                // Not installed: the CDN copy, display-only, cached by
+                // Flutter's image cache. A pack published before previews
+                // existed 404s there, which the card treats as "no preview"
+                // rather than as an error.
+                val remote = downloader.cachedIndex()?.pack(packId)
+                if (remote == null) {
+                    null
+                } else {
+                    CdnConfig.baseUrl(packsRoot).trimEnd('/') +
+                        "/g-launcher/" + remote.path + "/" + PREVIEW_NAME
+                }
+            }
+        }
+
+    fun shutdown() {
+        // Before the executor, because the listener posts to a messenger this
+        // object no longer intends to serve.
+        PackChangeNotifier.unregister(onPackChange)
+        io.shutdown()
+    }
 
     // ── internals ────────────────────────────────────────────────────────────
 

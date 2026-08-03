@@ -20,7 +20,7 @@ import '../desklet_menu.dart';
 /// a Spotify or media widget came up washed-out and grey, with no album art and
 /// no playlist grid, because virtual-display rendering drops the widget's
 /// backgrounds, async-loaded images, and collection (grid/list) children. The
-/// data was live — the song title showed — but the DISPLAY was wrong.
+/// data was live ─ the song title showed ─ but the DISPLAY was wrong.
 ///
 /// This uses HYBRID COMPOSITION via [PlatformViewLink] +
 /// `initExpensiveAndroidView` (texture-layer hybrid composition). It renders the
@@ -40,13 +40,27 @@ import '../desklet_menu.dart';
 /// [LongPressGestureRecognizer] on the surface: a hold enters edit mode and
 /// selects this tile, while taps still reach the widget.
 ///
-/// ─── BOUNDED BOX + RELAYOUT ─────────────────────────────────────────────────
+/// ─── BOUNDED BOX + RELAYOUT, AND WHY THE SIZE ALSO RIDES CREATION PARAMS ────
 ///
 /// A PlatformView has no intrinsic size, so the surface's `_Tile` hands it the
 /// cell rectangle directly (never a FittedBox); this guards the unbounded case
-/// defensively. On every real size change it pushes the new footprint to the
-/// provider via `updateWidgetSize`, so a responsive widget picks the layout that
-/// fits — a media bar when short, the full grid when tall.
+/// defensively.
+///
+/// The footprint crosses the bridge TWICE, deliberately:
+///
+///   * In the CREATION PARAMS (`widthDp`, `heightDp`), so the native side can
+///     size the host view synchronously inside `createView`, BEFORE its first
+///     RemoteViews apply. On Android 12+ that first apply is when a responsive
+///     widget picks its layout variant, and a size that arrives afterwards is
+///     too late: Spotify inflated its cramped bar and kept it. A post-frame
+///     `updateWidgetSize` raced that inflate and lost often enough to be the
+///     bug.
+///   * Through `updateWidgetSize` on every REAL size change after the first,
+///     so a responsive widget re-picks when the user drags the tile bigger ─
+///     a media bar when short, the full grid when tall.
+///
+/// The first `_maybeRelayout` therefore only RECORDS the size; posting it too
+/// would tell the provider the same thing twice within one frame.
 class AppWidgetDesklet extends ConsumerStatefulWidget {
   const AppWidgetDesklet({
     super.key,
@@ -93,7 +107,11 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
         ),
       };
 
-  Widget _hostView(int id) {
+  /// [w] and [h] are the tile footprint in LOGICAL PIXELS, which are dp ─ the
+  /// unit the whole widget API speaks, end to end. Never multiply by
+  /// devicePixelRatio anywhere near this file: a provider told it has a canvas
+  /// three times too big inflates the wrong layout at the wrong scale.
+  Widget _hostView(int id, int w, int h) {
     return PlatformViewLink(
       viewType: 'g_launcher/widget',
       surfaceFactory: (context, controller) {
@@ -108,7 +126,15 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
           id: params.id,
           viewType: 'g_launcher/widget',
           layoutDirection: TextDirection.ltr,
-          creationParams: <String, Object?>{'widgetId': id},
+          // Creation params are read ONCE, at platform-view creation; a
+          // rebuild with new constraints does not re-deliver them. That is
+          // fine and by design: the first size ships here, every later one
+          // ships through updateWidgetSize in [_maybeRelayout].
+          creationParams: <String, Object?>{
+            'widgetId': id,
+            'widthDp': w,
+            'heightDp': h,
+          },
           creationParamsCodec: const StandardMessageCodec(),
           onFocus: () => params.onFocusChanged(true),
         )
@@ -143,21 +169,29 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
             return _Fallback(theme: widget.theme);
           }
 
-          _maybeRelayout(id, constraints);
+          final w = constraints.maxWidth.round();
+          final h = constraints.maxHeight.round();
+          if (w <= 0 || h <= 0) return _Fallback(theme: widget.theme);
 
-          return SizedBox.expand(child: _hostView(id));
+          _maybeRelayout(id, w, h);
+
+          return SizedBox.expand(child: _hostView(id, w, h));
         },
       ),
     );
   }
 
-  void _maybeRelayout(int id, BoxConstraints c) {
-    final w = c.maxWidth.round();
-    final h = c.maxHeight.round();
-    if (w <= 0 || h <= 0) return;
+  void _maybeRelayout(int id, int w, int h) {
     if (w == _lastW && h == _lastH) return;
+
+    // The FIRST size is not posted from here: it rides the creation params so
+    // the native side applies it synchronously before the host view's first
+    // RemoteViews apply. Recording it is still required, or the second build
+    // at the same size would re-send it as if it were news.
+    final first = _lastW == null && _lastH == null;
     _lastW = w;
     _lastH = h;
+    if (first) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;

@@ -1,9 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../engine/theme_spec.dart' show ThemePalette, ThemeLogo;
+import '../../../design/theme_mark.dart';
+import '../../../engine/theme_source.dart';
+import '../../../engine/theme_spec.dart' show ThemePalette;
 
 /// The macOS menu bar, phone-adapted.
 ///
@@ -63,8 +64,14 @@ class AquaMenuBar extends StatelessWidget {
   final VoidCallback onLaunchpad;
   final VoidCallback onSpotlight;
 
-  /// The theme's own mark, or null for the neutral glyph. See the class note.
-  final ThemeLogo? logo;
+  /// The theme's own mark, already RESOLVED, or null for the neutral glyph.
+  ///
+  /// A [ThemeAsset] rather than the [ThemeLogo] pair, because this bar picks
+  /// one variant and always the dark one: the strip is frosted chrome. Taking
+  /// the pair meant composing the path here, which is how this file ended up
+  /// with the same `Image.asset` on a bare filename that the splash and the
+  /// drawer both had. See [ThemeSpec.logoAsset].
+  final ThemeAsset? logo;
 
   final String? displayFontFamily;
 
@@ -139,7 +146,7 @@ class _MarkAndTitle extends StatelessWidget {
     this.displayFontFamily,
   });
 
-  final ThemeLogo? logo;
+  final ThemeAsset? logo;
   final String title;
   final Color onDark;
   final VoidCallback onTap;
@@ -181,38 +188,26 @@ class _MarkAndTitle extends StatelessWidget {
 class _Mark extends StatelessWidget {
   const _Mark({required this.logo, required this.onDark});
 
-  final ThemeLogo? logo;
+  final ThemeAsset? logo;
   final Color onDark;
 
   static const _size = 14.0;
 
   @override
   Widget build(BuildContext context) {
-    final asset = logo?.dark;
-    if (asset == null) {
+    // As authored, matching the drawer and the splash. This bar tinted
+    // unconditionally on the grounds that a coloured mark goes muddy on frosted
+    // glass; the same reasoning made Ubuntu's logo a white disc everywhere it
+    // appeared, and a theme's dark-surface variant is already art for chrome
+    // like this. The neutral glyph below is still tinted, because it is a
+    // system glyph rather than anybody's mark.
+    return ThemeMark(
+      asset: logo,
+      size: _size,
+      tint: null,
       // Not a fruit. A generic desktop glyph reads as "this is the system menu"
-      // without borrowing anybody's trademark.
-      return Icon(Icons.blur_on, size: _size, color: onDark);
-    }
-
-    // srcIn to onDark, the same rule LauncherBrandIcon uses on a dark surface: a
-    // coloured mark goes muddy on frosted chrome, and a tinted silhouette is
-    // guaranteed to read and matches the label beside it.
-    final tint = ColorFilter.mode(onDark, BlendMode.srcIn);
-
-    return SizedBox(
-      width: _size,
-      height: _size,
-      child: asset.endsWith('.svg')
-          ? SvgPicture.asset(asset, width: _size, height: _size, colorFilter: tint)
-          : Image.asset(
-              asset,
-              width: _size,
-              height: _size,
-              color: onDark,
-              colorBlendMode: BlendMode.srcIn,
-              filterQuality: FilterQuality.medium,
-            ),
+      // without borrowing anybody's trademark. See the class note.
+      fallback: Icon(Icons.blur_on, size: _size, color: onDark),
     );
   }
 }

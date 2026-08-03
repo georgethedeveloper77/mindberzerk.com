@@ -252,6 +252,10 @@ class HomeLayout {
         return liveKeys.contains(i.componentKey);
       }).toList(),
       favourites: p.favourites.where(liveKeys.contains).toList(),
+      // An exclusion is a decision about an app. When the app goes, so does the
+      // decision: keeping it would mean reinstalling something months later and
+      // finding it silently refused a dock slot for a reason nothing can show.
+      dockExcluded: p.dockExcluded.where(liveKeys.contains).toSet(),
     );
   }
 
@@ -291,6 +295,37 @@ class HomeLayout {
       p.copyWith(
         favourites: p.favourites.where((k) => k != componentKey).toList(),
       );
+
+  /// Take an app OUT of the auto-filled dock.
+  ///
+  /// ─── WHY THIS IS NOT unpinFromDock ──────────────────────────────────────
+  ///
+  /// Those are opposite operations on different modes. Unpinning removes a
+  /// choice the user made; this records one they had not been able to make. An
+  /// app in the auto dock is there because they use it, so removing it from
+  /// `favourites` is a no-op: it was never in there.
+  ///
+  /// Idempotent, and safe on a pinned app even though nothing offers it there:
+  /// the set is only read on the frequent path, so an entry for a pinned app
+  /// simply never comes up.
+  static LauncherPrefs excludeFromDock(LauncherPrefs p, String componentKey) =>
+      p.copyWith(dockExcluded: {...p.dockExcluded, componentKey});
+
+  /// Put one back, or all of them when [componentKey] is null.
+  ///
+  /// It does not reappear immediately unless it is still frequent enough to
+  /// make the cut, which is correct: this restores its ELIGIBILITY rather than
+  /// its slot, and a dock that promotes an app you barely use because you once
+  /// un-removed it would be the haunted behaviour `dockKeys` warns about.
+  static LauncherPrefs restoreToDock(LauncherPrefs p, [String? componentKey]) =>
+      componentKey == null
+          ? p.copyWith(dockExcluded: const {})
+          : p.copyWith(
+              dockExcluded: {
+                for (final k in p.dockExcluded)
+                  if (k != componentKey) k,
+              },
+            );
 
   /// Drag-reorder within the dock. [to] is the index in the list AFTER the item
   /// has been removed — the ReorderableListView convention. Getting that wrong
@@ -333,6 +368,19 @@ class HomeLayout {
     // The auto-filled (unpinned) dock is a small, deliberate set — four by
     // default — not "every frequent app that fits". Never more than `capacity`.
     final limit = (defaultLimit ?? capacity).clamp(0, capacity);
-    return frequent.take(limit).toList();
+
+    // ── EXCLUSIONS APPLY BEFORE THE LIMIT, NOT AFTER ────────────────────
+    //
+    // Taking four and then dropping the removed one would leave a dock of
+    // three with a gap the filler had a candidate for, and the gap would
+    // reappear every time the user removed another. Filtering first means the
+    // next most-used app moves up, which is what "removed from the dock"
+    // has to mean on a surface that refills itself.
+    //
+    // Only reachable here, on the frequent path. Pinned mode returned above.
+    return [
+      for (final k in frequent)
+        if (!p.dockExcluded.contains(k)) k,
+    ].take(limit).toList();
   }
 }

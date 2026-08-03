@@ -26,8 +26,8 @@
     "mono": "UbuntuMono"
   },
   "logo": {
-    "light": "assets/themes/ubuntu-24-04/logo_light.svg",
-    "dark": "assets/themes/ubuntu-24-04/logo_dark.svg"
+    "light": "assets/themes/ubuntu-24-04/logo_light.webp",
+    "dark": "assets/themes/ubuntu-24-04/logo_dark.webp"
   },
   "layout": {
     "dock": "left",

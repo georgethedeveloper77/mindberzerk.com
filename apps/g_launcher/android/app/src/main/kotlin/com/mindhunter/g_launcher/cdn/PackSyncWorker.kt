@@ -3,7 +3,9 @@ package com.mindhunter.g_launcher.cdn
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
@@ -76,7 +78,34 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
             addAll(loader.installedPackIds())
             addAll(PackPaths.bundledPackIds)
         }
+
+        // ── THE DATA BUNDLE RULE, NOW A SIZE TEST RATHER THAN A BLANKET NO ───
+        //
+        // This job used to require an UNMETERED network for everything, with a
+        // good argument on it about not spending someone's data. That argument
+        // was written for a 3.5MB brand pack and then applied to a 140KB distro,
+        // and it aged badly against the audience: on a budget phone in Nairobi
+        // or Lagos wifi is not the default state, so "wait for wifi" often means
+        // "never", and a device that never syncs is a device the whole pipeline
+        // does nothing for.
+        //
+        // So the constraint moved from the schedule to the payload. The index is
+        // a couple of KB behind an ETag and is now fetched on any connection,
+        // which is what makes a device aware there is anything to get. A pack
+        // over [METERED_MAX_BYTES] still waits, because the original argument is
+        // right about big payloads and only wrong about small ones.
+        //
+        // `sizeBytes` here is the INDEX's advisory copy, used to decide whether
+        // to start; the signed manifest's total is what the free-space check and
+        // the per-file caps use. An index that lies about a size cannot get a
+        // byte past `CdnClient.download`, which caps every file at its exact
+        // signed length.
+        val metered = isMetered()
         for (packId in toSync) {
+            if (metered) {
+                val size = index.pack(packId)?.sizeBytes ?: 0L
+                if (size > METERED_MAX_BYTES) continue
+            }
             when (val r = downloader.syncPack(packId, index)) {
                 is SyncResult.Installed -> {
                     installedAnything = true
@@ -104,6 +133,21 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
     }
 
     /**
+     * Is the active connection metered?
+     *
+     * Defaults to TRUE on any failure, which is the cautious direction: an
+     * unknown network treated as unmetered would spend a data bundle on the
+     * strength of an exception, while an unmetered one treated as metered only
+     * delays a large pack until the next pass.
+     */
+    private fun isMetered(): Boolean = try {
+        val cm = applicationContext.getSystemService(android.net.ConnectivityManager::class.java)
+        cm?.isActiveNetworkMetered ?: true
+    } catch (_: Exception) {
+        true
+    }
+
+    /**
      * Must match `_appVersionCode` in theme_engine.dart and the versionCode in
      * the manifest. Read from PackageManager rather than hardcoded so a release
      * bump cannot leave this behind - which would silently refuse every pack
@@ -122,22 +166,34 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
         private const val WORK_NAME = "g_launcher_pack_sync"
 
         /**
+         * The most this job will pull over someone's mobile data, per pack.
+         *
+         * 2MB covers a distro comfortably: a full Ubuntu pack with three
+         * wallpapers is around 140KB. It does not cover the brand pack, which
+         * is megabytes of glyph paths and gains nothing by arriving today
+         * rather than the next time the phone sees wifi.
+         */
+        private const val METERED_MAX_BYTES = 2L * 1024 * 1024
+
+        /**
          * Call once from `LauncherApplication.onCreate`.
          *
          * KEEP is deliberate: REPLACE would reset the interval on every cold
          * start, and a launcher cold-starts many times a day, so the job would
          * effectively never run.
          *
-         * Daily, unmetered, not-low-battery. A brand pack that gains icons
-         * within 24 hours is well inside what anyone would notice, and a
-         * launcher spending someone's data bundle on icon glyphs is not a
-         * trade this app gets to make on their behalf.
+         * Daily, connected, not-low-battery. CONNECTED rather than UNMETERED,
+         * with the data-bundle promise kept per PACK instead: see the size test
+         * in [doWork]. A launcher spending someone's data on megabytes of icon
+         * glyphs is still not a trade this app gets to make, but refusing to
+         * spend two kilobytes finding out whether their distro was fixed was
+         * the wrong shape of caution.
          */
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<PackSyncWorker>(1, TimeUnit.DAYS)
                 .setConstraints(
                     Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.UNMETERED)
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
                         .setRequiresBatteryNotLow(true)
                         .build(),
                 )
@@ -147,6 +203,35 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
+                request,
+            )
+        }
+
+        /**
+         * One immediate pass, on top of the daily schedule.
+         *
+         * Fired when a FOREGROUND refresh sees a new index: the user is looking
+         * at the store at that exact moment, so "the catalogue changed" and
+         * "nothing happens until tomorrow" cannot both be true. Same CONNECTED
+         * constraint as the daily job, and the same per-pack size test inside
+         * it: someone standing in the store on mobile data gets their small
+         * packs now and their brand pack on the next wifi.
+         *
+         * KEEP, not REPLACE: several refreshes in one store visit collapse
+         * into one pass instead of queueing five identical ones.
+         */
+        fun syncNow(context: Context) {
+            val request = OneTimeWorkRequestBuilder<PackSyncWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build(),
+                )
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "$WORK_NAME-now",
+                ExistingWorkPolicy.KEEP,
                 request,
             )
         }

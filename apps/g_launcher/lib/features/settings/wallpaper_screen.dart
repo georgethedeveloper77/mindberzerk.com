@@ -11,6 +11,8 @@ import '../../data/prefs/wallpaper_collections.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/device_preview.dart';
+import '../../design/setting_previews.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_source.dart';
 import '../../system/wallpaper_source.dart';
@@ -80,7 +82,18 @@ Future<bool> applyWallpaper(
     await notifier.edit((p) => p.copyWith(wallpaperCurrent: source));
     await ref.read(prefsStoreProvider).write(
           wallpaperAppliedForKey,
-          wallpaperAppliedToken(theme.spec.id, dark: theme.dark),
+          // The stamp is composed HERE from the same two lists the resolve
+          // reads, because the two must agree exactly. They are the pair the
+          // token's doc warns about: they drifted once when the mode was added
+          // and the screen's pick quietly undid itself on the next rebuild.
+          wallpaperAppliedToken(
+            theme.spec.id,
+            dark: theme.dark,
+            stamp: wallpaperContentStamp(
+              theme.spec.wallpapers,
+              theme.spec.wallpapersLight,
+            ),
+          ),
         );
   }
   if (context.mounted) {
@@ -89,18 +102,145 @@ Future<bool> applyWallpaper(
   return ok;
 }
 
+/// Hide one of the distro's presets, or bring it back.
+///
+/// ─── HIDDEN, NOT DELETED, AND THE STRIP KEEPS SHOWING IT ────────────────────
+///
+/// A preset lives inside the pack and is not the user's to delete: an installed
+/// pack is signature-verified as a whole, and a bundled one is in the APK. So
+/// hiding greys the thumbnail and drops it out of the rotation pool, and the
+/// dimmed tile stays exactly where it was as the way back. A wallpaper that
+/// VANISHED on a long press would be indistinguishable from a delete, and the
+/// user would have no idea the set could be restored.
+///
+/// ─── AND IT DOES NOT CHANGE WHAT IS ON SCREEN ───────────────────────────────
+///
+/// The same contract [_forget] spells out. The wallpaper belongs to Android and
+/// is already set, so hiding the picture you are looking at does not swap it
+/// out from under you. What it must do is clear `wallpaperCurrent`, because
+/// that field is what the theme resolve treats as "the user chose this", and
+/// leaving it pointed at something no longer in the list is a choice the user
+/// can neither see nor change.
+Future<void> setPresetHidden(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  List<WallpaperCollection> collections,
+  String src,
+  bool hide,
+) async {
+  final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+  // TWO sets, and they are not redundant. This one is for the rotation call at
+  // the bottom, which needs the new value before the provider has reloaded; the
+  // WRITE below builds its own off the live prefs inside `edit`, so two quick
+  // taps cannot each write a set derived from the same stale snapshot.
+  final next = {...theme.prefs.wallpapersHidden};
+  if (hide) {
+    next.add(src);
+  } else {
+    next.remove(src);
+  }
+
+  await notifier.edit((p) {
+    final live = {...p.wallpapersHidden};
+    if (hide) {
+      live.add(src);
+    } else {
+      live.remove(src);
+    }
+    return p.copyWith(wallpapersHidden: live);
+  });
+
+  if (hide && theme.prefs.wallpaperCurrent == src) {
+    // clearing(), not copyWith: copyWith cannot write null.
+    await notifier.edit((p) => p.clearing(wallpaperCurrent: true));
+  }
+
+  // Explicit set, because [theme] here is the pre-edit snapshot. See the note
+  // on [rotationPoolFor].
+  await rescheduleRotation(
+    ref,
+    theme,
+    collections,
+    source: theme.prefs.wallpaperRotationSource,
+    hidden: next,
+  );
+
+  if (context.mounted) {
+    context.showMessage(hide ? 'Hidden from this distro' : 'Back in the set');
+  }
+}
+
+/// The wallpaper on screen right now, as something drawable, or null.
+///
+/// ─── THE SAME THREE KINDS OF STRING, FOR THE THIRD TIME ─────────────────────
+///
+/// `wallpaperCurrent` holds a theme reference, an absolute path, or a URL, and
+/// which one decides whether it resolves through the pack directory. That is
+/// exactly the split [isThemeAssetRef] exists for and exactly what
+/// [encodeWallpaperFor] does for native. This is the Flutter-side twin: same
+/// question, different answer type.
+///
+/// Remote sources return null rather than a NetworkImage. The preview is a
+/// still picture at the top of a settings page and pulling a CDN wallpaper to
+/// draw it would spend someone's data on decoration; the strip below already
+/// fetches it when they actually look.
+ImageProvider? wallpaperImageFor(EffectiveTheme theme, String? source) {
+  if (source == null || source.isEmpty) return null;
+  if (source.startsWith('http')) return null;
+  if (isThemeAssetRef(source)) {
+    final asset = theme.spec.asset(source);
+    // A pack whose files were swept, or a bundled path that no longer exists.
+    // Checked here rather than in the widget because the preview would
+    // otherwise paint a hole and log into a console nobody reads, which is the
+    // failure mode this whole area keeps producing.
+    return asset.existsSync ? asset.image : null;
+  }
+  final f = File(source);
+  return f.existsSync() ? FileImage(f) : null;
+}
+
+/// What the previews at the top of the screen show: the user's current pick,
+/// else the first preset this distro offers that they have not hidden.
+///
+/// Falling back matters on a first run, where nothing has been applied yet and
+/// an empty pair of phones would be the first thing on the screen.
+String? previewWallpaperFor(EffectiveTheme theme) {
+  final current = theme.prefs.wallpaperCurrent;
+  if (current != null && current.isNotEmpty) return current;
+  for (final w in theme.spec.wallpapers) {
+    if (!theme.prefs.wallpapersHidden.contains(w)) return w;
+  }
+  return null;
+}
+
 /// The pool [source] names, for this theme.
 ///
 /// Unknown values and dangling collection ids fall to the DISTRO pool, not to
 /// an empty list: a rotation that silently stops because a collection was
 /// deleted is the worse failure, and the distro pool is the state the setting
 /// began in.
+/// [hidden] overrides `theme.prefs.wallpapersHidden`, for the same reason
+/// [applyWallpaper] takes a `fit`: the caller that has just written a new set
+/// is holding a [theme] that has not reloaded yet, and rescheduling off the
+/// stale one would leave the wallpaper the user just hid still in the worker's
+/// list. Null means read it off [theme], which is what every other caller does.
 List<String> rotationPoolFor(
   EffectiveTheme theme,
   List<WallpaperCollection> collections,
-  String? source,
-) {
-  final own = [...theme.spec.wallpapers, ...theme.prefs.wallpapers];
+  String? source, {
+  Set<String>? hidden,
+}) {
+  // Hiding applies to the DISTRO'S presets only. The user's own photos have a
+  // real Remove that deletes a real copy, and a collection is theirs to edit,
+  // so neither is filtered here.
+  final skip = hidden ?? theme.prefs.wallpapersHidden;
+  final own = [
+    for (final w in theme.spec.wallpapers)
+      if (!skip.contains(w)) w,
+    ...theme.prefs.wallpapers,
+  ];
   if (source == 'all') {
     return [...own, for (final c in collections) ...c.paths];
   }
@@ -140,10 +280,11 @@ Future<void> rescheduleRotation(
   List<WallpaperCollection> collections, {
   required String? source,
   String? fit,
+  Set<String>? hidden,
 }) async {
   final minutes = theme.prefs.wallpaperRotationMinutes;
   if (minutes == null) return;
-  final pool = rotationPoolFor(theme, collections, source);
+  final pool = rotationPoolFor(theme, collections, source, hidden: hidden);
   // No length branch: Kotlin's schedule() cancels itself on an empty list,
   // and a one-item pool re-applying the same image is harmless.
   await ref.read(launcherHostApiProvider).scheduleWallpaperRotation(
@@ -375,9 +516,73 @@ class WallpaperScreen extends ConsumerWidget {
       title: context.t('settings.wallpaper'),
       body: ListView(
         children: [
+          // ── THE PAIR AT THE TOP ────────────────────────────────────────
+          //
+          // Lock and home, side by side, both showing the wallpaper that is
+          // actually on. It is the shape Android's own Wallpaper and style
+          // screen uses, and the reason is the same: this page has a LOCK
+          // SCREEN toggle, and without a picture of one that setting is a
+          // promise you have to lock the phone to check.
+          //
+          // Both panes are drawn by the SAME widget the rest of Settings uses,
+          // so a distro switch repaints them with no wiring, and the home pane
+          // shows this distro's real dock side rather than a generic phone.
+          if (previewWallpaperFor(theme) case final src?)
+            SettingPreview(
+              caption: applyToLock
+                  ? 'Lock and home'
+                  : 'Lock screen unchanged, home only',
+              child: _WallpaperPreviewPair(theme: theme, source: src),
+            ),
+
           if (presets.isNotEmpty) ...[
             ThemedSectionHeader(context.t('wallpaper.fromThisDistro')),
-            _Strip(sources: presets, source: theme.spec.source, onTap: apply),
+            _Strip(
+              sources: presets,
+              source: theme.spec.source,
+              onTap: apply,
+              // Intersected with what this distro actually ships, so a name
+              // hidden under an older version of the pack cannot inflate the
+              // count below after a republish drops that file.
+              hidden: {
+                for (final w in presets)
+                  if (theme.prefs.wallpapersHidden.contains(w)) w,
+              },
+              onHide: (src, hide) => setPresetHidden(
+                context,
+                ref,
+                theme,
+                collections,
+                src,
+                hide,
+              ),
+            ),
+            // Long press is invisible until someone finds it, and this is the
+            // one screen where the gesture does something they cannot get to
+            // any other way. Two lines, one of which is only ever read once.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Builder(
+                builder: (context) {
+                  final hiddenHere = [
+                    for (final w in presets)
+                      if (theme.prefs.wallpapersHidden.contains(w)) w,
+                  ].length;
+                  return Text(
+                    hiddenHere == 0
+                        ? 'Hold a wallpaper to hide it from this distro.'
+                        : hiddenHere == 1
+                            ? '1 hidden. Tap the dimmed one to bring it back.'
+                            : '$hiddenHere hidden. Tap a dimmed one to bring '
+                                'it back.',
+                    style: TextStyle(
+                      color: ChromeScope.of(context).colors.textFaint,
+                      fontSize: 12.5,
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
           ThemedSectionHeader(context.t('wallpaper.yours')),
           _Strip(
@@ -748,10 +953,19 @@ class _Strip extends StatelessWidget {
     required this.source,
     required this.onTap,
     this.onRemove,
+    this.hidden = const {},
+    this.onHide,
   });
 
   /// Null for the distro's own presets, which are not the user's to delete.
   final void Function(String source)? onRemove;
+
+  /// Which of [sources] are hidden. Presets only; see [setPresetHidden].
+  final Set<String> hidden;
+
+  /// Null for the user's own photos, which are removed rather than hidden. The
+  /// two are deliberately never both set: one strip, one long-press meaning.
+  final void Function(String source, bool hide)? onHide;
 
   final List<String> sources;
 
@@ -797,18 +1011,39 @@ class _Strip extends StatelessWidget {
           final themed =
               !isRemote && isThemeAssetRef(src) ? source.asset(src) : null;
 
+          final hide = onHide;
+          final isHidden = hidden.contains(src);
+
           return GestureDetector(
-            onTap: () => onTap(src),
+            // A dimmed tile is not a wallpaper you can pick, it is one you told
+            // us you did not want, so tapping it means "actually, keep it"
+            // rather than "apply the thing I just rejected".
+            onTap: () {
+              if (isHidden && hide != null) {
+                hide(src, false);
+              } else {
+                onTap(src);
+              }
+            },
             // Hold to remove, which is the gesture this app already uses for
             // "what else can I do with this" on drawer tiles, folder members
             // and desklets. A permanent X badge on every thumbnail would put a
             // destructive target under the thumb of someone browsing.
-            onLongPress: remove == null ? null : () => remove(src),
+            //
+            // On the presets strip the same hold HIDES instead, since nothing
+            // there is the user's to delete. One gesture, one meaning per
+            // strip, which is why the two callbacks are never both passed.
+            onLongPress: hide != null
+                ? () => hide(src, !isHidden)
+                : (remove == null ? null : () => remove(src)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: 90,
-                child: switch ((themed != null, isRemote)) {
+                child: _dim(
+                  isHidden,
+                  c.text,
+                  switch ((themed != null, isRemote)) {
                   (true, _) => Image(
                       image: themed!.image,
                       fit: BoxFit.cover,
@@ -841,12 +1076,32 @@ class _Strip extends StatelessWidget {
                       errorBuilder: (_, __, ___) =>
                           const _Missing(Icons.broken_image_outlined),
                     ),
-                },
+                  },
+                ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  /// A hidden thumbnail, knocked back and marked.
+  ///
+  /// Opacity ALONE is not enough. A dark wallpaper at 30% and a dark wallpaper
+  /// at 100% are the same rectangle on a phone in daylight, and the strip would
+  /// read as a rendering fault rather than a state. The struck-through eye is
+  /// the part that says which one this is.
+  Widget _dim(bool isHidden, Color ink, Widget child) {
+    if (!isHidden) return child;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Opacity(opacity: 0.3, child: child),
+        Center(
+          child: Icon(Icons.visibility_off_outlined, size: 22, color: ink),
+        ),
+      ],
     );
   }
 }
@@ -861,6 +1116,67 @@ class _Missing extends StatelessWidget {
     return ColoredBox(
       color: c.surfaceAlt,
       child: Icon(icon, color: c.textMuted),
+    );
+  }
+}
+
+/// Two phones: the lock screen and the desktop, both under the live wallpaper.
+///
+/// ─── THE LOCK PANE IS DRAWN EVEN WHEN THE TOGGLE IS OFF ─────────────────────
+///
+/// It shows what the lock screen currently looks like, not what this wallpaper
+/// would do to it, and the caption says which. Hiding the pane when the toggle
+/// is off would answer the question by omission and leave the row above it
+/// still unillustrated; drawing it with the wallpaper regardless would claim a
+/// change the launcher has deliberately not made, since the lock setting is
+/// applied from the NEXT wallpaper on and never retroactively.
+///
+/// So: the toggle off means the lock pane keeps the distro's own colours, which
+/// is honest about both.
+class _WallpaperPreviewPair extends StatelessWidget {
+  const _WallpaperPreviewPair({required this.theme, required this.source});
+
+  final EffectiveTheme theme;
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = wallpaperImageFor(theme, source);
+    final onLock = theme.prefs.wallpaperLock ?? false;
+
+    // ── FORMATTED HERE, WITHOUT A TICKER ───────────────────────────────
+    //
+    // MaterialLocalizations rather than a clock provider: the delegates are
+    // already installed in app.dart for RTL, so this is locale-correct for
+    // free and costs no subscription. It does not tick, which is right for a
+    // still picture of a lock screen and would be wrong for a clock desklet.
+    final now = DateTime.now();
+    final clock = TimeOfDay.fromDateTime(now).format(context);
+    final date = MaterialLocalizations.of(context).formatMediumDate(now);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: DevicePreview(
+            palette: theme.palette,
+            mode: DevicePreviewMode.lock,
+            background: onLock ? image : null,
+            clockLabel: clock,
+            dateLabel: date,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: DevicePreview(
+            palette: theme.palette,
+            mode: DevicePreviewMode.desktop,
+            dock: theme.dock,
+            gridButton: theme.prefs.dockGridButton ?? 'end',
+            background: image,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -269,6 +269,20 @@ abstract class PackHostApi {
   /// refuses separators), so joining is always one `/` and never a traversal.
   @async
   String? installedPackDir(String packId);
+
+  /// Where a pack's `preview.png` can be drawn from, or null when it has none.
+  ///
+  /// A `file://` URI once the pack is installed, an https URL from the CDN
+  /// before it. Display-only bytes that go through Flutter's image cache,
+  /// never the pack pipeline, so nothing about verification changes.
+  ///
+  /// A METHOD rather than a field on [PackInfo], deliberately: that class
+  /// documents itself as the presentation subset that does NOT carry the CDN
+  /// path, and a single URL to one image keeps that promise while an appended
+  /// field carrying `path` would quietly break it. Appended last, which is the
+  /// safe position, and it is a method so not even the codec moves.
+  @async
+  String? packPreviewUrl(String packId);
 }
 
 @FlutterApi()

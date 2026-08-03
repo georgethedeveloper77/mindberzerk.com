@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/dock_metrics.dart';
 
@@ -38,7 +39,22 @@ class DockEntry {
   final bool isPinned;
 
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+
+  /// Receives the SLOT's rectangle in global coordinates, so the menu it opens
+  /// can sit beside the icon rather than at the bottom of the screen.
+  ///
+  /// ─── WHY THIS IS NOT A VoidCallback ANY MORE ─────────────────────────────
+  ///
+  /// `onLongPress` carries no position, and neither does the slot's own
+  /// `GestureDetector`. The dock menu used to be a bottom sheet, which needed
+  /// nothing; a popover has to know what it is pointing at. Measuring here
+  /// rather than passing `LongPressStartDetails` gives the panel the ICON's
+  /// box instead of the point the thumb happened to land on, which is what
+  /// keeps the menu aligned to the dock rather than to the finger.
+  ///
+  /// Null when the slot is not laid out, which `AnchoredMenu` treats the same
+  /// way it treats any missing anchor: centred.
+  final void Function(Rect? anchor)? onLongPress;
 }
 
 /// The dock. Mockup geometry throughout, scaled by [slotSize]:
@@ -109,6 +125,19 @@ class GnomeDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vertical = side.isVertical;
+
+    // ── WHICH WAY THE RUNNING BAR FACES ──────────────────────────────────
+    //
+    // GNOME draws it on the dock's OUTER edge, against the screen. For a left
+    // dock that is the icon's left; for a right dock it is the icon's right,
+    // and for a bottom dock it is underneath. The old code asked `vertical` and
+    // then hardcoded `left: -7`, which was the same answer twice because left
+    // was the only vertical side there was. A right dock rendered with that
+    // would put its bars on the INNER edge, pointing at the desktop, which is
+    // the one detail that would make it read as a mirrored left dock rather
+    // than as a right dock.
+    final outerEdgeIsStart = side != DockSide.right;
+
     final glyph = DockMetrics.gridGlyphFor(slotSize);
 
     // Was Ubuntu.separator. Same reasoning as the border: a hairline that is
@@ -130,6 +159,7 @@ class GnomeDock extends StatelessWidget {
       children.add(_gapBox(vertical));
       children.add(_DockSlot(
         vertical: vertical,
+        outerEdgeIsStart: outerEdgeIsStart,
         slotSize: slotSize,
         entry: DockEntry(
           id: '__activities__',
@@ -145,6 +175,7 @@ class GnomeDock extends StatelessWidget {
     void addGridButtonStart() {
       children.add(_DockSlot(
         vertical: vertical,
+        outerEdgeIsStart: outerEdgeIsStart,
         slotSize: slotSize,
         entry: DockEntry(
           id: '__activities__',
@@ -165,6 +196,7 @@ class GnomeDock extends StatelessWidget {
       if (children.isNotEmpty) children.add(_gapBox(vertical));
       children.add(_DockSlot(
         vertical: vertical,
+        outerEdgeIsStart: outerEdgeIsStart,
         slotSize: slotSize,
         entry: entries[i],
         accent: palette.accent,
@@ -230,6 +262,7 @@ class _DockSlot extends StatelessWidget {
   const _DockSlot({
     required this.entry,
     required this.vertical,
+    required this.outerEdgeIsStart,
     required this.slotSize,
     required this.accent,
     this.plate,
@@ -237,6 +270,10 @@ class _DockSlot extends StatelessWidget {
 
   final DockEntry entry;
   final bool vertical;
+
+  /// Whether the dock's outer edge is the leading one: true for left and
+  /// bottom, false for right. See the note at [GnomeDock.build].
+  final bool outerEdgeIsStart;
   final double slotSize;
 
   /// Running-bar colour, from the theme palette's accent.
@@ -254,7 +291,10 @@ class _DockSlot extends StatelessWidget {
       label: entry.label,
       child: GestureDetector(
         onTap: entry.onTap,
-        onLongPress: entry.onLongPress,
+        onLongPress: entry.onLongPress == null
+            ? null
+            // `context` is this slot's own, so the rect is the icon's box.
+            : () => entry.onLongPress!(AnchoredMenu.anchorOf(context)),
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           width: slotSize,
@@ -277,7 +317,8 @@ class _DockSlot extends StatelessWidget {
                 // Bottom dock: bar underneath — same meaning, rotated world.
                 vertical
                     ? Positioned(
-                        left: -7,
+                        left: outerEdgeIsStart ? -7 : null,
+                        right: outerEdgeIsStart ? null : -7,
                         top: barCentre,
                         child: _RunningBar(vertical: true, color: accent),
                       )

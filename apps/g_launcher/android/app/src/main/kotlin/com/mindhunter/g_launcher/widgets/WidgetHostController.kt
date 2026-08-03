@@ -26,16 +26,16 @@ class LauncherWidgetHost(context: Context) : AppWidgetHost(context, HOST_ID) {
  * (with Android's consent dialog), configure, create the host view for the
  * PlatformView, resize, and delete.
  *
- * ─── WHY THIS IS SEPARATE FROM THE PIGEON IMPL, AND WHY THE ACTIVITY ATTACHES ─
+ * --- WHY THIS IS SEPARATE FROM THE PIGEON IMPL, AND WHY THE ACTIVITY ATTACHES
  *
  * The host outlives any Activity, so it is created ONCE in LauncherApplication
  * next to the other hosts. But binding and configuring both call
- * `startActivityForResult`, which only an Activity can do — so LauncherActivity
+ * `startActivityForResult`, which only an Activity can do - so LauncherActivity
  * attaches itself here on start and detaches on stop, and forwards its
  * `onActivityResult` back. The host's `startListening`/`stopListening` ride the
  * same lifecycle, because a host that is not listening delivers no updates.
  *
- * ─── ONE REQUEST AT A TIME, HELD ACROSS THE ROUND-TRIP ──────────────────────
+ * --- ONE REQUEST AT A TIME, HELD ACROSS THE ROUND-TRIP ----------------------
  *
  * A launcher is not a signed system app, so `bindAppWidgetIdIfAllowed` almost
  * always returns false and the user sees a consent dialog; many providers then
@@ -55,7 +55,7 @@ class WidgetHostController(context: Context) {
     /**
      * Live host views, by widget id.
      *
-     * ─── WHY THE VIEWS ARE TRACKED AT ALL ───────────────────────────────────
+     * --- WHY THE VIEWS ARE TRACKED AT ALL -----------------------------------
      *
      * `updateAppWidgetOptions` tells the PROVIDER what size it has, which is
      * what makes a widget's own `onAppWidgetOptionsChanged` fire. It does not
@@ -76,7 +76,7 @@ class WidgetHostController(context: Context) {
         val onResult: (Int?) -> Unit,
     )
 
-    // ── lifecycle (called by LauncherActivity) ──────────────────────────────
+    // -- lifecycle (called by LauncherActivity) ------------------------------
 
     fun attachActivity(a: Activity) { activity = a }
 
@@ -86,10 +86,10 @@ class WidgetHostController(context: Context) {
 
     fun stopListening() { runCatching { host.stopListening() } }
 
-    // ── placement ───────────────────────────────────────────────────────────
+    // -- placement -----------------------------------------------------------
 
     /**
-     * Allocate → bind → configure. Calls [onResult] with the widget id, or null
+     * Allocate -> bind -> configure. Calls [onResult] with the widget id, or null
      * if the user cancelled the bind dialog or the config screen. Runs on the
      * main thread (the Activity flow is main-thread, and Pigeon calls this from
      * there).
@@ -157,22 +157,41 @@ class WidgetHostController(context: Context) {
         }
 
         if (requestCode == REQ_BIND) {
-            configureOrFinish(a, p.widgetId, p.onResult) // bound → maybe config
+            configureOrFinish(a, p.widgetId, p.onResult) // bound -> maybe config
         } else {
             p.onResult(p.widgetId) // configured
         }
         return true
     }
 
-    // ── the view for the PlatformView ────────────────────────────────────────
+    // -- the view for the PlatformView ---------------------------------------
 
-    /** Inflate the hosted view for [widgetId], or null if the provider is gone. */
-    fun createView(widgetId: Int): AppWidgetHostView? {
+    /**
+     * Inflate the hosted view for [widgetId], or null if the provider is gone.
+     *
+     * [widthDp] and [heightDp] are the tile footprint the Dart side is about to
+     * lay the view out into, passed as PlatformView creation params.
+     *
+     * --- WHY THE SIZE ARRIVES HERE AND NOT ONLY THROUGH updateSize ----------
+     *
+     * The first RemoteViews apply happens the moment this view attaches, and on
+     * Android 12+ that apply is when the view picks among a responsive widget's
+     * layout variants. The Dart side's first `updateWidgetSize` goes out in a
+     * post-frame callback, which races this inflate and lost often enough that
+     * Spotify came up in its cramped variant and stayed there. Sizing the view
+     * synchronously here, before it is ever laid out, means the FIRST apply
+     * already knows its canvas. The post-frame update that follows is then an
+     * idempotent repeat, not the first news.
+     *
+     * Zero or negative dimensions skip the sizing (a defensive caller that has
+     * no size yet still gets a view; the resize path will catch up).
+     */
+    fun createView(widgetId: Int, widthDp: Int, heightDp: Int): AppWidgetHostView? {
         val info = manager.getAppWidgetInfo(widgetId) ?: return null
         val view = runCatching { host.createView(appContext, widgetId, info) }
             .getOrNull() ?: return null
 
-        // ─── STRIP THE DEFAULT PADDING ──────────────────────────────────────
+        // --- STRIP THE DEFAULT PADDING --------------------------------------
         //
         // AppWidgetHostView applies the platform's default widget margin to any
         // provider targeting below API 15, and to plenty that target above it.
@@ -186,7 +205,14 @@ class WidgetHostController(context: Context) {
         // between a hosted widget that looks placed and one that looks pasted.
         view.setPadding(0, 0, 0, 0)
 
+        // Registered BEFORE the sizing call so updateSize can reach it. The
+        // previous order (register after sizing, or size only from the Dart
+        // side) is exactly the race described above.
         views[widgetId] = view
+
+        if (widthDp > 0 && heightDp > 0) {
+            updateSize(widgetId, widthDp, heightDp, widthDp, heightDp)
+        }
         return view
     }
 
@@ -195,7 +221,7 @@ class WidgetHostController(context: Context) {
         views.remove(widgetId)
     }
 
-    // ── resize + delete ──────────────────────────────────────────────────────
+    // -- resize + delete -----------------------------------------------------
 
     fun updateSize(widgetId: Int, minW: Int, minH: Int, maxW: Int, maxH: Int) {
         val opts = Bundle().apply {
@@ -220,12 +246,33 @@ class WidgetHostController(context: Context) {
         //
         // The manager call above notifies the provider. This one tells the view
         // that renders it, which on API 31+ is what selects among a responsive
-        // widget's RemoteViews variants. Without it the view keeps whichever
-        // variant it inflated at first layout, so resizing a Spotify or Weather
-        // widget changed its rectangle and not its contents.
+        // widget's RemoteViews variants.
+        //
+        // TWO THINGS THIS CALL MUST GET RIGHT, both learned the hard way:
+        //
+        //   * On 31+ it must be the List<SizeF> overload. The legacy 4-int
+        //     overload predates responsive layouts and does not feed the exact
+        //     sizes the view's variant selection reads, so the view kept
+        //     whichever variant it inflated first and a resize changed the
+        //     widget's rectangle but never its contents.
+        //
+        //   * A FRESH Bundle(), never Bundle.EMPTY. Both overloads WRITE the
+        //     computed size options INTO the bundle they are handed, and
+        //     Bundle.EMPTY is a process-global singleton. Passing it mutates
+        //     shared framework state, and the day something else reads
+        //     Bundle.EMPTY expecting emptiness is the day this becomes the
+        //     bug nobody can reproduce.
         views[widgetId]?.let { view ->
             runCatching {
-                view.updateAppWidgetSize(Bundle.EMPTY, minW, minH, maxW, maxH)
+                if (Build.VERSION.SDK_INT >= 31) {
+                    view.updateAppWidgetSize(
+                        Bundle(),
+                        listOf(SizeF(maxW.toFloat(), maxH.toFloat())),
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    view.updateAppWidgetSize(Bundle(), minW, minH, maxW, maxH)
+                }
             }
         }
     }

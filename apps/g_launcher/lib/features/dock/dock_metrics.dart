@@ -4,18 +4,40 @@
 library;
 
 /// Where the dock lives. Parses `LauncherPrefs.dockSide`.
+///
+/// ─── THIS IS THE SECOND DockSide IN THE APP, AND THAT IS A KNOWN DEBT ───────
+///
+/// `theme_spec.dart` declares one too. They are the same four values with the
+/// same meanings and two separate parsers, which is why `terminal_matches.dart`
+/// carries a comment about `show ThemePalette` being mandatory: importing both
+/// files unrestricted is an ambiguous-import error that reads as if neither
+/// declaration exists.
+///
+/// Adding `right` had to be done in both, in step, and that is the argument for
+/// collapsing them rather than a reason to keep going. Doing it is a rename
+/// across every shell and dock file, so it is its own pass. Until then: EDIT
+/// THESE TWO TOGETHER. A `right` here without a `right` there is a dock the
+/// settings screen can select and the shell cannot render.
 enum DockSide {
   left,
   bottom,
-  off;
+  off,
+  right;
 
   static DockSide parse(String? raw) => switch (raw) {
         'bottom' => DockSide.bottom,
         'off' => DockSide.off,
+        'right' => DockSide.right,
         _ => DockSide.left, // Ubuntu default
       };
 
-  bool get isVertical => this == DockSide.left;
+  /// Both edges that run down the screen.
+  ///
+  /// Was `this == DockSide.left`, which was correct while left was the only
+  /// vertical side and is the exact shape of every site `right` broke: the
+  /// question being asked is about the AXIS, and the answer happened to have
+  /// one member.
+  bool get isVertical => this == DockSide.left || this == DockSide.right;
 }
 
 /// Where the Activities grid button sits within the dock.
