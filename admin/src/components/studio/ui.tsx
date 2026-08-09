@@ -407,7 +407,15 @@ export function AppSlab({
     <section
       className="relative overflow-hidden rounded-[20px] shadow-[0_14px_34px_rgba(23,16,31,0.2)]"
       style={{
-        background: `radial-gradient(520px 220px at 3% -40%, color-mix(in srgb, ${tint} 52%, transparent), transparent 64%), radial-gradient(380px 200px at 99% 150%, rgba(141,101,255,0.4), transparent 62%), linear-gradient(140deg, #241a26, #171020 58%, #100b17)`,
+        // BOTH GLOWS COME FROM THE TINT NOW, and the base is neutral.
+        //
+        // The second radial was a fixed aubergine and the base leaned warm, so
+        // every app's header rendered as the launcher's with a different mark
+        // on it. On a screen whose one job is telling you which app you are
+        // publishing into, that is the wrong thing to be decorative about. The
+        // launcher keeps its own look because its tint is the same orange it
+        // always was; G Recovery finally reads as blue.
+        background: `radial-gradient(520px 220px at 3% -40%, color-mix(in srgb, ${tint} 52%, transparent), transparent 64%), radial-gradient(380px 200px at 99% 150%, color-mix(in srgb, ${tint} 34%, transparent), transparent 62%), linear-gradient(140deg, color-mix(in srgb, ${tint} 12%, #1b1720), #16121c 58%, #100c14)`,
       }}
     >
       <span

@@ -49,12 +49,23 @@ export const dynamic = 'force-dynamic';
  * delisting a page-load away from its own cleanup is how leftovers accumulate.
  */
 
-/** Shared with Distros and the Overview, so a type reads the same everywhere. */
+/**
+ * Shared with Distros and the Overview, so a type reads the same everywhere.
+ *
+ * ALL SEVEN, not the launcher's four. The three content types were added to
+ * `KNOWN_PACK_TYPES` for G Recovery and never got here, so a published trashmap
+ * drew the same grey dot as a pack of an unknown type. On the one screen whose
+ * job is telling pack kinds apart, that made the only kind this app publishes
+ * the least legible thing on it.
+ */
 const TYPE_COLOUR: Record<string, string> = {
   theme: '#e95420',
   brand: '#4c8dff',
   hero: '#3fb950',
   icon: '#d29922',
+  registry: '#2f9e8f',
+  article: '#7c73d6',
+  guide: '#c2739b',
 };
 
 export default async function PacksPage({
@@ -151,8 +162,19 @@ export default async function PacksPage({
         </div>
       </AppSlab>
 
+      {/* CHIPS FOR WHAT IS HERE, plus whichever one is selected.
+
+          Every app got all seven, so G Recovery offered to filter by distro
+          and icon pack and the launcher offered to filter by article, and in
+          both cases four of the seven were guaranteed to be empty. Deriving
+          from the index means the strip describes this bucket rather than the
+          type union, and it needs no per-app list to keep in step. The active
+          type is kept even at zero, or clicking a chip would remove the chip
+          you clicked and leave nothing to go back to. */}
       <div className="flex flex-wrap gap-2">
-        {[null, ...KNOWN_PACK_TYPES].map((t) => {
+        {[null, ...KNOWN_PACK_TYPES.filter(
+          (t) => live.packs.some((p) => p.packType === t) || t === activeType,
+        )].map((t) => {
           const on = activeType === t;
           const n = t ? live.packs.filter((p) => p.packType === t).length : live.packs.length;
           return (

@@ -1,0 +1,137 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ─── STORAGE, IN THREE TIERS ────────────────────────────────────────
+         The floor is API 24 now, so this app runs across three storage models
+         that are genuinely different rather than one being a weaker copy of
+         another. What is declared here has to cover all three.
+
+           24 to 28   READ and WRITE_EXTERNAL_STORAGE give the whole volume,
+                      including Android/data. More reach than a modern device.
+           29         scoped storage, and neither legacy access nor all files
+                      access exists. MediaStore and a document tree grant only.
+           30 and up  MANAGE_EXTERNAL_STORAGE and the OS trash bin.
+
+         `device_probe.storageAccess()` reports which tier the device is on and
+         what was actually granted. Nothing in the UI infers a tier from a
+         version number; a permission that exists is not a permission that was
+         given. -->
+
+    <!-- MANAGE_EXTERNAL_STORAGE is not optional above API 29, and the reason is
+         narrower than it looks. On Android 11 and above a MediaStore query with
+         MATCH_INCLUDE returns only the items THIS app trashed. Another app's
+         deleted photo is invisible without it. A freshly installed G Recovery
+         has trashed nothing, so without the grant the recovery ledger is empty
+         on every device, forever.
+
+         Unknown to API 24 through 29, where the system ignores it. Those
+         devices use the legacy pair below instead.
+
+         Declared to Play under the file manager use case, which also covers the
+         duplicate finder and the storage breakdown. It is requested at the point
+         of use, never at launch. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Media reads. Implied by the grant above, declared so that a future build
+         which drops All Files Access for a narrower flow still functions. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.BILLING" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- THE LEGACY WRITE, capped at 28 and capped deliberately.
+
+         Below 29 this is what lets a restore copy a file back into shared
+         storage and what makes Android/data readable at all. From 29 the
+         platform stops honouring it for anything that matters, so leaving it
+         uncapped would ask every modern device for a permission that buys it
+         nothing, which is how a storage prompt starts looking like a land grab
+         in a review. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- ─── HARDWARE THIS APP DOES NOT NEED ────────────────────────────────
+         Play excludes a device when a required feature is missing, and features
+         are IMPLIED unless declared otherwise. That is how an app that reads
+         files quietly stops supporting televisions and cars.
+
+         None of these were the cause of the last exclusion, which was entirely
+         the API floor. They are here so the next one cannot be: a permission
+         added later for an unrelated reason will not silently take a form
+         factor with it. Every line is required="false" and none of them is a
+         claim that the app uses the feature. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+
+    <application
+        android:label="G Recovery"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <!-- Required to query activities that can process text, see:
+             https://developer.android.com/training/package-visibility -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+
+        <!-- The All Files Access settings screen. Without this the resolve
+             check comes back empty on Android 11+ and the app would report the
+             grant as unavailable on a device where it works fine.
+
+             A targeted <intent> rather than QUERY_ALL_PACKAGES: the broad
+             permission needs its own Play declaration and this needs none.
+
+             The action itself does not exist below API 30, so the resolve check
+             correctly comes back empty there. `storageAccess()` reports that as
+             the tier rather than as a failure. -->
+        <intent>
+            <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION"/>
+        </intent>
+    </queries>
+</manifest>

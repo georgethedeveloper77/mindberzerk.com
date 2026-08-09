@@ -51,8 +51,21 @@ import { ProductIds } from '@/components/studio/product-ids';
  */
 export const dynamic = 'force-dynamic';
 
+/**
+ * The filters that always exist, and the kind filters that do not.
+ *
+ * KINDS ARE DERIVED FROM THE ROWS. The chip strip was `distro, icons, bundle`
+ * for every app, which are the launcher's three SKU prefixes, so G Recovery
+ * offered three filters guaranteed to return nothing and the strip described
+ * the naming scheme rather than the store. A chip that can only ever say zero
+ * is furniture.
+ *
+ * `FilterName` stays the full union so the URL parameter is still a closed set;
+ * what changed is which of them get drawn.
+ */
 const FILTERS = ['all', 'broken', 'warned', 'distro', 'icons', 'bundle'] as const;
 type FilterName = (typeof FILTERS)[number];
+const KIND_FILTERS = ['distro', 'icons', 'bundle'] as const;
 
 const isFilter = (v: string | undefined): v is FilterName =>
   !!v && (FILTERS as readonly string[]).includes(v);
@@ -186,7 +199,14 @@ export default async function CommercePage({
       </AppSlab>
 
       <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => {
+        {[
+          'all' as const,
+          'broken' as const,
+          'warned' as const,
+          // Kept when selected even at zero, or clicking a chip would remove the
+          // chip you clicked and leave nothing to go back through.
+          ...KIND_FILTERS.filter((k) => sorted.some((r) => r.kind === k) || active === k),
+        ].map((f) => {
           const n = sorted.filter((r) => matches(r, f)).length;
           const on = active === f;
           return (

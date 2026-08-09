@@ -1,0 +1,117 @@
+{
+  "id": "trashmap",
+  "version": 2,
+  "generatedAt": "2026-08-09T00:00:00Z",
+  "_note": "CANDIDATE paths, not facts. The scanner probes each one and reports only what exists and holds files, so a wrong guess costs a stat() call and nothing else. Entries carry a role: trash means deleted and recoverable, status means a file with a short natural life that was never deleted, cache means preview quality only. This is the APK seed; Phase 7B replaces it with a signed CDN pack.",
+  "restoreFolder": "Pictures/G Recovery",
+  "apps": [
+    {
+      "pkg": "com.google.android.apps.nbu.files",
+      "label": "Files by Google",
+      "fidelity": "full",
+      "paths": [
+        "Android/data/com.google.android.apps.nbu.files/files/.trash"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "com.miui.gallery",
+      "label": "MIUI Gallery",
+      "fidelity": "full",
+      "retentionDays": 30,
+      "paths": [
+        "MIUI/Gallery/cloud/.trashBin",
+        "MIUI/Gallery/cloud/.trashBin/imageCache"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "com.sec.android.gallery3d",
+      "label": "Samsung Gallery",
+      "fidelity": "full",
+      "retentionDays": 30,
+      "paths": [
+        "Android/data/com.sec.android.gallery3d/files/.trash"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "com.coloros.gallery3d",
+      "label": "Oppo and Realme Gallery",
+      "fidelity": "full",
+      "paths": [
+        "Android/data/com.coloros.gallery3d/files/.recycle"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "com.transsion.filemanagerx",
+      "label": "Tecno and Infinix Files",
+      "fidelity": "full",
+      "_note": "Unverified. No Transsion device on hand, so these come from web sources. The probe is harmless if wrong, and the panel can correct it without a release.",
+      "paths": [
+        "Android/data/com.transsion.filemanagerx/files/.recycle",
+        ".RecycleBin"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "com.whatsapp",
+      "label": "WhatsApp Status",
+      "fidelity": "full",
+      "_note": "A status disappears after 24 hours, but the file is downloaded to disk to be played. It was never deleted, so it is SAVED rather than restored, and it has to be labelled as a status or it reads as a recovered photo the user does not recognise.",
+      "paths": [
+        "Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+        "WhatsApp/Media/.Statuses",
+        "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses"
+      ],
+      "role": "status"
+    },
+    {
+      "pkg": "org.telegram.messenger",
+      "label": "Telegram",
+      "fidelity": "full",
+      "paths": [
+        "Android/media/org.telegram.messenger/Telegram/Telegram Images",
+        "Android/media/org.telegram.messenger/Telegram/Telegram Video"
+      ],
+      "role": "trash"
+    },
+    {
+      "pkg": "org.telegram.messenger",
+      "label": "Telegram Stories",
+      "role": "status",
+      "fidelity": "full",
+      "_note": "Unverified path shape. Harmless if wrong: the probe just finds nothing.",
+      "paths": [
+        "Android/media/org.telegram.messenger/Telegram/Telegram Stories"
+      ]
+    }
+  ],
+  "oem": [
+    {
+      "brand": "any",
+      "label": "Shared storage trash",
+      "fidelity": "full",
+      "retentionDays": 30,
+      "paths": [
+        ".Trash",
+        ".trash",
+        ".trashed",
+        ".RecycleBin",
+        "RecycleBin"
+      ],
+      "role": "trash"
+    }
+  ],
+  "thumbnails": {
+    "fidelity": "preview",
+    "_note": "The original is gone. What survives is the small preview Android kept, at most a few hundred pixels on the long edge. Good enough to remember a moment, not to print, and the UI says so on every item.",
+    "paths": [
+      "DCIM/.thumbnails",
+      "Pictures/.thumbnails",
+      "Movies/.thumbnails"
+    ],
+    "role": "cache"
+  }
+}

@@ -123,6 +123,34 @@ async function run<T>(
 
 // ── the three questions the console cannot answer ────────────────────────────
 
+/**
+ * Is the export reachable, and how many daily tables has it produced.
+ *
+ * EXISTS FOR APPS WITH NO CUSTOM EVENTS. Every other function here asks a
+ * launcher question, so an app that logs nothing yet had no way to report
+ * whether the pipeline behind those questions works. Running a launcher query
+ * to find out would have answered "no rows" for two different reasons: the
+ * export is off, or the export is fine and the event does not exist. Those need
+ * different actions, so they need different questions.
+ *
+ * `COUNT(DISTINCT _TABLE_SUFFIX)` reads table metadata rather than columns, so
+ * this is effectively free and stays well inside the byte ceiling.
+ */
+export function exportState(app: string): Promise<Analytics<{ days: number }>> {
+  return run(
+    app,
+    (d) => `
+      SELECT COUNT(DISTINCT _TABLE_SUFFIX) AS days
+      FROM ${d}.events_*
+      WHERE _TABLE_SUFFIX BETWEEN
+              FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY))
+            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+    `,
+    {},
+    (rows) => ({ days: Number(rows[0]?.days ?? 0) }),
+  );
+}
+
 export interface FunnelStep {
   step: string;
   users: number;

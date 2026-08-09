@@ -1,40 +1,33 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
-import { appName, appMeta, isAppId } from '@/lib/core/registry';
-import { Shell } from '@/app/components/shell';
-import { Breadcrumb } from '@/components/console/breadcrumb';
-import { Banner, Button, Chip, Metric, PageHead, Panel } from '@/app/components/ui';
+import { GuidanceEditor } from '@/components/g-recovery/GuidanceEditor';
+import { StudioShell } from '@/components/studio/shell';
+import { AppSlab, SlabButton } from '@/components/studio/ui';
+import { appMeta, appName, isAppId } from '@/lib/core/registry';
+import { readPublishedContent } from '@/lib/g-recovery/content-read';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * PHASE C13 - G Recovery guides, PLACEHOLDER ONLY.
+ * BRAND GUIDANCE. Formerly a design-only placeholder, now the third publisher.
  *
- * Pure design, no functionality. Nothing here reads a bucket or writes
- * anything. It exists so opening G Recovery shows the SHAPE of what it will be,
- * per-brand OEM recovery guidance delivered to a budget-phone install base,
- * rather than a blank app section.
+ * ─── WHAT THE PLACEHOLDER GOT RIGHT AND WHAT IT GOT WRONG ───────────────────
  *
- * ─── THE ILLUSTRATIVE TABLE IS GONE, AND THAT IS THE CHANGE ─────────────────
+ * Right: refusing to print an install share it had not measured. That rule
+ * survives, and the brand list is no longer a hardcoded target set at all,
+ * because the document is the list now.
  *
- * It used to render five manufacturers with install shares (26%, 21%, 19%) in
- * a table that looked exactly like the real tables on every other screen. Those
- * numbers were invented. Nobody has measured the install base, because the app
- * has not shipped, and a plausible percentage in a data table is precisely the
- * thing this panel refuses everywhere else: `analytics.ts` returns
- * `connected: false` rather than a zero, the landing shows a dash rather than
- * inventing a count, and the analytics page shows four dashes rather than a
- * confident 0%.
+ * Wrong: the delivery mechanism. It said Remote Config keyed by manufacturer.
+ * Remote Config would have been a second content pipeline with its own auth,
+ * its own versioning, no signature and no offline copy, sitting beside one that
+ * already signs, versions and caches. This publishes as `oem-guide` through the
+ * same route as everything else.
  *
- * A placeholder screen is the easiest place to break that rule and the worst
- * place to break it, because the number is never checked again. So the brands
- * are listed as WHAT THEY ARE, a target set with no share attached, and every
- * figure that would be a measurement is a dash.
+ * ─── G RECOVERY ONLY ────────────────────────────────────────────────────────
  *
- * When the app is real, this becomes a reader over whatever store holds the
- * guidance, likely Remote Config keyed by manufacturer, and the shares come
- * from the analytics export like every other measured number.
+ * Same reasoning as Coverage. A guidance editor rendered for the launcher would
+ * invite a publish into a prefix nothing reads.
  */
 export default async function GuidesPage({
   params,
@@ -46,79 +39,42 @@ export default async function GuidesPage({
 
   const { app } = await params;
   if (!isAppId(app)) notFound();
+  if (app !== 'g-recovery') notFound();
 
+  const published = await readPublishedContent('oem-guide');
   const meta = appMeta(app);
 
-  // The OEMs the product is aimed at. A TARGET SET, not a measurement: no
-  // shares, no counts, nothing that reads as data until something measures it.
-  const brands = [
-    'Infinix',
-    'Tecno',
-    'Xiaomi and Redmi',
-    'Samsung',
-    'Oppo and realme',
-    'itel',
-  ];
-
   return (
-    <Shell app={app} subtitle={`${app} / guides`}>
-      <Breadcrumb
-        items={[{ label: appName(app), href: `/apps/${app}/packs` }, { label: 'Guides' }]}
+    <StudioShell app={app}>
+      <AppSlab
+        tint={meta?.tint ?? '#4c8dff'}
+        mark={meta?.mark ?? 'R'}
+        crumb={appName(app)}
+        title="Brand guidance"
+        meta={
+          published.version > 0
+            ? `guides/oem-guide, live at v${published.version}`
+            : 'not published'
+        }
+        actions={<SlabButton href={`/apps/${app}/coverage`}>Coverage</SlabButton>}
       />
 
-      <Banner tone="warn">
-        Design only. Nothing on this screen is wired to anything, and no figure
-        here has been measured. It is here to show the shape of the section
-        before the app exists.
-      </Banner>
+      <div className="mb-1">
+        <p className="max-w-[70ch] text-[13px] leading-relaxed text-site-ink-3">
+          What to tell someone based on who made their phone. Recovery behaviour
+          diverges by OEM skin far more than by Android version: whether the
+          gallery keeps a bin, how long it holds it, and whether a cloud sync has
+          already removed the copy they are looking for. Published as a signed
+          pack alongside the trashmap, and every device that matches no brand
+          reads the fallback.
+        </p>
+      </div>
 
-      <PageHead
-        title={`${appName(app)} guides`}
-        meta={meta?.pkg ?? undefined}
-        actions={<Chip tone="warn">not built</Chip>}
+      <GuidanceEditor
+        initial={published.document}
+        liveVersion={published.version}
+        unreachable={published.unreachable}
       />
-
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <Metric label="Guides published" value="-" sub="nothing yet" tone="warn" />
-        <Metric label="Brands covered" value="-" sub={`${brands.length} targeted`} tone="warn" />
-        <Metric label="Delivery" value="remote config" sub="keyed by manufacturer" />
-        <Metric label="State" value="planned" sub="after the launcher" tone="warn" />
-      </div>
-
-      <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-3 lg:grid-cols-[1.4fr_1fr]">
-        <Panel title="Target manufacturers">
-          <div className="flex flex-wrap gap-1.5">
-            {brands.map((b) => (
-              <span
-                key={b}
-                className="rounded-md border border-line px-2 py-1 text-micro text-ink-2"
-              >
-                {b}
-              </span>
-            ))}
-          </div>
-          <p className="mt-3 text-micro leading-relaxed text-ink-3">
-            Recovery behaviour differs per OEM skin more than per Android
-            version, which is why the guidance is keyed by manufacturer rather
-            than written once. No install share is shown because none has been
-            measured: the app has not shipped, so any percentage here would be a
-            number this panel made up.
-          </p>
-        </Panel>
-
-        <Panel title="What this section becomes">
-          <p className="text-micro leading-relaxed text-ink-3">
-            Honestly-scoped recovery, storage auditing, and per-brand guidance
-            delivered by remote config. The editor will look like the legal and
-            registry screens: a list on the left, one document in the panel, one
-            publish.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button href={`/apps/${app}`}>Overview</Button>
-            <Button href={`/apps/${app}/config`}>Config</Button>
-          </div>
-        </Panel>
-      </div>
-    </Shell>
+    </StudioShell>
   );
 }

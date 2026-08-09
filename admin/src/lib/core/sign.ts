@@ -40,7 +40,12 @@ export const SIGNATURE_NAME = 'manifest.sig';
 export const INDEX_NAME = 'index.json';
 export const INDEX_SIGNATURE_NAME = 'index.sig';
 
-export const KNOWN_PACK_TYPES = ['theme', 'brand', 'hero', 'icon'] as const;
+export const KNOWN_PACK_TYPES = [
+  'theme', 'brand', 'hero', 'icon',
+  // G Recovery content. Same signing path, same key, different payload:
+  // registries and articles rather than themes and icons.
+  'registry', 'article', 'guide',
+] as const;
 export type PackType = (typeof KNOWN_PACK_TYPES)[number];
 
 /** Fixed-length DER prefix for a PKCS8 ed25519 private key. */

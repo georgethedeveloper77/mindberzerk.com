@@ -1,0 +1,19 @@
+# The analyzer config for g_recovery. Run with `flutter analyze`.
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # OFF, deliberately, and not a style preference.
+    #
+    # The i18n sweep replaces every user-facing string literal with a method
+    # call, and a const constructor cannot receive one. Leaving these on means
+    # the analyzer asks for const on precisely the call sites that must not
+    # have it, the fix gets applied by reflex, and the breakage only surfaces
+    # much later when the literals are swapped out.
+    #
+    # Constructor DECLARATIONS stay const throughout, so nothing is lost: a
+    # const call site is still available wherever the arguments are literals
+    # that will never be translated.
+    prefer_const_constructors: false
+    prefer_const_constructors_in_immutables: false
+    prefer_const_literals_to_create_immutables: false

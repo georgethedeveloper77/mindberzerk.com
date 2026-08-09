@@ -53,11 +53,24 @@ export function PublishForm({
   app,
   packs,
   catalogueUnknown = false,
+  types = ['theme', 'brand', 'hero', 'icon'],
+  defaultMinAppVersion = '6',
 }: {
   app: string;
   packs: PublishedPack[];
   /** The catalogue could not be read, so the version guard cannot be trusted. */
   catalogueUnknown?: boolean;
+  /**
+   * The pack types this app can publish, from `packTypesFor` on the server.
+   *
+   * PASSED IN RATHER THAN HARDCODED. The select listed the launcher's four for
+   * every app, so G Recovery could not publish a registry through the one
+   * screen that exists for publishing things no builder covers. The defaults
+   * here reproduce the old behaviour for any caller that has not been updated.
+   */
+  types?: string[];
+  /** Where the min app version field starts. Zero means every install. */
+  defaultMinAppVersion?: string;
 }) {
   const router = useRouter();
   const dirRef = useRef<HTMLInputElement>(null);
@@ -67,9 +80,9 @@ export function PublishForm({
   const [mode, setMode] = useState<'zip' | 'dir'>('zip');
 
   const [packId, setPackId] = useState('');
-  const [packType, setPackType] = useState('theme');
+  const [packType, setPackType] = useState(types[0] ?? 'theme');
   const [version, setVersion] = useState('1');
-  const [minAppVersion, setMinAppVersion] = useState('6');
+  const [minAppVersion, setMinAppVersion] = useState(defaultMinAppVersion);
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [sku, setSku] = useState('');
@@ -273,10 +286,11 @@ export function PublishForm({
                   onChange={(e) => setPackType(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
                 >
-                  <option value="theme">theme</option>
-                  <option value="brand">brand</option>
-                  <option value="hero">hero</option>
-                  <option value="icon">icon</option>
+                  {types.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
               </div>
               {/* inputMode numeric so a phone shows the number pad rather than QWERTY */}

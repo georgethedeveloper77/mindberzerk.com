@@ -83,56 +83,185 @@ const STUDIO_NAV = [
   },
 ];
 
+/**
+ * ICONS FOR THE SUB NAV, one per screen.
+ *
+ * Every item below the app used to be text at one size, so a rail of eleven
+ * links had nothing findable by shape and you read all of them every time. Same
+ * 16 box and 1.6 stroke as the studio nav above, so the two halves are one
+ * navigation rather than a list bolted under a menu.
+ */
+const GLYPH: Record<string, React.ReactNode> = {
+  overview: (
+    <>
+      <rect x="2" y="2.5" width="12" height="11" rx="2" />
+      <path d="M2 6.5h12" />
+    </>
+  ),
+  coverage: (
+    <>
+      <path d="M2.5 4.5h4l1.2 1.6H13.5v6.4a1 1 0 01-1 1h-9a1 1 0 01-1-1z" />
+      <path d="M5.5 9.5h5" />
+    </>
+  ),
+  storage: (
+    <>
+      <ellipse cx="8" cy="4" rx="5.5" ry="2" />
+      <path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4" />
+      <path d="M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2" />
+    </>
+  ),
+  learn: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 11.5v.01M6.5 6.2A1.6 1.6 0 018 5.2c1 0 1.7.6 1.7 1.5 0 1.3-1.7 1.3-1.7 2.6" />
+    </>
+  ),
+  brand: (
+    <>
+      <path d="M8 2l5.2 2.4v4.2c0 2.6-2.1 4.4-5.2 5.4-3.1-1-5.2-2.8-5.2-5.4V4.4z" />
+    </>
+  ),
+  cdn: (
+    <>
+      <path d="M4.6 12.5a3 3 0 01-.3-6 4 4 0 017.7-1 2.8 2.8 0 01.3 5.5" />
+      <path d="M8 8v5.5M6 11.6L8 13.6l2-2" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M8 12.5V3.5M5.4 6.1L8 3.5l2.6 2.6" />
+      <path d="M2.8 12.8v.7h10.4v-.7" />
+    </>
+  ),
+  commerce: (
+    <>
+      <path d="M2.5 3.5h1.8l1.5 7h6.2l1.5-5H5" />
+      <circle cx="6.6" cy="13" r="1" />
+      <circle cx="11.6" cy="13" r="1" />
+    </>
+  ),
+  bundles: (
+    <>
+      <rect x="2.5" y="5.5" width="11" height="8" rx="1.5" />
+      <path d="M2.5 8.5h11M8 5.5v8" />
+    </>
+  ),
+  config: (
+    <>
+      <path d="M3 5h10M3 8h10M3 11h10" />
+      <circle cx="6" cy="5" r="1.4" />
+      <circle cx="10.5" cy="11" r="1.4" />
+    </>
+  ),
+  analytics: (
+    <>
+      <path d="M2.5 13.5h11" />
+      <path d="M4.5 11V7M7.5 11V3.5M10.5 11V8.5" />
+    </>
+  ),
+  legal: (
+    <>
+      <path d="M4 2.5h5l3 3v8a1 1 0 01-1 1H4a1 1 0 01-1-1v-10a1 1 0 011-1z" />
+      <path d="M6 8.5h4M6 11h4" />
+    </>
+  ),
+  architecture: (
+    <>
+      <rect x="5.5" y="2" width="5" height="3.5" rx="1" />
+      <rect x="1.5" y="10.5" width="4.5" height="3.5" rx="1" />
+      <rect x="10" y="10.5" width="4.5" height="3.5" rx="1" />
+      <path d="M8 5.5v2.8M3.8 10.5V8.3h8.4v2.2" />
+    </>
+  ),
+  registry: (
+    <>
+      <rect x="2" y="2.5" width="12" height="11" rx="2" />
+      <path d="M2 6h12M6 6v7.5" />
+    </>
+  ),
+  distros: (
+    <>
+      <rect x="2.5" y="2.5" width="11" height="8" rx="1.5" />
+      <path d="M5.5 13.5h5" />
+    </>
+  ),
+  icons: (
+    <>
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1.2" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1.2" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1.2" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1.2" />
+    </>
+  ),
+};
+
 interface Section {
   label: string;
   /** Absent means the screen does not exist yet. Rendered, not linked. */
   href?: string;
+  /** Key into [GLYPH]. */
+  icon: string;
 }
 
 /**
- * The launcher's sections, grouped.
+ * TWO GROUPS, and the reason is arithmetic before it is taste.
  *
- * Ten flat links is a list you scan rather than a nav you use. Each heading
- * answers a different question: Content is what is in the bucket and how to put
- * something there, Delivery is the substrate everything else sits on, Store is
- * what it costs and whether anyone can buy it, App is everything that
- * configures the app rather than its content.
+ * It was four: Content, Delivery, Store, App. For G Recovery that produced
+ * fifteen lines in the rail for eleven destinations, and the footer with Sign
+ * out fell off the bottom of a laptop screen. Store held one item and Delivery
+ * held two, which is more heading than list.
+ *
+ * The split that survives is the one a person actually navigates by: CONTENT is
+ * what you write and publish, MANAGE is everything else about the app. Overview
+ * stays ungrouped above both, because it is where you land.
  */
 function sectionsFor(app: string): { label: string; items: Section[] }[] {
   return [
-    { label: '', items: [{ label: 'Overview', href: `/apps/${app}` }] },
+    { label: '', items: [{ label: 'Overview', href: `/apps/${app}`, icon: 'overview' }] },
     {
       label: 'Content',
       items: [
         ...(app === 'g-launcher'
           ? [
-              { label: 'Distros', href: `/apps/${app}/distros` },
-              { label: 'Icons', href: `/apps/${app}/icons` },
+              { label: 'Distros', href: `/apps/${app}/distros`, icon: 'distros' },
+              { label: 'Icons', href: `/apps/${app}/icons`, icon: 'icons' },
             ]
           : []),
-        ...(app === 'g-recovery' ? [{ label: 'Guides', href: `/apps/${app}/guides` }] : []),
-        { label: 'Upload pack', href: `/apps/${app}/publish` },
+        // COVERAGE FIRST. It is the screen this app's whole pipeline exists for.
+        // Storage second, because it is what a person reads first. Learn is the
+        // short answer behind an info icon rather than a manual, so it sits
+        // under both.
+        ...(app === 'g-recovery'
+          ? [
+              { label: 'Coverage', href: `/apps/${app}/coverage`, icon: 'coverage' },
+              { label: 'Storage', href: `/apps/${app}/storage`, icon: 'storage' },
+              { label: 'Learn', href: `/apps/${app}/learn`, icon: 'learn' },
+              { label: 'Brand guidance', href: `/apps/${app}/guides`, icon: 'brand' },
+            ]
+          : []),
       ],
     },
-    { label: 'Delivery', items: [{ label: 'CDN objects', href: `/apps/${app}/packs` }] },
     {
-      label: 'Store',
+      label: 'Manage',
       items: [
-        { label: 'Commerce', href: `/apps/${app}/commerce` },
-        { label: 'Bundles', href: `/apps/${app}/bundles` },
-      ],
-    },
-    {
-      label: 'App',
-      items: [
-        { label: 'Config', href: `/apps/${app}/config` },
-        { label: 'Analytics', href: `/apps/${app}/analytics` },
-        ...(app === 'g-launcher' ? [{ label: 'Registry', href: `/apps/${app}/registry` }] : []),
-        { label: 'Legal', href: `/apps/${app}/legal` },
-        // Built now. It renders admin/docs/<app>/architecture.md, and an app
-        // with no doc gets an explanation rather than a 404, so this is a real
-        // link for every app rather than only for the ones with diagrams.
-        { label: 'Architecture', href: `/apps/${app}/architecture` },
+        { label: 'CDN objects', href: `/apps/${app}/packs`, icon: 'cdn' },
+        // An escape hatch that publishes any pack type by hand, so it belongs
+        // beside the objects rather than beside the editors.
+        { label: 'Upload pack', href: `/apps/${app}/publish`, icon: 'upload' },
+        { label: 'Commerce', href: `/apps/${app}/commerce`, icon: 'commerce' },
+        // BUNDLES IS LAUNCHER ONLY. A bundle grants a named list of paid packs.
+        // G Recovery sells one unlock and no packs.
+        ...(app === 'g-launcher'
+          ? [{ label: 'Bundles', href: `/apps/${app}/bundles`, icon: 'bundles' }]
+          : []),
+        { label: 'Config', href: `/apps/${app}/config`, icon: 'config' },
+        { label: 'Analytics', href: `/apps/${app}/analytics`, icon: 'analytics' },
+        ...(app === 'g-launcher'
+          ? [{ label: 'Registry', href: `/apps/${app}/registry`, icon: 'registry' }]
+          : []),
+        { label: 'Legal', href: `/apps/${app}/legal`, icon: 'legal' },
+        { label: 'Architecture', href: `/apps/${app}/architecture`, icon: 'architecture' },
       ],
     },
   ];
@@ -170,8 +299,15 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
       data-surface="soft"
       className="flex min-h-[100dvh] bg-site-page font-site-sans text-site-ink-2"
     >
-      <aside className="sticky top-0 hidden h-[100dvh] w-[236px] shrink-0 flex-col overflow-y-auto border-r border-site-line bg-site-card p-3 lg:flex">
-        <Link href="/dashboard" className="flex items-center gap-2.5 px-2 pb-4 pt-1.5">
+      {/* THE FOOTER IS PINNED AND THE MIDDLE SCROLLS.
+
+          It used to be one scrolling column with `mt-auto` on the footer, which
+          works right up until the list is taller than the viewport. For G
+          Recovery it was: fifteen lines pushed Sign out below the fold, and the
+          notification badge landed on top of what was left of it. A nav you
+          have to scroll to sign out of is a nav with a bug in it. */}
+      <aside className="sticky top-0 hidden h-[100dvh] w-[236px] shrink-0 flex-col border-r border-site-line bg-site-card lg:flex">
+        <Link href="/dashboard" className="flex items-center gap-2.5 px-5 pb-4 pt-4">
           <span
             aria-hidden
             className="relative size-7 shrink-0 rounded-[9px]"
@@ -189,6 +325,7 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
           </span>
         </Link>
 
+        <div className="min-h-0 flex-1 overflow-y-auto px-3">
         {STUDIO_NAV.map((n) => (
           <Link key={n.href} href={n.href} className={item(pathname === n.href)}>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
@@ -217,45 +354,79 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
               </Link>
 
               {current && (
-                <div
-                  className="mb-1.5 ml-2.5 border-l-2 pl-2.5"
-                  style={{ borderColor: a.tint }}
-                >
+                <div className="mb-1.5 ml-3 pl-1">
                   {sectionsFor(a.id).map((group, gi) => (
                     <div key={group.label || `g${gi}`}>
                       {group.label && (
-                        <div className="px-2.5 pb-1 pt-2 text-[9.5px] font-bold uppercase tracking-[0.09em] text-site-ink-3">
+                        <div className="px-2.5 pb-1 pt-2.5 text-[9.5px] font-bold uppercase tracking-[0.09em] text-site-ink-3">
                           {group.label}
                         </div>
                       )}
-                      {group.items.map((s) =>
-                        s.href ? (
+                      {group.items.map((s) => {
+                        const on = !!s.href && active(s.href);
+                        const body = (
+                          <>
+                            {/* THE ACTIVE MARK IS A BAR, NOT A FILL.
+
+                                A filled block read as a separate widget sitting
+                                inside the group rather than as one item in it,
+                                and it was heavier than the app row above it,
+                                which is its parent. A 2px bar in the app tint
+                                says "you are here" without outweighing the
+                                thing it belongs to. */}
+                            <span
+                              aria-hidden
+                              className="absolute inset-y-[3px] left-0 w-[2px] rounded-full"
+                              style={{ background: on ? a.tint : 'transparent' }}
+                            />
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="shrink-0"
+                              aria-hidden
+                            >
+                              {GLYPH[s.icon] ?? GLYPH.overview}
+                            </svg>
+                            <span className="truncate">{s.label}</span>
+                          </>
+                        );
+
+                        const shell =
+                          'relative flex items-center gap-2.5 rounded-lg py-[6px] pl-3 pr-2.5 text-[13px] transition';
+
+                        return s.href ? (
                           <Link
                             key={s.label}
                             href={s.href}
-                            className="block rounded-lg px-2.5 py-1.5 text-[13px] text-site-ink-2 transition hover:bg-site-sunk"
+                            className={`${shell} ${
+                              on
+                                ? 'font-semibold text-site-ink'
+                                : 'text-site-ink-2 hover:bg-site-sunk hover:text-site-ink'
+                            }`}
                             style={
-                              active(s.href)
-                                ? {
-                                    background: `color-mix(in srgb, ${a.tint} 15%, transparent)`,
-                                    color: 'var(--color-site-ink)',
-                                    fontWeight: 600,
-                                  }
+                              on
+                                ? { background: `color-mix(in srgb, ${a.tint} 10%, transparent)` }
                                 : undefined
                             }
                           >
-                            {s.label}
+                            {body}
                           </Link>
                         ) : (
                           <span
                             key={s.label}
                             title="Not built yet"
-                            className="block cursor-default px-2.5 py-1.5 text-[13px] text-site-ink-3/60"
+                            className={`${shell} cursor-default text-site-ink-3/60`}
                           >
-                            {s.label}
+                            {body}
                           </span>
-                        ),
-                      )}
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
@@ -264,7 +435,9 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
           );
         })}
 
-        <div className="mt-auto border-t border-site-line pt-3">
+        </div>
+
+        <div className="border-t border-site-line p-3">
           <a href="/" target="_blank" rel="noreferrer" className={item(false)}>
             View the site
           </a>

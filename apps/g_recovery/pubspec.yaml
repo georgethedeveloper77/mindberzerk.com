@@ -1,0 +1,35 @@
+name: g_recovery
+description: "Recover deleted files, audit your storage, and back up to your own server."
+publish_to: 'none'
+version: 2.0.0+7
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  device_probe:
+    path: ../../packages/device_probe
+  flutter:
+    sdk: flutter
+
+  # State. Plain Riverpod, no codegen, matching G Launcher. Pin this to the
+  # SAME constraint the launcher uses: once both apps join the pub workspace
+  # they share one resolution, and a mismatch here is resolved silently in
+  # favour of whichever is stricter rather than reported.
+  flutter_riverpod: ^3.3.2
+
+  # Theme mode, accent, selected tab, and every future setting. JSON blobs
+  # under named keys, not Drift: nothing in this app is relational.
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  pigeon: ^27.1.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/packs/
+    - assets/content/

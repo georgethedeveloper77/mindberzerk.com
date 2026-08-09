@@ -1,0 +1,118 @@
+{
+  "id": "learn-en",
+  "version": 1,
+  "locale": "en",
+  "generatedAt": "2026-08-09T00:00:00Z",
+  "_note": "APK seed. Phase 7B replaces this with a signed CDN pack so corrections and translations ship without a release. Every claim here is checkable against Android documentation on purpose: this section is what makes a 'gone' verdict believable.",
+  "chapters": [
+    {
+      "id": "where-files-live",
+      "title": "Where Android actually puts your files",
+      "summary": "Four separate places, and only two of them any app can see.",
+      "minutes": 3,
+      "blocks": [
+        { "t": "p", "text": "Your phone does not have one storage area. It has four, and the differences decide what can be recovered and what cannot." },
+        { "t": "path", "name": "Shared storage", "text": "Photos, videos, music, downloads, documents. Everything you think of as your files. Apps can read this with permission, and it survives uninstalling an app." },
+        { "t": "path", "name": "App private storage", "text": "Each app gets a folder only it can open. Your chat database lives here. No other app can read it, including this one, and uninstalling the app deletes it permanently." },
+        { "t": "path", "name": "System partitions", "text": "Android itself and the code of every installed app. Read only, and not counted in any category a cleaner app shows you." },
+        { "t": "path", "name": "SD card", "text": "A second shared volume when the phone has a slot. Behaves like shared storage with its own trash." },
+        { "t": "note", "text": "When this app says it cannot find something, app private storage is usually why. The file may exist, but Android does not let any app outside the owner look." }
+      ]
+    },
+    {
+      "id": "standard-folders",
+      "title": "DCIM, Pictures, Movies, Download",
+      "summary": "What each standard folder is for, and which apps write where.",
+      "minutes": 3,
+      "blocks": [
+        { "t": "p", "text": "Shared storage has folders Android defines and every app is expected to respect. Knowing which is which tells you where to look." },
+        { "t": "path", "name": "DCIM", "text": "Digital Camera Images. Your camera writes here, in DCIM/Camera. Gallery apps treat it as the camera roll and back it up first." },
+        { "t": "path", "name": "Pictures", "text": "Images that are not camera photos. Screenshots usually land in Pictures/Screenshots, and most chat apps write received images here or under Android/media." },
+        { "t": "path", "name": "Movies", "text": "Video that is not from the camera. Camera video normally stays in DCIM." },
+        { "t": "path", "name": "Download", "text": "Anything a browser or download manager saved. The least organised folder on most phones and usually the biggest easy win." },
+        { "t": "path", "name": "Documents", "text": "PDFs and office files. Only used if the app that saved the file chose to use it, which many do not." },
+        { "t": "note", "text": "A folder whose name starts with a dot is hidden from gallery apps. That is how thumbnail caches and some trash folders stay out of sight." }
+      ]
+    },
+    {
+      "id": "android-data",
+      "title": "Why Android/data stopped being browsable",
+      "summary": "Android 11 closed it, and that is why some recovery apps stopped working.",
+      "minutes": 2,
+      "blocks": [
+        { "t": "p", "text": "Android/data and Android/obb hold per-app files that live on shared storage. Until Android 10 any app with storage permission could read all of it." },
+        { "t": "p", "text": "Android 11 closed that. File managers can no longer open another app's folder there, and neither can this app, even with All Files Access granted." },
+        { "t": "h", "text": "What it changed" },
+        { "t": "list", "items": [
+          "Recovery apps that read chat media straight out of another app's folder stopped working",
+          "Backup tools that copied game saves stopped working",
+          "Some apps moved their files to Android/media instead, which is still readable"
+        ]},
+        { "t": "note", "text": "Android/media is the exception and it is deliberate. Apps that want their media to stay visible to galleries and file managers put it there. That is why chat images are often still findable." }
+      ]
+    },
+    {
+      "id": "the-trash",
+      "title": "The trash folder, and how long it keeps things",
+      "summary": "The single most useful thing to understand about deleting on Android.",
+      "minutes": 3,
+      "blocks": [
+        { "t": "p", "text": "Since Android 11 deleting a photo usually does not delete it. The system marks it as trashed and hides it, and the file stays on disk until it expires." },
+        { "t": "p", "text": "Android's own retention is 30 days. Some manufacturers change it, and some gallery apps run a second trash of their own on top." },
+        { "t": "h", "text": "What this means for recovery" },
+        { "t": "list", "items": [
+          "Inside the window, recovery is complete and perfect. The original file returns to its original folder",
+          "Outside the window, the file is genuinely gone and no app can bring it back",
+          "Emptying the trash yourself skips the window entirely"
+        ]},
+        { "t": "warn", "text": "An app promising to recover photos deleted months ago, without root, is describing something Android does not allow. What it will actually return is thumbnails." }
+      ]
+    },
+    {
+      "id": "thumbnails",
+      "title": "Why a recovered photo is sometimes tiny",
+      "summary": "The difference between the original and the preview Android kept.",
+      "minutes": 2,
+      "blocks": [
+        { "t": "p", "text": "Android generates a small preview of every photo so galleries can scroll smoothly. Those previews live in hidden cache folders and outlive the originals, because nothing cleans them up when a photo is deleted." },
+        { "t": "p", "text": "That is why a scan can find something after the trash window has closed. What it found is the preview, at most a few hundred pixels on the long edge." },
+        { "t": "h", "text": "What a preview is good for" },
+        { "t": "list", "items": [
+          "Remembering what a photo was, and roughly when",
+          "Sharing at small sizes in a chat",
+          "Nothing that involves printing, cropping or zooming"
+        ]},
+        { "t": "note", "text": "Every item in this app is stamped either Full quality or Preview only, before you tap restore. You should never be surprised by what you get back." }
+      ]
+    },
+    {
+      "id": "scoped-storage",
+      "title": "Scoped storage, and what root changes",
+      "summary": "Why raw disk scanning stopped working, and the honest answer about root.",
+      "minutes": 3,
+      "blocks": [
+        { "t": "p", "text": "Older Android let an app read the raw storage device and hunt for file fragments left behind after deletion. That is the technique the whole recovery category was built on." },
+        { "t": "p", "text": "Scoped storage ended it. Apps now reach files through the media database and through folders they are granted, never through the raw block device. There is no permission that restores the old access." },
+        { "t": "h", "text": "Root" },
+        { "t": "p", "text": "A rooted phone can still read the raw device, so deep scanning becomes possible again. It is also slow, imperfect, and modern phones encrypt storage, which means recovered fragments are often unreadable even when they are found." },
+        { "t": "warn", "text": "Rooting to recover a photo is almost never worth it. It voids warranties, breaks banking apps, and on an encrypted phone frequently returns nothing." }
+      ]
+    },
+    {
+      "id": "factory-reset",
+      "title": "What a factory reset really does",
+      "summary": "Short answer: it throws away the key, not the data.",
+      "minutes": 2,
+      "blocks": [
+        { "t": "p", "text": "Modern Android phones encrypt storage by default. A factory reset does not overwrite your files. It discards the encryption key." },
+        { "t": "p", "text": "Without the key the remaining bytes are noise. This is why a reset takes seconds instead of hours, and why nothing can be recovered afterwards, with root or without it." },
+        { "t": "h", "text": "The practical consequences" },
+        { "t": "list", "items": [
+          "Selling a phone after a factory reset is genuinely safe on any device from the last several years",
+          "Recovering data after a reset is not possible, and any app claiming otherwise is selling something",
+          "Back up before you reset, because there is no second chance"
+        ]}
+      ]
+    }
+  ]
+}

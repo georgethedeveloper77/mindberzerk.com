@@ -670,10 +670,480 @@ function bucketGraph(app: string): Graph {
   return { nodes, edges };
 }
 
+// ── G Recovery ──────────────────────────────────────────────────────────────
+
+/**
+ * THE RECOVERY GRAPHS.
+ *
+ * Same pipeline, different payload. Where the launcher ships a desktop, this
+ * ships three documents, and the one that matters is a map of where other
+ * people's phones hide deleted files.
+ *
+ * THE PACK IDS ARE LITERALS HERE and their source of truth is `CONTENT_PACKS`
+ * in `lib/g-recovery/content-packs.ts`. They are not imported, because `core`
+ * must never import from an app folder: the arrow points down only, and one
+ * exception is how that rule stops being a rule. Three strings duplicated
+ * across a boundary is the cheaper mistake.
+ */
+/**
+ * The documents this app publishes, by id.
+ *
+ * LITERALS, and their source of truth is `CONTENT_PACKS` in
+ * `lib/g-recovery/content-packs.ts`. Not imported, because `core` must never
+ * import from an app folder: the arrow points down only, and one exception is
+ * how that stops being a rule. Four strings duplicated across a boundary is the
+ * cheaper mistake, and a missing one shows up here as a document that never
+ * reports its version.
+ */
+const CONTENT_IDS = ['trashmap', 'storage-map', 'learn-en', 'oem-guide'];
+
+function recoveryDelivery(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'rec.editor',
+      icon: 'edit',
+      title: 'Coverage editor',
+      sub: `/apps/${app}/coverage`,
+      x: 46,
+      y: 78,
+      lane: 'panel',
+      what: 'Where a trash path is added for a phone nobody here owns. Structured rows rather than a JSON box, because role and fidelity decide behaviour on the device and a typo in either is a support thread.',
+      io: [
+        ['reads', 'the live trashmap'],
+        ['writes', 'nothing until publish'],
+      ],
+      invariant:
+        'The editor starts from the LIVE document. Starting from an empty one and saving would replace the registry rather than update it, which is why an unreachable bucket disables the button.',
+      files: [
+        'admin/src/components/g-recovery/CoverageEditor.tsx',
+        'admin/src/app/apps/[app]/coverage/page.tsx',
+        'admin/src/lib/g-recovery/content-read.ts',
+      ],
+      goto: { label: 'Open Coverage', href: `/apps/${app}/coverage` },
+    },
+    {
+      key: 'rec.publish',
+      icon: 'key',
+      title: 'Validate and sign',
+      sub: 'one publish path, ed25519',
+      x: 46,
+      y: 190,
+      lane: 'panel',
+      what: 'Shape is checked before anything is signed: closed sets for role, fidelity and confidence, and a refusal for any path that is absolute or contains a parent segment.',
+      io: [
+        ['reads', 'PACK_SIGNING_KEY'],
+        ['writes', 'manifest.json and manifest.sig'],
+      ],
+      invariant:
+        'Paths are candidates and are NOT checked for existence. That is what makes it safe to publish a guess for hardware nobody owns: a wrong path costs one stat call on the device.',
+      files: [
+        'admin/src/app/api/publish/content/route.ts',
+        'admin/src/lib/g-recovery/content-packs.ts',
+        'admin/src/lib/core/sign.ts',
+      ],
+    },
+    {
+      key: 'rec.pack',
+      icon: 'box',
+      title: 'Pack object',
+      sub: 'registries/trashmap/vN',
+      x: 286,
+      y: 78,
+      lane: 'store',
+      what: 'The document and its signature at a versioned key. The version is in the path, so every object is immutable and cacheable for a year.',
+      io: [
+        ['writes', 'trashmap.json'],
+        ['writes', 'manifest.sig'],
+      ],
+      invariant:
+        'Pack versions are monotonic integers. Reusing one leaves devices holding a cached copy of the old bytes with no way to know.',
+      files: ['admin/src/lib/core/publish-core.ts'],
+      goto: { label: 'CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'rec.index',
+      icon: 'list',
+      title: 'index.json',
+      sub: 'g-recovery/index.json',
+      x: 286,
+      y: 190,
+      lane: 'store',
+      what: 'The catalogue that advertises every published document. Read, merged, bumped, signed and written on every publish, never rebuilt from memory.',
+      io: [
+        ['reads', 'the live index'],
+        ['writes', 'index.json and index.sig'],
+      ],
+      invariant:
+        'generatedAt must strictly increase or every device that has already synced ignores the new index while reporting nothing.',
+      files: ['admin/src/lib/core/catalogue.ts', 'admin/src/lib/core/publish-core.ts'],
+    },
+    {
+      key: 'rec.cdn',
+      icon: 'globe',
+      title: 'Public door',
+      sub: 'cdn.mindberzerk.com',
+      x: 286,
+      y: 302,
+      lane: 'store',
+      what: 'The unauthenticated read path devices use. Separate from the S3 credential this panel writes with, which is why the two can disagree.',
+      io: [
+        ['serves', 'g-recovery/'],
+        ['auth', 'none'],
+      ],
+      invariant:
+        'A working panel does not imply a working CDN. The bucket can be writable while the public hostname serves nothing, and only this node distinguishes them.',
+      files: ['admin/src/lib/core/cdn.ts'],
+    },
+    {
+      key: 'rec.sync',
+      icon: 'refresh',
+      title: 'Content sync',
+      sub: 'on launch, then daily',
+      x: 534,
+      y: 78,
+      lane: 'device',
+      what: 'The app fetches the index, compares versions, and downloads only what moved.',
+      io: [
+        ['reads', 'index.json'],
+        ['writes', 'the local pack store'],
+      ],
+      invariant:
+        'A failed sync is not an error state. The device keeps the copy it already trusted, and the copy built into the APK is the floor.',
+      files: ['apps/g_recovery/lib/core/content/'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.verify',
+      icon: 'shield',
+      title: 'Verify',
+      sub: 'ed25519, key pinned in the APK',
+      x: 534,
+      y: 190,
+      lane: 'device',
+      what: 'Signature checked against the public key compiled into the app before a single byte is applied.',
+      io: [
+        ['reads', 'manifest.sig'],
+        ['refuses', 'anything unsigned'],
+      ],
+      invariant:
+        'Refusing keeps the previous copy. The first index this pipeline signed used the wrong key, publish reported success, and every device silently showed nothing.',
+      files: ['apps/g_recovery/lib/core/content/pack_keys.dart'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.map',
+      icon: 'database',
+      title: 'Trash map',
+      sub: 'paths per app and per brand',
+      x: 534,
+      y: 302,
+      lane: 'device',
+      what: 'The parsed registry. Every entry carries a role, a fidelity stamp, and optionally how much the path is trusted.',
+      io: [
+        ['reads', 'trashmap.json'],
+        ['feeds', 'the scanner'],
+      ],
+      invariant:
+        'A malformed entry is skipped rather than fatal, which is correct on a phone and is exactly why the shape is validated in the panel instead.',
+      files: ['apps/g_recovery/lib/core/scan/trash_map.dart'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.scan',
+      icon: 'folder',
+      title: 'Scanner',
+      sub: 'probes each candidate',
+      x: 534,
+      y: 414,
+      lane: 'device',
+      what: 'Stats every candidate path and reports only what exists and holds files. A wrong guess costs one syscall and shows the user nothing.',
+      io: [
+        ['reads', 'shared storage'],
+        ['reads', 'MediaStore IS_TRASHED'],
+      ],
+      invariant:
+        'Nothing is promised before it is found. A path published with confidence "reported" has never been seen to work here, and the app should offer a manual browse rather than imply a result.',
+      files: ['packages/device_probe/android/', 'apps/g_recovery/lib/features/recover/'],
+      inLauncher: true,
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'rec.editor', to: 'rec.publish', d: 'M130 130 L130 190', gate: 'rec.publish' },
+    { from: 'rec.publish', to: 'rec.pack', d: 'M214 216 L250 216 L250 104 L286 104', gate: 'rec.pack' },
+    { from: 'rec.pack', to: 'rec.index', d: 'M370 130 L370 190', gate: 'rec.index' },
+    { from: 'rec.index', to: 'rec.cdn', d: 'M370 242 L370 302', gate: 'rec.cdn' },
+    { from: 'rec.cdn', to: 'rec.sync', d: 'M454 328 L494 328 L494 104 L534 104', gate: 'rec.sync' },
+    { from: 'rec.sync', to: 'rec.verify', d: 'M618 130 L618 190', gate: 'rec.verify' },
+    { from: 'rec.verify', to: 'rec.map', d: 'M618 242 L618 302', gate: 'rec.map' },
+    { from: 'rec.map', to: 'rec.scan', d: 'M618 354 L618 414', gate: 'rec.scan' },
+  ];
+
+  return { nodes, edges };
+}
+
+function recoveryDevice(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'rec.dev.guide',
+      icon: 'doc',
+      title: 'Brand guidance',
+      sub: `/apps/${app}/guides`,
+      x: 46,
+      y: 78,
+      lane: 'panel',
+      what: 'Per manufacturer advice, published as a document rather than compiled in, so a note about a Tecno recycle folder ships without a release.',
+      io: [
+        ['reads', 'the live oem-guide'],
+        ['writes', 'guides/oem-guide/vN'],
+      ],
+      invariant:
+        'Brand keys are lowercase because Build.MANUFACTURER is lowercased before the comparison. A capital matches nothing and the publish is refused rather than shipped.',
+      files: [
+        'admin/src/components/g-recovery/GuidanceEditor.tsx',
+        'admin/src/lib/g-recovery/content-packs.ts',
+      ],
+      goto: { label: 'Open Brand guidance', href: `/apps/${app}/guides` },
+    },
+    {
+      key: 'rec.dev.docs',
+      icon: 'files',
+      title: 'Four documents',
+      sub: 'trashmap, storage-map, learn-en, oem-guide',
+      x: 286,
+      y: 78,
+      lane: 'store',
+      what: 'Everything the app knows about somebody else\u2019s phone, as data. A new manufacturer is a document, not a build.',
+      io: [
+        ['registry', 'trashmap and storage-map'],
+        ['article', 'learn-en'],
+        ['guide', 'oem-guide'],
+      ],
+      invariant:
+        'minAppVersion stays 0 unless a document uses something a shipped build cannot render. Setting it high to be safe silently withholds the pack from every device below it.',
+      files: ['admin/src/lib/g-recovery/content-packs.ts'],
+    },
+    {
+      key: 'rec.dev.match',
+      icon: 'tag',
+      title: 'Brand match',
+      sub: 'Build.MANUFACTURER, lowercased',
+      x: 534,
+      y: 78,
+      lane: 'device',
+      what: 'First matching brand or alias wins, and everything else reads the fallback, which is most of the install base.',
+      io: [
+        ['reads', 'oem-guide'],
+        ['falls back to', 'fallback.blocks'],
+      ],
+      invariant:
+        'A duplicate brand is not a merge. The device takes the first and the second is unreachable, which is why the publish refuses one.',
+      files: ['apps/g_recovery/lib/features/learn/'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.dev.probe',
+      icon: 'folder',
+      title: 'Path probes',
+      sub: 'stat each candidate',
+      x: 534,
+      y: 166,
+      lane: 'device',
+      what: 'Every path in the map, checked against this device. Absent paths cost a syscall and are never shown.',
+      io: [
+        ['reads', 'Android/data and shared storage'],
+        ['returns', 'what exists and holds files'],
+      ],
+      invariant:
+        'Android 11 closed Android/data to direct reads. What a path probe can see depends on the API level, and the same map produces different results on two phones by design.',
+      files: ['packages/device_probe/android/'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.dev.media',
+      icon: 'trash',
+      title: 'MediaStore bin',
+      sub: 'IS_TRASHED, API 30 and up',
+      x: 534,
+      y: 254,
+      lane: 'device',
+      what: 'The OS trash bin, which is the only recovery route the platform actually blesses. Available from Android 11 onwards and absent below it.',
+      io: [
+        ['reads', 'MediaStore IS_TRASHED'],
+        ['writes', 'untrash on restore'],
+      ],
+      invariant:
+        'This is the feature that pins the minimum API level. Below 30 it does not exist, and the app has to fall back to direct file access rather than pretend.',
+      files: ['packages/device_probe/android/'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.dev.review',
+      icon: 'grid',
+      title: 'Review',
+      sub: 'swipe to keep or clear',
+      x: 534,
+      y: 342,
+      lane: 'device',
+      what: 'What was found, shown with its fidelity stamp so a thumbnail is never mistaken for the original.',
+      io: [
+        ['reads', 'scan results'],
+        ['writes', 'nothing until confirmed'],
+      ],
+      invariant:
+        'Fidelity is shown before the action, not after. A preview quality recovery presented as a full one is the complaint this whole product exists to avoid.',
+      files: ['apps/g_recovery/lib/features/recover/'],
+      inLauncher: true,
+    },
+    {
+      key: 'rec.dev.restore',
+      icon: 'download',
+      title: 'Restore',
+      sub: 'copied, never moved',
+      x: 534,
+      y: 430,
+      lane: 'device',
+      what: 'Files are copied into the restore folder under shared storage. The original is left where it was found.',
+      io: [
+        ['writes', 'restoreFolder'],
+        ['reads', 'the trashmap'],
+      ],
+      invariant:
+        'restoreFolder is a plain relative folder, refused if absolute or containing a parent segment, because it is a directory the app writes into.',
+      files: ['apps/g_recovery/lib/features/recover/'],
+      inLauncher: true,
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'rec.dev.guide', to: 'rec.dev.docs', d: 'M214 104 L286 104', gate: 'rec.dev.docs' },
+    { from: 'rec.dev.docs', to: 'rec.dev.match', d: 'M454 104 L534 104', gate: 'rec.dev.match' },
+    { from: 'rec.dev.match', to: 'rec.dev.probe', d: 'M618 130 L618 166', gate: 'rec.dev.probe' },
+    { from: 'rec.dev.probe', to: 'rec.dev.media', d: 'M618 218 L618 254', gate: 'rec.dev.media' },
+    { from: 'rec.dev.media', to: 'rec.dev.review', d: 'M618 306 L618 342', gate: 'rec.dev.review' },
+    { from: 'rec.dev.review', to: 'rec.dev.restore', d: 'M618 394 L618 430', gate: 'rec.dev.restore' },
+  ];
+
+  return { nodes, edges };
+}
+
+function recoveryBucket(app: string): Graph {
+  const nodes: GraphNode[] = [
+    {
+      key: 'rec.buk.root',
+      icon: 'cloud',
+      title: 'g-recovery/',
+      sub: process.env.R2_BUCKET ?? 'mindberzerk-cdn',
+      x: 46,
+      y: 200,
+      lane: 'panel',
+      what: 'One prefix per app inside one bucket. Everything below is written by the same publish path and read by the same public door.',
+      io: [
+        ['written by', 'the panel'],
+        ['read by', 'every install'],
+      ],
+      invariant:
+        'The prefix is the app id. A pack published under the wrong one is invisible to the app that wants it and orphaned forever, since nothing sweeps a prefix nobody reads.',
+      files: ['admin/src/lib/core/r2.ts'],
+      goto: { label: 'CDN objects', href: `/apps/${app}/packs` },
+    },
+    {
+      key: 'rec.buk.index',
+      icon: 'list',
+      title: 'index.json',
+      sub: 'plus index.sig',
+      x: 286,
+      y: 88,
+      lane: 'store',
+      what: 'The catalogue. Everything a device knows about what exists starts here.',
+      io: [['contains', 'one entry per pack']],
+      invariant:
+        'An index without its signature is refused by every device, which then keeps the catalogue it already had. The failure is silent on both ends.',
+      files: ['admin/src/lib/core/sign.ts'],
+    },
+    {
+      key: 'rec.buk.registries',
+      icon: 'database',
+      title: 'registries/',
+      sub: 'trashmap/vN, storage-map/vN',
+      x: 286,
+      y: 172,
+      lane: 'store',
+      what: 'The trash map and the storage map. Both are keyed by path and looked up rather than read, which is what puts them here instead of under articles.',
+      io: [['payload', 'trashmap.json']],
+      invariant:
+        'dirFor is an exhaustive switch over pack types, so a new type fails the typecheck rather than quietly landing in the wrong directory. Two publish paths once disagreed here and orphaned files for months.',
+      files: ['admin/src/lib/core/publish-core.ts'],
+      goto: { label: 'Open Coverage', href: `/apps/${app}/coverage` },
+    },
+    {
+      key: 'rec.buk.articles',
+      icon: 'doc',
+      title: 'articles/',
+      sub: 'learn-en/vN',
+      x: 286,
+      y: 256,
+      lane: 'store',
+      what: 'The in app guide to how Android storage works, as blocks rather than markdown.',
+      io: [['payload', 'learn-en.json']],
+      invariant:
+        'The block vocabulary is a contract with ContentBlockView. An unknown type renders as nothing on the phone and as valid JSON here, so it is refused at publish.',
+      files: ['admin/src/lib/g-recovery/content-packs.ts'],
+      goto: { label: 'Open Learn', href: `/apps/${app}/learn` },
+    },
+    {
+      key: 'rec.buk.guides',
+      icon: 'layers',
+      title: 'guides/',
+      sub: 'oem-guide/vN',
+      x: 286,
+      y: 340,
+      lane: 'store',
+      what: 'Per brand guidance, sharing the article block vocabulary so the device needs no second renderer.',
+      io: [['payload', 'oem-guide.json']],
+      invariant:
+        'A device that matches no brand reads the fallback. Without one it gets an empty screen, which reads as a broken app rather than as an absence of advice.',
+      files: ['admin/src/components/g-recovery/GuidanceEditor.tsx'],
+      goto: { label: 'Open Brand guidance', href: `/apps/${app}/guides` },
+    },
+  ];
+
+  const edges: GraphEdge[] = [
+    { from: 'rec.buk.root', to: 'rec.buk.index', d: 'M214 226 L250 226 L250 114 L286 114', gate: 'rec.buk.index' },
+    { from: 'rec.buk.root', to: 'rec.buk.registries', d: 'M214 226 L250 226 L250 198 L286 198', gate: 'rec.buk.registries' },
+    { from: 'rec.buk.root', to: 'rec.buk.articles', d: 'M214 226 L250 226 L250 282 L286 282', gate: 'rec.buk.articles' },
+    { from: 'rec.buk.root', to: 'rec.buk.guides', d: 'M214 226 L250 226 L250 366 L286 366', gate: 'rec.buk.guides' },
+  ];
+
+  return { nodes, edges };
+}
+
 export function viewsFor(app: string): GraphView[] {
   if (!isAppId(app)) return [];
-  // Only the launcher has a map so far. G Recovery gets one when its delivery
-  // path exists, and an empty list is what makes the page say so honestly.
+
+  if (app === 'g-recovery') {
+    return [
+      {
+        key: 'delivery',
+        label: 'Delivery',
+        blurb: 'from a coverage edit to a phone finding a deleted file',
+        graph: recoveryDelivery(app),
+      },
+      {
+        key: 'device',
+        label: 'On device',
+        blurb: 'what the app does with a document once it has one',
+        graph: recoveryDevice(app),
+      },
+      {
+        key: 'bucket',
+        label: 'Bucket layout',
+        blurb: 'the three documents and where each one lives',
+        graph: recoveryBucket(app),
+      },
+    ];
+  }
+
   if (app !== 'g-launcher') return [];
 
   return [
@@ -750,6 +1220,22 @@ export async function graphStatus(app: string): Promise<GraphStatus> {
 
   const packCount = live?.packs.length ?? 0;
   const bytes = live?.packs.reduce((n, p) => n + p.sizeBytes, 0) ?? 0;
+
+  /**
+   * Is a named document live, and at what version.
+   *
+   * BY PACK ID, off the index that was already read, so these cost nothing and
+   * cannot disagree with the Overview. Both return an honest absence on an
+   * unreachable bucket rather than treating "we could not look" as "it is not
+   * there": those look identical in a status dot and mean opposite things.
+   */
+  const packs = live?.packs ?? [];
+  const hasPack = (id: string) => bucketOk && packs.some((p) => p.packId === id);
+  const packVersion = (id: string) => {
+    if (!bucketOk) return 'unknown';
+    const found = packs.find((p) => p.packId === id);
+    return found ? `v${found.version}` : 'not published';
+  };
 
   const unknown = (note: string, live2: [string, string][] = []): GraphStatus[string] => ({
     state: 'unknown',
@@ -885,6 +1371,94 @@ export async function graphStatus(app: string): Promise<GraphStatus> {
       state: bucketOk ? 'ok' : 'unknown',
       note: bucketOk ? 'computable' : 'needs the bucket',
       live: [],
+    },
+
+    // ── G Recovery ─────────────────────────────────────────────────────────
+    // Same sources, different payload. A document that is not published is
+    // `unknown` rather than `bad`: not publishing a guide yet is a state, not
+    // a fault, and the Overview's task list is where that gets chased.
+    'rec.editor': { state: 'ok', note: 'available', live: [['runs in', 'the panel']] },
+    'rec.publish': {
+      state: process.env.PACK_SIGNING_KEY ? 'ok' : 'unknown',
+      note: process.env.PACK_SIGNING_KEY ? 'key loaded' : 'no signing key configured',
+      live: [
+        ['key id', process.env.PACK_KEY_ID ?? '-'],
+        ['algorithm', 'ed25519'],
+      ],
+    },
+    'rec.pack': {
+      state: !bucketOk ? 'bad' : hasPack('trashmap') ? 'ok' : 'unknown',
+      note: !bucketOk ? bucketNote : hasPack('trashmap') ? 'published' : 'no trashmap published',
+      live: [['version', packVersion('trashmap')]],
+    },
+    'rec.index': {
+      state: bucketOk ? (signed ? 'ok' : 'bad') : 'bad',
+      note: !bucketOk ? bucketNote : signed ? 'signed' : 'published without a signature',
+      live: bucketOk
+        ? [
+            ['generatedAt', String(live?.generatedAt ?? 0)],
+            ['documents', String(packCount)],
+          ]
+        : [['generatedAt', 'unknown']],
+    },
+    'rec.cdn': {
+      state: cdnOk ? 'ok' : 'bad',
+      note: cdnNote,
+      live: [
+        ['host', cdnBase().replace(/^https?:\/\//, '')],
+        ['auth', 'none'],
+      ],
+    },
+    'rec.sync': unknown('not measurable from the panel', [['cadence', 'launch, then daily']]),
+    'rec.verify': unknown('not measurable from the panel', [['key', 'compiled into the APK']]),
+    'rec.map': unknown('not measurable from the panel'),
+    'rec.scan': unknown('not measurable from the panel'),
+
+    'rec.dev.guide': {
+      state: !bucketOk ? 'bad' : hasPack('oem-guide') ? 'ok' : 'unknown',
+      note: !bucketOk ? bucketNote : hasPack('oem-guide') ? 'published' : 'nothing published yet',
+      live: [['version', packVersion('oem-guide')]],
+    },
+    'rec.dev.docs': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketOk
+        ? `${CONTENT_IDS.filter(hasPack).length} of ${CONTENT_IDS.length} published`
+        : bucketNote,
+      live: CONTENT_IDS.map((id) => [id, packVersion(id)] as [string, string]),
+    },
+    'rec.dev.match': unknown('not measurable from the panel'),
+    'rec.dev.probe': unknown('not measurable from the panel'),
+    'rec.dev.media': unknown('not measurable from the panel', [['requires', 'API 30 and up']]),
+    'rec.dev.review': unknown('not measurable from the panel'),
+    'rec.dev.restore': unknown('not measurable from the panel'),
+
+    'rec.buk.root': {
+      state: bucketOk ? 'ok' : 'bad',
+      note: bucketNote,
+      live: [
+        ['bucket', process.env.R2_BUCKET ?? 'mindberzerk-cdn'],
+        ['bytes', bucketOk ? String(bytes) : 'unknown'],
+      ],
+    },
+    'rec.buk.index': {
+      state: bucketOk ? (signed ? 'ok' : 'bad') : 'bad',
+      note: !bucketOk ? bucketNote : signed ? 'signed' : 'unsigned',
+      live: [['documents', bucketOk ? String(packCount) : 'unknown']],
+    },
+    'rec.buk.registries': {
+      state: !bucketOk ? 'bad' : hasPack('trashmap') ? 'ok' : 'unknown',
+      note: !bucketOk ? bucketNote : hasPack('trashmap') ? 'trashmap live' : 'empty',
+      live: [['version', packVersion('trashmap')]],
+    },
+    'rec.buk.articles': {
+      state: !bucketOk ? 'bad' : hasPack('learn-en') ? 'ok' : 'unknown',
+      note: !bucketOk ? bucketNote : hasPack('learn-en') ? 'learn-en live' : 'empty',
+      live: [['version', packVersion('learn-en')]],
+    },
+    'rec.buk.guides': {
+      state: !bucketOk ? 'bad' : hasPack('oem-guide') ? 'ok' : 'unknown',
+      note: !bucketOk ? bucketNote : hasPack('oem-guide') ? 'oem-guide live' : 'empty',
+      live: [['version', packVersion('oem-guide')]],
     },
   };
 }

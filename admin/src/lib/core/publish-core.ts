@@ -71,6 +71,12 @@ export function dirFor(packType: PackType): string {
       return 'heropacks';
     case 'icon':
       return 'iconpacks';
+      case 'registry':
+      return 'registries';
+    case 'article':
+      return 'articles';
+    case 'guide':
+      return 'guides';
   }
 }
 

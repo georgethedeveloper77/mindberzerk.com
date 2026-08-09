@@ -184,6 +184,46 @@ export const REGISTRY: AppMeta[] = [
 
 export const MANAGED = REGISTRY.filter((a) => a.managed);
 
+/**
+ * WHICH PACK TYPES AN APP CAN PUBLISH BY HAND.
+ *
+ * `KNOWN_PACK_TYPES` in `sign.ts` is the union across every app and is the gate:
+ * this is only what the upload form OFFERS. The two lists diverging is
+ * deliberate, because the form offered `theme, brand, hero, icon` to every app,
+ * which meant G Recovery could not publish a registry through the escape hatch
+ * at all while being invited to publish an icon pack it has no renderer for.
+ *
+ * Strings rather than the `PackType` union, because `sign.ts` is server-only and
+ * the upload form is a client component. `isSafeSku` keeps its own copy of a
+ * regex for the same reason: a validator the browser can reach is not a gate.
+ *
+ * Anything not listed here is still publishable through the API. This is the
+ * menu, not the lock.
+ */
+export function packTypesFor(app: string): string[] {
+  switch (app) {
+    case 'g-launcher':
+      return ['theme', 'brand', 'hero', 'icon'];
+    case 'g-recovery':
+      return ['registry', 'article', 'guide'];
+    default:
+      return ['theme', 'brand', 'hero', 'icon', 'registry', 'article', 'guide'];
+  }
+}
+
+/**
+ * The minimum app version the upload form starts at.
+ *
+ * ZERO MEANS EVERY INSTALL, which is the right default and was not what the
+ * form did: it hardcoded 6, G Launcher's current build number, so a G Recovery
+ * pack published through this screen would have been withheld from every device
+ * below version 6 of an app whose current version is 2. A pack nobody receives
+ * is indistinguishable from a pack that was never published.
+ */
+export function minAppVersionFor(app: string): string {
+  return app === 'g-launcher' ? '6' : '0';
+}
+
 export function isAppId(value: string): value is AppId {
   return (APPS as readonly string[]).includes(value);
 }

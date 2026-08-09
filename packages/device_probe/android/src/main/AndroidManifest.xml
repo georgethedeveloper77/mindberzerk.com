@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permissions.
+
+         Every probe here is permission-free by design: the sticky battery
+         broadcast, ActivityManager.MemoryInfo, PowerManager thermal status,
+         SensorManager enumeration, and sysfs reads that either succeed or do
+         not. Adding a permission to this manifest would silently add it to
+         BOTH apps that depend on the package, including one already live on
+         Play with a published Data Safety declaration. -->
+</manifest>

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
+import { RecoveryOverview } from '@/components/g-recovery/Overview';
 import { StudioShell } from '@/components/studio/shell';
 import {
   AppSlab,
@@ -68,6 +69,19 @@ export default async function AppOverviewPage({
   const { app } = await params;
   if (!isAppId(app)) notFound();
   const appId = app as AppId;
+
+  /**
+   * G RECOVERY BRANCHES HERE, BEFORE ANY LAUNCHER READ RUNS.
+   *
+   * Not only because the figures below are meaningless for it. `ensureSeededSafe`
+   * lives in `lib/g-launcher` and seeds theme drafts; `commerceReport` reconciles
+   * a SKU catalogue this app does not have. Both were being awaited on every
+   * visit to an app with no themes and nothing to sell, so this is a correctness
+   * fix wearing a redesign.
+   *
+   * A third app would justify a registry of overview components. Two do not.
+   */
+  if (appId === 'g-recovery') return <RecoveryOverview />;
 
   const [live, commerce, seeded, orphans] = await Promise.all([
     readLiveIndex(appId),

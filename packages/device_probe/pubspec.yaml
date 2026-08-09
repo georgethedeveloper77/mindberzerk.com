@@ -1,0 +1,43 @@
+name: device_probe
+description: "Android device instrumentation shared by Mindberzerk apps: CPU topology and frequencies, thermal zones, battery detail, memory, and the sensor list."
+publish_to: 'none'
+version: 0.1.0
+
+# NOT a pub workspace member yet, deliberately.
+#
+# `resolution: workspace` here would require the ROOT pubspec.yaml to list this
+# package, and a package that declares workspace resolution without a root that
+# includes it fails `pub get` outright. A plain path dependency from the app
+# needs nothing from the root and works today.
+#
+# Joining the workspace is worth doing, and it is one atomic change: add
+# `resolution: workspace` here AND to apps/g_recovery/pubspec.yaml, add both to
+# the root `workspace:` list, delete both pubspec.lock files, then `flutter pub
+# get` from the repo root. All four, or none.
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Pinned to the version that produced LauncherApi.g.kt, so both schemas in the
+  # repo generate against the same generator.
+  #
+  # THE GENERATOR RUNS FROM THIS DIRECTORY, not from the app:
+  #   cd packages/device_probe
+  #   dart run pigeon --input pigeons/device_probe_api.dart
+  pigeon: ^27.1.2
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.mindberzerk.device_probe
+        pluginClass: DeviceProbePlugin

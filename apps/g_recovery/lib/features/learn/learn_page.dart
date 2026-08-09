@@ -1,0 +1,121 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/theme/tokens.dart';
+import '../../ui/g_app_bar.dart';
+import '../../ui/g_badge.dart';
+import '../../ui/g_card.dart';
+import 'chapter_page.dart';
+import 'state/learn_model.dart';
+import 'state/learn_providers.dart';
+
+/// The chapter list.
+///
+/// Not a side feature. This is what makes a "gone" verdict believable: a user
+/// told their photo cannot be recovered has no reason to accept that from an
+/// app unless the app can explain why, in terms they can check.
+class LearnPage extends ConsumerWidget {
+  const LearnPage({super.key});
+
+  static Route<void> route() => MaterialPageRoute<void>(
+        builder: (BuildContext context) => const LearnPage(),
+      );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GTokens t = context.g;
+    final LearnBook? book = ref.watch(learnBookProvider).value;
+
+    return Scaffold(
+      backgroundColor: t.ink,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            GSpace.gutter,
+            0,
+            GSpace.gutter,
+            GSpace.xl,
+          ),
+          children: <Widget>[
+            GAppBar(
+              title: 'How Android storage works',
+              leading: GIconButton(
+                icon: Icons.arrow_back_rounded,
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Text(
+              'Seven short chapters on where your files live, what deleting '
+              'actually does, and why some things can be brought back and '
+              'others cannot.',
+              style: GType.bodySmall.copyWith(color: t.muted, height: 1.6),
+            ),
+            const SizedBox(height: GSpace.lg),
+            if (book == null)
+              Text(
+                'Loading',
+                style: GType.bodySmall.copyWith(color: t.dim),
+              )
+            else
+              for (int i = 0; i < book.chapters.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: GSpace.sm + 2),
+                  child: _ChapterCard(
+                    number: i + 1,
+                    chapter: book.chapters[i],
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChapterCard extends StatelessWidget {
+  const _ChapterCard({required this.number, required this.chapter});
+
+  final int number;
+  final LearnChapter chapter;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+    return GCard(
+      onTap: () =>
+          Navigator.of(context).push(ChapterPage.route(chapter.id)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 26,
+            child: Text(
+              number.toString().padLeft(2, '0'),
+              style: GType.monoNumber.copyWith(color: t.accentText),
+            ),
+          ),
+          const SizedBox(width: GSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  chapter.title,
+                  style: GType.heading.copyWith(color: t.text),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  chapter.summary,
+                  style: GType.bodySmall.copyWith(color: t.muted, height: 1.5),
+                ),
+                const SizedBox(height: GSpace.sm),
+                GBadge(label: '${chapter.minutes} min'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
