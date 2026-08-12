@@ -381,8 +381,8 @@ export function ArchitectureMap({
             <p className="text-[12.5px] leading-relaxed">{node.what}</p>
 
             <Kicker>Reads and writes</Kicker>
-            {node.io.map(([k, v]) => (
-              <KV key={k} k={k} v={v} />
+            {node.io.map(([k, v], i) => (
+              <KV key={`${i}-${k}`} k={k} v={v} />
             ))}
 
             {st.live.length > 0 && (

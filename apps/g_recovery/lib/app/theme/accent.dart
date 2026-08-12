@@ -64,7 +64,20 @@ enum GAccent {
 
   static const Color ink = Color(0xFF12181E);
 
-  static const GAccent fallback = GAccent.amber;
+  /// BLUE, NOT AMBER.
+  ///
+  /// ─── AMBER WAS DOING TWO JOBS ───────────────────────────────────────────
+  ///
+  /// It is the warning colour, through GTokens.warning, and it was also the
+  /// default accent. So every ordinary button and every cautionary badge were
+  /// the same hue, and the things that needed to stand out could not: the
+  /// compress row, the floor-not-a-total stamp and the attention strip all rely
+  /// on amber meaning caution.
+  ///
+  /// Blue frees it. Amber still exists as a choice for anyone who wants it, and
+  /// the warning tokens are fixed rather than derived from the accent, so
+  /// picking amber does not collapse the two again.
+  static const GAccent fallback = GAccent.blue;
 
   static GAccent fromId(String? id) {
     for (final GAccent accent in GAccent.values) {

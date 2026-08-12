@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'core/crash.dart';
+
 /// Runs before the first frame. Keep it FAST — every millisecond here is a
 /// millisecond between the user pressing home and seeing their desktop.
 ///
@@ -21,6 +23,19 @@ import 'package:flutter/widgets.dart';
 /// double-installed.
 void bootstrap() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // FIRST, and before anything that can fail.
+  //
+  // Everything between here and `Crash.enable()` in main is otherwise
+  // unreported: the prefs read, the i18n load, the Firebase call itself. A
+  // failure in that window is a launcher that never draws a first frame, which
+  // is the worst bug this app can have and was the one we were blind to.
+  //
+  // This only BUFFERS. Nothing is sent until Firebase is up, and if Firebase
+  // never comes up (de-Googled ROM, Play Services disabled) the buffer is
+  // dropped with the process, which is the right answer on a device that has
+  // nowhere to send it. See crash.dart.
+  Crash.installEarly();
 
   // A launcher draws its own wallpaper. Let it run under the system bars.
   SystemChrome.setEnabledSystemUIMode(

@@ -880,7 +880,24 @@ data class VideoEstimate (
   /** How much was actually encoded to reach it. */
   val sampledMillis: Long,
   /** "same" or "smaller". */
-  val preset: String
+  val preset: String,
+  /**
+   * The encoded sample, still on disk and playable.
+   *
+   * ─── THE PREVIEW WAS ALREADY BEING MADE AND THROWN AWAY ──────────────────
+   *
+   * Estimating means really encoding fifteen seconds at the chosen settings,
+   * and until now that file was deleted the moment it had been weighed. Keeping
+   * it costs nothing and gives video something the photo path cannot match: not
+   * a prediction of what the output would look like, but the output itself.
+   *
+   * Playing the ORIGINAL would be no preview at all. It shows what is already
+   * there and says nothing about what the encoder would do to it.
+   *
+   * Null when the encode failed. Deleted on the next scan, so nothing here is
+   * a file the app is keeping.
+   */
+  val samplePath: String? = null
 )
  {
   companion object {
@@ -890,7 +907,8 @@ data class VideoEstimate (
       val estimatedBytes = pigeonVar_list[2] as Long
       val sampledMillis = pigeonVar_list[3] as Long
       val preset = pigeonVar_list[4] as String
-      return VideoEstimate(fileId, originalBytes, estimatedBytes, sampledMillis, preset)
+      val samplePath = pigeonVar_list[5] as String?
+      return VideoEstimate(fileId, originalBytes, estimatedBytes, sampledMillis, preset, samplePath)
     }
   }
   fun toList(): List<Any?> {
@@ -900,6 +918,7 @@ data class VideoEstimate (
       estimatedBytes,
       sampledMillis,
       preset,
+      samplePath,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -910,7 +929,7 @@ data class VideoEstimate (
       return true
     }
     val other = other as VideoEstimate
-    return CompressApiPigeonUtils.deepEquals(this.fileId, other.fileId) && CompressApiPigeonUtils.deepEquals(this.originalBytes, other.originalBytes) && CompressApiPigeonUtils.deepEquals(this.estimatedBytes, other.estimatedBytes) && CompressApiPigeonUtils.deepEquals(this.sampledMillis, other.sampledMillis) && CompressApiPigeonUtils.deepEquals(this.preset, other.preset)
+    return CompressApiPigeonUtils.deepEquals(this.fileId, other.fileId) && CompressApiPigeonUtils.deepEquals(this.originalBytes, other.originalBytes) && CompressApiPigeonUtils.deepEquals(this.estimatedBytes, other.estimatedBytes) && CompressApiPigeonUtils.deepEquals(this.sampledMillis, other.sampledMillis) && CompressApiPigeonUtils.deepEquals(this.preset, other.preset) && CompressApiPigeonUtils.deepEquals(this.samplePath, other.samplePath)
   }
 
   override fun hashCode(): Int {
@@ -920,10 +939,11 @@ data class VideoEstimate (
     result = 31 * result + CompressApiPigeonUtils.deepHash(this.estimatedBytes)
     result = 31 * result + CompressApiPigeonUtils.deepHash(this.sampledMillis)
     result = 31 * result + CompressApiPigeonUtils.deepHash(this.preset)
+    result = 31 * result + CompressApiPigeonUtils.deepHash(this.samplePath)
     return result
   }
   override fun toString(): String {
-    return "VideoEstimate(fileId=$fileId, originalBytes=$originalBytes, estimatedBytes=$estimatedBytes, sampledMillis=$sampledMillis, preset=$preset)"
+    return "VideoEstimate(fileId=$fileId, originalBytes=$originalBytes, estimatedBytes=$estimatedBytes, sampledMillis=$sampledMillis, preset=$preset, samplePath=$samplePath)"
   }
 }
 private open class CompressApiPigeonCodec : StandardMessageCodec() {

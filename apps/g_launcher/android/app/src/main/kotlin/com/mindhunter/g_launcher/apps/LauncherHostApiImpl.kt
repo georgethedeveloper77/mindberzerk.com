@@ -135,12 +135,95 @@ class LauncherHostApiImpl(
 
     override fun openAppInfo(componentKey: String) = repository.openAppInfo(componentKey)
 
-    override fun requestUninstall(componentKey: String) {
-        if (!repository.isUninstallable(componentKey)) return
-        val key = ComponentKey.parse(componentKey) ?: return
-        val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:${key.packageName}"))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        appContext.startActivity(intent)
+    // ---- uninstall -------------------------------------------------------
+
+    /**
+     * The Activity, while one exists. Weak, because this object is owned by the
+     * Application and outlives every Activity: a strong reference here would
+     * pin a destroyed Activity, its window and its entire view tree for the life
+     * of the process.
+     *
+     * Mirrors what [WidgetHostController] already does for the bind and config
+     * result flow, and for the same underlying reason: some things need an
+     * Activity, and the Application is the wrong object to hold one.
+     */
+    private var activityRef: java.lang.ref.WeakReference<android.app.Activity>? = null
+
+    fun attachActivity(activity: android.app.Activity) {
+        activityRef = java.lang.ref.WeakReference(activity)
+    }
+
+    /**
+     * Only clears if the Activity going away is the one we hold. On a
+     * configuration change the new Activity's onCreate runs BEFORE the old
+     * one's onDestroy, so an unconditional clear here would drop the live
+     * reference we had just been handed and leave us detached for the rest of
+     * the process.
+     */
+    fun detachActivity(activity: android.app.Activity) {
+        if (activityRef?.get() === activity) activityRef = null
+    }
+
+    /**
+     * Start the system's uninstall confirmation, and say what happened.
+     *
+     * ─── WHY THIS WAS DOING NOTHING ─────────────────────────────────────────
+     *
+     * The previous version called `appContext.startActivity(intent)` with
+     * FLAG_ACTIVITY_NEW_TASK. Three separate faults, any one of which produces
+     * a tap that appears to do nothing:
+     *
+     *  1. NEW_TASK from the application context asks for the confirmation to be
+     *     its own task. The caller here is the HOME activity, declared
+     *     launchMode=singleTask, and One UI does not reliably bring a new task
+     *     to the front over the home task. The dialog was being created behind
+     *     the launcher or not at all. Starting from the Activity puts it on the
+     *     launcher's own task, which is what every other launcher does and what
+     *     the window manager expects.
+     *
+     *  2. `Uri.parse("package:$packageName")` drops the component and the user.
+     *     Without EXTRA_USER the system resolves against the calling user, so on
+     *     a device with a work profile or Secure Folder the request could name a
+     *     package the target user does not have.
+     *
+     *  3. Both refusal paths were a bare `return`. A guard that produces no
+     *     output is indistinguishable from a broken feature, and that is
+     *     precisely how this was reported: "I click uninstall and it does not
+     *     work."
+     *
+     * `Uri.fromParts("package", pkg, cls)` is the AOSP Launcher3 form: the
+     * fragment carries the class so the system can name the right activity.
+     */
+    override fun requestUninstall(componentKey: String): String {
+        val status = repository.uninstallStatus(componentKey)
+        if (status != UninstallStatus.OK) return status
+
+        val key = ComponentKey.parse(componentKey) ?: return UninstallStatus.UNKNOWN_APP
+
+        val intent = Intent(
+            Intent.ACTION_DELETE,
+            Uri.fromParts("package", key.packageName, key.className),
+        )
+        repository.userFor(key.userSerial)?.let { intent.putExtra(Intent.EXTRA_USER, it) }
+
+        val activity = activityRef?.get()
+        return try {
+            if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                activity.startActivity(intent)
+                UninstallStatus.LAUNCHED
+            } else {
+                // Last resort, and reported as its own status rather than as
+                // success. This is the path that was broken; if it starts
+                // showing up in the field it means the Activity attach is not
+                // holding and we want to see that, not have it look fine.
+                appContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                UninstallStatus.LAUNCHED_DETACHED
+            }
+        } catch (e: android.content.ActivityNotFoundException) {
+            UninstallStatus.NO_INSTALLER
+        } catch (e: SecurityException) {
+            UninstallStatus.REFUSED
+        }
     }
 
     // ---- icons -----------------------------------------------------------
@@ -403,6 +486,23 @@ class LauncherHostApiImpl(
                         category = info.widgetCategory.toLong(),
                         configurable = info.configure != null,
                         hasPreviewImage = info.previewImage != 0,
+                        // API 31+ only. `loadDescription` is what the stock
+                        // picker prints under the size, and it is the line that
+                        // makes a widget read as an offer rather than a row.
+                        //
+                        // Empty rather than null on older devices and on
+                        // providers that never set it: the Dart side omits the
+                        // line entirely when it is blank, so an absent
+                        // description costs nothing, while a null would force
+                        // every reader to handle a case that means the same
+                        // thing as empty.
+                        description = if (Build.VERSION.SDK_INT >= 31) {
+                            runCatching {
+                                info.loadDescription(appContext)?.toString()
+                            }.getOrNull().orEmpty()
+                        } else {
+                            ""
+                        },
                     )
                 }.sortedBy { it.appLabel.lowercase() }
             }

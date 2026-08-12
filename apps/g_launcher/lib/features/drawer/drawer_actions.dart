@@ -254,16 +254,35 @@ void showDrawerAppMenu(
         },
       ),
 
-      // System apps cannot be uninstalled, so the third slot goes to App info
-      // instead of leaving a gap. Two actions in a three-column row look like
-      // one is missing; the header's (i) is still there, and a duplicate is
-      // better than a hole.
-      if (!entry.isSystem && !entry.isWorkProfile)
+      // ── UNINSTALL IS OFFERED FOR ALMOST EVERYTHING NOW ──────────────────
+      //
+      // This used to be hidden whenever `entry.isSystem`, on the reasonable
+      // principle that a button which silently does nothing is worse than no
+      // button. The principle was right; the test was wrong. FLAG_SYSTEM is set
+      // on every app that shipped with the phone, and on a Samsung device that
+      // includes the ones the user has since updated through Play. Those ARE
+      // uninstallable: the system offers to remove the update. Hiding the
+      // action for them hid it from the most common case on the test device.
+      //
+      // The native side now decides, and it distinguishes "preinstalled and
+      // never updated" from "preinstalled and updated". Anything it refuses
+      // comes back as a status and gets a sentence, so the original principle
+      // holds by a better route: the button is never silent.
+      //
+      // Work profile is still filtered here rather than round-tripped, because
+      // that one is knowable from the entry and there is no version of it that
+      // succeeds.
+      if (!entry.isWorkProfile)
         MenuAction(
           icon: Icons.delete_outline,
           label: context.t('drawer.uninstall'),
           danger: true,
-          onTap: () => notifier.uninstall(entry),
+          onTap: () async {
+            final status = await notifier.uninstall(entry);
+            if (UninstallStatus.succeeded(status)) return;
+            if (!host.mounted) return;
+            host.showMessage(host.t(uninstallRefusalKey(status)));
+          },
         )
       else
         MenuAction(
@@ -275,6 +294,20 @@ void showDrawerAppMenu(
     rows: (sheet) => const [],
   );
 }
+
+/// The message key for a refusal.
+///
+/// The default arm is load-bearing rather than defensive: it catches a status
+/// this build has never heard of, which is what a newer native layer against an
+/// older Dart bundle produces. Reporting that as the generic failure is correct;
+/// reporting it as success would be the exact bug this whole change is fixing.
+String uninstallRefusalKey(String status) => switch (status) {
+      UninstallStatus.systemApp => 'drawer.uninstallSystemApp',
+      UninstallStatus.workProfile => 'drawer.uninstallWorkProfile',
+      UninstallStatus.unknownApp => 'drawer.uninstallUnknownApp',
+      UninstallStatus.noInstaller => 'drawer.uninstallNoInstaller',
+      _ => 'drawer.uninstallFailed',
+    };
 
 /// Open a folder.
 ///

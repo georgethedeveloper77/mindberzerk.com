@@ -11,9 +11,58 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
+import android.view.ContextThemeWrapper
+
+/**
+ * A hosted widget whose padding CANNOT be put back.
+ *
+ * ─── setPadding(0,0,0,0) IN createView WAS NOT HOLDING ──────────────────────
+ *
+ * `AppWidgetHostView` re-applies the platform's default widget margin from
+ * inside `updateAppWidget`, every time a provider pushes new RemoteViews. So the
+ * padding was correctly zeroed at creation and silently restored on the first
+ * update, which is why a hosted widget looked right for an instant and then
+ * settled into a box inset inside its own tile.
+ *
+ * Worse than cosmetic: `updateAppWidgetSize` subtracts that padding before
+ * telling the provider what canvas it has. On this device that is the gap
+ * between the two lines in logcat, which should be the same number and are not:
+ *
+ *     updateAppWidgetOptions() ... appWidgetSizes=[366.0x282.0]        (ours)
+ *     updateAppWidgetOptions() ... appWidgetSizes=[349.64444x265.64444] (the view's)
+ *
+ * The provider is picking a layout for 349x265 and being laid out at 366x282, so
+ * a responsive widget chooses the wrong variant and then gets stretched into the
+ * remainder. That is "wrong shape" with a number attached to it.
+ *
+ * Overriding `setPadding` to swallow its arguments is what Launcher3 does, and
+ * for the same reason: the tile already owns the gutter, so a second inset
+ * inside the first is always wrong here.
+ */
+private class HostedWidgetView(context: Context) : AppWidgetHostView(context) {
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        super.setPadding(0, 0, 0, 0)
+    }
+}
 
 /** The launcher's AppWidget host. One per process. */
 class LauncherWidgetHost(context: Context) : AppWidgetHost(context, HOST_ID) {
+    /**
+     * Every hosted view is a [HostedWidgetView]. This is the ONLY hook the
+     * framework offers for it: `createView` is final in effect and constructs
+     * whatever this returns, so a subclass here is the only way to influence the
+     * view that ends up holding the RemoteViews.
+     *
+     * [context] is whatever was handed to `AppWidgetHost.createView`, which is
+     * why the themed wrapper in [WidgetHostController.createView] reaches the
+     * inflation and not just this object.
+     */
+    override fun onCreateView(
+        context: Context,
+        appWidgetId: Int,
+        appWidget: AppWidgetProviderInfo?,
+    ): AppWidgetHostView = HostedWidgetView(context)
+
     private companion object {
         // Arbitrary, stable for the life of the install. Changing it orphans
         // every widget id already allocated, so never renumber it.
@@ -48,6 +97,48 @@ class WidgetHostController(context: Context) {
     private val appContext = context.applicationContext
     private val manager = AppWidgetManager.getInstance(appContext)
     private val host = LauncherWidgetHost(appContext)
+
+    /**
+     * The context hosted widgets are INFLATED against, and the reason they were
+     * coming up invisible.
+     *
+     * ─── THE LAUNCHER'S OWN THEME IS TRANSPARENT, AND WIDGETS INHERIT IT ────
+     *
+     * `LauncherActivity.getBackgroundMode()` returns `transparent`, which is
+     * what lets the wallpaper through and is not negotiable. Its cost is that
+     * this application's theme is a translucent one, and RemoteViews resolve
+     * `?android:attr/colorBackground`, `?android:attr/textColorPrimary` and
+     * every text appearance against whatever context they are inflated with.
+     * Handing them `appContext` resolved those attributes against a theme that
+     * has no opaque background and no defined text colours, so a widget that
+     * paints its own card came out with nothing behind it and, often, text the
+     * same colour as the thing behind that. Reported as widgets appearing
+     * transparent or simply not being visible.
+     *
+     * ─── THIS FILE ALREADY KNEW ────────────────────────────────────────────
+     *
+     * `WidgetPreviewRenderer.fromPreviewLayout` wraps for exactly this and says
+     * so: "an unthemed context resolves them to nothing: black text on a black
+     * card, which reads as a broken preview rather than a missing one." The
+     * picker was fixed and the live path was not, which is why a widget could
+     * preview correctly and then place invisibly. Same wrapper, same style, on
+     * purpose: a preview that does not match what gets placed is worse than no
+     * preview.
+     *
+     * ─── WHY NOT THE ACTIVITY'S CONTEXT, WHICH LAUNCHER3 USES ──────────────
+     *
+     * Because these views outlive the Activity. The whole point of the stage is
+     * that a host view is created once and survives every page swipe and every
+     * configuration change; a view holding an Activity context would pin a dead
+     * Activity and its entire view tree for as long as the widget is on the
+     * desktop. DayNight still follows the system setting through the application
+     * resources, so the only thing given up is an Activity-level theme override,
+     * which this app does not have.
+     */
+    private val widgetContext: Context = ContextThemeWrapper(
+        appContext,
+        android.R.style.Theme_DeviceDefault_DayNight,
+    )
 
     private var activity: Activity? = null
     private var pending: Pending? = null
@@ -188,7 +279,10 @@ class WidgetHostController(context: Context) {
      */
     fun createView(widgetId: Int, widthDp: Int, heightDp: Int): AppWidgetHostView? {
         val info = manager.getAppWidgetInfo(widgetId) ?: return null
-        val view = runCatching { host.createView(appContext, widgetId, info) }
+        // widgetContext, NOT appContext. See the field's note: this is the
+        // context the provider's RemoteViews resolve their theme attributes
+        // against, and the launcher's own theme is translucent.
+        val view = runCatching { host.createView(widgetContext, widgetId, info) }
             .getOrNull() ?: return null
 
         // --- STRIP THE DEFAULT PADDING --------------------------------------
@@ -203,6 +297,11 @@ class WidgetHostController(context: Context) {
         //
         // Every launcher does this. It is the single cheapest visual difference
         // between a hosted widget that looks placed and one that looks pasted.
+        //
+        // KEPT, though [HostedWidgetView] now makes it a no-op that could not
+        // fail. The line documents intent at the point the view is born, and the
+        // override documents that the framework will try to undo it. Deleting
+        // this one would leave the override looking like defensive noise.
         view.setPadding(0, 0, 0, 0)
 
         // Registered BEFORE the sizing call so updateSize can reach it. The

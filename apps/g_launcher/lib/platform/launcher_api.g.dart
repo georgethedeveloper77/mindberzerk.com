@@ -746,6 +746,7 @@ class WidgetProviderInfo {
     required this.category,
     required this.configurable,
     required this.hasPreviewImage,
+    required this.description,
   });
 
   /// `ComponentName.flattenToString()` — the stable id the host will bind and
@@ -799,6 +800,24 @@ class WidgetProviderInfo {
   /// worth requesting rather than falling straight back to the app icon.
   bool hasPreviewImage;
 
+  /// The provider's own one-line pitch, from `loadDescription()` on API 31+.
+  ///
+  /// "Play your favs and find new tunes, right from your home screen."
+  /// "Start a chat with Claude."
+  ///
+  /// The stock picker shows this under the size, and it is most of why a
+  /// third-party widget reads as a considered offer there rather than as a row
+  /// in a list. Empty on pre-31 devices and on providers that never set it, and
+  /// the card simply omits the line rather than printing a placeholder, the
+  /// same rule nullable stats follow everywhere else.
+  ///
+  /// APPENDED AT THE END, which is the whole reason this is a safe addition:
+  /// Pigeon numbers enums before classes and classes in declaration order, so a
+  /// field added at the tail of the LAST class shifts nothing a shipped APK
+  /// already agreed on. Inserting it mid-class would renumber every field after
+  /// it. No new enum either, for the same reason.
+  String description;
+
   List<Object?> _toList() {
     return <Object?>[
       providerKey,
@@ -815,6 +834,7 @@ class WidgetProviderInfo {
       category,
       configurable,
       hasPreviewImage,
+      description,
     ];
   }
 
@@ -838,6 +858,7 @@ class WidgetProviderInfo {
       category: result[11]! as int,
       configurable: result[12]! as bool,
       hasPreviewImage: result[13]! as bool,
+      description: result[14]! as String,
     );
   }
 
@@ -850,7 +871,7 @@ class WidgetProviderInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(providerKey, other.providerKey) && _deepEquals(packageName, other.packageName) && _deepEquals(appLabel, other.appLabel) && _deepEquals(label, other.label) && _deepEquals(minWidthDp, other.minWidthDp) && _deepEquals(minHeightDp, other.minHeightDp) && _deepEquals(minResizeWidthDp, other.minResizeWidthDp) && _deepEquals(minResizeHeightDp, other.minResizeHeightDp) && _deepEquals(targetCellWidth, other.targetCellWidth) && _deepEquals(targetCellHeight, other.targetCellHeight) && _deepEquals(resizeMode, other.resizeMode) && _deepEquals(category, other.category) && _deepEquals(configurable, other.configurable) && _deepEquals(hasPreviewImage, other.hasPreviewImage);
+    return _deepEquals(providerKey, other.providerKey) && _deepEquals(packageName, other.packageName) && _deepEquals(appLabel, other.appLabel) && _deepEquals(label, other.label) && _deepEquals(minWidthDp, other.minWidthDp) && _deepEquals(minHeightDp, other.minHeightDp) && _deepEquals(minResizeWidthDp, other.minResizeWidthDp) && _deepEquals(minResizeHeightDp, other.minResizeHeightDp) && _deepEquals(targetCellWidth, other.targetCellWidth) && _deepEquals(targetCellHeight, other.targetCellHeight) && _deepEquals(resizeMode, other.resizeMode) && _deepEquals(category, other.category) && _deepEquals(configurable, other.configurable) && _deepEquals(hasPreviewImage, other.hasPreviewImage) && _deepEquals(description, other.description);
   }
 
   @override
@@ -859,7 +880,7 @@ class WidgetProviderInfo {
 
   @override
   String toString() {
-    return 'WidgetProviderInfo(providerKey: $providerKey, packageName: $packageName, appLabel: $appLabel, label: $label, minWidthDp: $minWidthDp, minHeightDp: $minHeightDp, minResizeWidthDp: $minResizeWidthDp, minResizeHeightDp: $minResizeHeightDp, targetCellWidth: $targetCellWidth, targetCellHeight: $targetCellHeight, resizeMode: $resizeMode, category: $category, configurable: $configurable, hasPreviewImage: $hasPreviewImage)';
+    return 'WidgetProviderInfo(providerKey: $providerKey, packageName: $packageName, appLabel: $appLabel, label: $label, minWidthDp: $minWidthDp, minHeightDp: $minHeightDp, minResizeWidthDp: $minResizeWidthDp, minResizeHeightDp: $minResizeHeightDp, targetCellWidth: $targetCellWidth, targetCellHeight: $targetCellHeight, resizeMode: $resizeMode, category: $category, configurable: $configurable, hasPreviewImage: $hasPreviewImage, description: $description)';
   }
 }
 
@@ -1008,9 +1029,34 @@ class LauncherHostApi {
     ;
   }
 
-  /// Refused silently for apps that cannot be uninstalled (system, work
-  /// profile) — the Dart side hides the option rather than relying on this.
-  Future<void> requestUninstall(String componentKey) async {
+  /// Start the system's uninstall confirmation, and report what happened.
+  ///
+  /// ─── WHY THIS RETURNS A STRING AND NOT void ─────────────────────────────
+  ///
+  /// It used to be `void`, and the native side answered every refusal with a
+  /// bare `return`. A guard that produces no output is indistinguishable from a
+  /// broken feature, which is exactly how it was reported: the button did
+  /// nothing, and nothing said why.
+  ///
+  /// A STRING AND NOT AN ENUM. Pigeon numbers enums ahead of classes in the
+  /// codec, so introducing one here would renumber every existing class and
+  /// break any APK already in the field against a newer engine. Every
+  /// enum-shaped value in this schema is a string for that reason.
+  ///
+  /// The vocabulary, mirrored in `UninstallStatus` (Kotlin) and
+  /// `UninstallStatus` (Dart, in data/repositories/app_repository.dart):
+  ///
+  ///   launched           the confirmation was started from the Activity
+  ///   launched_detached  started from the app context, no Activity attached
+  ///   unknown_app        not in the app list, usually a stale tile
+  ///   system_app         preinstalled and never updated, nothing to remove
+  ///   work_profile       owned by the profile admin
+  ///   no_installer       nothing on this device answers ACTION_DELETE
+  ///   refused            the system refused the start
+  ///
+  /// A status this side does not recognise must be treated as a failure with a
+  /// generic message, never as success.
+  Future<String> requestUninstall(String componentKey) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestUninstall$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -1020,12 +1066,13 @@ class LauncherHostApi {
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
-    _extractReplyValueOrThrow(
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
         pigeonVar_replyList,
         pigeonVar_channelName,
-        isNullValid: true,
+        isNullValid: false,
     )
     ;
+    return pigeonVar_replyValue! as String;
   }
 
   /// Swap the active icon theme. Invalidates the in-memory icon cache; the DISK

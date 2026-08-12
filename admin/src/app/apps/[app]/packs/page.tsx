@@ -11,6 +11,7 @@ import { indexIsSigned, readLiveIndex } from '@/lib/core/catalogue';
 import { orphanReport } from '@/lib/core/orphans';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { KNOWN_PACK_TYPES } from '@/lib/core/sign';
+import { READ_BY_APP } from '@/lib/g-recovery/content-packs';
 
 export const dynamic = 'force-dynamic';
 
@@ -250,6 +251,23 @@ export default async function PacksPage({
                         {p.path}
                       </span>
                     </span>
+
+                    {/* ─── WHETHER THE SHIPPED APP CAN READ THIS ────────────
+                        The panel knows about more content than the app does.
+                        ContentStore in G Recovery declares two ids and no more,
+                        so oem-guide and storage-map can be authored, validated,
+                        signed, uploaded and indexed here, and no device will
+                        ever fetch them.
+
+                        Not a bug in the pipeline, and worth an afternoon of
+                        somebody's life if nothing says so. Only rendered for
+                        this app, because the launcher's readers are a different
+                        list and guessing at it would mark a real pack dead. */}
+                    {app === 'g-recovery' && !READ_BY_APP.has(p.packId) && (
+                      <span className="hidden shrink-0 rounded-md border border-site-bad/30 bg-site-bad-soft px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-site-bad sm:block">
+                        NO READER
+                      </span>
+                    )}
 
                     {p.sku && (
                       <span className="hidden shrink-0 truncate font-mono text-[11px] text-site-ink-2 sm:block">

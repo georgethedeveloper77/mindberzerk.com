@@ -6,6 +6,16 @@ import '../core/logging.dart';
 import 'compress_api.g.dart';
 
 /// The Dart face of compression.
+/// The one size floor, for every question this bridge answers.
+///
+/// A megabyte. Below it a photo is a thumbnail and a clip is a few seconds, and
+/// re-encoding either costs more attention than it returns.
+///
+/// Shared because it was not: the summary counted from one megabyte and the
+/// video list from eight, so a card could report a clip worth shrinking and
+/// then open a list with nothing in it.
+const int kCompressFloorBytes = 1024 * 1024;
+
 class CompressBridge {
   CompressBridge({CompressHostApi? api}) : _api = api ?? CompressHostApi();
 
@@ -13,7 +23,7 @@ class CompressBridge {
 
   /// Counts and bytes only. Cheap enough to call on a screen nobody asked to
   /// scan, which is the whole reason it exists separately.
-  Future<CompressSummary?> summary({int minBytes = 1024 * 1024}) =>
+  Future<CompressSummary?> summary({int minBytes = kCompressFloorBytes}) =>
       _guard(() => _api.summary(minBytes));
 
   Future<List<CompressCandidate>> candidates({
@@ -50,7 +60,15 @@ class CompressBridge {
 
   /// Every clip over the floor, with the ineligible ones included and marked.
   Future<List<VideoCandidate>> videoCandidates({
-    int minBytes = 8 * 1024 * 1024,
+    // ─── THE SAME FLOOR THE SUMMARY USES ─────────────────────────────────
+    //
+    // This was eight megabytes while summary() counted from one, so the card
+    // said one clip was worth re-encoding and the list it opened showed none.
+    // Two different questions were being asked and only one answer was on
+    // screen.
+    //
+    // A single floor, in one place, or the two will drift again.
+    int minBytes = kCompressFloorBytes,
     int limit = 300,
   }) async =>
       await _guard(() => _api.videoCandidates(minBytes, limit)) ??

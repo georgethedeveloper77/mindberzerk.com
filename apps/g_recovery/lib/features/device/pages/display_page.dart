@@ -5,19 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../bridge/hardware_api.g.dart';
 import '../../../bridge/hardware_bridge.dart';
-import '../../../ui/g_app_bar.dart';
 import '../../../ui/g_card.dart';
-import 'spec_rows.dart';
+import '../../../ui/g_stat.dart';
+import 'device_chrome.dart';
 
 /// THE SCREEN.
 ///
 /// No chart. Nothing on this page is a series or a distribution, and a graph
 /// over a spec list is decoration that makes the page slower to read.
 class DisplayPage extends ConsumerWidget {
-  const DisplayPage({super.key});
+  const DisplayPage({required this.hue, super.key});
 
-  static Route<void> route() => MaterialPageRoute<void>(
-    builder: (BuildContext context) => const DisplayPage(),
+  final Color hue;
+
+  static Route<void> route({required Color hue}) => MaterialPageRoute<void>(
+    builder: (BuildContext context) => DisplayPage(hue: hue),
   );
 
   @override
@@ -26,145 +28,114 @@ class DisplayPage extends ConsumerWidget {
     final DisplayInfo? d = ref.watch(displayProvider).value;
     final FeatureFlags? f = ref.watch(featuresProvider).value;
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            GSpace.gutter,
-            0,
-            GSpace.gutter,
-            GSpace.xl,
+    return DeviceDetailPage(
+      hue: hue,
+      icon: Icons.smartphone_rounded,
+      title: 'Display',
+      subtitle: d == null
+          ? null
+          : '${d.widthPx} x ${d.heightPx}  ·  ${d.refreshHz.round()} Hz',
+      children: <Widget>[
+        if (d != null) ...<Widget>[
+          const GOverline('Screen'),
+          const SizedBox(height: GSpace.sm + 1),
+          GSpecCard(
+            rows: <(String, String?)>[
+              ('Resolution', '${d.widthPx} x ${d.heightPx}'),
+              ('Aspect ratio', _aspect(d.widthPx, d.heightPx)),
+              ('Density', '${d.densityDpi} dpi'),
+              ('Refresh rate', '${d.refreshHz.round()} Hz'),
+              ('Also supports', _otherRates(d)),
+            ],
           ),
-          children: <Widget>[
-            GAppBar(
-              title: 'Display',
-              subtitle: d == null
-                  ? null
-                  : '${d.widthPx} x ${d.heightPx}  ·  '
-                        '${d.refreshHz.round()} Hz',
-              leading: GIconButton(
-                icon: Icons.arrow_back_rounded,
-                onTap: () => Navigator.of(context).pop(),
-              ),
+
+          if (d.maxLuminance != null) ...<Widget>[
+            const SizedBox(height: GSpace.lg),
+            const GOverline('Brightness'),
+            const SizedBox(height: GSpace.sm + 1),
+            GSpecCard(
+              rows: <(String, String?)>[
+                ('Maximum', '${d.maxLuminance!.round()} cd/m2'),
+                (
+                  'Typical',
+                  d.averageLuminance == null
+                      ? null
+                      : '${d.averageLuminance!.round()} cd/m2',
+                ),
+                (
+                  'Minimum',
+                  d.minLuminance == null
+                      ? null
+                      : '${d.minLuminance!.toStringAsFixed(4)} cd/m2',
+                ),
+              ],
             ),
-
-            if (d != null) ...<Widget>[
-              Text('SCREEN', style: GType.overline.copyWith(color: t.dim)),
-              const SizedBox(height: GSpace.sm + 1),
-              GCard(
-                child: SpecRows(
-                  rows: <(String, String?)>[
-                    ('Resolution', '${d.widthPx} x ${d.heightPx}'),
-                    ('Aspect ratio', _aspect(d.widthPx, d.heightPx)),
-                    ('Density', '${d.densityDpi} dpi'),
-                    ('Refresh rate', '${d.refreshHz.round()} Hz'),
-                    (
-                      'Also supports',
-                      d.supportedHz.length < 2
-                          ? null
-                          : d.supportedHz
-                                .where(
-                                  (double hz) =>
-                                      hz.round() != d.refreshHz.round(),
-                                )
-                                .map((double hz) => '${hz.round()}')
-                                .join(', '),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (d.maxLuminance != null) ...<Widget>[
-                const SizedBox(height: GSpace.lg),
-                Text(
-                  'BRIGHTNESS',
-                  style: GType.overline.copyWith(color: t.dim),
-                ),
-                const SizedBox(height: GSpace.sm + 1),
-                GCard(
-                  child: SpecRows(
-                    rows: <(String, String?)>[
-                      ('Maximum', '${d.maxLuminance!.round()} cd/m2'),
-                      (
-                        'Typical',
-                        d.averageLuminance == null
-                            ? null
-                            : '${d.averageLuminance!.round()} cd/m2',
-                      ),
-                      ('Minimum', d.minLuminance?.toStringAsFixed(4)),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: GSpace.lg),
-              Text('SUPPORTED', style: GType.overline.copyWith(color: t.dim)),
-              const SizedBox(height: GSpace.sm + 1),
-              GCard(
-                child: Column(
-                  children: <Widget>[
-                    _Flag(label: 'HDR', on: d.hdr, last: false),
-                    _Flag(label: 'Wide colour', on: d.wideColour, last: true),
-                  ],
-                ),
-              ),
-
-              if (d.hdrTypes.isNotEmpty) ...<Widget>[
-                const SizedBox(height: GSpace.sm + 1),
-                Wrap(
-                  spacing: GSpace.sm,
-                  runSpacing: GSpace.sm,
-                  children: <Widget>[
-                    for (final String type in d.hdrTypes)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GSpace.md - 2,
-                          vertical: GSpace.xs + 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: t.docs.withValues(alpha: 0.16),
-                          borderRadius: GRadius.all(GRadius.chip),
-                        ),
-                        child: Text(
-                          type,
-                          style: GType.micro.copyWith(color: t.docs),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-
-            if (f != null) ...<Widget>[
-              const SizedBox(height: GSpace.lg),
-              Text(
-                'THIS PHONE HAS',
-                style: GType.overline.copyWith(color: t.dim),
-              ),
-              const SizedBox(height: GSpace.sm + 1),
-              GCard(
-                child: Column(
-                  children: <Widget>[
-                    _Flag(
-                      label: 'Fingerprint reader',
-                      on: f.fingerprint,
-                      last: false,
-                    ),
-                    _Flag(label: 'NFC', on: f.nfc, last: false),
-                    _Flag(label: 'GPS', on: f.gps, last: false),
-                    _Flag(label: 'Ultra wideband', on: f.uwb, last: false),
-                    _Flag(label: 'USB host', on: f.usbHost, last: false),
-                    _Flag(label: 'Bluetooth LE', on: f.bluetoothLe, last: true),
-                  ],
-                ),
-              ),
-            ],
           ],
-        ),
-      ),
+
+          const SizedBox(height: GSpace.lg),
+          const GOverline('Supported'),
+          const SizedBox(height: GSpace.sm + 1),
+          GFlagCard(
+            flags: <(String, bool)>[
+              ('HDR', d.hdr),
+              ('Wide colour', d.wideColour),
+            ],
+          ),
+
+          if (d.hdrTypes.isNotEmpty) ...<Widget>[
+            const SizedBox(height: GSpace.sm + 1),
+            Wrap(
+              spacing: GSpace.sm,
+              runSpacing: GSpace.sm,
+              children: <Widget>[
+                for (final String type in d.hdrTypes)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GSpace.md - 2,
+                      vertical: GSpace.xs + 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: t.docs.withValues(alpha: 0.16),
+                      borderRadius: GRadius.all(GRadius.chip),
+                    ),
+                    child: Text(
+                      type,
+                      style: GType.micro.copyWith(color: t.docs),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+
+        if (f != null) ...<Widget>[
+          const SizedBox(height: GSpace.lg),
+          const GOverline('This phone has'),
+          const SizedBox(height: GSpace.sm + 1),
+          GFlagCard(
+            flags: <(String, bool)>[
+              ('Fingerprint reader', f.fingerprint),
+              ('NFC', f.nfc),
+              ('GPS', f.gps),
+              ('Ultra wideband', f.uwb),
+              ('USB host', f.usbHost),
+              ('Bluetooth LE', f.bluetoothLe),
+            ],
+          ),
+        ],
+      ],
     );
+  }
+
+  /// Every mode except the one already on the row above it.
+  static String? _otherRates(DisplayInfo d) {
+    if (d.supportedHz.length < 2) return null;
+    final List<String> others = <String>[
+      for (final double hz in d.supportedHz)
+        if (hz.round() != d.refreshHz.round()) '${hz.round()}',
+    ];
+    if (others.isEmpty) return null;
+    return '${others.join(', ')} Hz';
   }
 
   /// Reduced by the greatest common divisor, so a 2340 by 1080 panel reads
@@ -187,41 +158,6 @@ class DisplayPage extends ConsumerWidget {
   }
 }
 
-class _Flag extends StatelessWidget {
-  const _Flag({required this.label, required this.on, required this.last});
-
-  final String label;
-  final bool on;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final GTokens t = context.g;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: GSpace.sm + 1),
-      decoration: BoxDecoration(
-        border: last ? null : Border(bottom: BorderSide(color: t.line)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            on ? Icons.check_rounded : Icons.remove_rounded,
-            size: 16,
-            color: on ? t.success : t.dim,
-          ),
-          const SizedBox(width: GSpace.md - 2),
-          Expanded(
-            child: Text(
-              label,
-              style: GType.bodySmall.copyWith(color: on ? t.text : t.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// THE CAMERAS.
 ///
 /// ─── A SCATTER, AND IT EARNS ITS PLACE ───────────────────────────────────────
@@ -231,10 +167,12 @@ class _Flag extends StatelessWidget {
 /// shows immediately which is the wide, which is the telephoto, and which is a
 /// 2 MP depth sensor padding the spec sheet.
 class CamerasPage extends ConsumerWidget {
-  const CamerasPage({super.key});
+  const CamerasPage({required this.hue, super.key});
 
-  static Route<void> route() => MaterialPageRoute<void>(
-    builder: (BuildContext context) => const CamerasPage(),
+  final Color hue;
+
+  static Route<void> route({required Color hue}) => MaterialPageRoute<void>(
+    builder: (BuildContext context) => CamerasPage(hue: hue),
   );
 
   @override
@@ -243,121 +181,93 @@ class CamerasPage extends ConsumerWidget {
     final List<CameraInfo> cameras =
         ref.watch(camerasProvider).value ?? const <CameraInfo>[];
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            GSpace.gutter,
-            0,
-            GSpace.gutter,
-            GSpace.xl,
-          ),
-          children: <Widget>[
-            GAppBar(
-              title: 'Cameras',
-              subtitle: cameras.isEmpty ? null : '${cameras.length} found',
-              leading: GIconButton(
-                icon: Icons.arrow_back_rounded,
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            ),
-
-            if (cameras.length > 1) ...<Widget>[
-              GCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return DeviceDetailPage(
+      hue: hue,
+      icon: Icons.photo_camera_rounded,
+      title: 'Cameras',
+      subtitle: cameras.isEmpty ? null : '${cameras.length} found',
+      children: <Widget>[
+        if (cameras.length > 1) ...<Widget>[
+          GCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Focal length against aperture',
+                  style: GType.micro.copyWith(color: t.muted),
+                ),
+                const SizedBox(height: GSpace.md),
+                SizedBox(
+                  height: 168,
+                  child: ScatterChart(
+                    _scatter(cameras, t),
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                const SizedBox(height: GSpace.sm),
+                Row(
                   children: <Widget>[
+                    Text('wider', style: GType.micro.copyWith(color: t.dim)),
+                    const Spacer(),
                     Text(
-                      'Focal length against aperture',
-                      style: GType.micro.copyWith(color: t.muted),
-                    ),
-                    const SizedBox(height: GSpace.md),
-                    SizedBox(
-                      height: 168,
-                      child: ScatterChart(
-                        _scatter(cameras, t),
-                        duration: const Duration(milliseconds: 420),
-                        curve: Curves.easeOutCubic,
-                      ),
-                    ),
-                    const SizedBox(height: GSpace.sm),
-                    Row(
-                      children: <Widget>[
-                        Text(
-                          'wider',
-                          style: GType.micro.copyWith(color: t.dim),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'longer lens',
-                          style: GType.micro.copyWith(color: t.dim),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: GSpace.sm),
-                    Row(
-                      children: <Widget>[
-                        _Dot(hue: t.accent, label: 'Back'),
-                        const SizedBox(width: GSpace.md),
-                        _Dot(hue: t.photo, label: 'Front'),
-                        const Spacer(),
-                        Text(
-                          'size is megapixels',
-                          style: GType.micro.copyWith(color: t.dim),
-                        ),
-                      ],
+                      'longer lens',
+                      style: GType.micro.copyWith(color: t.dim),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: GSpace.lg),
-            ],
+                const SizedBox(height: GSpace.sm),
+                GStackKeys(
+                  entries: <(String, Color)>[
+                    ('Back', t.accent),
+                    ('Front', t.photo),
+                    ('size is megapixels', t.dim),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: GSpace.lg),
+        ],
 
-            for (final CameraInfo camera in cameras) ...<Widget>[
-              Text(
-                '${_lensName(camera, cameras)}  ·  '
-                '${camera.megapixels.toStringAsFixed(1)} MP',
-                style: GType.overline.copyWith(color: t.dim),
+        for (final CameraInfo camera in cameras) ...<Widget>[
+          GOverline(
+            '${_lensName(camera, cameras)}  ·  '
+            '${camera.megapixels.toStringAsFixed(1)} MP',
+          ),
+          const SizedBox(height: GSpace.sm + 1),
+          GSpecCard(
+            rows: <(String, String?)>[
+              ('Resolution', '${camera.widthPx} x ${camera.heightPx}'),
+              (
+                'Focal length',
+                camera.focalLengthsMm.isEmpty
+                    ? null
+                    : camera.focalLengthsMm
+                          .map((double f) => '${f.toStringAsFixed(1)} mm')
+                          .join(', '),
               ),
-              const SizedBox(height: GSpace.sm + 1),
-              GCard(
-                child: SpecRows(
-                  rows: <(String, String?)>[
-                    ('Resolution', '${camera.widthPx} x ${camera.heightPx}'),
-                    (
-                      'Focal length',
-                      camera.focalLengthsMm.isEmpty
-                          ? null
-                          : camera.focalLengthsMm
-                                .map((double f) => '${f.toStringAsFixed(1)} mm')
-                                .join(', '),
-                    ),
-                    (
-                      'Aperture',
-                      camera.apertures.isEmpty
-                          ? null
-                          : camera.apertures
-                                .map((double a) => 'f/${a.toStringAsFixed(1)}')
-                                .join(', '),
-                    ),
-                    (
-                      'ISO range',
-                      camera.isoMin == null || camera.isoMax == null
-                          ? null
-                          : '${camera.isoMin} to ${camera.isoMax}',
-                    ),
-                    ('RAW', camera.supportsRaw ? 'Supported' : 'No'),
-                    ('Flash', camera.hasFlash ? 'Yes' : 'No'),
-                  ],
-                ),
+              (
+                'Aperture',
+                camera.apertures.isEmpty
+                    ? null
+                    : camera.apertures
+                          .map((double a) => 'f/${a.toStringAsFixed(1)}')
+                          .join(', '),
               ),
-              const SizedBox(height: GSpace.md - 1),
+              (
+                'ISO range',
+                camera.isoMin == null || camera.isoMax == null
+                    ? null
+                    : '${camera.isoMin} to ${camera.isoMax}',
+              ),
+              ('RAW', camera.supportsRaw ? 'Supported' : 'No'),
+              ('Flash', camera.hasFlash ? 'Yes' : 'No'),
             ],
-          ],
-        ),
-      ),
+          ),
+          const SizedBox(height: GSpace.md - 1),
+        ],
+      ],
     );
   }
 
@@ -447,28 +357,4 @@ class CamerasPage extends ConsumerWidget {
     'back' => 'Back',
     _ => 'External',
   };
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot({required this.hue, required this.label});
-
-  final Color hue;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final GTokens t = context.g;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: hue, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: GSpace.xs + 2),
-        Text(label, style: GType.micro.copyWith(color: t.muted)),
-      ],
-    );
-  }
 }

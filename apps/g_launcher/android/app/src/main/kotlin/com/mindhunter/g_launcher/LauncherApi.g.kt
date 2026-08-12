@@ -872,7 +872,26 @@ data class WidgetProviderInfo (
    * Whether `previewImage` is set, so the Dart side knows a real preview is
    * worth requesting rather than falling straight back to the app icon.
    */
-  val hasPreviewImage: Boolean
+  val hasPreviewImage: Boolean,
+  /**
+   * The provider's own one-line pitch, from `loadDescription()` on API 31+.
+   *
+   * "Play your favs and find new tunes, right from your home screen."
+   * "Start a chat with Claude."
+   *
+   * The stock picker shows this under the size, and it is most of why a
+   * third-party widget reads as a considered offer there rather than as a row
+   * in a list. Empty on pre-31 devices and on providers that never set it, and
+   * the card simply omits the line rather than printing a placeholder, the
+   * same rule nullable stats follow everywhere else.
+   *
+   * APPENDED AT THE END, which is the whole reason this is a safe addition:
+   * Pigeon numbers enums before classes and classes in declaration order, so a
+   * field added at the tail of the LAST class shifts nothing a shipped APK
+   * already agreed on. Inserting it mid-class would renumber every field after
+   * it. No new enum either, for the same reason.
+   */
+  val description: String
 )
  {
   companion object {
@@ -891,7 +910,8 @@ data class WidgetProviderInfo (
       val category = pigeonVar_list[11] as Long
       val configurable = pigeonVar_list[12] as Boolean
       val hasPreviewImage = pigeonVar_list[13] as Boolean
-      return WidgetProviderInfo(providerKey, packageName, appLabel, label, minWidthDp, minHeightDp, minResizeWidthDp, minResizeHeightDp, targetCellWidth, targetCellHeight, resizeMode, category, configurable, hasPreviewImage)
+      val description = pigeonVar_list[14] as String
+      return WidgetProviderInfo(providerKey, packageName, appLabel, label, minWidthDp, minHeightDp, minResizeWidthDp, minResizeHeightDp, targetCellWidth, targetCellHeight, resizeMode, category, configurable, hasPreviewImage, description)
     }
   }
   fun toList(): List<Any?> {
@@ -910,6 +930,7 @@ data class WidgetProviderInfo (
       category,
       configurable,
       hasPreviewImage,
+      description,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -920,7 +941,7 @@ data class WidgetProviderInfo (
       return true
     }
     val other = other as WidgetProviderInfo
-    return LauncherApiPigeonUtils.deepEquals(this.providerKey, other.providerKey) && LauncherApiPigeonUtils.deepEquals(this.packageName, other.packageName) && LauncherApiPigeonUtils.deepEquals(this.appLabel, other.appLabel) && LauncherApiPigeonUtils.deepEquals(this.label, other.label) && LauncherApiPigeonUtils.deepEquals(this.minWidthDp, other.minWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minHeightDp, other.minHeightDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeWidthDp, other.minResizeWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeHeightDp, other.minResizeHeightDp) && LauncherApiPigeonUtils.deepEquals(this.targetCellWidth, other.targetCellWidth) && LauncherApiPigeonUtils.deepEquals(this.targetCellHeight, other.targetCellHeight) && LauncherApiPigeonUtils.deepEquals(this.resizeMode, other.resizeMode) && LauncherApiPigeonUtils.deepEquals(this.category, other.category) && LauncherApiPigeonUtils.deepEquals(this.configurable, other.configurable) && LauncherApiPigeonUtils.deepEquals(this.hasPreviewImage, other.hasPreviewImage)
+    return LauncherApiPigeonUtils.deepEquals(this.providerKey, other.providerKey) && LauncherApiPigeonUtils.deepEquals(this.packageName, other.packageName) && LauncherApiPigeonUtils.deepEquals(this.appLabel, other.appLabel) && LauncherApiPigeonUtils.deepEquals(this.label, other.label) && LauncherApiPigeonUtils.deepEquals(this.minWidthDp, other.minWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minHeightDp, other.minHeightDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeWidthDp, other.minResizeWidthDp) && LauncherApiPigeonUtils.deepEquals(this.minResizeHeightDp, other.minResizeHeightDp) && LauncherApiPigeonUtils.deepEquals(this.targetCellWidth, other.targetCellWidth) && LauncherApiPigeonUtils.deepEquals(this.targetCellHeight, other.targetCellHeight) && LauncherApiPigeonUtils.deepEquals(this.resizeMode, other.resizeMode) && LauncherApiPigeonUtils.deepEquals(this.category, other.category) && LauncherApiPigeonUtils.deepEquals(this.configurable, other.configurable) && LauncherApiPigeonUtils.deepEquals(this.hasPreviewImage, other.hasPreviewImage) && LauncherApiPigeonUtils.deepEquals(this.description, other.description)
   }
 
   override fun hashCode(): Int {
@@ -939,10 +960,11 @@ data class WidgetProviderInfo (
     result = 31 * result + LauncherApiPigeonUtils.deepHash(this.category)
     result = 31 * result + LauncherApiPigeonUtils.deepHash(this.configurable)
     result = 31 * result + LauncherApiPigeonUtils.deepHash(this.hasPreviewImage)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.description)
     return result
   }
   override fun toString(): String {
-    return "WidgetProviderInfo(providerKey=$providerKey, packageName=$packageName, appLabel=$appLabel, label=$label, minWidthDp=$minWidthDp, minHeightDp=$minHeightDp, minResizeWidthDp=$minResizeWidthDp, minResizeHeightDp=$minResizeHeightDp, targetCellWidth=$targetCellWidth, targetCellHeight=$targetCellHeight, resizeMode=$resizeMode, category=$category, configurable=$configurable, hasPreviewImage=$hasPreviewImage)"
+    return "WidgetProviderInfo(providerKey=$providerKey, packageName=$packageName, appLabel=$appLabel, label=$label, minWidthDp=$minWidthDp, minHeightDp=$minHeightDp, minResizeWidthDp=$minResizeWidthDp, minResizeHeightDp=$minResizeHeightDp, targetCellWidth=$targetCellWidth, targetCellHeight=$targetCellHeight, resizeMode=$resizeMode, category=$category, configurable=$configurable, hasPreviewImage=$hasPreviewImage, description=$description)"
   }
 }
 private open class LauncherApiPigeonCodec : StandardMessageCodec() {
@@ -1057,10 +1079,35 @@ interface LauncherHostApi {
   fun launchApp(componentKey: String, sourceLeft: Double?, sourceTop: Double?, sourceRight: Double?, sourceBottom: Double?)
   fun openAppInfo(componentKey: String)
   /**
-   * Refused silently for apps that cannot be uninstalled (system, work
-   * profile) — the Dart side hides the option rather than relying on this.
+   * Start the system's uninstall confirmation, and report what happened.
+   *
+   * ─── WHY THIS RETURNS A STRING AND NOT void ─────────────────────────────
+   *
+   * It used to be `void`, and the native side answered every refusal with a
+   * bare `return`. A guard that produces no output is indistinguishable from a
+   * broken feature, which is exactly how it was reported: the button did
+   * nothing, and nothing said why.
+   *
+   * A STRING AND NOT AN ENUM. Pigeon numbers enums ahead of classes in the
+   * codec, so introducing one here would renumber every existing class and
+   * break any APK already in the field against a newer engine. Every
+   * enum-shaped value in this schema is a string for that reason.
+   *
+   * The vocabulary, mirrored in `UninstallStatus` (Kotlin) and
+   * `UninstallStatus` (Dart, in data/repositories/app_repository.dart):
+   *
+   *   launched           the confirmation was started from the Activity
+   *   launched_detached  started from the app context, no Activity attached
+   *   unknown_app        not in the app list, usually a stale tile
+   *   system_app         preinstalled and never updated, nothing to remove
+   *   work_profile       owned by the profile admin
+   *   no_installer       nothing on this device answers ACTION_DELETE
+   *   refused            the system refused the start
+   *
+   * A status this side does not recognise must be treated as a failure with a
+   * generic message, never as success.
    */
-  fun requestUninstall(componentKey: String)
+  fun requestUninstall(componentKey: String): String
   /**
    * Swap the active icon theme. Invalidates the in-memory icon cache; the DISK
    * cache is kept, so switching back to a theme you used before is instant.
@@ -1355,8 +1402,7 @@ interface LauncherHostApi {
             val args = message as List<Any?>
             val componentKeyArg = args[0] as String
             val wrapped: List<Any?> = try {
-              api.requestUninstall(componentKeyArg)
-              listOf(null)
+              listOf(api.requestUninstall(componentKeyArg))
             } catch (exception: Throwable) {
               LauncherApiPigeonUtils.wrapError(exception)
             }

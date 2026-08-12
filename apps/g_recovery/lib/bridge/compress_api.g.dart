@@ -833,6 +833,7 @@ class VideoEstimate {
     required this.estimatedBytes,
     required this.sampledMillis,
     required this.preset,
+    this.samplePath,
   });
 
   String fileId;
@@ -849,6 +850,22 @@ class VideoEstimate {
   /// "same" or "smaller".
   String preset;
 
+  /// The encoded sample, still on disk and playable.
+  ///
+  /// ─── THE PREVIEW WAS ALREADY BEING MADE AND THROWN AWAY ──────────────────
+  ///
+  /// Estimating means really encoding fifteen seconds at the chosen settings,
+  /// and until now that file was deleted the moment it had been weighed. Keeping
+  /// it costs nothing and gives video something the photo path cannot match: not
+  /// a prediction of what the output would look like, but the output itself.
+  ///
+  /// Playing the ORIGINAL would be no preview at all. It shows what is already
+  /// there and says nothing about what the encoder would do to it.
+  ///
+  /// Null when the encode failed. Deleted on the next scan, so nothing here is
+  /// a file the app is keeping.
+  String? samplePath;
+
   List<Object?> _toList() {
     return <Object?>[
       fileId,
@@ -856,6 +873,7 @@ class VideoEstimate {
       estimatedBytes,
       sampledMillis,
       preset,
+      samplePath,
     ];
   }
 
@@ -870,6 +888,7 @@ class VideoEstimate {
       estimatedBytes: result[2]! as int,
       sampledMillis: result[3]! as int,
       preset: result[4]! as String,
+      samplePath: result[5] as String?,
     );
   }
 
@@ -882,7 +901,7 @@ class VideoEstimate {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(estimatedBytes, other.estimatedBytes) && _deepEquals(sampledMillis, other.sampledMillis) && _deepEquals(preset, other.preset);
+    return _deepEquals(fileId, other.fileId) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(estimatedBytes, other.estimatedBytes) && _deepEquals(sampledMillis, other.sampledMillis) && _deepEquals(preset, other.preset) && _deepEquals(samplePath, other.samplePath);
   }
 
   @override
@@ -891,7 +910,7 @@ class VideoEstimate {
 
   @override
   String toString() {
-    return 'VideoEstimate(fileId: $fileId, originalBytes: $originalBytes, estimatedBytes: $estimatedBytes, sampledMillis: $sampledMillis, preset: $preset)';
+    return 'VideoEstimate(fileId: $fileId, originalBytes: $originalBytes, estimatedBytes: $estimatedBytes, sampledMillis: $sampledMillis, preset: $preset, samplePath: $samplePath)';
   }
 }
 

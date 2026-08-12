@@ -371,6 +371,7 @@ class VideoEstimate {
     required this.estimatedBytes,
     required this.sampledMillis,
     required this.preset,
+    this.samplePath,
   });
 
   final String fileId;
@@ -385,6 +386,24 @@ class VideoEstimate {
 
   /// "same" or "smaller".
   final String preset;
+
+  // ─── APPENDED ─────────────────────────────────────────────────────────────
+
+  /// The encoded sample, still on disk and playable.
+  ///
+  /// ─── THE PREVIEW WAS ALREADY BEING MADE AND THROWN AWAY ──────────────────
+  ///
+  /// Estimating means really encoding fifteen seconds at the chosen settings,
+  /// and until now that file was deleted the moment it had been weighed. Keeping
+  /// it costs nothing and gives video something the photo path cannot match: not
+  /// a prediction of what the output would look like, but the output itself.
+  ///
+  /// Playing the ORIGINAL would be no preview at all. It shows what is already
+  /// there and says nothing about what the encoder would do to it.
+  ///
+  /// Null when the encode failed. Deleted on the next scan, so nothing here is
+  /// a file the app is keeping.
+  final String? samplePath;
 }
 
 @HostApi()

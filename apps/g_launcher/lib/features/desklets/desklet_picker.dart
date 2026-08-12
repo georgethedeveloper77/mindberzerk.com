@@ -20,7 +20,7 @@ import 'desklet_edit.dart';
 // `deskletCellProvider`, measured, rather than being estimated from the window.
 import 'desklet_surface.dart' show buildDesklet, DeskletSurfaceView;
 import 'widget_catalog.dart';
-import 'widget_provider_card.dart' show spanLabel;
+import 'widget_provider_card.dart';
 
 /// Add something to the desktop. PHASE D4 → the image-2 restructure.
 ///
@@ -778,8 +778,20 @@ class _AppGroupTileState extends State<_AppGroupTile> {
             padding: const EdgeInsets.only(left: 8, bottom: 8),
             child: Column(
               children: [
+                // ─── CARDS, NOT ROWS ────────────────────────────────────
+                //
+                // `_ProviderRow` put every preview in a 96dp thumbnail beside a
+                // line of text. That reads as a list of names with pictures
+                // attached; the stock picker reads as a set of offers, and the
+                // whole difference is that its preview spans the card and its
+                // height comes from the widget's own footprint.
+                //
+                // `WidgetProviderCard` was written for exactly this and then
+                // never instantiated, so the better design has been sitting in
+                // the tree unused. It carries the description line too, which
+                // is the other half of why the stock sheet looks considered.
                 for (final provider in g.providers)
-                  _ProviderRow(
+                  WidgetProviderCard(
                     theme: widget.theme,
                     provider: provider,
                     onPlace: widget.onPlace,
@@ -790,148 +802,6 @@ class _AppGroupTileState extends State<_AppGroupTile> {
         Divider(height: 1, color: p.onDark.withValues(alpha: 0.08)),
       ],
     );
-  }
-}
-
-/// One widget provider: a preview thumbnail + its label. Tapping explains that
-/// placement waits on the host slice, rather than silently doing nothing.
-class _ProviderRow extends ConsumerWidget {
-  const _ProviderRow({
-    required this.theme,
-    required this.provider,
-    required this.onPlace,
-  });
-
-  final EffectiveTheme theme;
-  final api.WidgetProviderInfo provider;
-  final void Function(api.WidgetProviderInfo) onPlace;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final p = theme.palette;
-
-    // ─── THE PREVIEW IS THE RECTANGLE YOU ARE ABOUT TO SPEND ──────────────
-    //
-    // Every launcher's picker previews a widget at the provider's own declared
-    // shape. That is a fine answer to "what does this widget look like" and the
-    // wrong answer to "what will it look like HERE", because the grid it lands
-    // on is not the grid it was authored against.
-    //
-    // So the span is resolved first, and the preview is requested at exactly
-    // `span x cell` with the gutter removed. Switch distros and the preview
-    // changes shape, because the widget genuinely would. Nothing else on Play
-    // does this, and it falls straight out of having the span rule in one
-    // place.
-    //
-    // Fixed 96 x 64 is gone. It letterboxed a 4x1 media bar and a 2x2 tile into
-    // the same box, and a preview of the wrong shape is a preview of a
-    // different widget.
-    final cell = ref.watch(deskletCellProvider);
-    final span = cell == null
-        ? null
-        : WidgetSpanResolver.resolve(
-            widgetFootprint(provider),
-            cell: cell,
-            colFactor: DeskletLayout.colFactor,
-            rowFactor: DeskletLayout.rowFactor,
-          );
-
-    // Scaled to fit the row's thumbnail column while KEEPING the placed aspect.
-    // The row has a fixed width to give; the height follows from the shape.
-    const thumbW = 96.0;
-    final aspect = (span == null || cell == null)
-        ? 1.5
-        : WidgetSpanResolver.aspectOf(span.spanX, span.spanY, cell: cell);
-    final thumbH = (thumbW / aspect).clamp(44.0, 132.0);
-
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final req = (
-      providerKey: provider.providerKey,
-      width: (thumbW * dpr).round(),
-      height: (thumbH * dpr).round(),
-    );
-    final preview = ref.watch(widgetPreviewProvider(req));
-
-    return InkWell(
-      onTap: () => onPlace(provider),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        child: Row(
-          children: [
-            Container(
-              width: thumbW,
-              height: thumbH,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: p.onDark.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: p.onDark.withValues(alpha: 0.10)),
-              ),
-              child: preview.maybeWhen(
-                data: (bytes) => bytes == null
-                    ? _previewFallback(p.onDark)
-                    : Image.memory(bytes, fit: BoxFit.contain),
-                orElse: () => _previewFallback(p.onDark),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    provider.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: theme.typography.display,
-                      fontSize: 14,
-                      color: p.onDark,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _resizeLabel(provider),
-                    style: TextStyle(
-                      fontFamily: theme.typography.mono,
-                      fontSize: 11,
-                      color: p.onDark.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _previewFallback(Color onDark) => Center(
-        child: Icon(
-          Icons.widgets_outlined,
-          size: 22,
-          color: onDark.withValues(alpha: 0.35),
-        ),
-      );
-
-  /// "4 × 2", in ANDROID's cells, not ours.
-  ///
-  /// It used to read "250×110dp", which is the number in the provider's XML and
-  /// a number no user has ever seen. Every widget's own store listing, and
-  /// every other launcher's picker, says 4 × 2. Our fine grid would call the
-  /// same widget 8 × 6, which is true and useless: two different numbers for
-  /// two different jobs, and this is the one the user reads.
-  ///
-  /// `spanLabel` lives in `widget_provider_card.dart` and recovers the cell
-  /// count from `targetCell*` when present, and from Android's published
-  /// `70n - 30` relationship otherwise. That formula is why a 4-cell widget
-  /// declares 250dp rather than 280, and why a naive divide-by-70 reads every
-  /// widget one cell short.
-  static String _resizeLabel(api.WidgetProviderInfo p) {
-    final size = spanLabel(p);
-    return p.resizeMode != 0 ? '$size · resizable' : size;
   }
 }
 

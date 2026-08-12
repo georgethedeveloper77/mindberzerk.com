@@ -23,6 +23,26 @@ class DeviceFormat {
     return '${(kilohertz / 1000).round()} MHz';
   }
 
+  /// Milliseconds since boot, as a coarse duration.
+  ///
+  /// Two units, never three. "4d 23h 11m 6s" is a stopwatch reading, and the
+  /// only question anyone asks of an uptime figure is roughly how long, which
+  /// the first two units answer and the rest only lengthen.
+  ///
+  /// Takes [DeviceSnapshot.elapsedRealtimeMillis], which counts deep sleep. A
+  /// figure that stopped while the screen was off would be process uptime
+  /// wearing the wrong label.
+  static String? uptime(int? millis) {
+    if (millis == null || millis <= 0) return null;
+    final int totalMinutes = millis ~/ 60000;
+    final int days = totalMinutes ~/ 1440;
+    final int hours = (totalMinutes % 1440) ~/ 60;
+    final int minutes = totalMinutes % 60;
+    if (days > 0) return '${days}d ${hours}h';
+    if (hours > 0) return '${hours}h ${minutes}m';
+    return '${minutes}m';
+  }
+
   /// Millidegrees to a single decimal.
   static String? celsiusFromMilli(int? milli) {
     if (milli == null) return null;

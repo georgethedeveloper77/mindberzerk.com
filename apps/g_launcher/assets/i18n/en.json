@@ -601,5 +601,10 @@
   "wallpaper.removeBody": "It stays on your phone. This only takes it out of the list here.",
   "wallpaper.removeTitle": "Remove this wallpaper",
   "wallpaper.removed": "Removed",
-  "wallpaper.yours": "Yours"
+  "wallpaper.yours": "Yours",
+  "drawer.uninstallSystemApp": "That app came with the phone and cannot be removed",
+  "drawer.uninstallWorkProfile": "Work profile apps are managed by your organisation",
+  "drawer.uninstallUnknownApp": "That app is no longer installed",
+  "drawer.uninstallNoInstaller": "This device has no app installer to handle that",
+  "drawer.uninstallFailed": "The system refused that uninstall"
 }

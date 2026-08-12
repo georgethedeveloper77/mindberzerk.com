@@ -349,7 +349,11 @@ class _Soon extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   any
-                      ? '${GFormat.count(clips)} clips in an older format'
+                      // Singular when there is one. A count that reads "1
+                      // clips" is the sort of thing a person notices before
+                      // they notice anything the app got right.
+                      ? '${GFormat.count(clips)} '
+                            '${clips == 1 ? "clip" : "clips"} in an older format'
                       : 'Nothing here would gain from re-encoding',
                   style: GType.micro.copyWith(color: t.muted),
                 ),

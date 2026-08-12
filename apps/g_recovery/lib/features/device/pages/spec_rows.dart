@@ -13,6 +13,18 @@ class SpecRows extends StatelessWidget {
   /// Null values are not rendered.
   final List<(String, String?)> rows;
 
+  /// Whether anything at all would render.
+  ///
+  /// Callers wrapping this in a card need to know BEFORE they draw the card:
+  /// SpecRows collapses to nothing on a device that answered none of the rows,
+  /// and the card around it was left drawing an empty bordered panel.
+  static bool any(List<(String, String?)> rows) {
+    for (final (String _, String? value) in rows) {
+      if (value != null && value.isNotEmpty) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final GTokens t = context.g;

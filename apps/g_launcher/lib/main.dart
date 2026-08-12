@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'bootstrap.dart';
+import 'core/crash.dart';
+import 'core/freeze_watchdog.dart';
 import 'data/prefs/prefs_repository.dart';
 import 'firebase_options.dart';
 import 'i18n/i18n.dart';
@@ -52,11 +54,25 @@ Future<void> main() async {
 /// (which is squarely in the audience for a Linux-desktop launcher), Firebase
 /// init fails — and a phone that cannot reach its home screen because telemetry
 /// would not start is a bricked phone. Analytics is optional; the desktop is not.
+/// Crashlytics is enabled INSIDE the try, on the success path only, and that
+/// placement is the whole point. `Crash.record` is called from an error handler;
+/// if it reached an uninitialised Firebase it would throw from inside the code
+/// that exists to handle throwing, and the second exception is the one that
+/// takes the launcher down. On the exact devices this catch was written for.
+///
+/// `Crash.installEarly()` has already been running since `bootstrap()`, so
+/// anything that failed on the way here is buffered and gets flushed by
+/// `enable()` rather than lost.
 Future<void> _initFirebase() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await Crash.enable();
+
+    // Only once there is somewhere to send its findings. Started earlier it
+    // would just buffer reports about a startup that has not finished.
+    FreezeWatchdog.start();
   } catch (e) {
     debugPrint('Firebase init failed; analytics disabled for this run ($e)');
   }

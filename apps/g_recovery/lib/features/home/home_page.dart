@@ -5,22 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/shell.dart';
 import '../../app/theme/tokens.dart';
 import '../../bridge/recovery_api.g.dart';
-import '../../core/format.dart';
 import '../../ui/g_app_bar.dart';
-import '../../ui/g_badge.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_logo_mark.dart';
-import '../../ui/g_info_note.dart';
 import '../../ui/g_search_field.dart';
+// GOverline lives here alongside GStat.
 import '../../ui/g_stat.dart';
-import '../device/state/device_providers.dart';
-import '../device/device_format.dart';
+import '../device/state/identity_providers.dart';
 import '../recovery/state/recovery_providers.dart';
-import '../learn/state/learn_model.dart';
 import '../search/search_page.dart';
+import 'widgets/attention_strip.dart';
 import 'widgets/category_grid.dart';
 import 'widgets/hero_card.dart';
+import 'widgets/home_extras.dart';
 
 /// The real home screen. Replaces the Phase 1 design system gallery.
 ///
@@ -33,11 +31,21 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final DeviceIdentity? identity = ref.watch(deviceIdentityProvider).value;
+
     return GPageBody(
       children: <Widget>[
+        // ─── THE PHONE NAMES ITSELF ─────────────────────────────────────────
+        //
+        // It said "This device" over a greeting. A recovery app is about THIS
+        // handset and what it is holding, and the time of day is something the
+        // user already knew.
+        //
+        // deviceTitle and deviceCaption were written for exactly this, and
+        // their own header says so. Nothing had ever called them.
         GAppBar(
-          title: 'This device',
-          subtitle: _greeting(DateTime.now()),
+          title: deviceTitle(identity),
+          subtitle: deviceCaption(identity),
           leading: const GLogoMark(),
           actions: <Widget>[
             GIconButton(
@@ -57,26 +65,44 @@ class HomePage extends ConsumerWidget {
         const HeroCard(),
         const SizedBox(height: GSpace.md - 1),
 
-        const CategoryGrid(),
-        const SizedBox(height: GSpace.md - 1),
-
         const _AccessPrompt(),
-        const _DeviceStrip(),
 
+        // Only what is currently true, expiring first, and nothing at all when
+        // nothing is. It never starts a scan to fill itself in.
+        const AttentionStrip(),
+
+        GOverline('What can come back'),
+        const SizedBox(height: GSpace.sm + 1),
+        const CategoryGrid(),
+
+        // ─── TWO SECTIONS, TWO VERBS ────────────────────────────────────────
+        //
+        // The mosaic answers what has been deleted and can be restored. This
+        // answers what is still here and could take less room. A seventh tile
+        // inside the grid would make the grid mean two things and would be the
+        // only tile whose tap does not open a list of deleted files.
         const SizedBox(height: GSpace.lg),
-        GInfoNote(
-          text: 'Why some files cannot be recovered',
-          chapterId: LearnIds.theTrash,
-        ),
+        GOverline('Make room without deleting'),
+        const SizedBox(height: GSpace.sm + 1),
+        const CompressRow(),
+
+        const SizedBox(height: GSpace.sm),
+        const PillarStats(),
+
+        // ─── THE LEARN LINK IS GONE, AND THAT IS NOT AN OVERSIGHT ───────────
+        //
+        // GInfoNote was deleted when Learn moved under Browse files, so this
+        // row now points at a file that does not exist. Restoring it would mean
+        // restoring the widget too, for a link to a chapter that already has a
+        // home of its own.
+        //
+        // The one thing it did that nothing else does is admit, on the main
+        // screen, that some files cannot be recovered. That belongs back here
+        // eventually, and it belongs as a sentence rather than as a link.
       ],
     );
   }
 
-  String _greeting(DateTime now) {
-    if (now.hour < 12) return 'Good morning';
-    if (now.hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  }
 }
 
 /// Shown only while the permission is missing.
@@ -125,67 +151,11 @@ class _AccessPrompt extends ConsumerWidget {
   }
 }
 
-/// Live battery, memory and temperature, from the same probe the Device tab
-/// uses.
-///
-/// The sampler is paused unless the Device tab is showing, so these are the
-/// values from the last time it ran rather than a fresh read. That is the right
-/// trade: polling sysfs at 2 Hz to decorate a screen about deleted files is
-/// exactly the battery drain a device utility has no excuse for.
-class _DeviceStrip extends ConsumerWidget {
-  const _DeviceStrip();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final GTokens t = context.g;
-    final ProbeTick? tick = ref.watch(deviceTickProvider).value;
-    if (tick == null) return const SizedBox.shrink();
-
-    final BatterySnapshot? battery = tick.current.battery;
-    final MemorySnapshot? memory = tick.current.memory;
-
-    // Every value is nullable and GStat renders nothing for a null, so a device
-    // that serves two of these four shows two columns rather than four with
-    // dashes in them.
-    final String? percent =
-        battery?.percent == null ? null : '${battery!.percent}%';
-
-    return GCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  'Device',
-                  style: GType.heading.copyWith(color: t.text),
-                ),
-              ),
-              GBadge.live('Live'),
-            ],
-          ),
-          const SizedBox(height: GSpace.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              GStat(label: 'Battery', value: percent),
-              GStat(
-                label: 'Free memory',
-                value: GFormat.bytesOrNull(memory?.availBytes),
-              ),
-              GStat(
-                label: 'Temp',
-                value: DeviceFormat.celsiusFromDeci(battery?.tempDeciC),
-              ),
-              GStat(
-                label: 'Swap',
-                value: GFormat.bytesOrNull(memory?.swapTotalBytes),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ─── _DeviceStrip IS GONE ────────────────────────────────────────────────────
+//
+// Battery, free memory, temperature and swap sat at the bottom of a screen
+// about deleted files: four numbers nobody came for, from a sampler that is
+// paused unless the Device tab is showing, so they were usually stale as well.
+//
+// PillarStats replaces it with three that point somewhere instead of trying to
+// be the somewhere.

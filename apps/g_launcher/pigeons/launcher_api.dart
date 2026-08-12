@@ -433,6 +433,7 @@ class WidgetProviderInfo {
     required this.category,
     required this.configurable,
     required this.hasPreviewImage,
+    required this.description,
   });
 
   /// `ComponentName.flattenToString()` — the stable id the host will bind and
@@ -482,6 +483,24 @@ class WidgetProviderInfo {
   /// Whether `previewImage` is set, so the Dart side knows a real preview is
   /// worth requesting rather than falling straight back to the app icon.
   bool hasPreviewImage;
+
+  /// The provider's own one-line pitch, from `loadDescription()` on API 31+.
+  ///
+  /// "Play your favs and find new tunes, right from your home screen."
+  /// "Start a chat with Claude."
+  ///
+  /// The stock picker shows this under the size, and it is most of why a
+  /// third-party widget reads as a considered offer there rather than as a row
+  /// in a list. Empty on pre-31 devices and on providers that never set it, and
+  /// the card simply omits the line rather than printing a placeholder, the
+  /// same rule nullable stats follow everywhere else.
+  ///
+  /// APPENDED AT THE END, which is the whole reason this is a safe addition:
+  /// Pigeon numbers enums before classes and classes in declaration order, so a
+  /// field added at the tail of the LAST class shifts nothing a shipped APK
+  /// already agreed on. Inserting it mid-class would renumber every field after
+  /// it. No new enum either, for the same reason.
+  String description;
 }
 
 // ─── HOST API (Dart calls, Kotlin implements) ────────────────────────────────
@@ -514,9 +533,34 @@ abstract class LauncherHostApi {
 
   void openAppInfo(String componentKey);
 
-  /// Refused silently for apps that cannot be uninstalled (system, work
-  /// profile) — the Dart side hides the option rather than relying on this.
-  void requestUninstall(String componentKey);
+  /// Start the system's uninstall confirmation, and report what happened.
+  ///
+  /// ─── WHY THIS RETURNS A STRING AND NOT void ─────────────────────────────
+  ///
+  /// It used to be `void`, and the native side answered every refusal with a
+  /// bare `return`. A guard that produces no output is indistinguishable from a
+  /// broken feature, which is exactly how it was reported: the button did
+  /// nothing, and nothing said why.
+  ///
+  /// A STRING AND NOT AN ENUM. Pigeon numbers enums ahead of classes in the
+  /// codec, so introducing one here would renumber every existing class and
+  /// break any APK already in the field against a newer engine. Every
+  /// enum-shaped value in this schema is a string for that reason.
+  ///
+  /// The vocabulary, mirrored in `UninstallStatus` (Kotlin) and
+  /// `UninstallStatus` (Dart, in data/repositories/app_repository.dart):
+  ///
+  ///   launched           the confirmation was started from the Activity
+  ///   launched_detached  started from the app context, no Activity attached
+  ///   unknown_app        not in the app list, usually a stale tile
+  ///   system_app         preinstalled and never updated, nothing to remove
+  ///   work_profile       owned by the profile admin
+  ///   no_installer       nothing on this device answers ACTION_DELETE
+  ///   refused            the system refused the start
+  ///
+  /// A status this side does not recognise must be treated as a failure with a
+  /// generic message, never as success.
+  String requestUninstall(String componentKey);
 
   /// Swap the active icon theme. Invalidates the in-memory icon cache; the DISK
   /// cache is kept, so switching back to a theme you used before is instant.

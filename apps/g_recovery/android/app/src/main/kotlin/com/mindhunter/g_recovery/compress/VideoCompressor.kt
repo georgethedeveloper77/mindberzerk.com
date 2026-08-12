@@ -88,6 +88,7 @@ internal class VideoCompressor(
      * saw it; a row saying "already HEVC" answers that in four words.
      */
     fun candidates(minBytes: Long, limit: Int): List<VideoCandidate> {
+        sweepSamples()
         val out = mutableListOf<VideoCandidate>()
 
         app.contentResolver.query(
@@ -270,13 +271,21 @@ internal class VideoCompressor(
             clipMillis = SAMPLE_MILLIS,
         )
 
-        // Cleaned up whatever happened. A cache directory full of half written
-        // mp4s is the sort of thing that shows up months later as "the app uses
-        // two gigabytes".
+        // ─── KEPT, NOT DELETED ───────────────────────────────────────────────
+        //
+        // This file is fifteen real seconds of the output at the chosen
+        // settings, and it used to be weighed and thrown away. It is the
+        // preview: not a prediction of what the encoder would do, but the thing
+        // the encoder did.
+        //
+        // Not a leak. Every stale sample is swept at the start of the next
+        // scan, and the cache directory is the one place Android will reclaim
+        // on its own if the phone runs short.
         val produced = if (bytes > 0) sample.length() else 0
-        runCatching { sample.delete() }
-
-        if (produced <= 0) return null
+        if (produced <= 0) {
+            runCatching { sample.delete() }
+            return null
+        }
 
         // Scaled by duration rather than by byte ratio. The sample carries a
         // full container header that the extrapolated whole would carry only
@@ -291,6 +300,7 @@ internal class VideoCompressor(
             estimatedBytes = scaled.toLong(),
             sampledMillis = SAMPLE_MILLIS,
             preset = preset,
+            samplePath = sample.absolutePath,
         )
     }
 
@@ -681,6 +691,23 @@ internal class VideoCompressor(
     // Headers
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Removes samples from previous sessions.
+     *
+     * Run when a list is built rather than on a timer, because that is exactly
+     * when the old ones stop being useful and the new ones are about to be
+     * made. An hour is generous for something whose only reader is a screen
+     * that is currently open.
+     */
+    private fun sweepSamples() {
+        val cutoff = System.currentTimeMillis() - SAMPLE_KEEP_MILLIS
+        runCatching {
+            app.cacheDir.listFiles { file ->
+                file.name.startsWith("estimate_") && file.lastModified() < cutoff
+            }?.forEach { it.delete() }
+        }
+    }
+
     private class Track(val codec: String, val bitrate: Long)
 
     /**
@@ -770,6 +797,9 @@ internal class VideoCompressor(
         const val SAMPLE_MILLIS = 15_000L
 
         const val TIMEOUT_SECONDS = 120L
+
+        /** How long a sample stays playable before the next scan clears it. */
+        const val SAMPLE_KEEP_MILLIS = 60L * 60L * 1000L
 
         /**
          * Below this, the pixels have already been squeezed as far as they go.

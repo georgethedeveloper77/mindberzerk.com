@@ -238,6 +238,14 @@ function sectionsFor(app: string): { label: string; items: Section[] }[] {
               { label: 'Storage', href: `/apps/${app}/storage`, icon: 'storage' },
               { label: 'Learn', href: `/apps/${app}/learn`, icon: 'learn' },
               { label: 'Brand guidance', href: `/apps/${app}/guides`, icon: 'brand' },
+              // NUMBERS THE APP COMPILES TODAY, published as a registry pack.
+              //
+              // Six thresholds that currently need a release to change, two of
+              // which are already known wrong: the video bitrate floor rejects
+              // screen recordings that would compress well, and the image size
+              // floor disagreed with itself across two call sites until it was
+              // made shared.
+              { label: 'Tunables', href: `/apps/${app}/tunables`, icon: 'config' },
             ]
           : []),
       ],
@@ -257,6 +265,12 @@ function sectionsFor(app: string): { label: string; items: Section[] }[] {
           : []),
         { label: 'Config', href: `/apps/${app}/config`, icon: 'config' },
         { label: 'Analytics', href: `/apps/${app}/analytics`, icon: 'analytics' },
+        // STORE LISTING IS A CHECKLIST, NOT A FORM. Play owns those fields;
+        // what this panel can own is which are outstanding and why each one
+        // matters, which otherwise lives in a chat log.
+        ...(app === 'g-recovery'
+          ? [{ label: 'Store listing', href: `/apps/${app}/listing`, icon: 'analytics' }]
+          : []),
         ...(app === 'g-launcher'
           ? [{ label: 'Registry', href: `/apps/${app}/registry`, icon: 'registry' }]
           : []),

@@ -73,7 +73,27 @@ export interface ContentPackPlan {
   minAppVersion: number;
 }
 
-/** The three packs this app reads, keyed by the id the device asks for. */
+/**
+ * ─── WHICH OF THESE THE SHIPPED APP ACTUALLY READS ──────────────────────────
+ *
+ * `ContentStore` in the app declares two ids and no more: `trashmap` and
+ * `learn-en`. Everything else here can be authored, validated, signed, uploaded
+ * and listed in the index, and no device will ever fetch it.
+ *
+ * That is not a bug in the pipeline, it is the panel knowing about more content
+ * than the app does. But it is worth an afternoon of somebody's life if nothing
+ * says so, which is why the packs screen reads this set and marks the rest.
+ *
+ * Update this when ContentStore changes, and only then. A guess here is worse
+ * than no list at all: it would mark a real pack as unreadable and stop
+ * somebody publishing a fix.
+ */
+export const READ_BY_APP: ReadonlySet<string> = new Set<string>([
+  'trashmap',
+  'learn-en',
+]);
+
+/** The packs this panel can author, keyed by the id the device asks for. */
 export const CONTENT_PACKS: Record<string, ContentPackPlan> = {
   trashmap: {
     packId: 'trashmap',
@@ -129,7 +149,129 @@ export const CONTENT_PACKS: Record<string, ContentPackPlan> = {
     summary: 'What each folder is and what deleting from it costs.',
     minAppVersion: 0,
   },
+  /**
+   * THE NUMBERS THE APP COMPILES TODAY.
+   *
+   * ─── WHY THESE BELONG ON THE CDN ────────────────────────────────────────────
+   *
+   * Every one of them is a threshold that decides whether a file is OFFERED,
+   * never what is done to it. Nothing here can destroy anything: the worst a
+   * wrong value can do is show a file that turns out not to be worth acting on,
+   * or hide one that was.
+   *
+   * They are on this list because two are already known wrong. The video
+   * bitrate floor refuses screen recordings, which are flat content that
+   * compresses well at a low bitrate. And the image size floor disagreed with
+   * itself across two call sites for a day, so a card reported a clip the list
+   * it opened then refused to show.
+   *
+   * Both currently need a release to correct. A signed registry pack turns that
+   * into five minutes, using the pipeline that already exists.
+   *
+   * ─── NOT READ BY ANY SHIPPED BUILD YET ──────────────────────────────────────
+   *
+   * Deliberately absent from READ_BY_APP until ContentStore declares it, so the
+   * packs screen shows it as unreadable rather than letting somebody publish
+   * into a void and wonder why nothing changed.
+   */
+  tunables: {
+    packId: 'tunables',
+    packType: 'registry' as PackType,
+    fileName: 'tunables.json',
+    title: 'Thresholds',
+    summary: 'The numbers that decide what is worth offering.',
+    minAppVersion: 0,
+  },
 };
+
+/**
+ * Every tunable, with the bounds that make it safe to publish.
+ *
+ * The range is not decoration. A bitrate floor of zero offers every clip and
+ * wastes an hour of somebody's battery on files that cannot improve; a floor of
+ * fifty million offers none and the feature silently disappears. Both are
+ * reachable by a typo, and neither would fail validation without this.
+ */
+export const TUNABLES = {
+  videoMinBitsPerMegapixel: {
+    label: 'Minimum bits per megapixel',
+    group: 'Video',
+    min: 1_000_000,
+    max: 12_000_000,
+    step: 250_000,
+    fallback: 4_000_000,
+    help:
+      'Below this a clip has already been squeezed and re-encoding makes it ' +
+      'larger. A phone recording 1080p sits near eight million; a clip from a ' +
+      'messaging app near three. Flat content such as a screen recording ' +
+      'compresses well at a low bitrate, which is the case this number ' +
+      'currently gets wrong.',
+  },
+  videoSampleMillis: {
+    label: 'Sample length for the estimate',
+    group: 'Video',
+    min: 5_000,
+    max: 45_000,
+    step: 5_000,
+    fallback: 15_000,
+    help:
+      'Really encoded, then scaled by duration. Longer is more accurate and ' +
+      'makes every row in the list slower to fill.',
+  },
+  compressFloorBytes: {
+    label: 'Smallest file worth offering',
+    group: 'Images',
+    min: 256 * 1024,
+    max: 16 * 1024 * 1024,
+    step: 256 * 1024,
+    fallback: 1024 * 1024,
+    help:
+      'One floor for counting and for listing. They disagreed once, and the ' +
+      'card reported a clip the list then refused to show.',
+  },
+  lossyFloorPercent: {
+    label: 'Worth-it threshold, lossy',
+    group: 'Images',
+    min: 5,
+    max: 50,
+    step: 1,
+    fallback: 20,
+    help:
+      'Below this a permanent quality loss buys a saving nobody would notice ' +
+      'on a storage screen.',
+  },
+  losslessFloorPercent: {
+    label: 'Worth-it threshold, lossless',
+    group: 'Images',
+    min: 1,
+    max: 20,
+    step: 1,
+    fallback: 3,
+    help:
+      'Nothing is traded, so this only has to beat the noise of rewriting the ' +
+      'file and disturbing the gallery.',
+  },
+  blurThreshold: {
+    label: 'Blur threshold',
+    group: 'Compare',
+    min: 20,
+    max: 300,
+    step: 5,
+    fallback: 100,
+    help:
+      'Variance of the Laplacian at a 256 pixel working size. Below fifty ' +
+      'catches only the truly ruined.',
+  },
+} as const;
+
+export type TunableKey = keyof typeof TUNABLES;
+
+/** The document a fresh install would behave as though it had. */
+export function defaultTunables(): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, spec] of Object.entries(TUNABLES)) out[key] = spec.fallback;
+  return out;
+}
 
 export class ContentValidationError extends Error {}
 
@@ -496,6 +638,39 @@ export function validateStorageMap(doc: unknown): void {
   });
 }
 
+/**
+ * Every key present, every value a number, every number inside its range.
+ *
+ * STRICT ABOUT MISSING KEYS, deliberately. A partial document would leave the
+ * app falling back for the absent ones, which is a working app running on a
+ * mixture of published and compiled values that nothing on either side can
+ * report. Publishing all six or none is the only state anybody can reason
+ * about later.
+ */
+function validateTunables(doc: unknown): void {
+  if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) {
+    fail('tunables must be an object');
+  }
+  const record = doc as Record<string, unknown>;
+
+  for (const [key, spec] of Object.entries(TUNABLES)) {
+    const value = record[key];
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      fail(`tunables.${key} must be a number`);
+    }
+    const n = value as number;
+    if (n < spec.min || n > spec.max) {
+      fail(
+        `tunables.${key} is ${n}, outside ${spec.min} to ${spec.max}`,
+      );
+    }
+  }
+
+  for (const key of Object.keys(record)) {
+    if (!(key in TUNABLES)) fail(`tunables has an unknown key '${key}'`);
+  }
+}
+
 export function validateContent(packId: string, doc: unknown): void {
   switch (packId) {
     case 'trashmap':
@@ -506,6 +681,8 @@ export function validateContent(packId: string, doc: unknown): void {
       return validateOemGuide(doc);
     case 'storage-map':
       return validateStorageMap(doc);
+    case 'tunables':
+      return validateTunables(doc);
     default:
       fail(`unknown content pack '${packId}'`);
   }

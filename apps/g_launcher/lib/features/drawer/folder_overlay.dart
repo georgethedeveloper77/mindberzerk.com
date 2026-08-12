@@ -835,7 +835,16 @@ void showFolderMemberMenu(
     anchor: Rect.fromCenter(center: at, width: 1, height: 1),
     width: 236,
     rows: (ctx) {
-      final canUninstall = !entry.isSystem && !entry.isWorkProfile;
+      // ONLY the work-profile case is decided here now.
+      //
+      // This used to also exclude `entry.isSystem`, which reads as "system apps
+      // cannot be uninstalled" but actually means "apps that shipped with the
+      // phone", and on a Samsung device that includes every preinstalled app
+      // the user has since updated through Play. Those ARE removable: the
+      // system offers to drop the update. Native makes the finer distinction
+      // and returns a status; a refusal gets a sentence rather than silence,
+      // which is the same reason showDrawerAppMenu stopped filtering here.
+      final canUninstall = !entry.isWorkProfile;
 
       // Being in a folder does not bar an app from the dock: pinToDock takes
       // any componentKey and has no idea where the drawer files it. Pinned
@@ -927,16 +936,21 @@ void showFolderMemberMenu(
             notifier.openInfo(entry);
           },
         ),
-        // System apps cannot be uninstalled. A button that silently
-        // does nothing is worse than no button.
+        // A refusal is now spoken rather than swallowed. The message goes to
+        // `context`, the caller's, NOT to `ctx`: this pops the menu first, and
+        // `ctx` is dead the moment it does, so a message posted to it would
+        // land on a route that no longer exists and simply never appear.
         if (canUninstall)
           ThemedListRow(
             icon: Icons.delete_outline,
             title: ctx.t('drawer.uninstall'),
             danger: true,
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              notifier.uninstall(entry);
+              final status = await notifier.uninstall(entry);
+              if (UninstallStatus.succeeded(status)) return;
+              if (!context.mounted) return;
+              context.showMessage(context.t(uninstallRefusalKey(status)));
             },
           ),
       ];

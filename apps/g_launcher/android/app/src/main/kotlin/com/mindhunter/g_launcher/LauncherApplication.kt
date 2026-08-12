@@ -48,7 +48,13 @@ class LauncherApplication : Application() {
     lateinit var widgetHost: WidgetHostController
         private set
 
-    private lateinit var hostApi: LauncherHostApiImpl
+    /// The app-list host API, exposed for the same reason [widgetHost] is:
+    /// uninstall needs an Activity to start the system's confirmation on the
+    /// launcher's own task, and this object is owned by the Application. See
+    /// LauncherHostApiImpl.requestUninstall.
+    lateinit var hostApi: LauncherHostApiImpl
+        private set
+
     private lateinit var packApi: PackHostApiImpl
 
     override fun onCreate() {

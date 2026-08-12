@@ -48,8 +48,49 @@ class AppList extends AsyncNotifier<List<AppEntry>> {
   Future<void> openInfo(AppEntry entry) =>
       ref.read(launcherHostApiProvider).openAppInfo(entry.componentKey);
 
-  Future<void> uninstall(AppEntry entry) =>
+  /// Start the system's uninstall confirmation. Returns a [UninstallStatus]
+  /// value; the caller is expected to say something when it is not a success.
+  ///
+  /// This is a request, never a result: the user still has to confirm in the
+  /// system dialog, and a `launched` status says only that the dialog opened.
+  /// The app actually disappearing arrives separately, through
+  /// `onAppsChanged`, because the OS is the thing that knows.
+  Future<String> uninstall(AppEntry entry) =>
       ref.read(launcherHostApiProvider).requestUninstall(entry.componentKey);
+}
+
+/// The vocabulary [AppList.uninstall] answers in.
+///
+/// MIRRORED IN KOTLIN in `apps/AppRepository.kt`, and listed once more in the
+/// Pigeon schema's doc comment, which is the file a reader of either side will
+/// actually open. Adding a status means adding it in all three; miss this one
+/// and the specific reason native went to the trouble of computing is thrown
+/// away for the generic message.
+///
+/// Strings and not an enum on the wire, because Pigeon numbers enums ahead of
+/// classes in the codec and a new one would renumber every existing class.
+abstract final class UninstallStatus {
+  /// Started from the Activity. The expected success.
+  static const launched = 'launched';
+
+  /// Started from the application context because no Activity was attached.
+  ///
+  /// Treated as success by [succeeded] because the dialog may well have opened,
+  /// but kept distinct on purpose: this is the path that was silently failing
+  /// before, and it should be visible rather than blended into the happy case.
+  static const launchedDetached = 'launched_detached';
+
+  static const unknownApp = 'unknown_app';
+  static const systemApp = 'system_app';
+  static const workProfile = 'work_profile';
+  static const noInstaller = 'no_installer';
+  static const refused = 'refused';
+
+  /// An UNRECOGNISED status is a failure, never a success. If native gains a
+  /// status this build has never heard of, the honest response is the generic
+  /// message rather than pretending the uninstall is under way.
+  static bool succeeded(String status) =>
+      status == launched || status == launchedDetached;
 }
 
 class _AppListSink implements LauncherFlutterApi {

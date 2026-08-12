@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/prefs/desklet_layout.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/widget_span.dart';
 import '../../platform/launcher_api.g.dart' as api;
+import 'desklet_cell.dart';
 import 'widget_catalog.dart';
 
 /// One third-party widget, presented as a card rather than a list row.
@@ -90,6 +93,32 @@ class WidgetProviderCard extends ConsumerWidget {
                   color: p.onDark.withValues(alpha: 0.5),
                 ),
               ),
+              // ─── THE PROVIDER'S OWN PITCH ─────────────────────────────
+              //
+              // "Play your favs and find new tunes, right from your home
+              // screen." The stock picker prints this and it is most of why a
+              // widget reads there as a considered offer rather than as a row
+              // in a list.
+              //
+              // ABSENT, not empty. A provider that never set a description, or
+              // any device below API 31, renders no line at all rather than a
+              // gap where one would be. Same rule the nullable stats follow
+              // everywhere else in this app.
+              if (provider.description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  provider.description,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: theme.typography.display,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: p.onDark.withValues(alpha: 0.62),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -122,9 +151,31 @@ class _Preview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = theme.palette;
 
+    // ─── THE SHAPE IT WILL ACTUALLY OCCUPY, ON THIS DISTRO'S GRID ─────────
+    //
+    // Resolved through the same `WidgetSpanResolver` that places the widget, so
+    // the preview is the rectangle you are about to spend rather than the
+    // provider's own idea of its proportions. Switch distros and this changes,
+    // because the widget genuinely would. No other launcher does that.
+    //
+    // Falls back to the declared footprint before any desktop has laid out,
+    // which is the picker's first frame on a cold start and nothing else.
+    final cell = ref.watch(deskletCellProvider);
+    final aspect = cell == null
+        ? _aspect(provider)
+        : () {
+            final span = WidgetSpanResolver.resolve(
+              widgetFootprint(provider),
+              cell: cell,
+              colFactor: DeskletLayout.colFactor,
+              rowFactor: DeskletLayout.rowFactor,
+            );
+            return WidgetSpanResolver.aspectOf(span.spanX, span.spanY, cell: cell);
+          }();
+
     // Capped so a 1x4 tower does not turn one widget into a full screen, and
     // floored so a very wide, very short strip is still tappable and visible.
-    final height = (width / _aspect(provider)).clamp(64.0, 260.0);
+    final height = (width / aspect).clamp(64.0, 260.0);
 
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final req = (

@@ -58,8 +58,33 @@
 
     <uses-permission android:name="com.android.vending.BILLING" />
 
+    <!--
+      Uninstall. The launcher does not delete anything itself; it starts the
+      system's own confirmation and the user decides there.
+
+      Normal permission, auto-granted, no prompt and no Play declaration. It is
+      strictly required for ACTION_UNINSTALL_PACKAGE from API 26, and declaring
+      it for ACTION_DELETE costs nothing while removing a whole class of "works
+      on my phone, refused on theirs" that only shows up on OEM builds.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
 
     <queries>
+        <!--
+          The package installer, so ACTION_DELETE can be RESOLVED and not only
+          fired. Without this, `resolveActivity` on the delete intent returns
+          null on Android 11+ even though the installer is present, which is the
+          same silent Android 11 filtering the comment at the top of this file
+          describes for the app list. We do not resolve today, but the moment
+          anything checks before starting, its absence would read as "this
+          device cannot uninstall".
+        -->
+        <intent>
+            <action android:name="android.intent.action.DELETE" />
+            <data android:scheme="package" />
+        </intent>
+
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

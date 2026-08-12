@@ -29,6 +29,12 @@ class LauncherActivity : FlutterActivity() {
     /// the host while it is alive.
     private val widgetHost get() = (application as LauncherApplication).widgetHost
 
+    /// The app-list host API. Borrowed for the same reason as [widgetHost]:
+    /// starting the system's uninstall confirmation needs an Activity, so that
+    /// it lands on the launcher's own task instead of asking the window manager
+    /// for a new one over the home task, which One UI does not honour.
+    private val hostApi get() = (application as LauncherApplication).hostApi
+
     override fun getCachedEngineId(): String = LauncherApplication.ENGINE_ID
 
     /**
@@ -46,6 +52,11 @@ class LauncherActivity : FlutterActivity() {
 
         // Lend this Activity to the widget host for the bind/config result flow.
         widgetHost.attachActivity(this)
+
+        // And to the app-list API, which needs one to start the uninstall
+        // confirmation. Attached in onCreate rather than onResume so it is
+        // already in place for a menu opened during the first frame.
+        hostApi.attachActivity(this)
 
         // Every hosted third-party widget lives in a plain Android ViewGroup
         // BEHIND FlutterView, not in a PlatformView. See WidgetStage for why:
@@ -76,8 +87,18 @@ class LauncherActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        WidgetStage.detach()
+        // `this`, not a bare call. On a configuration change the replacement
+        // Activity's onCreate has ALREADY run, so an unconditional detach here
+        // tore down the stage it had just built and every hosted widget
+        // vanished for the life of the process. WidgetStage checks the owner.
+        WidgetStage.detach(this)
         widgetHost.detachActivity(this)
+
+        // Both detaches are identity-checked on the callee side, which matters
+        // on a configuration change: the replacement Activity's onCreate runs
+        // BEFORE this, so an unconditional clear here would throw away the
+        // reference we were just handed.
+        hostApi.detachActivity(this)
         super.onDestroy()
     }
 

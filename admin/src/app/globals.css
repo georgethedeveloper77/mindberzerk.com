@@ -44,9 +44,24 @@
   /* Ubuntu orange, because the flagship product is a Linux desktop emulator and
      the panel sits next to it all day. Used for the active nav item, the one
      primary button per screen, and nothing else. */
-  --color-accent: #e95420;
-  --color-accent-ink: #1a0c05;
-  --color-accent-dim: #3a1a0e;
+  /* ── THE ACCENT IS BLUE, AND IT IS ONE TOKEN ─────────────────────────────
+   *
+   * It was #e95420, Ubuntu orange, inherited from the launcher's console where
+   * the whole product is about Linux distributions. G Recovery is a data
+   * utility and that orange read as a permanent warning: it is within a few
+   * degrees of --color-warn, so every ordinary button looked like a caution.
+   *
+   * Changed here rather than per component precisely because --color-* generates
+   * the utilities. Every bg-accent, text-accent and border-accent in the panel
+   * follows this line, which is the whole reason the token exists.
+   *
+   * accent-dim is the tinted background behind an accent chip and has to stay
+   * dark enough for accent text to sit on it. accent-ink is what goes ON a
+   * filled accent surface, and near black beats white on a mid blue.
+   */
+  --color-accent: #3b82f6;
+  --color-accent-ink: #06121f;
+  --color-accent-dim: #10233d;
 
   /* Status. These carry meaning, so they never decorate. */
   --color-ok: #3fb950;

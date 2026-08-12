@@ -1,6 +1,7 @@
 import 'package:device_probe/device_probe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_recovery/app/shell.dart';
 
 import '../../app/theme/tokens.dart';
 import '../../core/format.dart';
@@ -9,7 +10,9 @@ import '../../ui/g_card.dart';
 import '../../ui/g_enter.dart';
 import 'device_format.dart';
 import 'device_section_page.dart';
+import 'pages/cpu_page.dart';
 import 'pages/display_page.dart';
+import 'pages/memory_page.dart';
 import 'pages/network_page.dart';
 import 'pages/sim_page.dart';
 import 'state/device_history.dart';
@@ -19,10 +22,8 @@ import 'tools/screen_test_page.dart';
 import 'tools/sound_test_page.dart';
 import 'widgets/battery_card.dart';
 import 'widgets/battery_health_strip.dart';
-import 'widgets/cpu_card.dart';
 import 'widgets/device_index.dart';
 import 'widgets/g_line_chart.dart';
-import 'widgets/memory_card.dart';
 import 'widgets/sensors_card.dart';
 import 'widgets/system_card.dart';
 import 'widgets/thermal_card.dart';
@@ -256,9 +257,8 @@ class _Live extends ConsumerWidget {
           GEnter(
             index: 0,
             child: _Chart(
-              onTap: () => Navigator.of(context).push(
-                DeviceSectionPage.route(title: 'CPU', child: const CpuCard()),
-              ),
+              onTap: () =>
+                  Navigator.of(context).push(CpuPage.route(hue: t.video)),
               label: 'CPU',
               value: now?.busy == null
                   ? null
@@ -279,6 +279,8 @@ class _Live extends ConsumerWidget {
               onTap: () => Navigator.of(context).push(
                 DeviceSectionPage.route(
                   title: 'Battery',
+                  hue: t.docs,
+                  icon: Icons.battery_full_rounded,
                   child: const BatteryCard(),
                 ),
               ),
@@ -314,12 +316,9 @@ class _Live extends ConsumerWidget {
                   child: GEnter(
                     index: 2,
                     child: _Chart(
-                      onTap: () => Navigator.of(context).push(
-                        DeviceSectionPage.route(
-                          title: 'Memory',
-                          child: const MemoryCard(),
-                        ),
-                      ),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(MemoryPage.route(hue: t.photo)),
                       label: 'Free memory',
                       value: GFormat.bytesOrNull(now?.freeBytes),
                       hue: t.photo,
@@ -339,6 +338,8 @@ class _Live extends ConsumerWidget {
                       onTap: () => Navigator.of(context).push(
                         DeviceSectionPage.route(
                           title: 'Thermal',
+                          hue: t.audio,
+                          icon: Icons.thermostat_rounded,
                           child: const ThermalCard(),
                         ),
                       ),
@@ -478,9 +479,21 @@ class _Chart extends StatelessWidget {
 List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
   final GTokens t = context.g;
 
-  void open(String title, Widget child, {String? subtitle}) {
+  void open(
+    String title,
+    Widget child, {
+    required Color hue,
+    required IconData icon,
+    String? subtitle,
+  }) {
     Navigator.of(context).push(
-      DeviceSectionPage.route(title: title, subtitle: subtitle, child: child),
+      DeviceSectionPage.route(
+        title: title,
+        hue: hue,
+        icon: icon,
+        subtitle: subtitle,
+        child: child,
+      ),
     );
   }
 
@@ -494,7 +507,9 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       value: now?.cpu?.coreKhz == null
           ? null
           : '${now!.cpu!.coreKhz.length} cores',
-      open: (BuildContext c) => open('CPU', const CpuCard()),
+      open: (BuildContext c) => Navigator.of(c).push(
+        CpuPage.route(hue: t.video),
+      ),
     ),
     DeviceEntry(
       label: 'Battery',
@@ -507,7 +522,12 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
           : now?.battery?.percent == null
           ? null
           : '${now!.battery!.percent}%',
-      open: (BuildContext c) => open('Battery', const BatteryCard()),
+      open: (BuildContext c) => open(
+        'Battery',
+        const BatteryCard(),
+        hue: t.docs,
+        icon: Icons.battery_full_rounded,
+      ),
     ),
     DeviceEntry(
       label: 'Memory',
@@ -516,7 +536,9 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       value: now?.memory?.totalBytes == null
           ? null
           : GFormat.bytes(now!.memory!.totalBytes!),
-      open: (BuildContext c) => open('Memory', const MemoryCard()),
+      open: (BuildContext c) => Navigator.of(c).push(
+        MemoryPage.route(hue: t.photo),
+      ),
     ),
     DeviceEntry(
       label: 'Thermal',
@@ -525,49 +547,69 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       value: now?.battery?.tempDeciC == null
           ? null
           : '${(now!.battery!.tempDeciC! / 10).toStringAsFixed(1)} C',
-      open: (BuildContext c) => open('Thermal', const ThermalCard()),
+      open: (BuildContext c) => open(
+        'Thermal',
+        const ThermalCard(),
+        hue: t.audio,
+        icon: Icons.thermostat_rounded,
+      ),
     ),
     DeviceEntry(
       label: 'Display',
       icon: Icons.smartphone_rounded,
       hue: t.chat,
-      open: (BuildContext c) => Navigator.of(c).push(DisplayPage.route()),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(DisplayPage.route(hue: t.chat)),
     ),
     DeviceEntry(
       label: 'Cameras',
       icon: Icons.photo_camera_rounded,
       hue: t.photo,
-      open: (BuildContext c) => Navigator.of(c).push(CamerasPage.route()),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(CamerasPage.route(hue: t.photo)),
     ),
     DeviceEntry(
       label: 'Network',
       icon: Icons.wifi_rounded,
       hue: t.video,
-      open: (BuildContext c) => Navigator.of(c).push(NetworkPage.route()),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(NetworkPage.route(hue: t.video)),
     ),
     DeviceEntry(
       label: 'SIM',
       icon: Icons.sim_card_outlined,
       hue: t.audio,
-      open: (BuildContext c) => Navigator.of(c).push(SimPage.route()),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(SimPage.route(hue: t.audio)),
     ),
     DeviceEntry(
       label: 'Bluetooth',
       icon: Icons.bluetooth_rounded,
       hue: t.chat,
-      open: (BuildContext c) => Navigator.of(c).push(BluetoothPage.route()),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(BluetoothPage.route(hue: t.chat)),
     ),
     DeviceEntry(
       label: 'Sensors',
       icon: Icons.sensors_rounded,
       hue: t.apps,
-      open: (BuildContext c) => open('Sensors', const SensorsCard()),
+      open: (BuildContext c) => open(
+        'Sensors',
+        const SensorsCard(),
+        hue: t.apps,
+        icon: Icons.sensors_rounded,
+      ),
     ),
     DeviceEntry(
       label: 'System',
       icon: Icons.android_rounded,
       hue: t.chat,
-      open: (BuildContext c) => open('System', const SystemCard()),
+      open: (BuildContext c) => open(
+        'System',
+        const SystemCard(),
+        hue: t.chat,
+        icon: Icons.android_rounded,
+      ),
     ),
     DeviceEntry(
       label: 'Access',
@@ -576,6 +618,8 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       open: (BuildContext c) => open(
         'Storage access',
         const AccessCard(),
+        hue: t.docs,
+        icon: Icons.folder_open_rounded,
         subtitle: 'What this app is allowed to read',
       ),
     ),

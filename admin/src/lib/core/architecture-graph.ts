@@ -752,8 +752,7 @@ function recoveryDelivery(app: string): Graph {
       lane: 'store',
       what: 'The document and its signature at a versioned key. The version is in the path, so every object is immutable and cacheable for a year.',
       io: [
-        ['writes', 'trashmap.json'],
-        ['writes', 'manifest.sig'],
+        ['writes', 'trashmap.json, manifest.json and manifest.sig'],
       ],
       invariant:
         'Pack versions are monotonic integers. Reusing one leaves devices holding a cached copy of the old bytes with no way to know.',

@@ -14,6 +14,7 @@ import '../../ui/art/escape_art.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_logo_mark.dart';
+import '../../ui/g_sheet.dart';
 import '../recovery/state/recovery_providers.dart';
 import 'state/onboarding_providers.dart';
 
@@ -412,17 +413,30 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         ),
         const SizedBox(height: GSpace.md),
         Text(
-          'Android only shows an app the files it deleted itself. Without this, '
-          'everything your other apps left behind stays invisible.',
+          // ─── ONE SENTENCE, AND THE REST BEHIND AN ICON ────────────────────
+          //
+          // This screen was four paragraphs of reasoning stacked above four
+          // more inside the rows. All of it true, none of it read: a permission
+          // screen is skimmed for what it wants and whether it can be skipped,
+          // and burying both under an argument makes people tap the first
+          // button to make the wall go away.
+          //
+          // The reasoning has not been deleted. It moved to a sheet, where it
+          // is available to anyone who wants it and invisible to everyone else.
+          'All of it is optional and all of it can be changed later.',
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const SizedBox(height: GSpace.lg),
 
         _Grant(
           label: 'All files access',
-          detail: granted
-              ? 'On. Trash folders, app leftovers and the thumbnail cache.'
-              : 'Needed to see anything beyond the files this app made itself.',
+          detail: granted ? 'On' : 'Recommended',
+          info: 'Android only shows an app the files it deleted itself. '
+              'Without this, everything your other apps left behind stays '
+              'invisible: trash folders, app leftovers and the thumbnail '
+              'cache.',
+          without: 'Counts are a floor rather than a total, and most of what '
+              'this phone could recover is never seen.',
           on: granted,
           onTap: granted
               ? null
@@ -439,10 +453,12 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         // decides whether one screen in Storage can answer.
         _Grant(
           label: 'App sizes',
-          detail: apps?.usageAccess ?? false
-              ? 'On. Which apps are taking space, and how much is cache.'
-              : 'Lets Storage show what each app takes. It reads sizes, not '
-                    'what you do in them.',
+          detail: (apps?.usageAccess ?? false) ? 'On' : 'Optional',
+          info: 'Lets the Storage tab show what each app is taking and how '
+              'much of that is cache. It reads sizes only, never what you do '
+              'in them.',
+          without: 'The Apps list shows names without sizes. Nothing else '
+              'changes.',
           on: apps?.usageAccess ?? false,
           onTap: (apps?.usageAccess ?? false)
               ? null
@@ -460,9 +476,12 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         // itself if skipped.
         _Grant(
           label: 'Wi-Fi details',
-          detail:
-              'Android needs location access to give any app the network '
-              'name or MAC address.',
+          detail: 'Optional',
+          info: 'Android treats the network name and MAC address as location '
+              'data, so any app that shows them has to ask for location. This '
+              'app never reads where you are.',
+          without: 'The Wi-Fi page shows the connection without naming the '
+              'network.',
           on: false,
           onTap: () async {
             await ref.read(hardwareBridgeProvider).requestLocation();
@@ -475,9 +494,12 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
           // Not a toggle. Nothing in this app can read whether notifications
           // are granted without a new native call, and a switch that shows a
           // state it cannot verify is worse than a sentence that admits it.
-          detail:
-              'Asked for when the first scan starts, so it can report '
-              'progress while you are elsewhere.',
+          detail: 'Asked later',
+          info: 'Asked for when the first scan starts, so a scan or a video '
+              'encode can report progress while you are looking at something '
+              'else.',
+          without: 'Long jobs still run. You just have to come back to the app '
+              'to see how far they have got.',
           on: null,
           onTap: null,
         ),
@@ -527,23 +549,63 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
   }
 }
 
-/// One permission, as a row that states what it buys.
+/// One permission: a name, a word, a switch, and an icon for the rest.
+///
+/// ─── THE EXPLANATION IS ONE TAP AWAY, NOT IN THE WAY ─────────────────────────
+///
+/// Four rows each carrying two sentences turned this screen into a wall, and a
+/// wall is skimmed rather than read. What somebody needs at a glance is which
+/// permission this is and whether they have to give it; what it does and what
+/// declining costs are real questions, and they belong where a real question is
+/// asked rather than in front of everyone who did not ask it.
 class _Grant extends StatelessWidget {
   const _Grant({
     required this.label,
     required this.detail,
     required this.on,
     required this.onTap,
+    this.info,
+    this.without,
   });
 
   final String label;
+
+  /// One word. "On", "Recommended", "Optional", "Asked later".
   final String detail;
+
+  /// What it does, in the sheet.
+  final String? info;
+
+  /// What is lost by declining, in the sheet.
+  ///
+  /// Kept separate from [info] because it is the half people actually want and
+  /// the half most apps leave out. A recommendation nobody can price is a
+  /// demand with better manners.
+  final String? without;
 
   /// Null where the state cannot be read. The row then carries no switch at
   /// all rather than a switch that is guessing.
   final bool? on;
 
   final VoidCallback? onTap;
+
+  void _explain(BuildContext context) {
+    final GTokens t = context.g;
+    showGSheet(
+      context: context,
+      title: label,
+      children: <Widget>[
+        if (info != null)
+          GSheetPoint(
+            icon: Icons.check_circle_outline_rounded,
+            tone: t.accent,
+            text: info!,
+          ),
+        if (without != null)
+          GSheetPoint(icon: Icons.block_rounded, text: 'Without it: ${without!}'),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -564,7 +626,22 @@ class _Grant extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: GSpace.md),
+          if (info != null) ...<Widget>[
+            const SizedBox(width: GSpace.sm),
+            GestureDetector(
+              onTap: () => _explain(context),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(GSpace.xs),
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 17,
+                  color: t.dim,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: GSpace.sm),
           if (on != null)
             AnimatedContainer(
               duration: GMotion.fast,

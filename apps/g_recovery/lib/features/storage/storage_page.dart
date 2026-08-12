@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_recovery/app/shell.dart';
 import 'package:g_recovery/ui/g_stat.dart';
 
 import '../../app/theme/category_colors.dart';

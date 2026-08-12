@@ -77,6 +77,15 @@ object WidgetStage {
     private var stage: FrameLayout? = null
     private var controller: WidgetHostController? = null
 
+    /**
+     * Which Activity the current [stage] belongs to.
+     *
+     * Needed because a stage belongs to a WINDOW while everything else here
+     * belongs to the process, and on a configuration change two Activities are
+     * briefly alive at once. See [attach] and [detach].
+     */
+    private var owner: Activity? = null
+
     private val views = mutableMapOf<Int, AppWidgetHostView>()
 
     /** Last synced rects in PIXELS, for hit testing. Empty while hidden. */
@@ -98,10 +107,41 @@ object WidgetStage {
     fun attach(activity: Activity, host: WidgetHostController) {
         val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
         controller = host
+
+        // Re-read on every attach. A configuration change is exactly when this
+        // can move (a display size change, DeX, a resizable window), and a
+        // density captured once would convert every dp the Dart side sends with
+        // the OLD scale for the rest of the process.
         density = activity.resources.displayMetrics.density
 
         content.post {
-            if (stage != null) return@post
+            // ─── THE OLD GUARD WAS `if (stage != null) return`, AND IT LOST ──
+            //
+            // On a configuration change the system runs the NEW Activity's
+            // onCreate before the OLD one's onDestroy. So this post was queued
+            // while the previous Activity's stage was still in place, and
+            // whether the launcher survived a rotation came down to whether
+            // this runnable happened to run before or after that detach:
+            //
+            //   post runs AFTER detach   stage is null, a new layer is built,
+            //                            everything works. The common case,
+            //                            which is why this looked fine.
+            //
+            //   post runs BEFORE detach  stage is non-null so this returned,
+            //                            then detach nulled it, and the new
+            //                            Activity ended up with NO STAGE AT
+            //                            ALL. Every hosted widget silently
+            //                            gone until the process restarted.
+            //
+            // A race that resolves the wrong way some of the time is the worst
+            // shape a bug can have, because it reads as flakiness rather than
+            // as a defect. Identity is the fix: a stage already living in THIS
+            // content is nothing to do, and a stage belonging to anything else
+            // is stale and gets replaced.
+            val existing = stage
+            if (existing != null && existing.parent === content) return@post
+            if (existing != null) dropLayer(existing)
+
             val layer = FrameLayout(activity).apply {
                 // Not clickable and not focusable. Touches arrive only through
                 // LauncherActivity.dispatchTouchEvent, which forwards a gesture
@@ -124,17 +164,71 @@ object WidgetStage {
                 ),
             )
             stage = layer
+            owner = activity
+
+            // ─── RE-ADOPT, DO NOT RE-INFLATE ─────────────────────────────
+            //
+            // Host views outlive Activities on purpose; that is the entire
+            // premise of this class. After a configuration change they are
+            // parentless but perfectly alive, so they are moved into the new
+            // layer rather than thrown away.
+            //
+            // Without this the map was cleared on detach, `sync` found nothing
+            // for each id and called `createView` again, and every rotation
+            // paid the full RemoteViews re-inflation this class exists to
+            // avoid, while the previous view leaked because the controller
+            // still held it. The 1.7s hitch, once per rotation.
+            //
+            // GONE until the next sync places them. A view re-added at its old
+            // margins would flash at the pre-rotation position for one frame,
+            // which is the jump the visibility default already guards against
+            // on a cold start.
+            for (view in views.values) {
+                (view.parent as? ViewGroup)?.removeView(view)
+                view.visibility = View.GONE
+                layer.addView(view)
+            }
         }
     }
 
-    fun detach() {
-        val layer = stage ?: return
-        (layer.parent as? ViewGroup)?.removeView(layer)
-        layer.removeAllViews()
-        views.clear()
-        hitRects.clear()
+    /**
+     * Tear down the layer for [activity], if it is the one that owns it.
+     *
+     * ─── IDENTITY-CHECKED FOR THE REASON [attach] EXPLAINS ──────────────────
+     *
+     * The outgoing Activity's onDestroy runs AFTER the incoming one's onCreate,
+     * so an unconditional teardown here destroys the stage the new Activity has
+     * just built. Same shape as `hostApi.detachActivity` and
+     * `widgetHost.detachActivity`, which both take the caller for this reason.
+     *
+     * ─── AND THE VIEW MAP SURVIVES ──────────────────────────────────────────
+     *
+     * `views.clear()` used to be here. It should not be: a host view belongs to
+     * the process, like the host that made it, and clearing the map orphaned
+     * every one of them. [attach] re-adopts them into the next layer.
+     *
+     * `controller` is not cleared either. It is the process-wide
+     * WidgetHostController, handed in by whichever Activity attached last, and
+     * nulling it here left `sync` returning early against a live stage.
+     */
+    fun detach(activity: Activity) {
+        if (owner !== activity) return
+        stage?.let(::dropLayer)
         stage = null
-        controller = null
+        owner = null
+    }
+
+    /**
+     * Unparent a layer without destroying the widgets in it.
+     *
+     * `removeAllViews` rather than leaving them: a view may not have two
+     * parents, so they have to come out before [attach] can put them into the
+     * next layer.
+     */
+    private fun dropLayer(layer: FrameLayout) {
+        layer.removeAllViews()
+        (layer.parent as? ViewGroup)?.removeView(layer)
+        hitRects.clear()
     }
 
     // ── the one call Dart makes ─────────────────────────────────────────────

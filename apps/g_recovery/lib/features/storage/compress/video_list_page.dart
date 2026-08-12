@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,9 +13,12 @@ import '../../../ui/g_app_bar.dart';
 import '../../../ui/g_button.dart';
 import '../../../ui/g_card.dart';
 import '../../../ui/g_enter.dart';
+import '../../../ui/g_view_switch.dart';
 import '../../pro/pro_page.dart';
 import '../../pro/state/pro_providers.dart';
+import '../state/storage_files.dart';
 import '../state/storage_providers.dart';
+import 'video_preview_page.dart';
 
 /// CLIPS, AND WHAT RE-ENCODING THEM WOULD PROBABLY DO.
 ///
@@ -65,6 +70,7 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     final bool pro = ref.watch(proUnlockedProvider);
+    final GViewMode mode = ref.watch(gViewModeProvider);
 
     final List<VideoCandidate> all =
         ref.watch(videoCandidatesProvider).value ?? const <VideoCandidate>[];
@@ -127,6 +133,15 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
                       ),
 
                     if (usable.isNotEmpty) ...<Widget>[
+                      // The shared control, so somebody who set grid on the
+                      // photo list arrives here in grid. Details collapses to
+                      // list, because a clip has no folder worth a third line
+                      // that its own name does not already carry.
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: GViewSwitch(),
+                      ),
+                      const SizedBox(height: GSpace.md),
                       _Note(
                         text:
                             'Fifteen seconds of each clip is really encoded to '
@@ -151,18 +166,42 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
                       ),
                       const SizedBox(height: GSpace.md),
 
-                      for (int i = 0; i < usable.length; i++)
-                        GEnter(
-                          index: i,
-                          child: _Clip(
+                      if (mode == GViewMode.grid)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 150,
+                                childAspectRatio: 0.82,
+                                crossAxisSpacing: GSpace.sm - 1,
+                                mainAxisSpacing: GSpace.sm - 1,
+                              ),
+                          itemCount: usable.length,
+                          itemBuilder: (BuildContext context, int i) => _Cell(
                             clip: usable[i],
                             estimate: _estimates[usable[i].fileId],
                             working: _working == usable[i].fileId,
                             excluded: _excluded.contains(usable[i].fileId),
                             onTap: () => _toggle(usable[i].fileId),
+                            onOpen: () => _open(usable[i]),
                             onNeeded: () => _want(usable[i].fileId),
                           ),
-                        ),
+                        )
+                      else
+                        for (int i = 0; i < usable.length; i++)
+                          GEnter(
+                            index: i,
+                            child: _Clip(
+                              clip: usable[i],
+                              estimate: _estimates[usable[i].fileId],
+                              working: _working == usable[i].fileId,
+                              excluded: _excluded.contains(usable[i].fileId),
+                              onTap: () => _toggle(usable[i].fileId),
+                              onOpen: () => _open(usable[i]),
+                              onNeeded: () => _want(usable[i].fileId),
+                            ),
+                          ),
                     ],
 
                     if (refused.isNotEmpty) ...<Widget>[
@@ -214,6 +253,19 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
   void _toggle(String fileId) => setState(() {
     if (!_excluded.remove(fileId)) _excluded.add(fileId);
   });
+
+  /// Opens the encoded sample, which exists only once a clip is measured.
+  ///
+  /// Doing nothing before then would look broken, so the affordance is absent
+  /// until the estimate lands rather than present and inert.
+  void _open(VideoCandidate clip) {
+    final VideoEstimate? estimate = _estimates[clip.fileId];
+    if (estimate == null || estimate.samplePath == null) return;
+
+    Navigator.of(context, rootNavigator: true).push(
+      VideoPreviewPage.route(clip: clip, estimate: estimate),
+    );
+  }
 
   /// A row asking for its own estimate.
   ///
@@ -311,6 +363,7 @@ class _Clip extends StatelessWidget {
     required this.working,
     required this.excluded,
     required this.onTap,
+    required this.onOpen,
     required this.onNeeded,
   });
 
@@ -319,6 +372,7 @@ class _Clip extends StatelessWidget {
   final bool working;
   final bool excluded;
   final VoidCallback onTap;
+  final VoidCallback onOpen;
   final VoidCallback onNeeded;
 
   @override
@@ -355,6 +409,33 @@ class _Clip extends StatelessWidget {
                   : Icon(Icons.check_rounded, size: 14, color: t.onAccent),
             ),
             const SizedBox(width: GSpace.md - 2),
+
+            // The frame is the way in, and only once there is something to
+            // watch. Tapping it before the estimate lands would open a player
+            // with no file behind it.
+            GestureDetector(
+              onTap: estimate?.samplePath == null ? null : onOpen,
+              child: SizedBox(
+                width: 54,
+                height: 40,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _Frame(fileId: clip.fileId),
+                    if (estimate?.samplePath != null)
+                      const Center(
+                        child: Icon(
+                          Icons.play_circle_outline_rounded,
+                          size: 20,
+                          color: Color(0xE6FFFFFF),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: GSpace.md - 2),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,6 +499,180 @@ class _Clip extends StatelessWidget {
     final int seconds = millis ~/ 1000;
     final int minutes = seconds ~/ 60;
     return '$minutes:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
+}
+
+
+/// A video thumbnail, from the storage thumbnailer.
+///
+/// kind is "video" rather than "image", which is what makes the native side
+/// pull a frame instead of trying to decode the container as a picture.
+class _Frame extends ConsumerWidget {
+  const _Frame({required this.fileId});
+
+  final String fileId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GTokens t = context.g;
+
+    final Uint8List? bytes = ref
+        .watch(
+          storageThumbProvider(
+            ThumbRequest(fileId: fileId, kind: 'video', maxPixels: 256),
+          ),
+        )
+        .value;
+
+    return ClipRRect(
+      borderRadius: GRadius.all(GRadius.tile),
+      child: bytes == null
+          ? ColoredBox(
+              color: t.panelAlt,
+              child: Center(
+                child: Icon(
+                  Icons.movie_outlined,
+                  size: 16,
+                  color: t.dim,
+                ),
+              ),
+            )
+          : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+    );
+  }
+}
+
+/// One clip in grid mode.
+///
+/// Tap selects, the play badge opens the preview. Same split as the photo grid,
+/// and for the same reason: a grid of ticked squares reads as a selection list
+/// in every other app on the phone, so the first tap is always an attempt to
+/// untick something.
+class _Cell extends StatelessWidget {
+  const _Cell({
+    required this.clip,
+    required this.estimate,
+    required this.working,
+    required this.excluded,
+    required this.onTap,
+    required this.onOpen,
+    required this.onNeeded,
+  });
+
+  final VideoCandidate clip;
+  final VideoEstimate? estimate;
+  final bool working;
+  final bool excluded;
+  final VoidCallback onTap;
+  final VoidCallback onOpen;
+  final VoidCallback onNeeded;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+
+    if (estimate == null && !working) onNeeded();
+
+    final int? saving = estimate == null
+        ? null
+        : estimate!.originalBytes - estimate!.estimatedBytes;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                _Frame(fileId: clip.fileId),
+
+                if (!excluded)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: GRadius.all(GRadius.tile),
+                        border: Border.all(color: t.accent, width: 2),
+                      ),
+                    ),
+                  ),
+
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: excluded ? const Color(0x66000000) : t.accent,
+                      borderRadius: GRadius.all(6),
+                      border: Border.all(
+                        color: excluded ? const Color(0x88FFFFFF) : t.accent,
+                      ),
+                    ),
+                    child: excluded
+                        ? null
+                        : Icon(
+                            Icons.check_rounded,
+                            size: 13,
+                            color: t.onAccent,
+                          ),
+                  ),
+                ),
+
+                if (working)
+                  const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (estimate?.samplePath != null)
+                  Center(
+                    child: GestureDetector(
+                      onTap: onOpen,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Color(0x8C000000),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          size: 20,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: GSpace.xs + 1),
+          Text(
+            clip.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GType.micro.copyWith(color: t.muted),
+          ),
+          Text(
+            saving != null && saving > 0
+                ? '~${GFormat.bytes(saving)}'
+                : GFormat.bytes(clip.sizeBytes),
+            style: GType.monoSmall.copyWith(
+              color: saving != null && saving > 0 ? t.accent : t.dim,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

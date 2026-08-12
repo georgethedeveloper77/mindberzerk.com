@@ -99,11 +99,70 @@ class AppRepository(context: Context) {
         )
     }
 
-    /** True if the caller should fire an ACTION_UNINSTALL_PACKAGE intent. */
-    fun isUninstallable(componentKey: String): Boolean {
-        val entry = cache.firstOrNull { it.componentKey == componentKey } ?: return false
-        return !entry.isSystem && !entry.isWorkProfile
+    /**
+     * Why an uninstall would or would not proceed, as a status string.
+     *
+     * ─── A BOOLEAN WAS NOT ENOUGH, AND THE OLD ONE WAS ALSO WRONG ───────────
+     *
+     * This replaces `isUninstallable`, which returned false for three unrelated
+     * situations and gave the caller no way to tell them apart. The caller's
+     * only option was `return` with no side effect, so every refusal rendered
+     * as a tap that did nothing, which is exactly how a working guard and a
+     * broken feature come to look identical.
+     *
+     * The second fault was the FLAG_SYSTEM test. On a Samsung device that flag
+     * is set on essentially every app that shipped with the phone, INCLUDING
+     * the ones the user has since updated through Play. Those are genuinely
+     * uninstallable: the system offers to remove the update and revert to the
+     * factory version, which is what the user means by "uninstall Samsung
+     * Internet". Refusing them was refusing the most common case on the very
+     * device this launcher is developed on.
+     *
+     * Strings rather than an enum, per the Pigeon rule in the schema: enums are
+     * numbered ahead of classes in the codec, so adding a third one silently
+     * renumbers every existing class.
+     */
+    fun uninstallStatus(componentKey: String): String {
+        val entry = cache.firstOrNull { it.componentKey == componentKey }
+            ?: return UninstallStatus.UNKNOWN_APP
+
+        // A work-profile app is owned by the profile admin. The uninstall would
+        // be refused by the system rather than by us, and saying so up front is
+        // more useful than handing the user a dialog that closes itself.
+        if (entry.isWorkProfile) return UninstallStatus.WORK_PROFILE
+
+        if (!entry.isSystem) return UninstallStatus.OK
+        return if (isUpdatedSystemApp(entry)) UninstallStatus.OK else UninstallStatus.SYSTEM_APP
     }
+
+    /**
+     * Has this preinstalled app been updated since the factory image?
+     *
+     * `LauncherApps.getApplicationInfo` is used rather than PackageManager for
+     * the same reason `updateTokenOf` avoids it: on Android 11+ the
+     * PackageManager call is package-visibility filtered and throws for most
+     * apps unless we hold QUERY_ALL_PACKAGES, which §7.6 rules out. LauncherApps
+     * is the launcher-privileged path and needs no permission.
+     *
+     * Any failure reads as "not updated", which is the conservative answer: the
+     * worst case is refusing an uninstall that would have worked, and the user
+     * still has App info as a route to the same screen.
+     */
+    private fun isUpdatedSystemApp(entry: AppEntry): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val user = userManager.getUserForSerialNumber(entry.userSerial) ?: return false
+        return try {
+            val info = launcherApps.getApplicationInfo(entry.packageName, 0, user)
+            (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        } catch (e: Exception) {
+            Log.i(TAG, "getApplicationInfo failed for ${entry.packageName}: $e")
+            false
+        }
+    }
+
+    /** The profile a componentKey's serial belongs to, or null if it is gone. */
+    fun userFor(serial: Long): UserHandle? =
+        userManager.getUserForSerialNumber(serial)
 
     // ---- mapping ---------------------------------------------------------
 
@@ -192,9 +251,48 @@ class AppRepository(context: Context) {
 }
 
 /**
- * The one place componentKey is constructed or parsed. Everything else treats
- * it as an opaque string.
+ * The vocabulary `requestUninstall` answers in.
+ *
+ * MIRRORED IN DART in `data/repositories/app_repository.dart`. Both sides are
+ * listed in the Pigeon schema's doc comment for `requestUninstall`, which is the
+ * one place a reader is guaranteed to look; if you add a status, add it in all
+ * three or the Dart side falls through to its generic message and the specific
+ * reason you just went to the trouble of computing is thrown away.
+ *
+ * Strings and not an enum, deliberately. The schema note spells out why: Pigeon
+ * numbers enums ahead of classes in the codec, so introducing one here would
+ * renumber every existing class and break any APK already in the field.
  */
+object UninstallStatus {
+    /** Cleared our own checks. Not yet a promise that the dialog appeared. */
+    const val OK = "ok"
+
+    /** The system's uninstall confirmation was started. */
+    const val LAUNCHED = "launched"
+
+    /**
+     * Started, but from the application context because no Activity was
+     * attached. Distinct from [LAUNCHED] on purpose: this is the path that was
+     * failing before, and if it ever comes back it should be visible in
+     * Crashlytics rather than blending into success.
+     */
+    const val LAUNCHED_DETACHED = "launched_detached"
+
+    /** Not in the app list. Almost always a stale tile for a removed app. */
+    const val UNKNOWN_APP = "unknown_app"
+
+    /** Preinstalled and never updated, so there is nothing to remove. */
+    const val SYSTEM_APP = "system_app"
+
+    /** Owned by the work profile's admin. */
+    const val WORK_PROFILE = "work_profile"
+
+    /** No activity on the device answers ACTION_DELETE. Rare, but real on ROMs. */
+    const val NO_INSTALLER = "no_installer"
+
+    /** The system refused the start outright. */
+    const val REFUSED = "refused"
+}
 data class ComponentKey(
     val packageName: String,
     val className: String,

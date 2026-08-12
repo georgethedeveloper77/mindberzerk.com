@@ -19,6 +19,7 @@ import '../boot/boot_controller.dart';
 import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
+import '../desklets/widget_stage.dart';
 import '../drawer/drawer_state.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
@@ -139,13 +140,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         data: (t) {
           _maybeAutoBoot(t);
 
-          final shell = switch (t.shell) {
+          final rawShell = switch (t.shell) {
             ShellKind.gnome => GnomeShell(theme: t),
             ShellKind.plasma => PlasmaShell(theme: t),
             ShellKind.tiling => TilingShell(theme: t),
             ShellKind.tui => TuiShell(theme: t),
             ShellKind.aqua => AquaShell(theme: t),
           };
+
+          // ─── THE WIDGET STAGE, FOR EVERY SHELL, FOR THE SAME REASON AS
+          //     THE ONE PopScope BELOW ────────────────────────────────────
+          //
+          // Hosted third-party widgets are real Android views in a layer behind
+          // Flutter. Dart tells that layer where they are; without the sync the
+          // layer stays empty and every widget is a transparent hole.
+          //
+          // This lived in `WorkspaceCanvas` first, which was wrong in exactly
+          // the way six PopScopes were wrong: Plasma, tiling and Aqua share
+          // that canvas, GnomeShell keeps its own inline pager, and TUI has no
+          // workspaces at all. So the default distro was the one shell where
+          // widgets never appeared. `AppWidgetHost: updateAppWidgetView,
+          // appWidgetId = 23, v = null` is the host saying nobody ever asked it
+          // for a view.
+          //
+          // Every shell passes through here. That is the whole argument.
+          //
+          // ─── AND WHY THE SCROLL LISTENER IS HERE TOO ──────────────────
+          //
+          // The stage cannot follow Flutter's scroll without a message per
+          // frame, and one frame of lag shears visibly against the desklets
+          // beside it, so it hides while the workspace moves. Scroll
+          // notifications bubble, so one listener at the top catches every
+          // shell's pager without knowing which pager any of them uses.
+          //
+          // It also catches the drawer's own scrolling, which is harmless: an
+          // open drawer already hides the stage. Notifications do not cross
+          // route boundaries, so a pushed settings screen never reaches this.
+          final shell = NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              final moving = ref.read(stageMovingProvider.notifier);
+              if (n is ScrollEndNotification) {
+                moving.set(false);
+              } else if (n is ScrollStartNotification ||
+                  n is ScrollUpdateNotification) {
+                moving.set(true);
+              }
+              // FALSE, always: this observes, it does not consume. Returning
+              // true would stop the notification here and break anything above
+              // that also listens.
+              return false;
+            },
+            child: Stack(
+              children: [
+                rawShell,
+                // Renders nothing. Mounted inside the shell's own subtree so it
+                // lives and dies with the desktop.
+                const WidgetStageSync(),
+              ],
+            ),
+          );
 
           // The boot canvas takes the theme's darkest base (aubergine on Ubuntu,
           // #080D08 on the terminal) so the log reads as this distro booting,

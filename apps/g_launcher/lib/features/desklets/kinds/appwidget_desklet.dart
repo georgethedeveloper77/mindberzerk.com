@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/prefs/launcher_prefs.dart';
 import '../../../engine/desklet_skin.dart';
 import '../../../engine/effective_theme.dart';
+import '../../../engine/widget_span.dart';
 import '../desklet_menu.dart';
 import '../widget_stage.dart';
 
@@ -76,10 +77,15 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
   /// itself is safe to hold.
   late final StageRects _rects = ref.read(stageRectsProvider.notifier);
 
+  /// Is the measure loop running? Guards against a second chain being started
+  /// by anything that calls [_arm] twice.
+  bool _measuring = false;
+
   @override
   void initState() {
     super.initState();
     _rects; // force the late init here, not at teardown
+    _arm();
   }
 
   @override
@@ -105,28 +111,98 @@ class _AppWidgetDeskletState extends ConsumerState<AppWidgetDesklet> {
     showDeskletMenu(context, ref, widget.theme, widget.desklet, anchor: anchor);
   }
 
-  /// Measure where this tile actually landed, and tell the stage.
+  /// Start measuring, once, and keep measuring for as long as this tile lives.
   ///
-  /// Post-frame because `localToGlobal` needs a laid-out render box, and during
-  /// build there is not one yet. The notifier's own equality guard makes a
-  /// repeat at the same position a no-op, so this costs one comparison per
-  /// layout pass rather than a platform call.
-  void _report(int widgetId) {
+  /// ─── THIS USED TO BE DRIVEN BY build(), AND THAT WAS THE BUG ────────────
+  ///
+  /// The old code called `_report` from `build` and its comment claimed the
+  /// cost was "one comparison per layout pass". It was not. A post-frame
+  /// callback registered from `build` runs once, after the frame that build
+  /// belonged to, and `build` runs when this widget is REBUILT. Nothing here
+  /// watches a provider and nothing above it rebuilds during ordinary desktop
+  /// use, so in practice the rect was measured once and then believed forever.
+  ///
+  /// A tile's position on screen changes constantly WITHOUT a rebuild: the
+  /// workspace pager translates its viewport, the edge pager applies a parallax,
+  /// an entry animation slides the canvas in. Every one of those moves the tile
+  /// by moving a paint offset above it, and none of them rebuilds this element.
+  /// So the launcher reported a rect from whatever transient position the tile
+  /// held on its first frame and never corrected it. Measured on device:
+  ///
+  ///     HostedWidgetView{... -211,257-818,1052}
+  ///
+  /// A 1029px widget pinned at x = -211px, hanging 80dp off the left edge,
+  /// exactly where a mid-animation canvas had it at first build. Native was
+  /// obeying perfectly; the number it was given was a fossil.
+  ///
+  /// ─── WHY A CHAINED POST-FRAME AND NOT A PERSISTENT CALLBACK ─────────────
+  ///
+  /// `addPersistentFrameCallback` cannot be removed, so one per desklet would
+  /// accumulate for the life of the process. Re-arming a post-frame callback
+  /// from inside itself gives the same per-frame cadence and stops on its own
+  /// the moment this State is unmounted.
+  ///
+  /// It also cannot spin. `addPostFrameCallback` does not REQUEST a frame, it
+  /// only runs at the end of one that was going to happen anyway. An idle
+  /// desktop produces no frames, so the chain simply waits, and a tile cannot
+  /// move without a frame. The loop is therefore exactly as busy as the screen
+  /// is.
+  ///
+  /// ─── AND WHY IT IS STILL CHEAP ──────────────────────────────────────────
+  ///
+  /// One `localToGlobal` and one Rect comparison per hosted widget per frame.
+  /// `StageRects.report` returns without writing when the rect is within half a
+  /// pixel of the last one, so a settled desktop does no provider work and
+  /// sends no platform message. During motion the stage is hidden and
+  /// `WidgetStageSync` flattens to an empty list, so the reports go nowhere
+  /// until the desktop settles, which is the behaviour that file already
+  /// documents.
+  void _arm() {
+    if (_measuring) return;
+    _measuring = true;
+    _tick();
+  }
+
+  void _tick() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final box = context.findRenderObject() as RenderBox?;
-      if (box == null || !box.hasSize) return;
-      final origin = box.localToGlobal(Offset.zero);
-      _rects.report(widget.desklet.id, this, widgetId, origin & box.size);
+      if (!mounted) {
+        _measuring = false;
+        return;
+      }
+      _measure();
+      _tick();
     });
+  }
+
+  /// One measurement. Silent when there is nothing honest to report.
+  void _measure() {
+    final id = widget.desklet.config[WidgetConfigKeys.widgetId];
+    if (id is! int) return;
+
+    final box = context.findRenderObject() as RenderBox?;
+
+    // `attached` as well as `hasSize`. A deactivated element still answers
+    // `mounted` and still has a render object, but that object is off the tree
+    // and `localToGlobal` on it walks a broken ancestor chain. The rect it
+    // returns is meaningless rather than merely stale.
+    if (box == null || !box.attached || !box.hasSize) return;
+
+    _rects.report(
+      widget.desklet.id,
+      this,
+      id,
+      box.localToGlobal(Offset.zero) & box.size,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final id = widget.desklet.config['widgetId'];
+    final id = widget.desklet.config[WidgetConfigKeys.widgetId];
     if (id is! int) return _Fallback(theme: widget.theme);
 
-    _report(id);
+    // NO _report HERE ANY MORE. The measure loop started in initState runs on
+    // every frame and does not need a build to prompt it; calling it here as
+    // well would only arm a second chain. See [_arm].
 
     // ─── THE HOLE, AND WHY IT IS NOT TRULY EMPTY ──────────────────────────
     //
