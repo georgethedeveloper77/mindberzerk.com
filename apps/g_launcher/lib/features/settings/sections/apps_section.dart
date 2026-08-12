@@ -8,12 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
-import '../../../data/prefs/prefs_repository.dart';
 import '../../../data/prefs/home_layout.dart';
+import '../../../data/prefs/prefs_repository.dart';
 import '../../../data/repositories/app_repository.dart';
 import '../../../data/repositories/shell_apps.dart';
 import '../../../design/branded_message.dart';
-import '../../../design/components/components.dart';
 import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
@@ -307,7 +306,6 @@ List<Widget> applicationsSection(
         ),
       ],
     ),
-
   ];
 }
 
@@ -329,7 +327,9 @@ class _BadgeAccessRow extends ConsumerWidget {
     final on = granted.asData?.value ?? false;
 
     return SettingsRow(
-      icon: on ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+      icon: on
+          ? Icons.notifications_active_outlined
+          : Icons.notifications_off_outlined,
       accent: true,
       title: context.t(
         on ? 'settings.badges.accessOn' : 'settings.badges.accessOff',
@@ -424,7 +424,8 @@ class _BadgeStyleRow extends StatelessWidget {
                   size: 20, color: c.textMuted),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(context.t('settings.badges.style'), style: d.text.body),
+                child: Text(context.t('settings.badges.style'),
+                    style: d.text.body),
               ),
             ],
           ),
@@ -516,7 +517,8 @@ void _showRemovedFromDock(
             onTap: () {
               Navigator.pop(sheet);
               notifier.edit((p) => HomeLayout.restoreToDock(p, key));
-              context.showMessage('${labels[key] ?? key} can return to the dock');
+              context
+                  .showMessage('${labels[key] ?? key} can return to the dock');
             },
           ),
         if (removed.length > 1)

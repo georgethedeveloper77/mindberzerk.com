@@ -33,8 +33,9 @@ class AgeHistogram extends StatelessWidget {
 
     // Only the last ten years. Older than that is usually one stray file with a
     // broken timestamp, and it flattens every real bar to nothing.
-    final List<AgeBucket> shown =
-        buckets.length > 10 ? buckets.sublist(buckets.length - 10) : buckets;
+    final List<AgeBucket> shown = buckets.length > 10
+        ? buckets.sublist(buckets.length - 10)
+        : buckets;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,8 +56,10 @@ class AgeHistogram extends StatelessWidget {
                         message:
                             '${bucket.year}  ${GFormat.bytes(bucket.totalBytes)}',
                         child: FractionallySizedBox(
-                          heightFactor:
-                              (bucket.totalBytes / peak).clamp(0.03, 1.0),
+                          heightFactor: (bucket.totalBytes / peak).clamp(
+                            0.03,
+                            1.0,
+                          ),
                           alignment: Alignment.bottomCenter,
                           child: DecoratedBox(
                             decoration: BoxDecoration(

@@ -26,8 +26,8 @@ class ReviewPage extends ConsumerStatefulWidget {
   const ReviewPage({super.key});
 
   static Route<void> route() => MaterialPageRoute<void>(
-        builder: (BuildContext context) => const ReviewPage(),
-      );
+    builder: (BuildContext context) => const ReviewPage(),
+  );
 
   @override
   ConsumerState<ReviewPage> createState() => _ReviewPageState();
@@ -63,7 +63,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage>
   Future<void> _onPanEnd(DragEndDetails details, double width) async {
     final double dx = _drag.dx;
     final double velocity = details.velocity.pixelsPerSecond.dx;
-    final bool passed = dx.abs() > width * _distanceThreshold ||
+    final bool passed =
+        dx.abs() > width * _distanceThreshold ||
         velocity.abs() > _velocityThreshold;
 
     if (!passed) {
@@ -71,8 +72,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage>
       return;
     }
 
-    final ReviewVerdict verdict =
-        dx > 0 ? ReviewVerdict.keep : ReviewVerdict.bin;
+    final ReviewVerdict verdict = dx > 0
+        ? ReviewVerdict.keep
+        : ReviewVerdict.bin;
     await _flingOut(dx.isNegative ? -1 : 1, width);
     ref.read(reviewProvider.notifier).decide(verdict);
     if (mounted) setState(() => _drag = Offset.zero);
@@ -158,16 +160,18 @@ class _ReviewPageState extends ConsumerState<ReviewPage>
       PageRouteBuilder<void>(
         opaque: false,
         barrierColor: context.g.scrim,
-        pageBuilder: (BuildContext context, Animation<double> a, Animation<double> b) =>
-            _Viewer(item: item, bridge: bridge),
+        pageBuilder:
+            (BuildContext context, Animation<double> a, Animation<double> b) =>
+                _Viewer(item: item, bridge: bridge),
       ),
     );
   }
 
   Future<void> _commit(ReviewSession session) async {
     setState(() => _committing = true);
-    final ReviewOutcome outcome =
-        await ref.read(reviewProvider.notifier).commit();
+    final ReviewOutcome outcome = await ref
+        .read(reviewProvider.notifier)
+        .commit();
     if (!mounted) return;
     setState(() => _committing = false);
     Navigator.of(context).pop();
@@ -325,7 +329,12 @@ class _Actions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        _Circle(icon: Icons.close_rounded, tone: t.danger, size: 58, onTap: onBin),
+        _Circle(
+          icon: Icons.close_rounded,
+          tone: t.danger,
+          size: 58,
+          onTap: onBin,
+        ),
         const SizedBox(width: GSpace.lg),
         _Circle(
           icon: Icons.undo_rounded,

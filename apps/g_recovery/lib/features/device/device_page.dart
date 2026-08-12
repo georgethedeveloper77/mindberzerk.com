@@ -1,15 +1,30 @@
+import 'package:device_probe/device_probe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/shell.dart';
 import '../../app/theme/tokens.dart';
+import '../../core/format.dart';
 import '../../ui/g_app_bar.dart';
-import '../../ui/g_chip.dart';
+import '../../ui/g_card.dart';
+import '../../ui/g_enter.dart';
+import 'device_format.dart';
+import 'device_section_page.dart';
+import 'pages/display_page.dart';
+import 'pages/network_page.dart';
+import 'pages/sim_page.dart';
+import 'state/device_history.dart';
 import 'state/device_providers.dart';
+import 'state/identity_providers.dart';
+import 'tools/screen_test_page.dart';
+import 'tools/sound_test_page.dart';
 import 'widgets/battery_card.dart';
+import 'widgets/battery_health_strip.dart';
 import 'widgets/cpu_card.dart';
+import 'widgets/device_index.dart';
+import 'widgets/g_line_chart.dart';
 import 'widgets/memory_card.dart';
 import 'widgets/sensors_card.dart';
+import 'widgets/system_card.dart';
 import 'widgets/thermal_card.dart';
 
 /// Index of this page inside [gNavItems]. Used to decide whether the sampler
@@ -46,6 +61,13 @@ class _DevicePageState extends ConsumerState<DevicePage>
     setState(() => _foreground = next);
   }
 
+  /// True while this tab is the one showing.
+  ///
+  /// Tracked rather than only read, so leaving the tab can clear the history.
+  /// Without that, coming back after ten minutes joins two separate visits into
+  /// one line and draws a minute that never happened.
+  bool _wasOnTab = false;
+
   /// Cadence is decided in one place from two independent facts: is the app in
   /// front, and is this tab the selected one.
   ///
@@ -66,52 +88,496 @@ class _DevicePageState extends ConsumerState<DevicePage>
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     final bool onTab = ref.watch(gShellTabProvider) == kDeviceTabIndex;
-    final DeviceSection section = ref.watch(deviceSectionProvider);
 
     // Mutating a plain object, not writing a provider, so this is safe during
     // build. Both setters early-return when nothing changed, so there is no
     // rebuild loop.
     _applyCadence(onTab: onTab);
 
+    if (onTab != _wasOnTab) {
+      _wasOnTab = onTab;
+      if (!onTab) {
+        // Post frame, because Riverpod forbids writing a provider during build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) ref.read(vitalHistoryProvider.notifier).clear();
+        });
+      }
+    }
+
+    final DeviceIdentity? identity = ref.watch(deviceIdentityProvider).value;
+
     return GPageBody(
       children: <Widget>[
-        GAppBar(title: 'Device'),
-        SizedBox(
-          height: 34,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: kDeviceSections.length,
-            separatorBuilder: (BuildContext _, int _) =>
-                const SizedBox(width: GSpace.sm - 2),
-            itemBuilder: (BuildContext _, int index) {
-              final DeviceSectionSpec spec = kDeviceSections[index];
-              return GChip(
-                label: spec.label,
-                selected: spec.section == section,
-                onTap: () => ref
-                    .read(deviceSectionProvider.notifier)
-                    .select(spec.section),
-              );
-            },
+        GAppBar(
+          title: deviceTitle(identity),
+          subtitle: identity == null
+              ? null
+              : '${deviceCaption(identity)}  ·  Android '
+                    '${identity.androidRelease}',
+        ),
+
+        const _Live(),
+        const SizedBox(height: GSpace.md + 1),
+
+        // GType.overline rather than the GOverline widget. It lives in a file
+        // this page does not import, and reaching for a widget to draw one
+        // styled string is not worth an import that other screens already
+        // disagree about.
+        Text('DETAILS', style: GType.overline.copyWith(color: t.dim)),
+        const SizedBox(height: GSpace.sm + 1),
+        DeviceIndex(
+          entries: _entries(
+            context,
+            ref.watch(deviceTickProvider).value?.current,
           ),
         ),
-        const SizedBox(height: GSpace.md + 1),
-        switch (section) {
-          DeviceSection.cpu => const CpuCard(),
-          DeviceSection.battery => const BatteryCard(),
-          DeviceSection.thermal => const ThermalCard(),
-          DeviceSection.memory => const MemoryCard(),
-          DeviceSection.sensors => const SensorsCard(),
-        },
+
         const SizedBox(height: GSpace.lg),
-        Text(
-          onTab
-              ? 'Sampling at ${_foreground ? "2 Hz" : "0.5 Hz"}. Readings this '
-                  'device refuses are named rather than hidden.'
-              : 'Paused.',
-          style: GType.micro.copyWith(color: t.dim),
+        Text('TOOLS', style: GType.overline.copyWith(color: t.dim)),
+        const SizedBox(height: GSpace.sm + 1),
+        GCard(
+          onTap: () => Navigator.of(context).push(ScreenTestPage.route()),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.grid_on_rounded, size: 20, color: t.accentText),
+              const SizedBox(width: GSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Screen test',
+                      style: GType.heading.copyWith(color: t.text),
+                    ),
+                    Text(
+                      'Dead pixels, backlight and touch response',
+                      style: GType.micro.copyWith(color: t.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: t.dim),
+            ],
+          ),
+        ),
+        const SizedBox(height: GSpace.sm + 1),
+        GCard(
+          onTap: () => Navigator.of(context).push(SoundTestPage.route()),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.graphic_eq_rounded, size: 20, color: t.accentText),
+              const SizedBox(width: GSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Speakers and vibration',
+                      style: GType.heading.copyWith(color: t.text),
+                    ),
+                    Text(
+                      'Each speaker on its own, and the motor',
+                      style: GType.micro.copyWith(color: t.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: t.dim),
+            ],
+          ),
+        ),
+        const SizedBox(height: GSpace.sm + 1),
+        GCard(
+          onTap: () => Navigator.of(context).push(TouchTestPage.route()),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.touch_app_rounded, size: 20, color: t.accentText),
+              const SizedBox(width: GSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Touch', style: GType.heading.copyWith(color: t.text)),
+                    Text(
+                      'How many fingers the screen can follow',
+                      style: GType.micro.copyWith(color: t.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: t.dim),
+            ],
+          ),
         ),
       ],
     );
   }
+}
+
+/// THE FOUR THINGS THAT MOVE.
+///
+/// CPU and battery get a full width chart because they are the two people
+/// actually watch. Memory and temperature share a row underneath, because a
+/// glance is enough for both and four full charts would push the index off the
+/// screen entirely.
+///
+/// Every one of them is free. Castro puts exactly these behind a paywall, and
+/// this app is already sampling all four for the card on Home, so charging for
+/// them would mean charging for work already being done.
+class _Live extends ConsumerWidget {
+  const _Live();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GTokens t = context.g;
+    final List<VitalSample> history = ref.watch(vitalHistoryProvider);
+    final VitalSample? now = history.isEmpty ? null : history.last;
+
+    final List<double> busy = vitalSeries(
+      history,
+      (VitalSample s) => s.busy == null ? null : s.busy! * 100,
+    );
+    final List<double> battery = vitalSeries(
+      history,
+      (VitalSample s) => s.batteryPercent?.toDouble(),
+    );
+    final List<double> memory = vitalSeries(
+      history,
+      (VitalSample s) => s.freeBytes == null ? null : s.freeBytes! / 1073741824,
+    );
+    final List<double> temp = vitalSeries(
+      history,
+      (VitalSample s) => s.tempDeciC == null ? null : s.tempDeciC! / 10,
+    );
+
+    return Column(
+      children: <Widget>[
+        if (busy.isNotEmpty)
+          GEnter(
+            index: 0,
+            child: _Chart(
+              onTap: () => Navigator.of(context).push(
+                DeviceSectionPage.route(title: 'CPU', child: const CpuCard()),
+              ),
+              label: 'CPU',
+              value: now?.busy == null
+                  ? null
+                  : '${(now!.busy! * 100).round()}%',
+              hue: t.video,
+              values: busy,
+              // Fixed to the full scale. A percentage that rescales to its own
+              // range makes a quiet phone look as busy as a hot one.
+              minY: 0,
+              maxY: 100,
+            ),
+          ),
+        if (battery.isNotEmpty) ...<Widget>[
+          const SizedBox(height: GSpace.sm + 1),
+          GEnter(
+            index: 1,
+            child: _Chart(
+              onTap: () => Navigator.of(context).push(
+                DeviceSectionPage.route(
+                  title: 'Battery',
+                  child: const BatteryCard(),
+                ),
+              ),
+              label: 'Battery',
+              value: now?.batteryPercent == null
+                  ? null
+                  : '${now!.batteryPercent}%',
+              hue: t.docs,
+              values: battery,
+              height: 58,
+            ),
+          ),
+          // Directly under the chart it belongs to, and gone entirely on a
+          // phone that reports none of the three.
+          GEnter(
+            index: 2,
+            child: BatteryHealthStrip(
+              battery: ref.watch(deviceTickProvider).value?.current.battery,
+            ),
+          ),
+        ],
+        if (memory.isNotEmpty || temp.isNotEmpty) ...<Widget>[
+          const SizedBox(height: GSpace.sm + 1),
+          // No stretch. This Row lives in a ListView, so its height is
+          // unbounded, and a horizontal Row stretching its children on the
+          // cross axis has no height to stretch to. The two cards are the same
+          // shape and size themselves to match without it.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (memory.isNotEmpty)
+                Expanded(
+                  child: GEnter(
+                    index: 2,
+                    child: _Chart(
+                      onTap: () => Navigator.of(context).push(
+                        DeviceSectionPage.route(
+                          title: 'Memory',
+                          child: const MemoryCard(),
+                        ),
+                      ),
+                      label: 'Free memory',
+                      value: GFormat.bytesOrNull(now?.freeBytes),
+                      hue: t.photo,
+                      values: memory,
+                      height: 44,
+                      compact: true,
+                    ),
+                  ),
+                ),
+              if (memory.isNotEmpty && temp.isNotEmpty)
+                const SizedBox(width: GSpace.sm + 1),
+              if (temp.isNotEmpty)
+                Expanded(
+                  child: GEnter(
+                    index: 3,
+                    child: _Chart(
+                      onTap: () => Navigator.of(context).push(
+                        DeviceSectionPage.route(
+                          title: 'Thermal',
+                          child: const ThermalCard(),
+                        ),
+                      ),
+                      label: 'Temperature',
+                      value: DeviceFormat.celsiusFromDeci(now?.tempDeciC),
+                      hue: t.audio,
+                      values: temp,
+                      height: 44,
+                      compact: true,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// One tinted chart card.
+class _Chart extends StatelessWidget {
+  const _Chart({
+    required this.label,
+    required this.value,
+    required this.hue,
+    required this.values,
+    this.height = 72,
+    this.minY,
+    this.maxY,
+    this.compact = false,
+    this.onTap,
+  });
+
+  final String label;
+
+  /// Opens the matching detail.
+  ///
+  /// The cards looked tappable and were not, which is worse than looking inert:
+  /// a card with a border, a title and a figure is the most obvious target on
+  /// the screen, and a tap that does nothing reads as the app having frozen.
+  final VoidCallback? onTap;
+
+  /// Nullable, and an absent one renders as nothing rather than a dash. A phone
+  /// that will not report a figure should not be shown a placeholder for it.
+  final String? value;
+
+  final Color hue;
+  final List<double> values;
+  final double height;
+  final double? minY;
+  final double? maxY;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+    final bool dark = t.brightness == Brightness.dark;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: const <double>[0, 0.55, 1],
+          colors: <Color>[
+            hue.withValues(alpha: dark ? 0.42 : 0.20),
+            hue.withValues(alpha: dark ? 0.29 : 0.135),
+            hue.withValues(alpha: dark ? 0.16 : 0.07),
+          ],
+        ),
+        border: Border.all(color: hue.withValues(alpha: dark ? 0.5 : 0.3)),
+        borderRadius: GRadius.all(GRadius.card),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: GRadius.all(GRadius.card),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GSpace.md,
+              GSpace.md,
+              GSpace.md,
+              GSpace.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: <Widget>[
+                    Text(
+                      label,
+                      style: (compact ? GType.micro : GType.heading).copyWith(
+                        color: t.text,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (value != null)
+                      Text(
+                        value!,
+                        style: GType.monoNumber.copyWith(
+                          color: t.text,
+                          fontSize: compact ? 17 : 22,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: GSpace.sm),
+                GLineChart(
+                  values: values,
+                  colour: hue,
+                  height: height,
+                  minY: minY,
+                  maxY: maxY,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The index, in the order these are actually wanted.
+///
+/// Not alphabetical. CPU, battery and memory are what someone opens this tab
+/// for; system and access are what they open it for once, and they sit where
+/// they can be found rather than where they compete.
+///
+/// EVERY ENTRY LEADS SOMEWHERE REAL. Codecs and DRM are the only pages from the
+/// survey still missing, and they belong behind one Developer entry rather than
+/// two bubbles competing with Battery for attention.
+List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
+  final GTokens t = context.g;
+
+  void open(String title, Widget child, {String? subtitle}) {
+    Navigator.of(context).push(
+      DeviceSectionPage.route(title: title, subtitle: subtitle, child: child),
+    );
+  }
+
+  return <DeviceEntry>[
+    DeviceEntry(
+      label: 'CPU',
+      icon: Icons.memory_rounded,
+      hue: t.video,
+      // DeviceSnapshot.cpu is a CpuSample, not CpuInfo. A sample carries per
+      // core readings and no count, so the count is the length of the list.
+      value: now?.cpu?.coreKhz == null
+          ? null
+          : '${now!.cpu!.coreKhz.length} cores',
+      open: (BuildContext c) => open('CPU', const CpuCard()),
+    ),
+    DeviceEntry(
+      label: 'Battery',
+      icon: Icons.battery_full_rounded,
+      hue: t.docs,
+      // Health where the phone reports it, level where it does not. The more
+      // interesting number wins the space.
+      value: now?.battery?.stateOfHealthPercent != null
+          ? '${now!.battery!.stateOfHealthPercent}% health'
+          : now?.battery?.percent == null
+          ? null
+          : '${now!.battery!.percent}%',
+      open: (BuildContext c) => open('Battery', const BatteryCard()),
+    ),
+    DeviceEntry(
+      label: 'Memory',
+      icon: Icons.grid_view_rounded,
+      hue: t.photo,
+      value: now?.memory?.totalBytes == null
+          ? null
+          : GFormat.bytes(now!.memory!.totalBytes!),
+      open: (BuildContext c) => open('Memory', const MemoryCard()),
+    ),
+    DeviceEntry(
+      label: 'Thermal',
+      icon: Icons.thermostat_rounded,
+      hue: t.audio,
+      value: now?.battery?.tempDeciC == null
+          ? null
+          : '${(now!.battery!.tempDeciC! / 10).toStringAsFixed(1)} C',
+      open: (BuildContext c) => open('Thermal', const ThermalCard()),
+    ),
+    DeviceEntry(
+      label: 'Display',
+      icon: Icons.smartphone_rounded,
+      hue: t.chat,
+      open: (BuildContext c) => Navigator.of(c).push(DisplayPage.route()),
+    ),
+    DeviceEntry(
+      label: 'Cameras',
+      icon: Icons.photo_camera_rounded,
+      hue: t.photo,
+      open: (BuildContext c) => Navigator.of(c).push(CamerasPage.route()),
+    ),
+    DeviceEntry(
+      label: 'Network',
+      icon: Icons.wifi_rounded,
+      hue: t.video,
+      open: (BuildContext c) => Navigator.of(c).push(NetworkPage.route()),
+    ),
+    DeviceEntry(
+      label: 'SIM',
+      icon: Icons.sim_card_outlined,
+      hue: t.audio,
+      open: (BuildContext c) => Navigator.of(c).push(SimPage.route()),
+    ),
+    DeviceEntry(
+      label: 'Bluetooth',
+      icon: Icons.bluetooth_rounded,
+      hue: t.chat,
+      open: (BuildContext c) => Navigator.of(c).push(BluetoothPage.route()),
+    ),
+    DeviceEntry(
+      label: 'Sensors',
+      icon: Icons.sensors_rounded,
+      hue: t.apps,
+      open: (BuildContext c) => open('Sensors', const SensorsCard()),
+    ),
+    DeviceEntry(
+      label: 'System',
+      icon: Icons.android_rounded,
+      hue: t.chat,
+      open: (BuildContext c) => open('System', const SystemCard()),
+    ),
+    DeviceEntry(
+      label: 'Access',
+      icon: Icons.folder_open_rounded,
+      hue: t.docs,
+      open: (BuildContext c) => open(
+        'Storage access',
+        const AccessCard(),
+        subtitle: 'What this app is allowed to read',
+      ),
+    ),
+  ];
 }

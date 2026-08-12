@@ -13,9 +13,28 @@ import java.util.concurrent.atomic.AtomicLong
  * hands the id back and gets an outcome.
  *
  * ConcurrentHashMap because the scan writes from a worker thread while the UI
- * reads pages through the bridge on the platform thread.
+ * reads pages through the bridge on the platform thread. Since the background
+ * service arrived there are two writers rather than one, from two components
+ * that never see each other, which makes the concurrent map load-bearing rather
+ * than merely careful.
  */
 internal class RecoveryIndex {
+
+    companion object {
+        /**
+         * THE ONE INDEX, for the whole process.
+         *
+         * The service and the Flutter engine are separate components with
+         * separate lifetimes in a single process. Two indexes would mean a scan
+         * that finished in the background was invisible to the UI that came back
+         * afterwards, which is precisely the case the service exists to serve.
+         *
+         * Process death still empties it. That is honest rather than a gap: a
+         * killed process has no scan results, and the app rescans rather than
+         * showing a list of files that may no longer be there.
+         */
+        val shared = RecoveryIndex()
+    }
 
     internal sealed class Record {
         abstract val item: RecoverableItem

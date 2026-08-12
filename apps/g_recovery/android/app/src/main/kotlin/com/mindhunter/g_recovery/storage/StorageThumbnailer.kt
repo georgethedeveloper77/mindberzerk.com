@@ -23,10 +23,25 @@ import kotlin.math.max
  */
 internal class StorageThumbnailer(private val context: Context) {
 
-    fun bytes(uri: Uri, kind: String, maxPixels: Int): ByteArray? {
-        if (kind != "image" && kind != "video") return null
+    fun bytes(
+        uri: Uri,
+        kind: String,
+        maxPixels: Int,
+        name: String? = null,
+        mimeType: String? = null,
+    ): ByteArray? {
         val size = maxPixels.coerceIn(64, 2048)
-        val bitmap = load(uri, size) ?: return null
+
+        // Audio and documents take their own route. Cover art lives in the tags
+        // and a PDF has a first page, and neither reaches BitmapFactory by way
+        // of loadThumbnail: the system never made a thumbnail for either.
+        val bitmap = when {
+            kind == "image" || kind == "video" -> load(uri, size)
+            kind == "audio" -> ExtraPreviews.audioArt(context, uri, size)
+            kind == "document" && ExtraPreviews.looksLikePdf(name, mimeType) ->
+                ExtraPreviews.pdfFirstPage(context, uri, size)
+            else -> null
+        } ?: return null
         return try {
             val out = ByteArrayOutputStream()
             bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)

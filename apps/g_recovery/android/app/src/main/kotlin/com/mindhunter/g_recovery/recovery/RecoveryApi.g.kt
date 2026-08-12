@@ -734,6 +734,88 @@ data class RecoverySummary (
     return "RecoverySummary(sources=$sources, totalItems=$totalItems, totalBytes=$totalBytes, expiringSoonItems=$expiringSoonItems, imageCount=$imageCount, videoCount=$videoCount, audioCount=$audioCount, documentCount=$documentCount, otherCount=$otherCount, partial=$partial)"
   }
 }
+
+/**
+ * How the whole-phone scan is getting on. Codec 135.
+ *
+ * Appended last, so nothing before it renumbers.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class BackgroundScanState (
+  /** True while the service is alive and working. */
+  val running: Boolean,
+  val scanned: Long,
+  val total: Long,
+  val found: Long,
+  /**
+   * True when the platform stopped a short service before it finished.
+   *
+   * A short foreground service gets roughly three minutes. A phone with a very
+   * large thumbnail cache can exceed that, and when it does the results found
+   * so far are kept and this flag says the picture is incomplete. Silently
+   * presenting a truncated scan as a finished one is the same lie as a fake
+   * deep scan, told in the other direction.
+   */
+  val timedOut: Boolean,
+  /** Which source is being walked right now. Null when idle. */
+  val sourceId: String? = null,
+  /**
+   * When the last scan ended, epoch milliseconds. Null if none has finished
+   * since this process started.
+   */
+  val finishedAtMillis: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BackgroundScanState {
+      val running = pigeonVar_list[0] as Boolean
+      val scanned = pigeonVar_list[1] as Long
+      val total = pigeonVar_list[2] as Long
+      val found = pigeonVar_list[3] as Long
+      val timedOut = pigeonVar_list[4] as Boolean
+      val sourceId = pigeonVar_list[5] as String?
+      val finishedAtMillis = pigeonVar_list[6] as Long?
+      return BackgroundScanState(running, scanned, total, found, timedOut, sourceId, finishedAtMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      running,
+      scanned,
+      total,
+      found,
+      timedOut,
+      sourceId,
+      finishedAtMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BackgroundScanState
+    return RecoveryApiPigeonUtils.deepEquals(this.running, other.running) && RecoveryApiPigeonUtils.deepEquals(this.scanned, other.scanned) && RecoveryApiPigeonUtils.deepEquals(this.total, other.total) && RecoveryApiPigeonUtils.deepEquals(this.found, other.found) && RecoveryApiPigeonUtils.deepEquals(this.timedOut, other.timedOut) && RecoveryApiPigeonUtils.deepEquals(this.sourceId, other.sourceId) && RecoveryApiPigeonUtils.deepEquals(this.finishedAtMillis, other.finishedAtMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.running)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.scanned)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.total)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.found)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.timedOut)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.sourceId)
+    result = 31 * result + RecoveryApiPigeonUtils.deepHash(this.finishedAtMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "BackgroundScanState(running=$running, scanned=$scanned, total=$total, found=$found, timedOut=$timedOut, sourceId=$sourceId, finishedAtMillis=$finishedAtMillis)"
+  }
+}
 private open class RecoveryApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -767,6 +849,11 @@ private open class RecoveryApiPigeonCodec : StandardMessageCodec() {
           RecoverySummary.fromList(it)
         }
       }
+      135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          BackgroundScanState.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -794,6 +881,10 @@ private open class RecoveryApiPigeonCodec : StandardMessageCodec() {
       }
       is RecoverySummary -> {
         stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is BackgroundScanState -> {
+        stream.write(135)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -834,6 +925,62 @@ interface RecoveryHostApi {
   fun scan(sourceIds: List<String>, callback: (Result<RecoverySummary>) -> Unit)
   /** Stop an in-flight scan. Whatever was found so far stays available. */
   fun cancelScan(callback: (Result<Unit>) -> Unit)
+  /**
+   * Starts the whole-phone scan in a foreground service and returns at once.
+   *
+   * The service outlives this engine. Everything else in this API is scoped to
+   * a Flutter engine that dies when the user swipes the app away, which is the
+   * exact moment a long scan most needs to keep going.
+   *
+   * Idempotent. Calling it while a scan is already running is a no-op rather
+   * than a second scan, because two passes over one index double-count.
+   */
+  fun startBackgroundScan(callback: (Result<Unit>) -> Unit)
+  /**
+   * A playable content URI for this item, or null when there is not one.
+   *
+   * ─── NOT EVERY FIND HAS ONE ──────────────────────────────────────────────
+   *
+   * A MediaStore row does. A loose file in an app trash folder or the
+   * thumbnail cache does not: it is a path on disk that MediaStore has never
+   * heard of, and handing a file path to another app is exactly what scoped
+   * storage stopped. Those return null and the caller falls back to bytes.
+   *
+   * ─── A TRASHED ROW IS HIDDEN ─────────────────────────────────────────────
+   *
+   * IS_TRASHED removes a row from ordinary queries, so the URI is only usable
+   * by an app holding the right access. Playback of a trashed video works on
+   * most devices and is refused on some OEM builds, which is why the viewer
+   * must handle a player that fails to initialise rather than assuming it will
+   * not.
+   */
+  fun itemUri(itemId: String, callback: (Result<String?>) -> Unit)
+  /**
+   * Raw bytes, for the formats the app renders itself.
+   *
+   * Text, CSV and PDF. Capped, because a recovered log file can be any size
+   * and decoding one into a Dart string would take down an app that had every
+   * right to survive opening it.
+   *
+   * Works for BOTH record kinds, unlike [itemUri]: a loose file can be read
+   * directly even though it cannot be shared.
+   */
+  fun itemBytes(itemId: String, maxBytes: Long, callback: (Result<ByteArray?>) -> Unit)
+  /**
+   * Hands the item to whatever app can open it.
+   *
+   * Returns false when nothing can, and also when the item is a loose file
+   * with no shareable URI. The UI says so rather than appearing to do nothing.
+   */
+  fun openItemExternally(itemId: String, callback: (Result<Boolean>) -> Unit)
+  /**
+   * Where the background scan got to.
+   *
+   * POLLED, not pushed. A push would need a live engine to push into, and the
+   * whole point of the service is that there may not be one. Dart asks when a
+   * screen appears and on resume, which is when the answer can change anything.
+   */
+  fun backgroundScanState(callback: (Result<BackgroundScanState>) -> Unit)
   /**
    * A page of findings. Sorted newest deleted first, then largest first for
    * items with no deletion date.
@@ -999,6 +1146,102 @@ interface RecoveryHostApi {
                 reply.reply(RecoveryApiPigeonUtils.wrapError(error))
               } else {
                 reply.reply(RecoveryApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.RecoveryHostApi.startBackgroundScan$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.startBackgroundScan{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(RecoveryApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(RecoveryApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.RecoveryHostApi.itemUri$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val itemIdArg = args[0] as String
+            api.itemUri(itemIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(RecoveryApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(RecoveryApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.RecoveryHostApi.itemBytes$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val itemIdArg = args[0] as String
+            val maxBytesArg = args[1] as Long
+            api.itemBytes(itemIdArg, maxBytesArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(RecoveryApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(RecoveryApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.RecoveryHostApi.openItemExternally$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val itemIdArg = args[0] as String
+            api.openItemExternally(itemIdArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(RecoveryApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(RecoveryApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.RecoveryHostApi.backgroundScanState$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.backgroundScanState{ result: Result<BackgroundScanState> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(RecoveryApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(RecoveryApiPigeonUtils.wrapResult(data))
               }
             }
           }

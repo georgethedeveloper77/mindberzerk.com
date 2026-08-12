@@ -16,13 +16,13 @@ class ThermalCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final GTokens t = context.g;
-    final ProbeCapabilities? caps =
-        ref.watch(deviceCapabilitiesProvider).value;
+    final ProbeCapabilities? caps = ref.watch(deviceCapabilitiesProvider).value;
     final ProbeTick? tick = ref.watch(deviceTickProvider).value;
     final ThermalSample? thermal = tick?.current.thermal;
 
     final String? status = DeviceFormat.thermalStatus(thermal?.status);
     final List<ThermalZone> zones = thermal?.zones ?? const <ThermalZone>[];
+    final int band = DeviceFormat.thermalBand(thermal?.status);
 
     return Column(
       children: <Widget>[
@@ -51,6 +51,14 @@ class ThermalCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: GSpace.md),
+                // Motion means "look at this", so only the hot band moves. A
+                // pulsing dot for a phone sitting at a perfectly ordinary
+                // temperature would spend the user's attention on a non-event,
+                // and a device utility that cries wolf gets uninstalled.
+                if (band == 2) ...<Widget>[
+                  const _ThermalPulse(),
+                  const SizedBox(width: GSpace.sm),
+                ],
                 Text(
                   status,
                   style: GType.monoNumber.copyWith(
@@ -95,7 +103,8 @@ class ThermalCard extends ConsumerWidget {
         else if (caps != null && !caps.thermalZones)
           UnavailableNote(
             title: 'Zones',
-            reason: 'This ROM does not let apps read the thermal sensors '
+            reason:
+                'This ROM does not let apps read the thermal sensors '
                 'directly. The state above is the only thermal signal it will '
                 'give up, and it is the one Android acts on.',
           )
@@ -135,8 +144,74 @@ class ThermalCard extends ConsumerWidget {
   }
 
   Color _statusTone(GTokens t, int? status) {
-    if (status == null || status <= 0) return t.success;
-    if (status <= 2) return t.warning;
-    return t.danger;
+    switch (DeviceFormat.thermalBand(status)) {
+      case 0:
+        return t.success;
+      case 1:
+        return t.warning;
+      default:
+        return t.danger;
+    }
   }
+}
+
+/// The one moving thing in the thermal card, built only while the device is
+/// actually hot.
+///
+/// Separate widget rather than a flag on the card, so in the two states a user
+/// sees almost always there is no controller in existence at all. A ticker that
+/// is merely stopped still costs a subscription on a tab that already reads
+/// sysfs at 2 Hz.
+class _ThermalPulse extends StatefulWidget {
+  const _ThermalPulse();
+
+  @override
+  State<_ThermalPulse> createState() => _ThermalPulseState();
+}
+
+class _ThermalPulseState extends State<_ThermalPulse>
+    with SingleTickerProviderStateMixin {
+  // Constructed here, never as a late final with an initialiser. The lazy form
+  // can run its initialiser from inside dispose, where createTicker reads
+  // TickerMode off a deactivated element.
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return _dot(t.danger);
+    }
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        // A slow breath between full and half, not a blink. Blinking reads as a
+        // fault indicator on a piece of hardware.
+        final double alpha = 0.45 + 0.55 * _controller.value;
+        return _dot(t.danger.withValues(alpha: alpha));
+      },
+    );
+  }
+
+  Widget _dot(Color colour) => Container(
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: colour, shape: BoxShape.circle),
+  );
 }

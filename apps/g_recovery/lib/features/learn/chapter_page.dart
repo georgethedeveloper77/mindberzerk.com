@@ -13,8 +13,8 @@ class ChapterPage extends ConsumerWidget {
   final String chapterId;
 
   static Route<void> route(String chapterId) => MaterialPageRoute<void>(
-        builder: (BuildContext context) => ChapterPage(chapterId: chapterId),
-      );
+    builder: (BuildContext context) => ChapterPage(chapterId: chapterId),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

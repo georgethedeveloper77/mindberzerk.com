@@ -678,7 +678,27 @@ data class BatterySnapshot (
   val voltageMilliV: Long? = null,
   /** API 34+, and null on plenty of devices above it. */
   val cycleCount: Long? = null,
-  val chargeCounterMicroAh: Long? = null
+  val chargeCounterMicroAh: Long? = null,
+  /**
+   * How much of its original capacity the battery still holds, as a percent.
+   *
+   * BATTERY_PROPERTY_STATE_OF_HEALTH, API 35+, and null on most devices even
+   * above it: the property exists in the framework and the OEM has to fill it
+   * in. Appended last, so no existing field moves.
+   *
+   * This is the one figure on the device tab a person cannot find anywhere
+   * else on their phone, including Settings. Null means absent, never
+   * estimated: a worn battery reported as healthy is worse than no answer.
+   */
+  val stateOfHealthPercent: Long? = null,
+  /**
+   * Capacity when new, in microamp hours.
+   *
+   * Not exposed by any public API. Read from the OEM power supply node when
+   * one is readable, and null everywhere else, which is most phones. Only ever
+   * used to give [chargeCounterMicroAh] something to be a fraction of.
+   */
+  val designCapacityMicroAh: Long? = null
 )
  {
   companion object {
@@ -693,7 +713,9 @@ data class BatterySnapshot (
       val voltageMilliV = pigeonVar_list[7] as Long?
       val cycleCount = pigeonVar_list[8] as Long?
       val chargeCounterMicroAh = pigeonVar_list[9] as Long?
-      return BatterySnapshot(percent, charging, status, health, technology, tempDeciC, currentMicroA, voltageMilliV, cycleCount, chargeCounterMicroAh)
+      val stateOfHealthPercent = pigeonVar_list[10] as Long?
+      val designCapacityMicroAh = pigeonVar_list[11] as Long?
+      return BatterySnapshot(percent, charging, status, health, technology, tempDeciC, currentMicroA, voltageMilliV, cycleCount, chargeCounterMicroAh, stateOfHealthPercent, designCapacityMicroAh)
     }
   }
   fun toList(): List<Any?> {
@@ -708,6 +730,8 @@ data class BatterySnapshot (
       voltageMilliV,
       cycleCount,
       chargeCounterMicroAh,
+      stateOfHealthPercent,
+      designCapacityMicroAh,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -718,7 +742,7 @@ data class BatterySnapshot (
       return true
     }
     val other = other as BatterySnapshot
-    return DeviceProbeApiPigeonUtils.deepEquals(this.percent, other.percent) && DeviceProbeApiPigeonUtils.deepEquals(this.charging, other.charging) && DeviceProbeApiPigeonUtils.deepEquals(this.status, other.status) && DeviceProbeApiPigeonUtils.deepEquals(this.health, other.health) && DeviceProbeApiPigeonUtils.deepEquals(this.technology, other.technology) && DeviceProbeApiPigeonUtils.deepEquals(this.tempDeciC, other.tempDeciC) && DeviceProbeApiPigeonUtils.deepEquals(this.currentMicroA, other.currentMicroA) && DeviceProbeApiPigeonUtils.deepEquals(this.voltageMilliV, other.voltageMilliV) && DeviceProbeApiPigeonUtils.deepEquals(this.cycleCount, other.cycleCount) && DeviceProbeApiPigeonUtils.deepEquals(this.chargeCounterMicroAh, other.chargeCounterMicroAh)
+    return DeviceProbeApiPigeonUtils.deepEquals(this.percent, other.percent) && DeviceProbeApiPigeonUtils.deepEquals(this.charging, other.charging) && DeviceProbeApiPigeonUtils.deepEquals(this.status, other.status) && DeviceProbeApiPigeonUtils.deepEquals(this.health, other.health) && DeviceProbeApiPigeonUtils.deepEquals(this.technology, other.technology) && DeviceProbeApiPigeonUtils.deepEquals(this.tempDeciC, other.tempDeciC) && DeviceProbeApiPigeonUtils.deepEquals(this.currentMicroA, other.currentMicroA) && DeviceProbeApiPigeonUtils.deepEquals(this.voltageMilliV, other.voltageMilliV) && DeviceProbeApiPigeonUtils.deepEquals(this.cycleCount, other.cycleCount) && DeviceProbeApiPigeonUtils.deepEquals(this.chargeCounterMicroAh, other.chargeCounterMicroAh) && DeviceProbeApiPigeonUtils.deepEquals(this.stateOfHealthPercent, other.stateOfHealthPercent) && DeviceProbeApiPigeonUtils.deepEquals(this.designCapacityMicroAh, other.designCapacityMicroAh)
   }
 
   override fun hashCode(): Int {
@@ -733,10 +757,12 @@ data class BatterySnapshot (
     result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.voltageMilliV)
     result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.cycleCount)
     result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.chargeCounterMicroAh)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.stateOfHealthPercent)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.designCapacityMicroAh)
     return result
   }
   override fun toString(): String {
-    return "BatterySnapshot(percent=$percent, charging=$charging, status=$status, health=$health, technology=$technology, tempDeciC=$tempDeciC, currentMicroA=$currentMicroA, voltageMilliV=$voltageMilliV, cycleCount=$cycleCount, chargeCounterMicroAh=$chargeCounterMicroAh)"
+    return "BatterySnapshot(percent=$percent, charging=$charging, status=$status, health=$health, technology=$technology, tempDeciC=$tempDeciC, currentMicroA=$currentMicroA, voltageMilliV=$voltageMilliV, cycleCount=$cycleCount, chargeCounterMicroAh=$chargeCounterMicroAh, stateOfHealthPercent=$stateOfHealthPercent, designCapacityMicroAh=$designCapacityMicroAh)"
   }
 }
 
@@ -1122,6 +1148,132 @@ data class StorageAccess (
     return "StorageAccess(sdkInt=$sdkInt, tier=$tier, osTrashBin=$osTrashBin, allFilesAccessPossible=$allFilesAccessPossible, allFilesAccessGranted=$allFilesAccessGranted, legacyStorageGranted=$legacyStorageGranted, appDataReadable=$appDataReadable, mediaStoreOnly=$mediaStoreOnly)"
   }
 }
+
+/**
+ * WHICH PHONE THIS IS.
+ *
+ * Appended last, so it takes codec id 140 and renumbers nothing.
+ *
+ * ─── WHY THIS IS NOT JUST Build.MODEL ────────────────────────────────────────
+ *
+ * `Build.MODEL` on a Galaxy S22 Plus is the string `SM-S906E`. It is correct,
+ * it is what a warranty claim needs, and it is useless as a screen title: the
+ * owner of that phone has never once called it that. The name a person
+ * recognises lives somewhere different on every OEM, and on Samsung it is not
+ * a build property at all.
+ *
+ * ─── ONE CALL, EIGHT FIELDS ──────────────────────────────────────────────────
+ *
+ * Adding a HostApi method costs four files whether it carries one field or
+ * eight, so everything the identity card, the Learn chapters and a bug report
+ * will ever want is gathered in a single trip rather than three.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DeviceIdentity (
+  /**
+   * The name a person would recognise, such as `Galaxy S22 Plus`.
+   *
+   * NULLABLE ON PURPOSE. Resolved from a marketing name property, then from
+   * the system device name, and a device that answers neither gets null rather
+   * than a fabricated string. A caller showing this must fall back to
+   * [manufacturer] and [model] rather than printing an empty title.
+   *
+   * Be aware the system device name is USER EDITABLE. A phone renamed in
+   * Settings reports the new name here, which is usually what its owner wants
+   * to see and is occasionally their own name.
+   */
+  val marketingName: String? = null,
+  /**
+   * `Build.MANUFACTURER`, such as `samsung`. Capitalisation is the OEM's own
+   * and is not normalised here.
+   */
+  val manufacturer: String,
+  /** `Build.MODEL`, such as `SM-S906E`. The string a support thread needs. */
+  val model: String,
+  /**
+   * `Build.VERSION.RELEASE`, such as `16`. A String because it has been `4.4W`
+   * and `12L` before now, and will be something unparseable again.
+   */
+  val androidRelease: String,
+  /**
+   * `Build.VERSION.SDK_INT`. Reported alongside [androidRelease] for the same
+   * reason StorageAccess reports both a number and a tier.
+   */
+  val sdkInt: Long,
+  /**
+   * `Build.VERSION.SECURITY_PATCH`, an ISO date such as `2026-06-01`.
+   * Null below API 23 and on ROMs that leave it blank.
+   */
+  val securityPatch: String? = null,
+  /**
+   * The OEM layer and its version, such as `One UI 6.1` or `XOS 14`.
+   *
+   * Derived from whichever vendor property this ROM happens to set, so it is
+   * null on stock Android and on any skin not yet recognised. Treat an
+   * unrecognised skin as absent rather than as an error.
+   */
+  val skin: String? = null,
+  /**
+   * `Build.FINGERPRINT`. Long, ugly, and the single most useful string in a
+   * bug report, because it pins the exact build a trash path was verified
+   * against.
+   */
+  val fingerprint: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DeviceIdentity {
+      val marketingName = pigeonVar_list[0] as String?
+      val manufacturer = pigeonVar_list[1] as String
+      val model = pigeonVar_list[2] as String
+      val androidRelease = pigeonVar_list[3] as String
+      val sdkInt = pigeonVar_list[4] as Long
+      val securityPatch = pigeonVar_list[5] as String?
+      val skin = pigeonVar_list[6] as String?
+      val fingerprint = pigeonVar_list[7] as String
+      return DeviceIdentity(marketingName, manufacturer, model, androidRelease, sdkInt, securityPatch, skin, fingerprint)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      marketingName,
+      manufacturer,
+      model,
+      androidRelease,
+      sdkInt,
+      securityPatch,
+      skin,
+      fingerprint,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DeviceIdentity
+    return DeviceProbeApiPigeonUtils.deepEquals(this.marketingName, other.marketingName) && DeviceProbeApiPigeonUtils.deepEquals(this.manufacturer, other.manufacturer) && DeviceProbeApiPigeonUtils.deepEquals(this.model, other.model) && DeviceProbeApiPigeonUtils.deepEquals(this.androidRelease, other.androidRelease) && DeviceProbeApiPigeonUtils.deepEquals(this.sdkInt, other.sdkInt) && DeviceProbeApiPigeonUtils.deepEquals(this.securityPatch, other.securityPatch) && DeviceProbeApiPigeonUtils.deepEquals(this.skin, other.skin) && DeviceProbeApiPigeonUtils.deepEquals(this.fingerprint, other.fingerprint)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.marketingName)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.manufacturer)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.model)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.androidRelease)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.sdkInt)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.securityPatch)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.skin)
+    result = 31 * result + DeviceProbeApiPigeonUtils.deepHash(this.fingerprint)
+    return result
+  }
+  override fun toString(): String {
+    return "DeviceIdentity(marketingName=$marketingName, manufacturer=$manufacturer, model=$model, androidRelease=$androidRelease, sdkInt=$sdkInt, securityPatch=$securityPatch, skin=$skin, fingerprint=$fingerprint)"
+  }
+}
 private open class DeviceProbeApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1180,6 +1332,11 @@ private open class DeviceProbeApiPigeonCodec : StandardMessageCodec() {
           StorageAccess.fromList(it)
         }
       }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DeviceIdentity.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1229,6 +1386,10 @@ private open class DeviceProbeApiPigeonCodec : StandardMessageCodec() {
         stream.write(139)
         writeValue(stream, value.toList())
       }
+      is DeviceIdentity -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -1270,6 +1431,13 @@ interface DeviceProbeHostApi {
    * again on resume.
    */
   fun storageAccess(callback: (Result<StorageAccess>) -> Unit)
+  /**
+   * Which phone this is, in the words its owner would use.
+   *
+   * Read once per launch and cached natively. Nothing here changes while the
+   * process is alive except the security patch, and that only across a reboot.
+   */
+  fun deviceIdentity(callback: (Result<DeviceIdentity>) -> Unit)
 
   companion object {
     /** The codec used by DeviceProbeHostApi. */
@@ -1357,6 +1525,24 @@ interface DeviceProbeHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.storageAccess{ result: Result<StorageAccess> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(DeviceProbeApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(DeviceProbeApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.device_probe.DeviceProbeHostApi.deviceIdentity$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.deviceIdentity{ result: Result<DeviceIdentity> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(DeviceProbeApiPigeonUtils.wrapError(error))

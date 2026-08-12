@@ -16,15 +16,15 @@ class BatteryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final GTokens t = context.g;
-    final ProbeCapabilities? caps =
-        ref.watch(deviceCapabilitiesProvider).value;
+    final ProbeCapabilities? caps = ref.watch(deviceCapabilitiesProvider).value;
     final ProbeTick? tick = ref.watch(deviceTickProvider).value;
     final BatterySnapshot? battery = tick?.current.battery;
 
     if (caps != null && !caps.battery) {
       return UnavailableNote(
         title: 'Battery',
-        reason: 'This device reports no battery. That is expected on an '
+        reason:
+            'This device reports no battery. That is expected on an '
             'emulator and on mains powered hardware.',
       );
     }
@@ -38,20 +38,29 @@ class BatteryCard extends ConsumerWidget {
     // Rows are built as a list and the nulls are filtered out, so a device that
     // serves half of these renders a short card rather than a long one full of
     // blanks.
-    final List<(String, String?)> rows = <(String, String?)>[
+    // TWO GROUPS, not one list of eight.
+    //
+    // Wear and current state answer different questions and were interleaved:
+    // cycle count sat between voltage and chemistry, which is where a number
+    // goes to be ignored. Health first, because it is the reason to open this
+    // page.
+    final List<(String, String)> wear = _present(<(String, String?)>[
+      (
+        'Capacity now',
+        DeviceFormat.microAmpHours(battery.chargeCounterMicroAh),
+      ),
+      ('When new', DeviceFormat.microAmpHours(battery.designCapacityMicroAh)),
+      ('Charge cycles', battery.cycleCount?.toString()),
+      ('Reported state', DeviceFormat.humanise(battery.health)),
+    ]);
+
+    final List<(String, String)> nowRows = _present(<(String, String?)>[
       ('Status', DeviceFormat.humanise(battery.status)),
       ('Temperature', DeviceFormat.celsiusFromDeci(battery.tempDeciC)),
-      ('Current', DeviceFormat.milliAmps(battery.currentMicroA)),
       ('Voltage', DeviceFormat.volts(battery.voltageMilliV)),
-      ('Charge', DeviceFormat.microAmpHours(battery.chargeCounterMicroAh)),
-      ('Cycles', battery.cycleCount?.toString()),
-      ('Health', DeviceFormat.humanise(battery.health)),
+      ('Current', DeviceFormat.milliAmps(battery.currentMicroA)),
       ('Chemistry', battery.technology),
-    ];
-    final List<(String, String)> present = <(String, String)>[
-      for (final (String label, String? value) in rows)
-        if (value != null) (label, value),
-    ];
+    ]);
 
     return Column(
       children: <Widget>[
@@ -84,41 +93,78 @@ class BatteryCard extends ConsumerWidget {
                 colour: charging ? t.success : t.accent,
                 height: 8,
               ),
-              if (present.isNotEmpty) const GCardDivider(),
-              for (final (String label, String value) in present)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: GType.bodySmall.copyWith(color: t.muted),
-                        ),
-                      ),
-                      Text(
-                        value,
-                        style: GType.monoNumber.copyWith(color: t.text),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
         ),
-        if (battery.currentMicroA != null) ...<Widget>[
-          const SizedBox(height: GSpace.md - 2),
-          GCard(
+
+        if (wear.isNotEmpty) ...<Widget>[
+          const SizedBox(height: GSpace.lg),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('HEALTH', style: GType.overline.copyWith(color: t.dim)),
+          ),
+          const SizedBox(height: GSpace.sm + 1),
+          GCard(child: _Rows(rows: wear)),
+        ],
+
+        if (nowRows.isNotEmpty) ...<Widget>[
+          const SizedBox(height: GSpace.lg),
+          Align(
+            alignment: Alignment.centerLeft,
             child: Text(
-              // Worth one line on screen because a user who knows their phone
-              // is discharging and sees a positive number assumes the app is
-              // broken.
-              'Current is shown as a magnitude. Direction comes from the '
-              'charging state, because OEMs disagree on the sign.',
-              style: GType.micro.copyWith(color: t.dim),
+              'RIGHT NOW',
+              style: GType.overline.copyWith(color: t.dim),
             ),
           ),
+          const SizedBox(height: GSpace.sm + 1),
+          GCard(child: _Rows(rows: nowRows)),
         ],
+      ],
+    );
+  }
+
+  /// Drops the rows this device will not answer.
+  static List<(String, String)> _present(List<(String, String?)> rows) =>
+      <(String, String)>[
+        for (final (String label, String? value) in rows)
+          if (value != null) (label, value),
+      ];
+}
+
+class _Rows extends StatelessWidget {
+  const _Rows({required this.rows});
+
+  final List<(String, String)> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+
+    return Column(
+      children: <Widget>[
+        for (int i = 0; i < rows.length; i++)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: GSpace.sm + 1),
+            decoration: BoxDecoration(
+              border: i == rows.length - 1
+                  ? null
+                  : Border(bottom: BorderSide(color: t.line)),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    rows[i].$1,
+                    style: GType.bodySmall.copyWith(color: t.text),
+                  ),
+                ),
+                Text(
+                  rows[i].$2,
+                  style: GType.monoSmall.copyWith(color: t.muted),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

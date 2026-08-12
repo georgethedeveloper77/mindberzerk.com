@@ -41,7 +41,7 @@ import 'package:pigeon/pigeon.dart';
 ///   129 ProbeCapabilities   130 CpuCluster       131 CpuInfo
 ///   132 CpuSample           133 ThermalZone      134 ThermalSample
 ///   135 BatterySnapshot     136 MemorySnapshot   137 SensorInfo
-///   138 DeviceSnapshot     139 StorageAccess
+///   138 DeviceSnapshot      139 StorageAccess   140 DeviceIdentity
 ///
 /// ADD NEW TYPES AT THE END. Inserting one renumbers everything after it, and a
 /// Dart side talking 134 to a Kotlin side hearing 135 fails in the least
@@ -282,6 +282,8 @@ class BatterySnapshot {
     this.voltageMilliV,
     this.cycleCount,
     this.chargeCounterMicroAh,
+    this.stateOfHealthPercent,
+    this.designCapacityMicroAh,
   });
 
   /// 0-100, computed from level and scale rather than assuming scale is 100.
@@ -318,6 +320,24 @@ class BatterySnapshot {
   final int? cycleCount;
 
   final int? chargeCounterMicroAh;
+
+  /// How much of its original capacity the battery still holds, as a percent.
+  ///
+  /// BATTERY_PROPERTY_STATE_OF_HEALTH, API 35+, and null on most devices even
+  /// above it: the property exists in the framework and the OEM has to fill it
+  /// in. Appended last, so no existing field moves.
+  ///
+  /// This is the one figure on the device tab a person cannot find anywhere
+  /// else on their phone, including Settings. Null means absent, never
+  /// estimated: a worn battery reported as healthy is worse than no answer.
+  final int? stateOfHealthPercent;
+
+  /// Capacity when new, in microamp hours.
+  ///
+  /// Not exposed by any public API. Read from the OEM power supply node when
+  /// one is readable, and null everywhere else, which is most phones. Only ever
+  /// used to give [chargeCounterMicroAh] something to be a fraction of.
+  final int? designCapacityMicroAh;
 }
 
 /// Codec 136.
@@ -542,4 +562,84 @@ abstract class DeviceProbeHostApi {
   /// again on resume.
   @async
   StorageAccess storageAccess();
+
+  /// Which phone this is, in the words its owner would use.
+  ///
+  /// Read once per launch and cached natively. Nothing here changes while the
+  /// process is alive except the security patch, and that only across a reboot.
+  @async
+  DeviceIdentity deviceIdentity();
+}
+
+/// WHICH PHONE THIS IS.
+///
+/// Appended last, so it takes codec id 140 and renumbers nothing.
+///
+/// ─── WHY THIS IS NOT JUST Build.MODEL ────────────────────────────────────────
+///
+/// `Build.MODEL` on a Galaxy S22 Plus is the string `SM-S906E`. It is correct,
+/// it is what a warranty claim needs, and it is useless as a screen title: the
+/// owner of that phone has never once called it that. The name a person
+/// recognises lives somewhere different on every OEM, and on Samsung it is not
+/// a build property at all.
+///
+/// ─── ONE CALL, EIGHT FIELDS ──────────────────────────────────────────────────
+///
+/// Adding a HostApi method costs four files whether it carries one field or
+/// eight, so everything the identity card, the Learn chapters and a bug report
+/// will ever want is gathered in a single trip rather than three.
+class DeviceIdentity {
+  DeviceIdentity({
+    required this.marketingName,
+    required this.manufacturer,
+    required this.model,
+    required this.androidRelease,
+    required this.sdkInt,
+    required this.securityPatch,
+    required this.skin,
+    required this.fingerprint,
+  });
+
+  /// The name a person would recognise, such as `Galaxy S22 Plus`.
+  ///
+  /// NULLABLE ON PURPOSE. Resolved from a marketing name property, then from
+  /// the system device name, and a device that answers neither gets null rather
+  /// than a fabricated string. A caller showing this must fall back to
+  /// [manufacturer] and [model] rather than printing an empty title.
+  ///
+  /// Be aware the system device name is USER EDITABLE. A phone renamed in
+  /// Settings reports the new name here, which is usually what its owner wants
+  /// to see and is occasionally their own name.
+  final String? marketingName;
+
+  /// `Build.MANUFACTURER`, such as `samsung`. Capitalisation is the OEM's own
+  /// and is not normalised here.
+  final String manufacturer;
+
+  /// `Build.MODEL`, such as `SM-S906E`. The string a support thread needs.
+  final String model;
+
+  /// `Build.VERSION.RELEASE`, such as `16`. A String because it has been `4.4W`
+  /// and `12L` before now, and will be something unparseable again.
+  final String androidRelease;
+
+  /// `Build.VERSION.SDK_INT`. Reported alongside [androidRelease] for the same
+  /// reason StorageAccess reports both a number and a tier.
+  final int sdkInt;
+
+  /// `Build.VERSION.SECURITY_PATCH`, an ISO date such as `2026-06-01`.
+  /// Null below API 23 and on ROMs that leave it blank.
+  final String? securityPatch;
+
+  /// The OEM layer and its version, such as `One UI 6.1` or `XOS 14`.
+  ///
+  /// Derived from whichever vendor property this ROM happens to set, so it is
+  /// null on stock Android and on any skin not yet recognised. Treat an
+  /// unrecognised skin as absent rather than as an error.
+  final String? skin;
+
+  /// `Build.FINGERPRINT`. Long, ugly, and the single most useful string in a
+  /// bug report, because it pins the exact build a trash path was verified
+  /// against.
+  final String fingerprint;
 }

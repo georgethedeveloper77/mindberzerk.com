@@ -14,13 +14,13 @@ class GBadge extends StatelessWidget {
   const GBadge({required this.label, super.key, this.tone = GBadgeTone.none});
 
   const GBadge.full(String label, {Key? key})
-      : this(label: label, key: key, tone: GBadgeTone.full);
+    : this(label: label, key: key, tone: GBadgeTone.full);
 
   const GBadge.partial(String label, {Key? key})
-      : this(label: label, key: key, tone: GBadgeTone.partial);
+    : this(label: label, key: key, tone: GBadgeTone.partial);
 
   const GBadge.live(String label, {Key? key})
-      : this(label: label, key: key, tone: GBadgeTone.live);
+    : this(label: label, key: key, tone: GBadgeTone.live);
 
   final String label;
   final GBadgeTone tone;

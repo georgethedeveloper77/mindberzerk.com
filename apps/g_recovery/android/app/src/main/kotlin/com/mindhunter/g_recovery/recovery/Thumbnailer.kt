@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.provider.MediaStore
+import com.mindhunter.g_recovery.storage.ExtraPreviews
 import android.util.Size
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -20,20 +21,57 @@ import kotlin.math.max
  * shrinking afterwards would allocate the 600 MB anyway, which is the usual way
  * a gallery grid runs a phone out of memory.
  *
- * Returns null rather than throwing when there is no renderable preview. An
- * audio file and a Word document genuinely have none, and that is not a failure.
+ * Returns null rather than throwing when there is no renderable preview. A Word
+ * document genuinely has none, and that is not a failure.
+ *
+ * Audio and PDF no longer fall in that group: a track carries its cover art in
+ * its own tags and a PDF has a first page, and both survive being deleted
+ * because neither depends on a system thumbnail cache that the deletion cleared.
  */
 internal class Thumbnailer(private val context: Context) {
 
     private val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
     fun bytes(record: RecoveryIndex.Record, maxPixels: Int): ByteArray? {
-        if (record.item.kind !in RENDERABLE) return null
+        val kind = record.item.kind
+        if (kind !in RENDERABLE && kind !in ExtraPreviews.EXTRA_KINDS) return null
         val size = maxPixels.coerceIn(64, 2048)
-        val bitmap = when (record) {
-            is RecoveryIndex.Record.Media -> fromMediaStore(record.mediaId, size)
-            is RecoveryIndex.Record.Loose -> fromFile(record.file, size)
+
+        val bitmap = when {
+            kind in RENDERABLE -> when (record) {
+                is RecoveryIndex.Record.Media -> fromMediaStore(record.mediaId, size)
+                is RecoveryIndex.Record.Loose -> fromFile(record.file, size)
+            }
+
+            // Cover art out of the tags. Works for a trashed track as well as a
+            // loose one, because the tags travel with the bytes rather than
+            // living in a system cache that a deletion cleared.
+            kind == "audio" -> when (record) {
+                is RecoveryIndex.Record.Media -> ExtraPreviews.audioArt(
+                    context,
+                    ContentUris.withAppendedId(collection, record.mediaId),
+                    size,
+                )
+
+                is RecoveryIndex.Record.Loose ->
+                    ExtraPreviews.audioArt(record.file.absolutePath, size)
+            }
+
+            ExtraPreviews.looksLikePdf(record.item.name, record.item.mimeType) ->
+                when (record) {
+                    is RecoveryIndex.Record.Media -> ExtraPreviews.pdfFirstPage(
+                        context,
+                        ContentUris.withAppendedId(collection, record.mediaId),
+                        size,
+                    )
+
+                    is RecoveryIndex.Record.Loose ->
+                        ExtraPreviews.pdfFirstPage(record.file, size)
+                }
+
+            else -> null
         } ?: return null
+
         return compress(bitmap)
     }
 
@@ -118,6 +156,7 @@ internal class Thumbnailer(private val context: Context) {
     }
 
     private companion object {
+        /** Kinds the bitmap path can draw. Audio and documents go elsewhere. */
         val RENDERABLE = setOf("image", "video")
     }
 }

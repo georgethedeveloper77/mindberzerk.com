@@ -27,15 +27,15 @@ class ContentBlock {
   final List<String> items;
 
   factory ContentBlock.fromJson(Map<String, Object?> json) => ContentBlock(
-        type: json['t'] as String? ?? 'p',
-        text: json['text'] as String?,
-        name: json['name'] as String?,
-        items: <String>[
-          for (final Object? item in (json['items'] as List<Object?>? ??
-              const <Object?>[]))
-            if (item is String) item,
-        ],
-      );
+    type: json['t'] as String? ?? 'p',
+    text: json['text'] as String?,
+    name: json['name'] as String?,
+    items: <String>[
+      for (final Object? item
+          in (json['items'] as List<Object?>? ?? const <Object?>[]))
+        if (item is String) item,
+    ],
+  );
 }
 
 @immutable
@@ -55,16 +55,16 @@ class LearnChapter {
   final List<ContentBlock> blocks;
 
   factory LearnChapter.fromJson(Map<String, Object?> json) => LearnChapter(
-        id: json['id'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        summary: json['summary'] as String? ?? '',
-        minutes: (json['minutes'] as num? ?? 2).toInt(),
-        blocks: <ContentBlock>[
-          for (final Object? block in (json['blocks'] as List<Object?>? ??
-              const <Object?>[]))
-            if (block is Map<String, Object?>) ContentBlock.fromJson(block),
-        ],
-      );
+    id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    summary: json['summary'] as String? ?? '',
+    minutes: (json['minutes'] as num? ?? 2).toInt(),
+    blocks: <ContentBlock>[
+      for (final Object? block
+          in (json['blocks'] as List<Object?>? ?? const <Object?>[]))
+        if (block is Map<String, Object?>) ContentBlock.fromJson(block),
+    ],
+  );
 }
 
 @immutable
@@ -74,8 +74,10 @@ class LearnBook {
   final int version;
   final List<LearnChapter> chapters;
 
-  static const LearnBook empty =
-      LearnBook(version: 0, chapters: <LearnChapter>[]);
+  static const LearnBook empty = LearnBook(
+    version: 0,
+    chapters: <LearnChapter>[],
+  );
 
   LearnChapter? chapter(String id) {
     for (final LearnChapter chapter in chapters) {
@@ -91,8 +93,8 @@ class LearnBook {
     return LearnBook(
       version: (json['version'] as num? ?? 0).toInt(),
       chapters: <LearnChapter>[
-        for (final Object? chapter in (json['chapters'] as List<Object?>? ??
-            const <Object?>[]))
+        for (final Object? chapter
+            in (json['chapters'] as List<Object?>? ?? const <Object?>[]))
           if (chapter is Map<String, Object?>) LearnChapter.fromJson(chapter),
       ],
     );

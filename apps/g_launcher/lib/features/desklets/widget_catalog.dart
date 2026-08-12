@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../engine/widget_span.dart';
 import '../../platform/launcher_api.g.dart' as api;
 
 /// Third-party AppWidget providers, grouped by owning app. PHASE D-widgets.
@@ -15,6 +16,23 @@ import '../../platform/launcher_api.g.dart' as api;
 /// Nothing here HOSTS a widget — enumeration and hosting are separate Android
 /// capabilities, and the live-placement half arrives with the host slice. Until
 /// then this is a real, previewable catalogue that simply cannot place yet.
+
+/// The Pigeon class, flattened into the record [WidgetSpanResolver] takes.
+///
+/// The adapter lives HERE rather than in `widget_span.dart` so that file stays
+/// a pure function of plain numbers with no import of the generated api. That
+/// is what lets the grid arithmetic be unit-tested without a device, the same
+/// treatment `LayoutResolver` and `HomeLayout` already get, and this is
+/// arithmetic whose failures only ever showed up on one phone at a time.
+WidgetFootprint widgetFootprint(api.WidgetProviderInfo p) => (
+      minWidthDp: p.minWidthDp,
+      minHeightDp: p.minHeightDp,
+      minResizeWidthDp: p.minResizeWidthDp,
+      minResizeHeightDp: p.minResizeHeightDp,
+      targetCellWidth: p.targetCellWidth,
+      targetCellHeight: p.targetCellHeight,
+      resizeMode: p.resizeMode,
+    );
 
 /// One app and the widgets it offers.
 class WidgetAppGroup {

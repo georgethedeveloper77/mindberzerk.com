@@ -8,12 +8,14 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/widget_span.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 // `show ThemePalette` is MANDATORY here, not tidiness: DockSide is declared in
 // BOTH theme_spec.dart and dock_metrics.dart, and an unrestricted import of
 // theme_spec into a file that also sees dock metrics is an ambiguous-import
 // error that reads as if neither declaration exists.
 import '../../engine/theme_spec.dart' show ThemePalette;
+import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_menu.dart';
 
@@ -250,6 +252,26 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
 
   // ── resize ────────────────────────────────────────────────────────────────
 
+  /// May this tile be resized at all?
+  ///
+  /// True for everything except a hosted AppWidget whose provider declared
+  /// RESIZE_NONE on BOTH axes. Our own desklets have no such concept: their
+  /// limits come from the kind and every kind is resizable within them.
+  ///
+  /// Reads `resizeMode` straight from config rather than through the resolver,
+  /// because it needs no cell and must answer during a build where the measured
+  /// cell may not be published yet. Absent config reads as 0, which would say
+  /// "not resizable" for the wrong reason, so the bare absence of the key is
+  /// treated as permissive: a placement written before the version-2 reset
+  /// cannot exist, but a hand-authored starter desktop can.
+  bool get _canResize {
+    if (_d.kind != 'appwidget') return true;
+    final raw = _d.config[WidgetConfigKeys.resizeMode];
+    if (raw == null) return true;
+    final mode = (raw as num).toInt();
+    return WidgetResize.canResizeX(mode) || WidgetResize.canResizeY(mode);
+  }
+
   void _resizeEnd() {
     final dx = (_grow.width / widget.cellW).round();
     final dy = (_grow.height / widget.cellH).round();
@@ -264,6 +286,56 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     final before = ref.read(prefsProvider(widget.theme.spec.id)).value;
     if (before == null) return;
 
+    // ─── A HOSTED WIDGET'S OWN LIMITS, BEFORE THE ENGINE'S ────────────────
+    //
+    // `DeskletKinds.appWidget` declares a deliberately generous range because
+    // it is one kind standing in for every widget on the phone. The real floor
+    // and ceiling are per PROVIDER: `minResizeWidthDp` is where a widget starts
+    // clipping its own layout, and `resizeMode` says whether an axis may be
+    // dragged at all.
+    //
+    // Pre-clamping here rather than only inside `DeskletLayout.resize` is not
+    // duplication, it is what keeps the message below honest. A drag that hits
+    // the provider's ceiling comes back with an unchanged span, which is
+    // indistinguishable from a collision at the call site; reporting "no room"
+    // for a widget that simply cannot get any bigger would be a lie, and the
+    // handle stopping is already the correct feedback. Same reasoning the kind
+    // ceiling has always had, extended to the provider.
+    //
+    // The cell arrives from `deskletCellProvider` and NOT from
+    // DeskletSurfaceView: the surface imports this file, so reaching back for
+    // its constant would close an import cycle. The measured cell is published
+    // precisely so readers on this side of that arrow can have it.
+    final cell = ref.read(deskletCellProvider);
+    if (_d.kind == 'appwidget' && cell != null) {
+      final limits = WidgetSpanResolver.resolve(
+        WidgetSpanResolver.footprintFromConfig(_d.config),
+        cell: cell,
+        colFactor: DeskletLayout.colFactor,
+        rowFactor: DeskletLayout.rowFactor,
+      );
+      final wantX = (_d.spanX + dx).clamp(limits.minSpanX, limits.maxSpanX);
+      final wantY = (_d.spanY + dy).clamp(limits.minSpanY, limits.maxSpanY);
+      if (wantX == _d.spanX && wantY == _d.spanY) {
+        // Already at its own edge. Record that a person chose this size
+        // anyway, so the automatic re-derive stops overruling them later, and
+        // let the handle's refusal to grow be the whole message.
+        final marked = DeskletLayout.resize(
+          before,
+          id: _d.id,
+          spanX: _d.spanX,
+          spanY: _d.spanY,
+          cols: widget.theme.deskletCols,
+          rows: widget.theme.deskletRows,
+          cell: cell,
+          byUser: true,
+        );
+        HapticFeedback.selectionClick();
+        if (!identical(marked, before)) _edit((_) => marked);
+        return;
+      }
+    }
+
     final after = DeskletLayout.resize(
       before,
       id: _d.id,
@@ -271,6 +343,13 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
       spanY: _d.spanY + dy,
       cols: widget.theme.deskletCols,
       rows: widget.theme.deskletRows,
+      // Both optional and both additive. `cell` lets the engine enforce the
+      // provider's limits as well as the kind's; `byUser` records that a person
+      // chose this size, which is what stops `reflowWidgets` re-deriving over
+      // it the next time the grid changes. Folded into this one call so a
+      // resize is a single write rather than two.
+      cell: cell,
+      byUser: true,
     );
 
     // A resize that only hit the kind's ceiling is NOT a failure — the engine
@@ -442,7 +521,18 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                 cols: widget.theme.deskletCols,
                 rows: widget.theme.deskletRows,
               ).entries)
-                (switch (placed.key) {
+                // ─── NO HANDLE ON A WIDGET THAT CANNOT BE RESIZED ────────
+                //
+                // `resizeMode` of RESIZE_NONE is a real declaration and a
+                // handful of widgets make it. Offering the handle anyway means
+                // a drag that visibly grows the tile and then snaps entirely
+                // back on release, which reads as a broken control rather than
+                // an enforced limit. Nothing to grab is the honest answer.
+                //
+                // Only the resize role is filtered. Move and remove stay: a
+                // fixed-size widget can still be repositioned and deleted.
+                if (!(placed.key == _HandleRole.resize && !_canResize))
+                  (switch (placed.key) {
                   // ─── A LISTENER, NOT A PAN RECOGNIZER ─────────────
                   //
                   // Same complaint as the move drag and a worse version of it:

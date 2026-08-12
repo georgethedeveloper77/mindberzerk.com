@@ -11,13 +11,16 @@ import '../../design/components/components.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_spec.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/widget_span.dart';
 import '../../platform/launcher_api.g.dart' as api;
 import '../drawer/app_icon.dart';
+import 'desklet_cell.dart';
 import 'desklet_edit.dart';
-// DeskletSurfaceView for its cell-size estimate: the picker must size a
-// hosted widget in the same cells the surface will draw it in.
+// DeskletSurfaceView for `gutter` only. The cell itself now arrives through
+// `deskletCellProvider`, measured, rather than being estimated from the window.
 import 'desklet_surface.dart' show buildDesklet, DeskletSurfaceView;
 import 'widget_catalog.dart';
+import 'widget_provider_card.dart' show spanLabel;
 
 /// Add something to the desktop. PHASE D4 → the image-2 restructure.
 ///
@@ -240,46 +243,52 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
 
     String newId() => 'wk${DateTime.now().microsecondsSinceEpoch}';
 
-    // ─── INITIAL SPAN, IN dp, AGAINST THE REAL CELL ───────────────────────
+    // ─── INITIAL SPAN ─────────────────────────────────────────────────────
     //
-    // This used to divide by a hardcoded 70, and to use `targetCellWidth` and
-    // `targetCellHeight` as spans directly. Both were wrong in the same
-    // direction and they compounded.
+    // One line now, because the rule lives in `WidgetSpanResolver` where it can
+    // be unit-tested. The whole story of what was wrong with the arithmetic
+    // that used to sit here is written up in `widget_span.dart`; the short
+    // version is that it multiplied `targetCellWidth` by a nominal 70dp, and 70
+    // has never been the size of a launcher cell.
     //
-    // A row on a 4 by 5 grid is about 140dp tall on a 1080 by 2340 phone, not
-    // 70. So a Google Weather strip asking for 74dp was seeded at two rows and
-    // handed 280dp: nearly four times its own height, which is exactly the
-    // "third-party widgets look terrible" report. Spotify's media widget got
-    // two and a half times.
-    //
-    // And `targetCell*` is expressed in a STANDARD launcher's cells, which are
-    // roughly square and roughly 70dp. Treating those numbers as spans on a
-    // grid whose rows are twice as tall doubles the error again.
-    //
-    // So: convert everything to dp first, then divide by what a cell on THIS
-    // phone and THIS distro's grid actually measures.
-    const nominalCellDp = 70.0;
-    final cell = DeskletSurfaceView.estimateCell(context, theme);
+    // The cell is the SURFACE'S OWN measurement, not an estimate of it. Null
+    // only before any desktop has laid out, which the picker is not reachable
+    // without; the fallback exists so a first-run edge case seeds something
+    // sane rather than throwing.
+    final cell = ref.read(deskletCellProvider) ??
+        (
+          w: 48.0,
+          h: 48.0,
+          cols: theme.deskletCols,
+          rows: theme.deskletRows,
+          gutter: DeskletSurfaceView.gutter,
+        );
 
-    final tw = provider.targetCellWidth;
-    final th = provider.targetCellHeight;
+    final span = WidgetSpanResolver.resolve(
+      widgetFootprint(provider),
+      cell: cell,
+      colFactor: DeskletLayout.colFactor,
+      rowFactor: DeskletLayout.rowFactor,
+    );
+    final sx = span.spanX;
+    final sy = span.spanY;
 
-    final wantWidthDp =
-        tw > 0 ? tw * nominalCellDp : provider.minWidthDp.toDouble();
-    final wantHeightDp =
-        th > 0 ? th * nominalCellDp : provider.minHeightDp.toDouble();
-
-    // Ceil, because a widget given LESS than it asked for clips its own
-    // layout, which is worse than a little slack around it.
-    final sx = (wantWidthDp / cell.w).ceil().clamp(1, theme.deskletCols);
-    final sy = (wantHeightDp / cell.h).ceil().clamp(1, theme.deskletRows);
-
+    // EVERY field the resolver reads is stored, not just the two that used to
+    // be. Without `minResize*` the resize handles have no floor to clamp
+    // against; without `targetCell*` a re-derive after a grid change falls back
+    // to the dp path and quietly gives a different answer from the one the
+    // widget was placed at.
     final config = <String, Object?>{
-      'widgetId': widgetId,
-      'providerKey': provider.providerKey,
-      'label': provider.label,
-      'minWidthDp': provider.minWidthDp,
-      'minHeightDp': provider.minHeightDp,
+      WidgetConfigKeys.widgetId: widgetId,
+      WidgetConfigKeys.providerKey: provider.providerKey,
+      WidgetConfigKeys.label: provider.label,
+      WidgetConfigKeys.minWidthDp: provider.minWidthDp,
+      WidgetConfigKeys.minHeightDp: provider.minHeightDp,
+      WidgetConfigKeys.minResizeWidthDp: provider.minResizeWidthDp,
+      WidgetConfigKeys.minResizeHeightDp: provider.minResizeHeightDp,
+      WidgetConfigKeys.targetCellWidth: provider.targetCellWidth,
+      WidgetConfigKeys.targetCellHeight: provider.targetCellHeight,
+      WidgetConfigKeys.resizeMode: provider.resizeMode,
     };
 
     var after = (widget.col != null && widget.row != null)
@@ -801,13 +810,45 @@ class _ProviderRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = theme.palette;
 
-    // Ask for the preview at the thumbnail's real pixel size, so the native
-    // render matches what is shown rather than being up- or downscaled.
+    // ─── THE PREVIEW IS THE RECTANGLE YOU ARE ABOUT TO SPEND ──────────────
+    //
+    // Every launcher's picker previews a widget at the provider's own declared
+    // shape. That is a fine answer to "what does this widget look like" and the
+    // wrong answer to "what will it look like HERE", because the grid it lands
+    // on is not the grid it was authored against.
+    //
+    // So the span is resolved first, and the preview is requested at exactly
+    // `span x cell` with the gutter removed. Switch distros and the preview
+    // changes shape, because the widget genuinely would. Nothing else on Play
+    // does this, and it falls straight out of having the span rule in one
+    // place.
+    //
+    // Fixed 96 x 64 is gone. It letterboxed a 4x1 media bar and a 2x2 tile into
+    // the same box, and a preview of the wrong shape is a preview of a
+    // different widget.
+    final cell = ref.watch(deskletCellProvider);
+    final span = cell == null
+        ? null
+        : WidgetSpanResolver.resolve(
+            widgetFootprint(provider),
+            cell: cell,
+            colFactor: DeskletLayout.colFactor,
+            rowFactor: DeskletLayout.rowFactor,
+          );
+
+    // Scaled to fit the row's thumbnail column while KEEPING the placed aspect.
+    // The row has a fixed width to give; the height follows from the shape.
+    const thumbW = 96.0;
+    final aspect = (span == null || cell == null)
+        ? 1.5
+        : WidgetSpanResolver.aspectOf(span.spanX, span.spanY, cell: cell);
+    final thumbH = (thumbW / aspect).clamp(44.0, 132.0);
+
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final req = (
       providerKey: provider.providerKey,
-      width: (96 * dpr).round(),
-      height: (64 * dpr).round(),
+      width: (thumbW * dpr).round(),
+      height: (thumbH * dpr).round(),
     );
     final preview = ref.watch(widgetPreviewProvider(req));
 
@@ -819,8 +860,8 @@ class _ProviderRow extends ConsumerWidget {
         child: Row(
           children: [
             Container(
-              width: 96,
-              height: 64,
+              width: thumbW,
+              height: thumbH,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: p.onDark.withValues(alpha: 0.06),
@@ -875,12 +916,22 @@ class _ProviderRow extends ConsumerWidget {
         ),
       );
 
-  /// A short human hint about size, from the provider's min footprint. Kept
-  /// approximate on purpose — exact cell mapping is the host slice's job.
+  /// "4 × 2", in ANDROID's cells, not ours.
+  ///
+  /// It used to read "250×110dp", which is the number in the provider's XML and
+  /// a number no user has ever seen. Every widget's own store listing, and
+  /// every other launcher's picker, says 4 × 2. Our fine grid would call the
+  /// same widget 8 × 6, which is true and useless: two different numbers for
+  /// two different jobs, and this is the one the user reads.
+  ///
+  /// `spanLabel` lives in `widget_provider_card.dart` and recovers the cell
+  /// count from `targetCell*` when present, and from Android's published
+  /// `70n - 30` relationship otherwise. That formula is why a 4-cell widget
+  /// declares 250dp rather than 280, and why a naive divide-by-70 reads every
+  /// widget one cell short.
   static String _resizeLabel(api.WidgetProviderInfo p) {
-    final resizable = p.resizeMode != 0;
-    final size = '${p.minWidthDp}×${p.minHeightDp}dp';
-    return resizable ? '$size · resizable' : size;
+    final size = spanLabel(p);
+    return p.resizeMode != 0 ? '$size · resizable' : size;
   }
 }
 

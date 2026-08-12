@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ─── STORAGE, IN THREE TIERS ────────────────────────────────────────
          The floor is API 24 now, so this app runs across three storage models
@@ -36,7 +37,81 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.BILLING" />
+    <uses-permission android:name="com.android.vending.BILLING" />
+
+    <!-- Per app storage sizes.
+
+         PACKAGE_USAGE_STATS is the one that matters: StorageStatsManager
+         refuses to answer without it. It is not a runtime permission, it is a
+         settings screen the user visits, so there is no dialog to request.
+
+         QUERY_ALL_PACKAGES only WIDENS the list. Without it the app sees the
+         packages the user has actually used, which is the set worth looking at
+         anyway. Declared because it is the honest description of what the app
+         does, and the feature degrades rather than breaks if Play refuses the
+         declaration: a storage manager is not on their list of accepted uses. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Wi-Fi network name, BSSID and MAC.
+
+         Android returns placeholders rather than failing without this, so an
+         app that does not hold it shows "<unknown ssid>" and a MAC of zeroes.
+         Requested on the Wi-Fi page, not at first run, and every row it unlocks
+         is simply absent until it is granted.
+
+         COARSE as well as FINE, because Android 12 lets the user grant only the
+         coarse one and refusing to work in that case would be our choice, not
+         theirs. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Bluetooth adapter name and paired devices. Runtime from Android 12. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Carrier name, slot and network codes. Not the phone number: reading the
+         subscriber's own number needs more than this and would be the most
+         alarming permission in the app. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- ─── THE BACKGROUND SCAN ─────────────────────────────────────────────
+
+         SHORT SERVICE, not dataSync. dataSync on API 34 and up wants its own
+         permission, a Play console declaration, and a six hour daily budget
+         shared across the whole app. shortService wants none of those and gives
+         roughly three minutes, which covers a MediaStore query and the trash
+         walks on every phone this app supports. When it does not, the service
+         keeps what it found and says the scan was cut short.
+
+         Never started at launch. Only when the user taps scan. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" />
+
+    <!--
+      VIDEO RE-ENCODING, AND WHY shortService CANNOT CARRY IT.
+
+      A shortService is capped at about three minutes and the system kills it
+      when the timer runs out. Re-encoding a six minute 4K clip takes longer
+      than that on a good phone, so the existing scan service is the wrong tool
+      and reusing it would produce a job that dies partway through, every time,
+      on exactly the large files this feature exists for.
+
+      mediaProcessing is the type Android 14 added for precisely this, and
+      dataSync is the fallback below it. Both are declared because the service
+      picks at runtime and a type used without its permission throws at
+      startForeground rather than failing quietly.
+    -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- API 33 and up. Without it the scan still runs, but its progress
+         notification is silently suppressed, which looks exactly like a scan
+         that never started. Requested at the point the user asks for a scan,
+         never at launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -79,9 +154,23 @@
     <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
 
+    <!-- PREDICTIVE BACK OFF, deliberately.
+
+         From API 35 the system back gesture is predictive by default, and the
+         platform callback can finish the activity before Flutter's PopScope is
+         ever consulted. The symptom is precise: back exits the app from any tab,
+         no matter what the shell's handler decides, because the handler never
+         runs.
+
+         Opting out puts back on the legacy path, which routes through Flutter
+         and lets the shell walk the tab's own stack, then Home, then out.
+
+         Revisit when the animated predictive transition is worth wiring
+         properly. Until then a back button that works beats one that animates. -->
     <application
         android:label="G Recovery"
         android:name="${applicationName}"
+        android:enableOnBackInvokedCallback="false"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -110,7 +199,72 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-    </application>
+    
+        <!-- exported false: nothing outside this app has any business starting
+             a scan of its owner's storage. stopWithTask false is the entire
+             point, since swiping the app away is exactly when the scan must
+             keep running. -->
+        <service
+            android:name=".recovery.ScanService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="shortService" />
+
+
+        <!-- The message archive listener.
+
+             BIND_NOTIFICATION_LISTENER_SERVICE is held by the SYSTEM, not by
+             this app: it is what stops any other process binding to this
+             service. The user grants access on a settings screen, and revokes it
+             the same way, so nothing here is cached.
+
+             exported must be true. The system binds it from outside the app,
+             and a false here is a service that can never start. -->
+        <!--
+          Both types declared, and the service chooses at runtime.
+
+          The manifest may list more than one; what matters is that whatever is
+          passed to startForeground is among them. Declaring only mediaProcessing
+          would crash every device below API 34.
+        -->
+        <service
+            android:name=".compress.VideoService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProcessing|dataSync" />
+
+        <service
+            android:name=".messages.MessageListener"
+            android:exported="true"
+            android:label="G Recovery message archive"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+
+        <!-- Lets a recovered LOOSE file be opened by another app.
+
+             A MediaStore row already has a shareable URI; a file sitting in an
+             app trash folder does not, and a file path handed across a process
+             boundary is refused under scoped storage. FileProvider mints a
+             temporary URI for one file, readable only by the activity it was
+             given to.
+
+             exported false and grantUriPermissions true is the required pair:
+             nothing may bind to the provider, and the URIs it issues carry
+             their own permission. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+</application>
 
     <queries>
         <!-- Required to query activities that can process text, see:

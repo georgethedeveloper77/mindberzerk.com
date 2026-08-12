@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,7 +97,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// The primary shared volume. Codec 129.
 class VolumeInfo {
   VolumeInfo({
@@ -120,15 +120,12 @@ class VolumeInfo {
   int usedBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      totalBytes,
-      freeBytes,
-      usedBytes,
-    ];
+    return <Object?>[totalBytes, freeBytes, usedBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static VolumeInfo decode(Object result) {
     result as List<Object?>;
@@ -148,7 +145,9 @@ class VolumeInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(totalBytes, other.totalBytes) && _deepEquals(freeBytes, other.freeBytes) && _deepEquals(usedBytes, other.usedBytes);
+    return _deepEquals(totalBytes, other.totalBytes) &&
+        _deepEquals(freeBytes, other.freeBytes) &&
+        _deepEquals(usedBytes, other.usedBytes);
   }
 
   @override
@@ -178,15 +177,12 @@ class KindUsage {
   int totalBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      kind,
-      itemCount,
-      totalBytes,
-    ];
+    return <Object?>[kind, itemCount, totalBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static KindUsage decode(Object result) {
     result as List<Object?>;
@@ -206,7 +202,9 @@ class KindUsage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(itemCount, other.itemCount) && _deepEquals(totalBytes, other.totalBytes);
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(itemCount, other.itemCount) &&
+        _deepEquals(totalBytes, other.totalBytes);
   }
 
   @override
@@ -239,16 +237,12 @@ class FolderUsage {
   int totalBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      path,
-      label,
-      itemCount,
-      totalBytes,
-    ];
+    return <Object?>[path, label, itemCount, totalBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static FolderUsage decode(Object result) {
     result as List<Object?>;
@@ -269,7 +263,10 @@ class FolderUsage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(path, other.path) && _deepEquals(label, other.label) && _deepEquals(itemCount, other.itemCount) && _deepEquals(totalBytes, other.totalBytes);
+    return _deepEquals(path, other.path) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(itemCount, other.itemCount) &&
+        _deepEquals(totalBytes, other.totalBytes);
   }
 
   @override
@@ -297,15 +294,12 @@ class AgeBucket {
   int totalBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      year,
-      itemCount,
-      totalBytes,
-    ];
+    return <Object?>[year, itemCount, totalBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AgeBucket decode(Object result) {
     result as List<Object?>;
@@ -325,7 +319,9 @@ class AgeBucket {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(year, other.year) && _deepEquals(itemCount, other.itemCount) && _deepEquals(totalBytes, other.totalBytes);
+    return _deepEquals(year, other.year) &&
+        _deepEquals(itemCount, other.itemCount) &&
+        _deepEquals(totalBytes, other.totalBytes);
   }
 
   @override
@@ -382,7 +378,8 @@ class StorageFile {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageFile decode(Object result) {
     result as List<Object?>;
@@ -407,7 +404,14 @@ class StorageFile {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(name, other.name) && _deepEquals(kind, other.kind) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(relativePath, other.relativePath) && _deepEquals(mimeType, other.mimeType) && _deepEquals(dateModifiedMillis, other.dateModifiedMillis) && _deepEquals(durationMillis, other.durationMillis);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(kind, other.kind) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(relativePath, other.relativePath) &&
+        _deepEquals(mimeType, other.mimeType) &&
+        _deepEquals(dateModifiedMillis, other.dateModifiedMillis) &&
+        _deepEquals(durationMillis, other.durationMillis);
   }
 
   @override
@@ -469,7 +473,8 @@ class StorageOverview {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageOverview decode(Object result) {
     result as List<Object?>;
@@ -493,7 +498,13 @@ class StorageOverview {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(volume, other.volume) && _deepEquals(kinds, other.kinds) && _deepEquals(folders, other.folders) && _deepEquals(ages, other.ages) && _deepEquals(indexedBytes, other.indexedBytes) && _deepEquals(indexedCount, other.indexedCount) && _deepEquals(complete, other.complete);
+    return _deepEquals(volume, other.volume) &&
+        _deepEquals(kinds, other.kinds) &&
+        _deepEquals(folders, other.folders) &&
+        _deepEquals(ages, other.ages) &&
+        _deepEquals(indexedBytes, other.indexedBytes) &&
+        _deepEquals(indexedCount, other.indexedCount) &&
+        _deepEquals(complete, other.complete);
   }
 
   @override
@@ -515,6 +526,7 @@ class StorageQuerySpec {
     this.olderThanDays,
     this.folderPrefix,
     this.nameContains,
+    required this.sort,
   });
 
   /// Empty means every kind.
@@ -530,6 +542,18 @@ class StorageQuerySpec {
 
   String? nameContains;
 
+  /// "newest" | "oldest" | "largest" | "smallest" | "name"
+  ///
+  /// SORTED NATIVELY, and it has to be. The query returns at most [limit] rows,
+  /// so ordering in Dart afterwards would sort the page rather than the library:
+  /// asking for smallest first would hand back the smallest of the 400 largest,
+  /// which is wrong in a way nobody notices until they trust it.
+  ///
+  /// A String rather than an enum, matching every other field here: an enum
+  /// numbers before classes and adding a sixth order would renumber every class
+  /// in the schema.
+  String sort;
+
   List<Object?> _toList() {
     return <Object?>[
       kinds,
@@ -538,11 +562,13 @@ class StorageQuerySpec {
       olderThanDays,
       folderPrefix,
       nameContains,
+      sort,
     ];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageQuerySpec decode(Object result) {
     result as List<Object?>;
@@ -553,6 +579,7 @@ class StorageQuerySpec {
       olderThanDays: result[3] as int?,
       folderPrefix: result[4] as String?,
       nameContains: result[5] as String?,
+      sort: result[6]! as String,
     );
   }
 
@@ -565,7 +592,13 @@ class StorageQuerySpec {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kinds, other.kinds) && _deepEquals(limit, other.limit) && _deepEquals(minBytes, other.minBytes) && _deepEquals(olderThanDays, other.olderThanDays) && _deepEquals(folderPrefix, other.folderPrefix) && _deepEquals(nameContains, other.nameContains);
+    return _deepEquals(kinds, other.kinds) &&
+        _deepEquals(limit, other.limit) &&
+        _deepEquals(minBytes, other.minBytes) &&
+        _deepEquals(olderThanDays, other.olderThanDays) &&
+        _deepEquals(folderPrefix, other.folderPrefix) &&
+        _deepEquals(nameContains, other.nameContains) &&
+        _deepEquals(sort, other.sort);
   }
 
   @override
@@ -574,7 +607,7 @@ class StorageQuerySpec {
 
   @override
   String toString() {
-    return 'StorageQuerySpec(kinds: $kinds, limit: $limit, minBytes: $minBytes, olderThanDays: $olderThanDays, folderPrefix: $folderPrefix, nameContains: $nameContains)';
+    return 'StorageQuerySpec(kinds: $kinds, limit: $limit, minBytes: $minBytes, olderThanDays: $olderThanDays, folderPrefix: $folderPrefix, nameContains: $nameContains, sort: $sort)';
   }
 }
 
@@ -603,17 +636,12 @@ class StorageQueryResult {
   List<AgeBucket> ages;
 
   List<Object?> _toList() {
-    return <Object?>[
-      files,
-      matchCount,
-      matchBytes,
-      folders,
-      ages,
-    ];
+    return <Object?>[files, matchCount, matchBytes, folders, ages];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageQueryResult decode(Object result) {
     result as List<Object?>;
@@ -635,7 +663,11 @@ class StorageQueryResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(files, other.files) && _deepEquals(matchCount, other.matchCount) && _deepEquals(matchBytes, other.matchBytes) && _deepEquals(folders, other.folders) && _deepEquals(ages, other.ages);
+    return _deepEquals(files, other.files) &&
+        _deepEquals(matchCount, other.matchCount) &&
+        _deepEquals(matchBytes, other.matchBytes) &&
+        _deepEquals(folders, other.folders) &&
+        _deepEquals(ages, other.ages);
   }
 
   @override
@@ -669,15 +701,12 @@ class StorageOutcome {
   String detail;
 
   List<Object?> _toList() {
-    return <Object?>[
-      fileId,
-      status,
-      detail,
-    ];
+    return <Object?>[fileId, status, detail];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageOutcome decode(Object result) {
     result as List<Object?>;
@@ -697,7 +726,9 @@ class StorageOutcome {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(status, other.status) && _deepEquals(detail, other.detail);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(status, other.status) &&
+        _deepEquals(detail, other.detail);
   }
 
   @override
@@ -710,40 +741,258 @@ class StorageOutcome {
   }
 }
 
+/// One thing inside a folder. Codec 138.
+///
+/// Appended last, so nothing before it renumbers.
+///
+/// ─── THIS IS NOT StorageFile ─────────────────────────────────────────────────
+///
+/// StorageFile is a MediaStore row: indexed, with a kind and a media id, and
+/// reachable by every other method here. This is what is actually on disk, which
+/// is a different and larger set. MediaStore never saw the zip a file manager
+/// dropped into Download, and it has no idea that Android/data exists.
+///
+/// Keeping them apart is the point. A browser that could only show indexed files
+/// would teach a false picture of the filesystem, which is the one thing this
+/// screen exists not to do.
+class DirEntry {
+  DirEntry({
+    required this.path,
+    required this.name,
+    required this.isDirectory,
+    required this.sizeBytes,
+    required this.modifiedMillis,
+    this.childCount,
+    required this.readable,
+    required this.hidden,
+  });
+
+  String path;
+
+  String name;
+
+  bool isDirectory;
+
+  /// Zero for a directory. Summing a tree means walking it, and a browser that
+  /// stalled on every folder to total its contents would be unusable on a
+  /// phone.
+  int sizeBytes;
+
+  int modifiedMillis;
+
+  /// How many things are directly inside, or null when it could not be read.
+  ///
+  /// Null is meaningful here and is not the same as zero: an empty folder and a
+  /// folder the system refuses to open look identical without it.
+  int? childCount;
+
+  /// False for the folders Android will not open, chiefly Android/data and
+  /// Android/obb from Android 11 onward.
+  ///
+  /// Shown rather than hidden. A person who cannot see the locked door does not
+  /// learn that it is locked, and this is the same folder that makes deleted
+  /// chat messages unrecoverable.
+  bool readable;
+
+  /// Starts with a dot. Listed, but behind a toggle, because a browser that
+  /// silently omits things teaches the wrong shape of the filesystem.
+  bool hidden;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      path,
+      name,
+      isDirectory,
+      sizeBytes,
+      modifiedMillis,
+      childCount,
+      readable,
+      hidden,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static DirEntry decode(Object result) {
+    result as List<Object?>;
+    return DirEntry(
+      path: result[0]! as String,
+      name: result[1]! as String,
+      isDirectory: result[2]! as bool,
+      sizeBytes: result[3]! as int,
+      modifiedMillis: result[4]! as int,
+      childCount: result[5] as int?,
+      readable: result[6]! as bool,
+      hidden: result[7]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DirEntry || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(path, other.path) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(isDirectory, other.isDirectory) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(modifiedMillis, other.modifiedMillis) &&
+        _deepEquals(childCount, other.childCount) &&
+        _deepEquals(readable, other.readable) &&
+        _deepEquals(hidden, other.hidden);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DirEntry(path: $path, name: $name, isDirectory: $isDirectory, sizeBytes: $sizeBytes, modifiedMillis: $modifiedMillis, childCount: $childCount, readable: $readable, hidden: $hidden)';
+  }
+}
+
+/// A mounted volume. Codec 139.
+///
+/// ─── NOT VolumeInfo ──────────────────────────────────────────────────────────
+///
+/// VolumeInfo is three numbers about the volume an overview describes. This is
+/// a volume the phone has, with a name and a path, so it can be listed and
+/// opened. A phone with an SD card has two of these and one overview.
+class VolumeEntry {
+  VolumeEntry({
+    required this.id,
+    required this.label,
+    this.path,
+    required this.totalBytes,
+    required this.freeBytes,
+    required this.removable,
+    required this.primary,
+  });
+
+  String id;
+
+  /// What the system calls it. "SanDisk SD card" rather than a mount point,
+  /// because the mount point is a different string on every device.
+  String label;
+
+  /// Null when the volume is mounted somewhere this app cannot reach, which
+  /// happens on some OEM builds for USB drives.
+  String? path;
+
+  int totalBytes;
+
+  int freeBytes;
+
+  bool removable;
+
+  /// Internal storage. There is exactly one, and it is the one the overview
+  /// already describes.
+  bool primary;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      label,
+      path,
+      totalBytes,
+      freeBytes,
+      removable,
+      primary,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static VolumeEntry decode(Object result) {
+    result as List<Object?>;
+    return VolumeEntry(
+      id: result[0]! as String,
+      label: result[1]! as String,
+      path: result[2] as String?,
+      totalBytes: result[3]! as int,
+      freeBytes: result[4]! as int,
+      removable: result[5]! as bool,
+      primary: result[6]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VolumeEntry || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(path, other.path) &&
+        _deepEquals(totalBytes, other.totalBytes) &&
+        _deepEquals(freeBytes, other.freeBytes) &&
+        _deepEquals(removable, other.removable) &&
+        _deepEquals(primary, other.primary);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VolumeEntry(id: $id, label: $label, path: $path, totalBytes: $totalBytes, freeBytes: $freeBytes, removable: $removable, primary: $primary)';
+  }
+}
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
+
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is VolumeInfo) {
+    } else if (value is VolumeInfo) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is KindUsage) {
+    } else if (value is KindUsage) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is FolderUsage) {
+    } else if (value is FolderUsage) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is AgeBucket) {
+    } else if (value is AgeBucket) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageFile) {
+    } else if (value is StorageFile) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageOverview) {
+    } else if (value is StorageOverview) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageQuerySpec) {
+    } else if (value is StorageQuerySpec) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageQueryResult) {
+    } else if (value is StorageQueryResult) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageOutcome) {
+    } else if (value is StorageOutcome) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    } else if (value is DirEntry) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    } else if (value is VolumeEntry) {
+      buffer.putUint8(139);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -771,6 +1020,10 @@ class _PigeonCodec extends StandardMessageCodec {
         return StorageQueryResult.decode(readValue(buffer)!);
       case 137:
         return StorageOutcome.decode(readValue(buffer)!);
+      case 138:
+        return DirEntry.decode(readValue(buffer)!);
+      case 139:
+        return VolumeEntry.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -781,9 +1034,13 @@ class StorageHostApi {
   /// Constructor for [StorageHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  StorageHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  StorageHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -792,7 +1049,8 @@ class StorageHostApi {
 
   /// Volume stats plus the MediaStore aggregate. One pass, no directory walk.
   Future<StorageOverview> overview() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.StorageHostApi.overview$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.overview$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -802,73 +1060,242 @@ class StorageHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as StorageOverview;
   }
 
   Future<StorageQueryResult> query(StorageQuerySpec spec) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.StorageHostApi.query$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.query$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[spec]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[spec],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as StorageQueryResult;
   }
 
   /// JPEG preview bytes, downscaled natively. Same reasoning as the recovery
   /// thumbnail: Flutter cannot load a content URI, and shipping full size
   /// bitmaps across the channel is how a grid runs a phone out of memory.
-  Future<Uint8List?> thumbnail(String fileId, int maxPixels) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.StorageHostApi.thumbnail$pigeonVar_messageChannelSuffix';
+  ///
+  /// [kind], [name] and [mimeType] are passed IN rather than looked up.
+  ///
+  /// Native has only the file id, which carries no type, so deciding how to
+  /// draw a preview would mean a second MediaStore query per thumbnail: on a
+  /// scrolling grid, one extra cursor per cell. Dart already holds all three on
+  /// the StorageFile it is drawing, so handing them over costs nothing and the
+  /// native side goes straight to the right renderer.
+  ///
+  /// Without this the call site hardcoded "image", which meant audio artwork
+  /// and PDF first pages could never be reached however well they worked.
+  Future<Uint8List?> thumbnail(
+    String fileId,
+    int maxPixels,
+    String kind,
+    String? name,
+    String? mimeType,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.thumbnail$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileId, maxPixels]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId, maxPixels, kind, name, mimeType],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as Uint8List?;
   }
 
   /// Moves files to the OS trash by default, where the user has thirty days to
   /// change their mind. [permanent] skips that.
-  Future<List<StorageOutcome>> remove(List<String> fileIds, bool permanent) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.StorageHostApi.remove$pigeonVar_messageChannelSuffix';
+  Future<List<StorageOutcome>> remove(
+    List<String> fileIds,
+    bool permanent,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.remove$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileIds, permanent]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileIds, permanent],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<StorageOutcome>();
+  }
+
+  /// A playable content URI for this file, or null if it is no longer listed.
+  ///
+  /// The one thing video playback cannot be done without. VideoPlayerController
+  /// takes a content URI and nothing else will do: Dart cannot open a
+  /// MediaStore row by id, and the file path behind it is unreadable under
+  /// scoped storage even when the row is perfectly readable.
+  ///
+  /// A STRING, not a typed URI, because Pigeon has no URI and because the same
+  /// value is handed straight back to the platform for the external chooser.
+  Future<String?> contentUri(String fileId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.contentUri$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Raw bytes, for the formats this app renders itself.
+  ///
+  /// Text and CSV, and nothing larger than [maxBytes]. Dart cannot read a
+  /// content URI on its own, so the bytes have to cross the bridge, and a
+  /// three hundred megabyte log decoded into a Dart string would take the app
+  /// down on a phone that had every right to survive opening it.
+  ///
+  /// Returns null when the file is missing or larger than the cap. The caller
+  /// distinguishes the two by checking the size it already has.
+  Future<Uint8List?> readBytes(String fileId, int maxBytes) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.readBytes$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId, maxBytes],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as Uint8List?;
+  }
+
+  /// Every mounted volume: internal, and any SD card or USB drive.
+  ///
+  /// From StorageManager rather than a guessed path. On a phone with an SD card
+  /// the second volume has a different id on every device, and hardcoding
+  /// /storage/sdcard1 was already wrong a decade ago.
+  Future<List<VolumeEntry>> volumes() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.volumes$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as List<Object?>).cast<VolumeEntry>();
+  }
+
+  /// What is directly inside a folder.
+  ///
+  /// [path] null means the roots: internal storage, plus any SD card or USB
+  /// volume currently mounted.
+  ///
+  /// One level only. A recursive walk is what makes file managers hang on a
+  /// folder with forty thousand files in it, and nothing on this screen needs
+  /// more than the level being looked at.
+  Future<List<DirEntry>> listDirectory(String? path) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.listDirectory$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[path],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as List<Object?>).cast<DirEntry>();
+  }
+
+  /// Hands the file to whatever app can open it.
+  ///
+  /// For the formats with no credible in-app renderer, which on Android means
+  /// office documents and anything proprietary. Returns false when nothing on
+  /// the phone can handle the type, so the UI can say that instead of appearing
+  /// to do nothing.
+  ///
+  /// Grants read permission on the URI for the duration of the target activity.
+  /// Without that flag the chooser opens onto a permission error, which looks
+  /// like a bug in this app rather than in the one that was launched.
+  Future<bool> openExternally(String fileId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.StorageHostApi.openExternally$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as bool;
   }
 }

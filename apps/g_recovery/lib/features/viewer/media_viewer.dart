@@ -5,8 +5,7 @@ import '../../app/theme/tokens.dart';
 import '../../bridge/recovery_api.g.dart';
 import '../../core/format.dart';
 import '../../ui/g_badge.dart';
-import '../../ui/g_thumbnail.dart';
-import '../recovery/state/recovery_providers.dart';
+import 'recovered_frame.dart';
 
 /// Full screen view of one item, swipeable across the whole list.
 ///
@@ -23,22 +22,21 @@ class MediaViewer extends ConsumerStatefulWidget {
   static Route<void> route({
     required List<RecoverableItem> items,
     required int index,
-  }) =>
-      PageRouteBuilder<void>(
-        opaque: false,
-        barrierDismissible: false,
-        transitionDuration: GMotion.fast,
-        pageBuilder: (BuildContext context, Animation<double> a,
-                Animation<double> b) =>
+  }) => PageRouteBuilder<void>(
+    opaque: false,
+    barrierDismissible: false,
+    transitionDuration: GMotion.fast,
+    pageBuilder:
+        (BuildContext context, Animation<double> a, Animation<double> b) =>
             MediaViewer(items: items, index: index),
-        transitionsBuilder: (
+    transitionsBuilder:
+        (
           BuildContext context,
           Animation<double> animation,
           Animation<double> secondary,
           Widget child,
-        ) =>
-            FadeTransition(opacity: animation, child: child),
-      );
+        ) => FadeTransition(opacity: animation, child: child),
+  );
 
   @override
   ConsumerState<MediaViewer> createState() => _MediaViewerState();
@@ -74,25 +72,8 @@ class _MediaViewerState extends ConsumerState<MediaViewer> {
             controller: _pages,
             itemCount: widget.items.length,
             onPageChanged: (int index) => setState(() => _current = index),
-            itemBuilder: (BuildContext context, int index) {
-              return InteractiveViewer(
-                minScale: 1,
-                maxScale: 6,
-                child: Center(
-                  child: GThumbnail(
-                    itemId: widget.items[index].itemId,
-                    bridge: ref.watch(recoveryBridgeProvider),
-                    kind: widget.items[index].kind,
-                    // 2048, the largest the native thumbnailer will produce.
-                    // Full resolution would be the original file, which for a
-                    // 108 megapixel photo is a decode nobody asked for.
-                    maxPixels: 2048,
-                    fit: BoxFit.contain,
-                    radius: 0,
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (BuildContext context, int index) =>
+                RecoveredFrame(item: widget.items[index]),
           ),
 
           SafeArea(
@@ -111,11 +92,7 @@ class _MediaViewerState extends ConsumerState<MediaViewer> {
                         color: t.panel,
                         borderRadius: GRadius.all(GRadius.glyph),
                       ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: t.text,
-                        size: 19,
-                      ),
+                      child: Icon(Icons.close_rounded, color: t.text, size: 19),
                     ),
                   ),
                   const Spacer(),
@@ -135,16 +112,17 @@ class _MediaViewerState extends ConsumerState<MediaViewer> {
             child: SafeArea(
               top: false,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(GSpace.gutter, 24,
-                    GSpace.gutter, GSpace.lg),
+                padding: const EdgeInsets.fromLTRB(
+                  GSpace.gutter,
+                  24,
+                  GSpace.gutter,
+                  GSpace.lg,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: <Color>[
-                      t.scrim.withValues(alpha: 0),
-                      t.scrim,
-                    ],
+                    colors: <Color>[t.scrim.withValues(alpha: 0), t.scrim],
                   ),
                 ),
                 child: Column(
@@ -185,16 +163,6 @@ class _MediaViewerState extends ConsumerState<MediaViewer> {
                       ].join('  /  '),
                       style: GType.monoSmall.copyWith(color: t.muted),
                     ),
-                    if (item.kind == 'video') ...<Widget>[
-                      const SizedBox(height: GSpace.sm),
-                      Text(
-                        // Honest rather than a dead play button. Playback
-                        // needs a decoder this build does not carry yet.
-                        'Playback arrives in the next update. This is the '
-                        'first frame.',
-                        style: GType.micro.copyWith(color: t.dim),
-                      ),
-                    ],
                   ],
                 ),
               ),

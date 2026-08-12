@@ -21,8 +21,7 @@ class GLog {
     String scope = 'app',
     Object? cause,
     StackTrace? stackTrace,
-  }) =>
-      _emit(GLogLevel.error, scope, message, cause, stackTrace);
+  }) => _emit(GLogLevel.error, scope, message, cause, stackTrace);
 
   static void _emit(
     GLogLevel level,

@@ -60,6 +60,12 @@ android {
             signingConfig = signingConfigs.getByName(
                 if (keystorePropertiesFile.exists()) "release" else "debug"
             )
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -81,4 +87,37 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("eu.agno3.jcifs:jcifs-ng:2.1.10")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
+
+    // WebDAV, and the only reason it needs a library at all.
+    //
+    // HttpURLConnection checks the method name against a fixed list and throws
+    // on PROPFIND, which WebDAV cannot do without. The workaround people reach
+    // for is reflection into a private field of the platform class, and a
+    // backup path is the last place to put something that breaks on an OS
+    // update.
+    //
+    // 4.12.0 rather than 5.x on purpose: 5.x raises the minimum to API 21 with
+    // a different Kotlin baseline and pulls okio 3, and none of the WebDAV work
+    // here uses anything 5.x added.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Video re-encoding.
+    //
+    // Transformer rather than MediaCodec directly. Doing this by hand means
+    // owning muxing, timestamp handling, audio passthrough and one decoder quirk
+    // per chipset, and getting any of it slightly wrong produces a file that
+    // plays on the phone that made it and nowhere else.
+    //
+    // The -common and -transformer split is deliberate: the full media3 bundle
+    // pulls ExoPlayer and a UI module this app has no player for.
+    implementation("androidx.media3:media3-transformer:1.4.1")
+    implementation("androidx.media3:media3-effect:1.4.1")
+    implementation("androidx.media3:media3-common:1.4.1")
 }

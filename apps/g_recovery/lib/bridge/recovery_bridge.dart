@@ -51,6 +51,42 @@ class RecoveryBridge implements RecoveryFlutterApi {
 
   Future<void> cancelScan() async => _guard(_api.cancelScan);
 
+  /// A playable content URI, or null for a loose file that has none.
+  ///
+  /// Explicit type argument: `_guard<T>` returns `Future<T?>` and this native
+  /// return is already nullable.
+  Future<String?> itemUri(String itemId) =>
+      _guard<String?>(() => _api.itemUri(itemId));
+
+  /// Raw bytes, for the formats rendered in app.
+  ///
+  /// Two megabytes by default, which is a long text file and a short anything
+  /// else. Null means missing OR over the cap, and the caller separates the two
+  /// with the size it already holds.
+  Future<Uint8List?> itemBytes(
+    String itemId, {
+    int maxBytes = 2 * 1024 * 1024,
+  }) => _guard<Uint8List?>(() => _api.itemBytes(itemId, maxBytes));
+
+  /// Hands the item to another app. False when nothing can open it, and also
+  /// when it is a loose file with no shareable URI.
+  Future<bool> openItemExternally(String itemId) async =>
+      await _guard(() => _api.openItemExternally(itemId)) ?? false;
+
+  /// Starts the whole-phone scan in a foreground service and returns at once.
+  ///
+  /// Returns nothing useful on purpose. The service outlives this engine, so
+  /// there is no result to await: ask [backgroundScanState] how it went.
+  Future<void> startBackgroundScan() async => _guard(_api.startBackgroundScan);
+
+  /// Where the background scan got to.
+  ///
+  /// Polled rather than pushed. [progress] needs a live engine to deliver into
+  /// and the service specifically cannot assume one exists, which is the whole
+  /// reason it is a service.
+  Future<BackgroundScanState?> backgroundScanState() =>
+      _guard(_api.backgroundScanState);
+
   Future<List<RecoverableItem>> items(
     String sourceId, {
     int offset = 0,

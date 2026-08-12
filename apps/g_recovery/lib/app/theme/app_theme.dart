@@ -72,8 +72,9 @@ ThemeData buildGTheme(GTokens t) {
 /// System bars follow the theme. Called on every theme change, not once at
 /// boot, or the status bar icons stay unreadable after a light to dark switch.
 SystemUiOverlayStyle gSystemOverlay(GTokens t) {
-  final Brightness iconBrightness =
-      t.brightness == Brightness.dark ? Brightness.light : Brightness.dark;
+  final Brightness iconBrightness = t.brightness == Brightness.dark
+      ? Brightness.light
+      : Brightness.dark;
   return SystemUiOverlayStyle(
     statusBarColor: const Color(0x00000000),
     statusBarIconBrightness: iconBrightness,

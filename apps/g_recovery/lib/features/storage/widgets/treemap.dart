@@ -16,7 +16,7 @@ class FolderTreemap extends StatelessWidget {
   const FolderTreemap({
     required this.folders,
     super.key,
-    this.height = 190,
+    this.height = 210,
     this.onTap,
   });
 
@@ -24,10 +24,24 @@ class FolderTreemap extends StatelessWidget {
   final double height;
   final void Function(FolderUsage folder)? onTap;
 
+  /// EIGHT, and the cap is what makes the labels appear.
+  ///
+  /// Native returns as many folders as it found. Laying all of them out in one
+  /// strip gives cells thirty pixels wide, which is below the width a name fits
+  /// in, so every block drops its label and the whole thing becomes a texture.
+  ///
+  /// Eight blocks in this area are wide enough to name, and the ninth folder
+  /// onward is a rectangle nobody could read anyway.
+  static const int _maxCells = 8;
+
   @override
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     if (folders.isEmpty) return const SizedBox.shrink();
+
+    final List<FolderUsage> shown = folders.length <= _maxCells
+        ? folders
+        : folders.sublist(0, _maxCells);
 
     final List<Color> palette = <Color>[
       t.video,
@@ -43,7 +57,7 @@ class FolderTreemap extends StatelessWidget {
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final List<_Cell> cells = _layout(
-            folders,
+            shown,
             Rect.fromLTWH(0, 0, constraints.maxWidth, height),
           );
           return Stack(
@@ -54,9 +68,7 @@ class FolderTreemap extends StatelessWidget {
                   child: _Tile(
                     folder: cells[i].folder,
                     tint: palette[i % palette.length],
-                    onTap: onTap == null
-                        ? null
-                        : () => onTap!(cells[i].folder),
+                    onTap: onTap == null ? null : () => onTap!(cells[i].folder),
                   ),
                 ),
             ],
@@ -68,10 +80,13 @@ class FolderTreemap extends StatelessWidget {
 
   List<_Cell> _layout(List<FolderUsage> input, Rect area) {
     final List<FolderUsage> sorted = List<FolderUsage>.of(input)
-      ..sort((FolderUsage a, FolderUsage b) =>
-          b.totalBytes.compareTo(a.totalBytes));
-    final int total =
-        sorted.fold(0, (int sum, FolderUsage f) => sum + f.totalBytes);
+      ..sort(
+        (FolderUsage a, FolderUsage b) => b.totalBytes.compareTo(a.totalBytes),
+      );
+    final int total = sorted.fold(
+      0,
+      (int sum, FolderUsage f) => sum + f.totalBytes,
+    );
     if (total <= 0) return const <_Cell>[];
 
     final List<_Cell> cells = <_Cell>[];
@@ -92,7 +107,10 @@ class FolderTreemap extends StatelessWidget {
       if (remaining.width >= remaining.height) {
         final double w = remaining.width * share;
         cells.add(
-          _Cell(folder, Rect.fromLTWH(remaining.left, remaining.top, w, remaining.height)),
+          _Cell(
+            folder,
+            Rect.fromLTWH(remaining.left, remaining.top, w, remaining.height),
+          ),
         );
         remaining = Rect.fromLTWH(
           remaining.left + w,
@@ -103,7 +121,10 @@ class FolderTreemap extends StatelessWidget {
       } else {
         final double h = remaining.height * share;
         cells.add(
-          _Cell(folder, Rect.fromLTWH(remaining.left, remaining.top, remaining.width, h)),
+          _Cell(
+            folder,
+            Rect.fromLTWH(remaining.left, remaining.top, remaining.width, h),
+          ),
         );
         remaining = Rect.fromLTWH(
           remaining.left,
@@ -153,7 +174,10 @@ class _Tile extends StatelessWidget {
               // Labels are dropped rather than clipped when the cell is too
               // small. A half word is noise; an unlabelled block still reads
               // correctly as "something small".
-              if (c.maxHeight < 30 || c.maxWidth < 54) {
+              // 44 by 26, down from 54 by 30. A folder name at micro size
+              // fits in 44 with an ellipsis, and dropping the label is now the
+              // rare case rather than the usual one.
+              if (c.maxHeight < 26 || c.maxWidth < 44) {
                 return const SizedBox.shrink();
               }
               return Column(
@@ -169,12 +193,22 @@ class _Tile extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    GFormat.bytes(folder.totalBytes),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GType.monoSmall.copyWith(color: t.muted, fontSize: 9.5),
-                  ),
+                  // The size drops before the name does. A block labelled
+                  // "WhatsApp" with no figure is still useful; a figure with no
+                  // name is not.
+                  // 32, down from 38. Two lines of micro type need about 30,
+                  // and at 38 the size line was disappearing from cells that
+                  // had ample room for it.
+                  if (c.maxHeight >= 32)
+                    Text(
+                      GFormat.bytes(folder.totalBytes),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GType.monoSmall.copyWith(
+                        color: t.muted,
+                        fontSize: 9.5,
+                      ),
+                    ),
                 ],
               );
             },

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Paths this app may hand to another app.
+
+    ROOT PATH, and it needs justifying rather than hiding.
+
+    Everything else in FileProvider's vocabulary describes a directory this app
+    owns. The files this app shares are the opposite: an item recovered out of
+    another app's trash folder, sitting anywhere on external storage, which is
+    the whole reason the app holds All Files Access in the first place. There is
+    no narrower declaration that covers "wherever the user's deleted file turned
+    out to be".
+
+    It grants nothing on its own. A path listed here becomes shareable only when
+    this app mints a URI for one specific file and attaches a read grant that
+    lasts for the receiving activity. No other app can enumerate anything
+    through it, and this app never mints a URI for a file the user did not open.
+-->
+<paths>
+    <root-path
+        name="external_files"
+        path="." />
+
+    <!-- The app's own cache, for anything staged before being handed over. -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>

@@ -84,10 +84,7 @@ class _GRingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
     final double radius = (math.min(size.width, size.height) - thickness) / 2;
-    final Rect arcRect = Rect.fromCircle(
-      center: rect.center,
-      radius: radius,
-    );
+    final Rect arcRect = Rect.fromCircle(center: rect.center, radius: radius);
 
     final Paint base = Paint()
       ..style = PaintingStyle.stroke

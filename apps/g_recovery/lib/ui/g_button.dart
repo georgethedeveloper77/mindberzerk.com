@@ -9,10 +9,13 @@ class GButton extends StatelessWidget {
     required this.label,
     super.key,
     this.onPressed,
+    this.icon,
     this.kind = GButtonKind.primary,
     this.expand = true,
-    this.padding =
-        const EdgeInsets.symmetric(horizontal: GSpace.lg, vertical: 14),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: GSpace.lg,
+      vertical: 14,
+    ),
   });
 
   const GButton.ghost({
@@ -21,15 +24,23 @@ class GButton extends StatelessWidget {
     VoidCallback? onPressed,
     bool expand = true,
   }) : this(
-          label: label,
-          key: key,
-          onPressed: onPressed,
-          kind: GButtonKind.ghost,
-          expand: expand,
-        );
+         label: label,
+         key: key,
+         onPressed: onPressed,
+         kind: GButtonKind.ghost,
+         expand: expand,
+       );
 
   final String label;
   final VoidCallback? onPressed;
+
+  /// Optional, and it belongs on the destructive and the irreversible ones.
+  ///
+  /// A row of two buttons that differ only by a word and a colour is read by
+  /// shape first and text second, which is exactly backwards when one of them
+  /// cannot be undone. A bin and an arrow are distinguishable before either
+  /// label is read.
+  final IconData? icon;
   final GButtonKind kind;
   final bool expand;
   final EdgeInsetsGeometry padding;
@@ -73,14 +84,31 @@ class GButton extends StatelessWidget {
               border: border == null ? null : Border.all(color: border),
             ),
             alignment: Alignment.center,
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GType.body.copyWith(
-                color: ink,
-                fontWeight: FontWeight.w600,
-                height: 1.1,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                if (icon != null) ...<Widget>[
+                  Icon(icon, size: 18, color: ink),
+                  const SizedBox(width: GSpace.sm + 1),
+                ],
+                // Flexible, not Expanded. On a narrow half width button a long
+                // label has to be allowed to ellipsize rather than overflow, and
+                // Expanded would stretch a short one away from its own icon.
+                Flexible(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GType.body.copyWith(
+                      color: ink,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

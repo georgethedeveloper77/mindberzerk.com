@@ -26,11 +26,11 @@ final NotifierProvider<SearchQueryController, String> searchQueryProvider =
 /// than returning nothing.
 final FutureProvider<List<RecoverableItem>> searchResultsProvider =
     FutureProvider<List<RecoverableItem>>((Ref ref) async {
-  final String query = ref.watch(searchQueryProvider);
-  if (query.trim().length < 2) return const <RecoverableItem>[];
-  await ref.watch(trashMapReadyProvider.future);
-  return ref.watch(recoveryBridgeProvider).search(query, 120);
-});
+      final String query = ref.watch(searchQueryProvider);
+      if (query.trim().length < 2) return const <RecoverableItem>[];
+      await ref.watch(trashMapReadyProvider.future);
+      return ref.watch(recoveryBridgeProvider).search(query, 120);
+    });
 
 /// Search results split into the two groups the UI shows.
 ///
@@ -43,11 +43,13 @@ class SearchGroups {
   final List<RecoverableItem> live;
 
   bool get isEmpty => deleted.isEmpty && live.isEmpty;
+
   int get total => deleted.length + live.length;
 }
 
-final Provider<SearchGroups> searchGroupsProvider =
-    Provider<SearchGroups>((Ref ref) {
+final Provider<SearchGroups> searchGroupsProvider = Provider<SearchGroups>((
+  Ref ref,
+) {
   final List<RecoverableItem> all =
       ref.watch(searchResultsProvider).value ?? const <RecoverableItem>[];
   return SearchGroups(

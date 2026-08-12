@@ -8,12 +8,7 @@ import '../app/theme/tokens.dart';
 /// a reading this device will not serve: the row exists, the shape is there,
 /// and no number has been invented to fill it.
 class GBar extends StatelessWidget {
-  const GBar({
-    super.key,
-    this.fraction,
-    this.colour,
-    this.height = 6,
-  });
+  const GBar({super.key, this.fraction, this.colour, this.height = 6});
 
   final double? fraction;
   final Color? colour;
@@ -86,7 +81,9 @@ class GMeterRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: GSpace.sm + 1),
-          Expanded(child: GBar(fraction: fraction, colour: colour)),
+          Expanded(
+            child: GBar(fraction: fraction, colour: colour),
+          ),
           const SizedBox(width: GSpace.sm + 1),
           SizedBox(
             width: valueWidth,

@@ -6,11 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/tokens.dart';
 import '../../bridge/recovery_api.g.dart';
 import '../../core/format.dart';
+import '../../core/messenger/g_message.dart';
+import '../../core/messenger/g_messenger.dart';
 import '../../ui/g_badge.dart';
+import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_chip.dart';
 import '../../ui/g_stat.dart';
+import '../recovery/state/recovery_providers.dart';
 import '../recovery/widgets/item_row.dart';
+import '../viewer/media_viewer.dart';
 import 'state/search_providers.dart';
 
 /// Unified search across deleted and present files.
@@ -22,8 +27,8 @@ class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
 
   static Route<void> route() => MaterialPageRoute<void>(
-        builder: (BuildContext context) => const SearchPage(),
-      );
+    builder: (BuildContext context) => const SearchPage(),
+  );
 
   @override
   ConsumerState<SearchPage> createState() => _SearchPageState();
@@ -38,7 +43,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void initState() {
     super.initState();
     _controller.text = ref.read(searchQueryProvider);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focus.requestFocus();
+      // Cleared on the way IN, not on the way out.
+      //
+      // Selection is app wide, so a leftover from a category page would arm a
+      // restore bar here over items that are not in this list. Clearing on
+      // dispose looked like the same fix and was not: ref is unusable once the
+      // element is deactivated, and no amount of deferring the write helps
+      // because the read happens first. Every page that uses the selection
+      // clearing it as it opens makes a stale one impossible to observe.
+      ref.read(selectionProvider.notifier).clear();
+    });
   }
 
   @override
@@ -63,14 +80,87 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     });
   }
 
+  /// Opens the viewer on a list, positioned at the row that was tapped.
+  ///
+  /// Only things with a preview go into the deck. A document has nothing to
+  /// look at, so tapping one does nothing rather than opening a page of grey.
+  void _open(List<RecoverableItem> list, int index) {
+    final List<RecoverableItem> viewable = list.where(_viewable).toList();
+    final int start = viewable.indexOf(list[index]);
+    if (start < 0) return;
+    // rootNavigator, because the viewer is the one screen that must cover the
+    // bottom bar. Everything else belongs inside its tab's stack.
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push(MediaViewer.route(items: viewable, index: start));
+  }
+
+  static bool _viewable(RecoverableItem item) =>
+      item.kind == 'image' || item.kind == 'video';
+
+  static String _verb(List<RecoverableItem> items, List<String> chosen) {
+    final Set<String> ids = chosen.toSet();
+    final Iterable<RecoverableItem> picked = items.where(
+      (RecoverableItem item) => ids.contains(item.itemId),
+    );
+    if (picked.isEmpty) return 'Restore';
+    return picked.every((RecoverableItem item) => item.role == 'status')
+        ? 'Save'
+        : 'Restore';
+  }
+
+  Future<void> _act(List<String> itemIds, {required bool purge}) async {
+    final List<RestoreOutcome> outcomes = purge
+        ? await ref.read(recoveryBridgeProvider).purge(itemIds)
+        : await ref.read(recoveryBridgeProvider).restore(itemIds);
+    if (!mounted) return;
+
+    final int ok = outcomes
+        .where((RestoreOutcome outcome) => outcome.status == 'restored')
+        .length;
+    RestoreOutcome? problem;
+    for (final RestoreOutcome outcome in outcomes) {
+      if (outcome.status != 'restored') {
+        problem = outcome;
+        break;
+      }
+    }
+
+    // The first failure is reported verbatim. The statuses differ because the
+    // user's next action differs, and collapsing them into "some items failed"
+    // throws that away.
+    GMessenger.show(
+      context,
+      problem == null
+          ? GMessage.success(purge ? '$ok deleted' : '$ok restored')
+          : GMessage.warning('$ok done. ${problem.detail}'),
+    );
+
+    ref.read(selectionProvider.notifier).clear();
+    ref.invalidate(searchResultsProvider);
+    ref.invalidate(prescanProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     final String query = ref.watch(searchQueryProvider);
-    final AsyncValue<List<RecoverableItem>> async =
-        ref.watch(searchResultsProvider);
+    final AsyncValue<List<RecoverableItem>> async = ref.watch(
+      searchResultsProvider,
+    );
     final SearchGroups groups = ref.watch(searchGroupsProvider);
     final List<String> recent = ref.watch(recentSearchesProvider);
+    final Set<String> selected = ref.watch(selectionProvider);
+
+    // Only deleted results can be acted on. Native resolves a restore through
+    // the scan index, and a live file is deliberately never registered there,
+    // so asking would come back notFound. Restoring something that was never
+    // deleted is nonsense anyway.
+    final List<String> chosen = groups.deleted
+        .map((RecoverableItem item) => item.itemId)
+        .where(selected.contains)
+        .toList();
 
     return Scaffold(
       backgroundColor: t.ink,
@@ -155,6 +245,41 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
 
+            if (chosen.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  GSpace.gutter,
+                  0,
+                  GSpace.gutter,
+                  GSpace.md,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: GButton(
+                        label: 'Delete ${chosen.length}',
+                        icon: Icons.delete_forever_rounded,
+                        kind: GButtonKind.danger,
+                        onPressed: () => _act(chosen, purge: true),
+                      ),
+                    ),
+                    const SizedBox(width: GSpace.md - 2),
+                    Expanded(
+                      child: GButton(
+                        // Save, not Restore, when everything picked is status
+                        // media. The file was never deleted, so restoring it is
+                        // a word that describes nothing.
+                        label:
+                            '${_verb(groups.deleted, chosen)} '
+                            '${chosen.length}',
+                        icon: Icons.restore_rounded,
+                        onPressed: () => _act(chosen, purge: false),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -177,7 +302,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               label: term,
                               onTap: () {
                                 _controller.text = term;
-                                ref.read(searchQueryProvider.notifier).set(term);
+                                ref
+                                    .read(searchQueryProvider.notifier)
+                                    .set(term);
                               },
                             ),
                         ],
@@ -226,8 +353,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                       const SizedBox(height: GSpace.sm + 1),
-                      for (final RecoverableItem item in groups.deleted)
-                        ItemRow(item: item),
+                      for (int i = 0; i < groups.deleted.length; i++)
+                        ItemRow(
+                          item: groups.deleted[i],
+                          selected: selected.contains(groups.deleted[i].itemId),
+                          // Tap views, long press selects, and once anything is
+                          // selected tap selects too. Same gesture grammar as
+                          // the category grid, because a user who learned it
+                          // there should not have to learn it again here.
+                          onTap: () => selected.isEmpty
+                              ? _open(groups.deleted, i)
+                              : ref
+                                    .read(selectionProvider.notifier)
+                                    .toggle(groups.deleted[i].itemId),
+                          onLongPress: () => ref
+                              .read(selectionProvider.notifier)
+                              .toggle(groups.deleted[i].itemId),
+                        ),
                       const SizedBox(height: GSpace.lg),
                     ],
                     if (groups.live.isNotEmpty) ...<Widget>[
@@ -236,8 +378,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         trailing: GBadge(label: 'Not deleted'),
                       ),
                       const SizedBox(height: GSpace.sm + 1),
-                      for (final RecoverableItem item in groups.live)
-                        ItemRow(item: item),
+                      // No selection on live files. The row opens and that is
+                      // all it can honestly offer.
+                      for (int i = 0; i < groups.live.length; i++)
+                        ItemRow(
+                          item: groups.live[i],
+                          onTap: () => _open(groups.live, i),
+                        ),
                     ],
                   ],
                 ],

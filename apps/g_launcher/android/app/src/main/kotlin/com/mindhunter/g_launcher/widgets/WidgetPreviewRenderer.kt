@@ -70,10 +70,30 @@ class WidgetPreviewRenderer(context: Context) {
 
         val boxW = maxWidthPx.coerceAtLeast(1)
         val boxH = maxHeightPx.coerceAtLeast(1)
-        val (w, h) = fit(aspectOf(info), boxW, boxH)
 
-        val bitmap = fromPreviewLayout(info, w, h)
-            ?: fromDrawable(info, w, h)
+        // --- THE BOX IS THE ANSWER NOW, NOT A BOUND ON IT --------------------
+        //
+        // This used to reshape the box to `aspectOf(info)` before rendering,
+        // where aspectOf returned `targetCellWidth / targetCellHeight` on
+        // API 31+. Treating a cell RATIO as a pixel ratio assumes cells are
+        // square, and a launcher cell is about 100dp wide by about 150dp tall.
+        // A 4x2 widget has a cell ratio of 2.0 and a real placed aspect of
+        // about 1.43, so the preview was a visibly different shape from the
+        // thing it previewed.
+        //
+        // The caller has since become the one that knows: `desklet_picker`
+        // resolves the span against the measured desktop cell and asks for
+        // exactly the rectangle the widget will occupy. A `previewLayout` is
+        // RemoteViews, elastic by construction, and renders correctly at
+        // whatever box it is handed, which is precisely what it will do once
+        // placed. So it gets the box.
+        //
+        // `fromDrawable` still fits internally on the drawable's OWN intrinsic
+        // aspect, and must: a `previewImage` is a picture of a widget rather
+        // than a live layout, and stretching a picture is the distortion this
+        // class was written to remove.
+        val bitmap = fromPreviewLayout(info, boxW, boxH)
+            ?: fromDrawable(info, boxW, boxH)
             ?: return null
 
         return runCatching {
@@ -163,26 +183,17 @@ class WidgetPreviewRenderer(context: Context) {
 
     // -- geometry -------------------------------------------------------------
 
-    /**
-     * The provider's own width-to-height ratio.
-     *
-     * `targetCellWidth`/`targetCellHeight` are the Android 12 way to say
-     * "4 by 1" and are already square-ish cells, so their ratio is the shape
-     * directly. Below that, and on providers that never set them, the declared
-     * minimum footprint in dp carries the same information. Falls back to 1
-     * rather than dividing by zero on a provider that reports nothing.
-     */
-    private fun aspectOf(info: AppWidgetProviderInfo): Float {
-        if (Build.VERSION.SDK_INT >= 31 &&
-            info.targetCellWidth > 0 && info.targetCellHeight > 0
-        ) {
-            return info.targetCellWidth.toFloat() / info.targetCellHeight
-        }
-        if (info.minWidth > 0 && info.minHeight > 0) {
-            return info.minWidth.toFloat() / info.minHeight
-        }
-        return 1f
-    }
+    // aspectOf() WAS HERE, AND ITS PREMISE WAS FALSE.
+    //
+    // It returned `targetCellWidth / targetCellHeight` and its comment called
+    // those "already square-ish cells". They are not: a launcher cell is about
+    // 100dp wide and about 150dp tall. The same false premise, that a grid cell
+    // is roughly square and roughly 70dp, is what put every hosted widget at
+    // the wrong span on the Dart side. Both halves are fixed together, because
+    // a correct placement under a preview of a different shape would only have
+    // moved the complaint.
+    //
+    // The caller supplies the shape now. See render().
 
     /** The largest [aspect]-shaped rectangle that fits inside [boxW] by [boxH]. */
     private fun fit(aspect: Float, boxW: Int, boxH: Int): Pair<Int, Int> {

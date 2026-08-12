@@ -10,7 +10,8 @@ class ContentBridge {
 
   final ContentHostApi _api;
 
-  Future<void> setBaseUrl(String url) async => _guard(() => _api.setBaseUrl(url));
+  Future<void> setBaseUrl(String url) async =>
+      _guard(() => _api.setBaseUrl(url));
 
   Future<ContentSyncResult?> sync() => _guard(_api.sync);
 

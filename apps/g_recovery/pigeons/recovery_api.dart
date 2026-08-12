@@ -31,6 +31,7 @@ import 'package:pigeon/pigeon.dart';
 ///
 ///   129 RecoveryAccess    130 RecoverySource    131 RecoverableItem
 ///   132 ScanProgress      133 RestoreOutcome    134 RecoverySummary
+///   135 BackgroundScanState
 ///
 /// ADD NEW TYPES AT THE END. There are NO ENUMS in this schema and there never
 /// will be: Pigeon numbers enums before classes, so one added here would push
@@ -340,6 +341,62 @@ abstract class RecoveryHostApi {
   @async
   void cancelScan();
 
+  /// Starts the whole-phone scan in a foreground service and returns at once.
+  ///
+  /// The service outlives this engine. Everything else in this API is scoped to
+  /// a Flutter engine that dies when the user swipes the app away, which is the
+  /// exact moment a long scan most needs to keep going.
+  ///
+  /// Idempotent. Calling it while a scan is already running is a no-op rather
+  /// than a second scan, because two passes over one index double-count.
+  @async
+  void startBackgroundScan();
+
+  /// A playable content URI for this item, or null when there is not one.
+  ///
+  /// ─── NOT EVERY FIND HAS ONE ──────────────────────────────────────────────
+  ///
+  /// A MediaStore row does. A loose file in an app trash folder or the
+  /// thumbnail cache does not: it is a path on disk that MediaStore has never
+  /// heard of, and handing a file path to another app is exactly what scoped
+  /// storage stopped. Those return null and the caller falls back to bytes.
+  ///
+  /// ─── A TRASHED ROW IS HIDDEN ─────────────────────────────────────────────
+  ///
+  /// IS_TRASHED removes a row from ordinary queries, so the URI is only usable
+  /// by an app holding the right access. Playback of a trashed video works on
+  /// most devices and is refused on some OEM builds, which is why the viewer
+  /// must handle a player that fails to initialise rather than assuming it will
+  /// not.
+  @async
+  String? itemUri(String itemId);
+
+  /// Raw bytes, for the formats the app renders itself.
+  ///
+  /// Text, CSV and PDF. Capped, because a recovered log file can be any size
+  /// and decoding one into a Dart string would take down an app that had every
+  /// right to survive opening it.
+  ///
+  /// Works for BOTH record kinds, unlike [itemUri]: a loose file can be read
+  /// directly even though it cannot be shared.
+  @async
+  Uint8List? itemBytes(String itemId, int maxBytes);
+
+  /// Hands the item to whatever app can open it.
+  ///
+  /// Returns false when nothing can, and also when the item is a loose file
+  /// with no shareable URI. The UI says so rather than appearing to do nothing.
+  @async
+  bool openItemExternally(String itemId);
+
+  /// Where the background scan got to.
+  ///
+  /// POLLED, not pushed. A push would need a live engine to push into, and the
+  /// whole point of the service is that there may not be one. Dart asks when a
+  /// screen appears and on resume, which is when the answer can change anything.
+  @async
+  BackgroundScanState backgroundScanState();
+
   /// A page of findings. Sorted newest deleted first, then largest first for
   /// items with no deletion date.
   @async
@@ -400,4 +457,42 @@ abstract class RecoveryFlutterApi {
   /// Fires on the platform thread during a scan, throttled natively so a fast
   /// source cannot flood the channel.
   void onScanProgress(ScanProgress progress);
+}
+
+/// How the whole-phone scan is getting on. Codec 135.
+///
+/// Appended last, so nothing before it renumbers.
+class BackgroundScanState {
+  BackgroundScanState({
+    required this.running,
+    required this.scanned,
+    required this.total,
+    required this.found,
+    required this.timedOut,
+    this.sourceId,
+    this.finishedAtMillis,
+  });
+
+  /// True while the service is alive and working.
+  final bool running;
+
+  final int scanned;
+  final int total;
+  final int found;
+
+  /// True when the platform stopped a short service before it finished.
+  ///
+  /// A short foreground service gets roughly three minutes. A phone with a very
+  /// large thumbnail cache can exceed that, and when it does the results found
+  /// so far are kept and this flag says the picture is incomplete. Silently
+  /// presenting a truncated scan as a finished one is the same lie as a fake
+  /// deep scan, told in the other direction.
+  final bool timedOut;
+
+  /// Which source is being walked right now. Null when idle.
+  final String? sourceId;
+
+  /// When the last scan ended, epoch milliseconds. Null if none has finished
+  /// since this process started.
+  final int? finishedAtMillis;
 }

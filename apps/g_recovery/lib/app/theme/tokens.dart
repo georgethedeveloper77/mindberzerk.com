@@ -78,74 +78,72 @@ class GTokens extends ThemeExtension<GTokens> {
   final Color scrim;
 
   factory GTokens.dark(GAccent accentKey) => GTokens._(
-        brightness: Brightness.dark,
-        accentKey: accentKey,
-        ink: const Color(0xFF0B0F14),
-        panel: const Color(0xFF151C24),
-        panelAlt: const Color(0xFF1C2630),
-        panelHigh: const Color(0xFF24313D),
-        line: const Color(0xFF243039),
-        lineStrong: const Color(0xFF33434F),
-        text: const Color(0xFFE4EBF1),
-        muted: const Color(0xFF8496A4),
-        dim: const Color(0xFF5A6B78),
-        accent: accentKey.base,
-        onAccent: GAccent.ink,
-        accentSoft: accentKey.base.withValues(alpha: 0.16),
-        accentText: accentKey.base,
-        photo: GAccent.violet.base,
-        video: GAccent.cyan.base,
-        audio: GAccent.amber.base,
-        docs: GAccent.mint.base,
-        chat: GAccent.blue.base,
-        apps: GAccent.coral.base,
-        success: GAccent.mint.base,
-        warning: GAccent.amber.base,
-        danger: GAccent.coral.base,
-        scrim: const Color(0xCC06090C),
-      );
+    brightness: Brightness.dark,
+    accentKey: accentKey,
+    ink: const Color(0xFF0B0F14),
+    panel: const Color(0xFF151C24),
+    panelAlt: const Color(0xFF1C2630),
+    panelHigh: const Color(0xFF24313D),
+    line: const Color(0xFF243039),
+    lineStrong: const Color(0xFF33434F),
+    text: const Color(0xFFE4EBF1),
+    muted: const Color(0xFF8496A4),
+    dim: const Color(0xFF5A6B78),
+    accent: accentKey.base,
+    onAccent: GAccent.ink,
+    accentSoft: accentKey.base.withValues(alpha: 0.16),
+    accentText: accentKey.base,
+    photo: GAccent.violet.base,
+    video: GAccent.cyan.base,
+    audio: GAccent.amber.base,
+    docs: GAccent.mint.base,
+    chat: GAccent.blue.base,
+    apps: GAccent.coral.base,
+    success: GAccent.mint.base,
+    warning: GAccent.amber.base,
+    danger: GAccent.coral.base,
+    scrim: const Color(0xCC06090C),
+  );
 
   factory GTokens.light(GAccent accentKey) => GTokens._(
-        brightness: Brightness.light,
-        accentKey: accentKey,
-        ink: const Color(0xFFF5F7FA),
-        panel: const Color(0xFFFFFFFF),
-        panelAlt: const Color(0xFFF0F3F7),
-        panelHigh: const Color(0xFFE4E9EF),
-        line: const Color(0xFFE4E9EF),
-        lineStrong: const Color(0xFFD2DAE3),
-        text: const Color(0xFF101820),
-        muted: const Color(0xFF65747F),
-        dim: const Color(0xFF8D9BA6),
-        accent: accentKey.base,
-        onAccent: GAccent.ink,
-        accentSoft: accentKey.base.withValues(alpha: 0.14),
-        accentText: accentKey.onLight,
-        photo: GAccent.violet.onLight,
-        video: GAccent.cyan.onLight,
-        audio: GAccent.amber.onLight,
-        docs: GAccent.mint.onLight,
-        chat: GAccent.blue.onLight,
-        apps: GAccent.coral.onLight,
-        success: GAccent.mint.onLight,
-        warning: GAccent.amber.onLight,
-        danger: GAccent.coral.onLight,
-        scrim: const Color(0x99101820),
-      );
+    brightness: Brightness.light,
+    accentKey: accentKey,
+    ink: const Color(0xFFF5F7FA),
+    panel: const Color(0xFFFFFFFF),
+    panelAlt: const Color(0xFFF0F3F7),
+    panelHigh: const Color(0xFFE4E9EF),
+    line: const Color(0xFFE4E9EF),
+    lineStrong: const Color(0xFFD2DAE3),
+    text: const Color(0xFF101820),
+    muted: const Color(0xFF65747F),
+    dim: const Color(0xFF8D9BA6),
+    accent: accentKey.base,
+    onAccent: GAccent.ink,
+    accentSoft: accentKey.base.withValues(alpha: 0.14),
+    accentText: accentKey.onLight,
+    photo: GAccent.violet.onLight,
+    video: GAccent.cyan.onLight,
+    audio: GAccent.amber.onLight,
+    docs: GAccent.mint.onLight,
+    chat: GAccent.blue.onLight,
+    apps: GAccent.coral.onLight,
+    success: GAccent.mint.onLight,
+    warning: GAccent.amber.onLight,
+    danger: GAccent.coral.onLight,
+    scrim: const Color(0x99101820),
+  );
 
   factory GTokens.of(Brightness brightness, GAccent accentKey) =>
       brightness == Brightness.dark
-          ? GTokens.dark(accentKey)
-          : GTokens.light(accentKey);
+      ? GTokens.dark(accentKey)
+      : GTokens.light(accentKey);
 
   /// Rebuilds from the factories rather than mutating 25 fields. Every token
   /// set is fully determined by (brightness, accent), so there is no valid
   /// state this cannot express.
   @override
-  GTokens copyWith({Brightness? brightness, GAccent? accentKey}) => GTokens.of(
-        brightness ?? this.brightness,
-        accentKey ?? this.accentKey,
-      );
+  GTokens copyWith({Brightness? brightness, GAccent? accentKey}) =>
+      GTokens.of(brightness ?? this.brightness, accentKey ?? this.accentKey);
 
   @override
   GTokens lerp(covariant GTokens? other, double t) {
@@ -209,7 +207,34 @@ class GSpace {
   static const double lg = 16;
   static const double xl = 24;
 
-  static const double navHeight = 62;
+  /// Bottom bar. 62 to 68 to 78 to 88.
+  ///
+  /// Four tabs across a phone gives each cell about a quarter of the width, so
+  /// the constraint was never horizontal. It was that a 21 dp glyph, a pill
+  /// around it and a 10.5 dp label were being asked to share 68 dp with the
+  /// system gesture inset underneath them, which left the label sitting on the
+  /// bar's own edge.
+  /// 100, up from 88.
+  ///
+  /// The bar is the only control on screen at every moment of the app's life,
+  /// and on a 6.6 inch phone held one handed it is the furthest thing from the
+  /// thumb's resting position. Height here buys target area where it is hardest
+  /// to reach.
+  ///
+  /// The gesture inset is added UNDERNEATH this by the widget, so on a phone
+  /// with a navigation bar the whole thing is taller again. That is correct: the
+  /// inset is unusable space, not padding.
+  static const double navHeight = 100;
+
+  /// Nav cell internals. Lifted out of the widget so the bar can be retuned
+  /// from one place.
+  ///
+  /// Scaled with the height rather than left behind. A 26 dp glyph in a 100 dp
+  /// bar reads as a small icon adrift in a large space, which looks like a
+  /// mistake even when the target is bigger.
+  static const double navIcon = 28;
+  static const double navPillWidth = 64;
+  static const double navPillHeight = 38;
 }
 
 class GMotion {
@@ -282,6 +307,14 @@ class GType {
   static const TextStyle micro = TextStyle(
     fontSize: 10.5,
     height: 1.35,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Bottom bar label. Larger than [micro] because it is the only text in the
+  /// app a user reads at arm's length while reaching with a thumb.
+  static const TextStyle navLabel = TextStyle(
+    fontSize: 13,
+    height: 1.2,
     fontWeight: FontWeight.w500,
   );
 

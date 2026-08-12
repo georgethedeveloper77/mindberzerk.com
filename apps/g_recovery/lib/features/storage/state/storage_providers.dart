@@ -7,13 +7,15 @@ import '../../../bridge/storage_api.g.dart';
 import '../../../bridge/storage_bridge.dart';
 import '../../../core/prefs/prefs_store.dart';
 
-final Provider<StorageBridge> storageBridgeProvider =
-    Provider<StorageBridge>((Ref ref) => StorageBridge());
+final Provider<StorageBridge> storageBridgeProvider = Provider<StorageBridge>(
+  (Ref ref) => StorageBridge(),
+);
 
-final FutureProvider<StorageOverview?> storageOverviewProvider =
-    FutureProvider<StorageOverview?>((Ref ref) async {
-  final StorageOverview? overview =
-      await ref.watch(storageBridgeProvider).overview();
+final FutureProvider<StorageOverview?>
+storageOverviewProvider = FutureProvider<StorageOverview?>((Ref ref) async {
+  final StorageOverview? overview = await ref
+      .watch(storageBridgeProvider)
+      .overview();
   if (overview != null) {
     // Every overview doubles as a free sample for the forecast. No background
     // job, no extra read: the user opening the tab is the trigger.
@@ -61,24 +63,28 @@ class StorageFilter {
     bool clearMinBytes = false,
     bool clearOlderThan = false,
     bool clearFolder = false,
-  }) =>
-      StorageFilter(
-        kinds: kinds ?? this.kinds,
-        minBytes: clearMinBytes ? null : (minBytes ?? this.minBytes),
-        olderThanDays:
-            clearOlderThan ? null : (olderThanDays ?? this.olderThanDays),
-        folderPrefix: clearFolder ? null : (folderPrefix ?? this.folderPrefix),
-        nameContains: nameContains ?? this.nameContains,
-      );
+  }) => StorageFilter(
+    kinds: kinds ?? this.kinds,
+    minBytes: clearMinBytes ? null : (minBytes ?? this.minBytes),
+    olderThanDays: clearOlderThan
+        ? null
+        : (olderThanDays ?? this.olderThanDays),
+    folderPrefix: clearFolder ? null : (folderPrefix ?? this.folderPrefix),
+    nameContains: nameContains ?? this.nameContains,
+  );
 
   StorageQuerySpec toSpec() => StorageQuerySpec(
-        kinds: kinds,
-        limit: 300,
-        minBytes: minBytes,
-        olderThanDays: olderThanDays,
-        folderPrefix: folderPrefix,
-        nameContains: nameContains,
-      );
+    kinds: kinds,
+    limit: 300,
+    // The tab's own filter list, which has never had a sort control and
+    // does not need one: it is a preview under a chart, not a page someone
+    // scrolls. Largest first is the only order that makes a preview useful.
+    sort: 'largest',
+    minBytes: minBytes,
+    olderThanDays: olderThanDays,
+    folderPrefix: folderPrefix,
+    nameContains: nameContains,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -91,12 +97,12 @@ class StorageFilter {
 
   @override
   int get hashCode => Object.hash(
-        kinds.join(','),
-        minBytes,
-        olderThanDays,
-        folderPrefix,
-        nameContains,
-      );
+    kinds.join(','),
+    minBytes,
+    olderThanDays,
+    folderPrefix,
+    nameContains,
+  );
 }
 
 class StorageFilterController extends Notifier<StorageFilter> {
@@ -111,15 +117,16 @@ class StorageFilterController extends Notifier<StorageFilter> {
 }
 
 final NotifierProvider<StorageFilterController, StorageFilter>
-    storageFilterProvider =
+storageFilterProvider =
     NotifierProvider<StorageFilterController, StorageFilter>(
-  StorageFilterController.new,
-);
+      StorageFilterController.new,
+    );
 
 /// Results for the current filter. Null while no filter is set, so the tab
 /// shows the overview instead of querying for everything.
-final storageQueryProvider =
-    FutureProvider<StorageQueryResult?>((Ref ref) async {
+final storageQueryProvider = FutureProvider<StorageQueryResult?>((
+  Ref ref,
+) async {
   final StorageFilter filter = ref.watch(storageFilterProvider);
   if (filter.isEmpty) return null;
   return ref.watch(storageBridgeProvider).query(filter.toSpec());
@@ -136,8 +143,9 @@ class FreeSpaceHistory extends Notifier<List<FreeSpaceSample>> {
 
   @override
   List<FreeSpaceSample> build() {
-    final Map<String, Object?> json =
-        ref.read(prefsStoreProvider).readJson(_key);
+    final Map<String, Object?> json = ref
+        .read(prefsStoreProvider)
+        .readJson(_key);
     final Object? raw = json['samples'];
     if (raw is! List) return const <FreeSpaceSample>[];
     return raw
@@ -155,8 +163,9 @@ class FreeSpaceHistory extends Notifier<List<FreeSpaceSample>> {
     ];
     kept.add(FreeSpaceSample(at: now, freeBytes: volume.freeBytes));
     kept.sort((FreeSpaceSample a, FreeSpaceSample b) => a.at.compareTo(b.at));
-    final List<FreeSpaceSample> trimmed =
-        kept.length > 30 ? kept.sublist(kept.length - 30) : kept;
+    final List<FreeSpaceSample> trimmed = kept.length > 30
+        ? kept.sublist(kept.length - 30)
+        : kept;
     state = trimmed;
     ref.read(prefsStoreProvider).writeJson(_key, <String, Object?>{
       'samples': <Object?>[
@@ -177,22 +186,24 @@ class FreeSpaceSample {
   final int freeBytes;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'at': at.millisecondsSinceEpoch,
-        'free': freeBytes,
-      };
+    'at': at.millisecondsSinceEpoch,
+    'free': freeBytes,
+  };
 
   factory FreeSpaceSample.fromJson(Map<String, Object?> json) =>
       FreeSpaceSample(
-        at: DateTime.fromMillisecondsSinceEpoch((json['at'] as num? ?? 0).toInt()),
+        at: DateTime.fromMillisecondsSinceEpoch(
+          (json['at'] as num? ?? 0).toInt(),
+        ),
         freeBytes: (json['free'] as num? ?? 0).toInt(),
       );
 }
 
 final NotifierProvider<FreeSpaceHistory, List<FreeSpaceSample>>
-    freeSpaceHistoryProvider =
+freeSpaceHistoryProvider =
     NotifierProvider<FreeSpaceHistory, List<FreeSpaceSample>>(
-  FreeSpaceHistory.new,
-);
+      FreeSpaceHistory.new,
+    );
 
 /// Projected date the volume fills, or null when there is not enough history.
 ///
@@ -224,6 +235,15 @@ final Provider<DateTime?> fillForecastProvider = Provider<DateTime?>((Ref ref) {
 });
 
 /// Debug helper for inspecting the stored history.
-String debugHistoryJson(List<FreeSpaceSample> samples) => jsonEncode(
-      <Object?>[for (final FreeSpaceSample sample in samples) sample.toJson()],
+String debugHistoryJson(List<FreeSpaceSample> samples) => jsonEncode(<Object?>[
+  for (final FreeSpaceSample sample in samples) sample.toJson(),
+]);
+
+/// Every mounted volume.
+///
+/// Read once per launch. A card is inserted or removed rarely enough that
+/// polling for it would be work spent on nothing.
+final FutureProvider<List<VolumeEntry>> volumesProvider =
+    FutureProvider<List<VolumeEntry>>(
+      (Ref ref) => ref.watch(storageBridgeProvider).volumes(),
     );

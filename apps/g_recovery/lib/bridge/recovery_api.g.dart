@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,11 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +47,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -56,8 +60,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -106,7 +111,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// What this app is currently allowed to see. Codec 129.
 class RecoveryAccess {
   RecoveryAccess({
@@ -144,7 +148,8 @@ class RecoveryAccess {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RecoveryAccess decode(Object result) {
     result as List<Object?>;
@@ -164,7 +169,9 @@ class RecoveryAccess {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(allFilesAccess, other.allFilesAccess) && _deepEquals(canSeeOtherAppsTrash, other.canSeeOtherAppsTrash) && _deepEquals(storageManagerAvailable, other.storageManagerAvailable);
+    return _deepEquals(allFilesAccess, other.allFilesAccess) &&
+        _deepEquals(canSeeOtherAppsTrash, other.canSeeOtherAppsTrash) &&
+        _deepEquals(storageManagerAvailable, other.storageManagerAvailable);
   }
 
   @override
@@ -235,7 +242,8 @@ class RecoverySource {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RecoverySource decode(Object result) {
     result as List<Object?>;
@@ -260,7 +268,14 @@ class RecoverySource {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(sourceId, other.sourceId) && _deepEquals(label, other.label) && _deepEquals(fidelity, other.fidelity) && _deepEquals(available, other.available) && _deepEquals(itemCount, other.itemCount) && _deepEquals(totalBytes, other.totalBytes) && _deepEquals(detail, other.detail) && _deepEquals(retentionDays, other.retentionDays);
+    return _deepEquals(sourceId, other.sourceId) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(fidelity, other.fidelity) &&
+        _deepEquals(available, other.available) &&
+        _deepEquals(itemCount, other.itemCount) &&
+        _deepEquals(totalBytes, other.totalBytes) &&
+        _deepEquals(detail, other.detail) &&
+        _deepEquals(retentionDays, other.retentionDays);
   }
 
   @override
@@ -381,7 +396,8 @@ class RecoverableItem {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RecoverableItem decode(Object result) {
     result as List<Object?>;
@@ -415,7 +431,23 @@ class RecoverableItem {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(itemId, other.itemId) && _deepEquals(sourceId, other.sourceId) && _deepEquals(name, other.name) && _deepEquals(kind, other.kind) && _deepEquals(fidelity, other.fidelity) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(relativePath, other.relativePath) && _deepEquals(mimeType, other.mimeType) && _deepEquals(dateDeletedMillis, other.dateDeletedMillis) && _deepEquals(dateAddedMillis, other.dateAddedMillis) && _deepEquals(expiresInDays, other.expiresInDays) && _deepEquals(previewUri, other.previewUri) && _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(durationMillis, other.durationMillis) && _deepEquals(origin, other.origin) && _deepEquals(role, other.role);
+    return _deepEquals(itemId, other.itemId) &&
+        _deepEquals(sourceId, other.sourceId) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(kind, other.kind) &&
+        _deepEquals(fidelity, other.fidelity) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(relativePath, other.relativePath) &&
+        _deepEquals(mimeType, other.mimeType) &&
+        _deepEquals(dateDeletedMillis, other.dateDeletedMillis) &&
+        _deepEquals(dateAddedMillis, other.dateAddedMillis) &&
+        _deepEquals(expiresInDays, other.expiresInDays) &&
+        _deepEquals(previewUri, other.previewUri) &&
+        _deepEquals(width, other.width) &&
+        _deepEquals(height, other.height) &&
+        _deepEquals(durationMillis, other.durationMillis) &&
+        _deepEquals(origin, other.origin) &&
+        _deepEquals(role, other.role);
   }
 
   @override
@@ -460,18 +492,12 @@ class ScanProgress {
   bool done;
 
   List<Object?> _toList() {
-    return <Object?>[
-      sourceId,
-      scanned,
-      total,
-      found,
-      foundBytes,
-      done,
-    ];
+    return <Object?>[sourceId, scanned, total, found, foundBytes, done];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ScanProgress decode(Object result) {
     result as List<Object?>;
@@ -494,7 +520,12 @@ class ScanProgress {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(sourceId, other.sourceId) && _deepEquals(scanned, other.scanned) && _deepEquals(total, other.total) && _deepEquals(found, other.found) && _deepEquals(foundBytes, other.foundBytes) && _deepEquals(done, other.done);
+    return _deepEquals(sourceId, other.sourceId) &&
+        _deepEquals(scanned, other.scanned) &&
+        _deepEquals(total, other.total) &&
+        _deepEquals(found, other.found) &&
+        _deepEquals(foundBytes, other.foundBytes) &&
+        _deepEquals(done, other.done);
   }
 
   @override
@@ -534,16 +565,12 @@ class RestoreOutcome {
   String? restoredPath;
 
   List<Object?> _toList() {
-    return <Object?>[
-      itemId,
-      status,
-      detail,
-      restoredPath,
-    ];
+    return <Object?>[itemId, status, detail, restoredPath];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RestoreOutcome decode(Object result) {
     result as List<Object?>;
@@ -564,7 +591,10 @@ class RestoreOutcome {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(itemId, other.itemId) && _deepEquals(status, other.status) && _deepEquals(detail, other.detail) && _deepEquals(restoredPath, other.restoredPath);
+    return _deepEquals(itemId, other.itemId) &&
+        _deepEquals(status, other.status) &&
+        _deepEquals(detail, other.detail) &&
+        _deepEquals(restoredPath, other.restoredPath);
   }
 
   @override
@@ -645,7 +675,8 @@ class RecoverySummary {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RecoverySummary decode(Object result) {
     result as List<Object?>;
@@ -672,7 +703,16 @@ class RecoverySummary {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(sources, other.sources) && _deepEquals(totalItems, other.totalItems) && _deepEquals(totalBytes, other.totalBytes) && _deepEquals(expiringSoonItems, other.expiringSoonItems) && _deepEquals(imageCount, other.imageCount) && _deepEquals(videoCount, other.videoCount) && _deepEquals(audioCount, other.audioCount) && _deepEquals(documentCount, other.documentCount) && _deepEquals(otherCount, other.otherCount) && _deepEquals(partial, other.partial);
+    return _deepEquals(sources, other.sources) &&
+        _deepEquals(totalItems, other.totalItems) &&
+        _deepEquals(totalBytes, other.totalBytes) &&
+        _deepEquals(expiringSoonItems, other.expiringSoonItems) &&
+        _deepEquals(imageCount, other.imageCount) &&
+        _deepEquals(videoCount, other.videoCount) &&
+        _deepEquals(audioCount, other.audioCount) &&
+        _deepEquals(documentCount, other.documentCount) &&
+        _deepEquals(otherCount, other.otherCount) &&
+        _deepEquals(partial, other.partial);
   }
 
   @override
@@ -685,31 +725,130 @@ class RecoverySummary {
   }
 }
 
+/// How the whole-phone scan is getting on. Codec 135.
+///
+/// Appended last, so nothing before it renumbers.
+class BackgroundScanState {
+  BackgroundScanState({
+    required this.running,
+    required this.scanned,
+    required this.total,
+    required this.found,
+    required this.timedOut,
+    this.sourceId,
+    this.finishedAtMillis,
+  });
+
+  /// True while the service is alive and working.
+  bool running;
+
+  int scanned;
+
+  int total;
+
+  int found;
+
+  /// True when the platform stopped a short service before it finished.
+  ///
+  /// A short foreground service gets roughly three minutes. A phone with a very
+  /// large thumbnail cache can exceed that, and when it does the results found
+  /// so far are kept and this flag says the picture is incomplete. Silently
+  /// presenting a truncated scan as a finished one is the same lie as a fake
+  /// deep scan, told in the other direction.
+  bool timedOut;
+
+  /// Which source is being walked right now. Null when idle.
+  String? sourceId;
+
+  /// When the last scan ended, epoch milliseconds. Null if none has finished
+  /// since this process started.
+  int? finishedAtMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      running,
+      scanned,
+      total,
+      found,
+      timedOut,
+      sourceId,
+      finishedAtMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BackgroundScanState decode(Object result) {
+    result as List<Object?>;
+    return BackgroundScanState(
+      running: result[0]! as bool,
+      scanned: result[1]! as int,
+      total: result[2]! as int,
+      found: result[3]! as int,
+      timedOut: result[4]! as bool,
+      sourceId: result[5] as String?,
+      finishedAtMillis: result[6] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BackgroundScanState || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(running, other.running) &&
+        _deepEquals(scanned, other.scanned) &&
+        _deepEquals(total, other.total) &&
+        _deepEquals(found, other.found) &&
+        _deepEquals(timedOut, other.timedOut) &&
+        _deepEquals(sourceId, other.sourceId) &&
+        _deepEquals(finishedAtMillis, other.finishedAtMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BackgroundScanState(running: $running, scanned: $scanned, total: $total, found: $found, timedOut: $timedOut, sourceId: $sourceId, finishedAtMillis: $finishedAtMillis)';
+  }
+}
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
+
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is RecoveryAccess) {
+    } else if (value is RecoveryAccess) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is RecoverySource) {
+    } else if (value is RecoverySource) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is RecoverableItem) {
+    } else if (value is RecoverableItem) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is ScanProgress) {
+    } else if (value is ScanProgress) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is RestoreOutcome) {
+    } else if (value is RestoreOutcome) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is RecoverySummary) {
+    } else if (value is RecoverySummary) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    } else if (value is BackgroundScanState) {
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -731,6 +870,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return RestoreOutcome.decode(readValue(buffer)!);
       case 134:
         return RecoverySummary.decode(readValue(buffer)!);
+      case 135:
+        return BackgroundScanState.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -741,9 +882,13 @@ class RecoveryHostApi {
   /// Constructor for [RecoveryHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  RecoveryHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  RecoveryHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -757,25 +902,28 @@ class RecoveryHostApi {
   /// asset. In Phase 7 it is a signed CDN pack, and not one line of Kotlin
   /// changes. Recovery coverage is data, not code.
   Future<void> setTrashMap(String json) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.setTrashMap$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.setTrashMap$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[json]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[json],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<RecoveryAccess> access() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.access$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.access$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -785,18 +933,18 @@ class RecoveryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as RecoveryAccess;
   }
 
   /// Opens the All Files Access settings screen. Returns false when no activity
   /// on this device can handle the intent.
   Future<bool> requestAllFilesAccess() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.requestAllFilesAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.requestAllFilesAccess$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -806,11 +954,10 @@ class RecoveryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -820,7 +967,8 @@ class RecoveryHostApi {
   /// Runs before the permission grant, which is why [RecoverySummary.partial]
   /// exists. This is what makes home open populated instead of on a spinner.
   Future<RecoverySummary> prescan() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.prescan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.prescan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -830,38 +978,40 @@ class RecoveryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as RecoverySummary;
   }
 
   /// The full walk. Progress arrives on [RecoveryFlutterApi]; items become
   /// readable through [items] while it runs.
   Future<RecoverySummary> scan(List<String> sourceIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.scan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.scan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sourceIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sourceIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as RecoverySummary;
   }
 
   /// Stop an in-flight scan. Whatever was found so far stays available.
   Future<void> cancelScan() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.cancelScan$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.cancelScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -871,31 +1021,177 @@ class RecoveryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
-  /// A page of findings. Sorted newest deleted first, then largest first for
-  /// items with no deletion date.
-  Future<List<RecoverableItem>> items(String sourceId, int offset, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.items$pigeonVar_messageChannelSuffix';
+  /// Starts the whole-phone scan in a foreground service and returns at once.
+  ///
+  /// The service outlives this engine. Everything else in this API is scoped to
+  /// a Flutter engine that dies when the user swipes the app away, which is the
+  /// exact moment a long scan most needs to keep going.
+  ///
+  /// Idempotent. Calling it while a scan is already running is a no-op rather
+  /// than a second scan, because two passes over one index double-count.
+  Future<void> startBackgroundScan() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.startBackgroundScan$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sourceId, offset, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
+
+  /// A playable content URI for this item, or null when there is not one.
+  ///
+  /// ─── NOT EVERY FIND HAS ONE ──────────────────────────────────────────────
+  ///
+  /// A MediaStore row does. A loose file in an app trash folder or the
+  /// thumbnail cache does not: it is a path on disk that MediaStore has never
+  /// heard of, and handing a file path to another app is exactly what scoped
+  /// storage stopped. Those return null and the caller falls back to bytes.
+  ///
+  /// ─── A TRASHED ROW IS HIDDEN ─────────────────────────────────────────────
+  ///
+  /// IS_TRASHED removes a row from ordinary queries, so the URI is only usable
+  /// by an app holding the right access. Playback of a trashed video works on
+  /// most devices and is refused on some OEM builds, which is why the viewer
+  /// must handle a player that fails to initialise rather than assuming it will
+  /// not.
+  Future<String?> itemUri(String itemId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.itemUri$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Raw bytes, for the formats the app renders itself.
+  ///
+  /// Text, CSV and PDF. Capped, because a recovered log file can be any size
+  /// and decoding one into a Dart string would take down an app that had every
+  /// right to survive opening it.
+  ///
+  /// Works for BOTH record kinds, unlike [itemUri]: a loose file can be read
+  /// directly even though it cannot be shared.
+  Future<Uint8List?> itemBytes(String itemId, int maxBytes) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.itemBytes$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemId, maxBytes],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as Uint8List?;
+  }
+
+  /// Hands the item to whatever app can open it.
+  ///
+  /// Returns false when nothing can, and also when the item is a loose file
+  /// with no shareable URI. The UI says so rather than appearing to do nothing.
+  Future<bool> openItemExternally(String itemId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.openItemExternally$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Where the background scan got to.
+  ///
+  /// POLLED, not pushed. A push would need a live engine to push into, and the
+  /// whole point of the service is that there may not be one. Dart asks when a
+  /// screen appears and on resume, which is when the answer can change anything.
+  Future<BackgroundScanState> backgroundScanState() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.backgroundScanState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as BackgroundScanState;
+  }
+
+  /// A page of findings. Sorted newest deleted first, then largest first for
+  /// items with no deletion date.
+  Future<List<RecoverableItem>> items(
+    String sourceId,
+    int offset,
+    int limit,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.items$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sourceId, offset, limit],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<RecoverableItem>();
   }
 
@@ -903,41 +1199,45 @@ class RecoveryHostApi {
   /// files go to a recovery folder, because their original location was never
   /// recorded anywhere and inventing one puts files in the wrong place.
   Future<List<RestoreOutcome>> restore(List<String> itemIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.restore$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.restore$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[itemIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<RestoreOutcome>();
   }
 
   /// Delete permanently, right now. Used by the review session's bin.
   Future<List<RestoreOutcome>> purge(List<String> itemIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.purge$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.purge$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[itemIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<RestoreOutcome>();
   }
 
@@ -960,21 +1260,23 @@ class RecoveryHostApi {
   /// Null when the item has no renderable preview, which is the honest answer
   /// for an audio file or a document, not an error.
   Future<Uint8List?> thumbnail(String itemId, int maxPixels) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.thumbnail$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.thumbnail$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[itemId, maxPixels]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[itemId, maxPixels],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as Uint8List?;
   }
 
@@ -994,21 +1296,23 @@ class RecoveryHostApi {
   /// Backed by MediaStore's own index rather than a directory walk, so it stays
   /// fast enough to run on every keystroke.
   Future<List<RecoverableItem>> search(String query, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.RecoveryHostApi.search$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.RecoveryHostApi.search$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[query, limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<RecoverableItem>();
   }
 }
@@ -1020,12 +1324,20 @@ abstract class RecoveryFlutterApi {
   /// source cannot flood the channel.
   void onScanProgress(ScanProgress progress);
 
-  static void setUp(RecoveryFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    RecoveryFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.g_recovery.RecoveryFlutterApi.onScanProgress$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.g_recovery.RecoveryFlutterApi.onScanProgress$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -1037,8 +1349,10 @@ abstract class RecoveryFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }

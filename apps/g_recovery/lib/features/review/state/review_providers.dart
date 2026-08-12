@@ -35,22 +35,19 @@ class ReviewSession {
       index + 1 < queue.length ? queue[index + 1] : null;
 
   Iterable<RecoverableItem> get binned => queue.where(
-        (RecoverableItem item) => verdicts[item.itemId] == ReviewVerdict.bin,
-      );
+    (RecoverableItem item) => verdicts[item.itemId] == ReviewVerdict.bin,
+  );
 
   Iterable<RecoverableItem> get kept => queue.where(
-        (RecoverableItem item) => verdicts[item.itemId] == ReviewVerdict.keep,
-      );
+    (RecoverableItem item) => verdicts[item.itemId] == ReviewVerdict.keep,
+  );
 
   int get reviewed => verdicts.length;
 
   int get binnedBytes =>
       binned.fold(0, (int sum, RecoverableItem item) => sum + item.sizeBytes);
 
-  ReviewSession copyWith({
-    int? index,
-    Map<String, ReviewVerdict>? verdicts,
-  }) =>
+  ReviewSession copyWith({int? index, Map<String, ReviewVerdict>? verdicts}) =>
       ReviewSession(
         queue: queue,
         index: index ?? this.index,
@@ -94,8 +91,9 @@ class ReviewController extends Notifier<ReviewSession?> {
     final ReviewSession? session = state;
     if (session == null || session.index == 0) return;
     final RecoverableItem previous = session.queue[session.index - 1];
-    final Map<String, ReviewVerdict> verdicts =
-        Map<String, ReviewVerdict>.of(session.verdicts)..remove(previous.itemId);
+    final Map<String, ReviewVerdict> verdicts = Map<String, ReviewVerdict>.of(
+      session.verdicts,
+    )..remove(previous.itemId);
     state = session.copyWith(index: session.index - 1, verdicts: verdicts);
   }
 
@@ -117,16 +115,20 @@ class ReviewController extends Notifier<ReviewSession?> {
     final ReviewSession? session = state;
     if (session == null) return const ReviewOutcome(restored: 0, deleted: 0);
 
-    final List<String> keep =
-        session.kept.map((RecoverableItem item) => item.itemId).toList();
-    final List<String> bin =
-        session.binned.map((RecoverableItem item) => item.itemId).toList();
+    final List<String> keep = session.kept
+        .map((RecoverableItem item) => item.itemId)
+        .toList();
+    final List<String> bin = session.binned
+        .map((RecoverableItem item) => item.itemId)
+        .toList();
 
     final RecoveryBridgeRef bridge = RecoveryBridgeRef(ref);
-    final List<RestoreOutcome> restored =
-        keep.isEmpty ? const <RestoreOutcome>[] : await bridge.restore(keep);
-    final List<RestoreOutcome> deleted =
-        bin.isEmpty ? const <RestoreOutcome>[] : await bridge.purge(bin);
+    final List<RestoreOutcome> restored = keep.isEmpty
+        ? const <RestoreOutcome>[]
+        : await bridge.restore(keep);
+    final List<RestoreOutcome> deleted = bin.isEmpty
+        ? const <RestoreOutcome>[]
+        : await bridge.purge(bin);
 
     state = null;
     ref.invalidate(recoveryItemsProvider);
@@ -135,9 +137,10 @@ class ReviewController extends Notifier<ReviewSession?> {
     return ReviewOutcome(
       restored: restored.where(_ok).length,
       deleted: deleted.where(_ok).length,
-      firstProblem: <RestoreOutcome>[...restored, ...deleted]
-          .where((RestoreOutcome outcome) => !_ok(outcome))
-          .firstOrNull,
+      firstProblem: <RestoreOutcome>[
+        ...restored,
+        ...deleted,
+      ].where((RestoreOutcome outcome) => !_ok(outcome)).firstOrNull,
     );
   }
 

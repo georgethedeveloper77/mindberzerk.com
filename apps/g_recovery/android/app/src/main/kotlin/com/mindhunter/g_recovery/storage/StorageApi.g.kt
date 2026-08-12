@@ -571,7 +571,20 @@ data class StorageQuerySpec (
   val minBytes: Long? = null,
   val olderThanDays: Long? = null,
   val folderPrefix: String? = null,
-  val nameContains: String? = null
+  val nameContains: String? = null,
+  /**
+   * "newest" | "oldest" | "largest" | "smallest" | "name"
+   *
+   * SORTED NATIVELY, and it has to be. The query returns at most [limit] rows,
+   * so ordering in Dart afterwards would sort the page rather than the library:
+   * asking for smallest first would hand back the smallest of the 400 largest,
+   * which is wrong in a way nobody notices until they trust it.
+   *
+   * A String rather than an enum, matching every other field here: an enum
+   * numbers before classes and adding a sixth order would renumber every class
+   * in the schema.
+   */
+  val sort: String
 )
  {
   companion object {
@@ -582,7 +595,8 @@ data class StorageQuerySpec (
       val olderThanDays = pigeonVar_list[3] as Long?
       val folderPrefix = pigeonVar_list[4] as String?
       val nameContains = pigeonVar_list[5] as String?
-      return StorageQuerySpec(kinds, limit, minBytes, olderThanDays, folderPrefix, nameContains)
+      val sort = pigeonVar_list[6] as String
+      return StorageQuerySpec(kinds, limit, minBytes, olderThanDays, folderPrefix, nameContains, sort)
     }
   }
   fun toList(): List<Any?> {
@@ -593,6 +607,7 @@ data class StorageQuerySpec (
       olderThanDays,
       folderPrefix,
       nameContains,
+      sort,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -603,7 +618,7 @@ data class StorageQuerySpec (
       return true
     }
     val other = other as StorageQuerySpec
-    return StorageApiPigeonUtils.deepEquals(this.kinds, other.kinds) && StorageApiPigeonUtils.deepEquals(this.limit, other.limit) && StorageApiPigeonUtils.deepEquals(this.minBytes, other.minBytes) && StorageApiPigeonUtils.deepEquals(this.olderThanDays, other.olderThanDays) && StorageApiPigeonUtils.deepEquals(this.folderPrefix, other.folderPrefix) && StorageApiPigeonUtils.deepEquals(this.nameContains, other.nameContains)
+    return StorageApiPigeonUtils.deepEquals(this.kinds, other.kinds) && StorageApiPigeonUtils.deepEquals(this.limit, other.limit) && StorageApiPigeonUtils.deepEquals(this.minBytes, other.minBytes) && StorageApiPigeonUtils.deepEquals(this.olderThanDays, other.olderThanDays) && StorageApiPigeonUtils.deepEquals(this.folderPrefix, other.folderPrefix) && StorageApiPigeonUtils.deepEquals(this.nameContains, other.nameContains) && StorageApiPigeonUtils.deepEquals(this.sort, other.sort)
   }
 
   override fun hashCode(): Int {
@@ -614,10 +629,11 @@ data class StorageQuerySpec (
     result = 31 * result + StorageApiPigeonUtils.deepHash(this.olderThanDays)
     result = 31 * result + StorageApiPigeonUtils.deepHash(this.folderPrefix)
     result = 31 * result + StorageApiPigeonUtils.deepHash(this.nameContains)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.sort)
     return result
   }
   override fun toString(): String {
-    return "StorageQuerySpec(kinds=$kinds, limit=$limit, minBytes=$minBytes, olderThanDays=$olderThanDays, folderPrefix=$folderPrefix, nameContains=$nameContains)"
+    return "StorageQuerySpec(kinds=$kinds, limit=$limit, minBytes=$minBytes, olderThanDays=$olderThanDays, folderPrefix=$folderPrefix, nameContains=$nameContains, sort=$sort)"
   }
 }
 
@@ -742,6 +758,194 @@ data class StorageOutcome (
     return "StorageOutcome(fileId=$fileId, status=$status, detail=$detail)"
   }
 }
+
+/**
+ * One thing inside a folder. Codec 138.
+ *
+ * Appended last, so nothing before it renumbers.
+ *
+ * ─── THIS IS NOT StorageFile ─────────────────────────────────────────────────
+ *
+ * StorageFile is a MediaStore row: indexed, with a kind and a media id, and
+ * reachable by every other method here. This is what is actually on disk, which
+ * is a different and larger set. MediaStore never saw the zip a file manager
+ * dropped into Download, and it has no idea that Android/data exists.
+ *
+ * Keeping them apart is the point. A browser that could only show indexed files
+ * would teach a false picture of the filesystem, which is the one thing this
+ * screen exists not to do.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DirEntry (
+  val path: String,
+  val name: String,
+  val isDirectory: Boolean,
+  /**
+   * Zero for a directory. Summing a tree means walking it, and a browser that
+   * stalled on every folder to total its contents would be unusable on a
+   * phone.
+   */
+  val sizeBytes: Long,
+  val modifiedMillis: Long,
+  /**
+   * How many things are directly inside, or null when it could not be read.
+   *
+   * Null is meaningful here and is not the same as zero: an empty folder and a
+   * folder the system refuses to open look identical without it.
+   */
+  val childCount: Long? = null,
+  /**
+   * False for the folders Android will not open, chiefly Android/data and
+   * Android/obb from Android 11 onward.
+   *
+   * Shown rather than hidden. A person who cannot see the locked door does not
+   * learn that it is locked, and this is the same folder that makes deleted
+   * chat messages unrecoverable.
+   */
+  val readable: Boolean,
+  /**
+   * Starts with a dot. Listed, but behind a toggle, because a browser that
+   * silently omits things teaches the wrong shape of the filesystem.
+   */
+  val hidden: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DirEntry {
+      val path = pigeonVar_list[0] as String
+      val name = pigeonVar_list[1] as String
+      val isDirectory = pigeonVar_list[2] as Boolean
+      val sizeBytes = pigeonVar_list[3] as Long
+      val modifiedMillis = pigeonVar_list[4] as Long
+      val childCount = pigeonVar_list[5] as Long?
+      val readable = pigeonVar_list[6] as Boolean
+      val hidden = pigeonVar_list[7] as Boolean
+      return DirEntry(path, name, isDirectory, sizeBytes, modifiedMillis, childCount, readable, hidden)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      path,
+      name,
+      isDirectory,
+      sizeBytes,
+      modifiedMillis,
+      childCount,
+      readable,
+      hidden,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DirEntry
+    return StorageApiPigeonUtils.deepEquals(this.path, other.path) && StorageApiPigeonUtils.deepEquals(this.name, other.name) && StorageApiPigeonUtils.deepEquals(this.isDirectory, other.isDirectory) && StorageApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && StorageApiPigeonUtils.deepEquals(this.modifiedMillis, other.modifiedMillis) && StorageApiPigeonUtils.deepEquals(this.childCount, other.childCount) && StorageApiPigeonUtils.deepEquals(this.readable, other.readable) && StorageApiPigeonUtils.deepEquals(this.hidden, other.hidden)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.path)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.name)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.isDirectory)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.sizeBytes)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.modifiedMillis)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.childCount)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.readable)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.hidden)
+    return result
+  }
+  override fun toString(): String {
+    return "DirEntry(path=$path, name=$name, isDirectory=$isDirectory, sizeBytes=$sizeBytes, modifiedMillis=$modifiedMillis, childCount=$childCount, readable=$readable, hidden=$hidden)"
+  }
+}
+
+/**
+ * A mounted volume. Codec 139.
+ *
+ * ─── NOT VolumeInfo ──────────────────────────────────────────────────────────
+ *
+ * VolumeInfo is three numbers about the volume an overview describes. This is
+ * a volume the phone has, with a name and a path, so it can be listed and
+ * opened. A phone with an SD card has two of these and one overview.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VolumeEntry (
+  val id: String,
+  /**
+   * What the system calls it. "SanDisk SD card" rather than a mount point,
+   * because the mount point is a different string on every device.
+   */
+  val label: String,
+  /**
+   * Null when the volume is mounted somewhere this app cannot reach, which
+   * happens on some OEM builds for USB drives.
+   */
+  val path: String? = null,
+  val totalBytes: Long,
+  val freeBytes: Long,
+  val removable: Boolean,
+  /**
+   * Internal storage. There is exactly one, and it is the one the overview
+   * already describes.
+   */
+  val primary: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VolumeEntry {
+      val id = pigeonVar_list[0] as String
+      val label = pigeonVar_list[1] as String
+      val path = pigeonVar_list[2] as String?
+      val totalBytes = pigeonVar_list[3] as Long
+      val freeBytes = pigeonVar_list[4] as Long
+      val removable = pigeonVar_list[5] as Boolean
+      val primary = pigeonVar_list[6] as Boolean
+      return VolumeEntry(id, label, path, totalBytes, freeBytes, removable, primary)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      label,
+      path,
+      totalBytes,
+      freeBytes,
+      removable,
+      primary,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as VolumeEntry
+    return StorageApiPigeonUtils.deepEquals(this.id, other.id) && StorageApiPigeonUtils.deepEquals(this.label, other.label) && StorageApiPigeonUtils.deepEquals(this.path, other.path) && StorageApiPigeonUtils.deepEquals(this.totalBytes, other.totalBytes) && StorageApiPigeonUtils.deepEquals(this.freeBytes, other.freeBytes) && StorageApiPigeonUtils.deepEquals(this.removable, other.removable) && StorageApiPigeonUtils.deepEquals(this.primary, other.primary)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.id)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.label)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.path)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.totalBytes)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.freeBytes)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.removable)
+    result = 31 * result + StorageApiPigeonUtils.deepHash(this.primary)
+    return result
+  }
+  override fun toString(): String {
+    return "VolumeEntry(id=$id, label=$label, path=$path, totalBytes=$totalBytes, freeBytes=$freeBytes, removable=$removable, primary=$primary)"
+  }
+}
 private open class StorageApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -790,6 +994,16 @@ private open class StorageApiPigeonCodec : StandardMessageCodec() {
           StorageOutcome.fromList(it)
         }
       }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DirEntry.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VolumeEntry.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -831,6 +1045,14 @@ private open class StorageApiPigeonCodec : StandardMessageCodec() {
         stream.write(137)
         writeValue(stream, value.toList())
       }
+      is DirEntry -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is VolumeEntry -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -846,13 +1068,80 @@ interface StorageHostApi {
    * JPEG preview bytes, downscaled natively. Same reasoning as the recovery
    * thumbnail: Flutter cannot load a content URI, and shipping full size
    * bitmaps across the channel is how a grid runs a phone out of memory.
+   *
+   * [kind], [name] and [mimeType] are passed IN rather than looked up.
+   *
+   * Native has only the file id, which carries no type, so deciding how to
+   * draw a preview would mean a second MediaStore query per thumbnail: on a
+   * scrolling grid, one extra cursor per cell. Dart already holds all three on
+   * the StorageFile it is drawing, so handing them over costs nothing and the
+   * native side goes straight to the right renderer.
+   *
+   * Without this the call site hardcoded "image", which meant audio artwork
+   * and PDF first pages could never be reached however well they worked.
    */
-  fun thumbnail(fileId: String, maxPixels: Long, callback: (Result<ByteArray?>) -> Unit)
+  fun thumbnail(fileId: String, maxPixels: Long, kind: String, name: String?, mimeType: String?, callback: (Result<ByteArray?>) -> Unit)
   /**
    * Moves files to the OS trash by default, where the user has thirty days to
    * change their mind. [permanent] skips that.
    */
   fun remove(fileIds: List<String>, permanent: Boolean, callback: (Result<List<StorageOutcome>>) -> Unit)
+  /**
+   * A playable content URI for this file, or null if it is no longer listed.
+   *
+   * The one thing video playback cannot be done without. VideoPlayerController
+   * takes a content URI and nothing else will do: Dart cannot open a
+   * MediaStore row by id, and the file path behind it is unreadable under
+   * scoped storage even when the row is perfectly readable.
+   *
+   * A STRING, not a typed URI, because Pigeon has no URI and because the same
+   * value is handed straight back to the platform for the external chooser.
+   */
+  fun contentUri(fileId: String, callback: (Result<String?>) -> Unit)
+  /**
+   * Raw bytes, for the formats this app renders itself.
+   *
+   * Text and CSV, and nothing larger than [maxBytes]. Dart cannot read a
+   * content URI on its own, so the bytes have to cross the bridge, and a
+   * three hundred megabyte log decoded into a Dart string would take the app
+   * down on a phone that had every right to survive opening it.
+   *
+   * Returns null when the file is missing or larger than the cap. The caller
+   * distinguishes the two by checking the size it already has.
+   */
+  fun readBytes(fileId: String, maxBytes: Long, callback: (Result<ByteArray?>) -> Unit)
+  /**
+   * Every mounted volume: internal, and any SD card or USB drive.
+   *
+   * From StorageManager rather than a guessed path. On a phone with an SD card
+   * the second volume has a different id on every device, and hardcoding
+   * /storage/sdcard1 was already wrong a decade ago.
+   */
+  fun volumes(callback: (Result<List<VolumeEntry>>) -> Unit)
+  /**
+   * What is directly inside a folder.
+   *
+   * [path] null means the roots: internal storage, plus any SD card or USB
+   * volume currently mounted.
+   *
+   * One level only. A recursive walk is what makes file managers hang on a
+   * folder with forty thousand files in it, and nothing on this screen needs
+   * more than the level being looked at.
+   */
+  fun listDirectory(path: String?, callback: (Result<List<DirEntry>>) -> Unit)
+  /**
+   * Hands the file to whatever app can open it.
+   *
+   * For the formats with no credible in-app renderer, which on Android means
+   * office documents and anything proprietary. Returns false when nothing on
+   * the phone can handle the type, so the UI can say that instead of appearing
+   * to do nothing.
+   *
+   * Grants read permission on the URI for the duration of the target activity.
+   * Without that flag the chooser opens onto a permission error, which looks
+   * like a bug in this app rather than in the one that was launched.
+   */
+  fun openExternally(fileId: String, callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by StorageHostApi. */
@@ -908,7 +1197,10 @@ interface StorageHostApi {
             val args = message as List<Any?>
             val fileIdArg = args[0] as String
             val maxPixelsArg = args[1] as Long
-            api.thumbnail(fileIdArg, maxPixelsArg) { result: Result<ByteArray?> ->
+            val kindArg = args[2] as String
+            val nameArg = args[3] as String?
+            val mimeTypeArg = args[4] as String?
+            api.thumbnail(fileIdArg, maxPixelsArg, kindArg, nameArg, mimeTypeArg) { result: Result<ByteArray?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(StorageApiPigeonUtils.wrapError(error))
@@ -930,6 +1222,105 @@ interface StorageHostApi {
             val fileIdsArg = args[0] as List<String>
             val permanentArg = args[1] as Boolean
             api.remove(fileIdsArg, permanentArg) { result: Result<List<StorageOutcome>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(StorageApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(StorageApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.StorageHostApi.contentUri$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val fileIdArg = args[0] as String
+            api.contentUri(fileIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(StorageApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(StorageApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.StorageHostApi.readBytes$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val fileIdArg = args[0] as String
+            val maxBytesArg = args[1] as Long
+            api.readBytes(fileIdArg, maxBytesArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(StorageApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(StorageApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.StorageHostApi.volumes$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.volumes{ result: Result<List<VolumeEntry>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(StorageApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(StorageApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.StorageHostApi.listDirectory$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val pathArg = args[0] as String?
+            api.listDirectory(pathArg) { result: Result<List<DirEntry>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(StorageApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(StorageApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.StorageHostApi.openExternally$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val fileIdArg = args[0] as String
+            api.openExternally(fileIdArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(StorageApiPigeonUtils.wrapError(error))

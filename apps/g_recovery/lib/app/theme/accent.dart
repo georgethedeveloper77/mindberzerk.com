@@ -10,12 +10,42 @@ import 'dart:ui' show Color;
 /// button, for example). All six bases are light enough that one dark ink works
 /// for every accent, which keeps the token count down.
 enum GAccent {
-  amber(id: 'amber', label: 'Amber', base: Color(0xFFF2A93B), onLight: Color(0xFFC9832A)),
-  mint(id: 'mint', label: 'Mint', base: Color(0xFF5FD6A6), onLight: Color(0xFF2E9C71)),
-  cyan(id: 'cyan', label: 'Cyan', base: Color(0xFF4FC3DC), onLight: Color(0xFF2C9BB5)),
-  violet(id: 'violet', label: 'Violet', base: Color(0xFFA08CE8), onLight: Color(0xFF7B63D6)),
-  coral(id: 'coral', label: 'Coral', base: Color(0xFFF0705F), onLight: Color(0xFFD14E3C)),
-  blue(id: 'blue', label: 'Blue', base: Color(0xFF5B8DEF), onLight: Color(0xFF3D6FD1));
+  amber(
+    id: 'amber',
+    label: 'Amber',
+    base: Color(0xFFF2A93B),
+    onLight: Color(0xFFC9832A),
+  ),
+  mint(
+    id: 'mint',
+    label: 'Mint',
+    base: Color(0xFF5FD6A6),
+    onLight: Color(0xFF2E9C71),
+  ),
+  cyan(
+    id: 'cyan',
+    label: 'Cyan',
+    base: Color(0xFF4FC3DC),
+    onLight: Color(0xFF2C9BB5),
+  ),
+  violet(
+    id: 'violet',
+    label: 'Violet',
+    base: Color(0xFFA08CE8),
+    onLight: Color(0xFF7B63D6),
+  ),
+  coral(
+    id: 'coral',
+    label: 'Coral',
+    base: Color(0xFFF0705F),
+    onLight: Color(0xFFD14E3C),
+  ),
+  blue(
+    id: 'blue',
+    label: 'Blue',
+    base: Color(0xFF5B8DEF),
+    onLight: Color(0xFF3D6FD1),
+  );
 
   const GAccent({
     required this.id,

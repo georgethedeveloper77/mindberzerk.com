@@ -13,6 +13,7 @@ export 'src/device_probe_api.g.dart'
         CpuCluster,
         CpuInfo,
         CpuSample,
+        DeviceIdentity,
         DeviceSnapshot,
         MemorySnapshot,
         ProbeCapabilities,

@@ -12,8 +12,10 @@ class GThemeState {
   final ThemeMode mode;
   final GAccent accent;
 
-  static const GThemeState fallback =
-      GThemeState(mode: ThemeMode.system, accent: GAccent.fallback);
+  static const GThemeState fallback = GThemeState(
+    mode: ThemeMode.system,
+    accent: GAccent.fallback,
+  );
 
   GThemeState withMode(ThemeMode value) =>
       GThemeState(mode: value, accent: accent);
@@ -22,9 +24,9 @@ class GThemeState {
       GThemeState(mode: mode, accent: value);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'mode': _modeId(mode),
-        'accent': accent.id,
-      };
+    'mode': _modeId(mode),
+    'accent': accent.id,
+  };
 
   factory GThemeState.fromJson(Map<String, Object?> json) {
     if (json.isEmpty) return fallback;

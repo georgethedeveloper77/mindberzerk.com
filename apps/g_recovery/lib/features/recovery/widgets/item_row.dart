@@ -15,12 +15,19 @@ class ItemRow extends StatelessWidget {
     required this.item,
     super.key,
     this.selected = false,
+    this.detailed = false,
     this.onTap,
     this.onLongPress,
   });
 
   final RecoverableItem item;
   final bool selected;
+
+  /// Spells out the folder, the date and the type on their own lines.
+  ///
+  /// The mode a person reaches for the moment a phone has forty files called
+  /// IMG_20240416 and the name has stopped telling them anything.
+  final bool detailed;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -66,6 +73,15 @@ class ItemRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: GType.monoSmall.copyWith(color: t.dim),
                   ),
+                  if (detailed) ...<Widget>[
+                    const SizedBox(height: 3),
+                    Text(
+                      _detail(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GType.micro.copyWith(color: t.muted),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -89,6 +105,40 @@ class ItemRow extends StatelessWidget {
             : '${item.expiresInDays} days left',
     ];
     return parts.join(' / ');
+  }
+
+  /// The second line, and only what is actually known.
+  ///
+  /// Every field here is nullable in the schema, so an absent one is simply
+  /// left out rather than rendered as a dash. A row that reads "Unknown /
+  /// Unknown / Unknown" is worse than a short one.
+  String _detail() {
+    final List<String> parts = <String>[
+      if (item.mimeType != null) item.mimeType!,
+      if (item.width != null && item.height != null)
+        '${item.width} by ${item.height}',
+      if (item.durationMillis != null) _duration(item.durationMillis!),
+      if (item.dateDeletedMillis != null)
+        'deleted ${_when(item.dateDeletedMillis!)}'
+      else if (item.dateAddedMillis != null)
+        'added ${_when(item.dateAddedMillis!)}',
+    ];
+    return parts.isEmpty ? item.sourceId : parts.join('  ·  ');
+  }
+
+  static String _duration(int millis) {
+    final int total = millis ~/ 1000;
+    final String seconds = (total % 60).toString().padLeft(2, '0');
+    return '${total ~/ 60}:$seconds';
+  }
+
+  static String _when(int millis) {
+    final DateTime at = DateTime.fromMillisecondsSinceEpoch(millis);
+    final int days = DateTime.now().difference(at).inDays;
+    if (days <= 0) return 'today';
+    if (days == 1) return 'yesterday';
+    if (days < 30) return '$days days ago';
+    return '${at.day}/${at.month}/${at.year}';
   }
 
   Widget _stamp() {

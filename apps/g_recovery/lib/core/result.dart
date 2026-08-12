@@ -6,22 +6,22 @@ sealed class GResult<T> {
   bool get isOk => this is GOk<T>;
 
   T? get valueOrNull => switch (this) {
-        GOk<T>(:final T value) => value,
-        GErr<T>() => null,
-      };
+    GOk<T>(:final T value) => value,
+    GErr<T>() => null,
+  };
 
   R fold<R>({
     required R Function(T value) ok,
     required R Function(GErr<T> error) err,
-  }) =>
-      switch (this) {
-        GOk<T>(:final T value) => ok(value),
-        final GErr<T> failure => err(failure),
-      };
+  }) => switch (this) {
+    GOk<T>(:final T value) => ok(value),
+    final GErr<T> failure => err(failure),
+  };
 }
 
 final class GOk<T> extends GResult<T> {
   const GOk(this.value);
+
   final T value;
 }
 

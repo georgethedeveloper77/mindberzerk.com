@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,7 +97,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// One content pack, as the client sees it. Codec 129.
 class ContentPackInfo {
   ContentPackInfo({
@@ -124,17 +124,12 @@ class ContentPackInfo {
   int sizeBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      packId,
-      packType,
-      version,
-      installedVersion,
-      sizeBytes,
-    ];
+    return <Object?>[packId, packType, version, installedVersion, sizeBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ContentPackInfo decode(Object result) {
     result as List<Object?>;
@@ -156,7 +151,11 @@ class ContentPackInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(packType, other.packType) &&
+        _deepEquals(version, other.version) &&
+        _deepEquals(installedVersion, other.installedVersion) &&
+        _deepEquals(sizeBytes, other.sizeBytes);
   }
 
   @override
@@ -195,16 +194,12 @@ class ContentSyncResult {
   List<ContentPackInfo> packs;
 
   List<Object?> _toList() {
-    return <Object?>[
-      status,
-      detail,
-      changed,
-      packs,
-    ];
+    return <Object?>[status, detail, changed, packs];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ContentSyncResult decode(Object result) {
     result as List<Object?>;
@@ -225,7 +220,10 @@ class ContentSyncResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(status, other.status) && _deepEquals(detail, other.detail) && _deepEquals(changed, other.changed) && _deepEquals(packs, other.packs);
+    return _deepEquals(status, other.status) &&
+        _deepEquals(detail, other.detail) &&
+        _deepEquals(changed, other.changed) &&
+        _deepEquals(packs, other.packs);
   }
 
   @override
@@ -238,18 +236,18 @@ class ContentSyncResult {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
+
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ContentPackInfo) {
+    } else if (value is ContentPackInfo) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is ContentSyncResult) {
+    } else if (value is ContentSyncResult) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
     } else {
@@ -274,9 +272,13 @@ class ContentHostApi {
   /// Constructor for [ContentHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  ContentHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  ContentHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -290,21 +292,23 @@ class ContentHostApi {
   /// traversal. A base URL that arrives from anywhere other than a constant is
   /// still a value to check, not a value to trust.
   Future<void> setBaseUrl(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.ContentHostApi.setBaseUrl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.ContentHostApi.setBaseUrl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Fetch the signed index, verify it, and install any pack that is newer.
@@ -312,7 +316,8 @@ class ContentHostApi {
   /// Safe to call on every launch: the index request carries an ETag, so the
   /// common case is a 304 with no body.
   Future<ContentSyncResult> sync() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.ContentHostApi.sync$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.ContentHostApi.sync$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -322,11 +327,10 @@ class ContentHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as ContentSyncResult;
   }
 
@@ -336,27 +340,30 @@ class ContentHostApi {
   /// bundled copy, which is what happens on first launch and whenever the CDN
   /// is unreachable.
   Future<String?> readContent(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.ContentHostApi.readContent$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.ContentHostApi.readContent$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   /// What is installed right now, without touching the network.
   Future<List<ContentPackInfo>> packs() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.ContentHostApi.packs$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.ContentHostApi.packs$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -366,11 +373,10 @@ class ContentHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<ContentPackInfo>();
   }
 }

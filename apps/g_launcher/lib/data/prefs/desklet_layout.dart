@@ -1,4 +1,5 @@
 import '../../engine/desklet_spec.dart';
+import '../../engine/widget_span.dart';
 import 'launcher_prefs.dart';
 
 /// Every desklet placement mutation, as pure functions. PHASE D2.
@@ -289,6 +290,24 @@ class DeskletLayout {
   /// back to where it started — a resize handle that undoes itself feels
   /// broken. A clamped size that then COLLIDES is still refused, because
   /// silently overlapping a neighbour is not a smaller failure.
+  /// [cell] and [byUser] are OPTIONAL and additive: a caller that passes
+  /// neither gets exactly the behaviour this had before hosted widgets carried
+  /// their own limits.
+  ///
+  /// ─── WHY A HOSTED WIDGET NEEDS DIFFERENT LIMITS ─────────────────────────
+  ///
+  /// `DeskletKinds.appWidget` declares a deliberately generous 1 to 10 by 1 to
+  /// 15, because it is one kind standing in for every widget on the phone. The
+  /// real limits are per PROVIDER: `minResizeWidthDp` is the floor below which
+  /// a widget clips its own layout, and `resizeMode` says whether an axis may
+  /// be dragged at all. Both cross the Pigeon bridge and both are stored in
+  /// config as of the version-2 reset, so when the caller can supply the
+  /// measured [cell] they are enforced here rather than left to the drag.
+  ///
+  /// [byUser] records that a person chose this size, which stops
+  /// [reflowWidgets] re-deriving over it later. Folded into this call rather
+  /// than left to a second one so a resize is a single write: two writes would
+  /// mean two disk flushes and a frame where the flag and the span disagree.
   static LauncherPrefs resize(
     LauncherPrefs p, {
     required String id,
@@ -296,6 +315,8 @@ class DeskletLayout {
     required int spanY,
     required int cols,
     required int rows,
+    DeskletCell? cell,
+    bool byUser = false,
   }) {
     final d = byId(p, id);
     if (d == null) return p;
@@ -309,7 +330,42 @@ class DeskletLayout {
     sx = sx.clamp(kind.minSpanX, (cols - d.col).clamp(1, cols));
     sy = sy.clamp(kind.minSpanY, (rows - d.row).clamp(1, rows));
 
-    if (sx == d.spanX && sy == d.spanY) return p;
+    // The provider's own floor and ceiling, tighter than the kind's, when the
+    // caller measured a cell to derive them from.
+    if (d.kind == 'appwidget' && cell != null) {
+      final limits = WidgetSpanResolver.resolve(
+        WidgetSpanResolver.footprintFromConfig(d.config),
+        cell: cell,
+        colFactor: colFactor,
+        rowFactor: rowFactor,
+      );
+      sx = sx.clamp(
+        limits.minSpanX.clamp(1, cols),
+        limits.maxSpanX.clamp(1, cols),
+      );
+      sy = sy.clamp(
+        limits.minSpanY.clamp(1, rows),
+        limits.maxSpanY.clamp(1, rows),
+      );
+    }
+
+    final marking = byUser &&
+        d.kind == 'appwidget' &&
+        !WidgetSpanResolver.isUserSized(d.config);
+
+    if (sx == d.spanX && sy == d.spanY) {
+      // A drag that produced no size change still records the intent, or the
+      // first thing the user does after nudging a handle to its existing size
+      // is watch a grid change undo them.
+      return marking
+          ? _replace(
+              p,
+              d.copyWith(
+                config: {...d.config, WidgetConfigKeys.userSized: true},
+              ),
+            )
+          : p;
+    }
 
     if (!fits(
       p,
@@ -325,7 +381,16 @@ class DeskletLayout {
       return p;
     }
 
-    return _replace(p, d.copyWith(spanX: sx, spanY: sy));
+    return _replace(
+      p,
+      d.copyWith(
+        spanX: sx,
+        spanY: sy,
+        config: marking
+            ? {...d.config, WidgetConfigKeys.userSized: true}
+            : null,
+      ),
+    );
   }
 
   static LauncherPrefs remove(LauncherPrefs p, String id) => p.copyWith(
@@ -398,36 +463,125 @@ class DeskletLayout {
 
   /// The current [LauncherPrefs.deskletGridVersion]. Bump only alongside a
   /// migration below.
-  static const int gridVersion = 1;
+  ///
+  /// 2 replaces the version-1 rescale. See [resetDesklets].
+  static const int gridVersion = 2;
 
-  /// Rescale every placement from the icon grid to the fine grid, ONCE.
+  /// Clear every placement and let the distro's starter desktop lay itself out
+  /// again, ONCE.
+  ///
+  /// ─── WHY A WIPE AND NOT A CONVERSION ────────────────────────────────────
+  ///
+  /// Version 1 rescaled placements from the icon grid onto the fine grid, which
+  /// was the right shape of migration for what changed then. This one is
+  /// different in kind: hosted AppWidgets were seeded at the wrong span by
+  /// `desklet_picker`, and their stored config does not carry the fields
+  /// [WidgetSpanResolver] needs to re-derive them, because those fields are new.
+  /// A conversion would therefore have to re-query every provider, match by
+  /// `providerKey`, backfill, and hold a half-derived state correct on first
+  /// paint, with a fallback for any provider since uninstalled.
+  ///
+  /// That is real machinery in service of preserving arrangements that are
+  /// wrong. Every hosted widget on every existing desktop is at a span nobody
+  /// chose, and anyone who resized one did so to compensate for the bug being
+  /// fixed here. Clearing and reseeding gives one code path, one state, and a
+  /// desktop that matches the distro's authored screenshot.
+  ///
+  /// `deskletsInitialized` is cleared with it, deliberately. It is the flag the
+  /// starter-desktop branch reads, and leaving it set would produce an empty
+  /// desktop rather than a fresh one, which reads as data loss rather than a
+  /// reset.
   ///
   /// Returns [p] unchanged when the marker already says it has run, which is
-  /// what makes this safe to call on every theme resolve. Without that guard a
-  /// desktop would double in width and triple in height on every launch until
-  /// everything clamped to the edges.
-  ///
-  /// Spans scale with positions. A tile that filled the width still fills it, a
-  /// tile that was half as tall is still half as tall, and nobody's desktop
-  /// moves. Clamping is deliberately NOT done here: `normalise` already clamps
-  /// against the kind and the grid, and doing it in two places would mean two
-  /// answers when they disagree.
-  static LauncherPrefs migrateToFineGrid(LauncherPrefs p) {
+  /// what makes this safe to call on every theme resolve. Without that guard
+  /// the desktop would be wiped on every launch.
+  static LauncherPrefs resetDesklets(LauncherPrefs p) {
     if ((p.deskletGridVersion ?? 0) >= gridVersion) return p;
 
     return p.copyWith(
       deskletGridVersion: gridVersion,
-      desklets: [
-        for (final d in p.desklets)
-          d.copyWith(
-            col: d.col * colFactor,
-            row: d.row * rowFactor,
-            spanX: d.spanX * colFactor,
-            spanY: d.spanY * rowFactor,
-          ),
-      ],
+      desklets: const [],
+      deskletsInitialized: false,
     );
   }
+
+  // ─── HOSTED WIDGET SPANS ───────────────────────────────────────────────────
+
+  /// Re-derive the span of every hosted AppWidget against a freshly measured
+  /// cell, leaving anything the user resized by hand alone.
+  ///
+  /// ─── WHAT THIS BUYS, WHICH NO OTHER LAUNCHER DOES ───────────────────────
+  ///
+  /// Change your column count from 4 to 5 and every third-party widget re-
+  /// derives to the correct PROPORTION instead of keeping a cell count that now
+  /// means something else. Switch distros and it happens again, because the
+  /// grid is per theme. Everywhere else a widget keeps the cells it was given
+  /// and quietly becomes the wrong size.
+  ///
+  /// ─── WHY IT IS SAFE TO CALL ON EVERY LAYOUT ─────────────────────────────
+  ///
+  /// Identity-stable: returns [p] itself when no span changed, so the caller's
+  /// `.edit` is skipped and `LauncherPrefs` equality is not churned. The
+  /// derivation is a pure function of (config, cell), and the cell only changes
+  /// on a real re-layout, so a second call with the same cell is a no-op by
+  /// construction rather than by a guard flag.
+  ///
+  /// A widget whose new span does not FIT keeps its old one. Growing a tile
+  /// into a neighbour is worse than leaving it a cell short, and the user can
+  /// move either one.
+  static LauncherPrefs reflowWidgets(
+    LauncherPrefs p, {
+    required DeskletCell cell,
+  }) {
+    if (cell.cols < 1 || cell.rows < 1) return p;
+    if (!cell.w.isFinite || !cell.h.isFinite || cell.w <= 0 || cell.h <= 0) {
+      return p;
+    }
+
+    var out = p;
+
+    for (final d in p.desklets) {
+      if (d.kind != 'appwidget') continue;
+      if (WidgetSpanResolver.isUserSized(d.config)) continue;
+
+      final span = WidgetSpanResolver.resolve(
+        WidgetSpanResolver.footprintFromConfig(d.config),
+        cell: cell,
+        colFactor: colFactor,
+        rowFactor: rowFactor,
+      );
+
+      if (span.spanX == d.spanX && span.spanY == d.spanY) continue;
+
+      // Bounded by the grid edge from where it already sits, so a re-derive
+      // never pushes a tile off the right or the bottom.
+      final sx = span.spanX.clamp(1, (cell.cols - d.col).clamp(1, cell.cols));
+      final sy = span.spanY.clamp(1, (cell.rows - d.row).clamp(1, cell.rows));
+      if (sx == d.spanX && sy == d.spanY) continue;
+
+      if (!fits(
+        out,
+        page: d.page,
+        col: d.col,
+        row: d.row,
+        spanX: sx,
+        spanY: sy,
+        cols: cell.cols,
+        rows: cell.rows,
+        ignoreId: d.id,
+      )) {
+        continue;
+      }
+
+      out = _replace(out, d.copyWith(spanX: sx, spanY: sy));
+    }
+
+    return out;
+  }
+
+  /// There is no `markUserSized`. [resize] takes `byUser: true` instead, so a
+  /// hand resize is ONE write rather than two: two would mean two disk flushes
+  /// and a frame in which the flag and the span disagree.
 
   // ─── STACKS ────────────────────────────────────────────────────────────────
 

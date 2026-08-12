@@ -47,8 +47,10 @@ class ItemThumbnail extends ImageProvider<ItemThumbnail> {
   }
 
   Future<ui.Codec> _load(ItemThumbnail key, ImageDecoderCallback decode) async {
-    final Uint8List? bytes =
-        await key.bridge.thumbnail(key.itemId, key.maxPixels);
+    final Uint8List? bytes = await key.bridge.thumbnail(
+      key.itemId,
+      key.maxPixels,
+    );
     if (bytes == null || bytes.isEmpty) {
       // Evicting first stops the failure being cached as a permanent hole: a
       // trashed item whose thumbnail was not ready yet should get another
@@ -119,20 +121,21 @@ class GThumbnail extends StatelessWidget {
         ),
         fit: fit,
         gaplessPlayback: true,
-        frameBuilder: (
-          BuildContext context,
-          Widget child,
-          int? frame,
-          bool wasSynchronouslyLoaded,
-        ) {
-          if (wasSynchronouslyLoaded || frame != null) return child;
-          return ColoredBox(color: t.panelAlt);
-        },
+        frameBuilder:
+            (
+              BuildContext context,
+              Widget child,
+              int? frame,
+              bool wasSynchronouslyLoaded,
+            ) {
+              if (wasSynchronouslyLoaded || frame != null) return child;
+              return ColoredBox(color: t.panelAlt);
+            },
         errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
             ColoredBox(
-          color: t.panelAlt,
-          child: Center(child: Icon(_glyph(), size: 20, color: t.dim)),
-        ),
+              color: t.panelAlt,
+              child: Center(child: Icon(_glyph(), size: 20, color: t.dim)),
+            ),
       ),
     );
   }

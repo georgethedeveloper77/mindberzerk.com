@@ -21,6 +21,7 @@ internal class DeviceProbeHostApiImpl(context: Context) : DeviceProbeHostApi {
     private val battery = BatteryProbe(app)
     private val memory = MemoryProbe(app)
     private val sensors = SensorProbe(app)
+    private val identity = IdentityProbe(app)
 
     /**
      * NOT a `by lazy`, unlike everything above it.
@@ -107,6 +108,19 @@ internal class DeviceProbeHostApiImpl(context: Context) : DeviceProbeHostApi {
             )
         }
         callback(Result.success(list))
+    }
+
+    /**
+     * Held for the process, like [capabilities] and unlike [storageAccess].
+     *
+     * A phone does not change its model or its Android release while this app is
+     * running, and the one field that can move, the security patch, only moves
+     * across a reboot that takes the process with it.
+     */
+    private val deviceIdentity: DeviceIdentity by lazy { identity.read() }
+
+    override fun deviceIdentity(callback: (Result<DeviceIdentity>) -> Unit) {
+        callback(Result.success(deviceIdentity))
     }
 
     override fun storageAccess(callback: (Result<StorageAccess>) -> Unit) {

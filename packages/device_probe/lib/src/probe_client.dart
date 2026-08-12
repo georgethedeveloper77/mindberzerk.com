@@ -35,6 +35,16 @@ class DeviceProbe {
   /// One tick of everything live.
   Future<DeviceSnapshot?> snapshot() => _guard(_api.readSnapshot);
 
+  /// Which phone this is. Cached natively, so calling it per screen is cheap.
+  Future<DeviceIdentity?> deviceIdentity() => _guard(_api.deviceIdentity);
+
+  /// Which storage model this device is on and what was actually granted.
+  ///
+  /// NOT cached on either side. All Files Access is a toggle the user can flip
+  /// from Settings while this app is backgrounded, so call it when a screen that
+  /// depends on it appears, and again on resume.
+  Future<StorageAccess?> storageAccess() => _guard(_api.storageAccess);
+
   Future<T?> _guard<T>(Future<T> Function() call) async {
     try {
       return await call();

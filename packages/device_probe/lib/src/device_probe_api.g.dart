@@ -586,6 +586,8 @@ class BatterySnapshot {
     this.voltageMilliV,
     this.cycleCount,
     this.chargeCounterMicroAh,
+    this.stateOfHealthPercent,
+    this.designCapacityMicroAh,
   });
 
   /// 0-100, computed from level and scale rather than assuming scale is 100.
@@ -623,6 +625,24 @@ class BatterySnapshot {
 
   int? chargeCounterMicroAh;
 
+  /// How much of its original capacity the battery still holds, as a percent.
+  ///
+  /// BATTERY_PROPERTY_STATE_OF_HEALTH, API 35+, and null on most devices even
+  /// above it: the property exists in the framework and the OEM has to fill it
+  /// in. Appended last, so no existing field moves.
+  ///
+  /// This is the one figure on the device tab a person cannot find anywhere
+  /// else on their phone, including Settings. Null means absent, never
+  /// estimated: a worn battery reported as healthy is worse than no answer.
+  int? stateOfHealthPercent;
+
+  /// Capacity when new, in microamp hours.
+  ///
+  /// Not exposed by any public API. Read from the OEM power supply node when
+  /// one is readable, and null everywhere else, which is most phones. Only ever
+  /// used to give [chargeCounterMicroAh] something to be a fraction of.
+  int? designCapacityMicroAh;
+
   List<Object?> _toList() {
     return <Object?>[
       percent,
@@ -635,6 +655,8 @@ class BatterySnapshot {
       voltageMilliV,
       cycleCount,
       chargeCounterMicroAh,
+      stateOfHealthPercent,
+      designCapacityMicroAh,
     ];
   }
 
@@ -654,6 +676,8 @@ class BatterySnapshot {
       voltageMilliV: result[7] as int?,
       cycleCount: result[8] as int?,
       chargeCounterMicroAh: result[9] as int?,
+      stateOfHealthPercent: result[10] as int?,
+      designCapacityMicroAh: result[11] as int?,
     );
   }
 
@@ -666,7 +690,7 @@ class BatterySnapshot {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(percent, other.percent) && _deepEquals(charging, other.charging) && _deepEquals(status, other.status) && _deepEquals(health, other.health) && _deepEquals(technology, other.technology) && _deepEquals(tempDeciC, other.tempDeciC) && _deepEquals(currentMicroA, other.currentMicroA) && _deepEquals(voltageMilliV, other.voltageMilliV) && _deepEquals(cycleCount, other.cycleCount) && _deepEquals(chargeCounterMicroAh, other.chargeCounterMicroAh);
+    return _deepEquals(percent, other.percent) && _deepEquals(charging, other.charging) && _deepEquals(status, other.status) && _deepEquals(health, other.health) && _deepEquals(technology, other.technology) && _deepEquals(tempDeciC, other.tempDeciC) && _deepEquals(currentMicroA, other.currentMicroA) && _deepEquals(voltageMilliV, other.voltageMilliV) && _deepEquals(cycleCount, other.cycleCount) && _deepEquals(chargeCounterMicroAh, other.chargeCounterMicroAh) && _deepEquals(stateOfHealthPercent, other.stateOfHealthPercent) && _deepEquals(designCapacityMicroAh, other.designCapacityMicroAh);
   }
 
   @override
@@ -675,7 +699,7 @@ class BatterySnapshot {
 
   @override
   String toString() {
-    return 'BatterySnapshot(percent: $percent, charging: $charging, status: $status, health: $health, technology: $technology, tempDeciC: $tempDeciC, currentMicroA: $currentMicroA, voltageMilliV: $voltageMilliV, cycleCount: $cycleCount, chargeCounterMicroAh: $chargeCounterMicroAh)';
+    return 'BatterySnapshot(percent: $percent, charging: $charging, status: $status, health: $health, technology: $technology, tempDeciC: $tempDeciC, currentMicroA: $currentMicroA, voltageMilliV: $voltageMilliV, cycleCount: $cycleCount, chargeCounterMicroAh: $chargeCounterMicroAh, stateOfHealthPercent: $stateOfHealthPercent, designCapacityMicroAh: $designCapacityMicroAh)';
   }
 }
 
@@ -1078,6 +1102,130 @@ class StorageAccess {
   }
 }
 
+/// WHICH PHONE THIS IS.
+///
+/// Appended last, so it takes codec id 140 and renumbers nothing.
+///
+/// ─── WHY THIS IS NOT JUST Build.MODEL ────────────────────────────────────────
+///
+/// `Build.MODEL` on a Galaxy S22 Plus is the string `SM-S906E`. It is correct,
+/// it is what a warranty claim needs, and it is useless as a screen title: the
+/// owner of that phone has never once called it that. The name a person
+/// recognises lives somewhere different on every OEM, and on Samsung it is not
+/// a build property at all.
+///
+/// ─── ONE CALL, EIGHT FIELDS ──────────────────────────────────────────────────
+///
+/// Adding a HostApi method costs four files whether it carries one field or
+/// eight, so everything the identity card, the Learn chapters and a bug report
+/// will ever want is gathered in a single trip rather than three.
+class DeviceIdentity {
+  DeviceIdentity({
+    this.marketingName,
+    required this.manufacturer,
+    required this.model,
+    required this.androidRelease,
+    required this.sdkInt,
+    this.securityPatch,
+    this.skin,
+    required this.fingerprint,
+  });
+
+  /// The name a person would recognise, such as `Galaxy S22 Plus`.
+  ///
+  /// NULLABLE ON PURPOSE. Resolved from a marketing name property, then from
+  /// the system device name, and a device that answers neither gets null rather
+  /// than a fabricated string. A caller showing this must fall back to
+  /// [manufacturer] and [model] rather than printing an empty title.
+  ///
+  /// Be aware the system device name is USER EDITABLE. A phone renamed in
+  /// Settings reports the new name here, which is usually what its owner wants
+  /// to see and is occasionally their own name.
+  String? marketingName;
+
+  /// `Build.MANUFACTURER`, such as `samsung`. Capitalisation is the OEM's own
+  /// and is not normalised here.
+  String manufacturer;
+
+  /// `Build.MODEL`, such as `SM-S906E`. The string a support thread needs.
+  String model;
+
+  /// `Build.VERSION.RELEASE`, such as `16`. A String because it has been `4.4W`
+  /// and `12L` before now, and will be something unparseable again.
+  String androidRelease;
+
+  /// `Build.VERSION.SDK_INT`. Reported alongside [androidRelease] for the same
+  /// reason StorageAccess reports both a number and a tier.
+  int sdkInt;
+
+  /// `Build.VERSION.SECURITY_PATCH`, an ISO date such as `2026-06-01`.
+  /// Null below API 23 and on ROMs that leave it blank.
+  String? securityPatch;
+
+  /// The OEM layer and its version, such as `One UI 6.1` or `XOS 14`.
+  ///
+  /// Derived from whichever vendor property this ROM happens to set, so it is
+  /// null on stock Android and on any skin not yet recognised. Treat an
+  /// unrecognised skin as absent rather than as an error.
+  String? skin;
+
+  /// `Build.FINGERPRINT`. Long, ugly, and the single most useful string in a
+  /// bug report, because it pins the exact build a trash path was verified
+  /// against.
+  String fingerprint;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      marketingName,
+      manufacturer,
+      model,
+      androidRelease,
+      sdkInt,
+      securityPatch,
+      skin,
+      fingerprint,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DeviceIdentity decode(Object result) {
+    result as List<Object?>;
+    return DeviceIdentity(
+      marketingName: result[0] as String?,
+      manufacturer: result[1]! as String,
+      model: result[2]! as String,
+      androidRelease: result[3]! as String,
+      sdkInt: result[4]! as int,
+      securityPatch: result[5] as String?,
+      skin: result[6] as String?,
+      fingerprint: result[7]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DeviceIdentity || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(marketingName, other.marketingName) && _deepEquals(manufacturer, other.manufacturer) && _deepEquals(model, other.model) && _deepEquals(androidRelease, other.androidRelease) && _deepEquals(sdkInt, other.sdkInt) && _deepEquals(securityPatch, other.securityPatch) && _deepEquals(skin, other.skin) && _deepEquals(fingerprint, other.fingerprint);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DeviceIdentity(marketingName: $marketingName, manufacturer: $manufacturer, model: $model, androidRelease: $androidRelease, sdkInt: $sdkInt, securityPatch: $securityPatch, skin: $skin, fingerprint: $fingerprint)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1119,6 +1267,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is StorageAccess) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
+    }    else if (value is DeviceIdentity) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1149,6 +1300,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DeviceSnapshot.decode(readValue(buffer)!);
       case 139:
         return StorageAccess.decode(readValue(buffer)!);
+      case 140:
+        return DeviceIdentity.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1279,5 +1432,28 @@ class DeviceProbeHostApi {
     )
     ;
     return pigeonVar_replyValue! as StorageAccess;
+  }
+
+  /// Which phone this is, in the words its owner would use.
+  ///
+  /// Read once per launch and cached natively. Nothing here changes while the
+  /// process is alive except the security patch, and that only across a reboot.
+  Future<DeviceIdentity> deviceIdentity() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.device_probe.DeviceProbeHostApi.deviceIdentity$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as DeviceIdentity;
   }
 }

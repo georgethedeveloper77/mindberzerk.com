@@ -7,10 +7,10 @@ import '../../../core/content/content_store.dart';
 
 final Provider<RecoveryBridge> recoveryBridgeProvider =
     Provider<RecoveryBridge>((Ref ref) {
-  final RecoveryBridge bridge = RecoveryBridge();
-  ref.onDispose(bridge.dispose);
-  return bridge;
-});
+      final RecoveryBridge bridge = RecoveryBridge();
+      ref.onDispose(bridge.dispose);
+      return bridge;
+    });
 
 /// Loads the registry through the CONTENT STORE and pushes it native.
 ///
@@ -20,30 +20,65 @@ final Provider<RecoveryBridge> recoveryBridgeProvider =
 /// Reading it here rather than from rootBundle directly is the Phase 7B seam:
 /// the store decides whether the JSON came from the APK or from a verified CDN
 /// pack, and neither this provider nor any Kotlin changes when that happens.
-final FutureProvider<void> trashMapReadyProvider =
-    FutureProvider<void>((Ref ref) async {
-  final String? json =
-      await ref.watch(contentStoreProvider).read(ContentStore.trashMap);
+final FutureProvider<void> trashMapReadyProvider = FutureProvider<void>((
+  Ref ref,
+) async {
+  final String? json = await ref
+      .watch(contentStoreProvider)
+      .read(ContentStore.trashMap);
   if (json == null) return;
   await ref.watch(recoveryBridgeProvider).setTrashMap(json);
 });
 
 final FutureProvider<RecoveryAccess?> recoveryAccessProvider =
     FutureProvider<RecoveryAccess?>(
-  (Ref ref) => ref.watch(recoveryBridgeProvider).access(),
-);
+      (Ref ref) => ref.watch(recoveryBridgeProvider).access(),
+    );
 
 /// Counts only, fast enough to run behind onboarding.
 final FutureProvider<RecoverySummary?> prescanProvider =
     FutureProvider<RecoverySummary?>((Ref ref) async {
-  await ref.watch(trashMapReadyProvider.future);
-  return ref.watch(recoveryBridgeProvider).prescan();
-});
+      await ref.watch(trashMapReadyProvider.future);
+      return ref.watch(recoveryBridgeProvider).prescan();
+    });
+
+/// Where the whole-phone background scan has got to.
+///
+/// POLLED, and the polling STOPS. `progress` is a push stream from the bridge,
+/// which works only while a Flutter engine is alive to receive it; the service
+/// deliberately outlives the engine, so its state has to be asked for.
+///
+/// Fast while a scan is running, a few slow ticks after it settles, then the
+/// stream ends. A poll that never stops would keep a timer alive behind every
+/// screen for the entire life of the app to learn nothing, which is the battery
+/// cost a device utility has the least excuse for.
+///
+/// Invalidate it to look again, after a resume or after starting a scan.
+final StreamProvider<BackgroundScanState?> backgroundScanProvider =
+    StreamProvider<BackgroundScanState?>((Ref ref) async* {
+      final RecoveryBridge bridge = ref.watch(recoveryBridgeProvider);
+      int settled = 0;
+
+      while (true) {
+        final BackgroundScanState? state = await bridge.backgroundScanState();
+        yield state;
+
+        if (state != null && state.running) {
+          settled = 0;
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          continue;
+        }
+
+        settled++;
+        if (settled > 2) return;
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+      }
+    });
 
 final StreamProvider<ScanProgress> scanProgressProvider =
     StreamProvider<ScanProgress>(
-  (Ref ref) => ref.watch(recoveryBridgeProvider).progress,
-);
+      (Ref ref) => ref.watch(recoveryBridgeProvider).progress,
+    );
 
 /// Holds the result of the last full scan, or null when none has run.
 class ScanController extends Notifier<AsyncValue<RecoverySummary?>> {
@@ -59,13 +94,13 @@ class ScanController extends Notifier<AsyncValue<RecoverySummary?>> {
   AsyncValue<RecoverySummary?> build() =>
       const AsyncValue<RecoverySummary?>.data(null);
 
-  bool covers(List<String> sourceIds) =>
-      sourceIds.every(_scanned.contains);
+  bool covers(List<String> sourceIds) => sourceIds.every(_scanned.contains);
 
   /// Scans only what is missing. Safe to call on every category open.
   Future<void> ensure(List<String> sourceIds) async {
-    final List<String> missing =
-        sourceIds.where((String id) => !_scanned.contains(id)).toList();
+    final List<String> missing = sourceIds
+        .where((String id) => !_scanned.contains(id))
+        .toList();
     if (missing.isEmpty) return;
     await run(missing);
   }
@@ -73,8 +108,9 @@ class ScanController extends Notifier<AsyncValue<RecoverySummary?>> {
   Future<void> run(List<String> sourceIds) async {
     state = const AsyncValue<RecoverySummary?>.loading();
     await ref.read(trashMapReadyProvider.future);
-    final RecoverySummary? summary =
-        await ref.read(recoveryBridgeProvider).scan(sourceIds);
+    final RecoverySummary? summary = await ref
+        .read(recoveryBridgeProvider)
+        .scan(sourceIds);
     _scanned.addAll(sourceIds);
     state = AsyncValue<RecoverySummary?>.data(summary);
   }
@@ -92,10 +128,10 @@ class ScanController extends Notifier<AsyncValue<RecoverySummary?>> {
 }
 
 final NotifierProvider<ScanController, AsyncValue<RecoverySummary?>>
-    scanControllerProvider =
+scanControllerProvider =
     NotifierProvider<ScanController, AsyncValue<RecoverySummary?>>(
-  ScanController.new,
-);
+      ScanController.new,
+    );
 
 /// Every source id the app can scan.
 const List<String> kAllSourceIds = <String>[
@@ -147,26 +183,28 @@ class RecoveryQuery {
 /// `FutureProvider.family` below already pin everything that matters, so the
 /// annotation was buying nothing and costing a compile.
 final recoveryItemsProvider =
-    FutureProvider.family<List<RecoverableItem>, RecoveryQuery>(
-        (Ref ref, RecoveryQuery query) async {
-  final RecoveryBridge bridge = ref.watch(recoveryBridgeProvider);
-  final List<RecoverableItem> merged = <RecoverableItem>[];
-  for (final String sourceId in query.sourceIds) {
-    merged.addAll(await bridge.items(sourceId, limit: 400));
-  }
-  final List<RecoverableItem> filtered = query.kind == null
-      ? merged
-      : merged
-          .where((RecoverableItem item) => item.kind == query.kind)
-          .toList();
-  filtered.sort((RecoverableItem a, RecoverableItem b) {
-    final int byDate = (b.dateDeletedMillis ?? 0).compareTo(
-      a.dateDeletedMillis ?? 0,
-    );
-    return byDate != 0 ? byDate : b.sizeBytes.compareTo(a.sizeBytes);
-  });
-  return filtered;
-});
+    FutureProvider.family<List<RecoverableItem>, RecoveryQuery>((
+      Ref ref,
+      RecoveryQuery query,
+    ) async {
+      final RecoveryBridge bridge = ref.watch(recoveryBridgeProvider);
+      final List<RecoverableItem> merged = <RecoverableItem>[];
+      for (final String sourceId in query.sourceIds) {
+        merged.addAll(await bridge.items(sourceId, limit: 400));
+      }
+      final List<RecoverableItem> filtered = query.kind == null
+          ? merged
+          : merged
+                .where((RecoverableItem item) => item.kind == query.kind)
+                .toList();
+      filtered.sort((RecoverableItem a, RecoverableItem b) {
+        final int byDate = (b.dateDeletedMillis ?? 0).compareTo(
+          a.dateDeletedMillis ?? 0,
+        );
+        return byDate != 0 ? byDate : b.sizeBytes.compareTo(a.sizeBytes);
+      });
+      return filtered;
+    });
 
 /// Which items the user has ticked. Cleared whenever a scan runs.
 class SelectionController extends Notifier<Set<String>> {

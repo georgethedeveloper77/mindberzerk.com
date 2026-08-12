@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/tokens.dart';
 import '../../ui/g_app_bar.dart';
-import '../../ui/g_badge.dart';
 import '../../ui/g_card.dart';
 import 'chapter_page.dart';
 import 'state/learn_model.dart';
@@ -18,8 +17,8 @@ class LearnPage extends ConsumerWidget {
   const LearnPage({super.key});
 
   static Route<void> route() => MaterialPageRoute<void>(
-        builder: (BuildContext context) => const LearnPage(),
-      );
+    builder: (BuildContext context) => const LearnPage(),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,18 +52,12 @@ class LearnPage extends ConsumerWidget {
             ),
             const SizedBox(height: GSpace.lg),
             if (book == null)
-              Text(
-                'Loading',
-                style: GType.bodySmall.copyWith(color: t.dim),
-              )
+              Text('Loading', style: GType.bodySmall.copyWith(color: t.dim))
             else
               for (int i = 0; i < book.chapters.length; i++)
                 Padding(
                   padding: const EdgeInsets.only(bottom: GSpace.sm + 2),
-                  child: _ChapterCard(
-                    number: i + 1,
-                    chapter: book.chapters[i],
-                  ),
+                  child: _ChapterCard(chapter: book.chapters[i]),
                 ),
           ],
         ),
@@ -74,25 +67,59 @@ class LearnPage extends ConsumerWidget {
 }
 
 class _ChapterCard extends StatelessWidget {
-  const _ChapterCard({required this.number, required this.chapter});
+  const _ChapterCard({required this.chapter});
 
-  final int number;
   final LearnChapter chapter;
+
+  /// One glyph per chapter, keyed on the id rather than the position, so
+  /// reordering the book cannot silently give a chapter the wrong picture.
+  static IconData _icon(String id) => switch (id) {
+    LearnIds.whereFilesLive => Icons.smartphone_rounded,
+    LearnIds.standardFolders => Icons.folder_rounded,
+    LearnIds.androidData => Icons.lock_outline_rounded,
+    LearnIds.theTrash => Icons.delete_outline_rounded,
+    LearnIds.thumbnails => Icons.photo_size_select_small_rounded,
+    LearnIds.scopedStorage => Icons.shield_outlined,
+    LearnIds.factoryReset => Icons.restart_alt_rounded,
+    _ => Icons.menu_book_outlined,
+  };
+
+  static Color _hue(GTokens t, String id) => switch (id) {
+    LearnIds.whereFilesLive => t.chat,
+    LearnIds.standardFolders => t.photo,
+    LearnIds.androidData => t.apps,
+    LearnIds.theTrash => t.danger,
+    LearnIds.thumbnails => t.video,
+    LearnIds.scopedStorage => t.docs,
+    LearnIds.factoryReset => t.audio,
+    _ => t.muted,
+  };
 
   @override
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     return GCard(
-      onTap: () =>
-          Navigator.of(context).push(ChapterPage.route(chapter.id)),
+      onTap: () => Navigator.of(context).push(ChapterPage.route(chapter.id)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SizedBox(
-            width: 26,
-            child: Text(
-              number.toString().padLeft(2, '0'),
-              style: GType.monoNumber.copyWith(color: t.accentText),
+          // A GLYPH, not a number.
+          //
+          // "01" told a reader the order, which the list already showed. A bin,
+          // a folder or a padlock tells them what the chapter is about before
+          // they read the title, which is the only thing a chapter list is for.
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _hue(t, chapter.id).withValues(alpha: 0.16),
+              borderRadius: GRadius.all(13),
+            ),
+            child: Icon(
+              _icon(chapter.id),
+              size: 19,
+              color: _hue(t, chapter.id),
             ),
           ),
           const SizedBox(width: GSpace.md),
@@ -110,7 +137,10 @@ class _ChapterCard extends StatelessWidget {
                   style: GType.bodySmall.copyWith(color: t.muted, height: 1.5),
                 ),
                 const SizedBox(height: GSpace.sm),
-                GBadge(label: '${chapter.minutes} min'),
+                Text(
+                  '${chapter.minutes} min read',
+                  style: GType.micro.copyWith(color: t.dim),
+                ),
               ],
             ),
           ),

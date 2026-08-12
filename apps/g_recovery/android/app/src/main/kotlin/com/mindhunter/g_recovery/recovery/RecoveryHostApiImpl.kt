@@ -5,6 +5,15 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import android.app.Activity
+import android.content.ContentUris
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
+import android.os.Build
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -26,7 +35,10 @@ internal class RecoveryHostApiImpl(context: Context) : RecoveryHostApi {
     private val main = Handler(Looper.getMainLooper())
 
     private val access = Access(app)
-    private val index = RecoveryIndex()
+    // The process wide index, shared with ScanService. A scan that finished in
+    // the background is already here when the user returns.
+    private val index = RecoveryIndex.shared
+    private val engine = ScanEngine(app, index)
     private val mediaScanner = MediaTrashScanner(app)
     private val liveSearcher = LiveFileSearcher(app)
     private val thumbnailer = Thumbnailer(app)
@@ -54,6 +66,12 @@ internal class RecoveryHostApiImpl(context: Context) : RecoveryHostApi {
     override fun setTrashMap(json: String, callback: (Result<Unit>) -> Unit) {
         worker.execute {
             trashMap = TrashMap.parse(json)
+            // Cached to disk as well as held in memory. ScanService can start
+            // with no Flutter engine alive to push the map to it, and a scan
+            // without the map silently skips every app trash folder.
+            runCatching {
+                File(app.filesDir, ScanService.TRASH_MAP_FILE).writeText(json)
+            }
             reply(callback, Unit)
         }
     }
@@ -157,109 +175,208 @@ internal class RecoveryHostApiImpl(context: Context) : RecoveryHostApi {
     override fun scan(sourceIds: List<String>, callback: (Result<RecoverySummary>) -> Unit) {
         cancelled.set(false)
         worker.execute {
-            val granted = access.isGranted()
-            val wanted = sourceIds.toSet()
-            val sources = mutableListOf<RecoverySource>()
-
-            if (SourceIds.MEDIA_TRASH in wanted) {
-                index.clear(SourceIds.MEDIA_TRASH)
-                if (granted) {
-                    mediaScanner.scan(
-                        index = index,
-                        sourceId = SourceIds.MEDIA_TRASH,
-                        isCancelled = cancelled::get,
-                    ) { scanned, total ->
-                        emitProgress(SourceIds.MEDIA_TRASH, scanned, total)
-                    }
-                }
-                sources.add(
-                    source(
-                        SourceIds.MEDIA_TRASH,
-                        "System trash",
-                        "full",
-                        granted,
-                        if (granted) "Original files, restored to their own folder"
-                        else "Needs file access",
-                        30,
-                    )
-                )
+            val summary = engine.run(
+                sourceIds = sourceIds,
+                trashMap = trashMap,
+                isCancelled = cancelled::get,
+            ) { sourceId, scanned, total, done ->
+                emitProgress(sourceId, scanned, total, done)
             }
-
-            if (SourceIds.APP_TRASH in wanted) {
-                index.clear(SourceIds.APP_TRASH)
-                if (granted) {
-                    fileScanner.scanEntries(
-                        entries = trashMap.fileEntries(),
-                        index = index,
-                        sourceId = SourceIds.APP_TRASH,
-                        fidelityOverride = null,
-                        isCancelled = cancelled::get,
-                    ) { scanned, total ->
-                        emitProgress(SourceIds.APP_TRASH, scanned, total)
-                    }
-                }
-                sources.add(
-                    source(
-                        SourceIds.APP_TRASH,
-                        "App trash folders",
-                        "full",
-                        granted,
-                        if (granted) "Files apps kept after you deleted them"
-                        else "Needs file access",
-                        null,
-                    )
-                )
-            }
-
-            if (SourceIds.THUMBNAILS in wanted) {
-                index.clear(SourceIds.THUMBNAILS)
-                fileScanner.scanEntries(
-                    entries = listOf(
-                        TrashMap.Entry(
-                            label = "Thumbnail cache",
-                            paths = trashMap.thumbnailPaths,
-                            fidelity = "preview",
-                            retentionDays = null,
-                            role = "cache",
-                        )
-                    ),
-                    index = index,
-                    sourceId = SourceIds.THUMBNAILS,
-                    fidelityOverride = "preview",
-                    isCancelled = cancelled::get,
-                ) { scanned, total ->
-                    emitProgress(SourceIds.THUMBNAILS, scanned, total)
-                }
-                sources.add(
-                    source(
-                        SourceIds.THUMBNAILS,
-                        "Thumbnail cache",
-                        "preview",
-                        true,
-                        "Previews only. The originals are gone and cannot be brought back.",
-                        null,
-                    )
-                )
-            }
-
-            sources.forEach { emitProgress(it.sourceId, 1, 1, done = true) }
-
-            reply(
-                callback,
-                RecoverySummary(
-                    sources = sources,
-                    totalItems = index.totalItems().toLong(),
-                    totalBytes = index.totalBytes(),
-                    expiringSoonItems = index.expiringSoon().toLong(),
-                    partial = !granted,
-                    imageCount = index.countOfKind("image").toLong(),
-                    videoCount = index.countOfKind("video").toLong(),
-                    audioCount = index.countOfKind("audio").toLong(),
-                    documentCount = index.countOfKind("document").toLong(),
-                    otherCount = index.countOfKind("other").toLong(),
-                ),
-            )
+            reply(callback, summary)
         }
+    }
+
+    /**
+     * The Activity, when one is attached.
+     *
+     * Everything else here runs on the application context, which is correct:
+     * the bridge outlives any single Activity and holding one would leak it. A
+     * runtime permission dialog is the one thing that cannot be shown without
+     * one, so MainActivity hands this over and takes it back on teardown.
+     */
+    private var activity: Activity? = null
+
+    fun attachActivity(value: Activity?) {
+        activity = value
+    }
+
+    /**
+     * POST_NOTIFICATIONS, asked for at the moment it starts to matter.
+     *
+     * Without it on API 33 and up the service still runs and still finds
+     * everything, and the system drops its notification on the floor. The scan
+     * then looks to the user exactly like a button that does nothing.
+     *
+     * Asked here rather than at launch because a permission prompt on first open
+     * is the one a person dismisses without reading. Asked once: if the dialog
+     * has been permanently denied, requestPermissions returns immediately and
+     * the scan proceeds regardless, silently but correctly.
+     */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33) return
+        val host = activity ?: return
+        val granted = host.checkSelfPermission(
+            android.Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        host.requestPermissions(
+            arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+            REQUEST_NOTIFICATIONS,
+        )
+    }
+
+    private val mediaCollection =
+        MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+
+    /**
+     * A URI another component can use, or null.
+     *
+     * Only a MediaStore row has one. A loose file in an app trash folder is a
+     * path this app can read and nothing else can be handed, because scoped
+     * storage ended file path sharing. Such a file is read through [itemBytes]
+     * instead.
+     */
+    override fun itemUri(itemId: String, callback: (Result<String?>) -> Unit) {
+        worker.execute {
+            val record = index.get(itemId)
+            val uri = when (record) {
+                is RecoveryIndex.Record.Media ->
+                    ContentUris.withAppendedId(mediaCollection, record.mediaId)
+                        .toString()
+
+                else -> null
+            }
+            reply(callback, uri)
+        }
+    }
+
+    /**
+     * Bytes, for both record kinds.
+     *
+     * The cap is checked BEFORE the read, so an oversized file is refused rather
+     * than pulled into memory and then discarded.
+     */
+    override fun itemBytes(
+        itemId: String,
+        maxBytes: Long,
+        callback: (Result<ByteArray?>) -> Unit,
+    ) {
+        worker.execute {
+            val record = index.get(itemId)
+            if (record == null) {
+                reply(callback, null)
+                return@execute
+            }
+
+            val bytes = runCatching {
+                when (record) {
+                    is RecoveryIndex.Record.Media -> {
+                        val uri = ContentUris.withAppendedId(
+                            mediaCollection,
+                            record.mediaId,
+                        )
+                        app.contentResolver.openInputStream(uri)?.use { stream ->
+                            if (stream.available() > maxBytes) {
+                                null
+                            } else {
+                                stream.readBytes()
+                            }
+                        }
+                    }
+
+                    is RecoveryIndex.Record.Loose -> {
+                        if (record.file.length() > maxBytes) {
+                            null
+                        } else {
+                            record.file.readBytes()
+                        }
+                    }
+                }
+            }.getOrNull()
+
+            reply(callback, bytes?.takeIf { it.size <= maxBytes })
+        }
+    }
+
+    /**
+     * Hands the item to another app.
+     *
+     * A MediaStore row goes out as its own URI. A loose file goes through
+     * FileProvider, which mints a temporary content URI the receiving app may
+     * read for the life of its activity. Without it a file path crossing a
+     * process boundary is refused, which the user reads as a fault in this app
+     * rather than in scoped storage.
+     */
+    override fun openItemExternally(
+        itemId: String,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        val record = index.get(itemId)
+        if (record == null) {
+            main.post { callback(Result.success(false)) }
+            return
+        }
+
+        val uri: Uri? = when (record) {
+            is RecoveryIndex.Record.Media ->
+                ContentUris.withAppendedId(mediaCollection, record.mediaId)
+
+            is RecoveryIndex.Record.Loose -> runCatching {
+                FileProvider.getUriForFile(
+                    app,
+                    app.packageName + ".fileprovider",
+                    record.file,
+                )
+            }.getOrNull()
+        }
+
+        if (uri == null) {
+            main.post { callback(Result.success(false)) }
+            return
+        }
+
+        val type = record.item.mimeType
+            ?: app.contentResolver.getType(uri)
+            ?: "*/*"
+
+        val view = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, type)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        val chooser = Intent.createChooser(view, null)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        val ok = runCatching {
+            app.startActivity(chooser)
+            true
+        }.getOrDefault(false)
+        main.post { callback(Result.success(ok)) }
+    }
+
+    override fun startBackgroundScan(callback: (Result<Unit>) -> Unit) {
+        ensureNotificationPermission()
+        // Started on the platform thread on purpose. startForegroundService has
+        // a five second deadline to reach startForeground, and queuing it behind
+        // a scan already on the worker is how that deadline gets missed.
+        ScanService.start(app)
+        main.post { callback(Result.success(Unit)) }
+    }
+
+    override fun backgroundScanState(callback: (Result<BackgroundScanState>) -> Unit) {
+        val snapshot = ScanService.state
+        reply(
+            callback,
+            BackgroundScanState(
+                running = snapshot.running,
+                scanned = snapshot.scanned.toLong(),
+                total = snapshot.total.toLong(),
+                found = snapshot.found.toLong(),
+                timedOut = snapshot.timedOut,
+                sourceId = snapshot.sourceId,
+                finishedAtMillis = snapshot.finishedAtMillis,
+            ),
+        )
     }
 
     override fun cancelScan(callback: (Result<Unit>) -> Unit) {
@@ -449,4 +566,10 @@ internal class RecoveryHostApiImpl(context: Context) : RecoveryHostApi {
     private fun <T> reply(callback: (Result<T>) -> Unit, value: T) {
         main.post { callback(Result.success(value)) }
     }
+
+    private companion object {
+        /** Arbitrary and unused: nothing reads the result, the scan runs either way. */
+        const val REQUEST_NOTIFICATIONS = 4201
+    }
+
 }

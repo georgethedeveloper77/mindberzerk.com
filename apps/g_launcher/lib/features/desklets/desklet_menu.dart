@@ -13,6 +13,7 @@ import '../../platform/launcher_api.g.dart' as api;
 import 'desklet_edit.dart';
 import 'desklet_picker.dart';
 import 'desklet_settings.dart';
+import 'widget_stage.dart';
 
 /// What a held desklet offers.
 ///
@@ -275,6 +276,19 @@ void removeDesklet(
     if (d.kind != 'appwidget') continue;
     final id = d.config['widgetId'];
     if (id is int) {
+      // TWO calls, and both are required.
+      //
+      // `releaseStageWidget` destroys the AppWidgetHostView in the native
+      // stage. Without it the view stays in the layer forever, still listening,
+      // still holding the provider's whole RemoteViews tree, simply positioned
+      // nowhere. Nothing else destroys a stage view: a widget that merely
+      // scrolls off a page is HIDDEN and keeps its view, which is the whole
+      // reason page swipes stopped re-inflating widgets.
+      //
+      // `removeWidget` frees the host id itself, which is the leak documented
+      // at length in the old WidgetHost notes: an allocation not matched by a
+      // delete survives an app data clear on several OEM skins.
+      releaseStageWidget(id);
       api.LauncherHostApi().removeWidget(id);
     }
   }

@@ -14,15 +14,16 @@ const Duration kDeviceForegroundInterval = Duration(milliseconds: 500);
 /// than a pending one.
 const Duration kDeviceBackgroundInterval = Duration(seconds: 2);
 
-final Provider<DeviceProbe> deviceProbeProvider =
-    Provider<DeviceProbe>((Ref ref) => DeviceProbe());
+final Provider<DeviceProbe> deviceProbeProvider = Provider<DeviceProbe>(
+  (Ref ref) => DeviceProbe(),
+);
 
 /// Probed once natively and cached for the process, so this is cheap to watch
 /// from every card.
 final FutureProvider<ProbeCapabilities?> deviceCapabilitiesProvider =
     FutureProvider<ProbeCapabilities?>(
-  (Ref ref) => ref.watch(deviceProbeProvider).capabilities(),
-);
+      (Ref ref) => ref.watch(deviceProbeProvider).capabilities(),
+    );
 
 final FutureProvider<CpuInfo?> cpuInfoProvider = FutureProvider<CpuInfo?>(
   (Ref ref) => ref.watch(deviceProbeProvider).cpuInfo(),
@@ -30,8 +31,8 @@ final FutureProvider<CpuInfo?> cpuInfoProvider = FutureProvider<CpuInfo?>(
 
 final FutureProvider<List<SensorInfo>> sensorListProvider =
     FutureProvider<List<SensorInfo>>(
-  (Ref ref) => ref.watch(deviceProbeProvider).sensors(),
-);
+      (Ref ref) => ref.watch(deviceProbeProvider).sensors(),
+    );
 
 /// The sampler is created paused.
 ///
@@ -39,8 +40,9 @@ final FutureProvider<List<SensorInfo>> sensorListProvider =
 /// provider is constructed the moment the app opens even when the user never
 /// leaves Home. Starting paused means nothing polls sysfs until the Device page
 /// says it is visible.
-final Provider<DeviceSampler> deviceSamplerProvider =
-    Provider<DeviceSampler>((Ref ref) {
+final Provider<DeviceSampler> deviceSamplerProvider = Provider<DeviceSampler>((
+  Ref ref,
+) {
   final DeviceSampler sampler = DeviceSampler(
     probe: ref.watch(deviceProbeProvider),
     interval: kDeviceForegroundInterval,
@@ -53,6 +55,21 @@ final Provider<DeviceSampler> deviceSamplerProvider =
 final StreamProvider<ProbeTick> deviceTickProvider = StreamProvider<ProbeTick>(
   (Ref ref) => ref.watch(deviceSamplerProvider).ticks,
 );
+
+/// ONE reading, taken on demand.
+///
+/// The sampler above is created paused and only the Device page ever unpauses
+/// it, which is right: nothing should poll sysfs at 2 Hz because the app
+/// happened to open. The cost was that home's device card had no numbers at all
+/// until the user visited Device, so the one element pointing AT that tab was
+/// the one element that could not show what was there.
+///
+/// A single snapshot has none of that cost. It reads once, caches for as long as
+/// anything watches it, and starts no timer. Home wants a number, not a stream.
+final FutureProvider<DeviceSnapshot?> deviceSnapshotProvider =
+    FutureProvider<DeviceSnapshot?>(
+      (Ref ref) => ref.watch(deviceProbeProvider).snapshot(),
+    );
 
 /// Which section of the Device tab is showing.
 enum DeviceSection { cpu, battery, thermal, memory, sensors }
@@ -68,10 +85,10 @@ class DeviceSectionController extends Notifier<DeviceSection> {
 }
 
 final NotifierProvider<DeviceSectionController, DeviceSection>
-    deviceSectionProvider =
+deviceSectionProvider =
     NotifierProvider<DeviceSectionController, DeviceSection>(
-  DeviceSectionController.new,
-);
+      DeviceSectionController.new,
+    );
 
 @immutable
 class DeviceSectionSpec {

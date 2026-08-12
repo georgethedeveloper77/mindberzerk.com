@@ -606,19 +606,24 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   //
   // Removing every desklet is a legitimate arrangement, which is why the flag
   // exists at all rather than testing `prefs.desklets.isEmpty`.
-  // PHASE D-grid — rescale placements onto the fine grid, ONCE per theme.
+  // PHASE D-grid — clear placements and let the starter reseed, ONCE per theme.
   //
-  // BEFORE the starter branch, and on its own flag, for the same reason the
-  // starter and the wallpaper are separate: a desktop that already exists has
-  // to be rescaled, and a desktop that does not yet exist has to be authored
-  // straight into the new coordinates. Running the migration after the seeding
-  // would rescale a starter that was never in the old system.
+  // BEFORE the starter branch, and it depends on that order: the reset clears
+  // `deskletsInitialized` along with the placements, so the branch below sees
+  // an uninitialised theme on the next pass and authors a fresh desktop
+  // straight into the corrected coordinates. Running it after the seeding would
+  // wipe the starter it had just laid down.
+  //
+  // Version 2 is a WIPE where version 1 was a rescale. The reasoning is in
+  // `DeskletLayout.resetDesklets`; the short version is that every hosted
+  // AppWidget on every existing desktop is at a span nobody chose, and their
+  // stored config predates the fields needed to re-derive one.
   //
   // Terminates the same way: it writes prefs, prefs is watched, this provider
   // re-runs, and the marker is set so the branch is skipped.
   if ((prefs.deskletGridVersion ?? 0) < DeskletLayout.gridVersion) {
-    final migrated = DeskletLayout.migrateToFineGrid(prefs);
-    await ref.read(prefsProvider(spec.id).notifier).edit((_) => migrated);
+    final reset = DeskletLayout.resetDesklets(prefs);
+    await ref.read(prefsProvider(spec.id).notifier).edit((_) => reset);
   }
 
   if (!prefs.deskletsInitialized) {

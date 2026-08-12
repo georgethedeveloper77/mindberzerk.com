@@ -29,7 +29,8 @@ class GMessenger {
 
     dismiss();
 
-    final double bottomInset = GMessengerInsets.of(context) +
+    final double bottomInset =
+        GMessengerInsets.of(context) +
         MediaQuery.viewPaddingOf(context).bottom +
         GSpace.md;
 

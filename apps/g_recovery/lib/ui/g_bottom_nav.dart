@@ -84,23 +84,22 @@ class _GNavCell extends StatelessWidget {
             AnimatedContainer(
               duration: GMotion.fast,
               curve: GMotion.enter,
-              width: 38,
-              height: 22,
+              width: GSpace.navPillWidth,
+              height: GSpace.navPillHeight,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? t.accentSoft : const Color(0x00000000),
                 borderRadius: GRadius.all(GRadius.chip),
               ),
-              child: Icon(item.icon, size: 18, color: tone),
+              child: Icon(item.icon, size: GSpace.navIcon, color: tone),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: GSpace.xs),
             Text(
               item.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GType.micro.copyWith(
+              style: GType.navLabel.copyWith(
                 color: tone,
-                fontSize: 9.5,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),

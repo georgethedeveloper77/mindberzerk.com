@@ -78,6 +78,26 @@ class DeviceFormat {
     }
   }
 
+  /// Three bands, from the seven PowerManager statuses.
+  ///
+  /// 0 calm, 1 warm, 2 hot. The split sits between Moderate and Severe because
+  /// that is where Android stops merely noting the heat and starts throttling
+  /// hard enough for a person to feel it.
+  ///
+  /// Bands rather than raw degrees on purpose. Throttling thresholds differ per
+  /// device, so a budget phone struggling at 42 C and a flagship idling at 42 C
+  /// would be labelled identically by any hardcoded number. The status is the
+  /// device's own opinion about itself.
+  ///
+  /// An unknown or missing status is calm, not unknown. A phone that will not
+  /// report its thermal state is not thereby overheating, and colouring it as a
+  /// warning would make every ROM with a locked-down thermal service look sick.
+  static int thermalBand(int? status) {
+    if (status == null || status <= 0) return 0;
+    if (status <= 2) return 1;
+    return 2;
+  }
+
   /// Where a temperature sits on a 20 C to 70 C scale, for a bar fill.
   ///
   /// The floor is 20 rather than 0 because a phone is never near freezing in
@@ -105,7 +125,8 @@ class DeviceFormat {
     final StringBuffer out = StringBuffer();
     for (int i = 0; i < camel.length; i++) {
       final String char = camel[i];
-      final bool isUpper = char.toUpperCase() == char && char.toLowerCase() != char;
+      final bool isUpper =
+          char.toUpperCase() == char && char.toLowerCase() != char;
       if (isUpper && i > 0) {
         out.write(' ');
         out.write(char.toLowerCase());

@@ -16,8 +16,7 @@ class CpuCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final GTokens t = context.g;
-    final ProbeCapabilities? caps =
-        ref.watch(deviceCapabilitiesProvider).value;
+    final ProbeCapabilities? caps = ref.watch(deviceCapabilitiesProvider).value;
     final CpuInfo? info = ref.watch(cpuInfoProvider).value;
     final ProbeTick? tick = ref.watch(deviceTickProvider).value;
 
@@ -145,12 +144,13 @@ class _ClusterRows extends StatelessWidget {
           Builder(
             builder: (BuildContext _) {
               final int core = cluster.coreIds[i];
-              final int? khz =
-                  (coreKhz != null && core < coreKhz.length) ? coreKhz[core] : null;
+              final int? khz = (coreKhz != null && core < coreKhz.length)
+                  ? coreKhz[core]
+                  : null;
               final bool online =
                   (coreOnline != null && core < coreOnline.length)
-                      ? coreOnline[core] ?? true
-                      : true;
+                  ? coreOnline[core] ?? true
+                  : true;
               return GMeterRow(
                 label: single ? cluster.label : '${cluster.label} ${i + 1}',
                 value: online ? DeviceFormat.frequency(khz) : 'offline',

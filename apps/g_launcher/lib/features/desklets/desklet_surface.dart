@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
+import '../../data/prefs/prefs_repository.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
+import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_settings.dart';
 import 'desklet_editor.dart';
@@ -107,41 +109,19 @@ class DeskletSurfaceView extends ConsumerWidget {
   /// of it.
   static const EdgeInsets margin = EdgeInsets.all(6);
 
-  /// Roughly how big one cell is, for callers that must size something BEFORE
-  /// this widget has laid out.
+  /// ─── estimateCell IS GONE, AND SO IS THE 70 IT WAS WRITTEN TO REPLACE ───
   ///
-  /// ─── WHY THIS EXISTS ──────────────────────────────────────────────────
+  /// It answered "roughly how big is a cell" from `MediaQuery.sizeOf` minus the
+  /// view padding, for the picker's benefit. Its own comment called it an
+  /// estimate and said being a few dp off cost nothing. That stopped being
+  /// true: the workspace is not the screen, panels take their own space out of
+  /// it, and on a GNOME-style distro the estimate missed by close to a fifth of
+  /// the row height in the direction that seeds widgets too short.
   ///
-  /// The picker has to turn a widget provider's requested footprint in dp into
-  /// a span in cells, and it was dividing by a hardcoded 70. A real row on a
-  /// 4 by 5 grid is about 140dp tall, so every hosted widget was seeded at
-  /// twice the rows it asked for: a weather strip that wants 74dp got two rows
-  /// and 280dp, which is most of why third-party widgets look stretched and
-  /// wrong on this launcher.
-  ///
-  /// An ESTIMATE, and honest about it. The real cell comes from the workspace
-  /// canvas's own constraints, which nothing outside the build can see; this
-  /// approximates the same arithmetic from the window. It is used to choose an
-  /// initial span, never to lay anything out, so being a few dp off costs
-  /// nothing and being 70 against 140 cost a great deal.
-  static ({double w, double h}) estimateCell(
-    BuildContext context,
-    EffectiveTheme theme,
-  ) {
-    final size = MediaQuery.sizeOf(context);
-    final insets = MediaQuery.viewPaddingOf(context);
-
-    final w = size.width - margin.horizontal - insets.horizontal;
-    final h = size.height - margin.vertical - insets.vertical;
-
-    final cols = theme.deskletCols < 1 ? 1 : theme.deskletCols;
-    final rows = theme.deskletRows < 1 ? 1 : theme.deskletRows;
-
-    return (
-      w: w <= 0 ? 70 : w / cols,
-      h: h <= 0 ? 70 : h / rows,
-    );
-  }
+  /// This widget measures the truth two dozen lines below. It now PUBLISHES it
+  /// through `deskletCellProvider`, and the picker reads the surface's own
+  /// number instead of forming a second opinion about it. See
+  /// `desklet_cell.dart`.
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -175,6 +155,44 @@ class DeskletSurfaceView extends ConsumerWidget {
 
         final cellW = w / cols;
         final cellH = h / rows;
+
+        // ─── PUBLISH THE MEASURED CELL, THEN RE-DERIVE AGAINST IT ─────────
+        //
+        // This is the only place in the app that knows what a desktop cell
+        // actually measures, so it is the only place that can answer either
+        // question honestly.
+        //
+        // POST-FRAME, not inline: both calls write provider state, and writing
+        // provider state during a build is the "setState during build" error in
+        // Riverpod clothing. The notifier's own equality guard makes the common
+        // case a no-op, so this costs one comparison per layout pass.
+        //
+        // `reflowWidgets` is identity-stable and its input is a pure function
+        // of (config, cell), so it cannot loop: the second call with the same
+        // cell returns the same prefs and the `identical` check below skips the
+        // write entirely.
+        final cell = (
+          w: cellW,
+          h: cellH,
+          cols: cols,
+          rows: rows,
+          gutter: gutter,
+        );
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          ref.read(deskletCellProvider.notifier).set(cell);
+
+          final prefs = theme.prefs;
+          final reflowed = DeskletLayout.reflowWidgets(prefs, cell: cell);
+          if (identical(reflowed, prefs)) return;
+          // .edit, never .update: `.update` mutates state without writing to
+          // disk, so a corrected span would revert on the next cold start and
+          // be recomputed on every launch forever.
+          ref
+              .read(prefsProvider(theme.spec.id).notifier)
+              .edit((_) => reflowed);
+        });
 
         return Padding(
           padding: usable,

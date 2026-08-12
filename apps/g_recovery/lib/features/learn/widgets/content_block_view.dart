@@ -73,7 +73,10 @@ class ContentBlockView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Padding(
-                        padding: const EdgeInsets.only(top: 7, right: GSpace.md),
+                        padding: const EdgeInsets.only(
+                          top: 7,
+                          right: GSpace.md,
+                        ),
                         child: Container(
                           width: 5,
                           height: 5,

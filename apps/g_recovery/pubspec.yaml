@@ -1,7 +1,7 @@
 name: g_recovery
 description: "Recover deleted files, audit your storage, and back up to your own server."
 publish_to: 'none'
-version: 2.0.0+7
+version: 2.0.0+9
 
 environment:
   sdk: ^3.12.1
@@ -9,6 +9,8 @@ environment:
 dependencies:
   device_probe:
     path: ../../packages/device_probe
+  firebase_analytics: ^12.4.6
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
 
@@ -18,18 +20,51 @@ dependencies:
   # favour of whichever is stricter rather than reported.
   flutter_riverpod: ^3.3.2
 
+  # Rendering only. The `pdf` package writes PDFs and cannot display one, which
+  # is why it was removed: nothing imported it.
+  pdfx: ^2.9.2
+
   # Theme mode, accent, selected tab, and every future setting. JSON blobs
   # under named keys, not Drift: nothing in this app is relational.
   shared_preferences: ^2.5.5
 
+  # The splash animation only. One file, 8 KB, pure vector, so its colours can
+  # be replaced at runtime to follow the accent.
+  lottie: ^3.5.1
+
+  video_player: ^2.13.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Build time only, both of them. flutter_launcher_icons generates icons once
+  # and pigeon generates bridges once; neither ships in the APK, and having them
+  # under dependencies was pulling them into the release graph for nothing.
+  flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
   pigeon: ^27.1.2
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icons/g_recovery.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/icons/g_recovery.png"
+    background_color: "#hexcode"
+    theme_color: "#hexcode"
+  windows:
+    generate: true
+    image_path: "assets/icons/g_recovery.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/g_recovery.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/packs/
     - assets/content/
+    - assets/lottie/

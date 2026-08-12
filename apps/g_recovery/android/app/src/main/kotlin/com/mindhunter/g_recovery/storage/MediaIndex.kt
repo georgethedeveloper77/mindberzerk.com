@@ -142,6 +142,7 @@ internal class MediaIndex(private val context: Context) {
         query(
             where.toString().ifEmpty { null },
             args.toTypedArray().takeIf { it.isNotEmpty() },
+            spec.sort,
         )?.use { cursor ->
             while (cursor.moveToNext()) {
                 val kind = kindOf(cursor)
@@ -184,16 +185,41 @@ internal class MediaIndex(private val context: Context) {
 
     fun uriOf(mediaId: Long) = ContentUris.withAppendedId(collection, mediaId)
 
-    private fun query(where: String?, args: Array<String>?): Cursor? = try {
+    private fun query(
+        where: String?,
+        args: Array<String>?,
+        sort: String = "largest",
+    ): Cursor? = try {
         context.contentResolver.query(
             collection,
             projection,
             where,
             args,
-            "${MediaStore.Files.FileColumns.SIZE} DESC",
+            orderFor(sort),
         )
     } catch (_: Throwable) {
         null
+    }
+
+    /**
+     * SQL for a sort, and the default matters.
+     *
+     * An unknown value falls back to largest rather than throwing. This string
+     * crosses a bridge from Dart, and a typo in a caller should give the wrong
+     * order rather than an empty screen.
+     *
+     * The order is applied by the PROVIDER, over every matching row, not over
+     * the page. Sorting after the limit would return the smallest of the largest.
+     */
+    private fun orderFor(sort: String): String = when (sort) {
+        "newest" -> "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+        "oldest" -> "${MediaStore.Files.FileColumns.DATE_MODIFIED} ASC"
+        "smallest" -> "${MediaStore.Files.FileColumns.SIZE} ASC"
+        // COLLATE NOCASE, or every capitalised name sorts above every lowercase
+        // one and the list looks shuffled to anyone who did not expect ASCII
+        // ordering.
+        "name" -> "${MediaStore.Files.FileColumns.DISPLAY_NAME} COLLATE NOCASE ASC"
+        else -> "${MediaStore.Files.FileColumns.SIZE} DESC"
     }
 
     private fun read(cursor: Cursor, kind: String): StorageFile? {

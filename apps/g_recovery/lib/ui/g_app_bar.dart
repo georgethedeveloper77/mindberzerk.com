@@ -28,10 +28,7 @@ class GAppBar extends StatelessWidget {
       padding: const EdgeInsets.only(top: GSpace.xs, bottom: GSpace.md + 2),
       child: Row(
         children: <Widget>[
-          if (leading != null) ...<Widget>[
-            leading!,
-            const SizedBox(width: 11),
-          ],
+          if (leading != null) ...<Widget>[leading!, const SizedBox(width: 11)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,14 +37,26 @@ class GAppBar extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GType.micro.copyWith(color: t.muted),
+                    style: GType.micro.copyWith(color: t.muted, fontSize: 11.5),
                   ),
                 Text(
                   title,
-                  maxLines: 1,
+                  // TWO lines, not one.
+                  //
+                  // A one line cap turned "How Android storage works" into a
+                  // heading ending in an ellipsis, which reads as broken copy
+                  // rather than as truncation. Two lines fit every title in the
+                  // app at this size, and the cap stays so a pathological one
+                  // cannot push the content off screen.
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: subtitle == null
-                      ? GType.title.copyWith(color: t.text)
+                      // Larger than GType.title. On home this line names the
+                      // phone, which is the first thing a person checks to be
+                      // sure the app is looking at the right device, and on
+                      // every other screen it is the only thing telling them
+                      // where they are.
+                      ? GType.title.copyWith(color: t.text, fontSize: 23)
                       : GType.heading.copyWith(color: t.text),
                 ),
               ],

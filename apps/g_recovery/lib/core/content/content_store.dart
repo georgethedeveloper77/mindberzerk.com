@@ -70,8 +70,9 @@ class ContentStore {
   }
 }
 
-final Provider<ContentBridge> contentBridgeProvider =
-    Provider<ContentBridge>((Ref ref) => ContentBridge());
+final Provider<ContentBridge> contentBridgeProvider = Provider<ContentBridge>(
+  (Ref ref) => ContentBridge(),
+);
 
 final Provider<ContentStore> contentStoreProvider = Provider<ContentStore>(
   (Ref ref) => ContentStore(ref.watch(contentBridgeProvider)),
@@ -85,19 +86,19 @@ final Provider<ContentStore> contentStoreProvider = Provider<ContentStore>(
 /// enough.
 final FutureProvider<ContentSyncResult?> contentSyncProvider =
     FutureProvider<ContentSyncResult?>((Ref ref) async {
-  final ContentBridge bridge = ref.watch(contentBridgeProvider);
-  await bridge.setBaseUrl(kContentBaseUrl);
-  final ContentSyncResult? result = await bridge.sync();
-  if (result != null) {
-    GLog.i(
-      'content sync ${result.status}: ${result.detail}',
-      scope: 'content',
-    );
-  }
-  return result;
-});
+      final ContentBridge bridge = ref.watch(contentBridgeProvider);
+      await bridge.setBaseUrl(kContentBaseUrl);
+      final ContentSyncResult? result = await bridge.sync();
+      if (result != null) {
+        GLog.i(
+          'content sync ${result.status}: ${result.detail}',
+          scope: 'content',
+        );
+      }
+      return result;
+    });
 
 final FutureProvider<List<ContentPackInfo>> installedPacksProvider =
     FutureProvider<List<ContentPackInfo>>(
-  (Ref ref) => ref.watch(contentBridgeProvider).packs(),
-);
+      (Ref ref) => ref.watch(contentBridgeProvider).packs(),
+    );
