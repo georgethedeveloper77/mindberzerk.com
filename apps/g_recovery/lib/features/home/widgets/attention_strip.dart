@@ -10,6 +10,7 @@ import '../../../ui/g_card.dart';
 import '../../recovery/category_page.dart';
 import '../../recovery/state/recovery_providers.dart';
 import '../../server/server_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// WHAT IS ABOUT TO GO WRONG, AND NOTHING ELSE.
 ///
@@ -56,9 +57,12 @@ class AttentionStrip extends ConsumerWidget {
           icon: Icons.timer_outlined,
           tone: t.danger,
           value: GFormat.count(expiring),
-          label: 'expire within 48 hours',
+          label: context.s('expire within 48 hours'),
           onTap: () => Navigator.of(context).push(
-            CategoryPage.route(title: 'Expiring', sourceIds: kAllSourceIds),
+            CategoryPage.route(
+              title: context.s('Expiring'),
+              sourceIds: kAllSourceIds,
+            ),
           ),
         ),
       );
@@ -77,7 +81,7 @@ class AttentionStrip extends ConsumerWidget {
             icon: Icons.cloud_off_outlined,
             tone: t.warning,
             value: '$days days',
-            label: 'since the last backup',
+            label: context.s('since the last backup'),
             onTap: () => Navigator.of(context).push(ServerPage.route()),
           ),
         );
@@ -91,8 +95,8 @@ class AttentionStrip extends ConsumerWidget {
         _Card(
           icon: Icons.cloud_upload_outlined,
           tone: t.warning,
-          value: 'Never',
-          label: 'backed up to your server',
+          value: context.s('Never'),
+          label: context.s('backed up to your server'),
           onTap: () => Navigator.of(context).push(ServerPage.route()),
         ),
       );

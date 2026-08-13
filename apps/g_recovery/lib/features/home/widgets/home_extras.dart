@@ -11,6 +11,7 @@ import '../../../core/format.dart';
 import '../../../ui/g_stat.dart';
 import '../../storage/compress/compress_page.dart';
 import '../../storage/state/storage_providers.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// MAKING ROOM, WHICH IS NOT THE SAME QUESTION AS GETTING FILES BACK.
 ///
@@ -157,7 +158,7 @@ class CompressRow extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'Make files smaller',
+                                context.s('Make files smaller'),
                                 style: GType.heading.copyWith(color: t.text),
                               ),
                               const SizedBox(height: 2),
@@ -276,7 +277,7 @@ class PillarStats extends ConsumerWidget {
                       ),
                       DateTime.now(),
                     ),
-              label: 'BACKUP',
+              label: context.s('BACKUP'),
               muted: server == null,
             ),
           ),

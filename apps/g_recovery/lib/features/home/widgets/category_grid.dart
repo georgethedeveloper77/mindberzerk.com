@@ -13,6 +13,7 @@ import '../../messages/messages_page.dart';
 import '../../messages/state/messages_providers.dart';
 import '../../recovery/category_page.dart';
 import '../../recovery/state/recovery_providers.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// THE MOSAIC. WHAT HAS BEEN DELETED, SIZED BY HOW MUCH OF IT THERE IS.
 ///
@@ -54,7 +55,7 @@ class CategoryGrid extends ConsumerWidget {
 
     final List<_Category> all = <_Category>[
       _Category(
-        label: 'Photos',
+        label: context.s('Photos'),
         // Thumbnail cache entries are images too, and on most devices they are
         // the bulk of what is findable. Counting them here rather than hiding
         // them under Other is what makes this tile agree with the hero.
@@ -64,14 +65,14 @@ class CategoryGrid extends ConsumerWidget {
         kind: 'image',
       ),
       _Category(
-        label: 'Video',
+        label: context.s('Video'),
         count: summary?.videoCount ?? 0,
         icon: Icons.play_circle_outline,
         motifKey: 'video',
         kind: 'video',
       ),
       _Category(
-        label: 'Messages',
+        label: context.s('Messages'),
         // ─── A NUMBER, LIKE EVERY OTHER TILE ────────────────────────────────
         //
         // This said "Archive" where the others say a count. On a quarter tile
@@ -89,21 +90,21 @@ class CategoryGrid extends ConsumerWidget {
         messages: true,
       ),
       _Category(
-        label: 'Docs',
+        label: context.s('Docs'),
         count: summary?.documentCount ?? 0,
         icon: Icons.description_outlined,
         motifKey: 'document',
         kind: 'document',
       ),
       _Category(
-        label: 'Audio',
+        label: context.s('Audio'),
         count: summary?.audioCount ?? 0,
         icon: Icons.graphic_eq_rounded,
         motifKey: 'audio',
         kind: 'audio',
       ),
       _Category(
-        label: 'Previews',
+        label: context.s('Previews'),
         count: summary?.otherCount ?? 0,
         icon: Icons.grain_rounded,
         motifKey: 'thumbnails',

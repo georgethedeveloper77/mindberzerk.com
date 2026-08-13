@@ -2,8 +2,8 @@
 // ignore_for_file: dangling_library_doc_comments, implementation_imports
 import 'package:flutter/widgets.dart';
 import 'package:lottie/lottie.dart';
-import 'package:lottie/src/lottie_builder.dart';
 import 'package:lottie/src/composition.dart';
+import 'package:lottie/src/lottie_builder.dart';
 
 class Assets {
   Assets._();
@@ -24,9 +24,30 @@ class $AssetsContentGen {
   const $AssetsContentGen();
 
   final String learnEn = 'assets/content/learn-en.json';
+  final String stringsAm = 'assets/content/strings-am.json';
+  final String stringsAr = 'assets/content/strings-ar.json';
+  final String stringsBn = 'assets/content/strings-bn.json';
+  final String stringsDe = 'assets/content/strings-de.json';
+  final String stringsEs = 'assets/content/strings-es.json';
+  final String stringsFil = 'assets/content/strings-fil.json';
   final String stringsFr = 'assets/content/strings-fr.json';
+  final String stringsHa = 'assets/content/strings-ha.json';
+  final String stringsHi = 'assets/content/strings-hi.json';
+  final String stringsId = 'assets/content/strings-id.json';
+  final String stringsIt = 'assets/content/strings-it.json';
+  final String stringsKo = 'assets/content/strings-ko.json';
+  final String stringsNl = 'assets/content/strings-nl.json';
+  final String stringsPl = 'assets/content/strings-pl.json';
   final String stringsPt = 'assets/content/strings-pt.json';
+  final String stringsRu = 'assets/content/strings-ru.json';
   final String stringsSw = 'assets/content/strings-sw.json';
+  final String stringsTa = 'assets/content/strings-ta.json';
+  final String stringsTe = 'assets/content/strings-te.json';
+  final String stringsTh = 'assets/content/strings-th.json';
+  final String stringsTr = 'assets/content/strings-tr.json';
+  final String stringsUr = 'assets/content/strings-ur.json';
+  final String stringsVi = 'assets/content/strings-vi.json';
+  final String stringsZh = 'assets/content/strings-zh.json';
 }
 
 class $AssetsLottieGen {

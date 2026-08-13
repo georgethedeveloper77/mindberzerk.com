@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/shell.dart';
 import '../../app/theme/tokens.dart';
 import '../../bridge/recovery_api.g.dart';
+import '../../core/i18n/g_strings.dart';
 import '../../ui/g_app_bar.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
@@ -56,7 +57,7 @@ class HomePage extends ConsumerWidget {
         ),
 
         GSearchField(
-          hint: 'Search files, photos, messages',
+          hint: context.s('Search files, photos, messages'),
           leading: '/',
           onTap: () => Navigator.of(context).push(SearchPage.route()),
         ),
@@ -102,7 +103,6 @@ class HomePage extends ConsumerWidget {
       ],
     );
   }
-
 }
 
 /// Shown only while the permission is missing.
@@ -126,18 +126,19 @@ class _AccessPrompt extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Turn on file access',
+              context.s('Turn on file access'),
               style: GType.heading.copyWith(color: t.text),
             ),
             const SizedBox(height: GSpace.sm - 2),
             Text(
-              'Android hides other apps deleted files until you do. Every count '
-              'above is a floor until then.',
+              context.s(
+                'Android hides other apps deleted files until you do. Every count above is a floor until then.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.md),
             GButton(
-              label: 'Open settings',
+              label: context.s('Open settings'),
               onPressed: () async {
                 await ref.read(recoveryBridgeProvider).requestAllFilesAccess();
                 ref.invalidate(recoveryAccessProvider);

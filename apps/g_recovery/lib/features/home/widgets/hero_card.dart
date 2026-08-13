@@ -11,6 +11,7 @@ import '../../../ui/g_button.dart';
 import '../../../ui/g_card.dart';
 import '../../recovery/category_page.dart';
 import '../../recovery/state/recovery_providers.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// The one number the whole app is built around, with a deadline under it.
 ///
@@ -34,8 +35,8 @@ class HeroCard extends ConsumerWidget {
     // usually nothing, and the card then said the trash was clear.
     //
     // It was the one place in this app that stated something it did not know.
-    final bool blind = summary != null && summary.totalItems == 0 &&
-        summary.partial;
+    final bool blind =
+        summary != null && summary.totalItems == 0 && summary.partial;
     final bool scanned = ref.watch(scanControllerProvider).value != null;
 
     // ─── THE BACKGROUND STATE, NOT THE PUSH STREAM ─────────────────────────
@@ -48,8 +49,7 @@ class HeroCard extends ConsumerWidget {
     // backgroundScanProvider asks instead, quickly while a scan is going and
     // then twice more before it stops. It is the only one of the two that can
     // answer after a resume.
-    final BackgroundScanState? scan =
-        ref.watch(backgroundScanProvider).value;
+    final BackgroundScanState? scan = ref.watch(backgroundScanProvider).value;
     final bool running = scan?.running ?? false;
 
     // Counts come from the prescan, which does not update itself while the
@@ -171,7 +171,7 @@ class HeroCard extends ConsumerWidget {
                       const SizedBox(width: GSpace.sm),
                       Expanded(
                         child: Text(
-                          'Counted without file access',
+                          context.s('Counted without file access'),
                           style: GType.micro.copyWith(color: t.dim),
                         ),
                       ),
@@ -195,9 +195,7 @@ class HeroCard extends ConsumerWidget {
                       height: 5,
                       child: Stack(
                         children: <Widget>[
-                          Positioned.fill(
-                            child: ColoredBox(color: t.panelAlt),
-                          ),
+                          Positioned.fill(child: ColoredBox(color: t.panelAlt)),
                           TweenAnimationBuilder<double>(
                             tween: Tween<double>(
                               begin: 0,
@@ -230,7 +228,7 @@ class HeroCard extends ConsumerWidget {
                 // and it was the only thing offered.
                 if (running)
                   GButton(
-                    label: 'Stop',
+                    label: context.s('Stop'),
                     kind: GButtonKind.ghost,
                     onPressed: () async {
                       await ref.read(recoveryBridgeProvider).cancelScan();
@@ -239,7 +237,7 @@ class HeroCard extends ConsumerWidget {
                   )
                 else if (blind)
                   GButton(
-                    label: 'Turn on file access',
+                    label: context.s('Turn on file access'),
                     icon: Icons.folder_open_rounded,
                     onPressed: () async {
                       await ref
@@ -249,11 +247,9 @@ class HeroCard extends ConsumerWidget {
                       ref.invalidate(prescanProvider);
                     },
                   )
-                else if (summary != null &&
-                    summary.totalItems == 0 &&
-                    !scanned)
+                else if (summary != null && summary.totalItems == 0 && !scanned)
                   GButton(
-                    label: 'Scan this phone',
+                    label: context.s('Scan this phone'),
                     icon: Icons.search_rounded,
                     // ─── THE SERVICE, NOT A FOREGROUND RUN ────────────────
                     //
@@ -271,12 +267,12 @@ class HeroCard extends ConsumerWidget {
                   )
                 else
                   GButton(
-                    label: 'Review and restore',
+                    label: context.s('Review and restore'),
                     onPressed: summary == null || summary.totalItems == 0
                         ? null
                         : () => Navigator.of(context).push(
-                              CategoryPage.route(title: 'Everything'),
-                            ),
+                            CategoryPage.route(title: context.s('Everything')),
+                          ),
                   ),
               ],
             ),

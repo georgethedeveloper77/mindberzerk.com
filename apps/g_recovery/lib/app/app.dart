@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_recovery/app/shell.dart';
 
@@ -14,12 +15,41 @@ import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'theme/tokens.dart';
 
+/// The languages Flutter itself can dress, out of the ones this app offers.
+///
+/// ─── ASKED, NOT ASSERTED ─────────────────────────────────────────────────────
+///
+/// GStrings covers the words this app wrote. It does not cover the text
+/// selection menu, the date picker, the scrollbar semantics or the dozen other
+/// strings that live inside the framework, and those come from
+/// flutter_localizations, which supports its own list of languages and not
+/// necessarily ours. Hausa is the current example.
+///
+/// Naming a locale here that the delegates cannot serve is not a soft failure.
+/// Localizations finds no MaterialLocalizations for it and the first Material
+/// widget to ask throws. So the list is built by asking each delegate, which
+/// also means it grows by itself as Flutter adds languages, with no edit here.
+///
+/// A language that misses this list still works: the app's own copy is in that
+/// language and the framework's own strings fall back to English. That is the
+/// same partial translation the picker already warns about.
+final List<Locale> gSupportedLocales = <Locale>[
+  for (final GLanguage language in GLanguage.all)
+    if (_dressable(Locale(language.code))) Locale(language.code),
+];
+
+bool _dressable(Locale locale) =>
+    GlobalMaterialLocalizations.delegate.isSupported(locale) &&
+    GlobalWidgetsLocalizations.delegate.isSupported(locale) &&
+    GlobalCupertinoLocalizations.delegate.isSupported(locale);
+
 class GRecoveryApp extends ConsumerWidget {
   const GRecoveryApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final GThemeState theme = ref.watch(gThemeProvider);
+    final String code = ref.watch(gLocaleProvider);
 
     // Both themes are rebuilt when the accent changes, not just the active one.
     // Otherwise switching accent in dark mode leaves a stale light theme that
@@ -45,6 +75,21 @@ class GRecoveryApp extends ConsumerWidget {
       themeMode: theme.mode,
       themeAnimationDuration: GMotion.normal,
       themeAnimationCurve: GMotion.enter,
+      // The choice made in the picker, not the one the phone was set to.
+      //
+      // Passing this overrides the system locale list entirely, which is the
+      // point: someone whose phone is in French and who chose Kiswahili in this
+      // app gets Kiswahili, and the framework's own strings follow rather than
+      // staying French. An unsupported code resolves back to English for the
+      // framework only, and never throws, because gSupportedLocales was built
+      // by asking.
+      locale: Locale(code),
+      supportedLocales: gSupportedLocales,
+      localizationsDelegates: const <LocalizationsDelegate<Object>>[
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       // ABOVE the routes, not inside a screen.
       //
       // Mounted here so every page, dialog and sheet in the app sees the same
@@ -53,9 +98,23 @@ class GRecoveryApp extends ConsumerWidget {
       //
       // While the pack loads, English. The alternative is a blank frame on
       // every cold start to save one frame of the wrong language.
-      builder: (BuildContext context, Widget? child) => GStringsScope(
-        strings: ref.watch(gStringsProvider).value ?? const GStrings.english(),
-        child: child ?? const SizedBox.shrink(),
+      //
+      // ─── THE DIRECTION IS SET HERE, NOT INFERRED ─────────────────────────
+      //
+      // WidgetsApp already derives a direction from the resolved locale, and
+      // for Arabic and Urdu it derives the right one. This states it anyway,
+      // because the two can disagree: a right to left language that the
+      // framework cannot dress resolves to English, and the app would then
+      // render its own right to left words in a left to right layout. One
+      // provider owns the answer and nothing below tests a language code
+      // against a list of its own.
+      builder: (BuildContext context, Widget? child) => Directionality(
+        textDirection: ref.watch(gDirectionProvider),
+        child: GStringsScope(
+          strings:
+              ref.watch(gStringsProvider).value ?? const GStrings.english(),
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: const _RootGate(),
     );

@@ -1,0 +1,114 @@
+{
+  "locale": "en",
+  "generated": "2026-08-13T11:29:30Z",
+  "count": 26,
+  "strings": {
+    "All languages": "All languages",
+    "Android hides other apps deleted files until you do. Every count above is a floor until then.": "Android hides other apps deleted files until you do. Every count above is a floor until then.",
+    "Anything not yet translated stays in English.": "Anything not yet translated stays in English.",
+    "Audio": "Audio",
+    "BACKUP": "BACKUP",
+    "Counted without file access": "Counted without file access",
+    "Docs": "Docs",
+    "Everything": "Everything",
+    "Expiring": "Expiring",
+    "From your phone settings": "From your phone settings",
+    "Language": "Language",
+    "Make files smaller": "Make files smaller",
+    "Messages": "Messages",
+    "Never": "Never",
+    "Open settings": "Open settings",
+    "Photos": "Photos",
+    "Previews": "Previews",
+    "Review and restore": "Review and restore",
+    "Scan this phone": "Scan this phone",
+    "Search files, photos, messages": "Search files, photos, messages",
+    "Stop": "Stop",
+    "Turn on file access": "Turn on file access",
+    "Video": "Video",
+    "backed up to your server": "backed up to your server",
+    "expire within 48 hours": "expire within 48 hours",
+    "since the last backup": "since the last backup"
+  },
+  "sources": {
+    "All languages": [
+      "lib/features/more/language_page.dart"
+    ],
+    "Android hides other apps deleted files until you do. Every count above is a floor until then.": [
+      "lib/features/home/home_page.dart"
+    ],
+    "Anything not yet translated stays in English.": [
+      "lib/features/more/language_page.dart"
+    ],
+    "Audio": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "BACKUP": [
+      "lib/features/home/widgets/home_extras.dart"
+    ],
+    "Counted without file access": [
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Docs": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "Everything": [
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Expiring": [
+      "lib/features/home/widgets/attention_strip.dart"
+    ],
+    "From your phone settings": [
+      "lib/features/more/language_page.dart"
+    ],
+    "Language": [
+      "lib/features/more/language_page.dart"
+    ],
+    "Make files smaller": [
+      "lib/features/home/widgets/home_extras.dart"
+    ],
+    "Messages": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "Never": [
+      "lib/features/home/widgets/attention_strip.dart"
+    ],
+    "Open settings": [
+      "lib/features/home/home_page.dart"
+    ],
+    "Photos": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "Previews": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "Review and restore": [
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Scan this phone": [
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Search files, photos, messages": [
+      "lib/features/home/home_page.dart"
+    ],
+    "Stop": [
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Turn on file access": [
+      "lib/features/home/home_page.dart",
+      "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Video": [
+      "lib/features/home/widgets/category_grid.dart"
+    ],
+    "backed up to your server": [
+      "lib/features/home/widgets/attention_strip.dart"
+    ],
+    "expire within 48 hours": [
+      "lib/features/home/widgets/attention_strip.dart"
+    ],
+    "since the last backup": [
+      "lib/features/home/widgets/attention_strip.dart"
+    ]
+  }
+}
