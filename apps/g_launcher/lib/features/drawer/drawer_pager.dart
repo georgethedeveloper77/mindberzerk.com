@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../design/grid_metrics.dart';
+
 /// The drawer as PAGES rather than one long scroll, optionally with the cube.
 ///
 /// **Why this is cheap.** Each page is an ordinary non-scrolling grid, and the
@@ -39,7 +41,23 @@ class DrawerPager extends StatefulWidget {
     this.initialPage = 0,
     this.onPage,
     this.onAddPage,
+    this.jumpToPage,
   });
+
+  /// Page to turn to when this CHANGES, or null for "stay where you are".
+  ///
+  /// ─── WHY initialPage COULD NOT DO THIS ──────────────────────────────────
+  ///
+  /// [initialPage] is read once, when the controller is constructed. Locate
+  /// needs to move a pager that is already on screen and already mounted, so
+  /// there was no hook: writing `drawerPageProvider` moved the value the drawer
+  /// would restore on its NEXT mount and did nothing to the live one.
+  ///
+  /// Driven by a value rather than a method so the caller stays declarative and
+  /// so a repeat of the same page is a no-op. [State.didUpdateWidget] animates
+  /// only on a change, which matters because the drawer rebuilds constantly and
+  /// an unconditional jump would fight every swipe the user makes.
+  final int? jumpToPage;
 
   final int itemCount;
   final int columns;
@@ -134,7 +152,7 @@ class DrawerPager extends StatefulWidget {
     required double topPadding,
   }) {
     const vPad = 12.0;
-    const mainGap = 16.0;
+    const mainGap = GridMetrics.rowGap;
 
     // ─── A ROW'S WORTH OF SLACK BEFORE THE LAST ONE IS TAKEN ──────────────
     //
@@ -224,6 +242,44 @@ class _DrawerPagerState extends State<DrawerPager> {
   }
 
   @override
+  void didUpdateWidget(DrawerPager old) {
+    super.didUpdateWidget(old);
+
+    final target = widget.jumpToPage;
+    if (target == null || target == old.jumpToPage) return;
+    if (!_controller.hasClients) return;
+
+    // ─── INTO THE UNBOUNDED INDEX SPACE, BY THE SHORTEST WAY ────────────
+    //
+    // The PageView is unbounded so it can wrap in both directions, and the page
+    // the user sees is `(index - _wrapBase) % pageCount`. Animating to
+    // `_wrapBase + target` would be correct arithmetic and wrong behaviour: a
+    // user who has swiped forward eleven times is nowhere near `_wrapBase`, so
+    // the pager would sweep back through eleven pages to reach one that was a
+    // single step away.
+    //
+    // So the move is a DELTA from wherever the controller actually is, taking
+    // the shorter way round the loop. That is what the wrap is for, and it
+    // would be a shame to have it and still scroll the long way to the answer.
+    final current = (_controller.page ?? _page).round();
+    final logical = (current - _wrapBase) % _pageCount;
+
+    var delta = target - logical;
+    if (delta > _pageCount / 2) {
+      delta -= _pageCount;
+    } else if (delta < -_pageCount / 2) {
+      delta += _pageCount;
+    }
+    if (delta == 0) return;
+
+    _controller.animateToPage(
+      current + delta,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
   void dispose() {
     _turnTimer?.cancel();
     _controller.dispose();
@@ -280,8 +336,8 @@ class _DrawerPagerState extends State<DrawerPager> {
       builder: (context, constraints) {
         const hPad = 16.0;
         const vPad = 12.0;
-        const crossGap = 8.0;
-        const mainGap = 16.0;
+        const crossGap = GridMetrics.columnGap;
+        const mainGap = GridMetrics.rowGap;
 
         final tileW = (constraints.maxWidth -
                 hPad * 2 -

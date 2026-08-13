@@ -106,6 +106,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       // the menu regardless of which result was held. The cell's own context is
       // passed in for exactly this.
       anchor: AnchoredMenu.anchorOf(cellContext),
+
+      // TRUE HERE, and nowhere the app is already shown in place. A search
+      // result is a copy of the app lifted out of wherever it lives, and where
+      // it lives is exactly what this list cannot tell you. See the parameter's
+      // note in drawer_actions.
+      offerLocate: true,
     );
   }
 

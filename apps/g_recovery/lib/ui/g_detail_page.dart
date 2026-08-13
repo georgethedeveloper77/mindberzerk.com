@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/tokens.dart';
-import '../../../ui/g_card.dart';
-import 'spec_rows.dart';
+import '../app/theme/tokens.dart';
+import 'g_card.dart';
 
-/// THE SHAPE EVERY DEVICE DETAIL PAGE IS BUILT FROM.
+/// THE SHAPE EVERY PUSHED DETAIL PAGE IS BUILT FROM.
 ///
 /// ─── WHY A PAGE TYPE AND NOT A SET OF WIDGETS ────────────────────────────────
 ///
-/// Twelve destinations were each assembling their own Scaffold, SafeArea,
+/// Twenty odd destinations were each assembling their own Scaffold, SafeArea,
 /// ListView and padding. Identical every time, and identical is exactly what
 /// stops being true: two of them already disagreed about whether a section label
 /// went through GOverline or through a raw Text, and the SIM page had picked a
@@ -17,13 +16,25 @@ import 'spec_rows.dart';
 /// The chrome is now one type. A new page declares a hue, a glyph, a title and a
 /// list of sections, and cannot get the frame wrong because it does not draw it.
 ///
+/// ─── THE HEADER SCROLLS AWAY, AND THAT IS THE POINT ──────────────────────────
+///
+/// The storage pages this replaced put their chrome OUTSIDE the scrollable: an
+/// app bar, a sort row and a facts row in a Column, with the list in the
+/// Expanded underneath. That is about 150dp of a phone screen that never moves,
+/// and the list then scrolls inside whatever is left, which reads as a page
+/// folded shut around a slot rather than a page that opens out.
+///
+/// Here the header is the first item in the same scrollable as everything else,
+/// so the whole page moves together and the list gets the full screen the moment
+/// a person starts reading.
+///
 /// ─── THE HUE IS THE ONE THING EACH PAGE OWNS ─────────────────────────────────
 ///
-/// It comes from the bubble that opened the page, not from a palette local to
-/// this file. A cyan bubble that opens a violet page reads as the wrong page
-/// having opened, and the index is what a person looks at first.
-class DeviceDetailPage extends StatelessWidget {
-  const DeviceDetailPage({
+/// It comes from the tile that opened the page, not from a palette local to this
+/// file. A cyan tile that opens a violet page reads as the wrong page having
+/// opened, and the index is what a person looks at first.
+class GDetailPage extends StatelessWidget {
+  const GDetailPage({
     required this.hue,
     required this.icon,
     required this.title,
@@ -59,7 +70,7 @@ class DeviceDetailPage extends StatelessWidget {
           // below it carries the gutter itself.
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DeviceDetailHeader(
+            GDetailHeader(
               hue: hue,
               icon: icon,
               title: title,
@@ -85,9 +96,90 @@ class DeviceDetailPage extends StatelessWidget {
   }
 }
 
+/// The same page, for a body that has to be built lazily.
+///
+/// ─── WHEN TO REACH FOR THIS INSTEAD OF [GDetailPage] ─────────────────────────
+///
+/// [GDetailPage] takes a fixed list of boxes and is right for a page of
+/// sections. A list of two thousand files is not a fixed list of boxes: it has
+/// to be built as it is scrolled, and it may need pinned group headers, which
+/// only a sliver can be.
+///
+/// Both draw the identical header, so a person cannot tell which one they are
+/// looking at, which is the whole reason they are in one file.
+class GDetailSliverPage extends StatelessWidget {
+  const GDetailSliverPage({
+    required this.hue,
+    required this.icon,
+    required this.title,
+    required this.slivers,
+    super.key,
+    this.subtitle,
+    this.trailing,
+    this.footer,
+    this.tailSpace = 120,
+  });
+
+  final Color hue;
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  /// The body. Callers supply slivers and own their own horizontal padding,
+  /// because a grid wants the gutter and a full bleed row does not.
+  final List<Widget> slivers;
+
+  /// Pinned under the list, outside the scrollable. An action bar armed by a
+  /// selection belongs here: it has to stay reachable while the list moves, and
+  /// it is the one thing on these pages that must NOT scroll away.
+  final Widget? footer;
+
+  /// Empty space after the last sliver.
+  ///
+  /// Generous on purpose. A list whose final row sits flush against the bottom
+  /// edge reads as truncated even when it is complete, and on the pages with a
+  /// footer the last row would otherwise sit under it.
+  final double tailSpace;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+
+    return Scaffold(
+      backgroundColor: t.ink,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: CustomScrollView(
+                slivers: <Widget>[
+                  SliverToBoxAdapter(
+                    child: GDetailHeader(
+                      hue: hue,
+                      icon: icon,
+                      title: title,
+                      subtitle: subtitle,
+                      trailing: trailing,
+                    ),
+                  ),
+                  ...slivers,
+                  SliverToBoxAdapter(child: SizedBox(height: tailSpace)),
+                ],
+              ),
+            ),
+            ?footer,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The tinted top of a detail page.
-class DeviceDetailHeader extends StatelessWidget {
-  const DeviceDetailHeader({
+class GDetailHeader extends StatelessWidget {
+  const GDetailHeader({
     required this.hue,
     required this.icon,
     required this.title,
@@ -594,13 +686,84 @@ class GChartCard extends StatelessWidget {
                 for (final String label in axis)
                   Text(
                     label,
-                    style: GType.monoSmall.copyWith(color: t.dim, fontSize: 9.5),
+                    style: GType.monoSmall.copyWith(
+                      color: t.dim,
+                      fontSize: 9.5,
+                    ),
                   ),
               ],
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// A list of label and value rows, with the absent ones removed.
+///
+/// Every hardware page is mostly this. Sharing it means a null is dropped the
+/// same way on all of them, rather than one page showing a dash, another an
+/// empty string, and a third the word "Unknown".
+class SpecRows extends StatelessWidget {
+  const SpecRows({required this.rows, super.key});
+
+  /// Null values are not rendered.
+  final List<(String, String?)> rows;
+
+  /// Whether anything at all would render.
+  ///
+  /// Callers wrapping this in a card need to know BEFORE they draw the card:
+  /// SpecRows collapses to nothing on a device that answered none of the rows,
+  /// and the card around it was left drawing an empty bordered panel.
+  static bool any(List<(String, String?)> rows) {
+    for (final (String _, String? value) in rows) {
+      if (value != null && value.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+
+    final List<(String, String)> present = <(String, String)>[
+      for (final (String label, String? value) in rows)
+        if (value != null && value.isNotEmpty) (label, value),
+    ];
+    if (present.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: <Widget>[
+        for (int i = 0; i < present.length; i++)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: GSpace.sm + 1),
+            decoration: BoxDecoration(
+              border: i == present.length - 1
+                  ? null
+                  : Border(bottom: BorderSide(color: t.line)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    present[i].$1,
+                    style: GType.bodySmall.copyWith(color: t.text),
+                  ),
+                ),
+                const SizedBox(width: GSpace.md),
+                Flexible(
+                  child: Text(
+                    present[i].$2,
+                    textAlign: TextAlign.right,
+                    style: GType.monoSmall.copyWith(color: t.muted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

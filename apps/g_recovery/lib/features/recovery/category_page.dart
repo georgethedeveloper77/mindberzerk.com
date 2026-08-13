@@ -85,6 +85,30 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
     final GViewMode mode = ref.watch(gViewModeProvider);
     final GSortMode sort = ref.watch(gSortProvider);
 
+    // WATCHED, not merely invalidated.
+    //
+    // The whole phone scan runs in a service that outlives this engine, so it
+    // reports through a polled provider rather than through scanProgressProvider.
+    // Two places started that scan and nothing on this screen listened, so the
+    // button looked broken: it really was scanning, and the page had no way to
+    // say so.
+    final bool deepScanning =
+        ref.watch(backgroundScanProvider).value?.running ?? false;
+
+    // The service populates the native index while this page is open, so the
+    // list has to be asked again once it stops. Without this the scan finishes
+    // into an empty screen.
+    ref.listen<AsyncValue<BackgroundScanState?>>(backgroundScanProvider, (
+      AsyncValue<BackgroundScanState?>? previous,
+      AsyncValue<BackgroundScanState?> next,
+    ) {
+      final bool was = previous?.value?.running ?? false;
+      final bool now = next.value?.running ?? false;
+      if (was && !now) ref.invalidate(recoveryItemsProvider);
+    });
+
+    final bool busy = scan.isLoading || deepScanning;
+
     final List<RecoverableItem> items =
         async.value ?? const <RecoverableItem>[];
     final List<String> chosen = items
@@ -106,11 +130,11 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                   icon: Icons.arrow_back_rounded,
                   onTap: () => Navigator.of(context).pop(),
                 ),
+                // TWO GLYPHS AT MOST, and both act on the screen rather than on
+                // how it is laid out. Everything else moved down. The title had
+                // roughly 80 dp before this and "Everything" was breaking in
+                // the middle of a word.
                 actions: <Widget>[
-                  const Padding(
-                    padding: EdgeInsets.only(right: GSpace.sm),
-                    child: GViewSwitch(),
-                  ),
                   // Review is only offered when there is something to review
                   // AND at least one item can actually be drawn. A swipe deck
                   // of grey document glyphs is worse than a list.
@@ -128,6 +152,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                         },
                       ),
                     ),
+                  // Stays in the title row rather than in the controls below,
+                  // because the controls only appear once there is a list and
+                  // an empty screen is exactly when someone reaches for rescan.
                   GIconButton(
                     icon: Icons.refresh_rounded,
                     onTap: () => ref
@@ -135,36 +162,29 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                         .run(widget.query.sourceIds),
                   ),
                 ],
+                below: items.isEmpty
+                    ? null
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          _Facts(items: items),
+                          const SizedBox(height: GSpace.md),
+                          Row(
+                            children: <Widget>[
+                              // Recovery gets one order storage cannot have:
+                              // soonest to be lost. It is the only sort in the
+                              // app that can prevent a loss rather than merely
+                              // find something.
+                              const GSortButton(allowExpiring: true),
+                              const Spacer(),
+                              const GViewSwitch(),
+                            ],
+                          ),
+                        ],
+                      ),
               ),
             ),
-            if (items.isNotEmpty) ...<Widget>[
-              const Padding(
-                padding: EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.sm + 2,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  // Recovery gets one order storage cannot have: soonest to be
-                  // lost. It is the only sort in the app that can prevent a loss
-                  // rather than merely find something.
-                  child: GSortButton(allowExpiring: true),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.md,
-                ),
-                child: _Facts(items: items),
-              ),
-            ],
-
-            if (scan.isLoading && progress != null && !progress.done)
+            if (busy && (deepScanning || (progress != null && !progress.done)))
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   GSpace.gutter,
@@ -176,18 +196,27 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     GBar(
-                      fraction: progress.total > 0
+                      // Null is indeterminate, and that is the truthful value
+                      // here. The service reports whether it is running; a
+                      // fraction invented from nothing would be a progress bar
+                      // that lies about how far along it is.
+                      fraction: deepScanning
+                          ? null
+                          : progress!.total > 0
                           ? progress.scanned / progress.total
                           : null,
                       colour: t.accent,
                     ),
                     const SizedBox(height: GSpace.sm),
                     Text(
-                      // A real entry count. Results are already usable, which is
-                      // the one thing the category's dominant app gets right.
-                      '${GFormat.count(progress.found)} found in '
-                      '${GFormat.count(progress.scanned)} of '
-                      '${GFormat.count(progress.total)} entries',
+                      deepScanning
+                          ? 'Walking every folder on this phone'
+                          // A real entry count. Results are already usable,
+                          // which is the one thing the category's dominant app
+                          // gets right.
+                          : '${GFormat.count(progress!.found)} found in '
+                                '${GFormat.count(progress.scanned)} of '
+                                '${GFormat.count(progress.total)} entries',
                       style: GType.monoSmall.copyWith(color: t.dim),
                     ),
                   ],
@@ -197,17 +226,17 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
               child: items.isEmpty
                   ? GEmptyState(
                       shape: shapeForKind(widget.query.kind),
-                      title: scan.isLoading
-                          ? 'Looking'
-                          : 'Nothing deleted here',
+                      title: busy ? 'Looking' : 'Nothing deleted here',
                       // ONE sentence. The three reasons an empty grid can
                       // happen used to be a paragraph on this screen; they are
                       // in the sheet now, where someone who wants them can ask.
-                      body: scan.isLoading
+                      body: deepScanning
+                          ? 'Walking folders that counting cannot reach'
+                          : scan.isLoading
                           ? 'Working through this source'
                           : 'That is a real answer, not a failed scan.',
-                      actionLabel: scan.isLoading ? null : 'Scan my phone',
-                      onAction: scan.isLoading
+                      actionLabel: busy ? null : 'Scan my phone',
+                      onAction: busy
                           ? null
                           : () async {
                               await ref
@@ -307,27 +336,28 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
   static bool _reviewable(RecoverableItem item) =>
       item.kind == 'image' || item.kind == 'video';
 
-  /// The three reasons a grid is empty, one tap away.
+  /// Why the grid is empty, and the one thing that can change the answer.
+  ///
+  /// The action is the same call the empty state's own button makes. Two
+  /// buttons on one screen that both promise a scan must run the same scan.
   void _explainEmpty(BuildContext context) {
-    final GTokens t = context.g;
     showGSheet(
       context: context,
       title: 'Why this is empty',
-      children: <Widget>[
-        const GSheetPoint(
-          text: 'Nothing of this kind has been deleted recently.',
-        ),
-        const GSheetPoint(
-          text:
-              'Or it was deleted outside a bin, by a cleaner app or a file '
-              'manager, and nothing kept a copy.',
-        ),
+      action: GSheetAction(
+        label: 'Run a full scan',
+        detail: 'Walks folders that counting cannot reach. Takes a few minutes.',
+        onTap: () async {
+          await ref.read(recoveryBridgeProvider).startBackgroundScan();
+          ref.invalidate(backgroundScanProvider);
+        },
+      ),
+      footnote: 'IF THAT FINDS NOTHING',
+      children: const <Widget>[
+        GSheetPoint(text: 'Nothing of this kind was deleted recently.'),
         GSheetPoint(
-          icon: Icons.search_rounded,
-          tone: t.accentText,
-          text:
-              'Or the quick check has not reached everywhere yet. A full '
-              'scan walks folders that counting cannot.',
+          text: 'Or it was deleted outside a bin, by a cleaner app or a file '
+              'manager, and nothing kept a copy.',
         ),
       ],
     );
@@ -505,6 +535,19 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
 /// what a scan found; this list is what survived the query and the four hundred
 /// item cap, and a header that disagrees with the grid under it is worse than no
 /// header at all.
+/// THE NUMBERS, AS A SENTENCE RATHER THAN THREE COLUMNS.
+///
+/// ─── THE THIRD COLUMN WAS DOING THE TILE'S JOB ───────────────────────────────
+///
+/// It showed expiring, else preview only, else the span: three unrelated facts
+/// sharing one slot behind a precedence, two of them amber. On the screen this
+/// replaces, "400 preview only" sat in exactly the position and colour that
+/// "12 expiring soon" would have taken, meaning something entirely different.
+/// A person could not tell whether the amber number was good news or bad.
+///
+/// Prose has no fixed number of slots, so nothing has to lose. The deadline and
+/// the preview count can both be present, in the order they matter, and each
+/// one says what it means for the person rather than naming a category.
 class _Facts extends StatelessWidget {
   const _Facts({required this.items});
 
@@ -514,17 +557,25 @@ class _Facts extends StatelessWidget {
   Widget build(BuildContext context) {
     final GTokens t = context.g;
 
-    int bytes = 0;
+    int recoverable = 0;
     int expiring = 0;
     int preview = 0;
     int? oldest;
     int? newest;
 
     for (final RecoverableItem item in items) {
-      bytes += item.sizeBytes;
       final int? days = item.expiresInDays;
       if (days != null && days <= 3) expiring++;
-      if (item.fidelity == 'preview') preview++;
+
+      // COUNTED SEPARATELY, and the headline only adds up the first kind. A
+      // preview's size is the size of a thumbnail, so folding it into a figure
+      // labelled "can be recovered" would be counting bytes that no restore
+      // will ever produce. Small in practice and wrong in principle.
+      if (item.fidelity == 'preview') {
+        preview++;
+      } else {
+        recoverable += item.sizeBytes;
+      }
 
       final int? at = item.dateDeletedMillis;
       if (at == null || at <= 0) continue;
@@ -532,27 +583,78 @@ class _Facts extends StatelessWidget {
       if (newest == null || at > newest) newest = at;
     }
 
-    return Row(
+    // A phone whose finds are all previews would otherwise open on 0 B under
+    // the words "can be recovered", which is true, useless, and reads as a
+    // broken screen. The count is the honest headline in that case.
+    final bool anyBytes = recoverable > 0;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _Fact(value: GFormat.count(items.length), label: 'items', tone: t.text),
-        _Fact(value: GFormat.bytes(bytes), label: 'to recover', tone: t.text),
-        // Only when there is one. A row of zeroes is noise, and an expiry
-        // count of nought is the one number here nobody needs to be told.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: <Widget>[
+            Text(
+              anyBytes
+                  ? GFormat.bytes(recoverable)
+                  : GFormat.count(items.length),
+              style: GType.monoNumber.copyWith(color: t.text, fontSize: 26),
+            ),
+            const SizedBox(width: GSpace.sm + 1),
+            Expanded(
+              child: Text(
+                anyBytes
+                    ? 'can be recovered, from '
+                          '${GFormat.count(items.length)} items'
+                    : items.length == 1
+                    ? 'item found'
+                    : 'items found',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GType.bodySmall.copyWith(color: t.muted),
+              ),
+            ),
+          ],
+        ),
+
+        // Amber, and the only amber on the screen. It is the one fact here that
+        // is about to stop being true.
         if (expiring > 0)
-          _Fact(
-            value: GFormat.count(expiring),
-            label: 'expiring soon',
-            tone: t.warning,
-          )
-        else if (preview > 0)
-          _Fact(
-            value: GFormat.count(preview),
-            label: 'preview only',
-            tone: t.warning,
-          )
-        else if (oldest != null && newest != null)
-          _Fact(value: _span(oldest, newest), label: 'span', tone: t.muted),
+          Padding(
+            padding: const EdgeInsets.only(top: GSpace.xs + 1),
+            child: Text(
+              expiring == 1
+                  ? 'One leaves the trash within three days.'
+                  : '${GFormat.count(expiring)} leave the trash within three '
+                        'days.',
+              style: GType.micro.copyWith(color: t.warning, fontSize: 12.5),
+            ),
+          ),
+
+        // Muted, because it is permanent. Four hundred files that will never be
+        // anything more than a thumbnail is a fact about this phone, not a
+        // warning, and colouring it as one taught people to ignore the colour.
+        if (preview > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: GSpace.xs + 1),
+            child: Text(
+              '${GFormat.count(preview)} of those are previews only, so only '
+              'the thumbnail comes back.',
+              style: GType.micro.copyWith(color: t.muted, fontSize: 12.5),
+            ),
+          ),
+
+        // Only when there is nothing more pressing to say. How far back a list
+        // reaches is interesting; it is never urgent.
+        if (expiring == 0 && preview == 0 && oldest != null && newest != null)
+          Padding(
+            padding: const EdgeInsets.only(top: GSpace.xs + 1),
+            child: Text(
+              'Reaching back ${_span(oldest, newest)}.',
+              style: GType.micro.copyWith(color: t.muted, fontSize: 12.5),
+            ),
+          ),
       ],
     );
   }
@@ -564,37 +666,10 @@ class _Facts extends StatelessWidget {
     final int days = DateTime.fromMillisecondsSinceEpoch(
       newest,
     ).difference(DateTime.fromMillisecondsSinceEpoch(oldest)).inDays;
-    if (days <= 1) return 'today';
+    if (days <= 1) return 'to today';
     if (days < 14) return '$days days';
     if (days < 60) return '${(days / 7).round()} weeks';
     return '${(days / 30).round()} months';
-  }
-}
-
-class _Fact extends StatelessWidget {
-  const _Fact({required this.value, required this.label, required this.tone});
-
-  final String value;
-  final String label;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final GTokens t = context.g;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GType.monoNumber.copyWith(color: tone, fontSize: 19),
-          ),
-          Text(label, style: GType.micro.copyWith(color: t.muted)),
-        ],
-      ),
-    );
   }
 }
 

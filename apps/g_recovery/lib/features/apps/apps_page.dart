@@ -8,6 +8,7 @@ import '../../core/format.dart';
 import '../../ui/g_app_bar.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
+import '../../ui/g_detail_page.dart';
 import '../../ui/g_enter.dart';
 import '../../ui/g_sheet.dart';
 
@@ -36,123 +37,110 @@ class AppsPage extends ConsumerWidget {
     final AppSort sort = ref.watch(appSortProvider);
     final List<AppEntry> apps = ref.watch(sortedAppsProvider);
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              child: GAppBar(
-                title: 'Apps',
-                subtitle: state == null || !state.usageAccess
-                    ? null
-                    : '${GFormat.count(state.count)} apps  ·  '
-                          '${GFormat.bytes(state.totalBytes)}',
-                leading: GIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                actions: <Widget>[
-                  GIconButton(
-                    icon: Icons.info_outline_rounded,
-                    onTap: () => _explain(context),
+    return GDetailSliverPage(
+      hue: t.apps,
+      icon: Icons.apps_rounded,
+      title: 'Apps',
+      subtitle: state == null || !state.usageAccess
+          ? null
+          : '${GFormat.count(state.count)} apps  ·  '
+                '${GFormat.bytes(state.totalBytes)}',
+      trailing: GIconButton(
+        icon: Icons.info_outline_rounded,
+        onTap: () => _explain(context),
+      ),
+      slivers: <Widget>[
+        if (state != null && !state.usageAccess)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _NeedsAccess(
+              onGrant: () async {
+                await ref.read(appsBridgeProvider).requestUsageAccess();
+                ref.invalidate(appsStateProvider);
+                ref.invalidate(appsProvider);
+              },
+            ),
+          )
+        else if (apps.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(
+                'Reading app sizes',
+                style: GType.monoSmall.copyWith(color: t.dim),
+              ),
+            ),
+          )
+        else ...<Widget>[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              GSpace.gutter,
+              0,
+              GSpace.gutter,
+              GSpace.md,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _Fact(
+                      value: GFormat.bytes(state!.cacheBytes),
+                      label: 'cache, rebuildable',
+                      tone: t.audio,
+                    ),
+                  ),
+                  Expanded(
+                    child: _Fact(
+                      value: GFormat.bytes(state.totalBytes - state.cacheBytes),
+                      label: 'apps and their data',
+                      tone: t.text,
+                    ),
                   ),
                 ],
               ),
             ),
+          ),
 
-            if (state != null && !state.usageAccess)
-              Expanded(
-                child: _NeedsAccess(
-                  onGrant: () async {
-                    await ref.read(appsBridgeProvider).requestUsageAccess();
-                    ref.invalidate(appsStateProvider);
-                    ref.invalidate(appsProvider);
-                  },
-                ),
-              )
-            else if (apps.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Reading app sizes',
-                    style: GType.monoSmall.copyWith(color: t.dim),
-                  ),
-                ),
-              )
-            else ...<Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.md,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _Fact(
-                        value: GFormat.bytes(state!.cacheBytes),
-                        label: 'cache, rebuildable',
-                        tone: t.audio,
-                      ),
-                    ),
-                    Expanded(
-                      child: _Fact(
-                        value: GFormat.bytes(
-                          state.totalBytes - state.cacheBytes,
-                        ),
-                        label: 'apps and their data',
-                        tone: t.text,
-                      ),
-                    ),
-                  ],
-                ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              GSpace.gutter,
+              0,
+              GSpace.gutter,
+              GSpace.md - 2,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _SortPill(current: sort),
               ),
+            ),
+          ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.md - 2,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: _SortPill(current: sort),
-                ),
-              ),
-
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    GSpace.gutter,
-                    0,
-                    GSpace.gutter,
-                    GSpace.xl,
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((
+                BuildContext context,
+                int index,
+              ) {
+                return GEnter(
+                  index: index,
+                  child: _Row(
+                    entry: apps[index],
+                    onTap: () async {
+                      await ref
+                          .read(appsBridgeProvider)
+                          .openAppSettings(apps[index].packageName);
+                      ref.invalidate(appsStateProvider);
+                      ref.invalidate(appsProvider);
+                    },
                   ),
-                  itemCount: apps.length,
-                  itemBuilder: (BuildContext context, int index) => GEnter(
-                    index: index,
-                    child: _Row(
-                      entry: apps[index],
-                      onTap: () async {
-                        await ref
-                            .read(appsBridgeProvider)
-                            .openAppSettings(apps[index].packageName);
-                        ref.invalidate(appsStateProvider);
-                        ref.invalidate(appsProvider);
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+                );
+              }, childCount: apps.length),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

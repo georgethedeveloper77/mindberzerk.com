@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
@@ -80,6 +81,7 @@ class GnomeDock extends StatelessWidget {
     required this.onActivities,
     this.opacity = 1.0,
     this.activitiesIconBuilder,
+    this.onReorder,
   });
 
   final List<DockEntry> entries;
@@ -110,6 +112,27 @@ class GnomeDock extends StatelessWidget {
   final double opacity;
 
   final VoidCallback onActivities;
+
+  /// Drag-reorder, or null to leave the dock exactly as it was.
+  ///
+  /// ─── A CALLBACK, FOR THE REASON THE CLASS NOTE ALREADY GIVES ────────────
+  ///
+  /// This widget holds no `ref` and knows nothing about prefs, which is what
+  /// lets its golden tests render without a live LauncherApps. Reading
+  /// `prefsProvider` here to write the new order would throw that away for one
+  /// gesture. So the dock reports what the user did and the shell, which
+  /// already owns the entry list, decides what it means.
+  ///
+  /// Arguments are the moved slot's id, the id it was dropped on, and whether
+  /// it landed on the far half of that slot. IDS, not indices: what the dock
+  /// renders is a filtered, capacity-truncated view of `favourites`, so a slot
+  /// position is not a position in the stored list. See
+  /// [HomeLayout.reorderDockKeys].
+  ///
+  /// NULL DISABLES IT ENTIRELY, and that is the default. A dock in
+  /// frequent-apps mode has no arrangement to change, and the golden tests pass
+  /// nothing, so both keep the plain non-draggable slots.
+  final void Function(String movedId, String targetId, bool after)? onReorder;
 
   /// Builds the Activities (app-drawer) button's icon at the dock-owned glyph
   /// size. When null, the button falls back to the 9-dot grid glyph.
@@ -200,6 +223,12 @@ class GnomeDock extends StatelessWidget {
         slotSize: slotSize,
         entry: entries[i],
         accent: palette.accent,
+        // ONLY the app slots. The Activities button is not in `favourites`, so
+        // it has no position to move to and nothing to move around it; making
+        // it draggable would let a user try to reorder a thing the dock draws
+        // rather than a thing the dock holds.
+        onReorder: onReorder,
+        caretColor: palette.accent,
       ));
     }
 
@@ -258,7 +287,7 @@ class GnomeDock extends StatelessWidget {
       : const SizedBox(width: DockMetrics.gap);
 }
 
-class _DockSlot extends StatelessWidget {
+class _DockSlot extends StatefulWidget {
   const _DockSlot({
     required this.entry,
     required this.vertical,
@@ -266,6 +295,8 @@ class _DockSlot extends StatelessWidget {
     required this.slotSize,
     required this.accent,
     this.plate,
+    this.onReorder,
+    this.caretColor,
   });
 
   final DockEntry entry;
@@ -280,55 +311,202 @@ class _DockSlot extends StatelessWidget {
   final Color accent;
   final Color? plate;
 
+  /// See [GnomeDock.onReorder]. Null leaves this slot a plain tap-and-hold
+  /// target, byte for byte what it was before drag existed.
+  final void Function(String movedId, String targetId, bool after)? onReorder;
+
+  final Color? caretColor;
+
+  @override
+  State<_DockSlot> createState() => _DockSlotState();
+}
+
+class _DockSlotState extends State<_DockSlot> {
+  /// Where the POINTER went down, for the hold-versus-drag test on release.
+  /// Compared against the draggable's release offset, which under
+  /// `pointerDragAnchorStrategy` is the finger.
+  Offset? _downAt;
+
+  /// Which half of this slot a hovering drag is over, along the DOCK's axis.
+  /// Null when nothing is hovering.
+  bool? _dropAfter;
+
+  /// The same 24dp the drawer and folder tiles use. Named here rather than
+  /// shared for the reason those two give: it is the same number, not the same
+  /// decision.
+  static const _slop = 24.0;
+
+  void _openMenu() {
+    final open = widget.entry.onLongPress;
+    if (open == null) return;
+    // `context` is this slot's own, so the rect is the icon's box.
+    open(AnchoredMenu.anchorOf(context));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final vertical = widget.vertical;
+    final slotSize = widget.slotSize;
+
     // Centre the running bar along the slot's long axis, COMPUTED from the live
     // slot size — a hardcoded offset de-centres it the moment the dock resizes.
     final barCentre = (slotSize - DockMetrics.runningBar) / 2;
 
+    final core = SizedBox(
+      width: slotSize,
+      height: slotSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: widget.plate,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: entry.icon,
+            ),
+          ),
+          if (entry.isRunning)
+            // Left dock: bar to the icon's left (outer edge, per GNOME).
+            // Bottom dock: bar underneath — same meaning, rotated world.
+            vertical
+                ? Positioned(
+                    left: widget.outerEdgeIsStart ? -7 : null,
+                    right: widget.outerEdgeIsStart ? null : -7,
+                    top: barCentre,
+                    child: _RunningBar(vertical: true, color: widget.accent),
+                  )
+                : Positioned(
+                    bottom: -7,
+                    left: barCentre,
+                    child: _RunningBar(vertical: false, color: widget.accent),
+                  ),
+        ],
+      ),
+    );
+
+    final tappable = GestureDetector(
+      onTap: entry.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: core,
+    );
+
+    // ─── NO onReorder MEANS NOTHING CHANGES ────────────────────────────────
+    //
+    // The Activities button, a dock in frequent-apps mode, and every golden
+    // test take this branch, and it is the original widget unchanged: a plain
+    // GestureDetector whose long press opens the menu. Introducing a draggable
+    // on paths that cannot reorder would cost them the simple long-press for no
+    // gain, and the goldens would start rendering a different tree.
+    if (widget.onReorder == null) {
+      return Semantics(
+        button: true,
+        label: entry.label,
+        child: GestureDetector(
+          onTap: entry.onTap,
+          onLongPress: entry.onLongPress == null ? null : _openMenu,
+          behavior: HitTestBehavior.opaque,
+          child: core,
+        ),
+      );
+    }
+
+    final marker = _dropAfter;
+    final caret = widget.caretColor ?? widget.accent;
+
     return Semantics(
       button: true,
       label: entry.label,
-      child: GestureDetector(
-        onTap: entry.onTap,
-        onLongPress: entry.onLongPress == null
-            ? null
-            // `context` is this slot's own, so the rect is the icon's box.
-            : () => entry.onLongPress!(AnchoredMenu.anchorOf(context)),
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: slotSize,
-          height: slotSize,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: plate,
-                    borderRadius: BorderRadius.circular(12),
+      child: DragTarget<String>(
+        onWillAcceptWithDetails: (d) => d.data != entry.id,
+        onLeave: (_) {
+          if (_dropAfter != null) setState(() => _dropAfter = null);
+        },
+        onMove: (d) {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box == null || !box.hasSize) return;
+          final local = box.globalToLocal(d.offset);
+
+          // ─── THE SPLIT FOLLOWS THE DOCK'S AXIS ──────────────────────────
+          //
+          // A left dock is a Column, so "after" is further DOWN; a bottom dock
+          // is a Row, so "after" is further RIGHT. Testing dx on a vertical
+          // dock would ask which side of a 48dp-wide column the finger was on,
+          // which is noise, and every drop would land on whichever answer the
+          // noise gave.
+          final after = vertical
+              ? local.dy > box.size.height / 2
+              : local.dx > box.size.width / 2;
+          if (after != _dropAfter) setState(() => _dropAfter = after);
+        },
+        onAcceptWithDetails: (d) {
+          final after = _dropAfter ?? false;
+          setState(() => _dropAfter = null);
+          HapticFeedback.selectionClick();
+          widget.onReorder!(d.data, entry.id, after);
+        },
+        builder: (context, candidate, __) => Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Listener(
+              onPointerDown: (e) => _downAt = e.position,
+              child: LongPressDraggable<String>(
+                data: entry.id,
+                dragAnchorStrategy: pointerDragAnchorStrategy,
+                onDragStarted: HapticFeedback.mediumImpact,
+
+                // Split on release, the same trade the drawer and the folder
+                // grid document: the draggable consumes the long press, so the
+                // menu is opened by a release that nothing accepted and that
+                // never really travelled. Doing it differently here would make
+                // one gesture mean different things on three surfaces.
+                onDraggableCanceled: (_, offset) {
+                  final from = _downAt;
+                  if (from == null || (offset - from).distance < _slop) {
+                    _openMenu();
+                  }
+                },
+                feedback: FractionalTranslation(
+                  translation: const Offset(-0.5, -0.5),
+                  child: Opacity(
+                    opacity: 0.9,
+                    child: SizedBox(
+                      width: slotSize * 1.1,
+                      height: slotSize * 1.1,
+                      child: FittedBox(child: entry.icon),
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  child: entry.icon,
+                ),
+                childWhenDragging: Opacity(opacity: 0.25, child: core),
+                child: tappable,
+              ),
+            ),
+
+            // The insertion caret, drawn ACROSS the dock's axis so it reads as
+            // a gap opening rather than as a border on one icon. A highlight
+            // over the slot would say "into this one", and a dock has nothing
+            // to drop into.
+            if (marker != null)
+              Positioned(
+                top: vertical ? (marker ? null : -4) : 0,
+                bottom: vertical ? (marker ? -4 : null) : 0,
+                left: vertical ? 0 : (marker ? null : -4),
+                right: vertical ? 0 : (marker ? -4 : null),
+                child: Center(
+                  child: Container(
+                    width: vertical ? slotSize * 0.7 : 3,
+                    height: vertical ? 3 : slotSize * 0.7,
+                    decoration: BoxDecoration(
+                      color: caret,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
               ),
-              if (entry.isRunning)
-                // Left dock: bar to the icon's left (outer edge, per GNOME).
-                // Bottom dock: bar underneath — same meaning, rotated world.
-                vertical
-                    ? Positioned(
-                        left: outerEdgeIsStart ? -7 : null,
-                        right: outerEdgeIsStart ? null : -7,
-                        top: barCentre,
-                        child: _RunningBar(vertical: true, color: accent),
-                      )
-                    : Positioned(
-                        bottom: -7,
-                        left: barCentre,
-                        child: _RunningBar(vertical: false, color: accent),
-                      ),
-            ],
-          ),
+          ],
         ),
       ),
     );

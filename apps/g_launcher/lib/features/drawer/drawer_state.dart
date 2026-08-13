@@ -47,3 +47,42 @@ class DrawerPage extends Notifier<int> {
     state = page;
   }
 }
+
+/// The app the launcher is currently POINTING AT, or null.
+///
+/// ─── WHY "SHOW ME WHERE IT IS" NEEDS STATE AT ALL ───────────────────────────
+///
+/// Locate is not navigation. Taking the user to the right page and stopping
+/// there answers "where is it" with a screen of forty identical icons and no
+/// indication which one was the answer. The ring is the answer; the paging is
+/// just how the ring gets on screen.
+///
+/// So the target has to outlive the action that set it, and it has to be
+/// readable by whichever surface ends up drawing the app: a drawer tile, a
+/// folder member, or a dock slot. One provider, read by all three, is the only
+/// arrangement where the app cannot be ringed twice or ringed nowhere.
+///
+/// ─── AND WHY IT CLEARS ON TOUCH RATHER THAN ON A TIMER ──────────────────────
+///
+/// A timed fade means an interrupted user comes back to no answer, and the
+/// interruption is likeliest in exactly the case where they needed to ask. A
+/// ring that clears on the next deliberate touch always outlasts the question,
+/// and costs nothing to dismiss because dismissing it is whatever the user was
+/// going to do next anyway.
+final locateTargetProvider =
+    NotifierProvider<LocateTarget, String?>(LocateTarget.new);
+
+class LocateTarget extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Point at [componentKey]. Named for what it does rather than `set`, per the
+  /// house rule the [DrawerPage] notifier above follows.
+  void aim(String componentKey) => state = componentKey;
+
+  /// Guarded, so the pointer-down handlers that call this on every touch do not
+  /// write identical state and rebuild every tile that watches it.
+  void clear() {
+    if (state != null) state = null;
+  }
+}

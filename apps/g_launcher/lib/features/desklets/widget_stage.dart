@@ -41,6 +41,34 @@ import 'desklet_edit.dart';
 
 const _channel = MethodChannel('g_launcher/widget_stage');
 
+/// The last hosted widget the user held, and a nonce so repeats fire.
+///
+/// ─── WHY A COUNTER AND NOT JUST THE ID ──────────────────────────────────────
+///
+/// Holding the same widget twice in a row would write the same id, Riverpod
+/// would see no change, and the second hold would open nothing. The counter
+/// makes every press a distinct value, which is the same trick a "signal"
+/// provider always needs and the same reason `StageRects` keys on the desklet
+/// rather than the widget.
+/// [at] is the press point in LOGICAL pixels, global to the screen, ready to
+/// hand straight to `AnchoredMenu` as a one-pixel anchor rect.
+typedef StageLongPress = ({int widgetId, Offset at, int nonce});
+
+class StageLongPresses extends Notifier<StageLongPress?> {
+  @override
+  StageLongPress? build() => null;
+
+  var _nonce = 0;
+
+  void fire(int widgetId, Offset at) {
+    _nonce++;
+    state = (widgetId: widgetId, at: at, nonce: _nonce);
+  }
+}
+
+final stageLongPressProvider =
+    NotifierProvider<StageLongPresses, StageLongPress?>(StageLongPresses.new);
+
 /// One placed widget's global rectangle, in dp, and who reported it.
 ///
 /// [owner] is the reporting State object's identity. It exists because a forget
@@ -119,6 +147,65 @@ class StageMotion extends Notifier<bool> {
 
 final stageMovingProvider = NotifierProvider<StageMotion, bool>(StageMotion.new);
 
+/// How many routes are stacked over the desktop.
+///
+/// ─── WHY A NAVIGATOR OBSERVER AND NOT A PROVIDER PER SURFACE ────────────────
+///
+/// `LauncherActivity.dispatchTouchEvent` asks `WidgetStage.hitTest` on every
+/// press, so a press inside a widget's rectangle goes to that widget BEFORE
+/// Flutter sees it. Correct on a desktop at rest, wrong the moment anything is
+/// drawn over it, and the failure is invisible: the tap simply does nothing,
+/// or worse, quietly presses a media button under the panel you were aiming at.
+///
+/// The desklet menu made it obvious because it opens ANCHORED TO THE WIDGET,
+/// so its rows sit on the hit rect and could not be tapped. But it was never
+/// only the menu. Settings, the widget picker, the wallpaper screen and every
+/// other pushed route had the same hole wherever a widget happened to sit on
+/// the desktop underneath.
+///
+/// Which is why this counts ROUTES rather than adding a flag per surface. A
+/// flag per surface is a list that has to be maintained, and the next screen
+/// someone adds inherits the bug by default. The Navigator already knows the
+/// answer for every route that will ever exist.
+///
+/// A plain [ValueNotifier] rather than a provider because a [NavigatorObserver]
+/// is constructed by `MaterialApp`, outside any `ProviderScope`, and has no
+/// `ref` to write with.
+class StageRouteObserver extends NavigatorObserver {
+  /// True while at least one route sits above the desktop.
+  final ValueNotifier<bool> covered = ValueNotifier<bool>(false);
+
+  var _depth = 0;
+
+  void _set(int next) {
+    _depth = next < 0 ? 0 : next;
+    covered.value = _depth > 0;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previous) {
+    // `previous == null` is the FIRST route, which IS the desktop rather than
+    // something over it. Counting it would leave the stage permanently deaf.
+    if (previous != null) _set(_depth + 1);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previous) => _set(_depth - 1);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previous) =>
+      _set(_depth - 1);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    // One out, one in. The depth is unchanged and saying so beats letting the
+    // pair of callbacks drift it.
+  }
+}
+
+/// The one instance, handed to `MaterialApp.navigatorObservers` in app.dart.
+final stageRouteObserver = StageRouteObserver();
+
 /// Should the stage be visible right now?
 final stageVisibleProvider = Provider<bool>((ref) {
   if (ref.watch(stageMovingProvider)) return false;
@@ -157,6 +244,61 @@ class WidgetStageSync extends ConsumerStatefulWidget {
 class _WidgetStageSyncState extends ConsumerState<WidgetStageSync> {
   List<double> _lastFlat = const [];
   bool? _lastVisible;
+  bool? _lastInteractive;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ─── THE ONE THING NATIVE TELLS US ──────────────────────────────────────
+    //
+    // Registered here rather than at the app root because this widget already
+    // exists for exactly as long as the desktop does, which is the window in
+    // which a hold on a hosted widget means anything. `setMethodCallHandler`
+    // REPLACES, so a shell rebuilt after a theme switch swaps the handler
+    // rather than stacking a second one.
+    // Rebuild when a route opens or closes over the desktop, so the stage is
+    // told to stop taking touches. See [StageRouteObserver].
+    stageRouteObserver.covered.addListener(_onCoveredChanged);
+
+    _channel.setMethodCallHandler((call) async {
+      if (call.method != 'longPress') return null;
+
+      final args = call.arguments as Map?;
+      final id = args?['widgetId'];
+      if (id is! int) return null;
+
+      // Native sends DEVICE pixels, which is the only unit it has. The ratio is
+      // read here rather than passed, because this widget is in the tree and
+      // therefore has a MediaQuery, and a number crossing the channel is a
+      // number that can go stale.
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      final x = (args?['x'] as num?)?.toDouble() ?? 0;
+      final y = (args?['y'] as num?)?.toDouble() ?? 0;
+
+      ref
+          .read(stageLongPressProvider.notifier)
+          .fire(id, Offset(x / dpr, y / dpr));
+      return null;
+    });
+  }
+
+  void _onCoveredChanged() {
+    // POST-FRAME, because a route can be pushed from inside a build and
+    // `didPush` fires synchronously with it. Calling setState there throws
+    // "setState() or markNeedsBuild() called during build", and the surface it
+    // would take down is the desktop.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    stageRouteObserver.covered.removeListener(_onCoveredChanged);
+    _channel.setMethodCallHandler(null);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,10 +313,18 @@ class _WidgetStageSyncState extends ConsumerState<WidgetStageSync> {
     // see. Send the hide once and go quiet until the desktop settles.
     final flat = visible ? _flatten(rects) : const <double>[];
 
-    if (visible == _lastVisible && _same(flat, _lastFlat)) {
+    // VISIBLE but not necessarily touchable. A widget under an open menu keeps
+    // drawing, because the menu is about it, and stops claiming presses so the
+    // menu can be used. See [StageRouteObserver].
+    final interactive = !stageRouteObserver.covered.value;
+
+    if (visible == _lastVisible &&
+        interactive == _lastInteractive &&
+        _same(flat, _lastFlat)) {
       return const SizedBox.shrink();
     }
     _lastVisible = visible;
+    _lastInteractive = interactive;
     _lastFlat = flat;
 
     // POST-FRAME, because this runs during build and a platform call from
@@ -183,6 +333,7 @@ class _WidgetStageSyncState extends ConsumerState<WidgetStageSync> {
       _channel.invokeMethod<void>('sync', {
         'rects': flat,
         'visible': visible,
+        'interactive': interactive,
       }).catchError((_) {
         // Nothing to do and nothing to say. A failed sync leaves the stage
         // where it was, which is the last correct position, and the next

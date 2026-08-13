@@ -96,6 +96,32 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
     MorePage(),
   ];
 
+  /// Tabs that have been looked at, which is not the same as tabs that exist.
+  ///
+  /// ─── AN INDEXED STACK BUILDS EVERY CHILD AT ONCE ─────────────────────────
+  ///
+  /// That is the price of keeping them alive, and it was being paid at the
+  /// wrong moment: all four tabs did their first build during launch, so
+  /// opening the app to Home still ran Storage's providers, Device's providers
+  /// and More's. Every future cost any tab acquires lands on the cold start of
+  /// a tab nobody opened. The comparison ledger reading a scan off disk is the
+  /// current example and it will not be the last one.
+  ///
+  /// A tab is built the first time it is selected and never torn down after,
+  /// so everything the stack was chosen for still holds: scroll positions,
+  /// in-flight scans and navigation stacks all survive from the first visit.
+  /// What is gone is paying for a screen before anyone has asked to see it.
+  ///
+  /// ─── THE SET IS GROWN DURING BUILD, DELIBERATELY ─────────────────────────
+  ///
+  /// Adding the selected index here rather than in [GShellTab.select] keeps the
+  /// restored tab correct: the notifier reads the last tab out of preferences,
+  /// so the first index this widget ever sees may be any of the four and no
+  /// select call will have happened. The add is idempotent and always precedes
+  /// its own use in the same build, which is what makes a mutation in build
+  /// safe in this one case.
+  final Set<int> _visited = <int>{};
+
   @override
   void initState() {
     super.initState();
@@ -150,6 +176,8 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
     final int index = ref.watch(gShellTabProvider);
     final GTokens t = context.g;
 
+    _visited.add(index);
+
     // canPop is always false, and the exit is performed by hand. Letting the
     // framework pop the root route on the last press would leave this handler
     // guessing at which press it was looking at.
@@ -165,20 +193,27 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
           backgroundColor: t.ink,
           // IndexedStack, not a swapped child: each tab keeps its scroll
           // position, its in-flight scan state, and now its navigation stack.
+          //
+          // Children appear on first visit rather than at launch. An unvisited
+          // tab is an empty box, which costs nothing and occupies the slot so
+          // the indices still line up with the bar.
           body: SafeArea(
             bottom: false,
             child: IndexedStack(
               index: index,
               children: <Widget>[
                 for (int i = 0; i < _roots.length; i++)
-                  Navigator(
-                    key: _keys[i],
-                    onGenerateRoute: (RouteSettings settings) =>
-                        MaterialPageRoute<void>(
-                          settings: settings,
-                          builder: (BuildContext context) => _roots[i],
-                        ),
-                  ),
+                  if (!_visited.contains(i))
+                    const SizedBox.shrink()
+                  else
+                    Navigator(
+                      key: _keys[i],
+                      onGenerateRoute: (RouteSettings settings) =>
+                          MaterialPageRoute<void>(
+                            settings: settings,
+                            builder: (BuildContext context) => _roots[i],
+                          ),
+                    ),
               ],
             ),
           ),

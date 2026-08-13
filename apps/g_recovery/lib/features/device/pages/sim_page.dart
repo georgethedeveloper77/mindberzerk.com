@@ -5,8 +5,8 @@ import '../../../app/theme/tokens.dart';
 import '../../../bridge/hardware_api.g.dart';
 import '../../../bridge/hardware_bridge.dart';
 import '../../../ui/g_card.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
-import 'device_chrome.dart';
 
 /// THE SIMS.
 ///
@@ -31,7 +31,7 @@ class SimPage extends ConsumerWidget {
     final List<SimInfo> sims =
         ref.watch(simsProvider).value ?? const <SimInfo>[];
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.sim_card_outlined,
       title: 'SIM',
@@ -106,7 +106,7 @@ class BluetoothPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final BluetoothInfo? bt = ref.watch(bluetoothProvider).value;
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.bluetooth_rounded,
       title: 'Bluetooth',

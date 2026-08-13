@@ -18,6 +18,7 @@ import '../../engine/theme_spec.dart' show ThemePalette;
 import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_menu.dart';
+import 'widget_stage.dart';
 
 /// One desklet, while the desktop is being edited. PHASE D4.
 ///
@@ -97,6 +98,42 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
   bool _removeDown = false;
 
   Desklet get _d => widget.desklet;
+
+  /// The hosted widget id this tile owns, or null for our own desklets.
+  int? get _hostedId {
+    if (_d.kind != 'appwidget') return null;
+    final id = _d.config[WidgetConfigKeys.widgetId];
+    return id is int ? id : null;
+  }
+
+  /// Open the menu when NATIVE reports a hold on this tile's widget.
+  ///
+  /// ─── WHY A HOSTED TILE CANNOT USE THE RECOGNISER BELOW ──────────────────
+  ///
+  /// The `LongPressGestureRecognizer` in `build` never fires for one, and not
+  /// because of anything in this file. `LauncherActivity.dispatchTouchEvent`
+  /// gives the whole gesture to the widget as soon as a press lands inside it,
+  /// so FlutterView never sees the press and no Flutter recogniser can run.
+  /// That is deliberate and correct for taps and media scrubs, and it had one
+  /// casualty: hosted widgets were the only tiles on the desktop that could
+  /// not be moved, resized or removed, so every one stayed at whatever span
+  /// the picker first chose.
+  ///
+  /// `WidgetStage` now times the press itself and reports it. This turns that
+  /// report back into the SAME `_openMenu` a long press on our own desklets
+  /// reaches, so both kinds of tile offer identical actions from an identical
+  /// gesture, and none of the menu, the edit mode or the resize handles needed
+  /// to know that hosted tiles exist.
+  void _watchNativeLongPress() {
+    final mine = _hostedId;
+    if (mine == null) return;
+
+    ref.listen<StageLongPress?>(stageLongPressProvider, (_, next) {
+      if (next == null || next.widgetId != mine) return;
+      if (!mounted) return;
+      _openMenu(at: next.at);
+    });
+  }
 
   void _edit(LauncherPrefs Function(LauncherPrefs) f) {
     ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(f);
@@ -240,7 +277,34 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     });
   }
 
-  void _openMenu() {
+  /// Open the menu for this tile.
+  ///
+  /// [at] is the press point, supplied only for a hosted widget, where native
+  /// timed the press and Flutter never saw it.
+  ///
+  /// ─── WHY A POINT BEATS THE TILE FOR A LARGE WIDGET ──────────────────────
+  ///
+  /// The tile's rectangle is the right anchor for a desklet, and it is what
+  /// this used unconditionally. It stops working once the tile is big.
+  /// `AnchoredMenu` tries below the anchor, then above it; a 366x475dp widget
+  /// on an 832dp screen leaves 266dp below and 91dp above for a panel around
+  /// 330dp tall, so neither fits, the panel clamps to the screen edge and lands
+  /// ON TOP of the thing it is about.
+  ///
+  /// A finger is a point and always has room beside it. `showFolderMemberMenu`
+  /// anchors that way for the same reason.
+  void _openMenu({Offset? at}) {
+    if (at != null) {
+      showDeskletMenu(
+        context,
+        ref,
+        widget.theme,
+        _d,
+        anchor: Rect.fromCenter(center: at, width: 1, height: 1),
+      );
+      return;
+    }
+
     // The tile's own rectangle, so the menu opens beside it rather than at the
     // bottom of the screen. Measured at press time because the tile moves
     // whenever the grid reflows.
@@ -373,6 +437,10 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
 
   @override
   Widget build(BuildContext context) {
+    // `ref.listen` from build, which is where Riverpod requires it. A no-op for
+    // every tile that is not a hosted widget.
+    _watchNativeLongPress();
+
     final edit = ref.watch(deskletEditProvider);
     final selected = edit.selected == _d.id;
     final p = widget.theme.palette;

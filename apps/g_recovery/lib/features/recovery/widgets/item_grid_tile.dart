@@ -3,20 +3,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/tokens.dart';
 import '../../../bridge/recovery_api.g.dart';
-import '../../../core/format.dart';
 import '../../../ui/g_thumbnail.dart';
 import '../state/recovery_providers.dart';
 
 /// One cell of the grid, and the shape every grid in the app shares.
 ///
-/// Four fixed positions: a stamp top left, a selection ring top right, the size
-/// bottom right, and the picture filling the rest. Only the STAMP changes
-/// meaning between screens. In recovery it is the deadline; where a find is not
-/// full quality it says so instead; in storage there is nothing to stamp.
+/// ─── TWO AXES, TWO CHANNELS ──────────────────────────────────────────────────
 ///
-/// Carries far less text than the row, deliberately. A name and a size do not
-/// fit under a 110 px square without becoming unreadable, and the reason to be
-/// in grid mode is to recognise a photo by looking at it.
+/// There used to be one stamp with a precedence: role, then fidelity, then
+/// expiry. Its own comment defended putting fidelity ahead of the countdown,
+/// and that defence assumed the two compete. They do not. A preview that
+/// expires in two days is both, and under the old rule it showed PRV and the
+/// deadline never appeared. A status that was preview only showed STATUS and
+/// hid the rest. The one moment this app says it is entitled to raise its voice
+/// was being silenced by a three letter abbreviation.
+///
+/// So the facts are separated by kind rather than ranked:
+///
+///   FIDELITY is a property of the picture, so it is drawn on the picture. A
+///   preview only file sits inset in a mat, because that is literally what it
+///   is: a thumbnail in a frame rather than the file. It reads at 110 dp with
+///   no words at all, which is what PRV was failing to do.
+///
+///   TIME keeps the badge, alone, so the badge always means one thing.
+///
+///   ROLE is a small glyph, bottom left, because where a file came from is
+///   context and not a warning.
+///
+/// ─── AND THE SIZE IS GONE ────────────────────────────────────────────────────
+///
+/// Twelve size labels a screen is texture, not information, and it was fighting
+/// the badge on a tile that is mostly photograph. It moves to the row, where
+/// there is room for it and where a person is actually comparing.
 class ItemGridTile extends ConsumerWidget {
   const ItemGridTile({
     required this.item,
@@ -47,11 +65,41 @@ class ItemGridTile extends ConsumerWidget {
   /// quiet so that this reads as information rather than decoration.
   static const int _urgentDays = 3;
 
+  /// Past this the countdown is not news.
+  ///
+  /// Android keeps a trashed file for thirty days, so every item has a number
+  /// and stamping all of them would put a badge on every tile in the grid. A
+  /// month away is not a fact anybody is acting on today.
+  static const int _worthStamping = 30;
+
+  /// The mat, in logical pixels.
+  ///
+  /// Four, not two. Two reads as a rendering seam; four reads as a frame, which
+  /// is the entire point of the treatment.
+  static const double _mat = 4;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final GTokens t = context.g;
     final int? days = item.expiresInDays;
     final bool urgent = days != null && days <= _urgentDays;
+    final bool preview = item.fidelity == 'preview';
+    final String? stamp = _stamp(days, urgent);
+
+    // NOT DESATURATED, and that was a real decision. Draining the colour out of
+    // a preview would mark it more strongly and would work against the only
+    // reason to be in grid mode, which is recognising a photograph by looking
+    // at it. The frame says enough.
+    final Widget picture = GThumbnail(
+      itemId: item.itemId,
+      bridge: ref.watch(recoveryBridgeProvider),
+      kind: item.kind,
+      // 256, not 512. A tile is about 110 logical pixels, so even at 3x
+      // this is generous, and a grid of ninety 512 px decodes is four
+      // times the bitmap memory for no visible gain.
+      maxPixels: 256,
+      radius: preview ? 6 : GRadius.tile,
+    );
 
     return GestureDetector(
       onTap: onTap,
@@ -60,31 +108,83 @@ class ItemGridTile extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          GThumbnail(
-            itemId: item.itemId,
-            bridge: ref.watch(recoveryBridgeProvider),
-            kind: item.kind,
-            // 256, not 512. A tile is about 110 logical pixels, so even at 3x
-            // this is generous, and a grid of ninety 512 px decodes is four
-            // times the bitmap memory for no visible gain.
-            maxPixels: 256,
-            radius: GRadius.tile,
-          ),
+          if (preview)
+            Container(
+              padding: const EdgeInsets.all(_mat),
+              decoration: BoxDecoration(
+                color: t.panelAlt,
+                borderRadius: GRadius.all(GRadius.tile),
+                border: Border.all(color: t.line),
+              ),
+              child: picture,
+            )
+          else
+            picture,
 
-          Positioned(left: 5, top: 5, child: _stamp(t, days, urgent)),
-
-          Positioned(
-            right: 5,
-            bottom: 4,
-            child: Text(
-              GFormat.bytes(item.sizeBytes),
-              style: GType.monoSmall.copyWith(
-                color: t.text,
-                fontSize: 9.5,
-                shadows: <Shadow>[Shadow(color: t.scrim, blurRadius: 4)],
+          if (preview)
+            Positioned(
+              right: 5,
+              bottom: 5,
+              child: Container(
+                width: 16,
+                height: 16,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: t.scrim,
+                  borderRadius: GRadius.all(5),
+                ),
+                child: Icon(Icons.image_outlined, size: 10, color: t.muted),
               ),
             ),
-          ),
+
+          if (stamp != null)
+            Positioned(
+              left: 5,
+              top: 5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: urgent ? t.warning : t.scrim,
+                  borderRadius: GRadius.all(5),
+                ),
+                child: Text(
+                  stamp,
+                  style: GType.badge.copyWith(
+                    color: urgent ? t.onAccent : t.text,
+                    // 9.5, not 8. Eight points of letterspaced uppercase on a
+                    // photograph is below the point where anyone reads it, and
+                    // this line is the one that prevents a loss.
+                    fontSize: 9.5,
+                  ),
+                ),
+              ),
+            ),
+
+          // Where it came from, as a glyph. A status was never deleted by
+          // anyone, which is the distinction this carries, and it no longer
+          // costs the tile its deadline to say so.
+          if (item.role == 'status')
+            Positioned(
+              left: 5,
+              bottom: 5,
+              child: Container(
+                width: 17,
+                height: 17,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: t.scrim,
+                  borderRadius: GRadius.all(5),
+                ),
+                child: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 10,
+                  color: t.chat,
+                ),
+              ),
+            ),
 
           if (selecting)
             Positioned(
@@ -122,46 +222,16 @@ class ItemGridTile extends ConsumerWidget {
     );
   }
 
-  /// Precedence, and it is not arbitrary.
+  /// The deadline, in words, or null when there is nothing to say.
   ///
-  /// Status first, because a status was never deleted and calling it anything
-  /// else is the mistake this whole distinction exists to prevent. Then preview,
-  /// because knowing you are getting a thumbnail back matters more than knowing
-  /// when it expires. Only then the countdown.
-  Widget _stamp(GTokens t, int? days, bool urgent) {
-    String label;
-    Color tone;
-    Color background;
-
-    if (item.role == 'status') {
-      label = 'STATUS';
-      tone = t.chat;
-      background = t.scrim;
-    } else if (item.fidelity == 'preview') {
-      label = 'PRV';
-      tone = t.warning;
-      background = t.scrim;
-    } else if (days == null) {
-      return const SizedBox.shrink();
-    } else if (urgent) {
-      // Spelled out, because "2d" beside a photo of someone's child is not
-      // enough for a person to understand they have two days.
-      label = days <= 0 ? 'Today' : '${days}d left';
-      tone = t.onAccent;
-      background = t.warning;
-    } else {
-      label = '${days}d';
-      tone = t.text;
-      background = t.scrim;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: GRadius.all(5),
-      ),
-      child: Text(label, style: GType.badge.copyWith(color: tone, fontSize: 8)),
-    );
+  /// Spelled out rather than abbreviated. "2d" beside a photo of someone's
+  /// child is not enough for a person to understand they have two days, and
+  /// "26d" was shorthand for a fact nobody was going to act on this week
+  /// anyway.
+  String? _stamp(int? days, bool urgent) {
+    if (days == null || days > _worthStamping) return null;
+    if (days <= 0) return 'Today';
+    if (urgent) return days == 1 ? '1 day left' : '$days days left';
+    return '$days days';
   }
 }

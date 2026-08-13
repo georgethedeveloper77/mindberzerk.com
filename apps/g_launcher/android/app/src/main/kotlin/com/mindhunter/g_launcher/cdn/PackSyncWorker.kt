@@ -32,15 +32,36 @@ import java.util.concurrent.TimeUnit
  * survives the process, and honours Doze and the metered-network constraint
  * that keeps this off a user's data bundle.
  *
- * ONLY UPDATES WHAT IS ALREADY INSTALLED, plus [PackPaths.bundledPackIds]. A
- * background job that silently adds packs is a background job that silently
- * uses someone's storage, so new installs stay a user action in the storefront.
+ * ONLY UPDATES WHAT IS ALREADY INSTALLED, plus [PackPaths.bundledPackIds] and
+ * THE ACTIVE THEME. A background job that silently adds packs is a background
+ * job that silently uses someone's storage, so new installs stay a user action
+ * in the storefront.
  *
  * The bundled exception is narrow and necessary. `simple-icons` ships in the
  * APK, so it is not "installed" by the loader's definition, so without this it
  * would sit at its 39-entry seed set on every device forever and the entire CDN
  * pipeline would quietly do nothing. Those packs are already on the device and
  * already in use; the download only makes an existing feature more complete.
+ *
+ * ─── AND THE ACTIVE THEME, WHICH IS THE SAME ARGUMENT ───────────────────────
+ *
+ * A bundled distro is in exactly the position `simple-icons` was in. Select
+ * Ubuntu and it renders from the APK: nothing is "installed" under that id, so
+ * `installedPackIds` never names it, so a corrected Ubuntu published over the
+ * CDN was downloaded by nobody. The pipeline worked end to end and had no
+ * effect on the one distro most people are actually looking at.
+ *
+ * `theme_engine` was already ready for this. It resolves INSTALLED before
+ * BUNDLED precisely so a republished free distro can supersede the APK copy,
+ * and its comment says as much. What was missing was anything that fetched the
+ * pack, so the superseding branch could never be reached without a trip to the
+ * storefront and a deliberate tap.
+ *
+ * This does not weaken the no-silent-installs rule. The active theme is a
+ * distro the user CHOSE and is looking at right now; updating it is the same
+ * category as updating something already installed, not the same category as
+ * adding something they never asked for. Nothing else in the catalogue is
+ * touched.
  */
 class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
@@ -77,6 +98,12 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
         val toSync = LinkedHashSet<String>().apply {
             addAll(loader.installedPackIds())
             addAll(PackPaths.bundledPackIds)
+            // ORDERED LAST, and the set is a LinkedHashSet, so an active theme
+            // that is also installed keeps its earlier position rather than
+            // being queued twice. On a metered connection the order decides who
+            // gets the budget, and something already installed is the safer
+            // first spend.
+            activeThemeId()?.let(::add)
         }
 
         // ── THE DATA BUNDLE RULE, NOW A SIZE TEST RATHER THAN A BLANKET NO ───
@@ -130,6 +157,37 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
             // PackChangeNotifier, synchronously, inside the loop.
         }
         return Result.success()
+    }
+
+    /**
+     * The distro the user currently has selected, or null.
+     *
+     * ─── READ STRAIGHT OUT OF FLUTTER'S PREFS FILE ──────────────────────────
+     *
+     * This worker runs with no Flutter engine. WorkManager wakes the process for
+     * a job, not for a launcher, so there is no Dart isolate to ask and starting
+     * one to read a single string would cost more than the sync it is deciding
+     * about.
+     *
+     * `shared_preferences` on Android is a plain SharedPreferences file named
+     * `FlutterSharedPreferences` with every key prefixed `flutter.`, which is a
+     * stable, documented part of that plugin rather than an implementation
+     * detail. The key itself is `selectedThemeKey` in prefs_repository.dart and
+     * the two must agree; there is no way to share the constant across the
+     * language boundary, so it is written down in both places and named here so
+     * a grep for either finds the other.
+     *
+     * Null on ANY failure, including the perfectly ordinary case of a first run
+     * where nothing has been selected yet. Null simply means this pass syncs
+     * what it already would have.
+     */
+    private fun activeThemeId(): String? = try {
+        applicationContext
+            .getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            .getString("flutter.selectedThemeId.v1", null)
+            ?.takeIf { it.isNotBlank() }
+    } catch (_: Exception) {
+        null
     }
 
     /**

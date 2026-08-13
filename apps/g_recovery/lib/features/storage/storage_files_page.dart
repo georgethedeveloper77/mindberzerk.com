@@ -1,8 +1,4 @@
-import 'dart:typed_data';
-
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../app/theme/category_colors.dart';
 import '../../app/theme/tokens.dart';
 import '../../bridge/storage_api.g.dart';
 import '../../core/date_groups.dart';
@@ -13,12 +9,16 @@ import '../../ui/g_app_bar.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_count_up.dart';
+import '../../ui/g_detail_page.dart';
 import '../../ui/g_empty_state.dart';
 import '../../ui/g_group_header.dart';
 import '../../ui/g_sheet.dart';
 import '../../ui/g_sort.dart';
 import '../../ui/g_view_switch.dart';
+import 'dart:typed_data';
 import 'file_viewer.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'state/storage_files.dart';
 import 'state/storage_providers.dart';
 
@@ -96,127 +96,131 @@ class _StorageFilesPageState extends ConsumerState<StorageFilesPage> {
         .where(_picked.contains)
         .toList();
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              child: GAppBar(
-                title: widget.scope.title,
-                leading: GIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                actions: <Widget>[
-                  const Padding(
-                    padding: EdgeInsets.only(right: GSpace.sm),
-                    child: GViewSwitch(),
+    return GDetailSliverPage(
+      // categoryTint is the single source of truth for category hues, so a
+      // Photos page opens photo coloured because the ledger row that led here
+      // was photo coloured. Nothing new is decided at this call site.
+      hue: categoryTint(t, scope.kind ?? 'other'),
+      icon: _Cell._glyph(scope.kind ?? ''),
+      title: widget.scope.title,
+      subtitle: result == null
+          ? null
+          : '${GFormat.count(result.matchCount)} files  ·  '
+                '${GFormat.bytes(result.matchBytes)}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(right: GSpace.sm),
+            child: GViewSwitch(),
+          ),
+          GIconButton(
+            icon: Icons.info_outline_rounded,
+            onTap: () => _showDetail(context),
+          ),
+        ],
+      ),
+      // The action bar is the one thing here that must not scroll away. A
+      // selection made at the top of a thousand files cannot require scrolling
+      // back down to act on it.
+      footer: chosen.isEmpty
+          ? null
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GSpace.gutter,
+                GSpace.sm,
+                GSpace.gutter,
+                GSpace.lg,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: GButton(
+                      label: 'Delete ${chosen.length}',
+                      icon: Icons.delete_forever_rounded,
+                      kind: GButtonKind.danger,
+                      onPressed: _busy ? null : () => _confirmPermanent(chosen),
+                    ),
                   ),
-                  GIconButton(
-                    icon: Icons.info_outline_rounded,
-                    onTap: () => _showDetail(context),
+                  const SizedBox(width: GSpace.md - 2),
+                  Expanded(
+                    child: GButton(
+                      // The default is the REVERSIBLE one. Android's trash
+                      // holds these for thirty days, and a storage screen
+                      // whose easiest action is permanent is a screen that
+                      // will eventually take something irreplaceable.
+                      label: 'Trash ${chosen.length}',
+                      icon: Icons.restore_from_trash_rounded,
+                      onPressed: _busy ? null : () => _remove(chosen, false),
+                    ),
                   ),
                 ],
               ),
             ),
-
-            if (result != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.sm + 2,
-                ),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: GSortButton(),
-                ),
-              ),
-
-            if (result != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.md,
-                ),
-                child: _Facts(result: result, shown: files.length),
-              ),
-
-            Expanded(
-              child: files.isEmpty
-                  ? GEmptyState(
-                      shape: shapeForKind(scope.kind),
-                      title: result == null
-                          ? 'Reading storage'
-                          : 'Nothing of this kind',
-                      body: result == null
-                          ? 'Asking Android what is on the phone'
-                          : 'Android has no files matching this on the phone.',
-                    )
-                  : _Files(
-                      mode: ref.watch(gViewModeProvider),
-                      sort: sort,
-                      files: files,
-                      picked: _picked,
-                      onToggle: (String id) => setState(() {
-                        if (!_picked.remove(id)) _picked.add(id);
-                      }),
-                      onToggleGroup: (List<String> ids) => setState(() {
-                        final bool all = ids.every(_picked.contains);
-                        if (all) {
-                          _picked.removeAll(ids);
-                        } else {
-                          _picked.addAll(ids);
-                        }
-                      }),
-                      onOpen: (StorageFile file) => _open(files, file),
-                    ),
+      slivers: <Widget>[
+        if (result != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              GSpace.gutter,
+              0,
+              GSpace.gutter,
+              GSpace.sm + 2,
             ),
-
-            if (chosen.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.lg,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: GButton(
-                        label: 'Delete ${chosen.length}',
-                        icon: Icons.delete_forever_rounded,
-                        kind: GButtonKind.danger,
-                        onPressed: _busy
-                            ? null
-                            : () => _confirmPermanent(chosen),
-                      ),
-                    ),
-                    const SizedBox(width: GSpace.md - 2),
-                    Expanded(
-                      child: GButton(
-                        // The default is the REVERSIBLE one. Android's trash
-                        // holds these for thirty days, and a storage screen
-                        // whose easiest action is permanent is a screen that
-                        // will eventually take something irreplaceable.
-                        label: 'Trash ${chosen.length}',
-                        icon: Icons.restore_from_trash_rounded,
-                        onPressed: _busy ? null : () => _remove(chosen, false),
-                      ),
-                    ),
-                  ],
-                ),
+            sliver: const SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: GSortButton(),
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+
+        if (result != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              GSpace.gutter,
+              0,
+              GSpace.gutter,
+              GSpace.md,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: _Facts(result: result, shown: files.length),
+            ),
+          ),
+
+        if (files.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: GEmptyState(
+              shape: shapeForKind(scope.kind),
+              title: result == null
+                  ? 'Reading storage'
+                  : 'Nothing of this kind',
+              body: result == null
+                  ? 'Asking Android what is on the phone'
+                  : 'Android has no files matching this on the phone.',
+            ),
+          )
+        else
+          ..._fileSlivers(
+            tokens: t,
+            mode: ref.watch(gViewModeProvider),
+            sort: sort,
+            files: files,
+            picked: _picked,
+            onToggle: (String id) => setState(() {
+              if (!_picked.remove(id)) _picked.add(id);
+            }),
+            onToggleGroup: (List<String> ids) => setState(() {
+              final bool all = ids.every(_picked.contains);
+              if (all) {
+                _picked.removeAll(ids);
+              } else {
+                _picked.addAll(ids);
+              }
+            }),
+            onOpen: (StorageFile file) => _open(files, file),
+          ),
+      ],
     );
   }
 
@@ -430,28 +434,29 @@ class _Fact extends StatelessWidget {
   }
 }
 
-class _Files extends StatelessWidget {
-  const _Files({
-    required this.mode,
-    required this.sort,
-    required this.files,
-    required this.picked,
-    required this.onToggle,
-    required this.onToggleGroup,
-    required this.onOpen,
-  });
-
-  final GViewMode mode;
-  final GSortMode sort;
-  final List<StorageFile> files;
-  final Set<String> picked;
-  final void Function(String) onToggle;
-  final void Function(List<String>) onToggleGroup;
-  final void Function(StorageFile) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final GTokens t = context.g;
+/// The day groups, as a flat list of slivers.
+///
+/// ─── A FUNCTION, NOT A WIDGET ────────────────────────────────────────────────
+///
+/// A widget returns exactly one sliver, and this body is inherently many: a
+/// header and a grid per day. Returning the list and spreading it at the call
+/// site puts every one of them directly in the page's own CustomScrollView,
+/// rather than nesting them in a wrapper sliver that has to be reasoned about
+/// separately.
+///
+/// [tokens] is passed in rather than read from a context, because a function has
+/// none.
+List<Widget> _fileSlivers({
+  required GTokens tokens,
+  required GViewMode mode,
+  required GSortMode sort,
+  required List<StorageFile> files,
+  required Set<String> picked,
+  required void Function(String) onToggle,
+  required void Function(List<String>) onToggleGroup,
+  required void Function(StorageFile) onOpen,
+}) {
+    final GTokens t = tokens;
     final bool selecting = picked.isNotEmpty;
 
     // Grouped only when the order is a date order.
@@ -478,11 +483,26 @@ class _Files extends StatelessWidget {
       );
     }
 
-    return CustomScrollView(
-      slivers: <Widget>[
+    return <Widget>[
         for (final DateGroup<StorageFile> group in groups) ...<Widget>[
+          // NOT PINNED, AND THIS IS THE BUG THAT HID EVERY PHOTO.
+          //
+          // A pinned sliver adds its extent to constraints.overlap for every
+          // sliver after it, so pinned headers ACCUMULATE rather than pushing
+          // each other out. Two or three is the case everyone tests. Forty days
+          // of photos is forty headers, each painting an opaque background, and
+          // by the fourteenth the stack covers the whole viewport and paints
+          // over the grids behind it. The grids were laying out correctly the
+          // entire time and being hidden.
+          //
+          // Unpinned, each header scrolls away with its own day, which is also
+          // what the rest of the app now does: one surface that moves together.
+          //
+          // Sticky day labels are recoverable later by wrapping EACH day in its
+          // own SliverMainAxisGroup, which scopes a pinned child to that group's
+          // extent. One group around all the days, which is what I tried first,
+          // does the opposite and is what made this look like an extent bug.
           SliverPersistentHeader(
-            pinned: true,
             delegate: GGroupHeader(
               label: group.label,
               meta:
@@ -550,12 +570,9 @@ class _Files extends StatelessWidget {
                     }, childCount: group.items.length),
                   ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
+            const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
         ],
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
-  }
+  ];
 }
 
 class _Cell extends ConsumerWidget {

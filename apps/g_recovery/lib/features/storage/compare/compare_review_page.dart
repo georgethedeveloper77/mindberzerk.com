@@ -292,10 +292,18 @@ class _CompareReviewPageState extends ConsumerState<CompareReviewPage> {
 
   @override
   void dispose() {
-    // Only on the way out. Doing it after each removal would rebuild the list
-    // under the user's finger.
+    // ─── PRUNES, AND NO LONGER WIPES ────────────────────────────────────────
+    //
+    // This called forget(), which dropped the entire result. The reasoning was
+    // right about the groups that were trashed and wrong about everything else:
+    // clearing one set of duplicates threw away the other thirty nine, both
+    // similar lists and the whole blur grid, and sent the user back to a tab
+    // showing four cards that said "Scan" again.
+    //
+    // Only the groups actually acted on go. Still on the way out rather than
+    // after each removal, so the list does not rebuild under a finger.
     if (_done.isNotEmpty) {
-      _compare.forget();
+      _compare.forgetGroups(_done);
     }
     super.dispose();
   }

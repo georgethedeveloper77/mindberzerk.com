@@ -14,7 +14,9 @@ import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
 import '../../platform/launcher_api.g.dart';
 import '../settings/settings_screen.dart';
+import 'app_icon.dart';
 import 'drawer_items.dart';
+import 'drawer_state.dart';
 import 'folder_overlay.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
@@ -148,7 +150,14 @@ void openLauncherSettings(BuildContext context, EffectiveTheme theme) {
 /// app you held is usually nowhere near the bottom of the screen, so the sheet
 /// opened as far from its subject as the display allows, with the subject
 /// itself behind the scrim.
-void showDrawerAppMenu(
+/// Returns when the menu closes, however it closed.
+///
+/// The future is not decoration. The tile that opened this holds its pressed
+/// state for exactly as long as the panel is up, and `AnchoredMenu.show`
+/// already hands one back; discarding it here left the caller with no way to
+/// know when to settle, and a tile stuck scaled up is a permanent claim that
+/// an app is selected when nothing is.
+Future<void> showDrawerAppMenu(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
@@ -156,6 +165,30 @@ void showDrawerAppMenu(
   /// Where the menu opens. Null centres it, which is what a caller that cannot
   /// measure itself gets; see [AnchoredMenu.show].
   Rect? anchor,
+
+  /// Swap Hide for Locate in the action strip.
+  ///
+  /// ─── OFF BY DEFAULT, AND THE DEFAULT IS THE POINT ───────────────────────
+  ///
+  /// The drawer's own grid passes nothing, because offering to show you where
+  /// an app is while you are holding that app in its own cell is a joke the
+  /// launcher should not make. Search passes true: a result is a copy of the
+  /// app lifted out of wherever it lives, and "wherever it lives" is precisely
+  /// what the list cannot tell you.
+  ///
+  /// ─── A SWAP, NOT AN ADDITION, AND HIDE IS THE ONE THAT GOES ─────────────
+  ///
+  /// The strip holds three. Locate has to displace something on a surface that
+  /// wants it, and Hide is the one that does not belong on search in the first
+  /// place: you have just typed a name to FIND an app, and the launcher's reply
+  /// should not be to offer to make it unfindable. It also fails quietly in a
+  /// way the other two do not, because a hidden app leaves search immediately
+  /// and the only route back is a settings page the user has no reason to know
+  /// exists.
+  ///
+  /// Hide stays exactly where it was on every surface that shows apps in place,
+  /// which is where "get this off my drawer" is a sentence that makes sense.
+  bool offerLocate = false,
 }) {
   HapticFeedback.mediumImpact();
   final notifier = ref.read(appListProvider.notifier);
@@ -188,12 +221,16 @@ void showDrawerAppMenu(
   // Only Uninstall is left in the list, and only when it can work: a system app
   // cannot be uninstalled and a button that silently does nothing is worse than
   // no button.
-  AnchoredMenu.show(
+  return AnchoredMenu.show(
     context: context,
     chrome: chrome,
     anchor: anchor,
     width: 236,
     title: entry.label,
+    // The app's own icon, at the head of the panel. Identifies the subject
+    // without the name having to be read, which on a 253-app drawer is the
+    // difference between holding the right tile and finding out after the tap.
+    leading: AppIcon(entry: entry, size: 30),
     onInfo: () => notifier.openInfo(entry),
     actions: [
       // "Add to home" became "Pin to dock": the authentic desktop has no grid,
@@ -243,16 +280,27 @@ void showDrawerAppMenu(
       // page, and a user who just hid their first app has no reason to know
       // that exists. Naming it is the difference between a reversible action
       // and one that feels permanent.
-      MenuAction(
-        icon: Icons.visibility_off_outlined,
-        label: context.t('drawer.hideApp'),
-        onTap: () {
-          prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
-          if (host.mounted) {
-            host.showMessage(host.t('drawer.appHidden', {'name': entry.label}));
-          }
-        },
-      ),
+      if (offerLocate)
+        MenuAction(
+          // A CROSSHAIR, not a pin. Pin is the glyph immediately to its left
+          // and two pins in one strip is a puzzle rather than a menu.
+          icon: Icons.my_location_outlined,
+          label: context.t('drawer.locateApp'),
+          onTap: () => locateApp(host, ref, theme, entry),
+        )
+      else
+        MenuAction(
+          icon: Icons.visibility_off_outlined,
+          label: context.t('drawer.hideApp'),
+          onTap: () {
+            prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
+            if (host.mounted) {
+              host.showMessage(
+                host.t('drawer.appHidden', {'name': entry.label}),
+              );
+            }
+          },
+        ),
 
       // ── UNINSTALL IS OFFERED FOR ALMOST EVERYTHING NOW ──────────────────
       //
@@ -293,6 +341,67 @@ void showDrawerAppMenu(
     ],
     rows: (sheet) => const [],
   );
+}
+
+/// Point at [entry] wherever it actually lives, and get the user looking at it.
+///
+/// ─── ALWAYS THE DRAWER, EVEN FOR A PINNED APP ───────────────────────────────
+///
+/// The first cut resolved the dock first, on the reasoning that a pin is the
+/// most specific place an app can be. That was wrong about what the question
+/// means. Pinning to the dock does not take an app OUT of the drawer, so a
+/// pinned app is in both places, and the drawer is the one that is complete:
+/// it is where every app lives and therefore the only answer that is true for
+/// every app you could ask about.
+///
+/// Answering with the dock would also make the feature inconsistent in the way
+/// that is hardest to learn. Locate four apps and three of them take you to the
+/// drawer while the fourth closes it, for a reason invisible from the search
+/// result you were holding.
+///
+/// So the only fork left is the one that is not a preference but a fact about
+/// where the app can be SEEN: an app inside a folder is not in the flat list,
+/// and paging to where it would have been and ringing nothing is worse than not
+/// answering at all.
+///
+/// The ring is set FIRST in both branches. Whatever surface ends up drawing
+/// this app reads [locateTargetProvider] as it builds, so aiming before
+/// navigating means the ring is there on the first frame rather than one late.
+void locateApp(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  AppEntry entry,
+) {
+  ref.read(locateTargetProvider.notifier).aim(entry.componentKey);
+
+  // Back to whatever is underneath. Search is a pushed route over the drawer,
+  // so popping it is what puts the drawer on screen; a surface that is not a
+  // route simply has nothing to pop and this is a no-op.
+  if (Navigator.canPop(context)) Navigator.pop(context);
+
+  ref.read(activitiesOpenProvider.notifier).state = true;
+
+  // ─── AND THAT IS ALL THIS DOES ────────────────────────────────────────────
+  //
+  // It used to also find the app's folder and push the overlay from here, which
+  // was broken in two ways that both look like "Locate does nothing".
+  //
+  // FIRST, THE CONTEXT WAS ALREADY DEAD. `Navigator.pop(context)` two lines up
+  // pops the search page, so by the push below, `context` belonged to a route
+  // being torn down. Pushing from it either throws or silently lands nowhere,
+  // and the folder never opened.
+  //
+  // SECOND, IT ASSUMED THE DRAWER WAS THERE. Locate can be invoked from search
+  // opened over the DESKTOP, in which case the line above mounts the drawer for
+  // the first time and the overlay would have been pushed over a drawer that
+  // had not built yet.
+  //
+  // Both are the same mistake: this function was navigating on behalf of a
+  // widget that is better placed to do it. Aiming is a fact about state, so it
+  // belongs here; opening a folder is an act on the tree, so it belongs to
+  // something mounted IN that tree. `_AppDrawerState` watches the same provider
+  // and opens the folder itself, from a context that is alive by construction.
 }
 
 /// The message key for a refusal.
@@ -345,7 +454,9 @@ void openDrawerFolder(
 ///
 /// Anchored, for the same reason [showDrawerAppMenu] is: it is about ONE
 /// folder, and it was the other menu the conversion missed.
-void drawerFolderSettings(
+/// Returns when the menu closes. Same contract, and for the same reason, as
+/// [showDrawerAppMenu]: the folder tile pops while its panel is open.
+Future<void> drawerFolderSettings(
   BuildContext context,
   WidgetRef ref,
   EffectiveTheme theme,
@@ -365,7 +476,7 @@ void drawerFolderSettings(
     panelRadius: theme.panelRadius,
   );
 
-  AnchoredMenu.show(
+  return AnchoredMenu.show(
     context: context,
     chrome: chrome,
     anchor: anchor,

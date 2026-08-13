@@ -7,6 +7,7 @@ import '../../../bridge/compress_bridge.dart';
 import '../../../core/format.dart';
 import '../../../ui/g_app_bar.dart';
 import '../../../ui/g_card.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_sheet.dart';
 import '../../../ui/g_stat.dart';
 import 'compress_list_page.dart';
@@ -60,39 +61,16 @@ class CompressPage extends ConsumerWidget {
       (int sum, CompressedEntry e) => sum + (e.originalBytes - e.newBytes),
     );
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              child: GAppBar(
-                title: 'Make files smaller',
-                subtitle: 'Same pixels, fewer bytes',
-                leading: GIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                actions: <Widget>[
-                  GIconButton(
-                    icon: Icons.info_outline_rounded,
-                    onTap: () => _explain(context),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  GSpace.gutter,
-                  0,
-                  GSpace.gutter,
-                  GSpace.xl,
-                ),
-                children: <Widget>[
+    return GDetailPage(
+      hue: t.photo,
+      icon: Icons.compress_rounded,
+      title: 'Make files smaller',
+      subtitle: 'Same pixels, fewer bytes',
+      trailing: GIconButton(
+        icon: Icons.info_outline_rounded,
+        onTap: () => _explain(context),
+      ),
+      children: <Widget>[
                   if (summary != null && shots == 0 && photos == 0)
                     GCard(
                       child: Text(
@@ -195,12 +173,7 @@ class CompressPage extends ConsumerWidget {
                     // opens nothing is the promise this app spent weeks
                     // removing everywhere else.
                   ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 

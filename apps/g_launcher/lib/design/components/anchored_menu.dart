@@ -134,6 +134,25 @@ class AnchoredMenu {
     /// measure itself. Honest fallback rather than a crash or a corner.
     required Rect? anchor,
     required List<Widget> Function(BuildContext menuContext) rows,
+
+    /// The thing the menu is ABOUT, drawn at the head of the panel.
+    ///
+    /// Usually an `AppIcon`. Optional because a menu over empty desktop has no
+    /// subject; when it is null the header falls back to the title alone.
+    ///
+    /// ─── WHY THE ICON EARNED A SLOT ─────────────────────────────────────
+    ///
+    /// The header used to be a centred name and nothing else, so the only
+    /// confirmation of WHICH app you were holding was a word you had to read.
+    /// On a grid of 253 apps that is not enough, and the failure mode is
+    /// tapping Uninstall on a neighbour. The icon answers it before the name
+    /// is read.
+    ///
+    /// It also retires a hack: the title was only optically centred because a
+    /// 34dp spacer was inserted opposite the info button, which fell apart the
+    /// moment a name wrapped to two lines. Left-aligned beside its icon, it
+    /// needs no counterweight.
+    Widget? leading,
     String? title,
 
     /// The three most common actions, drawn as glyphs across the top.
@@ -207,6 +226,7 @@ class AnchoredMenu {
                     if (title != null)
                       _Header(
                         title: title,
+                        leading: leading,
                         chrome: chrome,
                         onInfo: onInfo,
                         menuContext: menuContext,
@@ -361,14 +381,24 @@ class _AnchorDelegate extends SingleChildLayoutDelegate {
       old.below != below;
 }
 
-/// The app's name, centred, above everything else.
+/// The subject of the menu: its icon, its name, and the way out to app info.
 ///
-/// ─── CENTRED NEEDS AN INVISIBLE BOX ─────────────────────────────────────────
+/// ─── THE CENTRED TITLE AND ITS INVISIBLE BOX ARE BOTH GONE ──────────────────
 ///
-/// A centred title with a button on one side only is off-centre by half a
-/// button, and it reads as sloppy rather than as centred. So the leading spacer
-/// is exactly the trailing button's width and appears only when the button
-/// does. It looks like nothing and it is the whole difference.
+/// This used to centre the name and, because a centred title with a button on
+/// one side is off-centre by half a button, insert a 34dp spacer opposite to
+/// balance it. That worked for one-line names and fell apart for two: the
+/// spacer balances a single row, not a block, so a wrapped name sat visibly
+/// left of centre and the counterweight became the thing you noticed.
+///
+/// Left-aligned beside the icon needs no counterweight at all, and it is what a
+/// context menu does everywhere else. The trailing button is then just a
+/// trailing button.
+///
+/// ─── AND THE ICON IS NOT DECORATION ─────────────────────────────────────────
+///
+/// It is the only part of this panel that identifies the app WITHOUT being
+/// read. See [AnchoredMenu.show]'s note on `leading`.
 ///
 /// ─── TWO LINES, WRAPPING, AND NO ELLIPSIS ───────────────────────────────────
 ///
@@ -380,12 +410,14 @@ class _Header extends StatelessWidget {
     required this.title,
     required this.chrome,
     required this.menuContext,
+    this.leading,
     this.onInfo,
   });
 
   final String title;
   final ChromeData chrome;
   final BuildContext menuContext;
+  final Widget? leading;
   final VoidCallback? onInfo;
 
   static const _button = 34.0;
@@ -393,15 +425,19 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(onInfo == null ? 16 : 6, 12, 6, 10),
+      padding: EdgeInsets.fromLTRB(leading == null ? 16 : 11, 11, 6, 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (onInfo != null) const SizedBox(width: _button),
+          if (leading != null) ...[
+            leading!,
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Text(
               title,
-              textAlign: TextAlign.center,
+              // LEFT, not centre. See the class note.
+              textAlign: TextAlign.start,
               maxLines: 2,
               overflow: TextOverflow.fade,
               style: chrome.text.title,
@@ -458,46 +494,96 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ─── CHIPS, NOT BARE GLYPHS ───────────────────────────────────────────
+    //
+    // These were three transparent columns sharing the panel's own background,
+    // which made them read as a caption strip rather than as three buttons, and
+    // gave the destructive one exactly the same weight as Pin. A filled chip
+    // each says "these are targets"; the danger chip's tinted fill says the
+    // third one is not like the other two, without needing a confirmation
+    // dialog to say it later.
+    //
+    // The tap target grows with the fill: the old column was 21dp of icon plus
+    // a 6dp gap and a caption, and the InkWell covered only that. A chip is the
+    // full third of the panel, which on a 236dp panel is about 72 by 52.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
       child: Row(
         children: [
-          for (final a in actions)
+          for (final a in actions) ...[
+            if (a != actions.first) const SizedBox(width: 6),
             Expanded(
-              child: InkWell(
-                onTap: () {
-                  Navigator.pop(menuContext);
-                  a.onTap();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        a.icon,
-                        size: 21,
-                        color: a.danger ? _danger : chrome.colors.text,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        a.label,
-                        textAlign: TextAlign.center,
-                        // Two lines here too, for the same reason as the title:
-                        // "Add to home" does not fit one line in a third of a
-                        // 236px panel, and it certainly does not fit in German.
-                        maxLines: 2,
-                        overflow: TextOverflow.fade,
-                        style: chrome.text.caption.copyWith(
+              child: Material(
+                // ─── TRANSPARENT, WITH A HAIRLINE DOING THE WORK ────────
+                //
+                // These were filled: a translucent wash for the two ordinary
+                // actions and a red tint for the destructive one. The fills
+                // made the chips read as three solid tiles sitting ON the
+                // glass rather than as part of it, which is the one thing this
+                // panel is not supposed to look like. GlassPanel already
+                // supplies a surface; painting a second one inside it is what
+                // made the strip look pasted on.
+                //
+                // ─── TRANSPARENT, EXCEPT THE ONE THAT DESTROYS SOMETHING ─
+                //
+                // Three grey tiles inside a rounded glass panel read as pasted
+                // on, which is why the fills went. A single RED one does not:
+                // it is the only chip on screen carrying a colour, so it reads
+                // as a warning rather than as chrome.
+                //
+                // This is the C design's actual argument, kept. Tinting was
+                // never about giving the chips surfaces; it was about stopping
+                // the destructive action reading as a peer of Pin and Hide. The
+                // ordinary two lose nothing by being bare, because the glyph
+                // and label are what you aim at and the ripple is what confirms
+                // the hit. Uninstall is the one where a person should hesitate
+                // for a fraction of a second, and a faint red field behind it
+                // is the cheapest way to buy that without a confirm dialog.
+                //
+                // What every chip still earns over the bare glyphs it replaced
+                // is invisible either way: the tap target is a full third of
+                // the panel rather than a 21dp icon, and the ripple is bounded
+                // by that rectangle.
+                color: a.danger
+                    ? _danger.withValues(alpha: 0.14)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(11),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(menuContext);
+                    a.onTap();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          a.icon,
+                          size: 21,
                           color: a.danger ? _danger : chrome.colors.text,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Text(
+                          a.label,
+                          textAlign: TextAlign.center,
+                          // Two lines here too, for the same reason as the title:
+                          // "Add to home" does not fit one line in a third of a
+                          // 236px panel, and it certainly does not fit in German.
+                          maxLines: 2,
+                          overflow: TextOverflow.fade,
+                          style: chrome.text.caption.copyWith(
+                            color: a.danger ? _danger : chrome.colors.text,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
+          ],
         ],
       ),
     );

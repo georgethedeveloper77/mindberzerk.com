@@ -9,6 +9,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/components/press_pop.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
@@ -20,6 +21,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 import 'app_icon.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
+import 'folder_overlay.dart';
 
 /// The Activities drawer.
 ///
@@ -65,6 +67,99 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   /// from the shared formula).
   int? _pagedRows;
 
+  /// The locate target this drawer has already acted on.
+  ///
+  /// Guards the folder push below against firing every rebuild, which on a
+  /// drawer that rebuilds constantly would be a folder overlay pushed on top of
+  /// itself several times a second.
+  String? _locateHandled;
+
+  /// If Locate is pointing at an app inside a folder, open that folder.
+  ///
+  /// ─── WHY THIS MOVED OUT OF locateApp ────────────────────────────────────
+  ///
+  /// `locateApp` pops the search page and then, in its first version, pushed
+  /// the folder overlay from that same popped context. Dead context, no
+  /// overlay. It also assumed the drawer was already mounted, which is false
+  /// when search was opened over the desktop.
+  ///
+  /// Here both problems cannot happen. This runs from a State that is mounted
+  /// by definition and holds a context that is alive by construction, and it
+  /// runs on whichever frame the drawer actually has, whether that is the one
+  /// after the aim or the first frame of a drawer that has just appeared.
+  ///
+  /// Post-frame because this is reached from `build`, and pushing a route
+  /// during a build is not allowed.
+  void _openFolderForLocate(List<DrawerItem> items) {
+    final target = ref.read(locateTargetProvider);
+    if (target == null || target == _locateHandled) return;
+
+    for (final i in items) {
+      if (i is! FolderDrawerItem) continue;
+      if (!i.folder.members.contains(target)) continue;
+
+      // Marked BEFORE the push, not after. The push is asynchronous and the
+      // drawer will rebuild several times before it lands.
+      _locateHandled = target;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showFolderOverlay(context, ref, widget.theme, i);
+      });
+      return;
+    }
+
+    // Loose in the drawer. Nothing to open; the page jump and the ring do the
+    // rest. Still marked, so this scan runs once per target rather than once
+    // per rebuild.
+    _locateHandled = target;
+  }
+
+  /// Which page holds the app Locate is pointing at, or null when nothing is
+  /// being pointed at, the target is not in this list, or the row count has not
+  /// been reported yet.
+  ///
+  /// Returns a PAGE rather than an index because that is all the pager can act
+  /// on, and it deliberately returns null rather than 0 for "no target": zero
+  /// is a real page, and a null-means-first-page reading would send the drawer
+  /// home every time the ring cleared.
+  /// Wrap [child] so the next deliberate touch anywhere clears the Locate ring.
+  ///
+  /// ─── A Listener, NOT A GestureDetector ──────────────────────────────────
+  ///
+  /// This must not consume anything. A GestureDetector here would enter the
+  /// arena against every tap, drag and long press in the drawer and would win
+  /// some of them, which is a far worse bug than a ring that overstays.
+  /// `Listener` observes raw pointer events and competes for nothing.
+  ///
+  /// Clearing on POINTER DOWN rather than on a completed tap is deliberate: the
+  /// question was "where is it", the user has seen the answer the moment they
+  /// reach for the screen, and waiting for a gesture to resolve would leave the
+  /// ring up through a whole scroll.
+  ///
+  /// `clear()` is guarded inside the notifier, so the overwhelmingly common
+  /// case where nothing is aimed writes no state and rebuilds nothing.
+  Widget _clearLocateOnTouch({required Widget child}) => Listener(
+        onPointerDown: (_) => ref.read(locateTargetProvider.notifier).clear(),
+        child: child,
+      );
+
+  int? _locatePage(List<DrawerItem> items, int columns) {
+    final target = ref.watch(locateTargetProvider);
+    if (target == null) return null;
+
+    final rows = _pagedRows;
+    if (rows == null || rows < 1) return null;
+
+    final index = items.indexWhere(
+      (i) => i is AppDrawerItem && i.entry.componentKey == target,
+    );
+    if (index < 0) return null;
+
+    final perPage = rows * columns;
+    if (perPage < 1) return null;
+    return index ~/ perPage;
+  }
+
+
   /// One auto-seed attempt per drawer lifetime. Reset only when a scheduled
   /// attempt finds the app list empty, so the next rebuild (the one the
   /// arriving app list causes) can try again.
@@ -109,7 +204,12 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       });
     }
 
-    return LayoutBuilder(
+    // Acts at most once per target. See the method's note for why the drawer
+    // owns this rather than `locateApp`.
+    _openFolderForLocate(items);
+
+    return _clearLocateOnTouch(
+      child: LayoutBuilder(
       builder: (context, constraints) {
         // The user's explicit choice wins; otherwise the screen decides. A fixed
         // theme constant loses to responsiveness here on purpose — a 5-column
@@ -481,10 +581,42 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               // rebuild on it, it is only read when Custom is entered to seed
               // the frozen count. The custom branch above DOES need a rebuild,
               // which is why it has its own handler.
-              onRows: (r) => _pagedRows = r,
+              // ─── setState WHEN SOMETHING IS WAITING ON THIS ───────────
+              //
+              // The bare assignment here was correct while nothing read the row
+              // count during build, and it silently broke Locate. `_pagedRows`
+              // is null on a drawer's FIRST build, so `_locatePage` returns
+              // null and no jump is requested; the real count then arrives here
+              // post-layout, and without a rebuild `jumpToPage` is never
+              // recomputed. A drawer that was closed when you hit Locate would
+              // therefore open on the wrong page, forever.
+              //
+              // Rebuilding only when a target is pending keeps the original
+              // reason for the bare assignment intact: the ordinary paged
+              // drawer still does not rebuild on a row report.
+              onRows: (r) {
+                if (_pagedRows == r) return;
+                _pagedRows = r;
+                if (mounted && ref.read(locateTargetProvider) != null) {
+                  setState(() {});
+                }
+              },
               initialPage: ref.read(drawerPageProvider),
               onPage: (p) =>
                   ref.read(drawerPageProvider.notifier).setPage(p),
+
+              // ─── ONLY THE DRAWER CAN WORK THIS OUT ────────────────────
+              //
+              // Locate knows the app; the pager knows the geometry; neither
+              // knows both. The page an item falls on is `index ~/ (rows *
+              // columns)`, and `rows` is DERIVED at layout from the available
+              // height, which is why it arrives here through `onRows` rather
+              // than being something anyone can compute in advance.
+              //
+              // Null until `_pagedRows` has been reported at least once, which
+              // is the first frame only. A jump on that frame would race the
+              // layout that produces the number it depends on.
+              jumpToPage: _locatePage(items, columns),
               itemBuilder: (context, i) => tileAt(i),
             ),
           );
@@ -541,6 +673,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           ),
         );
       },
+    ),
     );
   }
 }
@@ -742,15 +875,39 @@ class _AppTileState extends ConsumerState<_AppTile> {
   /// slop Flutter uses to distinguish a tap from a pan.
   static const _slop = 24.0;
 
+  /// Is this tile's menu open?
+  ///
+  /// Owned HERE rather than by the menu, because this State is the only thing
+  /// that knows the difference between a hold and the start of a drag. The
+  /// split-on-release test below is what decides it, and it decides it after
+  /// the press has already ended.
+  bool _held = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final entry = widget.entry;
 
+    // ─── HELD, OR BEING POINTED AT ──────────────────────────────────────
+    //
+    // The same widget answers both, because they are the same statement: THIS
+    // one. A separate highlight for Locate would mean two visual languages for
+    // "the launcher means this app", and the user would have to learn which is
+    // which for no gain.
+    final located = ref.watch(locateTargetProvider) == entry.componentKey;
+
+    // Only the ICON wears the press state, not the whole cell. Scaling the
+    // label with it would push a two-line name into its neighbour's row, and
+    // the ring would draw a box around text rather than an outline of an app.
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppIcon(entry: entry, size: theme.iconSizeDp),
+        PressPop(
+          held: _held || located,
+          radius: theme.iconSizeDp * 0.24,
+          ringColor: theme.palette.onDark,
+          child: AppIcon(entry: entry, size: theme.iconSizeDp),
+        ),
         const SizedBox(height: 6),
         _TileLabel(
           text: entry.label,
@@ -814,7 +971,28 @@ class _AppTileState extends ConsumerState<_AppTile> {
           // See _AppTileState.onMove: this is what makes details.offset the
           // pointer rather than the feedback's corner.
           dragAnchorStrategy: pointerDragAnchorStrategy,
-          onDragStarted: HapticFeedback.mediumImpact,
+          // ─── THE DIP LANDS HERE, NOT ON RELEASE ─────────────────────
+          //
+          // `_held` was set in `onDraggableCanceled`, which fires when the
+          // finger LIFTS. So nothing happened under the thumb while the
+          // long-press timer ran, and the tile then squashed at the same
+          // instant the menu appeared, which reads as decoration on the menu
+          // rather than as a response to the press. The whole argument for
+          // squash-and-pop over a plain scale was that the motion is a
+          // CONSEQUENCE of pressing, and setting it on release threw that away.
+          //
+          // `onDragStarted` IS the timer completing: it is the moment the
+          // draggable takes the long press, and it is where the haptic already
+          // fires. Same frame, same event, so the dip and the buzz are one
+          // thing rather than two near each other.
+          //
+          // It stays true through a real drag as well, which costs nothing:
+          // `childWhenDragging` replaces this tile for the whole drag, so
+          // nothing popped is on screen to see.
+          onDragStarted: () {
+            HapticFeedback.mediumImpact();
+            if (mounted) setState(() => _held = true);
+          },
           onDraggableCanceled: (_, offset) {
             // Nothing accepted it. If it never moved, the user was holding, not
             // dragging, and that is the menu.
@@ -826,6 +1004,9 @@ class _AppTileState extends ConsumerState<_AppTile> {
             // menu would have stopped opening entirely.
             final from = _downAt;
             if (from == null || (offset - from).distance < _slop) {
+              // Already popped, since `onDragStarted` fired when the timer
+              // completed. This only has to KEEP it popped until the panel
+              // closes, so the grid keeps saying which app the panel is about.
               showDrawerAppMenu(
                 context,
                 ref,
@@ -835,7 +1016,17 @@ class _AppTileState extends ConsumerState<_AppTile> {
                 // should sit under the app, and on a grid the finger can be
                 // most of a tile away from the icon it landed on.
                 anchor: AnchoredMenu.anchorOf(context),
-              );
+              ).whenComplete(() {
+                // `whenComplete` and not `then`: the route can be dismissed by
+                // the barrier, by back, or by an action popping it, and a tile
+                // left scaled up because the user tapped outside would be a
+                // permanent lie about which app is selected.
+                if (mounted) setState(() => _held = false);
+              });
+            } else if (mounted) {
+              // It travelled, so it was a drag that nothing accepted. No menu
+              // is coming, so nothing else will clear the pop.
+              setState(() => _held = false);
             }
           },
           // Centred on the finger. The pointer anchor puts the feedback's
@@ -1071,6 +1262,11 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
   /// different slop, a shared constant would make that look like a bug.
   static const _slop = 24.0;
 
+  /// See [_AppTileState._held]. A folder is held the same way an app is, so it
+  /// answers the same way; a grid where apps respond to a hold and folders sit
+  /// still would read as folders being broken.
+  bool _held = false;
+
   /// Something was dropped on this folder.
   void _accept(DrawerDrag drag) {
     final theme = widget.theme;
@@ -1205,7 +1401,14 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
         final content = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-              Container(
+            PressPop(
+              held: _held,
+              // The FOLDER's radius, not an icon's. A folder glyph is a rounded
+              // square of its own and the ring has to follow that shape, or it
+              // reads as a box drawn near the folder rather than around it.
+              radius: folderCornerRadius(theme, size),
+              ringColor: theme.palette.onDark,
+              child: Container(
                 width: size,
                 height: size,
                 padding: const EdgeInsets.all(4),
@@ -1229,6 +1432,7 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
                   ],
                 ),
               ),
+            ),
             const SizedBox(height: 6),
             _TileLabel(
               text: item.folder.name,
@@ -1241,7 +1445,28 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
         return LongPressDraggable<DrawerDrag>(
           data: FolderDrag(item.folder.id),
           dragAnchorStrategy: pointerDragAnchorStrategy,
-          onDragStarted: HapticFeedback.mediumImpact,
+          // ─── THE DIP LANDS HERE, NOT ON RELEASE ─────────────────────
+          //
+          // `_held` was set in `onDraggableCanceled`, which fires when the
+          // finger LIFTS. So nothing happened under the thumb while the
+          // long-press timer ran, and the tile then squashed at the same
+          // instant the menu appeared, which reads as decoration on the menu
+          // rather than as a response to the press. The whole argument for
+          // squash-and-pop over a plain scale was that the motion is a
+          // CONSEQUENCE of pressing, and setting it on release threw that away.
+          //
+          // `onDragStarted` IS the timer completing: it is the moment the
+          // draggable takes the long press, and it is where the haptic already
+          // fires. Same frame, same event, so the dip and the buzz are one
+          // thing rather than two near each other.
+          //
+          // It stays true through a real drag as well, which costs nothing:
+          // `childWhenDragging` replaces this tile for the whole drag, so
+          // nothing popped is on screen to see.
+          onDragStarted: () {
+            HapticFeedback.mediumImpact();
+            if (mounted) setState(() => _held = true);
+          },
           onDraggableCanceled: (_, offset) {
             // Nothing accepted the drop. If the finger never really travelled
             // it was a hold, which is the settings sheet, the trigger the
@@ -1255,7 +1480,11 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
                 theme,
                 item,
                 anchor: AnchoredMenu.anchorOf(context),
-              );
+              ).whenComplete(() {
+                if (mounted) setState(() => _held = false);
+              });
+            } else if (mounted) {
+              setState(() => _held = false);
             }
           },
           feedback: FractionalTranslation(
@@ -1471,8 +1700,8 @@ class _AzList extends StatelessWidget {
     final delegate = SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: columns,
       childAspectRatio: aspect,
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 16,
+      crossAxisSpacing: GridMetrics.columnGap,
+      mainAxisSpacing: GridMetrics.rowGap,
     );
 
     return CustomScrollView(
@@ -1583,8 +1812,8 @@ Widget _plainGrid({
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         childAspectRatio: aspect,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: GridMetrics.columnGap,
+        mainAxisSpacing: GridMetrics.rowGap,
       ),
       itemCount: items.length,
       // addRepaintBoundaries is on by default and we want it: each icon is an

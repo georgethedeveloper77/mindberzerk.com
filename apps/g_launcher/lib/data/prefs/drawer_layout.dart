@@ -187,6 +187,68 @@ class DrawerLayout {
   ) =>
       addToFolder(p, folderId, componentKey);
 
+  /// Move [sourceKey] to sit beside [targetKey] inside [folderId].
+  ///
+  /// ─── KEYS, NOT INDICES, AND THAT IS THE WHOLE DESIGN ────────────────────
+  ///
+  /// The obvious signature is `(from, to)` like [HomeLayout.reorderDock], whose
+  /// own comment warns that `to` means "the index AFTER the item was removed"
+  /// and that getting it wrong shifts every downward drag by one. That warning
+  /// is real, but there is a worse problem here that an index signature cannot
+  /// even express.
+  ///
+  /// The folder grid does not render `folder.members`. It renders the members
+  /// that RESOLVED to an installed app, because a member whose app has been
+  /// uninstalled has no icon and no label and is simply skipped. So the index
+  /// of a tile on screen is not the index of that key in the stored list, and
+  /// the two drift by exactly the number of dead members ahead of it. An index
+  /// handed in from the grid would silently move the wrong app, and only for
+  /// users who had uninstalled something, which is the kind of bug that never
+  /// reproduces on the developer's phone.
+  ///
+  /// Keys have no such gap. Both ends are resolved against the stored list here,
+  /// so a dead member simply sits where it is and everything else moves around
+  /// it correctly.
+  ///
+  /// [after] is which SIDE of the target the drop landed on: false inserts
+  /// before it, true after it. Computed from which half of the target tile the
+  /// pointer was over, so the drop reads as "put it here" rather than as a
+  /// swap.
+  ///
+  /// Refuses, returning [p] unchanged so the caller can compare by identity,
+  /// when the folder is gone, when either key is not a member, or when source
+  /// and target are the same app.
+  static LauncherPrefs reorderMembers(
+    LauncherPrefs p,
+    String folderId,
+    String sourceKey,
+    String targetKey, {
+    required bool after,
+  }) {
+    if (sourceKey == targetKey) return p;
+
+    final f = folder(p, folderId);
+    if (f == null) return p;
+    if (!f.members.contains(sourceKey)) return p;
+    if (!f.members.contains(targetKey)) return p;
+
+    // Remove FIRST, then locate the target in the shortened list. This is the
+    // off-by-one [HomeLayout.reorderDock] documents, dodged rather than
+    // handled: once the source is gone there is only one list and one index,
+    // so there is no "before or after removal" question left to get wrong.
+    final next = [...f.members]..remove(sourceKey);
+    final at = next.indexOf(targetKey);
+
+    next.insert(after ? at + 1 : at, sourceKey);
+
+    return p.copyWith(
+      drawerFolders: [
+        for (final x in p.drawerFolders)
+          if (x.id == folderId) x.copyWith(members: next) else x,
+      ],
+    );
+  }
+
   /// "Ungroup" — every member returns to the list at once.
   static LauncherPrefs dissolve(LauncherPrefs p, String folderId) =>
       p.copyWith(

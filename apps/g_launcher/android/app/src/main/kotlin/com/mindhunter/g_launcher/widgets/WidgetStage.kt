@@ -93,6 +93,60 @@ object WidgetStage {
 
     private var density = 1f
 
+    /**
+     * May a press be taken from Flutter and given to a widget?
+     *
+     * ─── VISIBLE AND INTERACTIVE ARE NOT THE SAME QUESTION ──────────────────
+     *
+     * The stage had one flag, and `LauncherActivity.dispatchTouchEvent` asks
+     * [hitTest] on every ACTION_DOWN. So any press landing inside a widget's
+     * rectangle was claimed for the widget BEFORE Flutter saw it, whatever
+     * Flutter happened to be drawing on top.
+     *
+     * That is right for a desktop at rest and wrong the moment anything is
+     * layered over it. The desklet menu opens ANCHORED TO THE WIDGET, so its
+     * rows sit directly on the hit rect and the ones overlapping it could not
+     * be tapped at all: the press went to Spotify, underneath the panel the
+     * user was aiming at. The same is true of any pushed route, including
+     * Settings and the widget picker, where a tap that happens to land where a
+     * widget sits on the desktop below is swallowed by a view nobody can see.
+     *
+     * Hiding the stage would also fix it and would be worse: the widget would
+     * vanish the instant you held it, so the menu would be about something no
+     * longer on screen. So visibility and interactivity are separated. The
+     * widget keeps drawing; it simply stops taking touches until the thing on
+     * top of it is gone.
+     */
+    private var interactive = true
+
+    // ─── THE RETRY, AND WHY A SKIPPED WIDGET NEVER CAME BACK ────────────────
+    //
+    // `createView` returns null when `AppWidgetManager.getAppWidgetInfo` does
+    // not yet know the id. That is a real window right after
+    // `bindAppWidgetIdIfAllowed`: measured on device, the provider pushed two
+    // updates 700ms after the bind and the host still had no view for them.
+    //
+    // The loop below used to `continue` past that, which would be fine if
+    // anything came back. Nothing does. Dart only calls `sync` when the flat
+    // rect list CHANGES, and a settled desktop reports the same rects forever,
+    // so the skipped widget stayed an empty tile until the user moved
+    // something. That is the "I add Spotify and get nothing" report, and it is
+    // also why one widget worked and the next did not: the race is won or lost
+    // by a few hundred milliseconds.
+    //
+    // So the stage remembers the last thing Dart asked for and asks itself
+    // again. Bounded, because a provider that has genuinely been uninstalled
+    // will never resolve and a self-rescheduling runnable with no ceiling is a
+    // battery drain nobody can see.
+    private var lastPlacements: List<Placement> = emptyList()
+    private var lastVisible = false
+    private var retries = 0
+    private var retryScheduled = false
+
+    /** About two seconds at [RETRY_DELAY_MS]. Long enough for a slow bind. */
+    private const val MAX_RETRIES = 8
+    private const val RETRY_DELAY_MS = 250L
+
     // ── lifecycle ───────────────────────────────────────────────────────────
 
     /**
@@ -229,6 +283,13 @@ object WidgetStage {
         layer.removeAllViews()
         (layer.parent as? ViewGroup)?.removeView(layer)
         hitRects.clear()
+
+        // A retry posted to a layer that is going away either never runs or
+        // runs against the wrong window. Either way the flag must not survive,
+        // or the NEXT layer's first failure would find `retryScheduled` still
+        // true and never schedule anything.
+        retryScheduled = false
+        retries = 0
     }
 
     // ── the one call Dart makes ─────────────────────────────────────────────
@@ -247,14 +308,28 @@ object WidgetStage {
      * So the view is kept and set GONE. It is released only by [release], which
      * Dart calls when the widget is actually taken off the desktop.
      */
-    fun sync(placements: List<Placement>, visible: Boolean) {
+    fun sync(
+        placements: List<Placement>,
+        visible: Boolean,
+        interactive: Boolean,
+    ) {
         val layer = stage ?: return
         val host = controller ?: return
+
+        // Set BEFORE the early returns below, so a sync carrying nothing but a
+        // change of interactivity still lands. Dart sends exactly that when a
+        // menu opens over a desktop whose rects have not moved.
+        this.interactive = interactive
 
         layer.visibility = if (visible) View.VISIBLE else View.GONE
         hitRects.clear()
 
+        // Held so a retry has something to replay. See the fields' note.
+        lastPlacements = placements
+        lastVisible = visible
+
         val present = mutableSetOf<Int>()
+        var missing = false
 
         for (p in placements) {
             present += p.widgetId
@@ -272,7 +347,13 @@ object WidgetStage {
                 // Spotify keeps the cramped bar it inflated. `createView`
                 // applies the size synchronously before that first apply.
                 view = host.createView(p.widgetId, p.w.toInt(), p.h.toInt())
-                    ?: continue
+                if (view == null) {
+                    // Not "this widget is broken", usually. The id is bound and
+                    // the manager has not caught up. Flagged for the retry
+                    // below rather than skipped and forgotten.
+                    missing = true
+                    continue
+                }
                 views[p.widgetId] = view
                 layer.addView(view, FrameLayout.LayoutParams(wPx, hPx))
             }
@@ -310,6 +391,39 @@ object WidgetStage {
         for ((id, view) in views) {
             if (id !in present) view.visibility = View.GONE
         }
+
+        if (missing) {
+            scheduleRetry(layer)
+        } else {
+            // A clean pass resets the budget, so a widget added later gets its
+            // own full allowance rather than inheriting an exhausted one.
+            retries = 0
+        }
+    }
+
+    /**
+     * Ask ourselves again shortly, for the ids that could not be created.
+     *
+     * Posted to the stage's own view, so it rides the same message queue as
+     * everything else here and dies with the window rather than outliving it.
+     * [retryScheduled] collapses a burst: several syncs can fail in a row while
+     * a bind settles, and each queueing its own runnable would multiply the
+     * work exactly when the system is already busy.
+     */
+    private fun scheduleRetry(layer: FrameLayout) {
+        if (retryScheduled || retries >= MAX_RETRIES) return
+        retryScheduled = true
+        retries++
+
+        layer.postDelayed({
+            retryScheduled = false
+            // Re-read rather than capture: `stage` may have been replaced by a
+            // configuration change in the meantime, and replaying into a dead
+            // layer would put the view somewhere nobody is looking.
+            if (stage != null && lastPlacements.isNotEmpty()) {
+                sync(lastPlacements, lastVisible, interactive)
+            }
+        }, RETRY_DELAY_MS)
     }
 
     /** The widget is off the desktop for good. Free the view AND the host id. */
@@ -331,11 +445,137 @@ object WidgetStage {
      * pass over.
      */
     fun hitTest(x: Float, y: Float): Boolean {
+        if (!interactive) return false
         if (stage?.visibility != View.VISIBLE) return false
         return hitRects.values.any { it.contains(x, y) }
     }
 
+    // ── the long press, which is the only thing native decides ──────────────
+
+    /**
+     * Which widget the current gesture is over, and where it started.
+     *
+     * ─── WHY NATIVE HAS TO DETECT THIS ──────────────────────────────────────
+     *
+     * `LauncherActivity.dispatchTouchEvent` gives the entire gesture to the
+     * widget as soon as a press lands inside one, and it is right to: a media
+     * scrub that changes owner half way through is worse than one that never
+     * started. The consequence is that FlutterView never sees the press, so no
+     * Flutter recogniser can fire, so `EditableDesklet`'s long press could not
+     * run for a hosted tile however it was written.
+     *
+     * That made hosted widgets the only tiles on the desktop that could not be
+     * moved, resized or removed, and left every one of them stuck at whatever
+     * span the picker chose. A 4x2 Spotify card is a thin bar with an empty
+     * band under it; the same widget pulled to 4x4 is the one people recognise.
+     * The grid was placing it correctly the whole time. Nothing could ask for a
+     * different rectangle.
+     *
+     * So the press is timed HERE and the outcome is sent to Dart, which already
+     * owns the menu, the edit mode and the resize handles.
+     */
+    private var pressId: Int? = null
+    private var pressX = 0f
+    private var pressY = 0f
+    private var pressHandled = false
+
+    private var pressRunnable: Runnable? = null
+
+    /** Matches `_holdToLift` in desklet_editor, so both kinds of tile feel the same. */
+    private const val LONG_PRESS_MS = 300L
+
+    /**
+     * How far the finger may wander before this is a drag rather than a hold.
+     *
+     * A literal rather than `ViewConfiguration.scaledTouchSlop` on purpose:
+     * that value is tuned for scrolling lists and is small enough that a thumb
+     * resting on a media widget cancels the hold about half the time. Flutter's
+     * own long-press slop is larger for the same reason, and matching the tile
+     * beside it matters more here than matching a list.
+     */
+    private const val PRESS_SLOP_PX = 40f
+
     /** Hand a gesture to the widget under it. */
-    fun dispatch(ev: MotionEvent): Boolean =
-        stage?.takeIf { it.visibility == View.VISIBLE }?.dispatchTouchEvent(ev) ?: false
+    fun dispatch(ev: MotionEvent): Boolean {
+        val layer = stage?.takeIf { it.visibility == View.VISIBLE } ?: return false
+
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> beginPress(layer, ev)
+
+            MotionEvent.ACTION_MOVE -> {
+                val dx = ev.x - pressX
+                val dy = ev.y - pressY
+                if (dx * dx + dy * dy > PRESS_SLOP_PX * PRESS_SLOP_PX) cancelPress()
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> cancelPress()
+        }
+
+        // ─── AFTER THE HOLD FIRES, THE WIDGET GETS NOTHING MORE ─────────────
+        //
+        // The provider has already been sent an ACTION_CANCEL by [beginPress]'s
+        // runnable, so it has released its own pressed state. Forwarding the
+        // rest would let a media button also fire on the UP that ends a hold,
+        // which is the "I long-pressed and it skipped the track" bug every
+        // launcher hits once.
+        if (pressHandled) {
+            if (ev.actionMasked == MotionEvent.ACTION_UP ||
+                ev.actionMasked == MotionEvent.ACTION_CANCEL
+            ) {
+                pressHandled = false
+            }
+            return true
+        }
+
+        return layer.dispatchTouchEvent(ev)
+    }
+
+    private fun beginPress(layer: FrameLayout, ev: MotionEvent) {
+        cancelPress()
+        pressHandled = false
+        pressX = ev.x
+        pressY = ev.y
+
+        // Which widget, decided once on DOWN for the same reason ownership is:
+        // a gesture belongs to whoever its first press hit.
+        pressId = hitRects.entries
+            .firstOrNull { it.value.contains(ev.x, ev.y) }
+            ?.key
+            ?: return
+
+        val id = pressId ?: return
+        val r = Runnable {
+            pressRunnable = null
+            pressHandled = true
+
+            // CANCEL the widget's own gesture before telling Dart. Without it
+            // the provider keeps a button highlighted for as long as the menu
+            // is open, because from its side the finger never lifted.
+            val cancel = MotionEvent.obtain(ev)
+            cancel.action = MotionEvent.ACTION_CANCEL
+            layer.dispatchTouchEvent(cancel)
+            cancel.recycle()
+
+            // The PRESS POINT goes with it, in pixels, global to the screen.
+            //
+            // Dart cannot recover this: the gesture never reached Flutter, by
+            // design. And it needs it, because anchoring a hosted widget's menu
+            // to the TILE breaks down once the tile is large. A 366x475dp
+            // widget leaves no room for a 330dp panel below it and 91dp above,
+            // so the panel clamps to the screen edge and lands on top of the
+            // thing it is about. The finger is a point and always has room
+            // beside it, which is why the folder member menu anchors that way
+            // too.
+            StageBridge.notifyLongPress(id, pressX, pressY)
+        }
+        pressRunnable = r
+        layer.postDelayed(r, LONG_PRESS_MS)
+    }
+
+    private fun cancelPress() {
+        pressRunnable?.let { stage?.removeCallbacks(it) }
+        pressRunnable = null
+        pressId = null
+    }
 }

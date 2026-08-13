@@ -40,7 +40,14 @@ class StageBridge private constructor() : MethodChannel.MethodCallHandler {
             "sync" -> {
                 val flat = call.argument<List<Double>>("rects") ?: emptyList()
                 val visible = call.argument<Boolean>("visible") ?: false
-                WidgetStage.sync(parse(flat), visible)
+
+                // Defaults TRUE, which is the behaviour every build before this
+                // argument existed had. A missing key means an older Dart
+                // bundle against a newer engine, and the desktop taking its own
+                // touches is the safe reading of that.
+                val interactive = call.argument<Boolean>("interactive") ?: true
+
+                WidgetStage.sync(parse(flat), visible, interactive)
                 result.success(null)
             }
 
@@ -80,8 +87,54 @@ class StageBridge private constructor() : MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "g_launcher/widget_stage"
 
+        /// The live channel, kept so native can TALK BACK.
+        ///
+        /// ─── WHY THIS DIRECTION EXISTS AT ALL ──────────────────────────────
+        ///
+        /// Everything else here is Dart telling native what to do, which is the
+        /// split `WidgetStage` documents: Dart owns every decision, native
+        /// obeys. A long press on a hosted widget is the one fact native learns
+        /// that Dart cannot, and it cannot learn it for a structural reason
+        /// rather than an accidental one.
+        ///
+        /// `LauncherActivity.dispatchTouchEvent` hands the WHOLE gesture to the
+        /// widget the moment a press lands inside one, because a media control
+        /// that loses its drag half way through is worse than useless. So
+        /// FlutterView never sees the press, no Flutter gesture recogniser ever
+        /// fires, and `EditableDesklet`'s long press could not run no matter
+        /// how it was written. Hosted tiles were the only tiles on the desktop
+        /// with no way to be moved, resized or removed, and the reason was four
+        /// lines in an Activity rather than anything about widgets.
+        ///
+        /// Nulled on teardown so a stale channel is never invoked against a
+        /// dead engine.
+        private var channel: MethodChannel? = null
+
         fun setUp(messenger: BinaryMessenger) {
-            MethodChannel(messenger, CHANNEL).setMethodCallHandler(StageBridge())
+            // REPLACES, per MethodChannel semantics, so a re-registration on an
+            // Activity recreate swaps the handler rather than stacking one.
+            channel = MethodChannel(messenger, CHANNEL).apply {
+                setMethodCallHandler(StageBridge())
+            }
+        }
+
+        /// The user held [widgetId]. Dart decides what that means.
+        ///
+        /// Fire and forget: there is no reply worth waiting for, and blocking
+        /// the touch path on a round trip to the Dart isolate is how a long
+        /// press starts feeling late.
+        fun notifyLongPress(widgetId: Int, x: Float, y: Float) {
+            channel?.invokeMethod(
+                "longPress",
+                mapOf(
+                    "widgetId" to widgetId,
+                    // PIXELS. Dart divides by devicePixelRatio; converting here
+                    // would mean native holding an opinion about dp, which is
+                    // the split this file's header argues against.
+                    "x" to x.toDouble(),
+                    "y" to y.toDouble(),
+                ),
+            )
         }
     }
 }

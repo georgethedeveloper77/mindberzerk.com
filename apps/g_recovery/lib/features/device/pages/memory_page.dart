@@ -5,13 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/format.dart';
 import '../../../ui/g_card.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
 import '../device_format.dart';
 import '../state/device_history.dart';
 import '../state/device_providers.dart';
 import '../widgets/g_line_chart.dart';
 import '../widgets/unavailable_note.dart';
-import 'device_chrome.dart';
 
 /// RAM AND SWAP.
 ///
@@ -52,7 +52,7 @@ class MemoryPage extends ConsumerWidget {
         ? swapTotal - swapFree
         : null;
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.grid_view_rounded,
       title: 'Memory',

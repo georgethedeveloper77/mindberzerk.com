@@ -6,8 +6,8 @@ import '../../../app/theme/tokens.dart';
 import '../../../bridge/hardware_api.g.dart';
 import '../../../bridge/hardware_bridge.dart';
 import '../../../ui/g_card.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
-import 'device_chrome.dart';
 
 /// THE SCREEN.
 ///
@@ -28,7 +28,7 @@ class DisplayPage extends ConsumerWidget {
     final DisplayInfo? d = ref.watch(displayProvider).value;
     final FeatureFlags? f = ref.watch(featuresProvider).value;
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.smartphone_rounded,
       title: 'Display',
@@ -181,7 +181,7 @@ class CamerasPage extends ConsumerWidget {
     final List<CameraInfo> cameras =
         ref.watch(camerasProvider).value ?? const <CameraInfo>[];
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.photo_camera_rounded,
       title: 'Cameras',

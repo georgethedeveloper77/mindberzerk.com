@@ -287,6 +287,53 @@ class HomeLayout {
     return p.copyWith(favourites: [...p.favourites, componentKey]);
   }
 
+  /// Move [sourceKey] to sit beside [targetKey] in the dock.
+  ///
+  /// ─── WHY THIS EXISTS BESIDE [reorderDock] AND NOT INSTEAD OF IT ─────────
+  ///
+  /// [reorderDock] takes indices, and its own comment explains the trap: `to`
+  /// means the index AFTER the item was removed, and getting it wrong shifts
+  /// every downward drag by one. That warning is correct and it is not the
+  /// worst of it.
+  ///
+  /// The dock does not render `favourites`. It renders [dockKeys], which drops
+  /// any pin whose app is no longer installed, and truncates to the capacity
+  /// the CURRENT dock side can hold. So a slot's index on screen is not that
+  /// key's index in `favourites`, and the two drift by however many dead or
+  /// overflowed pins sit ahead of it. An index measured from the dock would
+  /// move a different app, and only for users who have uninstalled a pinned app
+  /// or moved their dock to a shorter edge.
+  ///
+  /// Keys have no such gap: both ends resolve against `favourites` here, so an
+  /// unrendered pin stays where it is and everything else moves around it.
+  ///
+  /// [after] is which side of the target the drop landed on, from which half of
+  /// the target slot the pointer was over.
+  ///
+  /// Refuses, returning [p] unchanged, when either key is not pinned or the two
+  /// are the same. A dock in frequent-apps mode (empty `favourites`) therefore
+  /// refuses everything, which is correct: there is no arrangement to change,
+  /// and silently converting the dock to pinned mode because someone dragged
+  /// inside it would take away the auto-fill they never opted out of.
+  static LauncherPrefs reorderDockKeys(
+    LauncherPrefs p,
+    String sourceKey,
+    String targetKey, {
+    required bool after,
+  }) {
+    if (sourceKey == targetKey) return p;
+    if (!isPinned(p, sourceKey) || !isPinned(p, targetKey)) return p;
+
+    // Remove first, then locate. Once the source is gone there is one list and
+    // one index, so the "before or after removal" question [reorderDock]
+    // documents has nowhere left to go wrong.
+    final next = [...p.favourites]..remove(sourceKey);
+    final at = next.indexOf(targetKey);
+
+    next.insert(after ? at + 1 : at, sourceKey);
+    return p.copyWith(favourites: next);
+  }
+
   /// Unpinning the LAST app returns the dock to frequent-apps mode rather than
   /// leaving it empty — that falls out of [dockKeys] treating an empty
   /// `favourites` as "untouched". So there is nothing special to do here, and

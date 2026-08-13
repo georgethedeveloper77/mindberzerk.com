@@ -4,13 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/tokens.dart';
 import '../../../ui/g_badge.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
 import '../device_format.dart';
 import '../state/device_history.dart';
 import '../state/device_providers.dart';
 import '../widgets/g_line_chart.dart';
 import '../widgets/unavailable_note.dart';
-import 'device_chrome.dart';
 
 /// THE PROCESSOR.
 ///
@@ -44,7 +44,7 @@ class CpuPage extends ConsumerWidget {
     );
     final double? busy = tick == null ? null : CpuLoad.busyFraction(tick);
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.memory_rounded,
       title: info?.socModel ?? info?.hardware ?? 'Processor',

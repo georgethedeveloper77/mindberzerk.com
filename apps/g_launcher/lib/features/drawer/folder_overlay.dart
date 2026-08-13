@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -13,12 +14,14 @@ import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/components/press_pop.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../dock/dock_metrics.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
+import 'drawer_state.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 /// An open drawer folder, full screen, over a blurred desktop.
@@ -226,7 +229,16 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
 
     final palette = theme.palette;
     final cols = theme.prefs.folderCols ?? 4;
-    final rows = theme.prefs.folderRows ?? 3;
+
+    // FOUR, not three. Three rows against four columns is a landscape block in
+    // a portrait panel, and at 16 per page a folder holding a dozen apps stops
+    // paging at all, which is where paging is least welcome: a folder is a
+    // place you opened to find ONE thing.
+    //
+    // The panel grows to `rows * tileH`, about 416dp at the default icon size
+    // and two label lines, which clears the 890dp screen with the header and
+    // the search field still on it.
+    final rows = theme.prefs.folderRows ?? 4;
     final perPage = math.max(1, cols * rows);
     final pageCount = math.max(1, (live.members.length / perPage).ceil());
 
@@ -325,6 +337,17 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
                     perPage: perPage,
                     pageCount: pageCount,
                     controller: _pages,
+                    // Which member Locate is pointing at, as an index into the
+                    // list the panel is about to page. Resolved HERE because
+                    // this is the widget with a `ref`; the panel only needs the
+                    // number. Negative when nothing is aimed or the target is
+                    // not in this folder.
+                    locateIndex: () {
+                      final target = ref.watch(locateTargetProvider);
+                      if (target == null) return -1;
+                      return live.members
+                          .indexWhere((m) => m.componentKey == target);
+                    }(),
                   ),
 
                   const SizedBox(height: 16),
@@ -626,7 +649,19 @@ class _GlyphButton extends StatelessWidget {
 }
 
 /// The rounded panel holding the grid, paged when the members do not fit.
-class _Panel extends StatelessWidget {
+///
+/// ─── STATEFUL ONLY BECAUSE OF THE EDGE FLIP ─────────────────────────────────
+///
+/// A drag that has to cross a page boundary is the reason. Holding a member
+/// against the left or right edge of the panel turns the page under it, which
+/// needs a timer, which needs somewhere to live and something to cancel it.
+///
+/// It matters less than it did now that folders default to 4x4: sixteen members
+/// fit on one page and most folders never reach a second. But "I cannot move
+/// this app back to page one" is unrecoverable from inside the UI when it does
+/// happen, and the only alternative is telling the user to take the app out of
+/// the folder and put it back.
+class _Panel extends StatefulWidget {
   const _Panel({
     required this.theme,
     required this.members,
@@ -636,6 +671,7 @@ class _Panel extends StatelessWidget {
     required this.perPage,
     required this.pageCount,
     required this.controller,
+    this.locateIndex = -1,
   });
 
   final EffectiveTheme theme;
@@ -647,8 +683,125 @@ class _Panel extends StatelessWidget {
   final int pageCount;
   final PageController controller;
 
+  /// Index of the member Locate is pointing at, or negative for none.
+  ///
+  /// A folder holding more than [perPage] members pages, and opening it on page
+  /// one to answer "where is WhatsApp" when WhatsApp is on page two is the same
+  /// non-answer the drawer's own page jump exists to avoid.
+  final int locateIndex;
+
+  @override
+  State<_Panel> createState() => _PanelState();
+}
+
+class _PanelState extends State<_Panel> {
+  /// Running while a drag sits against an edge. Cancelled the moment it leaves,
+  /// so a drag that pauses mid-panel never turns a page.
+  Timer? _flip;
+
+  /// How long a drag has to rest against an edge before the page turns.
+  ///
+  /// Long enough that crossing the edge on the way to a tile near it does not
+  /// flip, short enough that a deliberate hold does not feel ignored. Repeats
+  /// at the same interval, so holding keeps paging.
+  static const _dwell = Duration(milliseconds: 600);
+
+  /// How much of the panel's width counts as an edge.
+  static const _edge = 44.0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The overlay is usually MOUNTED by Locate, so the target is already set
+    // before the first frame and there is no change for `didUpdateWidget` to
+    // catch. Jumping here covers that; jumping there covers an aim that lands
+    // while the folder is already open.
+    _jumpToLocated();
+  }
+
+  @override
+  void didUpdateWidget(_Panel old) {
+    super.didUpdateWidget(old);
+    if (widget.locateIndex != old.locateIndex) _jumpToLocated();
+  }
+
+  /// Page to the located member, if there is one and it is not already shown.
+  ///
+  /// Post-frame because this runs from `initState`, where the controller has no
+  /// clients yet: a PageController is only usable once its PageView has been
+  /// laid out, and calling it earlier throws.
+  void _jumpToLocated() {
+    final i = widget.locateIndex;
+    if (i < 0 || widget.perPage < 1) return;
+
+    final page = i ~/ widget.perPage;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.controller.hasClients) return;
+      if ((widget.controller.page ?? 0).round() == page) return;
+      widget.controller.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _flip?.cancel();
+    super.dispose();
+  }
+
+  void _stopFlip() {
+    _flip?.cancel();
+    _flip = null;
+  }
+
+  void _armFlip(bool forward) {
+    if (_flip != null) return;
+    _flip = Timer.periodic(_dwell, (_) {
+      if (!mounted) return _stopFlip();
+
+      final page = (widget.controller.page ?? 0).round();
+      final next = forward ? page + 1 : page - 1;
+      if (next < 0 || next >= widget.pageCount) return _stopFlip();
+
+      widget.controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  /// Which edge, if any, a hovering drag is over.
+  void _onDragMove(Offset global) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return _stopFlip();
+
+    final local = box.globalToLocal(global);
+    if (local.dy < 0 || local.dy > box.size.height) return _stopFlip();
+
+    if (local.dx < _edge) {
+      _armFlip(false);
+    } else if (local.dx > box.size.width - _edge) {
+      _armFlip(true);
+    } else {
+      _stopFlip();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final members = widget.members;
+    final folderId = widget.folderId;
+    final cols = widget.cols;
+    final rows = widget.rows;
+    final perPage = widget.perPage;
+    final pageCount = widget.pageCount;
+    final controller = widget.controller;
+
     final palette = theme.palette;
 
     // The tile is icon + gap + the LABEL BLOCK. Derived from the live icon
@@ -675,7 +828,49 @@ class _Panel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
         child: SizedBox(
           height: rows * tileH,
-          child: PageView.builder(
+          // A panel-wide target that catches the drag in the GAPS.
+          //
+          // ─── WHY IT ACCEPTS, WHEN IT DOES NOTHING WITH A DROP ───────────
+          //
+          // It returned false here, which looked right (the member tiles are
+          // the real targets) and silently broke the edge flip. Flutter's
+          // `_DragAvatar.updateDrag` calls `didMove` on the ACTIVE target only,
+          // and the active target is the first one whose `onWillAccept`
+          // returned true. A target that refuses never becomes active, so its
+          // `onMove` is never called and this whole timer was unreachable.
+          //
+          // Accepting costs nothing. The hit-test path runs innermost first, so
+          // whenever the pointer is over a member tile that tile is active and
+          // this one is not consulted; it only becomes active in the padding
+          // and the gaps, which is the one case the tiles cannot report.
+          // `onAcceptWithDetails` deliberately does nothing: a drop in the gap
+          // means "not on anything", and the member returns to where it was.
+          child: DragTarget<String>(
+            // ─── BACK TO false, AND ACCEPTING HERE WAS A REGRESSION ─────
+            //
+            // This was flipped to `true` so the panel would become the active
+            // drag target and receive `onMove`, because Flutter only calls
+            // `didMove` on the target that accepted. That worked for the edge
+            // flip and silently broke the LONG-PRESS MENU inside every folder.
+            //
+            // Hold a member and release without moving. The source tile refuses
+            // its own drop (`!_isSource`), so with this accepting, THIS target
+            // took it. An accepted drop means `onDraggableCanceled` never
+            // fires, and that callback is the entire mechanism by which a hold
+            // becomes a menu. So Uninstall, Pin to dock and Remove from folder
+            // all became unreachable from inside a folder, with the tile simply
+            // springing back.
+            //
+            // The flip does not need this. Member tiles forward their hover
+            // position through `onDragOver`, and a finger near the panel's edge
+            // is over the leftmost or rightmost TILE, not over the 8dp of
+            // padding beyond it. So the tiles cover the zone anyone can
+            // actually aim at, and this target goes back to watching without
+            // claiming anything.
+            onWillAcceptWithDetails: (_) => false,
+            onLeave: (_) => _stopFlip(),
+
+            builder: (context, _, __) => PageView.builder(
             controller: controller,
             // One page of members always fits by construction, so the page
             // itself never scrolls — which is what keeps the horizontal swipe
@@ -698,9 +893,17 @@ class _Panel extends StatelessWidget {
                   theme: theme,
                   entry: members[start + i],
                   folderId: folderId,
+                  // The tiles are the active drag target for most of the
+                  // panel's area, so they are the only thing that sees the
+                  // pointer there. Without this the flip would arm only in the
+                  // few dp of padding at the very edge, which is not a zone
+                  // anyone can aim at.
+                  onDragOver: _onDragMove,
+                  onDragDone: _stopFlip,
                 ),
               );
-            },
+              },
+            ),
           ),
         ),
       ),
@@ -713,11 +916,24 @@ class _MemberTile extends ConsumerStatefulWidget {
     required this.theme,
     required this.entry,
     required this.folderId,
+    this.onDragOver,
+    this.onDragDone,
   });
 
   final EffectiveTheme theme;
   final AppEntry entry;
   final String folderId;
+
+  /// Where a hovering drag is, in GLOBAL coordinates, reported to the panel.
+  ///
+  /// The panel owns the edge-flip decision because it is the thing with edges,
+  /// but it is not the active drag target while the pointer is over a tile, so
+  /// it cannot see the pointer there. The tile forwards what it sees.
+  final void Function(Offset globalPosition)? onDragOver;
+
+  /// The drag is over, by drop or by cancel. Stops the flip timer, which would
+  /// otherwise keep paging after the finger is gone.
+  final VoidCallback? onDragDone;
 
   @override
   ConsumerState<_MemberTile> createState() => _MemberTileState();
@@ -727,52 +943,247 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
   /// Where the finger went down, so the context menu can open THERE.
   Offset _down = Offset.zero;
 
+  /// Is this member's menu open? Same contract as `_AppTile._held`.
+  bool _held = false;
+
+  /// Where the POINTER went down, for the hold-versus-drag test on release.
+  ///
+  /// Separate from [_down], which is a global position captured for the menu's
+  /// anchor. This one is compared against the draggable's release offset, and
+  /// under `pointerDragAnchorStrategy` that offset is the finger, so the two
+  /// have to be measured the same way. See `_AppTileState._downAt`.
+  Offset? _downAt;
+
+  /// Which half of this tile a hovering drag is over, or null when nothing is
+  /// hovering. Tracked in `onMove` rather than read at accept time, because
+  /// `onAcceptWithDetails` reports where the drag was RELEASED relative to the
+  /// FEEDBACK widget, which is not where the finger is.
+  bool? _dropAfter;
+
+  /// Same 24dp as the drawer's tiles. Named separately for the reason
+  /// `_FolderTileState._slop` gives: it is the same number, not the same
+  /// decision.
+  static const _slop = 24.0;
+
+  /// Is this the tile currently being dragged? Used only to skip its own drop
+  /// zone, so a member cannot be dropped onto itself.
+  bool _isSource(String key) => key == widget.entry.componentKey;
+
+  void _openMenu() {
+    // No `_held = true` here. `onDragStarted` already set it when the timer
+    // completed; this only holds it until the panel closes.
+    showFolderMemberMenu(
+      context,
+      ref,
+      widget.theme,
+      at: _down,
+      folderId: widget.folderId,
+      entry: widget.entry,
+    ).whenComplete(() {
+      if (mounted) setState(() => _held = false);
+    });
+  }
+
+  void _accept(String sourceKey) {
+    final after = _dropAfter ?? false;
+    setState(() => _dropAfter = null);
+    widget.onDragDone?.call();
+
+    HapticFeedback.selectionClick();
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+          (p) => DrawerLayout.reorderMembers(
+            p,
+            widget.folderId,
+            sourceKey,
+            widget.entry.componentKey,
+            after: after,
+          ),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final entry = widget.entry;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (d) => _down = d.globalPosition,
-      onLongPressStart: (d) => _down = d.globalPosition,
-      onTap: () {
-        // Close first: coming back from an app to a folder still hanging open
-        // over the drawer is not where anyone expects to land.
-        Navigator.pop(context);
-        launchDrawerApp(ref, entry);
-      },
-      onLongPress: () => showFolderMemberMenu(
-        context,
-        ref,
-        theme,
-        at: _down,
-        folderId: widget.folderId,
-        entry: entry,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppIcon(entry: entry, size: theme.iconSizeDp),
-          const SizedBox(height: 6),
-          Text(
-            entry.label,
-            // The RESOLVED line count, two by default, so "Culimix Delivery"
-            // wraps whole instead of truncating. The ellipsis stays as the
-            // runtime backstop for names longer than even two lines.
-            maxLines: theme.labelLines,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: theme.typography.display,
-              fontSize: 12,
-              color: theme.palette.onDark,
-            ),
+    // Held, or being pointed at by Locate. One ring for both; see the note on
+    // `_AppTile`.
+    final located = ref.watch(locateTargetProvider) == entry.componentKey;
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PressPop(
+          held: _held || located,
+          radius: theme.iconSizeDp * 0.24,
+          ringColor: theme.palette.onDark,
+          child: AppIcon(entry: entry, size: theme.iconSizeDp),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          entry.label,
+          // The RESOLVED line count, two by default, so "Culimix Delivery"
+          // wraps whole instead of truncating. The ellipsis stays as the
+          // runtime backstop for names longer than even two lines.
+          maxLines: theme.labelLines,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: theme.typography.display,
+            fontSize: 12,
+            color: theme.palette.onDark,
           ),
-        ],
-      ),
+        ),
+      ],
     );
-  }
+
+    // ─── THE DROP IS ALWAYS AN INSERT, NEVER A MERGE ────────────────────────
+    //
+    // The drawer's tile has three zones, because out there a drop on the middle
+    // of an app means "fold these two together". Inside a folder that meaning
+    // does not exist: the drawer has no nested folders and is not getting any.
+    // So a member tile has two zones and no middle, and the whole tile is live
+    // rather than only its edges, which is what makes a short drag land where
+    // it looks like it will.
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => !_isSource(d.data),
+      onLeave: (_) {
+        if (_dropAfter != null) setState(() => _dropAfter = null);
+      },
+      onMove: (d) {
+        widget.onDragOver?.call(d.offset);
+
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        final local = box.globalToLocal(d.offset);
+        final after = local.dx > box.size.width / 2;
+        if (after != _dropAfter) setState(() => _dropAfter = after);
+      },
+      onAcceptWithDetails: (d) => _accept(d.data),
+      builder: (context, candidate, __) {
+        final marker = _dropAfter;
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            LongPressDraggable<String>(
+              data: entry.componentKey,
+              dragAnchorStrategy: pointerDragAnchorStrategy,
+              // ─── THE DIP LANDS HERE, NOT ON RELEASE ─────────────────────
+              //
+              // `_held` was set in `onDraggableCanceled`, which fires when the
+              // finger LIFTS. So nothing happened under the thumb while the
+              // long-press timer ran, and the tile then squashed at the same
+              // instant the menu appeared, which reads as decoration on the menu
+              // rather than as a response to the press. The whole argument for
+              // squash-and-pop over a plain scale was that the motion is a
+              // CONSEQUENCE of pressing, and setting it on release threw that away.
+              //
+              // `onDragStarted` IS the timer completing: it is the moment the
+              // draggable takes the long press, and it is where the haptic already
+              // fires. Same frame, same event, so the dip and the buzz are one
+              // thing rather than two near each other.
+              //
+              // It stays true through a real drag as well, which costs nothing:
+              // `childWhenDragging` replaces this tile for the whole drag, so
+              // nothing popped is on screen to see.
+              onDragStarted: () {
+                HapticFeedback.mediumImpact();
+                if (mounted) setState(() => _held = true);
+              },
+
+              // Whatever ended it. `onDragEnd` covers an accepted drop and
+              // `onDraggableCanceled` covers a refused one, but a timer that
+              // outlives the finger keeps turning pages at an empty panel, so
+              // both paths stop it.
+              onDragEnd: (_) => widget.onDragDone?.call(),
+
+              // ─── SPLIT ON RELEASE, EXACTLY AS THE DRAWER DOES ─────────
+              //
+              // `LongPressDraggable` consumes the long press, so the
+              // `onLongPress` this tile used to carry would never fire again
+              // now that a member can be dragged. Rather than demote the menu
+              // to a worse trigger, intent is read on release: nothing
+              // accepted the drop AND the finger never really travelled means
+              // it was a hold, so the menu opens. This is the same trade
+              // `_AppTile` documents, and doing it differently here would
+              // make the same gesture mean two things in two grids.
+              onDraggableCanceled: (_, offset) {
+                widget.onDragDone?.call();
+                final from = _downAt;
+                if (from == null || (offset - from).distance < _slop) {
+                  _openMenu();
+                } else if (mounted) {
+                  // Travelled, so it was a drag nothing accepted. No menu is
+                  // coming, so nothing else would clear the pop.
+                  setState(() => _held = false);
+                }
+              },
+              feedback: FractionalTranslation(
+                translation: const Offset(-0.5, -0.5),
+                child: Opacity(
+                  opacity: 0.9,
+                  child: AppIcon(entry: entry, size: theme.iconSizeDp * 1.1),
+                ),
+              ),
+              // The gap the tile leaves behind, so the row does not close up
+              // and re-open under the finger while a drag is in flight.
+              childWhenDragging: Opacity(opacity: 0.25, child: content),
+              // Listener INSIDE, as the draggable's child, which is where
+              // `_AppTile` puts its own. An ancestor Listener does still see
+              // the pointer, but matching the tile that is known to work is
+              // worth more here than the equivalence argument.
+              child: Listener(
+                // The Listener already here for the hold-versus-drag test does
+                // double duty: the next deliberate touch also clears the Locate
+                // ring, matching the drawer underneath. It competes for nothing,
+                // which matters in a panel where every tile is already a drag
+                // source and a drop target.
+                onPointerDown: (e) {
+                  _downAt = e.position;
+                  ref.read(locateTargetProvider.notifier).clear();
+                },
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) => _down = d.globalPosition,
+                  onTap: () {
+                    // Close first: coming back from an app to a folder still
+                    // hanging open over the drawer is not where anyone
+                    // expects to land.
+                    Navigator.pop(context);
+                    launchDrawerApp(ref, entry);
+                  },
+                  child: content,
+                ),
+              ),
+            ),
+
+          // The insertion caret. A LINE on the side the drop will land, not a
+          // highlight over the tile: a highlight says "into this one", which
+          // is what merging looks like everywhere else in this launcher, and
+          // that is the one thing this drop cannot do.
+          if (marker != null)
+            Positioned(
+              top: 0,
+              bottom: 0,
+              left: marker ? null : -3,
+              right: marker ? -3 : null,
+              child: Center(
+                child: Container(
+                  width: 3,
+                  height: theme.iconSizeDp,
+                  decoration: BoxDecoration(
+                    color: theme.palette.accent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
 }
 
 /// A context menu anchored where the finger went down.
@@ -796,85 +1207,101 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
 /// no room below. A menu opened near the bottom of a folder grid would
 /// otherwise hang off the edge, and the item you wanted is the one that fell
 /// off.
-void showFolderMemberMenu(
-  BuildContext context,
-  WidgetRef ref,
-  EffectiveTheme theme, {
-  required Offset at,
-  required String folderId,
-  required AppEntry entry,
+/// Returns when the menu closes, however it closed.
+///
+/// It used to be `void` and simply dropped the future `AnchoredMenu.show`
+/// hands back. The caller now needs it: the member tile holds its pressed state
+/// for exactly as long as the panel is up, and without a future to wait on
+/// there is nothing to tell it when that is.
+Future<void> showFolderMemberMenu(
+BuildContext context,
+WidgetRef ref,
+EffectiveTheme theme, {
+required Offset at,
+required String folderId,
+required AppEntry entry,
 }) {
-  HapticFeedback.mediumImpact();
+HapticFeedback.mediumImpact();
 
-  // Captured before pushing, exactly as ThemedSheet and ThemedDialog do: the
-  // menu's route is not a descendant of this screen's scope.
-  final chrome = ChromeScope.of(context);
-  final notifier = ref.read(appListProvider.notifier);
-  final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
+// Captured before pushing, exactly as ThemedSheet and ThemedDialog do: the
+// menu's route is not a descendant of this screen's scope.
+final chrome = ChromeScope.of(context);
+final notifier = ref.read(appListProvider.notifier);
+final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
 
-  // ─── POSITIONING MOVED TO AnchoredMenu ────────────────────────────────
+// ─── POSITIONING MOVED TO AnchoredMenu ────────────────────────────────
+//
+// This file wrote the clamp-and-flip first and two other menus copied it with
+// different constants. It is one primitive now, so the disagreements (14
+// versus 16 radius, three different widths) are gone and the two menus that
+// were still bottom sheets could be converted without writing it a fifth
+// time.
+//
+// The height arithmetic is gone with it. `rowCount * rowH + pad` was a guess
+// about a panel that had not been built, and it was wrong for any row that
+// wrapped, any longer translation and any larger system font. AnchoredMenu
+// measures the child instead.
+//
+// Anchored at the FINGER here, deliberately, unlike the drawer's grid where
+// the tile's own rectangle is the better anchor. A folder's contents are laid
+// out tightly and the member you held is small, so the pointer is the more
+// precise statement of which one you meant.
+return AnchoredMenu.show(
+  context: context,
+  chrome: chrome,
+  anchor: Rect.fromCenter(center: at, width: 1, height: 1),
+  width: 236,
+  // A HEADER, which this menu never had.
   //
-  // This file wrote the clamp-and-flip first and two other menus copied it with
-  // different constants. It is one primitive now, so the disagreements (14
-  // versus 16 radius, three different widths) are gone and the two menus that
-  // were still bottom sheets could be converted without writing it a fifth
-  // time.
-  //
-  // The height arithmetic is gone with it. `rowCount * rowH + pad` was a guess
-  // about a panel that had not been built, and it was wrong for any row that
-  // wrapped, any longer translation and any larger system font. AnchoredMenu
-  // measures the child instead.
-  //
-  // Anchored at the FINGER here, deliberately, unlike the drawer's grid where
-  // the tile's own rectangle is the better anchor. A folder's contents are laid
-  // out tightly and the member you held is small, so the pointer is the more
-  // precise statement of which one you meant.
-  AnchoredMenu.show(
-    context: context,
-    chrome: chrome,
-    anchor: Rect.fromCenter(center: at, width: 1, height: 1),
-    width: 236,
-    rows: (ctx) {
-      // ONLY the work-profile case is decided here now.
-      //
-      // This used to also exclude `entry.isSystem`, which reads as "system apps
-      // cannot be uninstalled" but actually means "apps that shipped with the
-      // phone", and on a Samsung device that includes every preinstalled app
-      // the user has since updated through Play. Those ARE removable: the
-      // system offers to drop the update. Native makes the finer distinction
-      // and returns a status; a refusal gets a sentence rather than silence,
-      // which is the same reason showDrawerAppMenu stopped filtering here.
-      final canUninstall = !entry.isWorkProfile;
+  // It opened straight onto its rows, which was defensible while it was
+  // anchored at the finger inside a folder you had just opened. It is not
+  // defensible now that the drawer's menu names and pictures its subject:
+  // two panels with the same rows, one of which tells you what it is about,
+  // teaches that the header means something is different. It does not.
+  title: entry.label,
+  leading: AppIcon(entry: entry, size: 30),
+  onInfo: () => notifier.openInfo(entry),
+  rows: (ctx) {
+    // ONLY the work-profile case is decided here now.
+    //
+    // This used to also exclude `entry.isSystem`, which reads as "system apps
+    // cannot be uninstalled" but actually means "apps that shipped with the
+    // phone", and on a Samsung device that includes every preinstalled app
+    // the user has since updated through Play. Those ARE removable: the
+    // system offers to drop the update. Native makes the finer distinction
+    // and returns a status; a refusal gets a sentence rather than silence,
+    // which is the same reason showDrawerAppMenu stopped filtering here.
+    final canUninstall = !entry.isWorkProfile;
 
-      // Being in a folder does not bar an app from the dock: pinToDock takes
-      // any componentKey and has no idea where the drawer files it. Pinned
-      // members get Unpin; unpinned ones get Pin only while the dock has room,
-      // because offering a pin that can only be refused is a button that exists
-      // to say no.
-      //
-      // Read off the snapshot the menu opened with, same as everything else
-      // here and the same pattern showDrawerAppMenu uses. A pin landing from
-      // another surface while this menu is up can slip past the on-tap check
-      // below, in which case pinToDock inside the edit refuses against the LIVE
-      // prefs and nothing is lost; the window is a tap wide.
-      final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
-      final dockHasSpace =
-          theme.prefs.favourites.length < DockMetrics.maxCapacity;
-      final showPinRow = isPinned || dockHasSpace;
+    // Being in a folder does not bar an app from the dock: pinToDock takes
+    // any componentKey and has no idea where the drawer files it. Pinned
+    // members get Unpin; unpinned ones get Pin only while the dock has room,
+    // because offering a pin that can only be refused is a button that exists
+    // to say no.
+    //
+    // Read off the snapshot the menu opened with, same as everything else
+    // here and the same pattern showDrawerAppMenu uses. A pin landing from
+    // another surface while this menu is up can slip past the on-tap check
+    // below, in which case pinToDock inside the edit refuses against the LIVE
+    // prefs and nothing is lost; the window is a tap wide.
+    final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
+    final dockHasSpace =
+        theme.prefs.favourites.length < DockMetrics.maxCapacity;
+    final showPinRow = isPinned || dockHasSpace;
 
-      return [
-        // Pin first, matching showDrawerAppMenu's ordering so the
-        // same action sits in the same place whichever surface the
-        // long-press came from.
-        if (showPinRow)
-          ThemedListRow(
-            icon: isPinned
-                ? Icons.push_pin_outlined
-                : Icons.push_pin,
-            title: ctx.t(
-              isPinned
-                  ? 'shell.unpinFromDock'
-                  : 'shell.pinToDock',
+    return [
+      // Pin first, matching showDrawerAppMenu's ordering so the
+      // same action sits in the same place whichever surface the
+      // long-press came from.
+      if (showPinRow)
+        ThemedListRow(
+          icon: isPinned
+              ? Icons.push_pin_outlined
+              : Icons.push_pin,
+          title: ctx.t(
+            isPinned
+                ? 'shell.unpinFromDock'
+                : 'shell.pinToDock',
             ),
             onTap: () {
               Navigator.pop(ctx);

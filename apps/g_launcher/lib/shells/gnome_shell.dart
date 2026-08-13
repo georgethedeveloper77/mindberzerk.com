@@ -78,6 +78,38 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     await ref.read(usageProvider.notifier).record(app.componentKey);
   }
 
+  /// A dock slot was dragged onto another one.
+  ///
+  /// ─── WHY THE SHELL DOES THIS AND NOT THE DOCK ───────────────────────────
+  ///
+  /// `GnomeDock` holds no `ref` on purpose, which is what lets its golden tests
+  /// render without a live LauncherApps. It reports the gesture; this decides
+  /// what the gesture means. Same split as `onTap` and `onLongPress` above it.
+  ///
+  /// ─── AND WHY THE REFUSAL IS SILENT HERE ─────────────────────────────────
+  ///
+  /// [HomeLayout.reorderDockKeys] returns the prefs unchanged when either key
+  /// is not pinned, which is every slot in a dock that is still auto-filling
+  /// from frequent apps. That is the right answer and it needs no message: the
+  /// dock never offered an arrangement to change, so nothing was refused that
+  /// the user asked for. A sentence explaining it would be the launcher
+  /// answering a question nobody put.
+  ///
+  /// The dock only ARMS the drag when this callback is non-null, and it is only
+  /// non-null when there are pins, so the silent branch is nearly unreachable
+  /// in practice. It stays reachable for the case where the last pin is removed
+  /// mid-drag.
+  void _dockReorder(String movedKey, String targetKey, bool after) {
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+          (p) => HomeLayout.reorderDockKeys(
+            p,
+            movedKey,
+            targetKey,
+            after: after,
+          ),
+        );
+  }
+
   void _dockLongPress(
     AppEntry app,
     bool isPinned,
@@ -532,6 +564,18 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       palette: theme.palette,
                                       opacity: theme.dockOpacity,
                                       onActivities: _openActivities,
+                                      // NULL UNLESS THERE ARE PINS.
+                                      //
+                                      // A dock in frequent-apps mode has no
+                                      // arrangement to change: it is whatever
+                                      // the user opens most, recomputed. Arming
+                                      // the drag there would offer a gesture
+                                      // that can only ever be refused, and the
+                                      // slot's own fallback branch keeps the
+                                      // plain long-press when this is null.
+                                      onReorder: pinned.isEmpty
+                                          ? null
+                                          : _dockReorder,
                                     ),
                                   ),
                                 )
@@ -548,6 +592,18 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       palette: theme.palette,
                                       opacity: theme.dockOpacity,
                                       onActivities: _openActivities,
+                                      // NULL UNLESS THERE ARE PINS.
+                                      //
+                                      // A dock in frequent-apps mode has no
+                                      // arrangement to change: it is whatever
+                                      // the user opens most, recomputed. Arming
+                                      // the drag there would offer a gesture
+                                      // that can only ever be refused, and the
+                                      // slot's own fallback branch keeps the
+                                      // plain long-press when this is null.
+                                      onReorder: pinned.isEmpty
+                                          ? null
+                                          : _dockReorder,
                                     ),
                                   ),
                                 ),

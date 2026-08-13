@@ -225,8 +225,11 @@ class _BlurReviewPageState extends ConsumerState<BlurReviewPage> {
   void dispose() {
     // On the way out only, so the card on the storage tab recomputes rather
     // than counting photos that are now in the bin.
+    //
+    // Only the photos trashed here, not the whole scan. Removing four soft
+    // photos is no reason to discard every duplicate group the same pass found.
     if (_done.isNotEmpty) {
-      _compare.forget();
+      _compare.forgetBlurred(_done);
     }
     super.dispose();
   }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../bridge/compare_api.g.dart';
 import '../../../bridge/compare_bridge.dart';
+import '../../../bridge/compare_ledger.dart';
 import '../../../bridge/storage_api.g.dart';
 import '../../../core/format.dart';
 import '../model/storage_view.dart';
@@ -71,11 +72,20 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
   // Null until the user runs a comparison. These three cards are the only ones
   // on the screen whose figure costs minutes of decoding to produce, so they
   // ask before they answer rather than quietly starting the work.
+  //
+  // WHAT IS NEW IS THAT "compared" SURVIVES A RESTART. The scan is read off
+  // disk in CompareController.build, so a person who scanned on Tuesday opens
+  // the tab on Friday to figures rather than to four invitations.
   final List<CompareGroup> exact = ref.watch(exactGroupsProvider);
   final List<CompareGroup> similar = ref.watch(similarGroupsProvider);
   final List<BlurredImage> blurred = ref.watch(blurredProvider);
-  final bool compared = ref.watch(compareProvider).value != null;
-  final bool comparing = ref.watch(compareProvider).isLoading;
+  final AsyncValue<ScanRecord?> scan = ref.watch(compareProvider);
+  final bool compared = scan.value != null;
+  final bool comparing = scan.isLoading;
+  // A scan that reached native and failed. Distinct from never having run,
+  // because a card that quietly reverts to "Scan" after a crash teaches people
+  // that the button does nothing.
+  final bool failed = scan.hasError;
 
   int wasted(List<CompareGroup> groups) => groups.fold<int>(
     0,
@@ -117,12 +127,16 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
       label: 'Duplicates',
       value: comparing
           ? 'Scanning'
+          : failed
+          ? 'Failed'
           : !compared
           ? 'Scan'
           : exact.isEmpty
           ? 'None'
           : GFormat.bytes(wasted(exact)),
-      detail: !compared
+      detail: failed
+          ? 'The scan could not run'
+          : !compared
           ? 'Byte identical copies, safe to remove'
           : exact.isEmpty
           ? 'No identical copies on this phone'
@@ -134,12 +148,16 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
       label: 'Similar photos',
       value: comparing
           ? 'Scanning'
+          : failed
+          ? 'Failed'
           : !compared
           ? 'Scan'
           : similar.isEmpty
           ? 'None'
           : GFormat.count(similar.length),
-      detail: !compared
+      detail: failed
+          ? 'The scan could not run'
+          : !compared
           ? 'Bursts and near copies, keep the best'
           : similar.isEmpty
           ? 'Nothing looks like anything else'
@@ -151,6 +169,8 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
       label: 'Blurred',
       value: comparing
           ? 'Scanning'
+          : failed
+          ? 'Failed'
           : !compared
           ? 'Scan'
           : blurred.isEmpty
@@ -159,7 +179,9 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
       // Says "worth a look" rather than "delete these". A portrait with a soft
       // background and a photo of fog both score low and neither is a mistake,
       // and no measurement can tell blur from intent.
-      detail: !compared
+      detail: failed
+          ? 'The scan could not run'
+          : !compared
           ? 'Photos that came out soft'
           : blurred.isEmpty
           ? 'Everything looks sharp'
@@ -181,6 +203,28 @@ reclaimActionsProvider = Provider<List<ReclaimAction>>((Ref ref) {
       ready: top != null && top > 0,
     ),
   ];
+});
+
+/// Whether the phone has changed since the last scan.
+///
+/// ─── FALSE IS THE ANSWER WHENEVER IT CANNOT BE PROVEN ────────────────────────
+///
+/// Three of those cases and they all resolve the same way: no scan to compare
+/// against, no fingerprint recorded, or an overview that has not loaded yet. A
+/// screen that flashed "photos have changed" for a second on every open, while
+/// the overview resolved, would be crying wolf about the one thing this is for.
+///
+/// The consequence of a false negative is a figure labelled with its date when
+/// it could have been labelled as stale. The date is on screen either way, so
+/// the user is never told something untrue.
+final Provider<bool> scanIsStaleProvider = Provider<bool>((Ref ref) {
+  final ScanRecord? record = ref.watch(compareProvider).value;
+  if (record == null || record.fingerprint.isEmpty) return false;
+
+  final StorageOverview? overview = ref.watch(storageOverviewProvider).value;
+  if (overview == null) return false;
+
+  return storageFingerprint(overview) != record.fingerprint;
 });
 
 String _label(String kind) {

@@ -43,9 +43,39 @@ abstract final class GridMetrics {
   /// setting.
   static const defaultLabelLines = 2;
 
+  /// ─── THE THREE NUMBERS THAT DEFINE THE GRID'S RHYTHM ────────────────────
+  ///
+  /// These were hardcoded in four places: twice in `app_drawer` as
+  /// `crossAxisSpacing: 8, mainAxisSpacing: 16`, once in `drawer_pager` as
+  /// `const crossGap = 8.0; const mainGap = 16.0`, and once HERE inside
+  /// [cellWidthFor] as the literals `32` and `8`. Four copies of a number that
+  /// has to agree is three too many, and the copy in [cellWidthFor] is the one
+  /// that mattered most: it is what decides how wide a cell is, so a caller who
+  /// changed its own spacing without changing this one got cells measured for a
+  /// grid it was not drawing.
+  ///
+  /// ─── AND WHY ROW GAP NOW MATCHES COLUMN GAP ─────────────────────────────
+  ///
+  /// The row gap was 16 against a column gap of 8, and on top of that every
+  /// cell already carries [cellBreathingRoom] INSIDE itself. So the real gap
+  /// from a label's bottom to the next icon's top was 26 while the gap between
+  /// columns was 8: better than three to one, which is why the drawer read as a
+  /// stack of rows rather than as a grid.
+  ///
+  /// Eight and eight, with the breathing room left where it is. The internal
+  /// 10dp is doing a different job (it stops a descender sitting on the cell
+  /// boundary) and taking it away to compensate would bring back the clipped
+  /// labels [cellHeightFor] was written to fix.
+  ///
+  /// The side effect is free: a paged drawer gains most of a row per page,
+  /// which partly repays what [defaultLabelLines] spent.
+  static const columnGap = 8.0;
+  static const rowGap = 8.0;
+
+  /// Outer padding, each side. Matches the drawer's `EdgeInsets.symmetric`.
+  static const outerPadding = 16.0;
+
   /// Icon size for a given width and column count, label space allowed for.
-  /// 16dp outer padding each side, 8dp between columns — matching the drawer's
-  /// existing GridView padding/spacing.
   ///
   /// The CELL is this file's business; how much of it an icon takes is
   /// [IconSizing]'s. Splitting it that way is what lets a theme's `iconScale`
@@ -61,7 +91,7 @@ abstract final class GridMetrics {
   /// The raw cell width, exposed because the folder grid and the drawer both
   /// need it for spacing decisions that are not about the icon.
   static double cellWidthFor(double widthDp, int columns) =>
-      (widthDp - 32 - (columns - 1) * 8) / columns;
+      (widthDp - outerPadding * 2 - (columns - 1) * columnGap) / columns;
 
   /// The gap between an icon and its label. Mirrors the SizedBox in the tile.
   static const labelGap = 6.0;

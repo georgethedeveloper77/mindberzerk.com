@@ -7,7 +7,9 @@ import '../../app/theme/category_colors.dart';
 import '../../app/theme/tokens.dart';
 import '../../bridge/apps_api.g.dart';
 import '../../bridge/apps_bridge.dart';
+import '../../bridge/compare_api.g.dart';
 import '../../bridge/compare_bridge.dart';
+import '../../bridge/compare_ledger.dart';
 import '../../bridge/compress_api.g.dart';
 import '../../bridge/compress_bridge.dart';
 import '../../bridge/recovery_api.g.dart';
@@ -32,10 +34,11 @@ import 'state/storage_breakdown.dart';
 import 'state/storage_files.dart';
 import 'state/storage_providers.dart';
 import 'storage_files_page.dart';
+import 'where_it_lives/folder_entry.dart';
+import 'where_it_lives/where_it_lives_section.dart';
 import 'widgets/g_bar_chart.dart';
 import 'widgets/reclaim_grid.dart';
 import 'widgets/storage_ledger.dart';
-import 'widgets/treemap.dart';
 
 class StoragePage extends ConsumerWidget {
   const StoragePage({super.key});
@@ -127,12 +130,8 @@ class StoragePage extends ConsumerWidget {
             onOpen: (ReclaimAction action) =>
                 _openReclaim(context, ref, action),
           ),
-          const SizedBox(height: GSpace.sm),
-          Text(
-            'One scan answers duplicates, similar photos and blurred. It reads '
-            'every photo once.',
-            style: GType.micro.copyWith(color: t.dim),
-          ),
+          const SizedBox(height: GSpace.sm + 1),
+          const _ScanLine(),
 
           // ─── MAKE THINGS SMALLER ──────────────────────────────────────────
           //
@@ -241,8 +240,19 @@ class StoragePage extends ConsumerWidget {
     const Set<String> compared = <String>{'duplicates', 'similar', 'blurred'};
 
     if (compared.contains(action.id)) {
-      if (!action.ready) {
-        ref.read(compareProvider.notifier).run();
+      // HAS A RESULT, not "found something". This used to read action.ready,
+      // which is exact.isNotEmpty, so a scan that ran correctly and honestly
+      // found no duplicates left the card saying "None" and tapping it started
+      // the entire decode again. The page below handles the empty case; it does
+      // not need a second scan to know it is empty.
+      if (ref.read(compareProvider).value == null) {
+        ref
+            .read(compareProvider.notifier)
+            .run(
+              fingerprint: storageFingerprint(
+                ref.read(storageOverviewProvider).value,
+              ),
+            );
         return;
       }
       Navigator.of(context).push(
@@ -435,6 +445,120 @@ class _CompressLine extends ConsumerWidget {
   }
 }
 
+/// THE ONE PLACE A SCAN IS STARTED, AND THE ONE PLACE ITS AGE IS SHOWN.
+///
+/// ─── WHY THE TIMESTAMP IS HERE AND NOT ON THE CARDS ──────────────────────────
+///
+/// There is one scan. Printing "checked 2 days ago" on three cards would say the
+/// same thing three times in the smallest type on the screen, and there is no
+/// room for it: the detail line is already two lines of real content.
+///
+/// So the mosaic shows findings and this row shows their age. A remembered
+/// figure is a measurement, not a prediction, and stays honest as long as its
+/// date is visible somewhere the eye reaches. Directly beneath is that place.
+///
+/// ─── IT REPLACED A SENTENCE THAT NEVER CHANGED ───────────────────────────────
+///
+/// What was here read "One scan answers duplicates, similar photos and blurred.
+/// It reads every photo once." True, and it said the same thing during a scan,
+/// after a scan, and after a scan had failed. The same square of screen now
+/// carries live progress, the age of the answer, and whether it still holds.
+class _ScanLine extends ConsumerWidget {
+  const _ScanLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GTokens t = context.g;
+    final AsyncValue<ScanRecord?> scan = ref.watch(compareProvider);
+    final ScanRecord? record = scan.value;
+
+    void start() => ref
+        .read(compareProvider.notifier)
+        .run(
+          fingerprint: storageFingerprint(
+            ref.read(storageOverviewProvider).value,
+          ),
+        );
+
+    if (scan.isLoading) {
+      // Real counts rather than the word "Scanning". The relay already pushes
+      // these about four times a second and nothing on this screen was showing
+      // them, so a scan of four thousand photos looked identical at the first
+      // second and the fourth minute.
+      final CompareProgress? progress = ref
+          .watch(compareProgressProvider)
+          .value;
+      return _Line(
+        hue: t.accent,
+        icon: Icons.hourglass_bottom_rounded,
+        title: 'Reading your photos',
+        detail: progress == null || progress.total <= 0
+            ? 'Starting. Tap to stop.'
+            : '${GFormat.count(progress.scanned)} of '
+                  '${GFormat.count(progress.total)}. Tap to stop.',
+        onTap: () => ref.read(compareProvider.notifier).cancel(),
+      );
+    }
+
+    if (scan.hasError) {
+      return _Line(
+        hue: t.warning,
+        icon: Icons.error_outline_rounded,
+        title: 'The scan could not run',
+        detail: 'Tap to try again',
+        onTap: start,
+      );
+    }
+
+    if (record == null) {
+      return _Line(
+        hue: t.accent,
+        icon: Icons.search_rounded,
+        title: 'Check for duplicates and blur',
+        detail: 'One scan answers all three. It reads every photo once.',
+        onTap: start,
+      );
+    }
+
+    final bool stale = ref.watch(scanIsStaleProvider);
+    final String when = _ago(record.at);
+
+    return _Line(
+      hue: stale ? t.warning : t.success,
+      icon: stale ? Icons.update_rounded : Icons.task_alt_rounded,
+      title: stale ? 'Your files have changed since' : 'Checked $when',
+      // The cancelled case is named rather than hidden. What a stopped scan
+      // found is real; what is not true is that it covered the library, and a
+      // partial answer presented as a complete one is the kind of thing that
+      // makes someone stop believing the rest of the screen.
+      detail: <String>[
+        if (stale) 'Checked $when',
+        if (record.cancelled)
+          'Stopped early, so not every photo was read'
+        else
+          '${GFormat.count(record.scanned)} files read',
+        'Tap to check again',
+      ].join('. '),
+      onTap: start,
+    );
+  }
+
+  /// Coarse on purpose.
+  ///
+  /// Nobody needs to know a scan ran 47 minutes ago. What they need is whether
+  /// it was today, and the moment it stops being today the only useful question
+  /// is whether the phone has changed, which the row above answers properly.
+  static String _ago(DateTime at) {
+    final Duration since = DateTime.now().difference(at);
+    if (since.inMinutes < 2) return 'just now';
+    if (since.inHours < 1) return '${since.inMinutes} minutes ago';
+    if (since.inHours < 24) return '${since.inHours} hours ago';
+    if (since.inDays == 1) return 'yesterday';
+    if (since.inDays < 30) return '${since.inDays} days ago';
+    return 'over a month ago';
+  }
+}
+
 class _Line extends StatelessWidget {
   const _Line({
     required this.hue,
@@ -533,31 +657,22 @@ class _FoldersCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final GTokens t = context.g;
     if (overview.folders.isEmpty) return const SizedBox.shrink();
     return GCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          GOverline('Where it lives'),
-          const SizedBox(height: GSpace.md),
-          FolderTreemap(
-            folders: overview.folders,
-            // A page, not the shared filter. Setting the tab's own filter from
-            // here changed the screen underneath the user and left it changed
-            // when they came back.
-            onTap: (FolderUsage folder) => Navigator.of(context).push(
-              StorageFilesPage.route(
-                StorageScope(title: folder.label, folderPrefix: folder.path),
-              ),
-            ),
+      child: WhereItLivesSection(
+        folders: overview.folders,
+        overline: GOverline('Where it lives'),
+        // A page, not the shared filter. Setting the tab's own filter from
+        // here changed the screen underneath the user and left it changed
+        // when they came back.
+        //
+        // The title is the resolved name now, so the detail page opens with
+        // "WhatsApp" in its header rather than a path that truncates.
+        onOpen: (FolderEntry folder) => Navigator.of(context).push(
+          StorageFilesPage.route(
+            StorageScope(title: folder.name, folderPrefix: folder.path),
           ),
-          const SizedBox(height: GSpace.sm),
-          Text(
-            'Tap a folder to see only its files',
-            style: GType.micro.copyWith(color: t.dim),
-          ),
-        ],
+        ),
       ),
     );
   }

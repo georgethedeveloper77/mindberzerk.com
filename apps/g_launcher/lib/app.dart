@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/prefs/setup_state.dart';
 import 'data/billing/entitlements.dart';
 import 'design/theme.dart';
+import 'features/desklets/widget_stage.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
 import 'i18n/i18n.dart';
@@ -22,6 +23,21 @@ class GLauncherApp extends ConsumerWidget {
     return MaterialApp(
       title: 'G Launcher',
       debugShowCheckedModeBanner: false,
+
+      // ── THE STAGE HAS TO KNOW WHEN IT IS COVERED ────────────────────────
+      //
+      // Hosted widgets live in a native layer BEHIND Flutter, and
+      // `LauncherActivity.dispatchTouchEvent` gives a press inside one to that
+      // widget before Flutter sees it. That is right for a desktop at rest and
+      // wrong under anything layered over it: the desklet menu opens anchored
+      // to the widget, so its rows sat on the hit rect and could not be tapped,
+      // and every pushed route had the same hole wherever a widget happened to
+      // be underneath.
+      //
+      // HERE rather than per screen, because the Navigator already knows the
+      // answer for every route that will ever exist, and a flag per surface is
+      // a list the next screen forgets to join. See `StageRouteObserver`.
+      navigatorObservers: [stageRouteObserver],
 
       // ── LANGUAGE ────────────────────────────────────────────────────────
       //

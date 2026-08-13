@@ -7,10 +7,10 @@ import '../../../app/theme/tokens.dart';
 import '../../../bridge/hardware_api.g.dart';
 import '../../../bridge/hardware_bridge.dart';
 import '../../../core/format.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
 import '../device_format.dart';
 import '../state/device_providers.dart';
-import 'device_chrome.dart';
 
 /// WHAT THE RADIO IS DOING.
 ///
@@ -44,7 +44,7 @@ class NetworkPage extends ConsumerWidget {
       tick?.current.elapsedRealtimeMillis,
     );
 
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: Icons.wifi_rounded,
       title: 'Network',

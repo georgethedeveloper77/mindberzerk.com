@@ -15,4 +15,11 @@ class GPrefsKeys {
   /// evidence, which is why this key becomes a mirror the moment billing lands
   /// rather than the source of truth it currently is.
   static const String proUnlocked = 'pro_unlocked';
+
+  /// The last comparison scan, in full.
+  ///
+  /// Findings rather than a setting, and the only entry here that is expensive
+  /// to recreate: a scan decodes every photo on the phone. It is written once
+  /// per scan and once per removal, and read once per launch.
+  static const String compareScan = 'compare_scan';
 }

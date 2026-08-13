@@ -84,6 +84,61 @@ class GViewSwitch extends ConsumerWidget {
   ];
 }
 
+/// The same well, driven from outside instead of from the app wide provider.
+///
+/// GViewSwitch above is bound to gViewModeProvider on purpose: the grid and list
+/// choice belongs to every file list at once. A section that needs its own
+/// two way toggle must not borrow that provider, or switching a map would
+/// reformat every file list in the app.
+///
+/// So: same look, same segment, caller holds the state.
+class GSegmentedIcons extends StatelessWidget {
+  const GSegmentedIcons({
+    required this.icons,
+    required this.index,
+    required this.onChanged,
+    super.key,
+    this.labels,
+  });
+
+  final List<IconData> icons;
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  /// One per icon, for screen readers. An icon only control says nothing out
+  /// loud without them.
+  final List<String>? labels;
+
+  @override
+  Widget build(BuildContext context) {
+    final GTokens t = context.g;
+
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: t.panelAlt,
+        borderRadius: GRadius.all(GRadius.chip),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (int i = 0; i < icons.length; i++)
+            Semantics(
+              button: true,
+              selected: i == index,
+              label: labels != null && i < labels!.length ? labels![i] : null,
+              child: _Segment(
+                icon: icons[i],
+                on: i == index,
+                onTap: () => onChanged(i),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Segment extends StatelessWidget {
   const _Segment({required this.icon, required this.on, required this.onTap});
 

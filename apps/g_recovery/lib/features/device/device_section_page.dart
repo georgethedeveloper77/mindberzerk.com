@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'pages/device_chrome.dart';
+import '../../ui/g_detail_page.dart';
 
 /// A section of the Device tab, as its own page.
 ///
@@ -16,7 +16,7 @@ import 'pages/device_chrome.dart';
 /// ─── IT NOW CARRIES A HUE AND A GLYPH ────────────────────────────────────────
 ///
 /// Both come from the bubble that opened it, so a hosted card gets the same
-/// header as a page written against [DeviceDetailPage] directly. That is the
+/// header as a page written against [GDetailPage] directly. That is the
 /// whole reason this type survived the chrome change: seven sections got the new
 /// header for the cost of two parameters rather than seven rewrites.
 class DeviceSectionPage extends StatelessWidget {
@@ -53,7 +53,7 @@ class DeviceSectionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DeviceDetailPage(
+    return GDetailPage(
       hue: hue,
       icon: icon,
       title: title,

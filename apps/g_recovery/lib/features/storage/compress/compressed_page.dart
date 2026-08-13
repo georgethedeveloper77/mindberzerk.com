@@ -1,17 +1,15 @@
-import 'dart:typed_data';
-
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../app/theme/tokens.dart';
 import '../../../bridge/compress_api.g.dart';
 import '../../../bridge/compress_bridge.dart';
 import '../../../core/format.dart';
-import '../../../ui/g_app_bar.dart';
 import '../../../ui/g_card.dart';
+import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_enter.dart';
 import '../../../ui/g_stat.dart';
 import '../state/storage_files.dart';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// WHAT HAS ALREADY BEEN MADE SMALLER.
 ///
@@ -51,52 +49,38 @@ class CompressedPage extends ConsumerWidget {
       (int sum, CompressedEntry e) => sum + (e.originalBytes - e.newBytes),
     );
 
-    return Scaffold(
-      backgroundColor: t.ink,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              child: GAppBar(
-                title: 'Compressed files',
-                subtitle: entries.isEmpty
-                    ? null
-                    : '${GFormat.count(entries.length)} files  ·  '
-                          '${GFormat.bytes(freed)} freed',
-                leading: GIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  onTap: () => Navigator.of(context).pop(),
+    return GDetailSliverPage(
+      hue: t.photo,
+      icon: Icons.compress_rounded,
+      title: 'Compressed files',
+      subtitle: entries.isEmpty
+          ? null
+          : '${GFormat.count(entries.length)} files  ·  '
+                '${GFormat.bytes(freed)} freed',
+      slivers: <Widget>[
+        if (entries.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(GSpace.xl),
+                child: Text(
+                  'Nothing yet. Anything you compress is listed here with '
+                  'what it was before, so you can check it later.',
+                  textAlign: TextAlign.center,
+                  style: GType.bodySmall.copyWith(color: t.muted),
                 ),
               ),
             ),
-
-            if (entries.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(GSpace.xl),
-                    child: Text(
-                      'Nothing yet. Anything you compress is listed here with '
-                      'what it was before, so you can check it later.',
-                      textAlign: TextAlign.center,
-                      style: GType.bodySmall.copyWith(color: t.muted),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    GSpace.gutter,
-                    0,
-                    GSpace.gutter,
-                    GSpace.xl,
-                  ),
-                  itemCount: entries.length + 1,
-                  itemBuilder: (BuildContext context, int index) {
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((
+                BuildContext context,
+                int index,
+              ) {
                     if (index == 0) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: GSpace.md),
@@ -126,12 +110,10 @@ class CompressedPage extends ConsumerWidget {
                       index: index,
                       child: _Entry(entry: entry, trashDays: _trashDays),
                     );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
+              }, childCount: entries.length + 1),
+            ),
+          ),
+      ],
     );
   }
 }
