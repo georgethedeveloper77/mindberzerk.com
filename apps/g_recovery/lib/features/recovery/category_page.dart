@@ -21,6 +21,7 @@ import '../viewer/media_viewer.dart';
 import 'state/recovery_providers.dart';
 import 'widgets/item_grid_tile.dart';
 import 'widgets/item_row.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// One source, browsable and restorable.
 ///
@@ -98,8 +99,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
     // A short foreground service gets about three minutes, and a large
     // thumbnail cache can outlast it. What it found is kept, and saying so is
     // the difference between an incomplete answer and a false one.
-    final bool deepTimedOut =
-        deep != null && !deep.running && deep.timedOut;
+    final bool deepTimedOut = deep != null && !deep.running && deep.timedOut;
 
     // The service populates the native index while this page is open, so the
     // list has to be asked again once it stops. Without this the scan finishes
@@ -241,8 +241,10 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                     const SizedBox(width: GSpace.sm + 2),
                     Expanded(
                       child: Text(
-                        'The scan ran out of time. What it found is here, and '
-                        'the picture is incomplete.',
+                        context.s(
+                          'The scan ran out of time. What it found is here, and '
+                          'the picture is incomplete.',
+                        ),
                         style: GType.micro.copyWith(color: t.muted),
                       ),
                     ),
@@ -393,21 +395,26 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
   void _explainEmpty(BuildContext context) {
     showGSheet(
       context: context,
-      title: 'Why this is empty',
+      title: context.s('Why this is empty'),
       action: GSheetAction(
-        label: 'Run a full scan',
-        detail: 'Walks folders that counting cannot reach. Takes a few minutes.',
+        label: context.s('Run a full scan'),
+        detail:
+            'Walks folders that counting cannot reach. Takes a few minutes.',
         onTap: () async {
           await ref.read(recoveryBridgeProvider).startBackgroundScan();
           ref.invalidate(backgroundScanProvider);
         },
       ),
       footnote: 'IF THAT FINDS NOTHING',
-      children: const <Widget>[
-        GSheetPoint(text: 'Nothing of this kind was deleted recently.'),
+      children: <Widget>[
         GSheetPoint(
-          text: 'Or it was deleted outside a bin, by a cleaner app or a file '
-              'manager, and nothing kept a copy.',
+          text: context.s('Nothing of this kind was deleted recently.'),
+        ),
+        GSheetPoint(
+          text: context.s(
+            'Or it was deleted outside a bin, by a cleaner app or a file '
+            'manager, and nothing kept a copy.',
+          ),
         ),
       ],
     );
@@ -509,18 +516,26 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
         content: Text(
           // States the consequence, not the mechanism. "Are you sure" asks a
           // question the user cannot answer without knowing what happens next.
-          'These leave the trash for good. This app cannot bring them back '
-          'afterwards, and neither can anything else.',
+          context.s(
+            'These leave the trash for good. This app cannot bring them back '
+            'afterwards, and neither can anything else.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Keep', style: GType.label.copyWith(color: t.muted)),
+            child: Text(
+              context.s('Keep'),
+              style: GType.label.copyWith(color: t.muted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete', style: GType.label.copyWith(color: t.danger)),
+            child: Text(
+              context.s('Delete'),
+              style: GType.label.copyWith(color: t.danger),
+            ),
           ),
         ],
       ),

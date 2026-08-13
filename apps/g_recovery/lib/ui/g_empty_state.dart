@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/theme/tokens.dart';
 import 'art/escape_art.dart';
 import 'g_button.dart';
+import '../core/i18n/g_strings.dart';
 
 /// NOTHING HERE, said with the art rather than a sentence.
 ///
@@ -82,7 +83,7 @@ class GEmptyState extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(GSpace.sm),
                   child: Text(
-                    'Why is this empty',
+                    context.s('Why is this empty'),
                     style: GType.micro.copyWith(color: t.accentText),
                   ),
                 ),

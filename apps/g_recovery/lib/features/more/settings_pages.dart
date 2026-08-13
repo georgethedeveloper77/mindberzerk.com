@@ -10,6 +10,7 @@ import '../../core/messenger/g_messenger.dart';
 import '../../ui/g_app_bar.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_chip.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// Theme and accent, on their own screen.
 ///
@@ -41,7 +42,7 @@ class AppearancePage extends StatelessWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Appearance',
+              title: context.s('Appearance'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -85,7 +86,7 @@ class PrivacyPage extends StatelessWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Privacy',
+              title: context.s('Privacy'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -93,14 +94,16 @@ class PrivacyPage extends StatelessWidget {
             ),
 
             Text(
-              'Nothing leaves this phone',
+              context.s('Nothing leaves this phone'),
               style: GType.display.copyWith(color: t.text),
             ),
             const SizedBox(height: GSpace.md),
             Text(
-              'This app reads a great deal: every file in your storage, the '
-              'contents of your trash, and, if you turn it on, the text of '
-              'messages as they arrive. None of it is sent anywhere.',
+              context.s(
+                'This app reads a great deal: every file in your storage, the '
+                'contents of your trash, and, if you turn it on, the text of '
+                'messages as they arrive. None of it is sent anywhere.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
 
@@ -108,7 +111,7 @@ class PrivacyPage extends StatelessWidget {
             _Point(
               icon: Icons.cloud_off_rounded,
               tone: t.docs,
-              title: 'No account, no server',
+              title: context.s('No account, no server'),
               body:
                   'There is nothing to sign in to. Your files are never '
                   'uploaded, because there is nowhere for them to go.',
@@ -119,7 +122,7 @@ class PrivacyPage extends StatelessWidget {
               // Specific rather than a blanket denial. An app claiming zero
               // analytics while shipping Crashlytics would be lying, and a
               // reader who checks would stop believing the rest of the page.
-              title: 'What is measured',
+              title: context.s('What is measured'),
               // Describes what SHIPS, not what was planned. Crashlytics is
               // not in the pubspec, so claiming crash reporting here would be
               // a false statement on the one page whose whole value is being
@@ -133,7 +136,7 @@ class PrivacyPage extends StatelessWidget {
             _Point(
               icon: Icons.forum_outlined,
               tone: t.chat,
-              title: 'Messages stay on the phone',
+              title: context.s('Messages stay on the phone'),
               body:
                   'The archive is a file in this app\u0027s own storage. '
                   'Deleting the archive deletes it, and uninstalling the app '
@@ -142,7 +145,7 @@ class PrivacyPage extends StatelessWidget {
             _Point(
               icon: Icons.lock_outline_rounded,
               tone: t.audio,
-              title: 'Why the permissions are so broad',
+              title: context.s('Why the permissions are so broad'),
               body:
                   'All files access is the only permission that reaches app '
                   'trash folders, which is where most recoverable files are. '
@@ -151,7 +154,7 @@ class PrivacyPage extends StatelessWidget {
             _Point(
               icon: Icons.shopping_bag_outlined,
               tone: t.apps,
-              title: 'No ads, ever',
+              title: context.s('No ads, ever'),
               body:
                   'Not a banner, not a sponsored row, not a partner offer. '
                   'This is a decision rather than a current state.',
@@ -223,7 +226,10 @@ class AppearanceCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Theme', style: GType.heading.copyWith(color: t.text)),
+          Text(
+            context.s('Theme'),
+            style: GType.heading.copyWith(color: t.text),
+          ),
           const SizedBox(height: GSpace.md),
           Row(
             children: <Widget>[
@@ -239,7 +245,10 @@ class AppearanceCard extends ConsumerWidget {
             ],
           ),
           const GCardDivider(),
-          Text('Accent', style: GType.heading.copyWith(color: t.text)),
+          Text(
+            context.s('Accent'),
+            style: GType.heading.copyWith(color: t.text),
+          ),
           const SizedBox(height: GSpace.md),
           Row(
             children: <Widget>[

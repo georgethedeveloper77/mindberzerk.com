@@ -9,6 +9,7 @@ import '../../../ui/g_badge.dart';
 import '../../../ui/g_card.dart';
 import '../state/device_providers.dart';
 import 'unavailable_note.dart';
+import '../../../core/i18n/g_strings.dart';
 
 class SensorsCard extends ConsumerWidget {
   const SensorsCard({super.key});
@@ -19,12 +20,12 @@ class SensorsCard extends ConsumerWidget {
     final AsyncValue<List<SensorInfo>> async = ref.watch(sensorListProvider);
 
     if (!async.hasValue) {
-      return PendingNote(title: 'Enumerating sensors');
+      return PendingNote(title: context.s('Enumerating sensors'));
     }
     final List<SensorInfo> sensors = async.value ?? const <SensorInfo>[];
     if (sensors.isEmpty) {
       return UnavailableNote(
-        title: 'Sensors',
+        title: context.s('Sensors'),
         reason:
             'This device reported no sensors at all, which normally means '
             'an emulator rather than a limitation.',
@@ -178,7 +179,7 @@ class _SensorRow extends StatelessWidget {
           // for their heart rate sensor needs to see that it exists and that
           // the system is refusing, not an unexplained absence.
           if (!sensor.readable)
-            GBadge(label: 'Blocked')
+            GBadge(label: context.s('Blocked'))
           else if (sensor.wakeUp)
             GBadge.partial('Wake'),
         ],
@@ -206,7 +207,7 @@ class _LiveSensors extends ConsumerWidget {
     if (live.isEmpty) {
       return GCard(
         child: Text(
-          'Waiting for a reading',
+          context.s('Waiting for a reading'),
           style: GType.monoSmall.copyWith(color: t.dim),
         ),
       );

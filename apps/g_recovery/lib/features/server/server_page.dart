@@ -15,6 +15,7 @@ import '../pro/pro_page.dart';
 import '../pro/state/pro_providers.dart';
 import 'reclaim_page.dart';
 import 'server_setup_page.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// THE HOME SERVER, ONCE THERE IS ONE.
 ///
@@ -104,20 +105,26 @@ class ServerPage extends ConsumerWidget {
             const _Reclaim(),
 
             const SizedBox(height: GSpace.lg),
-            Text('SERVER', style: GType.overline.copyWith(color: t.dim)),
+            Text(
+              context.s('SERVER'),
+              style: GType.overline.copyWith(color: t.dim),
+            ),
             const SizedBox(height: GSpace.sm + 1),
             GCard(
               padding: const EdgeInsets.symmetric(horizontal: GSpace.md),
               child: Column(
                 children: <Widget>[
-                  _Fact(label: 'Address', value: _address(config)),
+                  _Fact(label: context.s('Address'), value: _address(config)),
                   if (config.share != null)
-                    _Fact(label: 'Share', value: config.share!),
-                  _Fact(label: 'Folder', value: config.remotePath),
-                  _Fact(label: 'Signed in as', value: config.username),
+                    _Fact(label: context.s('Share'), value: config.share!),
+                  _Fact(label: context.s('Folder'), value: config.remotePath),
+                  _Fact(
+                    label: context.s('Signed in as'),
+                    value: config.username,
+                  ),
                   if (config.protocol == 'webdav')
                     _Fact(
-                      label: 'Certificate',
+                      label: context.s('Certificate'),
                       // Only two states worth naming. "Pinned" is the one that
                       // matters, because it says the user vouched for this
                       // server themselves rather than a public authority doing
@@ -127,7 +134,7 @@ class ServerPage extends ConsumerWidget {
                           : 'Pinned by you',
                     ),
                   _Fact(
-                    label: 'Files',
+                    label: context.s('Files'),
                     value: config.encrypt
                         ? 'Encrypted, only this app can open them'
                         : 'Readable by any app on your computer',
@@ -149,13 +156,15 @@ class ServerPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'Forget this server',
+                          context.s('Forget this server'),
                           style: GType.heading.copyWith(color: t.text),
                         ),
                         Text(
                           // Says what it does NOT do. Someone disconnecting a
                           // NAS needs to know their photos are still on it.
-                          'Nothing on the server is touched or deleted',
+                          context.s(
+                            'Nothing on the server is touched or deleted',
+                          ),
                           style: GType.micro.copyWith(color: t.muted),
                         ),
                       ],
@@ -196,22 +205,30 @@ class ServerPage extends ConsumerWidget {
         backgroundColor: t.panel,
         shape: RoundedRectangleBorder(borderRadius: GRadius.all(GRadius.card)),
         title: Text(
-          'Forget this server',
+          context.s('Forget this server'),
           style: GType.title.copyWith(color: t.text),
         ),
         content: Text(
-          'The address and password are removed from this phone. Everything '
-          'already copied stays on the server, untouched.',
+          context.s(
+            'The address and password are removed from this phone. Everything '
+            'already copied stays on the server, untouched.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Keep', style: GType.label.copyWith(color: t.muted)),
+            child: Text(
+              context.s('Keep'),
+              style: GType.label.copyWith(color: t.muted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Forget', style: GType.label.copyWith(color: t.danger)),
+            child: Text(
+              context.s('Forget'),
+              style: GType.label.copyWith(color: t.danger),
+            ),
           ),
         ],
       ),
@@ -238,7 +255,7 @@ class _State extends StatelessWidget {
     if (s == null || (s.lastRunMillis == null && !s.running)) {
       return _Shell(
         hue: t.accent,
-        title: 'Ready',
+        title: context.s('Ready'),
         body:
             'Nothing has been copied yet. Start a backup when you are on '
             'the same network as the server.',
@@ -249,7 +266,7 @@ class _State extends StatelessWidget {
       final bool measured = s.bytesTotal > 0;
       return _Shell(
         hue: t.accent,
-        title: 'Copying',
+        title: context.s('Copying'),
         body: s.currentName ?? 'Working through the list',
         extra: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,12 +301,15 @@ class _State extends StatelessWidget {
               padding: const EdgeInsets.only(top: GSpace.md),
               child: Row(
                 children: <Widget>[
-                  _Stat(value: GFormat.count(s.sent), label: 'files sent'),
+                  _Stat(
+                    value: GFormat.count(s.sent),
+                    label: context.s('files sent'),
+                  ),
                   _Stat(value: GFormat.bytes(s.bytesSent), label: 'copied'),
                   if (s.failed > 0)
                     _Stat(
                       value: GFormat.count(s.failed),
-                      label: 'could not be sent',
+                      label: context.s('could not be sent'),
                       tone: t.warning,
                     ),
                 ],
@@ -440,7 +460,7 @@ class _Empty extends ConsumerWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Home server',
+              title: context.s('Home server'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -449,13 +469,15 @@ class _Empty extends ConsumerWidget {
 
             const SizedBox(height: GSpace.md),
             Text(
-              'Your files,\non your own machine',
+              context.s('Your files,\non your own machine'),
               style: GType.display.copyWith(color: t.text),
             ),
             const SizedBox(height: GSpace.md),
             Text(
-              'Send photos and video to a computer or NAS you own. No account, '
-              'no subscription, and nothing passes through us.',
+              context.s(
+                'Send photos and video to a computer or NAS you own. No account, '
+                'no subscription, and nothing passes through us.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
 
@@ -468,7 +490,7 @@ class _Empty extends ConsumerWidget {
             _Option(
               glyph: Icons.dns_outlined,
               tone: t.photo,
-              title: 'Windows share',
+              title: context.s('Windows share'),
               detail:
                   'A PC, NAS or router with file sharing turned on. '
                   'Nothing to install.',
@@ -482,7 +504,7 @@ class _Empty extends ConsumerWidget {
             _Option(
               glyph: Icons.cloud_outlined,
               tone: t.docs,
-              title: 'WebDAV',
+              title: context.s('WebDAV'),
               detail:
                   'Nextcloud, ownCloud, Synology Drive and most '
                   'self-hosted drives.',
@@ -497,8 +519,10 @@ class _Empty extends ConsumerWidget {
               // Named as absent rather than shown as a dead row, which stops
               // someone hunting for it. SFTP is in the schema and not in the
               // code, and saying when it arrives would be a promise.
-              'SFTP is not here yet. If your server only speaks SSH, wait for '
-              'a later update rather than opening it up.',
+              context.s(
+                'SFTP is not here yet. If your server only speaks SSH, wait for '
+                'a later update rather than opening it up.',
+              ),
               style: GType.micro.copyWith(color: t.dim),
             ),
 
@@ -506,30 +530,33 @@ class _Empty extends ConsumerWidget {
             GCard(
               onTap: () => showGSheet(
                 context: context,
-                title: 'How this works',
+                title: context.s('How this works'),
                 children: <Widget>[
                   GSheetPoint(
                     icon: Icons.upload_rounded,
                     tone: t.docs,
-                    text:
-                        'Files go one way, from the phone to your server. '
-                        'Deleting something on the server never deletes it '
-                        'here.',
+                    text: context.s(
+                      'Files go one way, from the phone to your server. '
+                      'Deleting something on the server never deletes it '
+                      'here.',
+                    ),
                   ),
                   GSheetPoint(
                     icon: Icons.folder_outlined,
                     tone: t.docs,
-                    text:
-                        'Your folder structure is kept, so the copy is '
-                        'browsable with anything, not just this app.',
+                    text: context.s(
+                      'Your folder structure is kept, so the copy is '
+                      'browsable with anything, not just this app.',
+                    ),
                   ),
                   GSheetPoint(
                     icon: Icons.wifi_rounded,
-                    text:
-                        'A Windows share only works while the phone is on '
-                        'the same network. WebDAV over https works from '
-                        'anywhere, which is what makes an overnight backup '
-                        'away from home possible.',
+                    text: context.s(
+                      'A Windows share only works while the phone is on '
+                      'the same network. WebDAV over https works from '
+                      'anywhere, which is what makes an overnight backup '
+                      'away from home possible.',
+                    ),
                   ),
                 ],
               ),
@@ -543,7 +570,7 @@ class _Empty extends ConsumerWidget {
                   const SizedBox(width: GSpace.md),
                   Expanded(
                     child: Text(
-                      'How this works',
+                      context.s('How this works'),
                       style: GType.heading.copyWith(color: t.text),
                     ),
                   ),
@@ -720,7 +747,7 @@ class _Reclaim extends ConsumerWidget {
             ),
             const SizedBox(height: GSpace.md),
             GButton(
-              label: 'Review and reclaim',
+              label: context.s('Review and reclaim'),
               icon: Icons.cleaning_services_rounded,
               onPressed: () => Navigator.of(context).push(ReclaimPage.route()),
             ),
@@ -761,7 +788,7 @@ class _Schedule extends ConsumerWidget {
           child: Column(
             children: <Widget>[
               _Toggle(
-                title: 'Back up on its own',
+                title: context.s('Back up on its own'),
                 // "About once a day", not "every night at 2am". Android defers
                 // this job for battery and Doze, so naming an hour would be
                 // promising something the system will not keep.
@@ -796,13 +823,13 @@ class _Schedule extends ConsumerWidget {
                 },
               ),
               _Toggle(
-                title: 'Wi-Fi only',
+                title: context.s('Wi-Fi only'),
                 detail: 'Never on mobile data',
                 on: config.wifiOnly,
                 onTap: () => _save(ref, wifiOnly: !config.wifiOnly),
               ),
               _Toggle(
-                title: 'While charging',
+                title: context.s('While charging'),
                 detail: 'Waits for a charger before starting',
                 on: config.whileCharging,
                 onTap: () => _save(ref, charging: !config.whileCharging),
@@ -819,8 +846,10 @@ class _Schedule extends ConsumerWidget {
         if (!pro) ...<Widget>[
           const SizedBox(height: GSpace.sm),
           Text(
-            'Backing up by hand, reclaiming space and everything else here '
-            'stay free. Pro is for the run that happens without you.',
+            context.s(
+              'Backing up by hand, reclaiming space and everything else here '
+              'stay free. Pro is for the run that happens without you.',
+            ),
             style: GType.micro.copyWith(color: t.dim),
           ),
         ],

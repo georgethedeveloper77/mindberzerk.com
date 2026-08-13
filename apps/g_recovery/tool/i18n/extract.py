@@ -33,16 +33,27 @@ OUT = os.path.join(ROOT, "tool", "i18n", "en.json")
 SKIP_SUFFIX = (".g.dart",)
 SKIP_DIRS = {"generated"}
 
-# `.s('x')` and `.s1('x', v)`, with the opening paren possibly followed by a
-# newline because dart format wraps long calls.
-CALL = re.compile(
-    r"""\.s1?\(\s*r?(?P<q>'''|\"\"\"|'|")(?P<body>(?:\\.|(?!(?P=q)).)*)(?P=q)""",
+# The head of a call. The literals after it are read one at a time, because
+# Dart concatenates ADJACENT literals at compile time:
+#
+#     context.s('Every count above '
+#               'is a floor until then.')
+#
+# is ONE argument and ONE string. Reading only the first fragment would send
+# half a sentence to the translator and drop the rest without a word, and the
+# half that survived would end mid clause in every language.
+CALL_HEAD = re.compile(r"\.s1?\(\s*")
+
+# A single literal: optional r prefix, single or double, one or three quotes.
+LIT = re.compile(
+    r"(?P<raw>r?)(?P<q>'''|\"\"\"|'|\")(?P<body>(?:\\.|(?!(?P=q)).)*)(?P=q)",
     re.S,
 )
 
-# A call whose first argument is not a literal. Those cannot be extracted, so
-# they are reported rather than silently dropped.
-DYNAMIC = re.compile(r"\.s1?\(\s*(?![r]?['\"])(?![)\s])")
+# Between two adjacent literals there is whitespace and nothing else.
+GAP = re.compile(r"\s*")
+
+UNI = re.compile(r"\\u\{([0-9a-fA-F]{1,6})\}|\\u([0-9a-fA-F]{4})")
 
 FORBIDDEN = {
     "\u2014": "an em dash",
@@ -113,9 +124,6 @@ def strip_comments(src: str) -> str:
     return "".join(out)
 
 
-UNI = re.compile(r"\\u\{([0-9a-fA-F]{1,6})\}|\\u([0-9a-fA-F]{4})")
-
-
 def unescape(body: str) -> str:
     """Turn a Dart literal body into the runtime string.
 
@@ -130,6 +138,60 @@ def unescape(body: str) -> str:
         .replace('\\"', '"')
         .replace("\\$", "$")
         .replace("\\\\", "\\")
+    )
+
+
+def mask_literals(code: str) -> str:
+    """Blank the CONTENTS of every string literal, keeping length and quotes.
+
+    For scanning that must not see inside a string. A literal reading
+    'Inside a const list' contains the word const, and a search for the keyword
+    would otherwise edit the copy itself.
+    """
+    out = list(code)
+    i = 0
+    while i < len(code):
+        if code[i] in "'\"":
+            m = LIT.match(code, i - 1 if i and code[i - 1] == "r" else i)
+            if m:
+                a, b = m.start("body"), m.end("body")
+                for k in range(a, b):
+                    if out[k] != "\n":
+                        out[k] = " "
+                i = m.end()
+                continue
+        i += 1
+    return "".join(out)
+
+
+def read_run(code: str, pos: int) -> tuple[list[re.Match[str]], int]:
+    """Every literal in an adjacent run starting at pos, and where it ends.
+
+    An empty list means there is no literal at pos at all, which is how a
+    caller tells a variable argument from a string one.
+    """
+    parts: list[re.Match[str]] = []
+    while True:
+        m = LIT.match(code, pos)
+        if not m:
+            break
+        parts.append(m)
+        pos = GAP.match(code, m.end()).end()
+    return parts, (parts[-1].end() if parts else pos)
+
+
+def join_run(parts: list[re.Match[str]]) -> str:
+    """The one string Dart will build from the run."""
+    return "".join(
+        p.group("body") if p.group("raw") else unescape(p.group("body"))
+        for p in parts
+    )
+
+
+def has_interpolation(parts: list[re.Match[str]]) -> bool:
+    return any(
+        not p.group("raw") and "$" in p.group("body").replace("\\$", "")
+        for p in parts
     )
 
 
@@ -159,23 +221,27 @@ def collect() -> tuple[dict[str, list[str]], list[str]]:
         raw = open(path, encoding="utf-8").read()
         code = strip_comments(raw)
 
-        for m in DYNAMIC.finditer(code):
-            problems.append(
-                f"{rel}:{line_of(raw, m.start())} "
-                "s() called with a variable. The English must be a literal."
-            )
+        for head in CALL_HEAD.finditer(code):
+            line = line_of(raw, head.start())
+            parts, _end = read_run(code, head.end())
 
-        for m in CALL.finditer(code):
-            body = m.group("body")
-            line = line_of(raw, m.start())
-            text = unescape(body)
+            if not parts:
+                if code[head.end() : head.end() + 1] not in (")", ""):
+                    problems.append(
+                        f"{rel}:{line} s() called with a variable. "
+                        "The English must be a literal."
+                    )
+                continue
 
-            if "$" in body.replace("\\$", ""):
+            if has_interpolation(parts):
                 problems.append(
                     f"{rel}:{line} interpolation inside s(). "
                     "Use s1() with a {} slot instead."
                 )
                 continue
+
+            text = join_run(parts)
+
             if not text.strip():
                 problems.append(f"{rel}:{line} empty string passed to s().")
                 continue
@@ -213,6 +279,15 @@ def build(strings: dict[str, list[str]]) -> dict:
     }
 
 
+def _without_timestamp(text: str) -> str:
+    try:
+        doc = json.loads(text)
+    except Exception:
+        return text
+    doc.pop("generated", None)
+    return json.dumps(doc, ensure_ascii=False, sort_keys=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -248,15 +323,6 @@ def main() -> int:
     open(OUT, "w", encoding="utf-8").write(text)
     print(f"wrote {os.path.relpath(OUT, ROOT)}, {doc['count']} strings")
     return 0
-
-
-def _without_timestamp(text: str) -> str:
-    try:
-        doc = json.loads(text)
-    except Exception:
-        return text
-    doc.pop("generated", None)
-    return json.dumps(doc, ensure_ascii=False, sort_keys=True)
 
 
 if __name__ == "__main__":

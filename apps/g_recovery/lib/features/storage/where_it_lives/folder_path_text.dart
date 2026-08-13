@@ -41,7 +41,8 @@ class FolderPathText extends StatelessWidget {
       text,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
-      style: style ??
+      style:
+          style ??
           const TextStyle(fontSize: 12, color: Color(0xFF6B7878), height: 1.45),
     );
   }

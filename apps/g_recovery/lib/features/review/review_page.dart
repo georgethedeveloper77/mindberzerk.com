@@ -17,6 +17,7 @@ import '../../ui/g_thumbnail.dart';
 import '../recovery/state/recovery_providers.dart';
 import 'state/review_providers.dart';
 import 'widgets/review_card.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// Swipe to triage. Left bins, right keeps, up skips.
 ///
@@ -397,18 +398,18 @@ class _Tally extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
         GStat(
-          label: 'In the bin',
+          label: context.s('In the bin'),
           value: GFormat.bytes(session.binnedBytes),
           tone: t.danger,
         ),
         GStat(
-          label: 'Kept',
+          label: context.s('Kept'),
           value: GFormat.count(session.kept.length),
           tone: t.success,
           align: CrossAxisAlignment.center,
         ),
         GStat(
-          label: 'Reviewed',
+          label: context.s('Reviewed'),
           value: GFormat.count(session.reviewed),
           align: CrossAxisAlignment.end,
         ),
@@ -440,12 +441,15 @@ class _Finished extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text('Session done', style: GType.display.copyWith(color: t.text)),
+            Text(
+              context.s('Session done'),
+              style: GType.display.copyWith(color: t.text),
+            ),
             const SizedBox(height: GSpace.md),
             Text(
               // Stated plainly, because it is the reason the screen is safe to
               // use quickly. Until this button, the device is untouched.
-              'Nothing has been changed on your device yet.',
+              context.s('Nothing has been changed on your device yet.'),
               textAlign: TextAlign.center,
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
@@ -454,19 +458,19 @@ class _Finished extends StatelessWidget {
               child: Column(
                 children: <Widget>[
                   _Line(
-                    label: 'Restore',
+                    label: context.s('Restore'),
                     value: GFormat.count(keep),
                     tone: t.success,
                   ),
                   const GCardDivider(),
                   _Line(
-                    label: 'Delete permanently',
+                    label: context.s('Delete permanently'),
                     value: GFormat.count(bin),
                     tone: t.danger,
                   ),
                   const GCardDivider(),
                   _Line(
-                    label: 'Space freed',
+                    label: context.s('Space freed'),
                     value: GFormat.bytes(session.binnedBytes),
                     tone: t.muted,
                   ),
@@ -480,7 +484,7 @@ class _Finished extends StatelessWidget {
             ),
             const SizedBox(height: GSpace.md),
             Text(
-              'Deleted items cannot be brought back after this.',
+              context.s('Deleted items cannot be brought back after this.'),
               textAlign: TextAlign.center,
               style: GType.micro.copyWith(color: t.dim),
             ),

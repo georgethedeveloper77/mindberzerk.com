@@ -142,10 +142,7 @@ class ItemGridTile extends ConsumerWidget {
               left: 5,
               top: 5,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: urgent ? t.warning : t.scrim,
                   borderRadius: GRadius.all(5),

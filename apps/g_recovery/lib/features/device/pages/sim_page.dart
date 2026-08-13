@@ -7,6 +7,7 @@ import '../../../bridge/hardware_bridge.dart';
 import '../../../ui/g_card.dart';
 import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// THE SIMS.
 ///
@@ -47,7 +48,7 @@ class SimPage extends ConsumerWidget {
           // a phone that has one.
           GMissNote(
             icon: Icons.sim_card_outlined,
-            text: 'Android needs phone access to name the carrier',
+            text: context.s('Android needs phone access to name the carrier'),
             onTap: () async {
               await ref.read(hardwareBridgeProvider).requestPhoneState();
               ref.invalidate(simsProvider);
@@ -55,38 +56,38 @@ class SimPage extends ConsumerWidget {
           ),
 
         for (final SimInfo sim in sims) ...<Widget>[
-            Row(
-              children: <Widget>[
-                Text(
-                  'SLOT ${sim.slot + 1}',
-                  style: GType.overline.copyWith(color: t.dim),
-                ),
-                if (sim.dataDefault) ...<Widget>[
-                  const SizedBox(width: GSpace.sm),
-                  _Tag(label: 'Data', hue: t.success),
-                ],
-                if (sim.embedded) ...<Widget>[
-                  const SizedBox(width: GSpace.sm),
-                  _Tag(label: 'eSIM', hue: t.chat),
-                ],
-                if (sim.roaming) ...<Widget>[
-                  const SizedBox(width: GSpace.sm),
-                  _Tag(label: 'Roaming', hue: t.warning),
-                ],
+          Row(
+            children: <Widget>[
+              Text(
+                'SLOT ${sim.slot + 1}',
+                style: GType.overline.copyWith(color: t.dim),
+              ),
+              if (sim.dataDefault) ...<Widget>[
+                const SizedBox(width: GSpace.sm),
+                _Tag(label: context.s('Data'), hue: t.success),
               ],
-            ),
-            const SizedBox(height: GSpace.sm + 1),
-            GSpecCard(
-              rows: <(String, String?)>[
-                ('Carrier', sim.carrier),
-                ('Country', sim.countryIso),
-                ('MCC', sim.mcc),
-                ('MNC', sim.mnc),
-                ('Type', sim.embedded ? 'Built in' : 'Physical card'),
+              if (sim.embedded) ...<Widget>[
+                const SizedBox(width: GSpace.sm),
+                _Tag(label: context.s('eSIM'), hue: t.chat),
               ],
-            ),
-            const SizedBox(height: GSpace.md - 1),
-          ],
+              if (sim.roaming) ...<Widget>[
+                const SizedBox(width: GSpace.sm),
+                _Tag(label: context.s('Roaming'), hue: t.warning),
+              ],
+            ],
+          ),
+          const SizedBox(height: GSpace.sm + 1),
+          GSpecCard(
+            rows: <(String, String?)>[
+              ('Carrier', sim.carrier),
+              ('Country', sim.countryIso),
+              ('MCC', sim.mcc),
+              ('MNC', sim.mnc),
+              ('Type', sim.embedded ? 'Built in' : 'Physical card'),
+            ],
+          ),
+          const SizedBox(height: GSpace.md - 1),
+        ],
       ],
     );
   }
@@ -109,7 +110,7 @@ class BluetoothPage extends ConsumerWidget {
     return GDetailPage(
       hue: hue,
       icon: Icons.bluetooth_rounded,
-      title: 'Bluetooth',
+      title: context.s('Bluetooth'),
       subtitle: bt == null
           ? null
           : bt.available
@@ -130,7 +131,7 @@ class BluetoothPage extends ConsumerWidget {
             GMissNote(
               // Names what appears, not what is missing. "Grant Bluetooth" says
               // nothing about why anyone would.
-              text: 'Paired devices need Bluetooth access',
+              text: context.s('Paired devices need Bluetooth access'),
               onTap: () async {
                 await ref.read(hardwareBridgeProvider).requestBluetooth();
                 ref.invalidate(bluetoothProvider);

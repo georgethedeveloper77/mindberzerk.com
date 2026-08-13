@@ -14,6 +14,7 @@ import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_enter.dart';
 import '../storage/state/storage_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// FREEING SPACE THAT IS ALREADY SAFE.
 ///
@@ -85,7 +86,7 @@ class _ReclaimPageState extends ConsumerState<ReclaimPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
               child: GAppBar(
-                title: 'Reclaim space',
+                title: context.s('Reclaim space'),
                 subtitle: ready.isEmpty
                     ? null
                     : '${GFormat.count(ready.length)} files  ·  '
@@ -326,17 +327,19 @@ class _Explainer extends StatelessWidget {
                 _Step(
                   icon: Icons.verified_outlined,
                   tone: t.success,
-                  text:
-                      'Each file is hashed here and on the server before '
-                      'anything is touched.',
+                  text: context.s(
+                    'Each file is hashed here and on the server before '
+                    'anything is touched.',
+                  ),
                 ),
                 const SizedBox(height: GSpace.sm),
                 _Step(
                   icon: Icons.restore_from_trash_outlined,
                   tone: t.docs,
-                  text:
-                      'What matches goes to the trash, where Android keeps '
-                      'it for thirty days.',
+                  text: context.s(
+                    'What matches goes to the trash, where Android keeps '
+                    'it for thirty days.',
+                  ),
                 ),
               ],
             ),
@@ -367,11 +370,13 @@ class _Explainer extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'This server is not on your network, so the only '
-                            'way to be sure a copy is intact is to read it '
-                            'back. On Wi-Fi that costs nothing. On mobile '
-                            'data it costs the same as the space you are '
-                            'freeing. Choosing fewer files costs less.',
+                            context.s(
+                              'This server is not on your network, so the only '
+                              'way to be sure a copy is intact is to read it '
+                              'back. On Wi-Fi that costs nothing. On mobile '
+                              'data it costs the same as the space you are '
+                              'freeing. Choosing fewer files costs less.',
+                            ),
                             style: GType.bodySmall.copyWith(color: t.muted),
                           ),
                         ],
@@ -439,7 +444,7 @@ class _Running extends StatelessWidget {
           GBar(fraction: null, colour: t.accent),
           const SizedBox(height: GSpace.md),
           Text(
-            'Reading both copies takes a moment on a large file.',
+            context.s('Reading both copies takes a moment on a large file.'),
             textAlign: TextAlign.center,
             style: GType.micro.copyWith(color: t.dim),
           ),
@@ -544,7 +549,7 @@ class _Row extends StatelessWidget {
                   ),
                   if (failed)
                     Text(
-                      'Did not match, kept',
+                      context.s('Did not match, kept'),
                       style: GType.micro.copyWith(color: t.warning),
                     ),
                 ],

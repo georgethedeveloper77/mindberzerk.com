@@ -10,6 +10,7 @@ import '../state/storage_files.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// WHAT HAS ALREADY BEEN MADE SMALLER.
 ///
@@ -52,7 +53,7 @@ class CompressedPage extends ConsumerWidget {
     return GDetailSliverPage(
       hue: t.photo,
       icon: Icons.compress_rounded,
-      title: 'Compressed files',
+      title: context.s('Compressed files'),
       subtitle: entries.isEmpty
           ? null
           : '${GFormat.count(entries.length)} files  ·  '
@@ -65,8 +66,10 @@ class CompressedPage extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(GSpace.xl),
                 child: Text(
-                  'Nothing yet. Anything you compress is listed here with '
-                  'what it was before, so you can check it later.',
+                  context.s(
+                    'Nothing yet. Anything you compress is listed here with '
+                    'what it was before, so you can check it later.',
+                  ),
                   textAlign: TextAlign.center,
                   style: GType.bodySmall.copyWith(color: t.muted),
                 ),
@@ -81,35 +84,35 @@ class CompressedPage extends ConsumerWidget {
                 BuildContext context,
                 int index,
               ) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: GSpace.md),
-                        child: GCard(
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: GStat(
-                                  label: 'freed in total',
-                                  value: GFormat.bytes(freed),
-                                ),
-                              ),
-                              Expanded(
-                                child: GStat(
-                                  label: 'files',
-                                  value: GFormat.count(entries.length),
-                                ),
-                              ),
-                            ],
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: GSpace.md),
+                    child: GCard(
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: GStat(
+                              label: context.s('freed in total'),
+                              value: GFormat.bytes(freed),
+                            ),
                           ),
-                        ),
-                      );
-                    }
+                          Expanded(
+                            child: GStat(
+                              label: 'files',
+                              value: GFormat.count(entries.length),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
 
-                    final CompressedEntry entry = entries[index - 1];
-                    return GEnter(
-                      index: index,
-                      child: _Entry(entry: entry, trashDays: _trashDays),
-                    );
+                final CompressedEntry entry = entries[index - 1];
+                return GEnter(
+                  index: index,
+                  child: _Entry(entry: entry, trashDays: _trashDays),
+                );
               }, childCount: entries.length + 1),
             ),
           ),

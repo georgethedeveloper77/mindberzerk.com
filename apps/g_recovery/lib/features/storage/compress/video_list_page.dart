@@ -19,6 +19,7 @@ import '../../pro/state/pro_providers.dart';
 import '../state/storage_files.dart';
 import '../state/storage_providers.dart';
 import 'video_preview_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// CLIPS, AND WHAT RE-ENCODING THEM WOULD PROBABLY DO.
 ///
@@ -74,10 +75,12 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
 
     final List<VideoCandidate> all =
         ref.watch(videoCandidatesProvider).value ?? const <VideoCandidate>[];
-    final List<VideoCandidate> usable =
-        all.where((VideoCandidate c) => c.eligible).toList();
-    final List<VideoCandidate> refused =
-        all.where((VideoCandidate c) => !c.eligible).toList();
+    final List<VideoCandidate> usable = all
+        .where((VideoCandidate c) => c.eligible)
+        .toList();
+    final List<VideoCandidate> refused = all
+        .where((VideoCandidate c) => !c.eligible)
+        .toList();
 
     int saving = 0;
     int chosen = 0;
@@ -100,7 +103,7 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
               child: GAppBar(
-                title: 'Video',
+                title: context.s('Video'),
                 subtitle: usable.isEmpty
                     ? null
                     : '${GFormat.count(usable.length)} worth re-encoding',
@@ -126,8 +129,10 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
                     if (usable.isEmpty && refused.isEmpty)
                       GCard(
                         child: Text(
-                          'No video on this phone is large enough to be worth '
-                          'looking at.',
+                          context.s(
+                            'No video on this phone is large enough to be worth '
+                            'looking at.',
+                          ),
                           style: GType.bodySmall.copyWith(color: t.muted),
                         ),
                       ),
@@ -143,11 +148,12 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
                       ),
                       const SizedBox(height: GSpace.md),
                       _Note(
-                        text:
-                            'Fifteen seconds of each clip is really encoded to '
-                            'work these out, so they are close rather than '
-                            'exact. The true figure appears as each one '
-                            'finishes.',
+                        text: context.s(
+                          'Fifteen seconds of each clip is really encoded to '
+                          'work these out, so they are close rather than '
+                          'exact. The true figure appears as each one '
+                          'finishes.',
+                        ),
                       ),
                       const SizedBox(height: GSpace.md),
 
@@ -207,7 +213,7 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
                     if (refused.isNotEmpty) ...<Widget>[
                       const SizedBox(height: GSpace.lg),
                       Text(
-                        'NOT WORTH RE-ENCODING',
+                        context.s('NOT WORTH RE-ENCODING'),
                         style: GType.overline.copyWith(color: t.dim),
                       ),
                       const SizedBox(height: GSpace.sm + 1),
@@ -262,9 +268,10 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
     final VideoEstimate? estimate = _estimates[clip.fileId];
     if (estimate == null || estimate.samplePath == null) return;
 
-    Navigator.of(context, rootNavigator: true).push(
-      VideoPreviewPage.route(clip: clip, estimate: estimate),
-    );
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push(VideoPreviewPage.route(clip: clip, estimate: estimate));
   }
 
   /// A row asking for its own estimate.
@@ -327,8 +334,9 @@ class _VideoListPageState extends ConsumerState<VideoListPage> {
 
     if (!mounted) return;
 
-    final int replaced =
-        outcomes.where((CompressOutcome o) => o.status == 'replaced').length;
+    final int replaced = outcomes
+        .where((CompressOutcome o) => o.status == 'replaced')
+        .length;
     final int saved = outcomes.fold<int>(
       0,
       (int sum, CompressOutcome o) => sum + o.savedBytes,
@@ -486,7 +494,10 @@ class _Clip extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text('ABOUT', style: GType.badge.copyWith(color: t.dim)),
+                  Text(
+                    context.s('ABOUT'),
+                    style: GType.badge.copyWith(color: t.dim),
+                  ),
                 ],
               ),
           ],
@@ -501,7 +512,6 @@ class _Clip extends StatelessWidget {
     return '$minutes:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 }
-
 
 /// A video thumbnail, from the storage thumbnailer.
 ///
@@ -530,11 +540,7 @@ class _Frame extends ConsumerWidget {
           ? ColoredBox(
               color: t.panelAlt,
               child: Center(
-                child: Icon(
-                  Icons.movie_outlined,
-                  size: 16,
-                  color: t.dim,
-                ),
+                child: Icon(Icons.movie_outlined, size: 16, color: t.dim),
               ),
             )
           : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
@@ -739,7 +745,7 @@ class _Preset extends StatelessWidget {
         _Choice(
           value: 'same',
           selected: preset == 'same',
-          title: 'Same quality',
+          title: context.s('Same quality'),
           detail:
               'A newer codec at matched settings. You will not be able to tell '
               'them apart.',
@@ -749,7 +755,7 @@ class _Preset extends StatelessWidget {
         _Choice(
           value: 'smaller',
           selected: preset == 'smaller',
-          title: 'Smaller',
+          title: context.s('Smaller'),
           detail:
               'Lower bitrate as well. Fine on a phone, softer on a large '
               'screen during fast motion.',
@@ -850,7 +856,9 @@ class _Gate extends StatelessWidget {
         ),
         const SizedBox(height: GSpace.sm),
         Text(
-          'Screenshots and photos stay free, and so does everything else here.',
+          context.s(
+            'Screenshots and photos stay free, and so does everything else here.',
+          ),
           textAlign: TextAlign.center,
           style: GType.micro.copyWith(color: t.dim),
         ),
@@ -882,10 +890,7 @@ class _Note extends StatelessWidget {
             Icon(Icons.straighten_rounded, size: 17, color: t.warning),
             const SizedBox(width: GSpace.md - 2),
             Expanded(
-              child: Text(
-                text,
-                style: GType.micro.copyWith(color: t.muted),
-              ),
+              child: Text(text, style: GType.micro.copyWith(color: t.muted)),
             ),
           ],
         ),
@@ -917,7 +922,10 @@ class _Encoding extends ConsumerWidget {
             style: GType.monoDisplay.copyWith(color: t.accent),
           ),
           const SizedBox(height: GSpace.xs),
-          Text('freed so far', style: GType.micro.copyWith(color: t.muted)),
+          Text(
+            context.s('freed so far'),
+            style: GType.micro.copyWith(color: t.muted),
+          ),
 
           if (total > 0) ...<Widget>[
             const SizedBox(height: GSpace.xl),
@@ -948,8 +956,10 @@ class _Encoding extends ConsumerWidget {
             // Said here because it is the difference between this and every
             // other wait in the app, and because a person who does not know it
             // will sit and watch a progress bar for twenty minutes.
-            'You can leave the app. This keeps running and tells you when it '
-            'is done.',
+            context.s(
+              'You can leave the app. This keeps running and tells you when it '
+              'is done.',
+            ),
             textAlign: TextAlign.center,
             style: GType.micro.copyWith(color: t.muted),
           ),

@@ -12,6 +12,7 @@ import '../state/device_history.dart';
 import '../state/device_providers.dart';
 import '../widgets/g_line_chart.dart';
 import '../widgets/unavailable_note.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// RAM AND SWAP.
 ///
@@ -55,11 +56,11 @@ class MemoryPage extends ConsumerWidget {
     return GDetailPage(
       hue: hue,
       icon: Icons.grid_view_rounded,
-      title: 'Memory',
+      title: context.s('Memory'),
       subtitle: total == null ? null : '${GFormat.bytes(total)} total',
       children: <Widget>[
         if (memory == null)
-          const PendingNote(title: 'Reading memory')
+          PendingNote(title: context.s('Reading memory'))
         else ...<Widget>[
           GCard(
             child: Column(
@@ -124,7 +125,7 @@ class MemoryPage extends ConsumerWidget {
           if (freeSeries.isNotEmpty) ...<Widget>[
             const SizedBox(height: GSpace.md - 1),
             GChartCard(
-              caption: 'Free memory, last minute',
+              caption: context.s('Free memory, last minute'),
               axis: const <String>['a minute ago', 'now'],
               child: GLineChart(values: freeSeries, colour: hue, height: 76),
             ),
@@ -135,8 +136,10 @@ class MemoryPage extends ConsumerWidget {
             GCard(
               tint: t.danger,
               child: Text(
-                'Android is below its own low memory threshold and is killing '
-                'background apps to keep going.',
+                context.s(
+                  'Android is below its own low memory threshold and is killing '
+                  'background apps to keep going.',
+                ),
                 style: GType.bodySmall.copyWith(color: t.text),
               ),
             ),
@@ -170,8 +173,10 @@ class MemoryPage extends ConsumerWidget {
                     // Worth a sentence, because "swap" on a phone is not the
                     // disk file it is on a desktop and the difference decides
                     // whether the number is alarming.
-                    'Compressed in RAM rather than written to storage, so it '
-                    'costs processor time instead of wear.',
+                    context.s(
+                      'Compressed in RAM rather than written to storage, so it '
+                      'costs processor time instead of wear.',
+                    ),
                     style: GType.micro.copyWith(color: t.dim),
                   ),
                 ],

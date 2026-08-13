@@ -14,6 +14,7 @@ import '../../core/messenger/g_messenger.dart';
 import '../../ui/g_button.dart';
 import 'state/storage_files.dart';
 import 'state/storage_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// LOOKING AT A FILE THAT IS STILL YOURS.
 ///
@@ -522,14 +523,16 @@ class _HandOff extends ConsumerWidget {
             Text(
               // Says why rather than only that. A person who knows this app
               // cannot draw a Word document stops expecting it to.
-              'This app can show photos, video, text and PDF. Anything else '
-              'opens in an app built for it.',
+              context.s(
+                'This app can show photos, video, text and PDF. Anything else '
+                'opens in an app built for it.',
+              ),
               textAlign: TextAlign.center,
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.lg),
             GButton(
-              label: 'Open with another app',
+              label: context.s('Open with another app'),
               icon: Icons.open_in_new_rounded,
               expand: false,
               onPressed: () async {
@@ -577,7 +580,10 @@ class _Waiting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Text('Loading', style: GType.monoSmall.copyWith(color: t.dim)),
+    child: Text(
+      context.s('Loading'),
+      style: GType.monoSmall.copyWith(color: t.dim),
+    ),
   );
 }
 

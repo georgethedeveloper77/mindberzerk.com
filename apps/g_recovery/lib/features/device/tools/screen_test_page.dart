@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/tokens.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// FINDING WHAT IS WRONG WITH A SCREEN.
 ///
@@ -223,7 +224,7 @@ class _ScreenTestPageState extends State<ScreenTestPage> {
                     child: Padding(
                       padding: const EdgeInsets.all(GSpace.sm),
                       child: Text(
-                        'Done',
+                        context.s('Done'),
                         style: GType.label.copyWith(color: t.accentText),
                       ),
                     ),

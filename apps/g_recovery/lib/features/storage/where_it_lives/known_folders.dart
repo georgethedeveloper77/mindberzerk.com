@@ -32,7 +32,6 @@ class KnownFolder {
   /// When the platform cannot resolve a label for this package the app is no
   /// longer installed, which makes the folder leftover data worth surfacing.
   final String? packageName;
-
 }
 
 /// Path prefixes relative to the volume root, lowercase, no trailing slash.
@@ -63,8 +62,16 @@ const Map<String, KnownFolder> kKnownFolders = <String, KnownFolder>{
   'whatsapp/media': KnownFolder('WhatsApp media'),
   'whatsapp/databases': KnownFolder('WhatsApp backups'),
   'whatsapp': KnownFolder('WhatsApp'),
-  'android/.thumbnails': KnownFolder('Thumbnail cache', regenerable: true, collapse: true),
-  '.thumbnails': KnownFolder('Thumbnail cache', regenerable: true, collapse: true),
+  'android/.thumbnails': KnownFolder(
+    'Thumbnail cache',
+    regenerable: true,
+    collapse: true,
+  ),
+  '.thumbnails': KnownFolder(
+    'Thumbnail cache',
+    regenerable: true,
+    collapse: true,
+  ),
   'android/.trash': KnownFolder('Recently deleted', collapse: true),
   '.trashed': KnownFolder('Recently deleted', collapse: true),
   'android/data': KnownFolder('App data', appOwned: true),
@@ -216,8 +223,10 @@ String folderGroupKey(String folderPath, {int maxDepth = 2}) {
   if (relative.isEmpty) return '';
 
   final lower = relative.toLowerCase();
-  final segments =
-      relative.split('/').where((s) => s.isNotEmpty).toList(growable: false);
+  final segments = relative
+      .split('/')
+      .where((s) => s.isNotEmpty)
+      .toList(growable: false);
 
   var depth = segments.length < maxDepth ? segments.length : maxDepth;
 

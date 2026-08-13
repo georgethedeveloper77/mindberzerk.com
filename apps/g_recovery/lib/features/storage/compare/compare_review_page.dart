@@ -18,6 +18,7 @@ import '../../../ui/g_sheet.dart';
 import '../state/storage_files.dart';
 import '../state/storage_providers.dart';
 import 'compare_viewer_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// CHOOSING BETWEEN COPIES, WITH THEM BOTH IN FRONT OF YOU.
 ///
@@ -340,10 +341,11 @@ class _CompareReviewPageState extends ConsumerState<CompareReviewPage> {
         GSheetPoint(
           icon: Icons.restore_from_trash_outlined,
           tone: t.docs,
-          text:
-              'Everything goes to the system trash, where Android keeps it '
-              'for thirty days. If a keeper was wrong, the others are still '
-              'there.',
+          text: context.s(
+            'Everything goes to the system trash, where Android keeps it '
+            'for thirty days. If a keeper was wrong, the others are still '
+            'there.',
+          ),
         ),
       ],
     );

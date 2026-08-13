@@ -9,6 +9,7 @@ import '../../../ui/g_card.dart';
 import '../device_format.dart';
 import '../state/device_providers.dart';
 import 'unavailable_note.dart';
+import '../../../core/i18n/g_strings.dart';
 
 class BatteryCard extends ConsumerWidget {
   const BatteryCard({super.key});
@@ -22,14 +23,14 @@ class BatteryCard extends ConsumerWidget {
 
     if (caps != null && !caps.battery) {
       return UnavailableNote(
-        title: 'Battery',
+        title: context.s('Battery'),
         reason:
             'This device reports no battery. That is expected on an '
             'emulator and on mains powered hardware.',
       );
     }
     if (battery == null) {
-      return PendingNote(title: 'Reading battery');
+      return PendingNote(title: context.s('Reading battery'));
     }
 
     final int? percent = battery.percent;
@@ -101,7 +102,10 @@ class BatteryCard extends ConsumerWidget {
           const SizedBox(height: GSpace.lg),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('HEALTH', style: GType.overline.copyWith(color: t.dim)),
+            child: Text(
+              context.s('HEALTH'),
+              style: GType.overline.copyWith(color: t.dim),
+            ),
           ),
           const SizedBox(height: GSpace.sm + 1),
           GCard(child: _Rows(rows: wear)),
@@ -112,7 +116,7 @@ class BatteryCard extends ConsumerWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'RIGHT NOW',
+              context.s('RIGHT NOW'),
               style: GType.overline.copyWith(color: t.dim),
             ),
           ),

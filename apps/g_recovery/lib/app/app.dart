@@ -68,7 +68,7 @@ class GRecoveryApp extends ConsumerWidget {
     );
 
     return MaterialApp(
-      title: 'G Recovery',
+      title: context.s('G Recovery'),
       debugShowCheckedModeBanner: false,
       theme: buildGTheme(lightTokens),
       darkTheme: buildGTheme(darkTokens),

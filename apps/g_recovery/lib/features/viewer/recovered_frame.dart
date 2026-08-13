@@ -14,6 +14,7 @@ import '../../core/messenger/g_messenger.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_thumbnail.dart';
 import '../recovery/state/recovery_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// ONE RECOVERED ITEM, FULL SCREEN.
 ///
@@ -421,8 +422,10 @@ class _Unplayable extends ConsumerWidget {
           right: GSpace.gutter,
           bottom: 110,
           child: Text(
-            'This cannot be played while it is still in the trash. Restore it '
-            'and it will open in your usual player.',
+            context.s(
+              'This cannot be played while it is still in the trash. Restore it '
+              'and it will open in your usual player.',
+            ),
             textAlign: TextAlign.center,
             style: GType.bodySmall.copyWith(color: t.muted),
           ),
@@ -458,14 +461,16 @@ class _HandOff extends ConsumerWidget {
             ),
             const SizedBox(height: GSpace.sm),
             Text(
-              'This app shows photos, video, audio, text and PDF. Anything '
-              'else opens in an app built for it.',
+              context.s(
+                'This app shows photos, video, audio, text and PDF. Anything '
+                'else opens in an app built for it.',
+              ),
               textAlign: TextAlign.center,
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.lg),
             GButton(
-              label: 'Open with another app',
+              label: context.s('Open with another app'),
               icon: Icons.open_in_new_rounded,
               expand: false,
               onPressed: () async {
@@ -516,7 +521,10 @@ class _Waiting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Text('Loading', style: GType.monoSmall.copyWith(color: t.dim)),
+    child: Text(
+      context.s('Loading'),
+      style: GType.monoSmall.copyWith(color: t.dim),
+    ),
   );
 }
 

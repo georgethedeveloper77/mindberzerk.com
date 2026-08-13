@@ -13,6 +13,7 @@ import '../../../ui/g_stat.dart';
 import 'compress_list_page.dart';
 import 'compressed_page.dart';
 import 'video_list_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// CHOOSING WHAT TO LOOK AT.
 ///
@@ -49,7 +50,8 @@ class CompressPage extends ConsumerWidget {
     // usually larger than every photo on the phone put together, and "stored in
     // formats that take more room than they need" is more true of them than of
     // anything else here.
-    final int held = (summary?.screenshotBytes ?? 0) +
+    final int held =
+        (summary?.screenshotBytes ?? 0) +
         (summary?.photoBytes ?? 0) +
         (summary?.videoBytes ?? 0);
 
@@ -64,115 +66,113 @@ class CompressPage extends ConsumerWidget {
     return GDetailPage(
       hue: t.photo,
       icon: Icons.compress_rounded,
-      title: 'Make files smaller',
-      subtitle: 'Same pixels, fewer bytes',
+      title: context.s('Make files smaller'),
+      subtitle: context.s('Same pixels, fewer bytes'),
       trailing: GIconButton(
         icon: Icons.info_outline_rounded,
         onTap: () => _explain(context),
       ),
       children: <Widget>[
-                  if (summary != null && shots == 0 && photos == 0)
-                    GCard(
-                      child: Text(
-                        'Nothing here is stored in a format that could be '
-                        'made smaller.',
-                        style: GType.bodySmall.copyWith(color: t.muted),
-                      ),
-                    )
-                  else ...<Widget>[
-                    // ─── WHAT IS HELD, NOT WHAT IS SAVED ─────────────────────
-                    //
-                    // The saving is a measurement and it does not exist until a
-                    // list is opened. What these files currently weigh is a
-                    // single query, so it can lead the screen honestly, and it
-                    // is also the only number that makes the two cards below
-                    // add up to something.
-                    if (held > 0)
-                      _Held(bytes: held),
-                    const SizedBox(height: GSpace.lg),
+        if (summary != null && shots == 0 && photos == 0)
+          GCard(
+            child: Text(
+              context.s(
+                'Nothing here is stored in a format that could be '
+                'made smaller.',
+              ),
+              style: GType.bodySmall.copyWith(color: t.muted),
+            ),
+          )
+        else ...<Widget>[
+          // ─── WHAT IS HELD, NOT WHAT IS SAVED ─────────────────────
+          //
+          // The saving is a measurement and it does not exist until a
+          // list is opened. What these files currently weigh is a
+          // single query, so it can lead the screen honestly, and it
+          // is also the only number that makes the two cards below
+          // add up to something.
+          if (held > 0) _Held(bytes: held),
+          const SizedBox(height: GSpace.lg),
 
-                    GOverline('Choose what to look at'),
-                    const SizedBox(height: GSpace.sm + 1),
+          GOverline('Choose what to look at'),
+          const SizedBox(height: GSpace.sm + 1),
 
-                    // Screenshots first, and not alphabetically. It is the one
-                    // category where nothing can be lost, which makes it the
-                    // right place for someone to find out what this feature
-                    // does to their phone.
-                    if (shots > 0) ...<Widget>[
-                      _Scope(
-                        hue: t.accent,
-                        icon: Icons.crop_square_rounded,
-                        title: 'Screenshots',
-                        // Short on purpose. The stamp underneath already says
-                        // nothing is lost, so the sentence does not have to.
-                        detail: '${GFormat.count(shots)} PNG files',
-                        stamp: 'Nothing lost',
-                        stampTone: t.accent,
-                        holds: summary?.screenshotBytes,
-                        onTap: () => Navigator.of(context).push(
-                          CompressListPage.route('screenshot'),
-                        ),
-                      ),
-                      const SizedBox(height: GSpace.sm + 1),
-                    ],
+          // Screenshots first, and not alphabetically. It is the one
+          // category where nothing can be lost, which makes it the
+          // right place for someone to find out what this feature
+          // does to their phone.
+          if (shots > 0) ...<Widget>[
+            _Scope(
+              hue: t.accent,
+              icon: Icons.crop_square_rounded,
+              title: context.s('Screenshots'),
+              // Short on purpose. The stamp underneath already says
+              // nothing is lost, so the sentence does not have to.
+              detail: '${GFormat.count(shots)} PNG files',
+              stamp: 'Nothing lost',
+              stampTone: t.accent,
+              holds: summary?.screenshotBytes,
+              onTap: () => Navigator.of(
+                context,
+              ).push(CompressListPage.route('screenshot')),
+            ),
+            const SizedBox(height: GSpace.sm + 1),
+          ],
 
-                    if (photos > 0)
-                      _Scope(
-                        hue: t.photo,
-                        icon: Icons.photo_outlined,
-                        title: 'Photos',
-                        detail: '${GFormat.count(photos)} worth re-saving',
-                        stamp: 'Measured',
-                        stampTone: t.photo,
-                        holds: summary?.photoBytes,
-                        onTap: () => Navigator.of(
-                          context,
-                        ).push(CompressListPage.route('photo')),
-                      ),
+          if (photos > 0)
+            _Scope(
+              hue: t.photo,
+              icon: Icons.photo_outlined,
+              title: context.s('Photos'),
+              detail: '${GFormat.count(photos)} worth re-saving',
+              stamp: 'Measured',
+              stampTone: t.photo,
+              holds: summary?.photoBytes,
+              onTap: () =>
+                  Navigator.of(context).push(CompressListPage.route('photo')),
+            ),
 
-                    // ─── VIDEO, NAMED AND NOT PROMISED ───────────────────────
-                    //
-                    // Drawn, dimmed, and it does not open. Carrying a figure
-                    // would mean estimating from an encoder that has not been
-                    // written, and this app has spent weeks removing numbers
-                    // exactly like that from everywhere else.
-                    const SizedBox(height: GSpace.sm + 1),
-                    _Soon(
-                      clips: summary?.videoCount ?? 0,
-                      bytes: summary?.videoBytes ?? 0,
-                    ),
+          // ─── VIDEO, NAMED AND NOT PROMISED ───────────────────────
+          //
+          // Drawn, dimmed, and it does not open. Carrying a figure
+          // would mean estimating from an encoder that has not been
+          // written, and this app has spent weeks removing numbers
+          // exactly like that from everywhere else.
+          const SizedBox(height: GSpace.sm + 1),
+          _Soon(
+            clips: summary?.videoCount ?? 0,
+            bytes: summary?.videoBytes ?? 0,
+          ),
 
-                    if (compressed > 0) ...<Widget>[
-                      const SizedBox(height: GSpace.lg),
-                      GOverline('Already done'),
-                      const SizedBox(height: GSpace.sm + 1),
-                      _Done(
-                        files: compressed,
-                        freed: freed,
-                        onTap: () => Navigator.of(
-                          context,
-                        ).push(CompressedPage.route()),
-                      ),
-                    ],
+          if (compressed > 0) ...<Widget>[
+            const SizedBox(height: GSpace.lg),
+            GOverline('Already done'),
+            const SizedBox(height: GSpace.sm + 1),
+            _Done(
+              files: compressed,
+              freed: freed,
+              onTap: () => Navigator.of(context).push(CompressedPage.route()),
+            ),
+          ],
 
-                    // ─── NO "NOT OFFERED" SECTION ────────────────────────────
-                    //
-                    // There was a card here explaining that documents, PDFs and
-                    // music are already compressed. It was five lines of prose
-                    // answering a question nobody had asked yet, on a screen
-                    // whose whole job is to route someone into a list.
-                    //
-                    // A category that is not offered does not need a headstone.
-                    // If somebody wonders where their PDFs are, the info sheet
-                    // in the app bar says so in one line, which is the right
-                    // place for an answer to a question that has actually
-                    // occurred to them.
-                    //
-                    // Video is absent for the different reason that it does not
-                    // work yet, and a card offering twenty one gigabytes that
-                    // opens nothing is the promise this app spent weeks
-                    // removing everywhere else.
-                  ],
+          // ─── NO "NOT OFFERED" SECTION ────────────────────────────
+          //
+          // There was a card here explaining that documents, PDFs and
+          // music are already compressed. It was five lines of prose
+          // answering a question nobody had asked yet, on a screen
+          // whose whole job is to route someone into a list.
+          //
+          // A category that is not offered does not need a headstone.
+          // If somebody wonders where their PDFs are, the info sheet
+          // in the app bar says so in one line, which is the right
+          // place for an answer to a question that has actually
+          // occurred to them.
+          //
+          // Video is absent for the different reason that it does not
+          // work yet, and a card offering twenty one gigabytes that
+          // opens nothing is the promise this app spent weeks
+          // removing everywhere else.
+        ],
       ],
     );
   }
@@ -181,57 +181,62 @@ class CompressPage extends ConsumerWidget {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'What this does',
+      title: context.s('What this does'),
       children: <Widget>[
         GSheetPoint(
           icon: Icons.straighten_rounded,
           tone: t.docs,
-          text:
-              'The saving shown is measured, not guessed. Each file is really '
-              're-encoded before you decide.',
+          text: context.s(
+            'The saving shown is measured, not guessed. Each file is really '
+            're-encoded before you decide.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.photo_size_select_actual_rounded,
           tone: t.docs,
-          text:
-              'Pictures keep their size in pixels. Nothing is cropped or '
-              'scaled down, so they print and crop as before.',
+          text: context.s(
+            'Pictures keep their size in pixels. Nothing is cropped or '
+            'scaled down, so they print and crop as before.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.event_rounded,
           tone: t.docs,
-          text:
-              'Date, place and camera settings are copied across, so your '
-              'gallery keeps its order.',
+          text: context.s(
+            'Date, place and camera settings are copied across, so your '
+            'gallery keeps its order.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.picture_as_pdf_outlined,
-          text:
-              'Documents, PDFs and music are not listed. They are already '
-              'compressed inside, so squeezing them again gains almost '
-              'nothing.',
+          text: context.s(
+            'Documents, PDFs and music are not listed. They are already '
+            'compressed inside, so squeezing them again gains almost '
+            'nothing.',
+          ),
         ),
         const GSheetHeading('Screenshots are the safe ones'),
         GSheetPoint(
           icon: Icons.verified_outlined,
           tone: t.accent,
-          text:
-              'A screenshot becomes a WebP with identical pixels. It is '
-              'smaller and there is no version of it that looks worse.',
+          text: context.s(
+            'A screenshot becomes a WebP with identical pixels. It is '
+            'smaller and there is no version of it that looks worse.',
+          ),
         ),
         const GSheetHeading('Photos cannot be undone'),
         GSheetPoint(
           icon: Icons.restore_from_trash_outlined,
-          text:
-              'A photo is re-encoded and loses a little detail. The original '
-              'goes to the trash for thirty days, and after that the smaller '
-              'version is the only one left.',
+          text: context.s(
+            'A photo is re-encoded and loses a little detail. The original '
+            'goes to the trash for thirty days, and after that the smaller '
+            'version is the only one left.',
+          ),
         ),
       ],
     );
   }
 }
-
 
 /// The headline: what these files weigh now.
 class _Held extends StatelessWidget {
@@ -260,8 +265,10 @@ class _Held extends StatelessWidget {
             ),
             const SizedBox(height: GSpace.xs + 1),
             Text(
-              'is stored in formats that take more room than they need. How '
-              'much comes back is measured when you open a list.',
+              context.s(
+                'is stored in formats that take more room than they need. How '
+                'much comes back is measured when you open a list.',
+              ),
               style: GType.micro.copyWith(color: t.muted),
             ),
           ],
@@ -318,7 +325,10 @@ class _Soon extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Video', style: GType.heading.copyWith(color: t.text)),
+                Text(
+                  context.s('Video'),
+                  style: GType.heading.copyWith(color: t.text),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   any
@@ -344,7 +354,7 @@ class _Soon extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'ESTIMATED  ·  PRO',
+                    context.s('ESTIMATED  ·  PRO'),
                     style: GType.badge.copyWith(color: t.warning),
                   ),
                 ),
@@ -372,11 +382,7 @@ class _Soon extends StatelessWidget {
 
 /// The ledger entry point.
 class _Done extends StatelessWidget {
-  const _Done({
-    required this.files,
-    required this.freed,
-    required this.onTap,
-  });
+  const _Done({required this.files, required this.freed, required this.onTap});
 
   final int files;
   final int freed;
@@ -406,7 +412,7 @@ class _Done extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Compressed files',
+                  context.s('Compressed files'),
                   style: GType.heading.copyWith(color: t.text),
                 ),
                 const SizedBox(height: 2),

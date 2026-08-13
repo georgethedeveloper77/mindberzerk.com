@@ -12,6 +12,7 @@ import '../../learn/chapter_page.dart';
 import '../../learn/learn_page.dart';
 import '../state/storage_providers.dart';
 import 'folder_notes.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// One level of the real filesystem.
 final browseProvider = FutureProvider.family<List<DirEntry>, String?>(
@@ -136,11 +137,13 @@ class BrowsePage extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'How Android storage works',
+                            context.s('How Android storage works'),
                             style: GType.body.copyWith(color: t.text),
                           ),
                           Text(
-                            'Seven chapters on what these folders are',
+                            context.s(
+                              'Seven chapters on what these folders are',
+                            ),
                             style: GType.micro.copyWith(color: t.muted),
                           ),
                         ],
@@ -158,7 +161,7 @@ class BrowsePage extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: GSpace.xl),
                 child: Center(
                   child: Text(
-                    'Reading',
+                    context.s('Reading'),
                     style: GType.monoSmall.copyWith(color: t.dim),
                   ),
                 ),
@@ -297,7 +300,7 @@ class _Row extends StatelessWidget {
                           ).push(ChapterPage.route(note.chapterId!)),
                           behavior: HitTestBehavior.opaque,
                           child: Text(
-                            'Read more',
+                            context.s('Read more'),
                             style: GType.micro.copyWith(color: t.accentText),
                           ),
                         ),

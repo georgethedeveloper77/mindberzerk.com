@@ -11,6 +11,7 @@ import '../state/device_history.dart';
 import '../state/device_providers.dart';
 import '../widgets/g_line_chart.dart';
 import '../widgets/unavailable_note.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// THE PROCESSOR.
 ///
@@ -54,11 +55,11 @@ class CpuPage extends ConsumerWidget {
           : null,
       children: <Widget>[
         if (info == null)
-          const PendingNote(title: 'Reading CPU topology')
+          PendingNote(title: context.s('Reading CPU topology'))
         else ...<Widget>[
           if (caps?.cpuJiffies ?? false)
             GChartCard(
-              caption: 'Load, last minute',
+              caption: context.s('Load, last minute'),
               axis: <String>[
                 '0%',
                 if (busy != null) '${(busy * 100).round()}% now',
@@ -75,8 +76,8 @@ class CpuPage extends ConsumerWidget {
               ),
             )
           else
-            const UnavailableNote(
-              title: 'System load',
+            UnavailableNote(
+              title: context.s('System load'),
               reason:
                   'Android stopped letting apps read system wide CPU time on '
                   'this device. Any app showing a live CPU percentage here is '
@@ -106,8 +107,10 @@ class CpuPage extends ConsumerWidget {
                 // The distinction matters to anyone comparing against a spec
                 // sheet, and pretending to certainty we do not have is the
                 // thing this app is built not to do.
-                'Clusters inferred from maximum frequencies. This kernel does '
-                'not publish its frequency domains.',
+                context.s(
+                  'Clusters inferred from maximum frequencies. This kernel does '
+                  'not publish its frequency domains.',
+                ),
                 style: GType.micro.copyWith(color: t.dim),
               ),
             ],
@@ -178,7 +181,11 @@ class CpuPage extends ConsumerWidget {
 /// core 7 expects to find it at the top. The rows run 0 upward and the colour
 /// carries the grouping instead.
 class _Cores extends StatelessWidget {
-  const _Cores({required this.info, required this.tick, required this.readable});
+  const _Cores({
+    required this.info,
+    required this.tick,
+    required this.readable,
+  });
 
   final CpuInfo info;
   final ProbeTick? tick;
@@ -191,8 +198,8 @@ class _Cores extends StatelessWidget {
     final List<bool?>? coreOnline = tick?.current.cpu?.coreOnline;
 
     if (readable == false) {
-      return const UnavailableNote(
-        title: 'Per core frequency',
+      return UnavailableNote(
+        title: context.s('Per core frequency'),
         reason:
             'This ROM does not let apps read the current frequency of each '
             'core. The policy is set per build by the manufacturer, which is '
@@ -201,7 +208,7 @@ class _Cores extends StatelessWidget {
       );
     }
     if (coreKhz == null) {
-      return const PendingNote(title: 'Sampling cores');
+      return PendingNote(title: context.s('Sampling cores'));
     }
 
     // Cluster index per core, so a bar can be coloured by the domain it belongs
@@ -235,9 +242,7 @@ class _Cores extends StatelessWidget {
       bars.add(
         GCoreBar(
           label: '$core',
-          colour: online
-              ? _clusterHue(t, cluster ?? 0)
-              : t.dim,
+          colour: online ? _clusterHue(t, cluster ?? 0) : t.dim,
           fraction: online
               ? DeviceFormat.frequencyFraction(
                   khz,

@@ -39,6 +39,7 @@ import 'where_it_lives/where_it_lives_section.dart';
 import 'widgets/g_bar_chart.dart';
 import 'widgets/reclaim_grid.dart';
 import 'widgets/storage_ledger.dart';
+import '../../core/i18n/g_strings.dart';
 
 class StoragePage extends ConsumerWidget {
   const StoragePage({super.key});
@@ -57,7 +58,7 @@ class StoragePage extends ConsumerWidget {
     return GPageBody(
       children: <Widget>[
         GAppBar(
-          title: 'Storage',
+          title: context.s('Storage'),
           actions: <Widget>[
             GIconButton(
               icon: Icons.refresh_rounded,
@@ -76,7 +77,7 @@ class StoragePage extends ConsumerWidget {
         if (overview == null)
           GCard(
             child: Text(
-              'Reading storage',
+              context.s('Reading storage'),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
           )
@@ -87,11 +88,11 @@ class StoragePage extends ConsumerWidget {
             padding: const EdgeInsets.only(top: GSpace.lg),
             child: GEmptyState(
               shape: EscapeShape.photos,
-              title: 'Only what this app made is visible',
+              title: context.s('Only what this app made is visible'),
               body:
                   'File access is off, so everything else on the phone is '
                   'there and cannot be examined.',
-              actionLabel: 'Turn on file access',
+              actionLabel: context.s('Turn on file access'),
               onAction: () async {
                 await ref.read(recoveryBridgeProvider).requestAllFilesAccess();
                 ref.invalidate(recoveryAccessProvider);
@@ -212,7 +213,7 @@ class StoragePage extends ConsumerWidget {
           _Line(
             hue: t.photo,
             icon: Icons.folder_open_rounded,
-            title: 'All folders',
+            title: context.s('All folders'),
             detail: 'Every folder on this phone, explained',
             onTap: () => Navigator.of(context).push(BrowsePage.route()),
           ),
@@ -223,7 +224,7 @@ class StoragePage extends ConsumerWidget {
             behavior: HitTestBehavior.opaque,
             child: Text(
               // One line and a tap, rather than the paragraph that was here.
-              'Why apps and system cannot be broken down',
+              context.s('Why apps and system cannot be broken down'),
               textAlign: TextAlign.center,
               style: GType.micro.copyWith(color: t.accentText),
             ),
@@ -275,22 +276,25 @@ class StoragePage extends ConsumerWidget {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'Apps and system',
+      title: context.s('Apps and system'),
       children: <Widget>[
         Text(
-          'These figures come from the Android media index, which covers your '
-          'own files and nothing else.',
+          context.s(
+            'These figures come from the Android media index, which covers your '
+            'own files and nothing else.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('What is in the gap'),
-        const GSheetPoint(text: 'The operating system itself.'),
-        const GSheetPoint(
-          text: 'Every app, and the private data each one keeps.',
+        GSheetPoint(text: context.s('The operating system itself.')),
+        GSheetPoint(
+          text: context.s('Every app, and the private data each one keeps.'),
         ),
-        const GSheetPoint(
-          text:
-              'None of it can be listed by any app, including this one, so it '
-              'is shown as a single figure rather than guessed at.',
+        GSheetPoint(
+          text: context.s(
+            'None of it can be listed by any app, including this one, so it '
+            'is shown as a single figure rather than guessed at.',
+          ),
         ),
       ],
     );
@@ -423,7 +427,7 @@ class _CompressLine extends ConsumerWidget {
     return _Line(
       hue: t.photo,
       icon: Icons.compress_rounded,
-      title: 'Make files smaller',
+      title: context.s('Make files smaller'),
       detail: summary == null
           ? 'Same picture, smaller file'
           : '${_parts(shots, photos)} taking ${GFormat.bytes(bytes)}',
@@ -491,7 +495,7 @@ class _ScanLine extends ConsumerWidget {
       return _Line(
         hue: t.accent,
         icon: Icons.hourglass_bottom_rounded,
-        title: 'Reading your photos',
+        title: context.s('Reading your photos'),
         detail: progress == null || progress.total <= 0
             ? 'Starting. Tap to stop.'
             : '${GFormat.count(progress.scanned)} of '
@@ -504,7 +508,7 @@ class _ScanLine extends ConsumerWidget {
       return _Line(
         hue: t.warning,
         icon: Icons.error_outline_rounded,
-        title: 'The scan could not run',
+        title: context.s('The scan could not run'),
         detail: 'Tap to try again',
         onTap: start,
       );
@@ -514,7 +518,7 @@ class _ScanLine extends ConsumerWidget {
       return _Line(
         hue: t.accent,
         icon: Icons.search_rounded,
-        title: 'Check for duplicates and blur',
+        title: context.s('Check for duplicates and blur'),
         detail: 'One scan answers all three. It reads every photo once.',
         onTap: start,
       );
@@ -695,7 +699,7 @@ class _AppsLine extends ConsumerWidget {
       return _Line(
         hue: t.dim,
         icon: Icons.apps_rounded,
-        title: 'Apps',
+        title: context.s('Apps'),
         detail: 'Reading',
         onTap: () {},
       );
@@ -705,7 +709,7 @@ class _AppsLine extends ConsumerWidget {
       return _Line(
         hue: t.audio,
         icon: Icons.apps_rounded,
-        title: 'Apps and their caches',
+        title: context.s('Apps and their caches'),
         detail: 'Needs usage access to read sizes',
         onTap: () => Navigator.of(context).push(AppsPage.route()),
       );

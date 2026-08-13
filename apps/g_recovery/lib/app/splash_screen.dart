@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../app/theme/tokens.dart';
+import '../core/i18n/g_strings.dart';
 
 /// THE FIRST TWO SECONDS.
 ///
@@ -115,7 +116,10 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             const SizedBox(height: GSpace.lg),
-            Text('G Recovery', style: GType.title.copyWith(color: t.text)),
+            Text(
+              context.s('G Recovery'),
+              style: GType.title.copyWith(color: t.text),
+            ),
           ],
         ),
       ),

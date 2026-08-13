@@ -9,6 +9,7 @@ import '../../../ui/g_card.dart';
 import '../device_format.dart';
 import '../state/device_providers.dart';
 import 'unavailable_note.dart';
+import '../../../core/i18n/g_strings.dart';
 
 class ThermalCard extends ConsumerWidget {
   const ThermalCard({super.key});
@@ -36,15 +37,17 @@ class ThermalCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Thermal state',
+                        context.s('Thermal state'),
                         style: GType.heading.copyWith(color: t.text),
                       ),
                       Text(
                         // The framework level is the throttling decision the
                         // system has actually made, which is more useful than
                         // any single zone reading.
-                        'What Android itself thinks, from the system thermal '
-                        'service',
+                        context.s(
+                          'What Android itself thinks, from the system thermal '
+                          'service',
+                        ),
                         style: GType.micro.copyWith(color: t.muted),
                       ),
                     ],
@@ -80,7 +83,7 @@ class ThermalCard extends ConsumerWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        'Zones',
+                        context.s('Zones'),
                         style: GType.heading.copyWith(color: t.text),
                       ),
                     ),
@@ -102,14 +105,14 @@ class ThermalCard extends ConsumerWidget {
           )
         else if (caps != null && !caps.thermalZones)
           UnavailableNote(
-            title: 'Zones',
+            title: context.s('Zones'),
             reason:
                 'This ROM does not let apps read the thermal sensors '
                 'directly. The state above is the only thermal signal it will '
                 'give up, and it is the one Android acts on.',
           )
         else
-          PendingNote(title: 'Reading thermal zones'),
+          PendingNote(title: context.s('Reading thermal zones')),
       ],
     );
   }

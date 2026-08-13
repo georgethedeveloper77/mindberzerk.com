@@ -17,6 +17,7 @@ import '../recovery/state/recovery_providers.dart';
 import '../recovery/widgets/item_row.dart';
 import '../viewer/media_viewer.dart';
 import 'state/search_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// Unified search across deleted and present files.
 ///
@@ -312,13 +313,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       const SizedBox(height: GSpace.lg),
                     ],
                     Text(
-                      'Type at least two letters. Searches your deleted files '
-                      'and the ones still on the device at the same time.',
+                      context.s(
+                        'Type at least two letters. Searches your deleted files '
+                        'and the ones still on the device at the same time.',
+                      ),
                       style: GType.bodySmall.copyWith(color: t.dim),
                     ),
                   ] else if (async.isLoading && groups.isEmpty) ...<Widget>[
                     Text(
-                      'Searching',
+                      context.s('Searching'),
                       style: GType.bodySmall.copyWith(color: t.muted),
                     ),
                   ] else if (groups.isEmpty) ...<Widget>[
@@ -327,16 +330,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Nothing matched',
+                            context.s('Nothing matched'),
                             style: GType.heading.copyWith(color: t.text),
                           ),
                           const SizedBox(height: GSpace.sm - 2),
                           Text(
                             // The honest empty state. Saying why beats an
                             // illustration of a magnifying glass.
-                            'Only files still on the device and files sitting '
-                            'in a trash folder can be searched. Anything erased '
-                            'outside a trash folder leaves no name behind.',
+                            context.s(
+                              'Only files still on the device and files sitting '
+                              'in a trash folder can be searched. Anything erased '
+                              'outside a trash folder leaves no name behind.',
+                            ),
                             style: GType.bodySmall.copyWith(color: t.muted),
                           ),
                         ],
@@ -375,7 +380,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     if (groups.live.isNotEmpty) ...<Widget>[
                       GOverline(
                         'Still on the device',
-                        trailing: GBadge(label: 'Not deleted'),
+                        trailing: GBadge(label: context.s('Not deleted')),
                       ),
                       const SizedBox(height: GSpace.sm + 1),
                       // No selection on live files. The row opens and that is

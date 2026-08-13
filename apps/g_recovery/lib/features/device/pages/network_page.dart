@@ -11,6 +11,7 @@ import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
 import '../device_format.dart';
 import '../state/device_providers.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// WHAT THE RADIO IS DOING.
 ///
@@ -47,7 +48,7 @@ class NetworkPage extends ConsumerWidget {
     return GDetailPage(
       hue: hue,
       icon: Icons.wifi_rounded,
-      title: 'Network',
+      title: context.s('Network'),
       subtitle: _caption(net, wifi),
       children: <Widget>[
         GChartCard(
@@ -70,7 +71,7 @@ class NetworkPage extends ConsumerWidget {
             child: history.length < 2
                 ? Center(
                     child: Text(
-                      'Measuring',
+                      context.s('Measuring'),
                       style: GType.monoSmall.copyWith(color: t.dim),
                     ),
                   )
@@ -140,7 +141,7 @@ class NetworkPage extends ConsumerWidget {
           if (!wifi.hasLocationPermission) ...<Widget>[
             const SizedBox(height: GSpace.sm + 1),
             GMissNote(
-              text: 'Network name and MAC need location access',
+              text: context.s('Network name and MAC need location access'),
               onTap: () async {
                 await ref.read(hardwareBridgeProvider).requestLocation();
                 ref.invalidate(wifiProvider);
@@ -231,26 +232,29 @@ class NetworkPage extends ConsumerWidget {
       if (kb > peak) peak = kb;
     }
 
-    LineChartBarData bar(List<FlSpot> spots, Color colour, {required bool fill}) =>
-        LineChartBarData(
-          spots: spots,
-          isCurved: true,
-          curveSmoothness: 0.24,
-          color: colour,
-          barWidth: 2,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(
-            show: fill,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: <Color>[
-                colour.withValues(alpha: 0.32),
-                colour.withValues(alpha: 0),
-              ],
-            ),
-          ),
-        );
+    LineChartBarData bar(
+      List<FlSpot> spots,
+      Color colour, {
+      required bool fill,
+    }) => LineChartBarData(
+      spots: spots,
+      isCurved: true,
+      curveSmoothness: 0.24,
+      color: colour,
+      barWidth: 2,
+      dotData: const FlDotData(show: false),
+      belowBarData: BarAreaData(
+        show: fill,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            colour.withValues(alpha: 0.32),
+            colour.withValues(alpha: 0),
+          ],
+        ),
+      ),
+    );
 
     return LineChartData(
       minY: 0,

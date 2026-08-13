@@ -40,7 +40,7 @@ class MorePage extends ConsumerWidget {
 
     return GPageBody(
       children: <Widget>[
-        GAppBar(title: 'More'),
+        GAppBar(title: context.s('More')),
 
         _Status(access: access, capture: capture, summary: summary),
 
@@ -52,35 +52,35 @@ class MorePage extends ConsumerWidget {
             _MoreRow(
               icon: Icons.folder_open_rounded,
               hue: t.photo,
-              title: 'Browse files',
+              title: context.s('Browse files'),
               detail: 'Every folder on this phone, explained',
               onTap: () => Navigator.of(context).push(BrowsePage.route()),
             ),
             _MoreRow(
               icon: Icons.grid_on_rounded,
               hue: t.video,
-              title: 'Screen test',
+              title: context.s('Screen test'),
               detail: 'Dead pixels, backlight and touch response',
               onTap: () => Navigator.of(context).push(ScreenTestPage.route()),
             ),
             _MoreRow(
               icon: Icons.dns_outlined,
               hue: t.docs,
-              title: 'Home server',
+              title: context.s('Home server'),
               detail: 'Send files to a machine you own',
               onTap: () => Navigator.of(context).push(ServerPage.route()),
             ),
             _MoreRow(
               icon: Icons.help_outline_rounded,
               hue: t.docs,
-              title: 'What can come back',
+              title: context.s('What can come back'),
               detail: 'And what cannot, with the reason',
               onTap: () => Navigator.of(context).push(LimitsPage.route()),
             ),
             _MoreRow(
               icon: Icons.forum_outlined,
               hue: t.chat,
-              title: 'Message archive',
+              title: context.s('Message archive'),
               detail: (capture?.capturing ?? false)
                   ? '${GFormat.count(capture!.messageCount)} kept'
                   : 'Not running',
@@ -128,21 +128,21 @@ class MorePage extends ConsumerWidget {
             _MoreRow(
               icon: Icons.palette_outlined,
               hue: t.apps,
-              title: 'Appearance',
+              title: context.s('Appearance'),
               detail: '${_modeName(theme.mode)}  ·  ${theme.accent.label}',
               onTap: () => Navigator.of(context).push(AppearancePage.route()),
             ),
             _MoreRow(
               icon: Icons.language_rounded,
               hue: t.video,
-              title: 'Language',
+              title: context.s('Language'),
               detail: GLanguage.forCode(ref.watch(gLocaleProvider)).nativeName,
               onTap: () => Navigator.of(context).push(LanguagePage.route()),
             ),
             _MoreRow(
               icon: Icons.lock_outline_rounded,
               hue: (access?.allFilesAccess ?? false) ? t.docs : t.apps,
-              title: 'Permissions',
+              title: context.s('Permissions'),
               detail: _permissionLine(access, capture),
               flag: _missingCount(access, capture) == 0
                   ? null
@@ -155,7 +155,7 @@ class MorePage extends ConsumerWidget {
             _MoreRow(
               icon: Icons.shield_outlined,
               hue: t.chat,
-              title: 'Privacy',
+              title: context.s('Privacy'),
               detail: 'Nothing leaves this phone',
               onTap: () => Navigator.of(context).push(PrivacyPage.route()),
             ),
@@ -177,7 +177,7 @@ class MorePage extends ConsumerWidget {
             _MoreRow(
               icon: Icons.info_outline_rounded,
               hue: t.dim,
-              title: 'G Recovery',
+              title: context.s('G Recovery'),
               detail: '2.0.0  ·  Mindberzerk',
               onTap: () => Navigator.of(context).push(PrivacyPage.route()),
             ),
@@ -295,18 +295,18 @@ class _Status extends StatelessWidget {
                   children: <Widget>[
                     _Stat(
                       value: GFormat.count(summary!.totalItems),
-                      label: 'can be brought back',
+                      label: context.s('can be brought back'),
                       tone: t.text,
                     ),
                     _Stat(
                       value: GFormat.count(summary!.sources.length),
-                      label: 'places checked',
+                      label: context.s('places checked'),
                       tone: t.text,
                     ),
                     if (!good)
                       _Stat(
                         value: '$off',
-                        label: 'to turn on',
+                        label: context.s('to turn on'),
                         tone: t.warning,
                       ),
                   ],
@@ -512,7 +512,7 @@ class ContentCard extends ConsumerWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  'Recovery coverage',
+                  context.s('Recovery coverage'),
                   style: GType.heading.copyWith(color: t.text),
                 ),
               ),

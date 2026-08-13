@@ -181,8 +181,7 @@ class _WhereItLivesSectionState extends ConsumerState<WhereItLivesSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         for (final FolderEntry entry in shown) _row(t, entry, total),
-        if (folds)
-          _tailRow(t, entries.length - _rowsBeforeTail, restBytes),
+        if (folds) _tailRow(t, entries.length - _rowsBeforeTail, restBytes),
       ],
     );
   }

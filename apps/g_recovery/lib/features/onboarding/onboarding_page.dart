@@ -17,6 +17,7 @@ import '../../ui/g_logo_mark.dart';
 import '../../ui/g_sheet.dart';
 import '../recovery/state/recovery_providers.dart';
 import 'state/onboarding_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// Two screens. No value proposition carousel.
 ///
@@ -155,20 +156,22 @@ class _AboutStep extends StatelessWidget {
         const EscapeArt(),
         const SizedBox(height: GSpace.lg),
         Text(
-          'Deleted is not\nalways gone',
+          context.s('Deleted is not\nalways gone'),
           style: GType.display.copyWith(color: t.text),
         ),
         const SizedBox(height: GSpace.md),
         Text(
           // States the scope up front, because every competitor overstates it
           // and the first screen is where the difference is worth drawing.
-          'Your phone keeps deleted files in several places before it lets '
-          'them go. G Recovery finds every one of them and tells you exactly '
-          'what quality you would get back.',
+          context.s(
+            'Your phone keeps deleted files in several places before it lets '
+            'them go. G Recovery finds every one of them and tells you exactly '
+            'what quality you would get back.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const Spacer(),
-        GButton(label: 'Get started', onPressed: onNext),
+        GButton(label: context.s('Get started'), onPressed: onNext),
         const SizedBox(height: GSpace.xl),
       ],
     );
@@ -199,11 +202,11 @@ class _ThemeStep extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'G Recovery',
+                  context.s('G Recovery'),
                   style: GType.heading.copyWith(color: t.text),
                 ),
                 Text(
-                  'Make it yours',
+                  context.s('Make it yours'),
                   style: GType.micro.copyWith(color: t.muted),
                 ),
               ],
@@ -211,10 +214,13 @@ class _ThemeStep extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: GSpace.xl),
-        Text('Pick a look', style: GType.display.copyWith(color: t.text)),
+        Text(
+          context.s('Pick a look'),
+          style: GType.display.copyWith(color: t.text),
+        ),
         const SizedBox(height: GSpace.sm),
         Text(
-          'You can change this any time from settings.',
+          context.s('You can change this any time from settings.'),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const SizedBox(height: GSpace.lg),
@@ -234,7 +240,7 @@ class _ThemeStep extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: GSpace.xl),
-        Text('Accent', style: GType.overline.copyWith(color: t.dim)),
+        Text(context.s('Accent'), style: GType.overline.copyWith(color: t.dim)),
         const SizedBox(height: GSpace.md),
         Row(
           children: <Widget>[
@@ -297,7 +303,7 @@ class _ThemeStep extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: GSpace.lg),
-        GButton(label: 'Continue', onPressed: onNext),
+        GButton(label: context.s('Continue'), onPressed: onNext),
         const SizedBox(height: GSpace.xl),
       ],
     );
@@ -423,19 +429,23 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
           //
           // The reasoning has not been deleted. It moved to a sheet, where it
           // is available to anyone who wants it and invisible to everyone else.
-          'All of it is optional and all of it can be changed later.',
+          context.s(
+            'All of it is optional and all of it can be changed later.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const SizedBox(height: GSpace.lg),
 
         _Grant(
-          label: 'All files access',
+          label: context.s('All files access'),
           detail: granted ? 'On' : 'Recommended',
-          info: 'Android only shows an app the files it deleted itself. '
+          info:
+              'Android only shows an app the files it deleted itself. '
               'Without this, everything your other apps left behind stays '
               'invisible: trash folders, app leftovers and the thumbnail '
               'cache.',
-          without: 'Counts are a floor rather than a total, and most of what '
+          without:
+              'Counts are a floor rather than a total, and most of what '
               'this phone could recover is never seen.',
           on: granted,
           onTap: granted
@@ -452,12 +462,14 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         // optional. File access decides whether recovery works at all; this
         // decides whether one screen in Storage can answer.
         _Grant(
-          label: 'App sizes',
+          label: context.s('App sizes'),
           detail: (apps?.usageAccess ?? false) ? 'On' : 'Optional',
-          info: 'Lets the Storage tab show what each app is taking and how '
+          info:
+              'Lets the Storage tab show what each app is taking and how '
               'much of that is cache. It reads sizes only, never what you do '
               'in them.',
-          without: 'The Apps list shows names without sizes. Nothing else '
+          without:
+              'The Apps list shows names without sizes. Nothing else '
               'changes.',
           on: apps?.usageAccess ?? false,
           onTap: (apps?.usageAccess ?? false)
@@ -475,12 +487,14 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         // detail page, so they are offered here and asked for again on the page
         // itself if skipped.
         _Grant(
-          label: 'Wi-Fi details',
+          label: context.s('Wi-Fi details'),
           detail: 'Optional',
-          info: 'Android treats the network name and MAC address as location '
+          info:
+              'Android treats the network name and MAC address as location '
               'data, so any app that shows them has to ask for location. This '
               'app never reads where you are.',
-          without: 'The Wi-Fi page shows the connection without naming the '
+          without:
+              'The Wi-Fi page shows the connection without naming the '
               'network.',
           on: false,
           onTap: () async {
@@ -490,15 +504,17 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
         ),
         const SizedBox(height: GSpace.sm + 1),
         _Grant(
-          label: 'Notifications',
+          label: context.s('Notifications'),
           // Not a toggle. Nothing in this app can read whether notifications
           // are granted without a new native call, and a switch that shows a
           // state it cannot verify is worse than a sentence that admits it.
           detail: 'Asked later',
-          info: 'Asked for when the first scan starts, so a scan or a video '
+          info:
+              'Asked for when the first scan starts, so a scan or a video '
               'encode can report progress while you are looking at something '
               'else.',
-          without: 'Long jobs still run. You just have to come back to the app '
+          without:
+              'Long jobs still run. You just have to come back to the app '
               'to see how far they have got.',
           on: null,
           onTap: null,
@@ -537,7 +553,7 @@ class _AccessStepState extends ConsumerState<_AccessStep> {
             child: SizedBox(
               width: double.infinity,
               child: Text(
-                'Continue without it',
+                context.s('Continue without it'),
                 textAlign: TextAlign.center,
                 style: GType.bodySmall.copyWith(color: t.dim),
               ),
@@ -602,7 +618,10 @@ class _Grant extends StatelessWidget {
             text: info!,
           ),
         if (without != null)
-          GSheetPoint(icon: Icons.block_rounded, text: 'Without it: ${without!}'),
+          GSheetPoint(
+            icon: Icons.block_rounded,
+            text: 'Without it: ${without!}',
+          ),
       ],
     );
   }
@@ -633,11 +652,7 @@ class _Grant extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.all(GSpace.xs),
-                child: Icon(
-                  Icons.info_outline_rounded,
-                  size: 17,
-                  color: t.dim,
-                ),
+                child: Icon(Icons.info_outline_rounded, size: 17, color: t.dim),
               ),
             ),
           ],

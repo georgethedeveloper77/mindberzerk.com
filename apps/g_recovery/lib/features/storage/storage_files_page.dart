@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'state/storage_files.dart';
 import 'state/storage_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// EVERYTHING OF ONE KIND, BY DAY.
 ///
@@ -252,18 +253,26 @@ class _StorageFilesPageState extends ConsumerState<StorageFilesPage> {
           style: GType.title.copyWith(color: t.text),
         ),
         content: Text(
-          'These skip the trash and leave the phone for good. Nothing on this '
-          'device, including this app, can bring them back.',
+          context.s(
+            'These skip the trash and leave the phone for good. Nothing on this '
+            'device, including this app, can bring them back.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Keep', style: GType.label.copyWith(color: t.muted)),
+            child: Text(
+              context.s('Keep'),
+              style: GType.label.copyWith(color: t.muted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete', style: GType.label.copyWith(color: t.danger)),
+            child: Text(
+              context.s('Delete'),
+              style: GType.label.copyWith(color: t.danger),
+            ),
           ),
         ],
       ),
@@ -325,35 +334,41 @@ class _StorageFilesPageState extends ConsumerState<StorageFilesPage> {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'These files are not deleted',
+      title: context.s('These files are not deleted'),
       children: <Widget>[
         Text(
-          'Everything here is still on your phone and still yours. This screen '
-          'is for clearing space, not for recovering anything.',
+          context.s(
+            'Everything here is still on your phone and still yours. This screen '
+            'is for clearing space, not for recovering anything.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('Trash or delete'),
         GSheetPoint(
           icon: Icons.restore_from_trash_outlined,
           tone: t.success,
-          text:
-              'Trash puts a file in the system bin, where Android keeps it '
-              'for thirty days. You can change your mind, and it shows up on '
-              'the home screen as recoverable.',
+          text: context.s(
+            'Trash puts a file in the system bin, where Android keeps it '
+            'for thirty days. You can change your mind, and it shows up on '
+            'the home screen as recoverable.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.remove_circle_outline_rounded,
           tone: t.danger,
-          text:
-              'Delete skips the bin. The space comes back immediately and the '
-              'file does not, ever, by any means.',
+          text: context.s(
+            'Delete skips the bin. The space comes back immediately and the '
+            'file does not, ever, by any means.',
+          ),
         ),
         const GSheetHeading('Why some files are missing'),
         Text(
-          'This list comes from the Android media index, which covers your own '
-          'files but not app code or the private data each app keeps. Those are '
-          'shown on the previous screen as apps and system, and no app can '
-          'enumerate them.',
+          context.s(
+            'This list comes from the Android media index, which covers your own '
+            'files but not app code or the private data each app keeps. Those are '
+            'shown on the previous screen as apps and system, and no app can '
+            'enumerate them.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
       ],
@@ -387,14 +402,14 @@ class _Facts extends StatelessWidget {
         _Fact(
           value: result.matchBytes,
           format: (num n) => GFormat.bytes(n.round()),
-          label: 'in total',
+          label: context.s('in total'),
           tone: t.text,
         ),
         if (capped)
           _Fact(
             value: shown,
             format: (num n) => GFormat.count(n.round()),
-            label: 'shown here',
+            label: context.s('shown here'),
             tone: t.warning,
           ),
       ],
@@ -456,122 +471,119 @@ List<Widget> _fileSlivers({
   required void Function(List<String>) onToggleGroup,
   required void Function(StorageFile) onOpen,
 }) {
-    final GTokens t = tokens;
-    final bool selecting = picked.isNotEmpty;
+  final GTokens t = tokens;
+  final bool selecting = picked.isNotEmpty;
 
-    // Grouped only when the order is a date order.
-    //
-    // Under a size sort, a header reading "Today" over a 94 MB video explains
-    // nothing about why it is first, so the days come off and the list is one
-    // ranked run. The helper is still the same one; it is simply given
-    // everything as a single group.
-    // Days always. Under a size sort the days are then ranked by their largest
-    // file, so the top of the list is still the answer to "what is taking the
-    // space" and the header still means what it says.
-    //
-    // Native has already ordered the files, so within each day they are in the
-    // chosen order without a second sort here.
-    List<DateGroup<StorageFile>> groups = groupByDate<StorageFile>(
-      files,
-      dateOf: (StorageFile f) => f.dateModifiedMillis,
-      sizeOf: (StorageFile f) => f.sizeBytes,
+  // Grouped only when the order is a date order.
+  //
+  // Under a size sort, a header reading "Today" over a 94 MB video explains
+  // nothing about why it is first, so the days come off and the list is one
+  // ranked run. The helper is still the same one; it is simply given
+  // everything as a single group.
+  // Days always. Under a size sort the days are then ranked by their largest
+  // file, so the top of the list is still the answer to "what is taking the
+  // space" and the header still means what it says.
+  //
+  // Native has already ordered the files, so within each day they are in the
+  // chosen order without a second sort here.
+  List<DateGroup<StorageFile>> groups = groupByDate<StorageFile>(
+    files,
+    dateOf: (StorageFile f) => f.dateModifiedMillis,
+    sizeOf: (StorageFile f) => f.sizeBytes,
+  );
+  if (sort.ranksGroups) {
+    groups = rankGroupsBySize<StorageFile>(
+      groups,
+      smallestFirst: sort == GSortMode.smallest,
     );
-    if (sort.ranksGroups) {
-      groups = rankGroupsBySize<StorageFile>(
-        groups,
-        smallestFirst: sort == GSortMode.smallest,
-      );
-    }
+  }
 
-    return <Widget>[
-        for (final DateGroup<StorageFile> group in groups) ...<Widget>[
-          // NOT PINNED, AND THIS IS THE BUG THAT HID EVERY PHOTO.
-          //
-          // A pinned sliver adds its extent to constraints.overlap for every
-          // sliver after it, so pinned headers ACCUMULATE rather than pushing
-          // each other out. Two or three is the case everyone tests. Forty days
-          // of photos is forty headers, each painting an opaque background, and
-          // by the fourteenth the stack covers the whole viewport and paints
-          // over the grids behind it. The grids were laying out correctly the
-          // entire time and being hidden.
-          //
-          // Unpinned, each header scrolls away with its own day, which is also
-          // what the rest of the app now does: one surface that moves together.
-          //
-          // Sticky day labels are recoverable later by wrapping EACH day in its
-          // own SliverMainAxisGroup, which scopes a pinned child to that group's
-          // extent. One group around all the days, which is what I tried first,
-          // does the opposite and is what made this look like an extent bug.
-          SliverPersistentHeader(
-            delegate: GGroupHeader(
-              label: group.label,
-              meta:
-                  '${GFormat.count(group.count)}  ·  '
-                  '${GFormat.bytes(group.bytes)}',
-              tokens: t,
-              muted: !group.dated,
-              // A day is the unit people think in when clearing a phone.
-              // Without this, a Saturday of ninety photos is ninety taps.
-              selected: selecting
-                  ? group.items.every(
-                      (StorageFile f) => picked.contains(f.fileId),
-                    )
-                  : null,
-              onToggleAll: selecting
-                  ? () => onToggleGroup(
-                      group.items.map((StorageFile f) => f.fileId).toList(),
-                    )
-                  : null,
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-            sliver: mode == GViewMode.grid
-                ? SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 128,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
-                        ),
-                    delegate: SliverChildBuilderDelegate((
-                      BuildContext context,
-                      int index,
-                    ) {
-                      final StorageFile file = group.items[index];
-                      return _Cell(
-                        file: file,
-                        selected: picked.contains(file.fileId),
-                        selecting: selecting,
-                        // Tap views, long press selects, and once anything is
-                        // selected tap selects too. Same grammar as the
-                        // recovery grid, because a person who learned it there
-                        // should not have to learn it again here.
-                        onTap: () =>
-                            selecting ? onToggle(file.fileId) : onOpen(file),
-                        onLongPress: () => onToggle(file.fileId),
-                      );
-                    }, childCount: group.items.length),
-                  )
-                : SliverList(
-                    delegate: SliverChildBuilderDelegate((
-                      BuildContext context,
-                      int index,
-                    ) {
-                      final StorageFile file = group.items[index];
-                      return _Row(
-                        file: file,
-                        selected: picked.contains(file.fileId),
-                        detailed: mode == GViewMode.details,
-                        onTap: () =>
-                            selecting ? onToggle(file.fileId) : onOpen(file),
-                        onLongPress: () => onToggle(file.fileId),
-                      );
-                    }, childCount: group.items.length),
-                  ),
-          ),
-            const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
-        ],
+  return <Widget>[
+    for (final DateGroup<StorageFile> group in groups) ...<Widget>[
+      // NOT PINNED, AND THIS IS THE BUG THAT HID EVERY PHOTO.
+      //
+      // A pinned sliver adds its extent to constraints.overlap for every
+      // sliver after it, so pinned headers ACCUMULATE rather than pushing
+      // each other out. Two or three is the case everyone tests. Forty days
+      // of photos is forty headers, each painting an opaque background, and
+      // by the fourteenth the stack covers the whole viewport and paints
+      // over the grids behind it. The grids were laying out correctly the
+      // entire time and being hidden.
+      //
+      // Unpinned, each header scrolls away with its own day, which is also
+      // what the rest of the app now does: one surface that moves together.
+      //
+      // Sticky day labels are recoverable later by wrapping EACH day in its
+      // own SliverMainAxisGroup, which scopes a pinned child to that group's
+      // extent. One group around all the days, which is what I tried first,
+      // does the opposite and is what made this look like an extent bug.
+      SliverPersistentHeader(
+        delegate: GGroupHeader(
+          label: group.label,
+          meta:
+              '${GFormat.count(group.count)}  ·  '
+              '${GFormat.bytes(group.bytes)}',
+          tokens: t,
+          muted: !group.dated,
+          // A day is the unit people think in when clearing a phone.
+          // Without this, a Saturday of ninety photos is ninety taps.
+          selected: selecting
+              ? group.items.every((StorageFile f) => picked.contains(f.fileId))
+              : null,
+          onToggleAll: selecting
+              ? () => onToggleGroup(
+                  group.items.map((StorageFile f) => f.fileId).toList(),
+                )
+              : null,
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
+        sliver: mode == GViewMode.grid
+            ? SliverGrid(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 128,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                delegate: SliverChildBuilderDelegate((
+                  BuildContext context,
+                  int index,
+                ) {
+                  final StorageFile file = group.items[index];
+                  return _Cell(
+                    file: file,
+                    selected: picked.contains(file.fileId),
+                    selecting: selecting,
+                    // Tap views, long press selects, and once anything is
+                    // selected tap selects too. Same grammar as the
+                    // recovery grid, because a person who learned it there
+                    // should not have to learn it again here.
+                    onTap: () =>
+                        selecting ? onToggle(file.fileId) : onOpen(file),
+                    onLongPress: () => onToggle(file.fileId),
+                  );
+                }, childCount: group.items.length),
+              )
+            : SliverList(
+                delegate: SliverChildBuilderDelegate((
+                  BuildContext context,
+                  int index,
+                ) {
+                  final StorageFile file = group.items[index];
+                  return _Row(
+                    file: file,
+                    selected: picked.contains(file.fileId),
+                    detailed: mode == GViewMode.details,
+                    onTap: () =>
+                        selecting ? onToggle(file.fileId) : onOpen(file),
+                    onLongPress: () => onToggle(file.fileId),
+                  );
+                }, childCount: group.items.length),
+              ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
+    ],
   ];
 }
 

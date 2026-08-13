@@ -11,6 +11,7 @@ import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_group_header.dart';
 import 'state/messages_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// THE MESSAGE ARCHIVE.
 ///
@@ -45,7 +46,7 @@ class MessagesPage extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
               child: GAppBar(
-                title: 'Messages',
+                title: context.s('Messages'),
                 subtitle: capture == null || capture.messageCount == 0
                     ? null
                     : '${GFormat.count(capture.messageCount)} kept from '
@@ -89,22 +90,30 @@ class MessagesPage extends ConsumerWidget {
         backgroundColor: t.panel,
         shape: RoundedRectangleBorder(borderRadius: GRadius.all(GRadius.card)),
         title: Text(
-          'Delete the archive',
+          context.s('Delete the archive'),
           style: GType.title.copyWith(color: t.text),
         ),
         content: Text(
-          'Everything kept so far leaves this phone for good. Capture stays on, '
-          'so new messages begin a fresh archive.',
+          context.s(
+            'Everything kept so far leaves this phone for good. Capture stays on, '
+            'so new messages begin a fresh archive.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Keep', style: GType.label.copyWith(color: t.muted)),
+            child: Text(
+              context.s('Keep'),
+              style: GType.label.copyWith(color: t.muted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete', style: GType.label.copyWith(color: t.danger)),
+            child: Text(
+              context.s('Delete'),
+              style: GType.label.copyWith(color: t.danger),
+            ),
           ),
         ],
       ),
@@ -154,47 +163,54 @@ class MessagesPage extends ConsumerWidget {
               ),
               const SizedBox(height: GSpace.lg),
               Text(
-                'How this works',
+                context.s('How this works'),
                 style: GType.title.copyWith(color: t.text),
               ),
               const SizedBox(height: GSpace.sm),
               Text(
-                'Android hands every arriving message to this app as a '
-                'notification. G Recovery writes that text down. If the sender '
-                'deletes the message afterwards, your copy is still here.',
+                context.s(
+                  'Android hands every arriving message to this app as a '
+                  'notification. G Recovery writes that text down. If the sender '
+                  'deletes the message afterwards, your copy is still here.',
+                ),
                 style: GType.bodySmall.copyWith(color: t.muted),
               ),
               const SizedBox(height: GSpace.lg),
               Text(
-                'What it cannot do',
+                context.s('What it cannot do'),
                 style: GType.heading.copyWith(color: t.text),
               ),
               const SizedBox(height: GSpace.sm),
-              const _Limit(
-                text:
-                    'Nothing from before you switch it on. No copy of those '
-                    'messages exists anywhere for this app to find.',
+              _Limit(
+                text: context.s(
+                  'Nothing from before you switch it on. No copy of those '
+                  'messages exists anywhere for this app to find.',
+                ),
               ),
-              const _Limit(
-                text:
-                    'Text only. A photo arrives as the word Photo, so a view '
-                    'once image cannot be kept this way.',
+              _Limit(
+                text: context.s(
+                  'Text only. A photo arrives as the word Photo, so a view '
+                  'once image cannot be kept this way.',
+                ),
               ),
-              const _Limit(
-                text:
-                    'Nothing from a muted chat, because a muted chat posts no '
-                    'notification at all.',
+              _Limit(
+                text: context.s(
+                  'Nothing from a muted chat, because a muted chat posts no '
+                  'notification at all.',
+                ),
               ),
               const SizedBox(height: GSpace.md),
               Text(
-                'Messaging apps only',
+                context.s('Messaging apps only'),
                 style: GType.heading.copyWith(color: t.text),
               ),
               const SizedBox(height: GSpace.sm),
               Text(
-                'WhatsApp, Telegram, Instagram, Messenger and Messages. Every '
-                'other notification, including bank alerts and sign in codes, '
-                'is discarded before it is written down.',
+                context.s(
+                  'WhatsApp, Telegram, Instagram, Messenger and Messages. Every '
+                  'other notification, including bank alerts and sign in codes, '
+                  'is discarded before it is written down.',
+                ),
                 style: GType.bodySmall.copyWith(color: t.muted),
               ),
             ],
@@ -245,7 +261,7 @@ class _Intro extends ConsumerWidget {
 
           if (!listener)
             GButton(
-              label: 'Allow notification access',
+              label: context.s('Allow notification access'),
               onPressed: () async {
                 await ref.read(messagesBridgeProvider).openListenerSettings();
                 ref.invalidate(messageCaptureProvider);
@@ -369,8 +385,10 @@ class _Archive extends StatelessWidget {
               child: Text(
                 // The honest edge of the archive, where the list stops. Without
                 // it, running out of scroll looks like data went missing.
-                'The archive starts here. Messages from before you switched '
-                'this on were never captured.',
+                context.s(
+                  'The archive starts here. Messages from before you switched '
+                  'this on were never captured.',
+                ),
                 textAlign: TextAlign.center,
                 style: GType.micro.copyWith(color: t.dim),
               ),
@@ -456,7 +474,7 @@ class _Pulse extends StatelessWidget {
                   if (deleted > 0)
                     _Stat(
                       value: GFormat.count(deleted),
-                      label: 'deleted by sender',
+                      label: context.s('deleted by sender'),
                       tone: t.warning,
                     ),
                 ],
@@ -550,7 +568,7 @@ class _Message extends StatelessWidget {
                     // Only where the sending app said so itself. A notification
                     // being dismissed is not evidence of anything and is never
                     // labelled here.
-                    'Deleted by sender',
+                    context.s('Deleted by sender'),
                     style: GType.micro.copyWith(color: t.warning),
                   ),
                 ],

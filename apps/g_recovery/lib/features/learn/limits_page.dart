@@ -7,6 +7,7 @@ import '../../ui/g_app_bar.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_enter.dart';
 import '../../ui/g_sheet.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// WHY SOME FILES CANNOT BE RECOVERED.
 ///
@@ -44,7 +45,7 @@ class LimitsPage extends StatelessWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'What can come back',
+              title: context.s('What can come back'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -62,14 +63,16 @@ class LimitsPage extends StatelessWidget {
             const SizedBox(height: GSpace.lg),
 
             Text(
-              'Deleting is not\none thing',
+              context.s('Deleting is not\none thing'),
               style: GType.display.copyWith(color: t.text),
             ),
             const SizedBox(height: GSpace.md),
             Text(
-              'What happens to a file depends entirely on how it left. Some are '
-              'waiting to be picked up. Some left a shadow. Some are simply not '
-              'there any more, and no app can change that.',
+              context.s(
+                'What happens to a file depends entirely on how it left. Some are '
+                'waiting to be picked up. Some left a shadow. Some are simply not '
+                'there any more, and no app can change that.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
 
@@ -81,7 +84,7 @@ class LimitsPage extends StatelessWidget {
                 tone: t.success,
                 icon: Icons.check_circle_outline_rounded,
                 verdict: 'Comes back whole',
-                title: 'It went to a trash folder',
+                title: context.s('It went to a trash folder'),
                 body:
                     'Android keeps deleted photos and videos for thirty days, '
                     'and many apps keep their own bin as well. The original file '
@@ -97,7 +100,7 @@ class LimitsPage extends StatelessWidget {
                 tone: t.warning,
                 icon: Icons.filter_drama_outlined,
                 verdict: 'Comes back smaller',
-                title: 'Only the preview survived',
+                title: context.s('Only the preview survived'),
                 body:
                     'To show you a gallery quickly, Android saves a small copy '
                     'of every picture. That copy often outlives the original. It '
@@ -113,7 +116,7 @@ class LimitsPage extends StatelessWidget {
                 tone: t.danger,
                 icon: Icons.remove_circle_outline_rounded,
                 verdict: 'Does not come back',
-                title: 'It was erased outside a bin',
+                title: context.s('It was erased outside a bin'),
                 body:
                     'A file removed by a cleaner app, a file manager, or the '
                     'app that owned it does not go anywhere. The space is handed '
@@ -137,12 +140,12 @@ class LimitsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Why no app can do more',
+                            context.s('Why no app can do more'),
                             style: GType.heading.copyWith(color: t.text),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'The technical reason, if you want it.',
+                            context.s('The technical reason, if you want it.'),
                             style: GType.micro.copyWith(color: t.muted),
                           ),
                         ],
@@ -157,8 +160,10 @@ class LimitsPage extends StatelessWidget {
             const SizedBox(height: GSpace.md),
             Text(
               // The commercial point, stated once and without naming anyone.
-              'Any app promising to recover anything from an ordinary phone is '
-              'looking in exactly the same places this one does.',
+              context.s(
+                'Any app promising to recover anything from an ordinary phone is '
+                'looking in exactly the same places this one does.',
+              ),
               textAlign: TextAlign.center,
               style: GType.micro.copyWith(color: t.dim),
             ),
@@ -172,51 +177,57 @@ class LimitsPage extends StatelessWidget {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'Why no app can do more',
+      title: context.s('Why no app can do more'),
       children: <Widget>[
         Text(
-          'Recovery tools on a computer work by reading the disk directly, past '
-          'the filing system, and reassembling whatever is still lying there. '
-          'Three things stop that working on a phone.',
+          context.s(
+            'Recovery tools on a computer work by reading the disk directly, past '
+            'the filing system, and reassembling whatever is still lying there. '
+            'Three things stop that working on a phone.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('The storage erases itself'),
-        const GSheetPoint(
+        GSheetPoint(
           icon: Icons.bolt_outlined,
-          text:
-              'Phone storage is flash, which cannot overwrite in place. When '
-              'a file is deleted the phone immediately tells the chip that '
-              'those blocks are free, and the chip clears them in the '
-              'background, usually within seconds. On a spinning hard disk the '
-              'data sat there until something else needed the room. Here it '
-              'does not.',
+          text: context.s(
+            'Phone storage is flash, which cannot overwrite in place. When '
+            'a file is deleted the phone immediately tells the chip that '
+            'those blocks are free, and the chip clears them in the '
+            'background, usually within seconds. On a spinning hard disk the '
+            'data sat there until something else needed the room. Here it '
+            'does not.',
+          ),
         ),
         const GSheetHeading('No app may read the disk'),
-        const GSheetPoint(
+        GSheetPoint(
           icon: Icons.lock_outline_rounded,
-          text:
-              'Reading raw storage needs root. Android gives an app a view of '
-              'files, never of the disk underneath them, so the scan that '
-              'desktop tools perform cannot even be attempted.',
+          text: context.s(
+            'Reading raw storage needs root. Android gives an app a view of '
+            'files, never of the disk underneath them, so the scan that '
+            'desktop tools perform cannot even be attempted.',
+          ),
         ),
         const GSheetHeading('It is all encrypted anyway'),
-        const GSheetPoint(
+        GSheetPoint(
           icon: Icons.enhanced_encryption_outlined,
-          text:
-              'Every modern Android phone encrypts each file with its own '
-              'key, and that key is destroyed with the file. Even reaching the '
-              'raw blocks would return noise.',
+          text: context.s(
+            'Every modern Android phone encrypts each file with its own '
+            'key, and that key is destroyed with the file. Even reaching the '
+            'raw blocks would return noise.',
+          ),
         ),
         const GSheetHeading('So what is left'),
-        const GSheetPoint(
+        GSheetPoint(
           icon: Icons.check_rounded,
           tone: null,
-          text:
-              'Everything that has not actually been deleted yet: the system '
-              'trash, the bins individual apps keep, media sitting in a folder '
-              'after the app forgot about it, and the thumbnail cache. That is '
-              'what this app looks through, and it says which of them each find '
-              'came from.',
+          text: context.s(
+            'Everything that has not actually been deleted yet: the system '
+            'trash, the bins individual apps keep, media sitting in a folder '
+            'after the app forgot about it, and the thumbnail cache. That is '
+            'what this app looks through, and it says which of them each find '
+            'came from.',
+          ),
         ),
       ],
     );

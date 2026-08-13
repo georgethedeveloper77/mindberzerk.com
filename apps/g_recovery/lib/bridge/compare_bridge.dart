@@ -174,10 +174,9 @@ class CompareController extends Notifier<AsyncValue<ScanRecord?>> {
 }
 
 final NotifierProvider<CompareController, AsyncValue<ScanRecord?>>
-compareProvider =
-    NotifierProvider<CompareController, AsyncValue<ScanRecord?>>(
-      CompareController.new,
-    );
+compareProvider = NotifierProvider<CompareController, AsyncValue<ScanRecord?>>(
+  CompareController.new,
+);
 
 /// Only the byte identical groups.
 final Provider<List<CompareGroup>> exactGroupsProvider =

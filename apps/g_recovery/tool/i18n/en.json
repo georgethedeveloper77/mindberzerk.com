@@ -1,44 +1,460 @@
 {
   "locale": "en",
-  "generated": "2026-08-13T11:29:30Z",
-  "count": 26,
+  "generated": "2026-08-13T12:13:58Z",
+  "count": 353,
   "strings": {
+    "A Windows share only works while the phone is on ": "A Windows share only works while the phone is on ",
+    "A photo is re-encoded and loses a little detail. The original ": "A photo is re-encoded and loses a little detail. The original ",
+    "A portrait with a deliberately blurred background scores low ": "A portrait with a deliberately blurred background scores low ",
+    "A rattle or a buzz at one pitch and not another is a ": "A rattle or a buzz at one pitch and not another is a ",
+    "A safety net is anywhere on the phone that holds onto something after ": "A safety net is anywhere on the phone that holds onto something after ",
+    "A screenshot becomes a WebP with identical pixels. It is ": "A screenshot becomes a WebP with identical pixels. It is ",
+    "ABOUT": "ABOUT",
+    "Accent": "Accent",
+    "Access": "Access",
+    "Active on every device signed in to the same Google ": "Active on every device signed in to the same Google ",
+    "Address": "Address",
+    "After": "After",
+    "After, about": "After, about",
+    "All files access": "All files access",
+    "All folders": "All folders",
     "All languages": "All languages",
+    "All of it is optional and all of it can be changed later.": "All of it is optional and all of it can be changed later.",
+    "Allow notification access": "Allow notification access",
+    "Android hands every arriving message to this app as a ": "Android hands every arriving message to this app as a ",
+    "Android has not let one app clear another app's cache since ": "Android has not let one app clear another app's cache since ",
     "Android hides other apps deleted files until you do. Every count above is a floor until then.": "Android hides other apps deleted files until you do. Every count above is a floor until then.",
+    "Android is below its own low memory threshold and is killing ": "Android is below its own low memory threshold and is killing ",
+    "Android keeps app sizes behind a switch": "Android keeps app sizes behind a switch",
+    "Android needs phone access to name the carrier": "Android needs phone access to name the carrier",
+    "Any app promising to recover anything from an ordinary phone is ": "Any app promising to recover anything from an ordinary phone is ",
     "Anything not yet translated stays in English.": "Anything not yet translated stays in English.",
+    "App sizes": "App sizes",
+    "Appearance": "Appearance",
+    "Apps": "Apps",
+    "Apps and system": "Apps and system",
+    "Apps and their caches": "Apps and their caches",
     "Audio": "Audio",
     "BACKUP": "BACKUP",
+    "BY HAND  ·  FREE": "BY HAND  ·  FREE",
+    "Back up on its own": "Back up on its own",
+    "Backing up by hand, reclaiming space and everything else here ": "Backing up by hand, reclaiming space and everything else here ",
+    "Battery": "Battery",
+    "Blocked": "Blocked",
+    "Bluetooth": "Bluetooth",
+    "Blurred": "Blurred",
+    "Both": "Both",
+    "Browse files": "Browse files",
+    "Cache is rebuildable. Clearing it costs nothing but a slower ": "Cache is rebuildable. Clearing it costs nothing but a slower ",
+    "Cameras": "Cameras",
+    "Certificate": "Certificate",
+    "Changing your screen lock can destroy the key that protects ": "Changing your screen lock can destroy the key that protects ",
+    "Check for duplicates and blur": "Check for duplicates and blur",
+    "Checking everything here downloads ": "Checking everything here downloads ",
+    "Checking your device": "Checking your device",
+    "Clearing app caches": "Clearing app caches",
+    "Clusters inferred from maximum frequencies. This kernel does ": "Clusters inferred from maximum frequencies. This kernel does ",
+    "Collecting": "Collecting",
+    "Compressed files": "Compressed files",
+    "Compressed in RAM rather than written to storage, so it ": "Compressed in RAM rather than written to storage, so it ",
+    "Connection": "Connection",
+    "Continue": "Continue",
+    "Continue without it": "Continue without it",
+    "Copying": "Copying",
     "Counted without file access": "Counted without file access",
+    "DETAILS": "DETAILS",
+    "Data": "Data",
+    "Data is the app's actual content: your accounts, ": "Data is the app's actual content: your accounts, ",
+    "Date, place and camera settings are copied across, so your ": "Date, place and camera settings are copied across, so your ",
+    "Dead pixels, backlight and touch response": "Dead pixels, backlight and touch response",
+    "Delete": "Delete",
+    "Delete permanently": "Delete permanently",
+    "Delete skips the bin. The space comes back immediately and the ": "Delete skips the bin. The space comes back immediately and the ",
+    "Delete the archive": "Delete the archive",
+    "Deleted by sender": "Deleted by sender",
+    "Deleted is not\nalways gone": "Deleted is not\nalways gone",
+    "Deleted items cannot be brought back after this.": "Deleted items cannot be brought back after this.",
+    "Deleting is not\none thing": "Deleting is not\none thing",
+    "Did not match, kept": "Did not match, kept",
+    "Display": "Display",
     "Docs": "Docs",
+    "Documents, PDFs and music are not listed. They are already ": "Documents, PDFs and music are not listed. They are already ",
+    "Done": "Done",
+    "Double": "Double",
+    "ESTIMATED  ·  PRO": "ESTIMATED  ·  PRO",
+    "EVERY DEVICE ON THIS ACCOUNT": "EVERY DEVICE ON THIS ACCOUNT",
+    "Each file is hashed here and on the server before ": "Each file is hashed here and on the server before ",
+    "Each photo is scored on how abruptly its brightness changes. A sharp ": "Each photo is scored on how abruptly its brightness changes. A sharp ",
+    "Each row carries a bar showing its size against the largest net. It ": "Each row carries a bar showing its size against the largest net. It ",
+    "Each speaker on its own, and the motor": "Each speaker on its own, and the motor",
+    "Encrypt the files": "Encrypt the files",
+    "Encrypted on this phone, sent only to your server": "Encrypted on this phone, sent only to your server",
+    "Enumerating sensors": "Enumerating sensors",
+    "Every app, and the private data each one keeps.": "Every app, and the private data each one keeps.",
+    "Every modern Android phone encrypts each file with its own ": "Every modern Android phone encrypts each file with its own ",
+    "Every photo here is a suggestion. Nothing is selected until ": "Every photo here is a suggestion. Nothing is selected until ",
+    "Every place on this phone where deleted data can still be ": "Every place on this phone where deleted data can still be ",
     "Everything": "Everything",
+    "Everything goes to the system trash, where Android keeps it ": "Everything goes to the system trash, where Android keeps it ",
+    "Everything here is still on your phone and still yours. This screen ": "Everything here is still on your phone and still yours. This screen ",
+    "Everything kept so far leaves this phone for good. Capture stays on, ": "Everything kept so far leaves this phone for good. Capture stays on, ",
+    "Everything looks sharp.": "Everything looks sharp.",
+    "Everything that has not actually been deleted yet: the system ": "Everything that has not actually been deleted yet: the system ",
     "Expiring": "Expiring",
+    "FREED": "FREED",
+    "Fifteen seconds of each clip is really encoded to ": "Fifteen seconds of each clip is really encoded to ",
+    "Files": "Files",
+    "Files go one way, from the phone to your server. ": "Files go one way, from the phone to your server. ",
+    "Focal length against aperture": "Focal length against aperture",
+    "Folder": "Folder",
+    "Folder on the server": "Folder on the server",
+    "Forget": "Forget",
+    "Forget this server": "Forget this server",
+    "Free memory": "Free memory",
+    "Free memory, last minute": "Free memory, last minute",
+    "Free on server": "Free on server",
     "From your phone settings": "From your phone settings",
+    "Full quality means the original file is still here. Restoring ": "Full quality means the original file is still here. Restoring ",
+    "G Recovery": "G Recovery",
+    "Get started": "Get started",
+    "Gone means this phone will not let any app look there. The row ": "Gone means this phone will not let any app look there. The row ",
+    "HEALTH": "HEALTH",
+    "Hold to see the original": "Hold to see the original",
+    "Home server": "Home server",
+    "Host": "Host",
+    "How Android storage works": "How Android storage works",
+    "How many fingers the screen can follow": "How many fingers the screen can follow",
+    "How this is measured": "How this is measured",
+    "How this works": "How this works",
+    "If your account uses two-step sign in, your normal password ": "If your account uses two-step sign in, your normal password ",
+    "In the bin": "In the bin",
+    "It is encrypted by this phone's own hardware keystore and ": "It is encrypted by this phone's own hardware keystore and ",
+    "It is sent to one place only: the address you typed above. ": "It is sent to one place only: the address you typed above. ",
+    "It was erased outside a bin": "It was erased outside a bin",
+    "It went to a trash folder": "It went to a trash folder",
+    "Keep": "Keep",
+    "Keep this one instead": "Keep this one instead",
+    "Keeping": "Keeping",
+    "Kept": "Kept",
     "Language": "Language",
+    "Left": "Left",
+    "Load, last minute": "Load, last minute",
+    "Loading": "Loading",
+    "Long": "Long",
     "Make files smaller": "Make files smaller",
+    "Make it yours": "Make it yours",
+    "Measuring": "Measuring",
+    "Memory": "Memory",
+    "Message archive": "Message archive",
     "Messages": "Messages",
+    "Messages stay on the phone": "Messages stay on the phone",
+    "Messaging apps only": "Messaging apps only",
+    "More": "More",
+    "NO RENEWAL": "NO RENEWAL",
+    "NOT WORTH RE-ENCODING": "NOT WORTH RE-ENCODING",
+    "Network": "Network",
+    "Network name and MAC need location access": "Network name and MAC need location access",
     "Never": "Never",
+    "No account, no server": "No account, no server",
+    "No ads, ever": "No ads, ever",
+    "No video on this phone is large enough to be worth ": "No video on this phone is large enough to be worth ",
+    "None of it can be listed by any app, including this one, so it ": "None of it can be listed by any app, including this one, so it ",
+    "Not available": "Not available",
+    "Not deleted": "Not deleted",
+    "Nothing from a muted chat, because a muted chat posts no ": "Nothing from a muted chat, because a muted chat posts no ",
+    "Nothing from before you switch it on. No copy of those ": "Nothing from before you switch it on. No copy of those ",
+    "Nothing has been changed on your device yet.": "Nothing has been changed on your device yet.",
+    "Nothing here is stored in a format that could be ": "Nothing here is stored in a format that could be ",
+    "Nothing here over a megabyte.": "Nothing here over a megabyte.",
+    "Nothing leaves this phone": "Nothing leaves this phone",
+    "Nothing matched": "Nothing matched",
+    "Nothing on the server is touched or deleted": "Nothing on the server is touched or deleted",
+    "Nothing on this phone would gain from Pro today. It is worth ": "Nothing on this phone would gain from Pro today. It is worth ",
+    "Nothing to compare": "Nothing to compare",
+    "Nothing yet. Anything you compress is listed here with ": "Nothing yet. Anything you compress is listed here with ",
+    "Notifications": "Notifications",
+    "Now": "Now",
+    "Offline": "Offline",
+    "On device": "On device",
+    "Only files still on the device and files sitting ": "Only files still on the device and files sitting ",
+    "Only the preview survived": "Only the preview survived",
+    "Only what this app made is visible": "Only what this app made is visible",
     "Open settings": "Open settings",
+    "Open the setting": "Open the setting",
+    "Open with another app": "Open with another app",
+    "Original": "Original",
+    "PITCH": "PITCH",
+    "Paired devices need Bluetooth access": "Paired devices need Bluetooth access",
+    "Path": "Path",
+    "Per core frequency": "Per core frequency",
+    "Permissions": "Permissions",
+    "Phone storage is flash, which cannot overwrite in place. When ": "Phone storage is flash, which cannot overwrite in place. When ",
     "Photos": "Photos",
+    "Pick a look": "Pick a look",
+    "Pictures keep their size in pixels. Nothing is cropped or ": "Pictures keep their size in pixels. Nothing is cropped or ",
+    "Port": "Port",
+    "Preview only means the original is gone and what survives is ": "Preview only means the original is gone and what survives is ",
     "Previews": "Previews",
+    "Privacy": "Privacy",
+    "Pro": "Pro",
+    "Put as many fingers on the screen as you can, and ": "Put as many fingers on the screen as you can, and ",
+    "RIGHT NOW": "RIGHT NOW",
+    "Read more": "Read more",
+    "Reading": "Reading",
+    "Reading CPU topology": "Reading CPU topology",
+    "Reading app sizes": "Reading app sizes",
+    "Reading battery": "Reading battery",
+    "Reading both copies takes a moment on a large file.": "Reading both copies takes a moment on a large file.",
+    "Reading memory": "Reading memory",
+    "Reading raw storage needs root. Android gives an app a view of ": "Reading raw storage needs root. Android gives an app a view of ",
+    "Reading storage": "Reading storage",
+    "Reading thermal zones": "Reading thermal zones",
+    "Reading this page": "Reading this page",
+    "Reading your photos": "Reading your photos",
+    "Ready": "Ready",
+    "Rebuilds itself": "Rebuilds itself",
+    "Reclaim space": "Reclaim space",
+    "Recovery coverage": "Recovery coverage",
+    "Recovery tools on a computer work by reading the disk directly, past ": "Recovery tools on a computer work by reading the disk directly, past ",
+    "Restore": "Restore",
+    "Restore a previous purchase": "Restore a previous purchase",
+    "Review and reclaim": "Review and reclaim",
     "Review and restore": "Review and restore",
+    "Reviewed": "Reviewed",
+    "Right": "Right",
+    "Roaming": "Roaming",
+    "Run a full scan": "Run a full scan",
+    "Run openssl x509 -fingerprint -sha256 on your server, or read ": "Run openssl x509 -fingerprint -sha256 on your server, or read ",
+    "SCHEDULE": "SCHEDULE",
+    "SERVER": "SERVER",
+    "SFTP is not here yet. If your server only speaks SSH, wait for ": "SFTP is not here yet. If your server only speaks SSH, wait for ",
+    "SHA-256": "SHA-256",
+    "Safety nets": "Safety nets",
+    "Same pixels, fewer bytes": "Same pixels, fewer bytes",
+    "Same quality": "Same quality",
+    "Sampling cores": "Sampling cores",
+    "Saving": "Saving",
     "Scan this phone": "Scan this phone",
+    "Screen test": "Screen test",
+    "Screenshots": "Screenshots",
+    "Screenshots and photos stay free, and so does everything else here.": "Screenshots and photos stay free, and so does everything else here.",
     "Search files, photos, messages": "Search files, photos, messages",
+    "Searching": "Searching",
+    "Send photos and video to a computer or NAS you own. No account, ": "Send photos and video to a computer or NAS you own. No account, ",
+    "Sensors": "Sensors",
+    "Server": "Server",
+    "Server address": "Server address",
+    "Session done": "Session done",
+    "Seven chapters on what these folders are": "Seven chapters on what these folders are",
+    "Seven short chapters on where your files live, what deleting ": "Seven short chapters on where your files live, what deleting ",
+    "Share": "Share",
+    "Short": "Short",
+    "Shows the real size and opens that app's own storage ": "Shows the real size and opens that app's own storage ",
+    "Signed in as": "Signed in as",
+    "Smaller": "Smaller",
+    "So does fog, a plain wall, and anything photographed in the ": "So does fog, a plain wall, and anything photographed in the ",
+    "Softest first. Some of these will be deliberate, so nothing ": "Softest first. Some of these will be deliberate, so nothing ",
+    "Sold as ": "Sold as ",
+    "Sort": "Sort",
+    "Space freed": "Space freed",
+    "Speakers": "Speakers",
+    "Speakers and vibration": "Speakers and vibration",
     "Stop": "Stop",
+    "Storage": "Storage",
+    "System": "System",
+    "System load": "System load",
+    "TOOLS": "TOOLS",
+    "Temperature": "Temperature",
+    "Text only. A photo arrives as the word Photo, so a view ": "Text only. A photo arrives as the word Photo, so a view ",
+    "Thank you": "Thank you",
+    "The address and password are removed from this phone. Everything ": "The address and password are removed from this phone. Everything ",
+    "The archive starts here. Messages from before you switched ": "The archive starts here. Messages from before you switched ",
+    "The operating system itself.": "The operating system itself.",
+    "The saving shown is measured, not guessed. Each file is really ": "The saving shown is measured, not guessed. Each file is really ",
+    "The scan could not run": "The scan could not run",
+    "The scan ran out of time. What it found is here, and ": "The scan ran out of time. What it found is here, and ",
+    "The technical reason, if you want it.": "The technical reason, if you want it.",
+    "Theme": "Theme",
+    "Thermal": "Thermal",
+    "Thermal state": "Thermal state",
+    "These come from a fast count taken when the app opens. A full scan ": "These come from a fast count taken when the app opens. A full scan ",
+    "These figures come from the Android media index, which covers your ": "These figures come from the Android media index, which covers your ",
+    "These files are not deleted": "These files are not deleted",
+    "These leave the trash for good. This app cannot bring them back ": "These leave the trash for good. This app cannot bring them back ",
+    "These skip the trash and leave the phone for good. Nothing on this ": "These skip the trash and leave the phone for good. Nothing on this ",
+    "This address is plain http, so your password and your files ": "This address is plain http, so your password and your files ",
+    "This app can show photos, video, text and PDF. Anything else ": "This app can show photos, video, text and PDF. Anything else ",
+    "This app reads a great deal: every file in your storage, the ": "This app reads a great deal: every file in your storage, the ",
+    "This app shows photos, video, audio, text and PDF. Anything ": "This app shows photos, video, audio, text and PDF. Anything ",
+    "This cannot be played while it is still in the trash. Restore it ": "This cannot be played while it is still in the trash. Restore it ",
+    "This chapter is not in the version of the guide on this device.": "This chapter is not in the version of the guide on this device.",
+    "This list comes from the Android media index, which covers your own ": "This list comes from the Android media index, which covers your own ",
+    "This server is not on your network, so the only ": "This server is not on your network, so the only ",
+    "Touch": "Touch",
+    "Trash puts a file in the system bin, where Android keeps it ": "Trash puts a file in the system bin, where Android keeps it ",
+    "Trust this certificate": "Trust this certificate",
     "Turn on file access": "Turn on file access",
+    "Turn the volume up. Each button plays a tone through one side ": "Turn the volume up. Each button plays a tone through one side ",
+    "Type at least two letters. Searches your deleted files ": "Type at least two letters. Searches your deleted files ",
+    "Usage access lets this app read how much space each app takes. ": "Usage access lets this app read how much space each app takes. ",
+    "Username": "Username",
+    "VIBRATION": "VIBRATION",
     "Video": "Video",
+    "WHILE YOU ARE AWAY  ·  PRO": "WHILE YOU ARE AWAY  ·  PRO",
+    "Waiting for a reading": "Waiting for a reading",
+    "WebDAV": "WebDAV",
+    "What Android itself thinks, from the system thermal ": "What Android itself thinks, from the system thermal ",
+    "What can come back": "What can come back",
+    "What cannot come back, and why": "What cannot come back, and why",
+    "What happens to a file depends entirely on how it left. Some are ": "What happens to a file depends entirely on how it left. Some are ",
+    "What is measured": "What is measured",
+    "What it cannot do": "What it cannot do",
+    "What matches goes to the trash, where Android keeps ": "What matches goes to the trash, where Android keeps ",
+    "What this app is allowed to read": "What this app is allowed to read",
+    "What this does": "What this does",
+    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ": "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ",
+    "Where the password goes": "Where the password goes",
+    "While charging": "While charging",
+    "Why apps and system cannot be broken down": "Why apps and system cannot be broken down",
+    "Why is this empty": "Why is this empty",
+    "Why no app can do more": "Why no app can do more",
+    "Why the permissions are so broad": "Why the permissions are so broad",
+    "Why this is empty": "Why this is empty",
+    "Wi-Fi details": "Wi-Fi details",
+    "Wi-Fi only": "Wi-Fi only",
+    "Windows share": "Windows share",
+    "You are watching the first ": "You are watching the first ",
+    "You can change this any time from settings.": "You can change this any time from settings.",
+    "You can leave the app. This keeps running and tells you when it ": "You can leave the app. This keeps running and tells you when it ",
+    "You have trusted this server's own certificate.": "You have trusted this server's own certificate.",
+    "Your files,\non your own machine": "Your files,\non your own machine",
+    "Your folder structure is kept, so the copy is ": "Your folder structure is kept, so the copy is ",
+    "Your phone keeps deleted files in several places before it lets ": "Your phone keeps deleted files in several places before it lets ",
+    "Your server has never been used": "Your server has never been used",
+    "Zones": "Zones",
+    "apps and their data": "apps and their data",
     "backed up to your server": "backed up to your server",
+    "cache, rebuildable": "cache, rebuildable",
+    "can be brought back": "can be brought back",
+    "could not be sent": "could not be sent",
+    "deleted by sender": "deleted by sender",
+    "eSIM": "eSIM",
     "expire within 48 hours": "expire within 48 hours",
-    "since the last backup": "since the last backup"
+    "files sent": "files sent",
+    "freed in total": "freed in total",
+    "freed so far": "freed so far",
+    "from Google Play, in your own currency": "from Google Play, in your own currency",
+    "https://cloud.example.com/remote.php/dav/files/you/": "https://cloud.example.com/remote.php/dav/files/you/",
+    "in total": "in total",
+    "is stored in formats that take more room than they need. How ": "is stored in formats that take more room than they need. How ",
+    "items held": "items held",
+    "longer lens": "longer lens",
+    "nets reachable": "nets reachable",
+    "no gain": "no gain",
+    "phone-backup": "phone-backup",
+    "places checked": "places checked",
+    "shown here": "shown here",
+    "since the last backup": "since the last backup",
+    "to turn on": "to turn on"
   },
   "sources": {
+    "A Windows share only works while the phone is on ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "A photo is re-encoded and loses a little detail. The original ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "A portrait with a deliberately blurred background scores low ": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "A rattle or a buzz at one pitch and not another is a ": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "A safety net is anywhere on the phone that holds onto something after ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "A screenshot becomes a WebP with identical pixels. It is ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "ABOUT": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "Accent": [
+      "lib/features/more/settings_pages.dart",
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Access": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Active on every device signed in to the same Google ": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Address": [
+      "lib/features/server/server_page.dart",
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "After": [
+      "lib/features/storage/compress/compress_viewer_page.dart"
+    ],
+    "After, about": [
+      "lib/features/storage/compress/video_preview_page.dart"
+    ],
+    "All files access": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "All folders": [
+      "lib/features/storage/storage_page.dart"
+    ],
     "All languages": [
       "lib/features/more/language_page.dart"
+    ],
+    "All of it is optional and all of it can be changed later.": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Allow notification access": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Android hands every arriving message to this app as a ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Android has not let one app clear another app's cache since ": [
+      "lib/features/apps/apps_page.dart"
     ],
     "Android hides other apps deleted files until you do. Every count above is a floor until then.": [
       "lib/features/home/home_page.dart"
     ],
+    "Android is below its own low memory threshold and is killing ": [
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Android keeps app sizes behind a switch": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Android needs phone access to name the carrier": [
+      "lib/features/device/pages/sim_page.dart"
+    ],
+    "Any app promising to recover anything from an ordinary phone is ": [
+      "lib/features/learn/limits_page.dart"
+    ],
     "Anything not yet translated stays in English.": [
       "lib/features/more/language_page.dart"
+    ],
+    "App sizes": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Appearance": [
+      "lib/features/more/more_page.dart",
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Apps": [
+      "lib/features/apps/apps_page.dart",
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Apps and system": [
+      "lib/features/storage/storage_page.dart",
+      "lib/features/storage/widgets/storage_ledger.dart"
+    ],
+    "Apps and their caches": [
+      "lib/features/storage/storage_page.dart"
     ],
     "Audio": [
       "lib/features/home/widgets/category_grid.dart"
@@ -46,69 +462,1006 @@
     "BACKUP": [
       "lib/features/home/widgets/home_extras.dart"
     ],
+    "BY HAND  ·  FREE": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Back up on its own": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Backing up by hand, reclaiming space and everything else here ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Battery": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/widgets/battery_card.dart"
+    ],
+    "Blocked": [
+      "lib/features/device/widgets/sensors_card.dart"
+    ],
+    "Bluetooth": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/pages/sim_page.dart"
+    ],
+    "Blurred": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Both": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Browse files": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Cache is rebuildable. Clearing it costs nothing but a slower ": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Cameras": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/pages/display_page.dart"
+    ],
+    "Certificate": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Changing your screen lock can destroy the key that protects ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Check for duplicates and blur": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Checking everything here downloads ": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Checking your device": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "Clearing app caches": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Clusters inferred from maximum frequencies. This kernel does ": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "Collecting": [
+      "lib/features/device/widgets/g_line_chart.dart"
+    ],
+    "Compressed files": [
+      "lib/features/storage/compress/compress_page.dart",
+      "lib/features/storage/compress/compressed_page.dart"
+    ],
+    "Compressed in RAM rather than written to storage, so it ": [
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Connection": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Continue": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Continue without it": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Copying": [
+      "lib/features/server/server_page.dart"
+    ],
     "Counted without file access": [
       "lib/features/home/widgets/hero_card.dart"
+    ],
+    "DETAILS": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Data": [
+      "lib/features/device/pages/sim_page.dart"
+    ],
+    "Data is the app's actual content: your accounts, ": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Date, place and camera settings are copied across, so your ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Dead pixels, backlight and touch response": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Delete": [
+      "lib/features/messages/messages_page.dart",
+      "lib/features/recovery/category_page.dart",
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "Delete permanently": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Delete skips the bin. The space comes back immediately and the ": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "Delete the archive": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Deleted by sender": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Deleted is not\nalways gone": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Deleted items cannot be brought back after this.": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Deleting is not\none thing": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Did not match, kept": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Display": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/pages/display_page.dart"
     ],
     "Docs": [
       "lib/features/home/widgets/category_grid.dart"
     ],
+    "Documents, PDFs and music are not listed. They are already ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Done": [
+      "lib/features/device/tools/screen_test_page.dart"
+    ],
+    "Double": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "ESTIMATED  ·  PRO": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "EVERY DEVICE ON THIS ACCOUNT": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Each file is hashed here and on the server before ": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Each photo is scored on how abruptly its brightness changes. A sharp ": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Each row carries a bar showing its size against the largest net. It ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "Each speaker on its own, and the motor": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Encrypt the files": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Encrypted on this phone, sent only to your server": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Enumerating sensors": [
+      "lib/features/device/widgets/sensors_card.dart"
+    ],
+    "Every app, and the private data each one keeps.": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Every modern Android phone encrypts each file with its own ": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Every photo here is a suggestion. Nothing is selected until ": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Every place on this phone where deleted data can still be ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
     "Everything": [
       "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Everything goes to the system trash, where Android keeps it ": [
+      "lib/features/storage/compare/compare_review_page.dart"
+    ],
+    "Everything here is still on your phone and still yours. This screen ": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "Everything kept so far leaves this phone for good. Capture stays on, ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Everything looks sharp.": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Everything that has not actually been deleted yet: the system ": [
+      "lib/features/learn/limits_page.dart"
     ],
     "Expiring": [
       "lib/features/home/widgets/attention_strip.dart"
     ],
+    "FREED": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Fifteen seconds of each clip is really encoded to ": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "Files": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Files go one way, from the phone to your server. ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Focal length against aperture": [
+      "lib/features/device/pages/display_page.dart"
+    ],
+    "Folder": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Folder on the server": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Forget": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Forget this server": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Free memory": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Free memory, last minute": [
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Free on server": [
+      "lib/features/server/server_setup_page.dart"
+    ],
     "From your phone settings": [
       "lib/features/more/language_page.dart"
     ],
+    "Full quality means the original file is still here. Restoring ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "G Recovery": [
+      "lib/app/app.dart",
+      "lib/app/splash_screen.dart",
+      "lib/features/more/more_page.dart",
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Get started": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Gone means this phone will not let any app look there. The row ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "HEALTH": [
+      "lib/features/device/widgets/battery_card.dart"
+    ],
+    "Hold to see the original": [
+      "lib/features/storage/compress/compress_viewer_page.dart"
+    ],
+    "Home server": [
+      "lib/features/more/more_page.dart",
+      "lib/features/server/server_page.dart"
+    ],
+    "Host": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "How Android storage works": [
+      "lib/features/learn/learn_page.dart",
+      "lib/features/storage/browse/browse_page.dart"
+    ],
+    "How many fingers the screen can follow": [
+      "lib/features/device/device_page.dart"
+    ],
+    "How this is measured": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "How this works": [
+      "lib/features/messages/messages_page.dart",
+      "lib/features/server/server_page.dart"
+    ],
+    "If your account uses two-step sign in, your normal password ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "In the bin": [
+      "lib/features/review/review_page.dart"
+    ],
+    "It is encrypted by this phone's own hardware keystore and ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "It is sent to one place only: the address you typed above. ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "It was erased outside a bin": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "It went to a trash folder": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Keep": [
+      "lib/features/messages/messages_page.dart",
+      "lib/features/recovery/category_page.dart",
+      "lib/features/server/server_page.dart",
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "Keep this one instead": [
+      "lib/features/storage/compare/compare_viewer_page.dart"
+    ],
+    "Keeping": [
+      "lib/features/storage/compare/compare_viewer_page.dart"
+    ],
+    "Kept": [
+      "lib/features/review/review_page.dart"
+    ],
     "Language": [
-      "lib/features/more/language_page.dart"
+      "lib/features/more/language_page.dart",
+      "lib/features/more/more_page.dart"
+    ],
+    "Left": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Load, last minute": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "Loading": [
+      "lib/features/learn/learn_page.dart",
+      "lib/features/storage/compare/compare_viewer_page.dart",
+      "lib/features/storage/file_viewer.dart",
+      "lib/features/viewer/recovered_frame.dart"
+    ],
+    "Long": [
+      "lib/features/device/tools/sound_test_page.dart"
     ],
     "Make files smaller": [
-      "lib/features/home/widgets/home_extras.dart"
+      "lib/features/home/widgets/home_extras.dart",
+      "lib/features/storage/compress/compress_page.dart",
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Make it yours": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Measuring": [
+      "lib/features/device/pages/network_page.dart"
+    ],
+    "Memory": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Message archive": [
+      "lib/features/more/more_page.dart"
     ],
     "Messages": [
-      "lib/features/home/widgets/category_grid.dart"
+      "lib/features/home/widgets/category_grid.dart",
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Messages stay on the phone": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Messaging apps only": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "More": [
+      "lib/features/more/more_page.dart"
+    ],
+    "NO RENEWAL": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "NOT WORTH RE-ENCODING": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "Network": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/pages/network_page.dart"
+    ],
+    "Network name and MAC need location access": [
+      "lib/features/device/pages/network_page.dart"
     ],
     "Never": [
-      "lib/features/home/widgets/attention_strip.dart"
+      "lib/features/home/widgets/attention_strip.dart",
+      "lib/features/pro/pro_page.dart"
+    ],
+    "No account, no server": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "No ads, ever": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "No video on this phone is large enough to be worth ": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "None of it can be listed by any app, including this one, so it ": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Not available": [
+      "lib/features/device/widgets/unavailable_note.dart"
+    ],
+    "Not deleted": [
+      "lib/features/search/search_page.dart"
+    ],
+    "Nothing from a muted chat, because a muted chat posts no ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Nothing from before you switch it on. No copy of those ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Nothing has been changed on your device yet.": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Nothing here is stored in a format that could be ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Nothing here over a megabyte.": [
+      "lib/features/storage/compress/compress_list_page.dart"
+    ],
+    "Nothing leaves this phone": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Nothing matched": [
+      "lib/features/search/search_page.dart"
+    ],
+    "Nothing on the server is touched or deleted": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Nothing on this phone would gain from Pro today. It is worth ": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Nothing to compare": [
+      "lib/features/storage/compress/compress_viewer_page.dart"
+    ],
+    "Nothing yet. Anything you compress is listed here with ": [
+      "lib/features/storage/compress/compressed_page.dart"
+    ],
+    "Notifications": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Now": [
+      "lib/features/storage/compress/video_preview_page.dart"
+    ],
+    "Offline": [
+      "lib/features/more/more_page.dart"
+    ],
+    "On device": [
+      "lib/features/recovery/widgets/item_row.dart"
+    ],
+    "Only files still on the device and files sitting ": [
+      "lib/features/search/search_page.dart"
+    ],
+    "Only the preview survived": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Only what this app made is visible": [
+      "lib/features/storage/storage_page.dart"
     ],
     "Open settings": [
       "lib/features/home/home_page.dart"
     ],
+    "Open the setting": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Open with another app": [
+      "lib/features/storage/file_viewer.dart",
+      "lib/features/viewer/recovered_frame.dart"
+    ],
+    "Original": [
+      "lib/features/storage/compress/compress_viewer_page.dart"
+    ],
+    "PITCH": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Paired devices need Bluetooth access": [
+      "lib/features/device/pages/sim_page.dart"
+    ],
+    "Path": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Per core frequency": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "Permissions": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Phone storage is flash, which cannot overwrite in place. When ": [
+      "lib/features/learn/limits_page.dart"
+    ],
     "Photos": [
-      "lib/features/home/widgets/category_grid.dart"
+      "lib/features/home/widgets/category_grid.dart",
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Pick a look": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Pictures keep their size in pixels. Nothing is cropped or ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Port": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Preview only means the original is gone and what survives is ": [
+      "lib/features/recovery/sources_page.dart"
     ],
     "Previews": [
       "lib/features/home/widgets/category_grid.dart"
     ],
+    "Privacy": [
+      "lib/features/more/more_page.dart",
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Pro": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Put as many fingers on the screen as you can, and ": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "RIGHT NOW": [
+      "lib/features/device/widgets/battery_card.dart"
+    ],
+    "Read more": [
+      "lib/features/storage/browse/browse_page.dart"
+    ],
+    "Reading": [
+      "lib/features/device/widgets/system_card.dart",
+      "lib/features/storage/browse/browse_page.dart"
+    ],
+    "Reading CPU topology": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "Reading app sizes": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Reading battery": [
+      "lib/features/device/widgets/battery_card.dart"
+    ],
+    "Reading both copies takes a moment on a large file.": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Reading memory": [
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Reading raw storage needs root. Android gives an app a view of ": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Reading storage": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Reading thermal zones": [
+      "lib/features/device/widgets/thermal_card.dart"
+    ],
+    "Reading this page": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "Reading your photos": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Ready": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Rebuilds itself": [
+      "lib/features/storage/where_it_lives/where_it_lives_section.dart"
+    ],
+    "Reclaim space": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Recovery coverage": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Recovery tools on a computer work by reading the disk directly, past ": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Restore": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Restore a previous purchase": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Review and reclaim": [
+      "lib/features/server/server_page.dart"
+    ],
     "Review and restore": [
       "lib/features/home/widgets/hero_card.dart"
+    ],
+    "Reviewed": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Right": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Roaming": [
+      "lib/features/device/pages/sim_page.dart"
+    ],
+    "Run a full scan": [
+      "lib/features/recovery/category_page.dart"
+    ],
+    "Run openssl x509 -fingerprint -sha256 on your server, or read ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "SCHEDULE": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "SERVER": [
+      "lib/features/server/server_page.dart"
+    ],
+    "SFTP is not here yet. If your server only speaks SSH, wait for ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "SHA-256": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Safety nets": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "Same pixels, fewer bytes": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Same quality": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "Sampling cores": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "Saving": [
+      "lib/features/storage/compress/video_preview_page.dart"
     ],
     "Scan this phone": [
       "lib/features/home/widgets/hero_card.dart"
     ],
+    "Screen test": [
+      "lib/features/device/device_page.dart",
+      "lib/features/more/more_page.dart"
+    ],
+    "Screenshots": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "Screenshots and photos stay free, and so does everything else here.": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
     "Search files, photos, messages": [
       "lib/features/home/home_page.dart"
+    ],
+    "Searching": [
+      "lib/features/search/search_page.dart"
+    ],
+    "Send photos and video to a computer or NAS you own. No account, ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Sensors": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/widgets/sensors_card.dart"
+    ],
+    "Server": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Server address": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Session done": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Seven chapters on what these folders are": [
+      "lib/features/storage/browse/browse_page.dart"
+    ],
+    "Seven short chapters on where your files live, what deleting ": [
+      "lib/features/learn/learn_page.dart"
+    ],
+    "Share": [
+      "lib/features/server/server_page.dart",
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Short": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Shows the real size and opens that app's own storage ": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Signed in as": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Smaller": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "So does fog, a plain wall, and anything photographed in the ": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Softest first. Some of these will be deliberate, so nothing ": [
+      "lib/features/storage/compare/blur_review_page.dart"
+    ],
+    "Sold as ": [
+      "lib/features/device/pages/memory_page.dart"
+    ],
+    "Sort": [
+      "lib/features/apps/apps_page.dart",
+      "lib/ui/g_sort.dart"
+    ],
+    "Space freed": [
+      "lib/features/review/review_page.dart"
+    ],
+    "Speakers": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Speakers and vibration": [
+      "lib/features/device/device_page.dart"
     ],
     "Stop": [
       "lib/features/home/widgets/hero_card.dart"
     ],
+    "Storage": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "System": [
+      "lib/features/device/device_page.dart"
+    ],
+    "System load": [
+      "lib/features/device/pages/cpu_page.dart"
+    ],
+    "TOOLS": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Temperature": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Text only. A photo arrives as the word Photo, so a view ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Thank you": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "The address and password are removed from this phone. Everything ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "The archive starts here. Messages from before you switched ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "The operating system itself.": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "The saving shown is measured, not guessed. Each file is really ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "The scan could not run": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "The scan ran out of time. What it found is here, and ": [
+      "lib/features/recovery/category_page.dart"
+    ],
+    "The technical reason, if you want it.": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Theme": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Thermal": [
+      "lib/features/device/device_page.dart"
+    ],
+    "Thermal state": [
+      "lib/features/device/widgets/thermal_card.dart"
+    ],
+    "These come from a fast count taken when the app opens. A full scan ": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "These figures come from the Android media index, which covers your ": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "These files are not deleted": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "These leave the trash for good. This app cannot bring them back ": [
+      "lib/features/recovery/category_page.dart"
+    ],
+    "These skip the trash and leave the phone for good. Nothing on this ": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "This address is plain http, so your password and your files ": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "This app can show photos, video, text and PDF. Anything else ": [
+      "lib/features/storage/file_viewer.dart"
+    ],
+    "This app reads a great deal: every file in your storage, the ": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "This app shows photos, video, audio, text and PDF. Anything ": [
+      "lib/features/viewer/recovered_frame.dart"
+    ],
+    "This cannot be played while it is still in the trash. Restore it ": [
+      "lib/features/viewer/recovered_frame.dart"
+    ],
+    "This chapter is not in the version of the guide on this device.": [
+      "lib/features/learn/chapter_page.dart"
+    ],
+    "This list comes from the Android media index, which covers your own ": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "This server is not on your network, so the only ": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "Touch": [
+      "lib/features/device/device_page.dart",
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Trash puts a file in the system bin, where Android keeps it ": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "Trust this certificate": [
+      "lib/features/server/server_setup_page.dart"
+    ],
     "Turn on file access": [
       "lib/features/home/home_page.dart",
-      "lib/features/home/widgets/hero_card.dart"
+      "lib/features/home/widgets/hero_card.dart",
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Turn the volume up. Each button plays a tone through one side ": [
+      "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Type at least two letters. Searches your deleted files ": [
+      "lib/features/search/search_page.dart"
+    ],
+    "Usage access lets this app read how much space each app takes. ": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "Username": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "VIBRATION": [
+      "lib/features/device/tools/sound_test_page.dart"
     ],
     "Video": [
-      "lib/features/home/widgets/category_grid.dart"
+      "lib/features/home/widgets/category_grid.dart",
+      "lib/features/storage/compress/compress_page.dart",
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "WHILE YOU ARE AWAY  ·  PRO": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Waiting for a reading": [
+      "lib/features/device/widgets/sensors_card.dart"
+    ],
+    "WebDAV": [
+      "lib/features/server/server_page.dart"
+    ],
+    "What Android itself thinks, from the system thermal ": [
+      "lib/features/device/widgets/thermal_card.dart"
+    ],
+    "What can come back": [
+      "lib/features/learn/limits_page.dart",
+      "lib/features/more/more_page.dart"
+    ],
+    "What cannot come back, and why": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "What happens to a file depends entirely on how it left. Some are ": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "What is measured": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "What it cannot do": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "What matches goes to the trash, where Android keeps ": [
+      "lib/features/server/reclaim_page.dart"
+    ],
+    "What this app is allowed to read": [
+      "lib/features/device/device_page.dart"
+    ],
+    "What this does": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "Where the password goes": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "While charging": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Why apps and system cannot be broken down": [
+      "lib/features/storage/storage_page.dart"
+    ],
+    "Why is this empty": [
+      "lib/ui/g_empty_state.dart"
+    ],
+    "Why no app can do more": [
+      "lib/features/learn/limits_page.dart"
+    ],
+    "Why the permissions are so broad": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Why this is empty": [
+      "lib/features/recovery/category_page.dart"
+    ],
+    "Wi-Fi details": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Wi-Fi only": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Windows share": [
+      "lib/features/server/server_page.dart"
+    ],
+    "You are watching the first ": [
+      "lib/features/storage/compress/video_preview_page.dart"
+    ],
+    "You can change this any time from settings.": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "You can leave the app. This keeps running and tells you when it ": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "You have trusted this server's own certificate.": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "Your files,\non your own machine": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Your folder structure is kept, so the copy is ": [
+      "lib/features/server/server_page.dart"
+    ],
+    "Your phone keeps deleted files in several places before it lets ": [
+      "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "Your server has never been used": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "Zones": [
+      "lib/features/device/widgets/thermal_card.dart"
+    ],
+    "apps and their data": [
+      "lib/features/apps/apps_page.dart"
     ],
     "backed up to your server": [
       "lib/features/home/widgets/attention_strip.dart"
     ],
+    "cache, rebuildable": [
+      "lib/features/apps/apps_page.dart"
+    ],
+    "can be brought back": [
+      "lib/features/more/more_page.dart"
+    ],
+    "could not be sent": [
+      "lib/features/server/server_page.dart"
+    ],
+    "deleted by sender": [
+      "lib/features/messages/messages_page.dart"
+    ],
+    "eSIM": [
+      "lib/features/device/pages/sim_page.dart"
+    ],
     "expire within 48 hours": [
       "lib/features/home/widgets/attention_strip.dart"
     ],
+    "files sent": [
+      "lib/features/server/server_page.dart"
+    ],
+    "freed in total": [
+      "lib/features/storage/compress/compressed_page.dart"
+    ],
+    "freed so far": [
+      "lib/features/storage/compress/video_list_page.dart"
+    ],
+    "from Google Play, in your own currency": [
+      "lib/features/pro/pro_page.dart"
+    ],
+    "https://cloud.example.com/remote.php/dav/files/you/": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "in total": [
+      "lib/features/recovery/sources_page.dart",
+      "lib/features/storage/storage_files_page.dart"
+    ],
+    "is stored in formats that take more room than they need. How ": [
+      "lib/features/storage/compress/compress_page.dart"
+    ],
+    "items held": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "longer lens": [
+      "lib/features/device/pages/display_page.dart"
+    ],
+    "nets reachable": [
+      "lib/features/recovery/sources_page.dart"
+    ],
+    "no gain": [
+      "lib/features/storage/compress/compress_list_page.dart"
+    ],
+    "phone-backup": [
+      "lib/features/server/server_setup_page.dart"
+    ],
+    "places checked": [
+      "lib/features/more/more_page.dart"
+    ],
+    "shown here": [
+      "lib/features/storage/storage_files_page.dart"
+    ],
     "since the last backup": [
       "lib/features/home/widgets/attention_strip.dart"
+    ],
+    "to turn on": [
+      "lib/features/more/more_page.dart"
     ]
   }
 }

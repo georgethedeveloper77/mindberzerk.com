@@ -49,7 +49,10 @@ class CompressBridge {
       const <CompressOutcome>[];
 
   /// Both versions of one file. Megabytes, so one file at a time only.
-  Future<CompressComparison?> comparison(String fileId, {required int quality}) =>
+  Future<CompressComparison?> comparison(
+    String fileId, {
+    required int quality,
+  }) =>
       // Explicit type argument, because the method is itself nullable.
       //
       // _guard returns Future<T?>, so inference against Future<CompressComparison?>
@@ -78,9 +81,7 @@ class CompressBridge {
   Future<VideoEstimate?> estimateVideo(
     String fileId, {
     String preset = 'same',
-  }) => _guard<VideoEstimate?>(
-    () => _api.estimateVideo(fileId, preset),
-  );
+  }) => _guard<VideoEstimate?>(() => _api.estimateVideo(fileId, preset));
 
   /// Re-encodes clips and replaces them. Minutes, behind a notification.
   Future<List<CompressOutcome>> compressVideo(
@@ -155,11 +156,10 @@ final FutureProvider<List<CompressCandidate>> compressCandidatesProvider =
 /// fetching three thousand rows to display twelve is the shape of thing that
 /// makes a list feel slow for no reason a user could name.
 final FutureProviderFamily<List<CompressCandidate>, String>
-compressScopeProvider =
-    FutureProvider.family<List<CompressCandidate>, String>(
-      (Ref ref, String kind) =>
-          ref.watch(compressBridgeProvider).candidates(kind: kind),
-    );
+compressScopeProvider = FutureProvider.family<List<CompressCandidate>, String>(
+  (Ref ref, String kind) =>
+      ref.watch(compressBridgeProvider).candidates(kind: kind),
+);
 
 /// Both versions of one picture, for the viewer.
 ///

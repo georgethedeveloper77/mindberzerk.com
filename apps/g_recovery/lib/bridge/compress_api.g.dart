@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -95,7 +96,6 @@ int _deepHash(Object? value) {
   }
   return value.hashCode;
 }
-
 
 /// A file worth looking at. Codec 129.
 class CompressCandidate {
@@ -160,7 +160,8 @@ class CompressCandidate {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressCandidate decode(Object result) {
     result as List<Object?>;
@@ -186,7 +187,15 @@ class CompressCandidate {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(name, other.name) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(widthPx, other.widthPx) && _deepEquals(heightPx, other.heightPx) && _deepEquals(mimeType, other.mimeType) && _deepEquals(kind, other.kind) && _deepEquals(dateMillis, other.dateMillis) && _deepEquals(folder, other.folder);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(widthPx, other.widthPx) &&
+        _deepEquals(heightPx, other.heightPx) &&
+        _deepEquals(mimeType, other.mimeType) &&
+        _deepEquals(kind, other.kind) &&
+        _deepEquals(dateMillis, other.dateMillis) &&
+        _deepEquals(folder, other.folder);
   }
 
   @override
@@ -250,7 +259,8 @@ class CompressPreview {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressPreview decode(Object result) {
     result as List<Object?>;
@@ -273,7 +283,12 @@ class CompressPreview {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(newBytes, other.newBytes) && _deepEquals(quality, other.quality) && _deepEquals(outputMime, other.outputMime) && _deepEquals(lossless, other.lossless);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(originalBytes, other.originalBytes) &&
+        _deepEquals(newBytes, other.newBytes) &&
+        _deepEquals(quality, other.quality) &&
+        _deepEquals(outputMime, other.outputMime) &&
+        _deepEquals(lossless, other.lossless);
   }
 
   @override
@@ -305,15 +320,12 @@ class CompressOutcome {
   int savedBytes;
 
   List<Object?> _toList() {
-    return <Object?>[
-      fileId,
-      status,
-      savedBytes,
-    ];
+    return <Object?>[fileId, status, savedBytes];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressOutcome decode(Object result) {
     result as List<Object?>;
@@ -333,7 +345,9 @@ class CompressOutcome {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(status, other.status) && _deepEquals(savedBytes, other.savedBytes);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(status, other.status) &&
+        _deepEquals(savedBytes, other.savedBytes);
   }
 
   @override
@@ -367,17 +381,12 @@ class CompressProgress {
   String? currentName;
 
   List<Object?> _toList() {
-    return <Object?>[
-      running,
-      done,
-      total,
-      savedBytes,
-      currentName,
-    ];
+    return <Object?>[running, done, total, savedBytes, currentName];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressProgress decode(Object result) {
     result as List<Object?>;
@@ -399,7 +408,11 @@ class CompressProgress {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(running, other.running) && _deepEquals(done, other.done) && _deepEquals(total, other.total) && _deepEquals(savedBytes, other.savedBytes) && _deepEquals(currentName, other.currentName);
+    return _deepEquals(running, other.running) &&
+        _deepEquals(done, other.done) &&
+        _deepEquals(total, other.total) &&
+        _deepEquals(savedBytes, other.savedBytes) &&
+        _deepEquals(currentName, other.currentName);
   }
 
   @override
@@ -461,7 +474,8 @@ class CompressSummary {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressSummary decode(Object result) {
     result as List<Object?>;
@@ -484,7 +498,12 @@ class CompressSummary {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(screenshotCount, other.screenshotCount) && _deepEquals(screenshotBytes, other.screenshotBytes) && _deepEquals(photoCount, other.photoCount) && _deepEquals(photoBytes, other.photoBytes) && _deepEquals(videoCount, other.videoCount) && _deepEquals(videoBytes, other.videoBytes);
+    return _deepEquals(screenshotCount, other.screenshotCount) &&
+        _deepEquals(screenshotBytes, other.screenshotBytes) &&
+        _deepEquals(photoCount, other.photoCount) &&
+        _deepEquals(photoBytes, other.photoBytes) &&
+        _deepEquals(videoCount, other.videoCount) &&
+        _deepEquals(videoBytes, other.videoBytes);
   }
 
   @override
@@ -550,7 +569,8 @@ class CompressComparison {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressComparison decode(Object result) {
     result as List<Object?>;
@@ -573,7 +593,12 @@ class CompressComparison {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(original, other.original) && _deepEquals(encoded, other.encoded) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(newBytes, other.newBytes) && _deepEquals(lossless, other.lossless);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(original, other.original) &&
+        _deepEquals(encoded, other.encoded) &&
+        _deepEquals(originalBytes, other.originalBytes) &&
+        _deepEquals(newBytes, other.newBytes) &&
+        _deepEquals(lossless, other.lossless);
   }
 
   @override
@@ -647,7 +672,8 @@ class CompressedEntry {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CompressedEntry decode(Object result) {
     result as List<Object?>;
@@ -671,7 +697,13 @@ class CompressedEntry {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(name, other.name) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(newBytes, other.newBytes) && _deepEquals(whenMillis, other.whenMillis) && _deepEquals(lossless, other.lossless) && _deepEquals(quality, other.quality);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(originalBytes, other.originalBytes) &&
+        _deepEquals(newBytes, other.newBytes) &&
+        _deepEquals(whenMillis, other.whenMillis) &&
+        _deepEquals(lossless, other.lossless) &&
+        _deepEquals(quality, other.quality);
   }
 
   @override
@@ -765,7 +797,8 @@ class VideoCandidate {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static VideoCandidate decode(Object result) {
     result as List<Object?>;
@@ -794,7 +827,18 @@ class VideoCandidate {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(name, other.name) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(widthPx, other.widthPx) && _deepEquals(heightPx, other.heightPx) && _deepEquals(durationMillis, other.durationMillis) && _deepEquals(codec, other.codec) && _deepEquals(bitrate, other.bitrate) && _deepEquals(eligible, other.eligible) && _deepEquals(reason, other.reason) && _deepEquals(dateMillis, other.dateMillis) && _deepEquals(folder, other.folder);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(widthPx, other.widthPx) &&
+        _deepEquals(heightPx, other.heightPx) &&
+        _deepEquals(durationMillis, other.durationMillis) &&
+        _deepEquals(codec, other.codec) &&
+        _deepEquals(bitrate, other.bitrate) &&
+        _deepEquals(eligible, other.eligible) &&
+        _deepEquals(reason, other.reason) &&
+        _deepEquals(dateMillis, other.dateMillis) &&
+        _deepEquals(folder, other.folder);
   }
 
   @override
@@ -878,7 +922,8 @@ class VideoEstimate {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static VideoEstimate decode(Object result) {
     result as List<Object?>;
@@ -901,7 +946,12 @@ class VideoEstimate {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(fileId, other.fileId) && _deepEquals(originalBytes, other.originalBytes) && _deepEquals(estimatedBytes, other.estimatedBytes) && _deepEquals(sampledMillis, other.sampledMillis) && _deepEquals(preset, other.preset) && _deepEquals(samplePath, other.samplePath);
+    return _deepEquals(fileId, other.fileId) &&
+        _deepEquals(originalBytes, other.originalBytes) &&
+        _deepEquals(estimatedBytes, other.estimatedBytes) &&
+        _deepEquals(sampledMillis, other.sampledMillis) &&
+        _deepEquals(preset, other.preset) &&
+        _deepEquals(samplePath, other.samplePath);
   }
 
   @override
@@ -914,7 +964,6 @@ class VideoEstimate {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -922,31 +971,31 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is CompressCandidate) {
+    } else if (value is CompressCandidate) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressPreview) {
+    } else if (value is CompressPreview) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressOutcome) {
+    } else if (value is CompressOutcome) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressProgress) {
+    } else if (value is CompressProgress) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressSummary) {
+    } else if (value is CompressSummary) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressComparison) {
+    } else if (value is CompressComparison) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is CompressedEntry) {
+    } else if (value is CompressedEntry) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is VideoCandidate) {
+    } else if (value is VideoCandidate) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is VideoEstimate) {
+    } else if (value is VideoEstimate) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
@@ -985,9 +1034,13 @@ class CompressHostApi {
   /// Constructor for [CompressHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  CompressHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  CompressHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -997,21 +1050,23 @@ class CompressHostApi {
   /// Counts and total bytes per category. No encoding, so it is safe to call
   /// on a screen the user did not ask to scan.
   Future<CompressSummary> summary(int minBytes) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.summary$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.summary$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minBytes]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[minBytes],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as CompressSummary;
   }
 
@@ -1020,22 +1075,28 @@ class CompressHostApi {
   /// [kind] is "screenshot", "photo", or "all". Filtered in the query rather
   /// than in Dart, because the alternative is fetching three thousand rows to
   /// display twelve.
-  Future<List<CompressCandidate>> candidates(String kind, int minBytes, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.candidates$pigeonVar_messageChannelSuffix';
+  Future<List<CompressCandidate>> candidates(
+    String kind,
+    int minBytes,
+    int limit,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.candidates$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind, minBytes, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kind, minBytes, limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<CompressCandidate>();
   }
 
@@ -1046,22 +1107,27 @@ class CompressHostApi {
   /// [quality] applies to photos only. A screenshot is encoded losslessly and
   /// ignores it, which is why the output format is reported back rather than
   /// assumed from what was asked for.
-  Future<List<CompressPreview>> preview(List<String> fileIds, int quality) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.preview$pigeonVar_messageChannelSuffix';
+  Future<List<CompressPreview>> preview(
+    List<String> fileIds,
+    int quality,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.preview$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileIds, quality]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileIds, quality],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<CompressPreview>();
   }
 
@@ -1072,22 +1138,27 @@ class CompressHostApi {
   /// A re-encode is lossy and irreversible. The user gets thirty days to notice
   /// that a picture they cared about now has artefacts in the sky, which is the
   /// only safe way to offer this at all.
-  Future<List<CompressOutcome>> compress(List<String> fileIds, int quality) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.compress$pigeonVar_messageChannelSuffix';
+  Future<List<CompressOutcome>> compress(
+    List<String> fileIds,
+    int quality,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.compress$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileIds, quality]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileIds, quality],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<CompressOutcome>();
   }
 
@@ -1108,21 +1179,23 @@ class CompressHostApi {
   /// scroll. Only when the user has actually run a compression and the answer
   /// has been acted on.
   Future<void> markNoGain(List<String> fileIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.markNoGain$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.markNoGain$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Forgets every no-gain verdict.
@@ -1132,7 +1205,8 @@ class CompressHostApi {
   /// well gain at 65. Simpler and more obviously correct than storing a quality
   /// per file and comparing.
   Future<void> clearNoGain() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.clearNoGain$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.clearNoGain$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1142,11 +1216,10 @@ class CompressHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// What this app has already compressed, newest first.
@@ -1155,21 +1228,23 @@ class CompressHostApi {
   /// it to exclude its own output, and a filter that lived on the far side of
   /// the bridge would mean shipping every row across just to drop most of them.
   Future<List<CompressedEntry>> history(int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.history$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.history$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<CompressedEntry>();
   }
 
@@ -1179,21 +1254,23 @@ class CompressHostApi {
   /// missing from a list about making files smaller will assume the app failed
   /// to see it. Saying "already HEVC" costs one row and answers the question.
   Future<List<VideoCandidate>> videoCandidates(int minBytes, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.videoCandidates$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.videoCandidates$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minBytes, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[minBytes, limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<VideoCandidate>();
   }
 
@@ -1206,21 +1283,23 @@ class CompressHostApi {
   /// [preset] is "same" for a codec swap at matched quality, or "smaller" for a
   /// reduced bitrate as well. Resolution is never touched by either.
   Future<VideoEstimate?> estimateVideo(String fileId, String preset) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.estimateVideo$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.estimateVideo$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileId, preset]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId, preset],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as VideoEstimate?;
   }
 
@@ -1232,22 +1311,27 @@ class CompressHostApi {
   /// service with a notification and can be stopped between files or during
   /// one. Progress arrives through the same [progress] call the image path
   /// uses, and [cancel] stops both.
-  Future<List<CompressOutcome>> compressVideo(List<String> fileIds, String preset) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.compressVideo$pigeonVar_messageChannelSuffix';
+  Future<List<CompressOutcome>> compressVideo(
+    List<String> fileIds,
+    String preset,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.compressVideo$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileIds, preset]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileIds, preset],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<CompressOutcome>();
   }
 
@@ -1257,26 +1341,29 @@ class CompressHostApi {
   /// must stay cheap per file; this carries megabytes across the bridge and is
   /// only ever called for the single picture on screen.
   Future<CompressComparison?> comparison(String fileId, int quality) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.comparison$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.comparison$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileId, quality]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[fileId, quality],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as CompressComparison?;
   }
 
   Future<void> cancel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1286,15 +1373,15 @@ class CompressHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<CompressProgress> progress() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_recovery.CompressHostApi.progress$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_recovery.CompressHostApi.progress$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1304,11 +1391,10 @@ class CompressHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as CompressProgress;
   }
 }

@@ -27,6 +27,7 @@ import 'widgets/g_line_chart.dart';
 import 'widgets/sensors_card.dart';
 import 'widgets/system_card.dart';
 import 'widgets/thermal_card.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// Index of this page inside [gNavItems]. Used to decide whether the sampler
 /// should be running at all.
@@ -124,7 +125,10 @@ class _DevicePageState extends ConsumerState<DevicePage>
         // this page does not import, and reaching for a widget to draw one
         // styled string is not worth an import that other screens already
         // disagree about.
-        Text('DETAILS', style: GType.overline.copyWith(color: t.dim)),
+        Text(
+          context.s('DETAILS'),
+          style: GType.overline.copyWith(color: t.dim),
+        ),
         const SizedBox(height: GSpace.sm + 1),
         DeviceIndex(
           entries: _entries(
@@ -134,7 +138,7 @@ class _DevicePageState extends ConsumerState<DevicePage>
         ),
 
         const SizedBox(height: GSpace.lg),
-        Text('TOOLS', style: GType.overline.copyWith(color: t.dim)),
+        Text(context.s('TOOLS'), style: GType.overline.copyWith(color: t.dim)),
         const SizedBox(height: GSpace.sm + 1),
         GCard(
           onTap: () => Navigator.of(context).push(ScreenTestPage.route()),
@@ -147,11 +151,11 @@ class _DevicePageState extends ConsumerState<DevicePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Screen test',
+                      context.s('Screen test'),
                       style: GType.heading.copyWith(color: t.text),
                     ),
                     Text(
-                      'Dead pixels, backlight and touch response',
+                      context.s('Dead pixels, backlight and touch response'),
                       style: GType.micro.copyWith(color: t.muted),
                     ),
                   ],
@@ -173,11 +177,11 @@ class _DevicePageState extends ConsumerState<DevicePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Speakers and vibration',
+                      context.s('Speakers and vibration'),
                       style: GType.heading.copyWith(color: t.text),
                     ),
                     Text(
-                      'Each speaker on its own, and the motor',
+                      context.s('Each speaker on its own, and the motor'),
                       style: GType.micro.copyWith(color: t.muted),
                     ),
                   ],
@@ -198,9 +202,12 @@ class _DevicePageState extends ConsumerState<DevicePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Touch', style: GType.heading.copyWith(color: t.text)),
                     Text(
-                      'How many fingers the screen can follow',
+                      context.s('Touch'),
+                      style: GType.heading.copyWith(color: t.text),
+                    ),
+                    Text(
+                      context.s('How many fingers the screen can follow'),
                       style: GType.micro.copyWith(color: t.muted),
                     ),
                   ],
@@ -278,13 +285,13 @@ class _Live extends ConsumerWidget {
             child: _Chart(
               onTap: () => Navigator.of(context).push(
                 DeviceSectionPage.route(
-                  title: 'Battery',
+                  title: context.s('Battery'),
                   hue: t.docs,
                   icon: Icons.battery_full_rounded,
                   child: const BatteryCard(),
                 ),
               ),
-              label: 'Battery',
+              label: context.s('Battery'),
               value: now?.batteryPercent == null
                   ? null
                   : '${now!.batteryPercent}%',
@@ -319,7 +326,7 @@ class _Live extends ConsumerWidget {
                       onTap: () => Navigator.of(
                         context,
                       ).push(MemoryPage.route(hue: t.photo)),
-                      label: 'Free memory',
+                      label: context.s('Free memory'),
                       value: GFormat.bytesOrNull(now?.freeBytes),
                       hue: t.photo,
                       values: memory,
@@ -337,13 +344,13 @@ class _Live extends ConsumerWidget {
                     child: _Chart(
                       onTap: () => Navigator.of(context).push(
                         DeviceSectionPage.route(
-                          title: 'Thermal',
+                          title: context.s('Thermal'),
                           hue: t.audio,
                           icon: Icons.thermostat_rounded,
                           child: const ThermalCard(),
                         ),
                       ),
-                      label: 'Temperature',
+                      label: context.s('Temperature'),
                       value: DeviceFormat.celsiusFromDeci(now?.tempDeciC),
                       hue: t.audio,
                       values: temp,
@@ -507,12 +514,11 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       value: now?.cpu?.coreKhz == null
           ? null
           : '${now!.cpu!.coreKhz.length} cores',
-      open: (BuildContext c) => Navigator.of(c).push(
-        CpuPage.route(hue: t.video),
-      ),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(CpuPage.route(hue: t.video)),
     ),
     DeviceEntry(
-      label: 'Battery',
+      label: context.s('Battery'),
       icon: Icons.battery_full_rounded,
       hue: t.docs,
       // Health where the phone reports it, level where it does not. The more
@@ -530,18 +536,17 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       ),
     ),
     DeviceEntry(
-      label: 'Memory',
+      label: context.s('Memory'),
       icon: Icons.grid_view_rounded,
       hue: t.photo,
       value: now?.memory?.totalBytes == null
           ? null
           : GFormat.bytes(now!.memory!.totalBytes!),
-      open: (BuildContext c) => Navigator.of(c).push(
-        MemoryPage.route(hue: t.photo),
-      ),
+      open: (BuildContext c) =>
+          Navigator.of(c).push(MemoryPage.route(hue: t.photo)),
     ),
     DeviceEntry(
-      label: 'Thermal',
+      label: context.s('Thermal'),
       icon: Icons.thermostat_rounded,
       hue: t.audio,
       value: now?.battery?.tempDeciC == null
@@ -555,21 +560,21 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       ),
     ),
     DeviceEntry(
-      label: 'Display',
+      label: context.s('Display'),
       icon: Icons.smartphone_rounded,
       hue: t.chat,
       open: (BuildContext c) =>
           Navigator.of(c).push(DisplayPage.route(hue: t.chat)),
     ),
     DeviceEntry(
-      label: 'Cameras',
+      label: context.s('Cameras'),
       icon: Icons.photo_camera_rounded,
       hue: t.photo,
       open: (BuildContext c) =>
           Navigator.of(c).push(CamerasPage.route(hue: t.photo)),
     ),
     DeviceEntry(
-      label: 'Network',
+      label: context.s('Network'),
       icon: Icons.wifi_rounded,
       hue: t.video,
       open: (BuildContext c) =>
@@ -583,14 +588,14 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
           Navigator.of(c).push(SimPage.route(hue: t.audio)),
     ),
     DeviceEntry(
-      label: 'Bluetooth',
+      label: context.s('Bluetooth'),
       icon: Icons.bluetooth_rounded,
       hue: t.chat,
       open: (BuildContext c) =>
           Navigator.of(c).push(BluetoothPage.route(hue: t.chat)),
     ),
     DeviceEntry(
-      label: 'Sensors',
+      label: context.s('Sensors'),
       icon: Icons.sensors_rounded,
       hue: t.apps,
       open: (BuildContext c) => open(
@@ -601,7 +606,7 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       ),
     ),
     DeviceEntry(
-      label: 'System',
+      label: context.s('System'),
       icon: Icons.android_rounded,
       hue: t.chat,
       open: (BuildContext c) => open(
@@ -612,7 +617,7 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
       ),
     ),
     DeviceEntry(
-      label: 'Access',
+      label: context.s('Access'),
       icon: Icons.folder_open_rounded,
       hue: t.docs,
       open: (BuildContext c) => open(
@@ -620,7 +625,7 @@ List<DeviceEntry> _entries(BuildContext context, DeviceSnapshot? now) {
         const AccessCard(),
         hue: t.docs,
         icon: Icons.folder_open_rounded,
-        subtitle: 'What this app is allowed to read',
+        subtitle: c.s('What this app is allowed to read'),
       ),
     ),
   ];

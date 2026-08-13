@@ -138,7 +138,10 @@ class _Action extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Text(action.label, style: GType.body.copyWith(color: t.accentText)),
+              Text(
+                action.label,
+                style: GType.body.copyWith(color: t.accentText),
+              ),
               if (action.detail != null) ...<Widget>[
                 const SizedBox(height: 4),
                 Text(

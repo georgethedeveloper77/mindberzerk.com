@@ -4,6 +4,7 @@ import '../../../app/theme/tokens.dart';
 import '../../../ui/g_badge.dart';
 import '../../../ui/g_card.dart';
 import '../../../ui/g_sheet.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// Shown in place of a card the device will not serve.
 ///
@@ -50,7 +51,7 @@ class UnavailableNote extends StatelessWidget {
             child: Text(title, style: GType.heading.copyWith(color: t.text)),
           ),
           const SizedBox(width: GSpace.sm),
-          GBadge(label: 'Not available'),
+          GBadge(label: context.s('Not available')),
           const SizedBox(width: GSpace.sm - 2),
           Icon(Icons.info_outline_rounded, size: 17, color: t.dim),
         ],

@@ -9,6 +9,7 @@ import '../../ui/g_app_bar.dart';
 import '../../ui/g_button.dart';
 import '../../ui/g_card.dart';
 import '../../ui/g_sheet.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// SETTING UP A MACHINE THE USER OWNS.
 ///
@@ -193,7 +194,11 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
 
             if (_isDav) ..._davFields(t) else ..._smbFields(),
 
-            _Field(label: 'Username', controller: _user, hint: 'karani'),
+            _Field(
+              label: context.s('Username'),
+              controller: _user,
+              hint: 'karani',
+            ),
             _Field(
               label: widget.existing == null
                   ? 'Password'
@@ -210,15 +215,17 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
                   // account with two-step sign in will refuse the real password
                   // every time, and without saying so it reads as a broken app
                   // rather than a server rule.
-                  'If your account uses two-step sign in, your normal password '
-                  'will be refused. Create an app password on the server and '
-                  'paste that instead.',
+                  context.s(
+                    'If your account uses two-step sign in, your normal password '
+                    'will be refused. Create an app password on the server and '
+                    'paste that instead.',
+                  ),
                   style: GType.micro.copyWith(color: t.dim),
                 ),
               ),
 
             _Field(
-              label: 'Folder on the server',
+              label: context.s('Folder on the server'),
               controller: _path,
               hint: _isDav ? 'Backups/Phone' : '/GRecovery',
             ),
@@ -252,11 +259,13 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'Where the password goes',
+                          context.s('Where the password goes'),
                           style: GType.heading.copyWith(color: t.text),
                         ),
                         Text(
-                          'Encrypted on this phone, sent only to your server',
+                          context.s(
+                            'Encrypted on this phone, sent only to your server',
+                          ),
                           style: GType.micro.copyWith(color: t.muted),
                         ),
                       ],
@@ -278,7 +287,7 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'Encrypt the files',
+                          context.s('Encrypt the files'),
                           style: GType.heading.copyWith(color: t.text),
                         ),
                         const SizedBox(height: 3),
@@ -482,28 +491,31 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'Where the password goes',
+      title: context.s('Where the password goes'),
       children: <Widget>[
         GSheetPoint(
           icon: Icons.phone_android_rounded,
           tone: t.docs,
-          text:
-              'It is encrypted by this phone\u0027s own hardware keystore and '
-              'kept on the device. No other app can read it, and neither can we.',
+          text: context.s(
+            'It is encrypted by this phone\u0027s own hardware keystore and '
+            'kept on the device. No other app can read it, and neither can we.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.send_rounded,
           tone: t.docs,
-          text:
-              'It is sent to one place only: the address you typed above. '
-              'There is no account and no server of ours in between.',
+          text: context.s(
+            'It is sent to one place only: the address you typed above. '
+            'There is no account and no server of ours in between.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.key_off_rounded,
-          text:
-              'Changing your screen lock can destroy the key that protects '
-              'it. If that happens the app asks you to type it again rather '
-              'than failing quietly every night.',
+          text: context.s(
+            'Changing your screen lock can destroy the key that protects '
+            'it. If that happens the app asks you to type it again rather '
+            'than failing quietly every night.',
+          ),
         ),
       ],
     );
@@ -698,11 +710,11 @@ class _Result extends StatelessWidget {
               // that reports no quota has not told us zero.
               if (probe.freeBytes != null)
                 _Detail(
-                  label: 'Free on server',
+                  label: context.s('Free on server'),
                   value: GFormat.bytes(probe.freeBytes!),
                 ),
               if (probe.serverName != null)
-                _Detail(label: 'Server', value: probe.serverName!),
+                _Detail(label: context.s('Server'), value: probe.serverName!),
             ],
 
             if (outcome == _Outcome.cert &&
@@ -723,7 +735,7 @@ class _Result extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'SHA-256',
+                      context.s('SHA-256'),
                       style: GType.overline.copyWith(color: t.dim),
                     ),
                     const SizedBox(height: GSpace.xs + 1),
@@ -741,13 +753,15 @@ class _Result extends StatelessWidget {
               Text(
                 // Names the check rather than assuming it. A fingerprint nobody
                 // compares is a trust-all switch with extra steps.
-                'Run openssl x509 -fingerprint -sha256 on your server, or read '
-                'it from your server\u0027s admin page, and make sure it matches.',
+                context.s(
+                  'Run openssl x509 -fingerprint -sha256 on your server, or read '
+                  'it from your server\u0027s admin page, and make sure it matches.',
+                ),
                 style: GType.micro.copyWith(color: t.dim),
               ),
               const SizedBox(height: GSpace.md),
               GButton(
-                label: 'Trust this certificate',
+                label: context.s('Trust this certificate'),
                 icon: Icons.verified_user_outlined,
                 onPressed: onTrust,
               ),

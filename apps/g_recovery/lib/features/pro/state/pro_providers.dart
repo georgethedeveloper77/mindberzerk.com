@@ -140,10 +140,7 @@ class ProController extends Notifier<ProState> {
       // The SKU exists in Console and this build cannot see it. Almost always
       // an unsigned build or a track the account is not a tester on, and worth
       // logging loudly because it looks identical to a network failure.
-      GLog.w(
-        'product $sku not returned by the store',
-        scope: 'pro',
-      );
+      GLog.w('product $sku not returned by the store', scope: 'pro');
     }
 
     state = state.copyWith(price: product?.price);
@@ -177,7 +174,8 @@ class ProController extends Notifier<ProState> {
         case PurchaseStatus.error:
           state = state.copyWith(
             busy: false,
-            problem: purchase.error?.message ??
+            problem:
+                purchase.error?.message ??
                 'The purchase could not be completed.',
           );
       }

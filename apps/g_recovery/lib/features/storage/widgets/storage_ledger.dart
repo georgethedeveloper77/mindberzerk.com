@@ -4,6 +4,7 @@ import '../../../app/theme/category_colors.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../core/format.dart';
 import '../model/storage_view.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// The disk, as one bar and a legend.
 ///
@@ -37,7 +38,7 @@ class StorageLedger extends StatelessWidget {
           // App code and private app data are the whole of this gap on every
           // phone, and calling it "Other" the way the OS does is how a person
           // ends up staring at sixteen gigabytes with no explanation.
-          label: 'Apps and system',
+          label: context.s('Apps and system'),
           bytes: breakdown.unaccountedBytes,
           drillable: false,
         ),

@@ -16,6 +16,7 @@ import '../../../ui/g_sheet.dart';
 import '../state/storage_files.dart';
 import '../state/storage_providers.dart';
 import 'compare_viewer_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// PHOTOS THAT CAME OUT SOFT.
 ///
@@ -72,7 +73,7 @@ class _BlurReviewPageState extends ConsumerState<BlurReviewPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
               child: GAppBar(
-                title: 'Blurred',
+                title: context.s('Blurred'),
                 subtitle: blurred.isEmpty
                     ? null
                     : '${GFormat.count(blurred.length)} worth a look',
@@ -101,8 +102,10 @@ class _BlurReviewPageState extends ConsumerState<BlurReviewPage> {
                   // Sets expectations before the first tap. A screen that
                   // offered to delete a deliberately soft portrait without
                   // warning would lose someone's favourite photograph.
-                  'Softest first. Some of these will be deliberate, so nothing '
-                  'is selected until you choose it.',
+                  context.s(
+                    'Softest first. Some of these will be deliberate, so nothing '
+                    'is selected until you choose it.',
+                  ),
                   style: GType.bodySmall.copyWith(color: t.muted),
                 ),
               ),
@@ -111,7 +114,7 @@ class _BlurReviewPageState extends ConsumerState<BlurReviewPage> {
               child: blurred.isEmpty
                   ? Center(
                       child: Text(
-                        'Everything looks sharp.',
+                        context.s('Everything looks sharp.'),
                         style: GType.bodySmall.copyWith(color: t.muted),
                       ),
                     )
@@ -238,33 +241,38 @@ class _BlurReviewPageState extends ConsumerState<BlurReviewPage> {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'How this is measured',
+      title: context.s('How this is measured'),
       children: <Widget>[
         Text(
-          'Each photo is scored on how abruptly its brightness changes. A sharp '
-          'picture has hard edges somewhere; a soft one changes gently '
-          'everywhere.',
+          context.s(
+            'Each photo is scored on how abruptly its brightness changes. A sharp '
+            'picture has hard edges somewhere; a soft one changes gently '
+            'everywhere.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('What it cannot tell'),
         GSheetPoint(
-          text:
-              'A portrait with a deliberately blurred background scores low '
-              'and is not a mistake.',
+          text: context.s(
+            'A portrait with a deliberately blurred background scores low '
+            'and is not a mistake.',
+          ),
         ),
         GSheetPoint(
-          text:
-              'So does fog, a plain wall, and anything photographed in the '
-              'dark.',
+          text: context.s(
+            'So does fog, a plain wall, and anything photographed in the '
+            'dark.',
+          ),
         ),
         const GSheetHeading('So nothing is chosen for you'),
         GSheetPoint(
           icon: Icons.check_rounded,
           tone: t.success,
-          text:
-              'Every photo here is a suggestion. Nothing is selected until '
-              'you tap it, and everything goes to the trash rather than being '
-              'deleted.',
+          text: context.s(
+            'Every photo here is a suggestion. Nothing is selected until '
+            'you tap it, and everything goes to the trash rather than being '
+            'deleted.',
+          ),
         ),
       ],
     );

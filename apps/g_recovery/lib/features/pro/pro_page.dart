@@ -10,6 +10,7 @@ import '../../core/format.dart';
 import '../../ui/g_app_bar.dart';
 import '../../ui/g_button.dart';
 import 'state/pro_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// PRICED AGAINST THIS PHONE.
 ///
@@ -59,7 +60,7 @@ class ProPage extends ConsumerWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Pro',
+              title: context.s('Pro'),
               subtitle: pro.unlocked
                   ? 'Active on this account'
                   : 'One payment, no subscription',
@@ -107,7 +108,7 @@ class ProPage extends ConsumerWidget {
               ),
               const SizedBox(height: GSpace.sm),
               GButton(
-                label: 'Restore a previous purchase',
+                label: context.s('Restore a previous purchase'),
                 kind: GButtonKind.ghost,
                 onPressed: pro.busy || !pro.storeAvailable
                     ? null
@@ -154,7 +155,8 @@ class _Yours extends ConsumerWidget {
         _Row(
           icon: Icons.play_arrow_rounded,
           tone: t.video,
-          title: '${GFormat.count(clips)} '
+          title:
+              '${GFormat.count(clips)} '
               '${clips == 1 ? 'clip' : 'clips'} could be re-encoded',
           detail: 'Measured from a real sample of each one',
           // What they weigh now, not what would come back. The saving is an
@@ -178,9 +180,9 @@ class _Yours extends ConsumerWidget {
         _Row(
           icon: Icons.cloud_upload_outlined,
           tone: t.warning,
-          title: 'Your server has never been used',
+          title: context.s('Your server has never been used'),
           detail: 'A nightly run would start it without you',
-          value: 'Never',
+          value: context.s('Never'),
           unit: 'RUN',
         ),
     ];
@@ -195,9 +197,11 @@ class _Yours extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(GSpace.md + 2),
           child: Text(
-            'Nothing on this phone would gain from Pro today. It is worth '
-            'coming back when you have set up a server, or recorded video the '
-            'camera app has not already compressed.',
+            context.s(
+              'Nothing on this phone would gain from Pro today. It is worth '
+              'coming back when you have set up a server, or recorded video the '
+              'camera app has not already compressed.',
+            ),
             style: GType.bodySmall.copyWith(color: t.muted),
           ),
         ),
@@ -242,7 +246,7 @@ class _Running extends ConsumerWidget {
                         : 'Next run ${GFormat.relativeDay(DateTime.fromMillisecondsSinceEpoch(next), DateTime.now())}'
                   : 'Turn it on from the home server page',
               value: server.scheduled ? 'On' : 'Off',
-              unit: 'SCHEDULE',
+              unit: context.s('SCHEDULE'),
             ),
 
           if (history.isNotEmpty)
@@ -252,7 +256,7 @@ class _Running extends ConsumerWidget {
               title: '${GFormat.count(history.length)} files made smaller',
               detail: 'Every original is still in the trash for thirty days',
               value: GFormat.bytes(freed),
-              unit: 'FREED',
+              unit: context.s('FREED'),
             ),
         ],
       ),
@@ -276,12 +280,15 @@ class _Ledger extends StatelessWidget {
             child: Row(
               children: <Widget>[
                 Expanded(
-                  child: _Head(text: 'BY HAND  ·  FREE', tone: t.success),
+                  child: _Head(
+                    text: context.s('BY HAND  ·  FREE'),
+                    tone: t.success,
+                  ),
                 ),
                 Container(width: 1, height: 34, color: t.line),
                 Expanded(
                   child: _Head(
-                    text: 'WHILE YOU ARE AWAY  ·  PRO',
+                    text: context.s('WHILE YOU ARE AWAY  ·  PRO'),
                     tone: t.accent,
                   ),
                 ),
@@ -384,9 +391,7 @@ class _Cell extends StatelessWidget {
           ],
           Text(
             detail,
-            style: GType.micro.copyWith(
-              color: title == null ? t.dim : t.muted,
-            ),
+            style: GType.micro.copyWith(color: title == null ? t.dim : t.muted),
           ),
         ],
       ),
@@ -447,7 +452,7 @@ class _Price extends StatelessWidget {
             ),
             const SizedBox(height: GSpace.xs + 1),
             Text(
-              'from Google Play, in your own currency',
+              context.s('from Google Play, in your own currency'),
               style: GType.micro.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.md),
@@ -456,8 +461,8 @@ class _Price extends StatelessWidget {
               runSpacing: GSpace.sm,
               children: <Widget>[
                 _Term(text: 'ONCE'),
-                _Term(text: 'EVERY DEVICE ON THIS ACCOUNT'),
-                _Term(text: 'NO RENEWAL'),
+                _Term(text: context.s('EVERY DEVICE ON THIS ACCOUNT')),
+                _Term(text: context.s('NO RENEWAL')),
               ],
             ),
           ],
@@ -581,13 +586,15 @@ class _Owned extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Thank you',
+                    context.s('Thank you'),
                     style: GType.heading.copyWith(color: t.text),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Active on every device signed in to the same Google '
-                    'account. There is nothing to renew and nothing to manage.',
+                    context.s(
+                      'Active on every device signed in to the same Google '
+                      'account. There is nothing to renew and nothing to manage.',
+                    ),
                     style: GType.micro.copyWith(color: t.muted),
                   ),
                 ],
@@ -701,10 +708,7 @@ class _Shell extends StatelessWidget {
         borderRadius: GRadius.all(GRadius.card),
         border: Border.all(color: t.line),
       ),
-      child: ClipRRect(
-        borderRadius: GRadius.all(GRadius.card),
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: GRadius.all(GRadius.card), child: child),
     );
   }
 }

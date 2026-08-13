@@ -6,6 +6,7 @@ import '../../../bridge/compress_api.g.dart';
 import '../../../bridge/compress_bridge.dart';
 import '../../../core/format.dart';
 import '../../../ui/g_button.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// LOOKING BEFORE AGREEING TO SOMETHING PERMANENT.
 ///
@@ -173,7 +174,7 @@ class _CompressViewerPageState extends ConsumerState<CompressViewerPage> {
                       children: <Widget>[
                         Expanded(
                           child: _Side(
-                            label: 'Original',
+                            label: context.s('Original'),
                             value: GFormat.bytesOrNull(shot?.originalBytes),
                             highlight: false,
                           ),
@@ -181,7 +182,7 @@ class _CompressViewerPageState extends ConsumerState<CompressViewerPage> {
                         const SizedBox(width: GSpace.sm + 1),
                         Expanded(
                           child: _Side(
-                            label: 'After',
+                            label: context.s('After'),
                             value: GFormat.bytesOrNull(shot?.newBytes),
                             highlight: true,
                           ),
@@ -213,9 +214,8 @@ class _CompressViewerPageState extends ConsumerState<CompressViewerPage> {
     );
   }
 
-  int? _delta(CompressComparison? shot) => shot == null
-      ? null
-      : shot.originalBytes - shot.newBytes;
+  int? _delta(CompressComparison? shot) =>
+      shot == null ? null : shot.originalBytes - shot.newBytes;
 }
 
 /// One picture, in both its versions, under one transform.
@@ -239,9 +239,7 @@ class _Frame extends ConsumerWidget {
     final GTokens t = context.g;
 
     final CompressComparison? shot = ref
-        .watch(
-          compressComparisonProvider((fileId: fileId, quality: quality)),
-        )
+        .watch(compressComparisonProvider((fileId: fileId, quality: quality)))
         .value;
 
     if (shot == null) {
@@ -273,10 +271,7 @@ class _Frame extends ConsumerWidget {
                     Positioned.fill(
                       child: Opacity(
                         opacity: showingOriginal ? 1 : 0,
-                        child: Image.memory(
-                          shot.original,
-                          fit: BoxFit.contain,
-                        ),
+                        child: Image.memory(shot.original, fit: BoxFit.contain),
                       ),
                     ),
                 ],
@@ -327,7 +322,7 @@ class _Frame extends ConsumerWidget {
             right: 0,
             child: Center(
               child: _Pill(
-                label: 'Hold to see the original',
+                label: context.s('Hold to see the original'),
                 tone: t.muted,
               ),
             ),
@@ -364,7 +359,7 @@ class _Identical extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Nothing to compare',
+                    context.s('Nothing to compare'),
                     style: GType.heading.copyWith(color: t.accent),
                   ),
                   const SizedBox(height: 2),

@@ -12,6 +12,7 @@ import '../learn/limits_page.dart';
 import 'category_page.dart';
 import 'state/recovery_providers.dart';
 import 'widgets/source_tile.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// WHERE ANY OF THIS COMES FROM.
 ///
@@ -79,7 +80,7 @@ class SourcesPage extends ConsumerWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Safety nets',
+              title: context.s('Safety nets'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -95,8 +96,10 @@ class SourcesPage extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: GSpace.md),
               child: Text(
-                'Every place on this phone where deleted data can still be '
-                'hiding, and what quality each one gives back.',
+                context.s(
+                  'Every place on this phone where deleted data can still be '
+                  'hiding, and what quality each one gives back.',
+                ),
                 style: GType.bodySmall.copyWith(color: t.muted),
               ),
             ),
@@ -119,7 +122,7 @@ class SourcesPage extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: GSpace.xl),
                 child: Center(
                   child: Text(
-                    'Checking your device',
+                    context.s('Checking your device'),
                     style: GType.monoSmall.copyWith(color: t.dim),
                   ),
                 ),
@@ -163,7 +166,7 @@ class SourcesPage extends ConsumerWidget {
                     const SizedBox(width: GSpace.md),
                     Expanded(
                       child: Text(
-                        'What cannot come back, and why',
+                        context.s('What cannot come back, and why'),
                         style: GType.heading.copyWith(color: t.text),
                       ),
                     ),
@@ -182,49 +185,58 @@ class SourcesPage extends ConsumerWidget {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'Reading this page',
+      title: context.s('Reading this page'),
       children: <Widget>[
         Text(
-          'A safety net is anywhere on the phone that holds onto something after '
-          'you have deleted it. Each one behaves differently, so each row says '
-          'what you would actually get back.',
+          context.s(
+            'A safety net is anywhere on the phone that holds onto something after '
+            'you have deleted it. Each one behaves differently, so each row says '
+            'what you would actually get back.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('The stamps'),
         GSheetPoint(
           icon: Icons.check_circle_outline_rounded,
           tone: t.success,
-          text:
-              'Full quality means the original file is still here. Restoring '
-              'gives you exactly what you had.',
+          text: context.s(
+            'Full quality means the original file is still here. Restoring '
+            'gives you exactly what you had.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.filter_drama_outlined,
           tone: t.warning,
-          text:
-              'Preview only means the original is gone and what survives is '
-              'the small copy Android kept to draw your gallery quickly. It is '
-              'a few hundred pixels wide.',
+          text: context.s(
+            'Preview only means the original is gone and what survives is '
+            'the small copy Android kept to draw your gallery quickly. It is '
+            'a few hundred pixels wide.',
+          ),
         ),
         GSheetPoint(
           icon: Icons.remove_circle_outline_rounded,
           tone: t.dim,
-          text:
-              'Gone means this phone will not let any app look there. The row '
-              'stays visible so you know it was checked and not forgotten.',
+          text: context.s(
+            'Gone means this phone will not let any app look there. The row '
+            'stays visible so you know it was checked and not forgotten.',
+          ),
         ),
         const GSheetHeading('The bar'),
         Text(
-          'Each row carries a bar showing its size against the largest net. It '
-          'answers which one is worth opening first, which a list of numbers on '
-          'its own does not.',
+          context.s(
+            'Each row carries a bar showing its size against the largest net. It '
+            'answers which one is worth opening first, which a list of numbers on '
+            'its own does not.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('Why the counts move'),
         Text(
-          'These come from a fast count taken when the app opens. A full scan '
-          'walks folders that counting cannot reach, so the numbers usually '
-          'grow after one has run.',
+          context.s(
+            'These come from a fast count taken when the app opens. A full scan '
+            'walks folders that counting cannot reach, so the numbers usually '
+            'grow after one has run.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
       ],
@@ -257,13 +269,21 @@ class _Facts extends StatelessWidget {
         children: <Widget>[
           _Fact(
             value: '$reachable of $total',
-            label: 'nets reachable',
+            label: context.s('nets reachable'),
             // Amber whenever one is out of reach, because that is the reason a
             // total on another screen is lower than the user expected.
             tone: complete ? t.text : t.warning,
           ),
-          _Fact(value: GFormat.count(items), label: 'items held', tone: t.text),
-          _Fact(value: GFormat.bytes(bytes), label: 'in total', tone: t.text),
+          _Fact(
+            value: GFormat.count(items),
+            label: context.s('items held'),
+            tone: t.text,
+          ),
+          _Fact(
+            value: GFormat.bytes(bytes),
+            label: context.s('in total'),
+            tone: t.text,
+          ),
         ],
       ),
     );

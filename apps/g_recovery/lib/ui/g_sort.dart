@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/theme/tokens.dart';
 import 'g_sheet.dart';
+import '../core/i18n/g_strings.dart';
 
 /// How a list of files is ordered.
 ///
@@ -141,7 +142,7 @@ class GSortButton extends ConsumerWidget {
 
     showGSheet(
       context: context,
-      title: 'Sort',
+      title: context.s('Sort'),
       children: <Widget>[
         for (final GSortMode mode in GSortMode.values)
           if (mode != GSortMode.expiring || allowExpiring)

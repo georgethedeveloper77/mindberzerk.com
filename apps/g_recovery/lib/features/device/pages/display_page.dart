@@ -8,6 +8,7 @@ import '../../../bridge/hardware_bridge.dart';
 import '../../../ui/g_card.dart';
 import '../../../ui/g_detail_page.dart';
 import '../../../ui/g_stat.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// THE SCREEN.
 ///
@@ -31,7 +32,7 @@ class DisplayPage extends ConsumerWidget {
     return GDetailPage(
       hue: hue,
       icon: Icons.smartphone_rounded,
-      title: 'Display',
+      title: context.s('Display'),
       subtitle: d == null
           ? null
           : '${d.widthPx} x ${d.heightPx}  ·  ${d.refreshHz.round()} Hz',
@@ -184,7 +185,7 @@ class CamerasPage extends ConsumerWidget {
     return GDetailPage(
       hue: hue,
       icon: Icons.photo_camera_rounded,
-      title: 'Cameras',
+      title: context.s('Cameras'),
       subtitle: cameras.isEmpty ? null : '${cameras.length} found',
       children: <Widget>[
         if (cameras.length > 1) ...<Widget>[
@@ -193,7 +194,7 @@ class CamerasPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Focal length against aperture',
+                  context.s('Focal length against aperture'),
                   style: GType.micro.copyWith(color: t.muted),
                 ),
                 const SizedBox(height: GSpace.md),
@@ -211,7 +212,7 @@ class CamerasPage extends ConsumerWidget {
                     Text('wider', style: GType.micro.copyWith(color: t.dim)),
                     const Spacer(),
                     Text(
-                      'longer lens',
+                      context.s('longer lens'),
                       style: GType.micro.copyWith(color: t.dim),
                     ),
                   ],

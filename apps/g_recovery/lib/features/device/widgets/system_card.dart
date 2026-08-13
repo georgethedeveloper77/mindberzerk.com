@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../ui/g_card.dart';
 import '../state/identity_providers.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// WHAT THIS PHONE IS.
 ///
@@ -179,7 +180,10 @@ class _Reading extends StatelessWidget {
   Widget build(BuildContext context) {
     final GTokens t = context.g;
     return GCard(
-      child: Text('Reading', style: GType.monoSmall.copyWith(color: t.dim)),
+      child: Text(
+        context.s('Reading'),
+        style: GType.monoSmall.copyWith(color: t.dim),
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../ui/g_app_bar.dart';
 import 'state/learn_model.dart';
 import 'state/learn_providers.dart';
 import 'widgets/content_block_view.dart';
+import '../../core/i18n/g_strings.dart';
 
 class ChapterPage extends ConsumerWidget {
   const ChapterPage({required this.chapterId, super.key});
@@ -46,7 +47,9 @@ class ChapterPage extends ConsumerWidget {
                 // Reachable when an info icon points at a chapter the installed
                 // content does not have, which happens if the panel renames one.
                 // Named as a content problem rather than shown as an error.
-                'This chapter is not in the version of the guide on this device.',
+                context.s(
+                  'This chapter is not in the version of the guide on this device.',
+                ),
                 style: GType.bodySmall.copyWith(color: t.muted),
               )
             else

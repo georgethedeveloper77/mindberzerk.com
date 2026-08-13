@@ -7,6 +7,7 @@ import '../../ui/g_card.dart';
 import 'chapter_page.dart';
 import 'state/learn_model.dart';
 import 'state/learn_providers.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// The chapter list.
 ///
@@ -38,21 +39,26 @@ class LearnPage extends ConsumerWidget {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'How Android storage works',
+              title: context.s('How Android storage works'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
               ),
             ),
             Text(
-              'Seven short chapters on where your files live, what deleting '
-              'actually does, and why some things can be brought back and '
-              'others cannot.',
+              context.s(
+                'Seven short chapters on where your files live, what deleting '
+                'actually does, and why some things can be brought back and '
+                'others cannot.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted, height: 1.6),
             ),
             const SizedBox(height: GSpace.lg),
             if (book == null)
-              Text('Loading', style: GType.bodySmall.copyWith(color: t.dim))
+              Text(
+                context.s('Loading'),
+                style: GType.bodySmall.copyWith(color: t.dim),
+              )
             else
               for (int i = 0; i < book.chapters.length; i++)
                 Padding(

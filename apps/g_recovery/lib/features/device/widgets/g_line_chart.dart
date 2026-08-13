@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/tokens.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// A sampled series, drawn as a line over a fade.
 ///
@@ -52,7 +53,7 @@ class GLineChart extends StatelessWidget {
           child: Text(
             // Says why rather than showing an empty box. The sampler runs only
             // while this tab is open, so a fresh visit genuinely has nothing yet.
-            'Collecting',
+            context.s('Collecting'),
             style: GType.monoSmall.copyWith(color: t.dim),
           ),
         ),

@@ -10,6 +10,7 @@ import '../../../bridge/compress_api.g.dart';
 import '../../../core/format.dart';
 import '../../../ui/g_button.dart';
 import '../../../ui/g_card.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// WATCHING WHAT IT WOULD ACTUALLY BECOME.
 ///
@@ -276,14 +277,14 @@ class _VideoPreviewPageState extends ConsumerState<VideoPreviewPage> {
                       children: <Widget>[
                         Expanded(
                           child: _Side(
-                            label: 'Now',
+                            label: context.s('Now'),
                             value: GFormat.bytes(widget.estimate.originalBytes),
                             highlight: false,
                           ),
                         ),
                         Expanded(
                           child: _Side(
-                            label: 'After, about',
+                            label: context.s('After, about'),
                             value: GFormat.bytes(
                               widget.estimate.estimatedBytes,
                             ),
@@ -292,7 +293,7 @@ class _VideoPreviewPageState extends ConsumerState<VideoPreviewPage> {
                         ),
                         Expanded(
                           child: _Side(
-                            label: 'Saving',
+                            label: context.s('Saving'),
                             value: saving > 0
                                 ? '~${GFormat.bytes(saving)}'
                                 : 'none',

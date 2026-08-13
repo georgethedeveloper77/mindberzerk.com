@@ -153,11 +153,7 @@ class GLanguage {
     GLanguage(code: 'th', englishName: 'Thai', nativeName: 'ไทย'),
     GLanguage(code: 'tr', englishName: 'Turkish', nativeName: 'Türkçe'),
     GLanguage(code: 'ur', englishName: 'Urdu', nativeName: 'اردو', rtl: true),
-    GLanguage(
-      code: 'vi',
-      englishName: 'Vietnamese',
-      nativeName: 'Tiếng Việt',
-    ),
+    GLanguage(code: 'vi', englishName: 'Vietnamese', nativeName: 'Tiếng Việt'),
   ];
 
   static GLanguage forCode(String code) =>

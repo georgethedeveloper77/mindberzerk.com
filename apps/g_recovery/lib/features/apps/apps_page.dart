@@ -11,6 +11,7 @@ import '../../ui/g_card.dart';
 import '../../ui/g_detail_page.dart';
 import '../../ui/g_enter.dart';
 import '../../ui/g_sheet.dart';
+import '../../core/i18n/g_strings.dart';
 
 /// WHAT EACH APP IS TAKING.
 ///
@@ -40,7 +41,7 @@ class AppsPage extends ConsumerWidget {
     return GDetailSliverPage(
       hue: t.apps,
       icon: Icons.apps_rounded,
-      title: 'Apps',
+      title: context.s('Apps'),
       subtitle: state == null || !state.usageAccess
           ? null
           : '${GFormat.count(state.count)} apps  ·  '
@@ -66,7 +67,7 @@ class AppsPage extends ConsumerWidget {
             hasScrollBody: false,
             child: Center(
               child: Text(
-                'Reading app sizes',
+                context.s('Reading app sizes'),
                 style: GType.monoSmall.copyWith(color: t.dim),
               ),
             ),
@@ -85,14 +86,14 @@ class AppsPage extends ConsumerWidget {
                   Expanded(
                     child: _Fact(
                       value: GFormat.bytes(state!.cacheBytes),
-                      label: 'cache, rebuildable',
+                      label: context.s('cache, rebuildable'),
                       tone: t.audio,
                     ),
                   ),
                   Expanded(
                     child: _Fact(
                       value: GFormat.bytes(state.totalBytes - state.cacheBytes),
-                      label: 'apps and their data',
+                      label: context.s('apps and their data'),
                       tone: t.text,
                     ),
                   ),
@@ -148,35 +149,40 @@ class AppsPage extends ConsumerWidget {
     final GTokens t = context.g;
     showGSheet(
       context: context,
-      title: 'Clearing app caches',
+      title: context.s('Clearing app caches'),
       children: <Widget>[
         Text(
-          'Android has not let one app clear another app\u0027s cache since '
-          '2015. Anything claiming to do it is either driving your screen '
-          'through an accessibility service, or reporting a number it made up.',
+          context.s(
+            'Android has not let one app clear another app\u0027s cache since '
+            '2015. Anything claiming to do it is either driving your screen '
+            'through an accessibility service, or reporting a number it made up.',
+          ),
           style: GType.bodySmall.copyWith(color: t.muted),
         ),
         const GSheetHeading('What this screen does'),
         GSheetPoint(
           icon: Icons.open_in_new_rounded,
           tone: t.docs,
-          text:
-              'Shows the real size and opens that app\u0027s own storage '
-              'screen, where Clear cache is one tap and actually works.',
+          text: context.s(
+            'Shows the real size and opens that app\u0027s own storage '
+            'screen, where Clear cache is one tap and actually works.',
+          ),
         ),
         const GSheetHeading('Cache and data are different'),
         GSheetPoint(
           icon: Icons.refresh_rounded,
           tone: t.docs,
-          text:
-              'Cache is rebuildable. Clearing it costs nothing but a slower '
-              'next launch.',
+          text: context.s(
+            'Cache is rebuildable. Clearing it costs nothing but a slower '
+            'next launch.',
+          ),
         ),
         GSheetPoint(
-          text:
-              'Data is the app\u0027s actual content: your accounts, '
-              'messages and downloads. Clearing it signs you out and deletes '
-              'what was there.',
+          text: context.s(
+            'Data is the app\u0027s actual content: your accounts, '
+            'messages and downloads. Clearing it signs you out and deletes '
+            'what was there.',
+          ),
         ),
       ],
     );
@@ -201,7 +207,7 @@ class _NeedsAccess extends StatelessWidget {
             Icon(Icons.query_stats_rounded, size: 42, color: t.dim),
             const SizedBox(height: GSpace.lg),
             Text(
-              'Android keeps app sizes behind a switch',
+              context.s('Android keeps app sizes behind a switch'),
               textAlign: TextAlign.center,
               style: GType.title.copyWith(color: t.text),
             ),
@@ -210,14 +216,16 @@ class _NeedsAccess extends StatelessWidget {
               // Names what is really being granted. "Usage access" sounds like
               // browsing history, and a person who thinks that is what they are
               // handing over should be told otherwise.
-              'Usage access lets this app read how much space each app takes. '
-              'It reads sizes, not what you do in them.',
+              context.s(
+                'Usage access lets this app read how much space each app takes. '
+                'It reads sizes, not what you do in them.',
+              ),
               textAlign: TextAlign.center,
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.lg),
             GButton(
-              label: 'Open the setting',
+              label: context.s('Open the setting'),
               icon: Icons.open_in_new_rounded,
               expand: false,
               onPressed: onGrant,
@@ -245,7 +253,7 @@ class _SortPill extends ConsumerWidget {
         borderRadius: GRadius.all(GRadius.chip),
         onTap: () => showGSheet(
           context: context,
-          title: 'Sort',
+          title: context.s('Sort'),
           children: <Widget>[
             for (final AppSort mode in AppSort.values)
               Material(

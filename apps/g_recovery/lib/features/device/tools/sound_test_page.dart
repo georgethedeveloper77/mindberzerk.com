@@ -5,6 +5,7 @@ import '../../../app/theme/tokens.dart';
 import '../../../bridge/hardware_bridge.dart';
 import '../../../ui/g_app_bar.dart';
 import '../../../ui/g_card.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// DOES THE SOUND WORK.
 ///
@@ -77,7 +78,7 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
           ),
           children: <Widget>[
             GAppBar(
-              title: 'Speakers',
+              title: context.s('Speakers'),
               leading: GIconButton(
                 icon: Icons.arrow_back_rounded,
                 onTap: () => Navigator.of(context).pop(),
@@ -85,8 +86,10 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
             ),
 
             Text(
-              'Turn the volume up. Each button plays a tone through one side '
-              'only.',
+              context.s(
+                'Turn the volume up. Each button plays a tone through one side '
+                'only.',
+              ),
               style: GType.bodySmall.copyWith(color: t.muted),
             ),
             const SizedBox(height: GSpace.lg),
@@ -95,7 +98,7 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
               children: <Widget>[
                 Expanded(
                   child: _Pad(
-                    label: 'Left',
+                    label: context.s('Left'),
                     icon: Icons.volume_down_rounded,
                     active: _playing == 'left',
                     onTap: () => _play('left'),
@@ -104,7 +107,7 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
                 const SizedBox(width: GSpace.sm + 1),
                 Expanded(
                   child: _Pad(
-                    label: 'Right',
+                    label: context.s('Right'),
                     icon: Icons.volume_up_rounded,
                     active: _playing == 'right',
                     onTap: () => _play('right'),
@@ -114,14 +117,17 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
             ),
             const SizedBox(height: GSpace.sm + 1),
             _Pad(
-              label: 'Both',
+              label: context.s('Both'),
               icon: Icons.surround_sound_rounded,
               active: _playing == 'both',
               onTap: () => _play('both'),
             ),
 
             const SizedBox(height: GSpace.lg),
-            Text('PITCH', style: GType.overline.copyWith(color: t.dim)),
+            Text(
+              context.s('PITCH'),
+              style: GType.overline.copyWith(color: t.dim),
+            ),
             const SizedBox(height: GSpace.sm + 1),
             GCard(
               child: Column(
@@ -145,8 +151,10 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
                     onChanged: (double value) => setState(() => _hertz = value),
                   ),
                   Text(
-                    'A rattle or a buzz at one pitch and not another is a '
-                    'damaged driver.',
+                    context.s(
+                      'A rattle or a buzz at one pitch and not another is a '
+                      'damaged driver.',
+                    ),
                     style: GType.micro.copyWith(color: t.dim),
                   ),
                 ],
@@ -154,13 +162,16 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
             ),
 
             const SizedBox(height: GSpace.lg),
-            Text('VIBRATION', style: GType.overline.copyWith(color: t.dim)),
+            Text(
+              context.s('VIBRATION'),
+              style: GType.overline.copyWith(color: t.dim),
+            ),
             const SizedBox(height: GSpace.sm + 1),
             Row(
               children: <Widget>[
                 Expanded(
                   child: _Pad(
-                    label: 'Short',
+                    label: context.s('Short'),
                     icon: Icons.vibration_rounded,
                     active: false,
                     onTap: () => _bridge.vibrate('short'),
@@ -169,7 +180,7 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
                 const SizedBox(width: GSpace.sm + 1),
                 Expanded(
                   child: _Pad(
-                    label: 'Long',
+                    label: context.s('Long'),
                     icon: Icons.vibration_rounded,
                     active: false,
                     onTap: () => _bridge.vibrate('long'),
@@ -178,7 +189,7 @@ class _SoundTestPageState extends ConsumerState<SoundTestPage> {
                 const SizedBox(width: GSpace.sm + 1),
                 Expanded(
                   child: _Pad(
-                    label: 'Double',
+                    label: context.s('Double'),
                     icon: Icons.vibration_rounded,
                     active: false,
                     onTap: () => _bridge.vibrate('double'),
@@ -339,7 +350,7 @@ class _TouchTestPageState extends State<TouchTestPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     GAppBar(
-                      title: 'Touch',
+                      title: context.s('Touch'),
                       subtitle: 'Most at once: $_peak',
                       leading: GIconButton(
                         icon: Icons.arrow_back_rounded,
@@ -351,8 +362,10 @@ class _TouchTestPageState extends State<TouchTestPage> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: GSpace.xl),
                         child: Text(
-                          'Put as many fingers on the screen as you can, and '
-                          'drag them into every corner.',
+                          context.s(
+                            'Put as many fingers on the screen as you can, and '
+                            'drag them into every corner.',
+                          ),
                           textAlign: TextAlign.center,
                           style: GType.bodySmall.copyWith(color: t.muted),
                         ),

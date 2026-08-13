@@ -7,6 +7,7 @@ import '../../../app/theme/tokens.dart';
 import '../../../core/format.dart';
 import '../../../ui/g_button.dart';
 import '../state/storage_files.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// LOOKING PROPERLY BEFORE CHOOSING.
 ///
@@ -143,7 +144,7 @@ class _CompareViewerPageState extends ConsumerState<CompareViewerPage> {
                       children: <Widget>[
                         Expanded(
                           child: _Side(
-                            label: 'Keeping',
+                            label: context.s('Keeping'),
                             value: GFormat.bytes(widget.sizes[_keeper] ?? 0),
                             highlight: true,
                           ),
@@ -161,7 +162,7 @@ class _CompareViewerPageState extends ConsumerState<CompareViewerPage> {
                   if (widget.onKeep != null && !isKeeper) ...<Widget>[
                     const SizedBox(height: GSpace.md),
                     GButton(
-                      label: 'Keep this one instead',
+                      label: context.s('Keep this one instead'),
                       icon: Icons.check_rounded,
                       onPressed: () {
                         widget.onKeep!(current);
@@ -200,7 +201,10 @@ class _Frame extends ConsumerWidget {
 
     if (bytes == null) {
       return Center(
-        child: Text('Loading', style: GType.monoSmall.copyWith(color: t.dim)),
+        child: Text(
+          context.s('Loading'),
+          style: GType.monoSmall.copyWith(color: t.dim),
+        ),
       );
     }
 

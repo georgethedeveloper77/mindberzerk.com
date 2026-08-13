@@ -18,6 +18,7 @@ import '../../../ui/g_view_switch.dart';
 import '../state/storage_files.dart';
 import '../state/storage_providers.dart';
 import 'compress_viewer_page.dart';
+import '../../../core/i18n/g_strings.dart';
 
 /// ONE CATEGORY, AS A FILE LIST LIKE EVERY OTHER FILE LIST.
 ///
@@ -136,7 +137,7 @@ class _CompressListPageState extends ConsumerState<CompressListPage> {
               Expanded(
                 child: Center(
                   child: Text(
-                    'Nothing here over a megabyte.',
+                    context.s('Nothing here over a megabyte.'),
                     style: GType.bodySmall.copyWith(color: t.muted),
                   ),
                 ),
@@ -251,11 +252,7 @@ class _CompressListPageState extends ConsumerState<CompressListPage> {
                   GSpace.gutter,
                   GSpace.lg,
                 ),
-                child: _Action(
-                  none: none,
-                  saving: saving,
-                  onPressed: _run,
-                ),
+                child: _Action(none: none, saving: saving, onPressed: _run),
               ),
             ],
           ],
@@ -387,14 +384,13 @@ class _CompressListPageState extends ConsumerState<CompressListPage> {
 
     // Only what actually shrinks. Sending a file that would grow means native
     // measures it again and skips it, which is work for nothing.
-    final List<String> ids = all
-        .map((CompressCandidate c) => c.fileId)
-        .where((String id) {
-          if (_excluded.contains(id)) return false;
-          final CompressPreview? p = _measured[id];
-          return p != null && p.newBytes < p.originalBytes;
-        })
-        .toList();
+    final List<String> ids = all.map((CompressCandidate c) => c.fileId).where((
+      String id,
+    ) {
+      if (_excluded.contains(id)) return false;
+      final CompressPreview? p = _measured[id];
+      return p != null && p.newBytes < p.originalBytes;
+    }).toList();
     // ─── THE FILES THAT CANNOT BE IMPROVED ARE ALSO AN ANSWER ─────────────
     //
     // They are deliberately not sent to the encoder, and until now that meant
@@ -558,7 +554,7 @@ class _Saving extends StatelessWidget {
     final int delta = p.originalBytes - p.newBytes;
     if (delta <= 0) {
       return Text(
-        'no gain',
+        context.s('no gain'),
         style: GType.micro.copyWith(color: t.dim),
       );
     }
@@ -1121,7 +1117,10 @@ class _ActionState extends State<_Action> {
     }
 
     return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: _shown.toDouble(), end: widget.saving.toDouble()),
+      tween: Tween<double>(
+        begin: _shown.toDouble(),
+        end: widget.saving.toDouble(),
+      ),
       duration: GMotion.slow,
       curve: Curves.easeOut,
       onEnd: () => _shown = widget.saving,
@@ -1174,7 +1173,14 @@ class _SqueezingState extends State<_Squeezing>
   /// Deterministic widths, so it reads as a stack of content rather than as a
   /// widget. Never Random, which would reshuffle on every rebuild.
   static const List<double> _widths = <double>[
-    0.94, 0.72, 0.88, 0.63, 0.80, 0.70, 0.86, 0.58,
+    0.94,
+    0.72,
+    0.88,
+    0.63,
+    0.80,
+    0.70,
+    0.86,
+    0.58,
   ];
 
   static const double _tall = 9;
