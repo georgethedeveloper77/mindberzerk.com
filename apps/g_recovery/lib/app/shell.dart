@@ -66,10 +66,7 @@ const int gNavCount = 4;
 /// they are written, and GBottomNav renders whatever it is handed without
 /// knowing that translation exists at all.
 List<GNavItem> gNavItems(BuildContext context) => <GNavItem>[
-  GNavItem(
-    label: context.s('Home'),
-    icon: Icons.auto_awesome_mosaic_outlined,
-  ),
+  GNavItem(label: context.s('Home'), icon: Icons.auto_awesome_mosaic_outlined),
   GNavItem(label: context.s('Storage'), icon: Icons.donut_small_outlined),
   GNavItem(label: context.s('Device'), icon: Icons.monitor_heart_outlined),
   GNavItem(label: context.s('More'), icon: Icons.more_horiz_rounded),
