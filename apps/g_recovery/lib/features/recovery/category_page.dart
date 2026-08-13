@@ -92,8 +92,14 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
     // Two places started that scan and nothing on this screen listened, so the
     // button looked broken: it really was scanning, and the page had no way to
     // say so.
-    final bool deepScanning =
-        ref.watch(backgroundScanProvider).value?.running ?? false;
+    final BackgroundScanState? deep = ref.watch(backgroundScanProvider).value;
+    final bool deepScanning = deep?.running ?? false;
+
+    // A short foreground service gets about three minutes, and a large
+    // thumbnail cache can outlast it. What it found is kept, and saying so is
+    // the difference between an incomplete answer and a false one.
+    final bool deepTimedOut =
+        deep != null && !deep.running && deep.timedOut;
 
     // The service populates the native index while this page is open, so the
     // list has to be asked again once it stops. Without this the scan finishes
@@ -196,12 +202,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     GBar(
-                      // Null is indeterminate, and that is the truthful value
-                      // here. The service reports whether it is running; a
-                      // fraction invented from nothing would be a progress bar
-                      // that lies about how far along it is.
                       fraction: deepScanning
-                          ? null
+                          ? (deep!.total > 0 ? deep.scanned / deep.total : null)
                           : progress!.total > 0
                           ? progress.scanned / progress.total
                           : null,
@@ -209,15 +211,40 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                     ),
                     const SizedBox(height: GSpace.sm),
                     Text(
+                      // A real entry count, and the same sentence for both
+                      // scans. Two different phrasings for the same fact would
+                      // read as two different operations.
                       deepScanning
-                          ? 'Walking every folder on this phone'
-                          // A real entry count. Results are already usable,
-                          // which is the one thing the category's dominant app
-                          // gets right.
+                          ? '${GFormat.count(deep!.found)} found in '
+                                '${GFormat.count(deep.scanned)} of '
+                                '${GFormat.count(deep.total)} entries'
                           : '${GFormat.count(progress!.found)} found in '
                                 '${GFormat.count(progress.scanned)} of '
                                 '${GFormat.count(progress.total)} entries',
                       style: GType.monoSmall.copyWith(color: t.dim),
+                    ),
+                  ],
+                ),
+              ),
+            if (deepTimedOut)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  GSpace.gutter,
+                  0,
+                  GSpace.gutter,
+                  GSpace.md,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Icon(Icons.schedule_rounded, size: 16, color: t.warning),
+                    const SizedBox(width: GSpace.sm + 2),
+                    Expanded(
+                      child: Text(
+                        'The scan ran out of time. What it found is here, and '
+                        'the picture is incomplete.',
+                        style: GType.micro.copyWith(color: t.muted),
+                      ),
                     ),
                   ],
                 ),
@@ -231,11 +258,17 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
                       // happen used to be a paragraph on this screen; they are
                       // in the sheet now, where someone who wants them can ask.
                       body: deepScanning
-                          ? 'Walking folders that counting cannot reach'
+                          ? 'Walking ${_sourceLabel(deep!.sourceId)}'
                           : scan.isLoading
                           ? 'Working through this source'
+                          : deepTimedOut
+                          ? 'The scan ran out of time before it finished.'
                           : 'That is a real answer, not a failed scan.',
-                      actionLabel: busy ? null : 'Scan my phone',
+                      actionLabel: busy
+                          ? null
+                          : deepTimedOut
+                          ? 'Scan again'
+                          : 'Scan my phone',
                       onAction: busy
                           ? null
                           : () async {
@@ -335,6 +368,23 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
   /// at a picture.
   static bool _reviewable(RecoverableItem item) =>
       item.kind == 'image' || item.kind == 'video';
+
+  /// Which source the service is walking right now.
+  ///
+  /// Reads better than a percentage alone: "walking the thumbnail cache" tells
+  /// someone why a scan is taking minutes, where a bar at 40 percent does not.
+  String _sourceLabel(String? sourceId) {
+    switch (sourceId) {
+      case 'media_trash':
+        return 'the system bins';
+      case 'app_trash':
+        return 'the folders apps keep';
+      case 'thumbnails':
+        return 'the thumbnail cache';
+      default:
+        return 'every folder on this phone';
+    }
+  }
 
   /// Why the grid is empty, and the one thing that can change the answer.
   ///

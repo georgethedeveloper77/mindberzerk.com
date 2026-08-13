@@ -11,7 +11,21 @@ dependencies:
     path: ../../packages/device_probe
   firebase_analytics: ^12.4.6
   fl_chart: ^1.2.0
+
   flutter:
+    sdk: flutter
+
+  # Arabic and Urdu, and nothing else needs it.
+  #
+  # Without this, MaterialApp supports exactly one locale, English, so setting
+  # Locale('ar') resolves straight back to English and Directionality never
+  # flips. The app would show Arabic words in a left to right layout with the
+  # back arrow on the wrong edge, which reads as broken rather than untranslated.
+  #
+  # It also supplies the Material and Cupertino strings for everything this app
+  # does not own: the text selection menu, the date picker, the scrollbar
+  # semantics. Those are not in assets/content and never will be.
+  flutter_localizations:
     sdk: flutter
 
   # State. Plain Riverpod, no codegen, matching G Launcher. Pin this to the
@@ -69,3 +83,15 @@ flutter:
     - assets/packs/
     - assets/content/
     - assets/lottie/
+
+    # The picker, one image per language rather than an emoji.
+    #
+    # The emoji flag glyphs live in the system emoji font, and on the budget
+    # devices this app is built for that font often has none, so a row renders
+    # as two boxed letters. These are 72 by 48 lossless WebP, which is 3x for
+    # the 24 by 16 the row draws, and 19 KB for all 25.
+    #
+    # The file name is a LANGUAGE code. Which country stands in for a language
+    # is recorded in assets/flags/ATTRIBUTION.md and changing one is a matter of
+    # overwriting a single file.
+    - assets/flags/

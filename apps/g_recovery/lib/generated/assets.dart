@@ -2,13 +2,14 @@
 // ignore_for_file: dangling_library_doc_comments, implementation_imports
 import 'package:flutter/widgets.dart';
 import 'package:lottie/lottie.dart';
-import 'package:lottie/src/composition.dart';
 import 'package:lottie/src/lottie_builder.dart';
+import 'package:lottie/src/composition.dart';
 
 class Assets {
   Assets._();
 
   static const $AssetsContentGen content = $AssetsContentGen();
+  static const $AssetsFlagsGen flags = $AssetsFlagsGen();
   static const $AssetsLottieGen lottie = $AssetsLottieGen();
   static const $AssetsPacksGen packs = $AssetsPacksGen();
 }
@@ -23,6 +24,9 @@ class $AssetsContentGen {
   const $AssetsContentGen();
 
   final String learnEn = 'assets/content/learn-en.json';
+  final String stringsFr = 'assets/content/strings-fr.json';
+  final String stringsPt = 'assets/content/strings-pt.json';
+  final String stringsSw = 'assets/content/strings-sw.json';
 }
 
 class $AssetsLottieGen {
@@ -31,6 +35,37 @@ class $AssetsLottieGen {
   final LottieGenImage deleteBubble = const LottieGenImage(
     'assets/lottie/delete_bubble.json',
   );
+}
+
+class $AssetsFlagsGen {
+  const $AssetsFlagsGen();
+
+  final String aTTRIBUTION = 'assets/flags/ATTRIBUTION.md';
+  final AssetGenImage am = const AssetGenImage('assets/flags/am.webp');
+  final AssetGenImage ar = const AssetGenImage('assets/flags/ar.webp');
+  final AssetGenImage bn = const AssetGenImage('assets/flags/bn.webp');
+  final AssetGenImage de = const AssetGenImage('assets/flags/de.webp');
+  final AssetGenImage en = const AssetGenImage('assets/flags/en.webp');
+  final AssetGenImage es = const AssetGenImage('assets/flags/es.webp');
+  final AssetGenImage fil = const AssetGenImage('assets/flags/fil.webp');
+  final AssetGenImage fr = const AssetGenImage('assets/flags/fr.webp');
+  final AssetGenImage ha = const AssetGenImage('assets/flags/ha.webp');
+  final AssetGenImage hi = const AssetGenImage('assets/flags/hi.webp');
+  final AssetGenImage id = const AssetGenImage('assets/flags/id.webp');
+  final AssetGenImage it = const AssetGenImage('assets/flags/it.webp');
+  final AssetGenImage ko = const AssetGenImage('assets/flags/ko.webp');
+  final AssetGenImage nl = const AssetGenImage('assets/flags/nl.webp');
+  final AssetGenImage pl = const AssetGenImage('assets/flags/pl.webp');
+  final AssetGenImage pt = const AssetGenImage('assets/flags/pt.webp');
+  final AssetGenImage ru = const AssetGenImage('assets/flags/ru.webp');
+  final AssetGenImage sw = const AssetGenImage('assets/flags/sw.webp');
+  final AssetGenImage ta = const AssetGenImage('assets/flags/ta.webp');
+  final AssetGenImage te = const AssetGenImage('assets/flags/te.webp');
+  final AssetGenImage th = const AssetGenImage('assets/flags/th.webp');
+  final AssetGenImage tr = const AssetGenImage('assets/flags/tr.webp');
+  final AssetGenImage ur = const AssetGenImage('assets/flags/ur.webp');
+  final AssetGenImage vi = const AssetGenImage('assets/flags/vi.webp');
+  final AssetGenImage zh = const AssetGenImage('assets/flags/zh.webp');
 }
 
 class AssetGenImage {
