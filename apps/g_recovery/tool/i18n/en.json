@@ -1,18 +1,18 @@
 {
   "locale": "en",
-  "generated": "2026-08-13T12:13:58Z",
-  "count": 353,
+  "generated": "2026-08-13T12:55:07Z",
+  "count": 340,
   "strings": {
-    "A Windows share only works while the phone is on ": "A Windows share only works while the phone is on ",
-    "A photo is re-encoded and loses a little detail. The original ": "A photo is re-encoded and loses a little detail. The original ",
-    "A portrait with a deliberately blurred background scores low ": "A portrait with a deliberately blurred background scores low ",
-    "A rattle or a buzz at one pitch and not another is a ": "A rattle or a buzz at one pitch and not another is a ",
-    "A safety net is anywhere on the phone that holds onto something after ": "A safety net is anywhere on the phone that holds onto something after ",
-    "A screenshot becomes a WebP with identical pixels. It is ": "A screenshot becomes a WebP with identical pixels. It is ",
+    "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.": "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.",
+    "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.": "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.",
+    "A portrait with a deliberately blurred background scores low and is not a mistake.": "A portrait with a deliberately blurred background scores low and is not a mistake.",
+    "A rattle or a buzz at one pitch and not another is a damaged driver.": "A rattle or a buzz at one pitch and not another is a damaged driver.",
+    "A safety net is anywhere on the phone that holds onto something after you have deleted it. Each one behaves differently, so each row says what you would actually get back.": "A safety net is anywhere on the phone that holds onto something after you have deleted it. Each one behaves differently, so each row says what you would actually get back.",
+    "A screenshot becomes a WebP with identical pixels. It is smaller and there is no version of it that looks worse.": "A screenshot becomes a WebP with identical pixels. It is smaller and there is no version of it that looks worse.",
     "ABOUT": "ABOUT",
     "Accent": "Accent",
     "Access": "Access",
-    "Active on every device signed in to the same Google ": "Active on every device signed in to the same Google ",
+    "Active on every device signed in to the same Google account. There is nothing to renew and nothing to manage.": "Active on every device signed in to the same Google account. There is nothing to renew and nothing to manage.",
     "Address": "Address",
     "After": "After",
     "After, about": "After, about",
@@ -21,13 +21,13 @@
     "All languages": "All languages",
     "All of it is optional and all of it can be changed later.": "All of it is optional and all of it can be changed later.",
     "Allow notification access": "Allow notification access",
-    "Android hands every arriving message to this app as a ": "Android hands every arriving message to this app as a ",
-    "Android has not let one app clear another app's cache since ": "Android has not let one app clear another app's cache since ",
+    "Android hands every arriving message to this app as a notification. G Recovery writes that text down. If the sender deletes the message afterwards, your copy is still here.": "Android hands every arriving message to this app as a notification. G Recovery writes that text down. If the sender deletes the message afterwards, your copy is still here.",
+    "Android has not let one app clear another app's cache since 2015. Anything claiming to do it is either driving your screen through an accessibility service, or reporting a number it made up.": "Android has not let one app clear another app's cache since 2015. Anything claiming to do it is either driving your screen through an accessibility service, or reporting a number it made up.",
     "Android hides other apps deleted files until you do. Every count above is a floor until then.": "Android hides other apps deleted files until you do. Every count above is a floor until then.",
-    "Android is below its own low memory threshold and is killing ": "Android is below its own low memory threshold and is killing ",
+    "Android is below its own low memory threshold and is killing background apps to keep going.": "Android is below its own low memory threshold and is killing background apps to keep going.",
     "Android keeps app sizes behind a switch": "Android keeps app sizes behind a switch",
     "Android needs phone access to name the carrier": "Android needs phone access to name the carrier",
-    "Any app promising to recover anything from an ordinary phone is ": "Any app promising to recover anything from an ordinary phone is ",
+    "Any app promising to recover anything from an ordinary phone is looking in exactly the same places this one does.": "Any app promising to recover anything from an ordinary phone is looking in exactly the same places this one does.",
     "Anything not yet translated stays in English.": "Anything not yet translated stays in English.",
     "App sizes": "App sizes",
     "Appearance": "Appearance",
@@ -38,38 +38,36 @@
     "BACKUP": "BACKUP",
     "BY HAND  ·  FREE": "BY HAND  ·  FREE",
     "Back up on its own": "Back up on its own",
-    "Backing up by hand, reclaiming space and everything else here ": "Backing up by hand, reclaiming space and everything else here ",
+    "Backing up by hand, reclaiming space and everything else here stay free. Pro is for the run that happens without you.": "Backing up by hand, reclaiming space and everything else here stay free. Pro is for the run that happens without you.",
     "Battery": "Battery",
     "Blocked": "Blocked",
     "Bluetooth": "Bluetooth",
     "Blurred": "Blurred",
     "Both": "Both",
     "Browse files": "Browse files",
-    "Cache is rebuildable. Clearing it costs nothing but a slower ": "Cache is rebuildable. Clearing it costs nothing but a slower ",
+    "Cache is rebuildable. Clearing it costs nothing but a slower next launch.": "Cache is rebuildable. Clearing it costs nothing but a slower next launch.",
     "Cameras": "Cameras",
     "Certificate": "Certificate",
-    "Changing your screen lock can destroy the key that protects ": "Changing your screen lock can destroy the key that protects ",
+    "Changing your screen lock can destroy the key that protects it. If that happens the app asks you to type it again rather than failing quietly every night.": "Changing your screen lock can destroy the key that protects it. If that happens the app asks you to type it again rather than failing quietly every night.",
     "Check for duplicates and blur": "Check for duplicates and blur",
-    "Checking everything here downloads ": "Checking everything here downloads ",
     "Checking your device": "Checking your device",
     "Clearing app caches": "Clearing app caches",
-    "Clusters inferred from maximum frequencies. This kernel does ": "Clusters inferred from maximum frequencies. This kernel does ",
+    "Clusters inferred from maximum frequencies. This kernel does not publish its frequency domains.": "Clusters inferred from maximum frequencies. This kernel does not publish its frequency domains.",
     "Collecting": "Collecting",
     "Compressed files": "Compressed files",
-    "Compressed in RAM rather than written to storage, so it ": "Compressed in RAM rather than written to storage, so it ",
-    "Connection": "Connection",
+    "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.": "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.",
     "Continue": "Continue",
     "Continue without it": "Continue without it",
     "Copying": "Copying",
     "Counted without file access": "Counted without file access",
     "DETAILS": "DETAILS",
     "Data": "Data",
-    "Data is the app's actual content: your accounts, ": "Data is the app's actual content: your accounts, ",
-    "Date, place and camera settings are copied across, so your ": "Date, place and camera settings are copied across, so your ",
+    "Data is the app's actual content: your accounts, messages and downloads. Clearing it signs you out and deletes what was there.": "Data is the app's actual content: your accounts, messages and downloads. Clearing it signs you out and deletes what was there.",
+    "Date, place and camera settings are copied across, so your gallery keeps its order.": "Date, place and camera settings are copied across, so your gallery keeps its order.",
     "Dead pixels, backlight and touch response": "Dead pixels, backlight and touch response",
     "Delete": "Delete",
     "Delete permanently": "Delete permanently",
-    "Delete skips the bin. The space comes back immediately and the ": "Delete skips the bin. The space comes back immediately and the ",
+    "Delete skips the bin. The space comes back immediately and the file does not, ever, by any means.": "Delete skips the bin. The space comes back immediately and the file does not, ever, by any means.",
     "Delete the archive": "Delete the archive",
     "Deleted by sender": "Deleted by sender",
     "Deleted is not\nalways gone": "Deleted is not\nalways gone",
@@ -78,33 +76,33 @@
     "Did not match, kept": "Did not match, kept",
     "Display": "Display",
     "Docs": "Docs",
-    "Documents, PDFs and music are not listed. They are already ": "Documents, PDFs and music are not listed. They are already ",
+    "Documents, PDFs and music are not listed. They are already compressed inside, so squeezing them again gains almost nothing.": "Documents, PDFs and music are not listed. They are already compressed inside, so squeezing them again gains almost nothing.",
     "Done": "Done",
     "Double": "Double",
     "ESTIMATED  ·  PRO": "ESTIMATED  ·  PRO",
     "EVERY DEVICE ON THIS ACCOUNT": "EVERY DEVICE ON THIS ACCOUNT",
-    "Each file is hashed here and on the server before ": "Each file is hashed here and on the server before ",
-    "Each photo is scored on how abruptly its brightness changes. A sharp ": "Each photo is scored on how abruptly its brightness changes. A sharp ",
-    "Each row carries a bar showing its size against the largest net. It ": "Each row carries a bar showing its size against the largest net. It ",
+    "Each file is hashed here and on the server before anything is touched.": "Each file is hashed here and on the server before anything is touched.",
+    "Each photo is scored on how abruptly its brightness changes. A sharp picture has hard edges somewhere; a soft one changes gently everywhere.": "Each photo is scored on how abruptly its brightness changes. A sharp picture has hard edges somewhere; a soft one changes gently everywhere.",
+    "Each row carries a bar showing its size against the largest net. It answers which one is worth opening first, which a list of numbers on its own does not.": "Each row carries a bar showing its size against the largest net. It answers which one is worth opening first, which a list of numbers on its own does not.",
     "Each speaker on its own, and the motor": "Each speaker on its own, and the motor",
     "Encrypt the files": "Encrypt the files",
     "Encrypted on this phone, sent only to your server": "Encrypted on this phone, sent only to your server",
     "Enumerating sensors": "Enumerating sensors",
     "Every app, and the private data each one keeps.": "Every app, and the private data each one keeps.",
-    "Every modern Android phone encrypts each file with its own ": "Every modern Android phone encrypts each file with its own ",
-    "Every photo here is a suggestion. Nothing is selected until ": "Every photo here is a suggestion. Nothing is selected until ",
-    "Every place on this phone where deleted data can still be ": "Every place on this phone where deleted data can still be ",
+    "Every modern Android phone encrypts each file with its own key, and that key is destroyed with the file. Even reaching the raw blocks would return noise.": "Every modern Android phone encrypts each file with its own key, and that key is destroyed with the file. Even reaching the raw blocks would return noise.",
+    "Every photo here is a suggestion. Nothing is selected until you tap it, and everything goes to the trash rather than being deleted.": "Every photo here is a suggestion. Nothing is selected until you tap it, and everything goes to the trash rather than being deleted.",
+    "Every place on this phone where deleted data can still be hiding, and what quality each one gives back.": "Every place on this phone where deleted data can still be hiding, and what quality each one gives back.",
     "Everything": "Everything",
-    "Everything goes to the system trash, where Android keeps it ": "Everything goes to the system trash, where Android keeps it ",
-    "Everything here is still on your phone and still yours. This screen ": "Everything here is still on your phone and still yours. This screen ",
-    "Everything kept so far leaves this phone for good. Capture stays on, ": "Everything kept so far leaves this phone for good. Capture stays on, ",
+    "Everything goes to the system trash, where Android keeps it for thirty days. If a keeper was wrong, the others are still there.": "Everything goes to the system trash, where Android keeps it for thirty days. If a keeper was wrong, the others are still there.",
+    "Everything here is still on your phone and still yours. This screen is for clearing space, not for recovering anything.": "Everything here is still on your phone and still yours. This screen is for clearing space, not for recovering anything.",
+    "Everything kept so far leaves this phone for good. Capture stays on, so new messages begin a fresh archive.": "Everything kept so far leaves this phone for good. Capture stays on, so new messages begin a fresh archive.",
     "Everything looks sharp.": "Everything looks sharp.",
-    "Everything that has not actually been deleted yet: the system ": "Everything that has not actually been deleted yet: the system ",
+    "Everything that has not actually been deleted yet: the system trash, the bins individual apps keep, media sitting in a folder after the app forgot about it, and the thumbnail cache. That is what this app looks through, and it says which of them each find came from.": "Everything that has not actually been deleted yet: the system trash, the bins individual apps keep, media sitting in a folder after the app forgot about it, and the thumbnail cache. That is what this app looks through, and it says which of them each find came from.",
     "Expiring": "Expiring",
     "FREED": "FREED",
-    "Fifteen seconds of each clip is really encoded to ": "Fifteen seconds of each clip is really encoded to ",
+    "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.": "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.",
     "Files": "Files",
-    "Files go one way, from the phone to your server. ": "Files go one way, from the phone to your server. ",
+    "Files go one way, from the phone to your server. Deleting something on the server never deletes it here.": "Files go one way, from the phone to your server. Deleting something on the server never deletes it here.",
     "Focal length against aperture": "Focal length against aperture",
     "Folder": "Folder",
     "Folder on the server": "Folder on the server",
@@ -114,22 +112,21 @@
     "Free memory, last minute": "Free memory, last minute",
     "Free on server": "Free on server",
     "From your phone settings": "From your phone settings",
-    "Full quality means the original file is still here. Restoring ": "Full quality means the original file is still here. Restoring ",
+    "Full quality means the original file is still here. Restoring gives you exactly what you had.": "Full quality means the original file is still here. Restoring gives you exactly what you had.",
     "G Recovery": "G Recovery",
     "Get started": "Get started",
-    "Gone means this phone will not let any app look there. The row ": "Gone means this phone will not let any app look there. The row ",
+    "Gone means this phone will not let any app look there. The row stays visible so you know it was checked and not forgotten.": "Gone means this phone will not let any app look there. The row stays visible so you know it was checked and not forgotten.",
     "HEALTH": "HEALTH",
     "Hold to see the original": "Hold to see the original",
     "Home server": "Home server",
-    "Host": "Host",
     "How Android storage works": "How Android storage works",
     "How many fingers the screen can follow": "How many fingers the screen can follow",
     "How this is measured": "How this is measured",
     "How this works": "How this works",
-    "If your account uses two-step sign in, your normal password ": "If your account uses two-step sign in, your normal password ",
+    "If your account uses two-step sign in, your normal password will be refused. Create an app password on the server and paste that instead.": "If your account uses two-step sign in, your normal password will be refused. Create an app password on the server and paste that instead.",
     "In the bin": "In the bin",
-    "It is encrypted by this phone's own hardware keystore and ": "It is encrypted by this phone's own hardware keystore and ",
-    "It is sent to one place only: the address you typed above. ": "It is sent to one place only: the address you typed above. ",
+    "It is encrypted by this phone's own hardware keystore and kept on the device. No other app can read it, and neither can we.": "It is encrypted by this phone's own hardware keystore and kept on the device. No other app can read it, and neither can we.",
+    "It is sent to one place only: the address you typed above. There is no account and no server of ours in between.": "It is sent to one place only: the address you typed above. There is no account and no server of ours in between.",
     "It was erased outside a bin": "It was erased outside a bin",
     "It went to a trash folder": "It went to a trash folder",
     "Keep": "Keep",
@@ -157,47 +154,45 @@
     "Never": "Never",
     "No account, no server": "No account, no server",
     "No ads, ever": "No ads, ever",
-    "No video on this phone is large enough to be worth ": "No video on this phone is large enough to be worth ",
-    "None of it can be listed by any app, including this one, so it ": "None of it can be listed by any app, including this one, so it ",
+    "No video on this phone is large enough to be worth looking at.": "No video on this phone is large enough to be worth looking at.",
+    "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.": "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.",
     "Not available": "Not available",
     "Not deleted": "Not deleted",
-    "Nothing from a muted chat, because a muted chat posts no ": "Nothing from a muted chat, because a muted chat posts no ",
-    "Nothing from before you switch it on. No copy of those ": "Nothing from before you switch it on. No copy of those ",
+    "Nothing from a muted chat, because a muted chat posts no notification at all.": "Nothing from a muted chat, because a muted chat posts no notification at all.",
+    "Nothing from before you switch it on. No copy of those messages exists anywhere for this app to find.": "Nothing from before you switch it on. No copy of those messages exists anywhere for this app to find.",
     "Nothing has been changed on your device yet.": "Nothing has been changed on your device yet.",
-    "Nothing here is stored in a format that could be ": "Nothing here is stored in a format that could be ",
+    "Nothing here is stored in a format that could be made smaller.": "Nothing here is stored in a format that could be made smaller.",
     "Nothing here over a megabyte.": "Nothing here over a megabyte.",
     "Nothing leaves this phone": "Nothing leaves this phone",
     "Nothing matched": "Nothing matched",
+    "Nothing of this kind was deleted recently.": "Nothing of this kind was deleted recently.",
     "Nothing on the server is touched or deleted": "Nothing on the server is touched or deleted",
-    "Nothing on this phone would gain from Pro today. It is worth ": "Nothing on this phone would gain from Pro today. It is worth ",
+    "Nothing on this phone would gain from Pro today. It is worth coming back when you have set up a server, or recorded video the camera app has not already compressed.": "Nothing on this phone would gain from Pro today. It is worth coming back when you have set up a server, or recorded video the camera app has not already compressed.",
     "Nothing to compare": "Nothing to compare",
-    "Nothing yet. Anything you compress is listed here with ": "Nothing yet. Anything you compress is listed here with ",
+    "Nothing yet. Anything you compress is listed here with what it was before, so you can check it later.": "Nothing yet. Anything you compress is listed here with what it was before, so you can check it later.",
     "Notifications": "Notifications",
     "Now": "Now",
-    "Offline": "Offline",
-    "On device": "On device",
-    "Only files still on the device and files sitting ": "Only files still on the device and files sitting ",
+    "Only files still on the device and files sitting in a trash folder can be searched. Anything erased outside a trash folder leaves no name behind.": "Only files still on the device and files sitting in a trash folder can be searched. Anything erased outside a trash folder leaves no name behind.",
     "Only the preview survived": "Only the preview survived",
     "Only what this app made is visible": "Only what this app made is visible",
     "Open settings": "Open settings",
     "Open the setting": "Open the setting",
     "Open with another app": "Open with another app",
+    "Or it was deleted outside a bin, by a cleaner app or a file manager, and nothing kept a copy.": "Or it was deleted outside a bin, by a cleaner app or a file manager, and nothing kept a copy.",
     "Original": "Original",
     "PITCH": "PITCH",
     "Paired devices need Bluetooth access": "Paired devices need Bluetooth access",
-    "Path": "Path",
     "Per core frequency": "Per core frequency",
     "Permissions": "Permissions",
-    "Phone storage is flash, which cannot overwrite in place. When ": "Phone storage is flash, which cannot overwrite in place. When ",
+    "Phone storage is flash, which cannot overwrite in place. When a file is deleted the phone immediately tells the chip that those blocks are free, and the chip clears them in the background, usually within seconds. On a spinning hard disk the data sat there until something else needed the room. Here it does not.": "Phone storage is flash, which cannot overwrite in place. When a file is deleted the phone immediately tells the chip that those blocks are free, and the chip clears them in the background, usually within seconds. On a spinning hard disk the data sat there until something else needed the room. Here it does not.",
     "Photos": "Photos",
     "Pick a look": "Pick a look",
-    "Pictures keep their size in pixels. Nothing is cropped or ": "Pictures keep their size in pixels. Nothing is cropped or ",
-    "Port": "Port",
-    "Preview only means the original is gone and what survives is ": "Preview only means the original is gone and what survives is ",
+    "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.": "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.",
+    "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.": "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.",
     "Previews": "Previews",
     "Privacy": "Privacy",
     "Pro": "Pro",
-    "Put as many fingers on the screen as you can, and ": "Put as many fingers on the screen as you can, and ",
+    "Put as many fingers on the screen as you can, and drag them into every corner.": "Put as many fingers on the screen as you can, and drag them into every corner.",
     "RIGHT NOW": "RIGHT NOW",
     "Read more": "Read more",
     "Reading": "Reading",
@@ -206,16 +201,15 @@
     "Reading battery": "Reading battery",
     "Reading both copies takes a moment on a large file.": "Reading both copies takes a moment on a large file.",
     "Reading memory": "Reading memory",
-    "Reading raw storage needs root. Android gives an app a view of ": "Reading raw storage needs root. Android gives an app a view of ",
+    "Reading raw storage needs root. Android gives an app a view of files, never of the disk underneath them, so the scan that desktop tools perform cannot even be attempted.": "Reading raw storage needs root. Android gives an app a view of files, never of the disk underneath them, so the scan that desktop tools perform cannot even be attempted.",
     "Reading storage": "Reading storage",
     "Reading thermal zones": "Reading thermal zones",
     "Reading this page": "Reading this page",
     "Reading your photos": "Reading your photos",
     "Ready": "Ready",
-    "Rebuilds itself": "Rebuilds itself",
     "Reclaim space": "Reclaim space",
     "Recovery coverage": "Recovery coverage",
-    "Recovery tools on a computer work by reading the disk directly, past ": "Recovery tools on a computer work by reading the disk directly, past ",
+    "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.": "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.",
     "Restore": "Restore",
     "Restore a previous purchase": "Restore a previous purchase",
     "Review and reclaim": "Review and reclaim",
@@ -224,10 +218,10 @@
     "Right": "Right",
     "Roaming": "Roaming",
     "Run a full scan": "Run a full scan",
-    "Run openssl x509 -fingerprint -sha256 on your server, or read ": "Run openssl x509 -fingerprint -sha256 on your server, or read ",
+    "Run openssl x509 -fingerprint -sha256 on your server, or read it from your server's admin page, and make sure it matches.": "Run openssl x509 -fingerprint -sha256 on your server, or read it from your server's admin page, and make sure it matches.",
     "SCHEDULE": "SCHEDULE",
     "SERVER": "SERVER",
-    "SFTP is not here yet. If your server only speaks SSH, wait for ": "SFTP is not here yet. If your server only speaks SSH, wait for ",
+    "SFTP is not here yet. If your server only speaks SSH, wait for a later update rather than opening it up.": "SFTP is not here yet. If your server only speaks SSH, wait for a later update rather than opening it up.",
     "SHA-256": "SHA-256",
     "Safety nets": "Safety nets",
     "Same pixels, fewer bytes": "Same pixels, fewer bytes",
@@ -240,21 +234,19 @@
     "Screenshots and photos stay free, and so does everything else here.": "Screenshots and photos stay free, and so does everything else here.",
     "Search files, photos, messages": "Search files, photos, messages",
     "Searching": "Searching",
-    "Send photos and video to a computer or NAS you own. No account, ": "Send photos and video to a computer or NAS you own. No account, ",
+    "Send photos and video to a computer or NAS you own. No account, no subscription, and nothing passes through us.": "Send photos and video to a computer or NAS you own. No account, no subscription, and nothing passes through us.",
     "Sensors": "Sensors",
     "Server": "Server",
-    "Server address": "Server address",
     "Session done": "Session done",
     "Seven chapters on what these folders are": "Seven chapters on what these folders are",
-    "Seven short chapters on where your files live, what deleting ": "Seven short chapters on where your files live, what deleting ",
+    "Seven short chapters on where your files live, what deleting actually does, and why some things can be brought back and others cannot.": "Seven short chapters on where your files live, what deleting actually does, and why some things can be brought back and others cannot.",
     "Share": "Share",
     "Short": "Short",
-    "Shows the real size and opens that app's own storage ": "Shows the real size and opens that app's own storage ",
+    "Shows the real size and opens that app's own storage screen, where Clear cache is one tap and actually works.": "Shows the real size and opens that app's own storage screen, where Clear cache is one tap and actually works.",
     "Signed in as": "Signed in as",
     "Smaller": "Smaller",
-    "So does fog, a plain wall, and anything photographed in the ": "So does fog, a plain wall, and anything photographed in the ",
-    "Softest first. Some of these will be deliberate, so nothing ": "Softest first. Some of these will be deliberate, so nothing ",
-    "Sold as ": "Sold as ",
+    "So does fog, a plain wall, and anything photographed in the dark.": "So does fog, a plain wall, and anything photographed in the dark.",
+    "Softest first. Some of these will be deliberate, so nothing is selected until you choose it.": "Softest first. Some of these will be deliberate, so nothing is selected until you choose it.",
     "Sort": "Sort",
     "Space freed": "Space freed",
     "Speakers": "Speakers",
@@ -265,54 +257,53 @@
     "System load": "System load",
     "TOOLS": "TOOLS",
     "Temperature": "Temperature",
-    "Text only. A photo arrives as the word Photo, so a view ": "Text only. A photo arrives as the word Photo, so a view ",
+    "Text only. A photo arrives as the word Photo, so a view once image cannot be kept this way.": "Text only. A photo arrives as the word Photo, so a view once image cannot be kept this way.",
     "Thank you": "Thank you",
-    "The address and password are removed from this phone. Everything ": "The address and password are removed from this phone. Everything ",
-    "The archive starts here. Messages from before you switched ": "The archive starts here. Messages from before you switched ",
+    "The address and password are removed from this phone. Everything already copied stays on the server, untouched.": "The address and password are removed from this phone. Everything already copied stays on the server, untouched.",
+    "The archive starts here. Messages from before you switched this on were never captured.": "The archive starts here. Messages from before you switched this on were never captured.",
     "The operating system itself.": "The operating system itself.",
-    "The saving shown is measured, not guessed. Each file is really ": "The saving shown is measured, not guessed. Each file is really ",
+    "The saving shown is measured, not guessed. Each file is really re-encoded before you decide.": "The saving shown is measured, not guessed. Each file is really re-encoded before you decide.",
     "The scan could not run": "The scan could not run",
-    "The scan ran out of time. What it found is here, and ": "The scan ran out of time. What it found is here, and ",
+    "The scan ran out of time. What it found is here, and the picture is incomplete.": "The scan ran out of time. What it found is here, and the picture is incomplete.",
     "The technical reason, if you want it.": "The technical reason, if you want it.",
     "Theme": "Theme",
     "Thermal": "Thermal",
     "Thermal state": "Thermal state",
-    "These come from a fast count taken when the app opens. A full scan ": "These come from a fast count taken when the app opens. A full scan ",
-    "These figures come from the Android media index, which covers your ": "These figures come from the Android media index, which covers your ",
+    "These come from a fast count taken when the app opens. A full scan walks folders that counting cannot reach, so the numbers usually grow after one has run.": "These come from a fast count taken when the app opens. A full scan walks folders that counting cannot reach, so the numbers usually grow after one has run.",
+    "These figures come from the Android media index, which covers your own files and nothing else.": "These figures come from the Android media index, which covers your own files and nothing else.",
     "These files are not deleted": "These files are not deleted",
-    "These leave the trash for good. This app cannot bring them back ": "These leave the trash for good. This app cannot bring them back ",
-    "These skip the trash and leave the phone for good. Nothing on this ": "These skip the trash and leave the phone for good. Nothing on this ",
-    "This address is plain http, so your password and your files ": "This address is plain http, so your password and your files ",
-    "This app can show photos, video, text and PDF. Anything else ": "This app can show photos, video, text and PDF. Anything else ",
-    "This app reads a great deal: every file in your storage, the ": "This app reads a great deal: every file in your storage, the ",
-    "This app shows photos, video, audio, text and PDF. Anything ": "This app shows photos, video, audio, text and PDF. Anything ",
-    "This cannot be played while it is still in the trash. Restore it ": "This cannot be played while it is still in the trash. Restore it ",
+    "These leave the trash for good. This app cannot bring them back afterwards, and neither can anything else.": "These leave the trash for good. This app cannot bring them back afterwards, and neither can anything else.",
+    "These skip the trash and leave the phone for good. Nothing on this device, including this app, can bring them back.": "These skip the trash and leave the phone for good. Nothing on this device, including this app, can bring them back.",
+    "This app can show photos, video, text and PDF. Anything else opens in an app built for it.": "This app can show photos, video, text and PDF. Anything else opens in an app built for it.",
+    "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.": "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.",
+    "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.": "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.",
+    "This cannot be played while it is still in the trash. Restore it and it will open in your usual player.": "This cannot be played while it is still in the trash. Restore it and it will open in your usual player.",
     "This chapter is not in the version of the guide on this device.": "This chapter is not in the version of the guide on this device.",
-    "This list comes from the Android media index, which covers your own ": "This list comes from the Android media index, which covers your own ",
-    "This server is not on your network, so the only ": "This server is not on your network, so the only ",
+    "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.": "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.",
+    "This server is not on your network, so the only way to be sure a copy is intact is to read it back. On Wi-Fi that costs nothing. On mobile data it costs the same as the space you are freeing. Choosing fewer files costs less.": "This server is not on your network, so the only way to be sure a copy is intact is to read it back. On Wi-Fi that costs nothing. On mobile data it costs the same as the space you are freeing. Choosing fewer files costs less.",
     "Touch": "Touch",
-    "Trash puts a file in the system bin, where Android keeps it ": "Trash puts a file in the system bin, where Android keeps it ",
+    "Trash puts a file in the system bin, where Android keeps it for thirty days. You can change your mind, and it shows up on the home screen as recoverable.": "Trash puts a file in the system bin, where Android keeps it for thirty days. You can change your mind, and it shows up on the home screen as recoverable.",
     "Trust this certificate": "Trust this certificate",
     "Turn on file access": "Turn on file access",
-    "Turn the volume up. Each button plays a tone through one side ": "Turn the volume up. Each button plays a tone through one side ",
-    "Type at least two letters. Searches your deleted files ": "Type at least two letters. Searches your deleted files ",
-    "Usage access lets this app read how much space each app takes. ": "Usage access lets this app read how much space each app takes. ",
+    "Turn the volume up. Each button plays a tone through one side only.": "Turn the volume up. Each button plays a tone through one side only.",
+    "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.": "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.",
+    "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.": "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.",
     "Username": "Username",
     "VIBRATION": "VIBRATION",
     "Video": "Video",
     "WHILE YOU ARE AWAY  ·  PRO": "WHILE YOU ARE AWAY  ·  PRO",
     "Waiting for a reading": "Waiting for a reading",
     "WebDAV": "WebDAV",
-    "What Android itself thinks, from the system thermal ": "What Android itself thinks, from the system thermal ",
+    "What Android itself thinks, from the system thermal service": "What Android itself thinks, from the system thermal service",
     "What can come back": "What can come back",
     "What cannot come back, and why": "What cannot come back, and why",
-    "What happens to a file depends entirely on how it left. Some are ": "What happens to a file depends entirely on how it left. Some are ",
+    "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.": "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.",
     "What is measured": "What is measured",
     "What it cannot do": "What it cannot do",
-    "What matches goes to the trash, where Android keeps ": "What matches goes to the trash, where Android keeps ",
+    "What matches goes to the trash, where Android keeps it for thirty days.": "What matches goes to the trash, where Android keeps it for thirty days.",
     "What this app is allowed to read": "What this app is allowed to read",
     "What this does": "What this does",
-    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ": "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ",
+    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every other notification, including bank alerts and sign in codes, is discarded before it is written down.": "WhatsApp, Telegram, Instagram, Messenger and Messages. Every other notification, including bank alerts and sign in codes, is discarded before it is written down.",
     "Where the password goes": "Where the password goes",
     "While charging": "While charging",
     "Why apps and system cannot be broken down": "Why apps and system cannot be broken down",
@@ -323,13 +314,11 @@
     "Wi-Fi details": "Wi-Fi details",
     "Wi-Fi only": "Wi-Fi only",
     "Windows share": "Windows share",
-    "You are watching the first ": "You are watching the first ",
     "You can change this any time from settings.": "You can change this any time from settings.",
-    "You can leave the app. This keeps running and tells you when it ": "You can leave the app. This keeps running and tells you when it ",
-    "You have trusted this server's own certificate.": "You have trusted this server's own certificate.",
+    "You can leave the app. This keeps running and tells you when it is done.": "You can leave the app. This keeps running and tells you when it is done.",
     "Your files,\non your own machine": "Your files,\non your own machine",
-    "Your folder structure is kept, so the copy is ": "Your folder structure is kept, so the copy is ",
-    "Your phone keeps deleted files in several places before it lets ": "Your phone keeps deleted files in several places before it lets ",
+    "Your folder structure is kept, so the copy is browsable with anything, not just this app.": "Your folder structure is kept, so the copy is browsable with anything, not just this app.",
+    "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.": "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.",
     "Your server has never been used": "Your server has never been used",
     "Zones": "Zones",
     "apps and their data": "apps and their data",
@@ -344,36 +333,34 @@
     "freed in total": "freed in total",
     "freed so far": "freed so far",
     "from Google Play, in your own currency": "from Google Play, in your own currency",
-    "https://cloud.example.com/remote.php/dav/files/you/": "https://cloud.example.com/remote.php/dav/files/you/",
     "in total": "in total",
-    "is stored in formats that take more room than they need. How ": "is stored in formats that take more room than they need. How ",
+    "is stored in formats that take more room than they need. How much comes back is measured when you open a list.": "is stored in formats that take more room than they need. How much comes back is measured when you open a list.",
     "items held": "items held",
     "longer lens": "longer lens",
     "nets reachable": "nets reachable",
     "no gain": "no gain",
-    "phone-backup": "phone-backup",
     "places checked": "places checked",
     "shown here": "shown here",
     "since the last backup": "since the last backup",
     "to turn on": "to turn on"
   },
   "sources": {
-    "A Windows share only works while the phone is on ": [
+    "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.": [
       "lib/features/server/server_page.dart"
     ],
-    "A photo is re-encoded and loses a little detail. The original ": [
+    "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
-    "A portrait with a deliberately blurred background scores low ": [
+    "A portrait with a deliberately blurred background scores low and is not a mistake.": [
       "lib/features/storage/compare/blur_review_page.dart"
     ],
-    "A rattle or a buzz at one pitch and not another is a ": [
+    "A rattle or a buzz at one pitch and not another is a damaged driver.": [
       "lib/features/device/tools/sound_test_page.dart"
     ],
-    "A safety net is anywhere on the phone that holds onto something after ": [
+    "A safety net is anywhere on the phone that holds onto something after you have deleted it. Each one behaves differently, so each row says what you would actually get back.": [
       "lib/features/recovery/sources_page.dart"
     ],
-    "A screenshot becomes a WebP with identical pixels. It is ": [
+    "A screenshot becomes a WebP with identical pixels. It is smaller and there is no version of it that looks worse.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "ABOUT": [
@@ -386,12 +373,11 @@
     "Access": [
       "lib/features/device/device_page.dart"
     ],
-    "Active on every device signed in to the same Google ": [
+    "Active on every device signed in to the same Google account. There is nothing to renew and nothing to manage.": [
       "lib/features/pro/pro_page.dart"
     ],
     "Address": [
-      "lib/features/server/server_page.dart",
-      "lib/features/server/server_setup_page.dart"
+      "lib/features/server/server_page.dart"
     ],
     "After": [
       "lib/features/storage/compress/compress_viewer_page.dart"
@@ -414,16 +400,16 @@
     "Allow notification access": [
       "lib/features/messages/messages_page.dart"
     ],
-    "Android hands every arriving message to this app as a ": [
+    "Android hands every arriving message to this app as a notification. G Recovery writes that text down. If the sender deletes the message afterwards, your copy is still here.": [
       "lib/features/messages/messages_page.dart"
     ],
-    "Android has not let one app clear another app's cache since ": [
+    "Android has not let one app clear another app's cache since 2015. Anything claiming to do it is either driving your screen through an accessibility service, or reporting a number it made up.": [
       "lib/features/apps/apps_page.dart"
     ],
     "Android hides other apps deleted files until you do. Every count above is a floor until then.": [
       "lib/features/home/home_page.dart"
     ],
-    "Android is below its own low memory threshold and is killing ": [
+    "Android is below its own low memory threshold and is killing background apps to keep going.": [
       "lib/features/device/pages/memory_page.dart"
     ],
     "Android keeps app sizes behind a switch": [
@@ -432,7 +418,7 @@
     "Android needs phone access to name the carrier": [
       "lib/features/device/pages/sim_page.dart"
     ],
-    "Any app promising to recover anything from an ordinary phone is ": [
+    "Any app promising to recover anything from an ordinary phone is looking in exactly the same places this one does.": [
       "lib/features/learn/limits_page.dart"
     ],
     "Anything not yet translated stays in English.": [
@@ -468,7 +454,7 @@
     "Back up on its own": [
       "lib/features/server/server_page.dart"
     ],
-    "Backing up by hand, reclaiming space and everything else here ": [
+    "Backing up by hand, reclaiming space and everything else here stay free. Pro is for the run that happens without you.": [
       "lib/features/server/server_page.dart"
     ],
     "Battery": [
@@ -491,7 +477,7 @@
     "Browse files": [
       "lib/features/more/more_page.dart"
     ],
-    "Cache is rebuildable. Clearing it costs nothing but a slower ": [
+    "Cache is rebuildable. Clearing it costs nothing but a slower next launch.": [
       "lib/features/apps/apps_page.dart"
     ],
     "Cameras": [
@@ -501,14 +487,11 @@
     "Certificate": [
       "lib/features/server/server_page.dart"
     ],
-    "Changing your screen lock can destroy the key that protects ": [
+    "Changing your screen lock can destroy the key that protects it. If that happens the app asks you to type it again rather than failing quietly every night.": [
       "lib/features/server/server_setup_page.dart"
     ],
     "Check for duplicates and blur": [
       "lib/features/storage/storage_page.dart"
-    ],
-    "Checking everything here downloads ": [
-      "lib/features/server/reclaim_page.dart"
     ],
     "Checking your device": [
       "lib/features/recovery/sources_page.dart"
@@ -516,7 +499,7 @@
     "Clearing app caches": [
       "lib/features/apps/apps_page.dart"
     ],
-    "Clusters inferred from maximum frequencies. This kernel does ": [
+    "Clusters inferred from maximum frequencies. This kernel does not publish its frequency domains.": [
       "lib/features/device/pages/cpu_page.dart"
     ],
     "Collecting": [
@@ -526,11 +509,8 @@
       "lib/features/storage/compress/compress_page.dart",
       "lib/features/storage/compress/compressed_page.dart"
     ],
-    "Compressed in RAM rather than written to storage, so it ": [
+    "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.": [
       "lib/features/device/pages/memory_page.dart"
-    ],
-    "Connection": [
-      "lib/features/server/server_setup_page.dart"
     ],
     "Continue": [
       "lib/features/onboarding/onboarding_page.dart"
@@ -550,10 +530,10 @@
     "Data": [
       "lib/features/device/pages/sim_page.dart"
     ],
-    "Data is the app's actual content: your accounts, ": [
+    "Data is the app's actual content: your accounts, messages and downloads. Clearing it signs you out and deletes what was there.": [
       "lib/features/apps/apps_page.dart"
     ],
-    "Date, place and camera settings are copied across, so your ": [
+    "Date, place and camera settings are copied across, so your gallery keeps its order.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "Dead pixels, backlight and touch response": [
@@ -567,7 +547,7 @@
     "Delete permanently": [
       "lib/features/review/review_page.dart"
     ],
-    "Delete skips the bin. The space comes back immediately and the ": [
+    "Delete skips the bin. The space comes back immediately and the file does not, ever, by any means.": [
       "lib/features/storage/storage_files_page.dart"
     ],
     "Delete the archive": [
@@ -595,7 +575,7 @@
     "Docs": [
       "lib/features/home/widgets/category_grid.dart"
     ],
-    "Documents, PDFs and music are not listed. They are already ": [
+    "Documents, PDFs and music are not listed. They are already compressed inside, so squeezing them again gains almost nothing.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "Done": [
@@ -610,13 +590,13 @@
     "EVERY DEVICE ON THIS ACCOUNT": [
       "lib/features/pro/pro_page.dart"
     ],
-    "Each file is hashed here and on the server before ": [
+    "Each file is hashed here and on the server before anything is touched.": [
       "lib/features/server/reclaim_page.dart"
     ],
-    "Each photo is scored on how abruptly its brightness changes. A sharp ": [
+    "Each photo is scored on how abruptly its brightness changes. A sharp picture has hard edges somewhere; a soft one changes gently everywhere.": [
       "lib/features/storage/compare/blur_review_page.dart"
     ],
-    "Each row carries a bar showing its size against the largest net. It ": [
+    "Each row carries a bar showing its size against the largest net. It answers which one is worth opening first, which a list of numbers on its own does not.": [
       "lib/features/recovery/sources_page.dart"
     ],
     "Each speaker on its own, and the motor": [
@@ -634,31 +614,31 @@
     "Every app, and the private data each one keeps.": [
       "lib/features/storage/storage_page.dart"
     ],
-    "Every modern Android phone encrypts each file with its own ": [
+    "Every modern Android phone encrypts each file with its own key, and that key is destroyed with the file. Even reaching the raw blocks would return noise.": [
       "lib/features/learn/limits_page.dart"
     ],
-    "Every photo here is a suggestion. Nothing is selected until ": [
+    "Every photo here is a suggestion. Nothing is selected until you tap it, and everything goes to the trash rather than being deleted.": [
       "lib/features/storage/compare/blur_review_page.dart"
     ],
-    "Every place on this phone where deleted data can still be ": [
+    "Every place on this phone where deleted data can still be hiding, and what quality each one gives back.": [
       "lib/features/recovery/sources_page.dart"
     ],
     "Everything": [
       "lib/features/home/widgets/hero_card.dart"
     ],
-    "Everything goes to the system trash, where Android keeps it ": [
+    "Everything goes to the system trash, where Android keeps it for thirty days. If a keeper was wrong, the others are still there.": [
       "lib/features/storage/compare/compare_review_page.dart"
     ],
-    "Everything here is still on your phone and still yours. This screen ": [
+    "Everything here is still on your phone and still yours. This screen is for clearing space, not for recovering anything.": [
       "lib/features/storage/storage_files_page.dart"
     ],
-    "Everything kept so far leaves this phone for good. Capture stays on, ": [
+    "Everything kept so far leaves this phone for good. Capture stays on, so new messages begin a fresh archive.": [
       "lib/features/messages/messages_page.dart"
     ],
     "Everything looks sharp.": [
       "lib/features/storage/compare/blur_review_page.dart"
     ],
-    "Everything that has not actually been deleted yet: the system ": [
+    "Everything that has not actually been deleted yet: the system trash, the bins individual apps keep, media sitting in a folder after the app forgot about it, and the thumbnail cache. That is what this app looks through, and it says which of them each find came from.": [
       "lib/features/learn/limits_page.dart"
     ],
     "Expiring": [
@@ -667,13 +647,13 @@
     "FREED": [
       "lib/features/pro/pro_page.dart"
     ],
-    "Fifteen seconds of each clip is really encoded to ": [
+    "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.": [
       "lib/features/storage/compress/video_list_page.dart"
     ],
     "Files": [
       "lib/features/server/server_page.dart"
     ],
-    "Files go one way, from the phone to your server. ": [
+    "Files go one way, from the phone to your server. Deleting something on the server never deletes it here.": [
       "lib/features/server/server_page.dart"
     ],
     "Focal length against aperture": [
@@ -703,7 +683,7 @@
     "From your phone settings": [
       "lib/features/more/language_page.dart"
     ],
-    "Full quality means the original file is still here. Restoring ": [
+    "Full quality means the original file is still here. Restoring gives you exactly what you had.": [
       "lib/features/recovery/sources_page.dart"
     ],
     "G Recovery": [
@@ -715,7 +695,7 @@
     "Get started": [
       "lib/features/onboarding/onboarding_page.dart"
     ],
-    "Gone means this phone will not let any app look there. The row ": [
+    "Gone means this phone will not let any app look there. The row stays visible so you know it was checked and not forgotten.": [
       "lib/features/recovery/sources_page.dart"
     ],
     "HEALTH": [
@@ -727,9 +707,6 @@
     "Home server": [
       "lib/features/more/more_page.dart",
       "lib/features/server/server_page.dart"
-    ],
-    "Host": [
-      "lib/features/server/server_setup_page.dart"
     ],
     "How Android storage works": [
       "lib/features/learn/learn_page.dart",
@@ -745,16 +722,16 @@
       "lib/features/messages/messages_page.dart",
       "lib/features/server/server_page.dart"
     ],
-    "If your account uses two-step sign in, your normal password ": [
+    "If your account uses two-step sign in, your normal password will be refused. Create an app password on the server and paste that instead.": [
       "lib/features/server/server_setup_page.dart"
     ],
     "In the bin": [
       "lib/features/review/review_page.dart"
     ],
-    "It is encrypted by this phone's own hardware keystore and ": [
+    "It is encrypted by this phone's own hardware keystore and kept on the device. No other app can read it, and neither can we.": [
       "lib/features/server/server_setup_page.dart"
     ],
-    "It is sent to one place only: the address you typed above. ": [
+    "It is sent to one place only: the address you typed above. There is no account and no server of ours in between.": [
       "lib/features/server/server_setup_page.dart"
     ],
     "It was erased outside a bin": [
@@ -851,10 +828,10 @@
     "No ads, ever": [
       "lib/features/more/settings_pages.dart"
     ],
-    "No video on this phone is large enough to be worth ": [
+    "No video on this phone is large enough to be worth looking at.": [
       "lib/features/storage/compress/video_list_page.dart"
     ],
-    "None of it can be listed by any app, including this one, so it ": [
+    "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.": [
       "lib/features/storage/storage_page.dart"
     ],
     "Not available": [
@@ -863,16 +840,16 @@
     "Not deleted": [
       "lib/features/search/search_page.dart"
     ],
-    "Nothing from a muted chat, because a muted chat posts no ": [
+    "Nothing from a muted chat, because a muted chat posts no notification at all.": [
       "lib/features/messages/messages_page.dart"
     ],
-    "Nothing from before you switch it on. No copy of those ": [
+    "Nothing from before you switch it on. No copy of those messages exists anywhere for this app to find.": [
       "lib/features/messages/messages_page.dart"
     ],
     "Nothing has been changed on your device yet.": [
       "lib/features/review/review_page.dart"
     ],
-    "Nothing here is stored in a format that could be ": [
+    "Nothing here is stored in a format that could be made smaller.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "Nothing here over a megabyte.": [
@@ -884,16 +861,19 @@
     "Nothing matched": [
       "lib/features/search/search_page.dart"
     ],
+    "Nothing of this kind was deleted recently.": [
+      "lib/features/recovery/category_page.dart"
+    ],
     "Nothing on the server is touched or deleted": [
       "lib/features/server/server_page.dart"
     ],
-    "Nothing on this phone would gain from Pro today. It is worth ": [
+    "Nothing on this phone would gain from Pro today. It is worth coming back when you have set up a server, or recorded video the camera app has not already compressed.": [
       "lib/features/pro/pro_page.dart"
     ],
     "Nothing to compare": [
       "lib/features/storage/compress/compress_viewer_page.dart"
     ],
-    "Nothing yet. Anything you compress is listed here with ": [
+    "Nothing yet. Anything you compress is listed here with what it was before, so you can check it later.": [
       "lib/features/storage/compress/compressed_page.dart"
     ],
     "Notifications": [
@@ -902,13 +882,7 @@
     "Now": [
       "lib/features/storage/compress/video_preview_page.dart"
     ],
-    "Offline": [
-      "lib/features/more/more_page.dart"
-    ],
-    "On device": [
-      "lib/features/recovery/widgets/item_row.dart"
-    ],
-    "Only files still on the device and files sitting ": [
+    "Only files still on the device and files sitting in a trash folder can be searched. Anything erased outside a trash folder leaves no name behind.": [
       "lib/features/search/search_page.dart"
     ],
     "Only the preview survived": [
@@ -927,6 +901,9 @@
       "lib/features/storage/file_viewer.dart",
       "lib/features/viewer/recovered_frame.dart"
     ],
+    "Or it was deleted outside a bin, by a cleaner app or a file manager, and nothing kept a copy.": [
+      "lib/features/recovery/category_page.dart"
+    ],
     "Original": [
       "lib/features/storage/compress/compress_viewer_page.dart"
     ],
@@ -936,16 +913,13 @@
     "Paired devices need Bluetooth access": [
       "lib/features/device/pages/sim_page.dart"
     ],
-    "Path": [
-      "lib/features/server/server_setup_page.dart"
-    ],
     "Per core frequency": [
       "lib/features/device/pages/cpu_page.dart"
     ],
     "Permissions": [
       "lib/features/more/more_page.dart"
     ],
-    "Phone storage is flash, which cannot overwrite in place. When ": [
+    "Phone storage is flash, which cannot overwrite in place. When a file is deleted the phone immediately tells the chip that those blocks are free, and the chip clears them in the background, usually within seconds. On a spinning hard disk the data sat there until something else needed the room. Here it does not.": [
       "lib/features/learn/limits_page.dart"
     ],
     "Photos": [
@@ -955,13 +929,10 @@
     "Pick a look": [
       "lib/features/onboarding/onboarding_page.dart"
     ],
-    "Pictures keep their size in pixels. Nothing is cropped or ": [
+    "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
-    "Port": [
-      "lib/features/server/server_setup_page.dart"
-    ],
-    "Preview only means the original is gone and what survives is ": [
+    "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.": [
       "lib/features/recovery/sources_page.dart"
     ],
     "Previews": [
@@ -974,7 +945,7 @@
     "Pro": [
       "lib/features/pro/pro_page.dart"
     ],
-    "Put as many fingers on the screen as you can, and ": [
+    "Put as many fingers on the screen as you can, and drag them into every corner.": [
       "lib/features/device/tools/sound_test_page.dart"
     ],
     "RIGHT NOW": [
@@ -1002,7 +973,7 @@
     "Reading memory": [
       "lib/features/device/pages/memory_page.dart"
     ],
-    "Reading raw storage needs root. Android gives an app a view of ": [
+    "Reading raw storage needs root. Android gives an app a view of files, never of the disk underneath them, so the scan that desktop tools perform cannot even be attempted.": [
       "lib/features/learn/limits_page.dart"
     ],
     "Reading storage": [
@@ -1020,16 +991,13 @@
     "Ready": [
       "lib/features/server/server_page.dart"
     ],
-    "Rebuilds itself": [
-      "lib/features/storage/where_it_lives/where_it_lives_section.dart"
-    ],
     "Reclaim space": [
       "lib/features/server/reclaim_page.dart"
     ],
     "Recovery coverage": [
       "lib/features/more/more_page.dart"
     ],
-    "Recovery tools on a computer work by reading the disk directly, past ": [
+    "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.": [
       "lib/features/learn/limits_page.dart"
     ],
     "Restore": [
@@ -1056,7 +1024,7 @@
     "Run a full scan": [
       "lib/features/recovery/category_page.dart"
     ],
-    "Run openssl x509 -fingerprint -sha256 on your server, or read ": [
+    "Run openssl x509 -fingerprint -sha256 on your server, or read it from your server's admin page, and make sure it matches.": [
       "lib/features/server/server_setup_page.dart"
     ],
     "SCHEDULE": [
@@ -1065,7 +1033,7 @@
     "SERVER": [
       "lib/features/server/server_page.dart"
     ],
-    "SFTP is not here yet. If your server only speaks SSH, wait for ": [
+    "SFTP is not here yet. If your server only speaks SSH, wait for a later update rather than opening it up.": [
       "lib/features/server/server_page.dart"
     ],
     "SHA-256": [
@@ -1105,7 +1073,7 @@
     "Searching": [
       "lib/features/search/search_page.dart"
     ],
-    "Send photos and video to a computer or NAS you own. No account, ": [
+    "Send photos and video to a computer or NAS you own. No account, no subscription, and nothing passes through us.": [
       "lib/features/server/server_page.dart"
     ],
     "Sensors": [
@@ -1115,26 +1083,22 @@
     "Server": [
       "lib/features/server/server_setup_page.dart"
     ],
-    "Server address": [
-      "lib/features/server/server_setup_page.dart"
-    ],
     "Session done": [
       "lib/features/review/review_page.dart"
     ],
     "Seven chapters on what these folders are": [
       "lib/features/storage/browse/browse_page.dart"
     ],
-    "Seven short chapters on where your files live, what deleting ": [
+    "Seven short chapters on where your files live, what deleting actually does, and why some things can be brought back and others cannot.": [
       "lib/features/learn/learn_page.dart"
     ],
     "Share": [
-      "lib/features/server/server_page.dart",
-      "lib/features/server/server_setup_page.dart"
+      "lib/features/server/server_page.dart"
     ],
     "Short": [
       "lib/features/device/tools/sound_test_page.dart"
     ],
-    "Shows the real size and opens that app's own storage ": [
+    "Shows the real size and opens that app's own storage screen, where Clear cache is one tap and actually works.": [
       "lib/features/apps/apps_page.dart"
     ],
     "Signed in as": [
@@ -1143,14 +1107,11 @@
     "Smaller": [
       "lib/features/storage/compress/video_list_page.dart"
     ],
-    "So does fog, a plain wall, and anything photographed in the ": [
+    "So does fog, a plain wall, and anything photographed in the dark.": [
       "lib/features/storage/compare/blur_review_page.dart"
     ],
-    "Softest first. Some of these will be deliberate, so nothing ": [
+    "Softest first. Some of these will be deliberate, so nothing is selected until you choose it.": [
       "lib/features/storage/compare/blur_review_page.dart"
-    ],
-    "Sold as ": [
-      "lib/features/device/pages/memory_page.dart"
     ],
     "Sort": [
       "lib/features/apps/apps_page.dart",
@@ -1183,28 +1144,28 @@
     "Temperature": [
       "lib/features/device/device_page.dart"
     ],
-    "Text only. A photo arrives as the word Photo, so a view ": [
+    "Text only. A photo arrives as the word Photo, so a view once image cannot be kept this way.": [
       "lib/features/messages/messages_page.dart"
     ],
     "Thank you": [
       "lib/features/pro/pro_page.dart"
     ],
-    "The address and password are removed from this phone. Everything ": [
+    "The address and password are removed from this phone. Everything already copied stays on the server, untouched.": [
       "lib/features/server/server_page.dart"
     ],
-    "The archive starts here. Messages from before you switched ": [
+    "The archive starts here. Messages from before you switched this on were never captured.": [
       "lib/features/messages/messages_page.dart"
     ],
     "The operating system itself.": [
       "lib/features/storage/storage_page.dart"
     ],
-    "The saving shown is measured, not guessed. Each file is really ": [
+    "The saving shown is measured, not guessed. Each file is really re-encoded before you decide.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "The scan could not run": [
       "lib/features/storage/storage_page.dart"
     ],
-    "The scan ran out of time. What it found is here, and ": [
+    "The scan ran out of time. What it found is here, and the picture is incomplete.": [
       "lib/features/recovery/category_page.dart"
     ],
     "The technical reason, if you want it.": [
@@ -1219,50 +1180,47 @@
     "Thermal state": [
       "lib/features/device/widgets/thermal_card.dart"
     ],
-    "These come from a fast count taken when the app opens. A full scan ": [
+    "These come from a fast count taken when the app opens. A full scan walks folders that counting cannot reach, so the numbers usually grow after one has run.": [
       "lib/features/recovery/sources_page.dart"
     ],
-    "These figures come from the Android media index, which covers your ": [
+    "These figures come from the Android media index, which covers your own files and nothing else.": [
       "lib/features/storage/storage_page.dart"
     ],
     "These files are not deleted": [
       "lib/features/storage/storage_files_page.dart"
     ],
-    "These leave the trash for good. This app cannot bring them back ": [
+    "These leave the trash for good. This app cannot bring them back afterwards, and neither can anything else.": [
       "lib/features/recovery/category_page.dart"
     ],
-    "These skip the trash and leave the phone for good. Nothing on this ": [
+    "These skip the trash and leave the phone for good. Nothing on this device, including this app, can bring them back.": [
       "lib/features/storage/storage_files_page.dart"
     ],
-    "This address is plain http, so your password and your files ": [
-      "lib/features/server/server_setup_page.dart"
-    ],
-    "This app can show photos, video, text and PDF. Anything else ": [
+    "This app can show photos, video, text and PDF. Anything else opens in an app built for it.": [
       "lib/features/storage/file_viewer.dart"
     ],
-    "This app reads a great deal: every file in your storage, the ": [
+    "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.": [
       "lib/features/more/settings_pages.dart"
     ],
-    "This app shows photos, video, audio, text and PDF. Anything ": [
+    "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.": [
       "lib/features/viewer/recovered_frame.dart"
     ],
-    "This cannot be played while it is still in the trash. Restore it ": [
+    "This cannot be played while it is still in the trash. Restore it and it will open in your usual player.": [
       "lib/features/viewer/recovered_frame.dart"
     ],
     "This chapter is not in the version of the guide on this device.": [
       "lib/features/learn/chapter_page.dart"
     ],
-    "This list comes from the Android media index, which covers your own ": [
+    "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.": [
       "lib/features/storage/storage_files_page.dart"
     ],
-    "This server is not on your network, so the only ": [
+    "This server is not on your network, so the only way to be sure a copy is intact is to read it back. On Wi-Fi that costs nothing. On mobile data it costs the same as the space you are freeing. Choosing fewer files costs less.": [
       "lib/features/server/reclaim_page.dart"
     ],
     "Touch": [
       "lib/features/device/device_page.dart",
       "lib/features/device/tools/sound_test_page.dart"
     ],
-    "Trash puts a file in the system bin, where Android keeps it ": [
+    "Trash puts a file in the system bin, where Android keeps it for thirty days. You can change your mind, and it shows up on the home screen as recoverable.": [
       "lib/features/storage/storage_files_page.dart"
     ],
     "Trust this certificate": [
@@ -1273,13 +1231,13 @@
       "lib/features/home/widgets/hero_card.dart",
       "lib/features/storage/storage_page.dart"
     ],
-    "Turn the volume up. Each button plays a tone through one side ": [
+    "Turn the volume up. Each button plays a tone through one side only.": [
       "lib/features/device/tools/sound_test_page.dart"
     ],
-    "Type at least two letters. Searches your deleted files ": [
+    "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.": [
       "lib/features/search/search_page.dart"
     ],
-    "Usage access lets this app read how much space each app takes. ": [
+    "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.": [
       "lib/features/apps/apps_page.dart"
     ],
     "Username": [
@@ -1302,7 +1260,7 @@
     "WebDAV": [
       "lib/features/server/server_page.dart"
     ],
-    "What Android itself thinks, from the system thermal ": [
+    "What Android itself thinks, from the system thermal service": [
       "lib/features/device/widgets/thermal_card.dart"
     ],
     "What can come back": [
@@ -1312,7 +1270,7 @@
     "What cannot come back, and why": [
       "lib/features/recovery/sources_page.dart"
     ],
-    "What happens to a file depends entirely on how it left. Some are ": [
+    "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.": [
       "lib/features/learn/limits_page.dart"
     ],
     "What is measured": [
@@ -1321,7 +1279,7 @@
     "What it cannot do": [
       "lib/features/messages/messages_page.dart"
     ],
-    "What matches goes to the trash, where Android keeps ": [
+    "What matches goes to the trash, where Android keeps it for thirty days.": [
       "lib/features/server/reclaim_page.dart"
     ],
     "What this app is allowed to read": [
@@ -1330,7 +1288,7 @@
     "What this does": [
       "lib/features/storage/compress/compress_page.dart"
     ],
-    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every ": [
+    "WhatsApp, Telegram, Instagram, Messenger and Messages. Every other notification, including bank alerts and sign in codes, is discarded before it is written down.": [
       "lib/features/messages/messages_page.dart"
     ],
     "Where the password goes": [
@@ -1363,25 +1321,19 @@
     "Windows share": [
       "lib/features/server/server_page.dart"
     ],
-    "You are watching the first ": [
-      "lib/features/storage/compress/video_preview_page.dart"
-    ],
     "You can change this any time from settings.": [
       "lib/features/onboarding/onboarding_page.dart"
     ],
-    "You can leave the app. This keeps running and tells you when it ": [
+    "You can leave the app. This keeps running and tells you when it is done.": [
       "lib/features/storage/compress/video_list_page.dart"
-    ],
-    "You have trusted this server's own certificate.": [
-      "lib/features/server/server_setup_page.dart"
     ],
     "Your files,\non your own machine": [
       "lib/features/server/server_page.dart"
     ],
-    "Your folder structure is kept, so the copy is ": [
+    "Your folder structure is kept, so the copy is browsable with anything, not just this app.": [
       "lib/features/server/server_page.dart"
     ],
-    "Your phone keeps deleted files in several places before it lets ": [
+    "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.": [
       "lib/features/onboarding/onboarding_page.dart"
     ],
     "Your server has never been used": [
@@ -1426,14 +1378,11 @@
     "from Google Play, in your own currency": [
       "lib/features/pro/pro_page.dart"
     ],
-    "https://cloud.example.com/remote.php/dav/files/you/": [
-      "lib/features/server/server_setup_page.dart"
-    ],
     "in total": [
       "lib/features/recovery/sources_page.dart",
       "lib/features/storage/storage_files_page.dart"
     ],
-    "is stored in formats that take more room than they need. How ": [
+    "is stored in formats that take more room than they need. How much comes back is measured when you open a list.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
     "items held": [
@@ -1447,9 +1396,6 @@
     ],
     "no gain": [
       "lib/features/storage/compress/compress_list_page.dart"
-    ],
-    "phone-backup": [
-      "lib/features/server/server_setup_page.dart"
     ],
     "places checked": [
       "lib/features/more/more_page.dart"
