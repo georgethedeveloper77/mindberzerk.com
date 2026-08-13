@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_recovery/features/home/home_page.dart';
 
+import '../core/i18n/g_strings.dart';
 import '../core/messenger/g_messenger.dart';
 import '../core/prefs/prefs_keys.dart';
 import '../core/prefs/prefs_store.dart';
@@ -23,11 +24,11 @@ class GShellTab extends Notifier<int> {
     final int stored = ref
         .read(prefsStoreProvider)
         .readInt(GPrefsKeys.shellTab);
-    return stored >= 0 && stored < gNavItems.length ? stored : 0;
+    return stored >= 0 && stored < gNavCount ? stored : 0;
   }
 
   void select(int index) {
-    if (index == state || index < 0 || index >= gNavItems.length) return;
+    if (index == state || index < 0 || index >= gNavCount) return;
     state = index;
     ref.read(prefsStoreProvider).writeInt(GPrefsKeys.shellTab, index);
   }
@@ -47,11 +48,31 @@ class GTabs {
   static const int more = 3;
 }
 
-const List<GNavItem> gNavItems = <GNavItem>[
-  GNavItem(label: 'Home', icon: Icons.auto_awesome_mosaic_outlined),
-  GNavItem(label: 'Storage', icon: Icons.donut_small_outlined),
-  GNavItem(label: 'Device', icon: Icons.monitor_heart_outlined),
-  GNavItem(label: 'More', icon: Icons.more_horiz_rounded),
+/// How many tabs there are, without needing a BuildContext.
+///
+/// The notifier restoring the last tab and the list of navigator keys both run
+/// before any widget has a context, so neither can ask the translated list how
+/// long it is. Kept honest by an assert at the one place that has both.
+const int gNavCount = 4;
+
+/// The bar, translated.
+///
+/// ─── A FUNCTION, NOT A CONST LIST ────────────────────────────────────────────
+///
+/// The words have to be written as literals inside s() calls, because that is
+/// the only form tool/i18n/extract.py can collect: a key built from a variable
+/// cannot be found by reading the source, and the extractor rejects one rather
+/// than let it go missing silently. So the labels are translated here, where
+/// they are written, and GBottomNav renders whatever it is handed without
+/// knowing that translation exists at all.
+List<GNavItem> gNavItems(BuildContext context) => <GNavItem>[
+  GNavItem(
+    label: context.s('Home'),
+    icon: Icons.auto_awesome_mosaic_outlined,
+  ),
+  GNavItem(label: context.s('Storage'), icon: Icons.donut_small_outlined),
+  GNavItem(label: context.s('Device'), icon: Icons.monitor_heart_outlined),
+  GNavItem(label: context.s('More'), icon: Icons.more_horiz_rounded),
 ];
 
 /// The shell, with one navigator per tab.
@@ -86,7 +107,7 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
   /// identity would tear down the stack it is meant to preserve.
   late final List<GlobalKey<NavigatorState>> _keys =
       <GlobalKey<NavigatorState>>[
-        for (int i = 0; i < gNavItems.length; i++) GlobalKey<NavigatorState>(),
+        for (int i = 0; i < gNavCount; i++) GlobalKey<NavigatorState>(),
       ];
 
   static const List<Widget> _roots = <Widget>[
@@ -175,6 +196,8 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final int index = ref.watch(gShellTabProvider);
     final GTokens t = context.g;
+    final List<GNavItem> items = gNavItems(context);
+    assert(items.length == gNavCount, 'gNavCount is out of step with the bar');
 
     _visited.add(index);
 
@@ -218,7 +241,7 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
             ),
           ),
           bottomNavigationBar: GBottomNav(
-            items: gNavItems,
+            items: items,
             index: index,
             // Tapping the tab you are already on pops that tab back to its
             // root, which is what every app with this shape does and what a
