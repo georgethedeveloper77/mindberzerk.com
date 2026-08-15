@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_recovery/features/home/home_page.dart';
 
+import '../bridge/apps_bridge.dart';
 import '../core/i18n/g_strings.dart';
 import '../core/messenger/g_messenger.dart';
 import '../core/prefs/prefs_keys.dart';
 import '../core/prefs/prefs_store.dart';
+import '../core/update/app_update.dart';
 import '../features/device/device_page.dart';
 import '../features/messages/state/messages_providers.dart';
 import '../features/more/more_page.dart';
@@ -144,6 +146,18 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Asks Play whether there is a newer build, once, and does nothing with
+    // the answer except hold it. Nothing downloads and nothing appears over
+    // the screen: the result surfaces as a row on More that the user reaches
+    // when they choose to.
+    //
+    // The post frame callback is not optional. Reading a provider during
+    // initState writes to the container while the first frame is still being
+    // built, which is the same rule the content sync on the root gate follows.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(gUpdateProvider.notifier).refresh();
+    });
   }
 
   @override
@@ -152,7 +166,7 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// Re-read the file access grant every time the app comes forward.
+  /// Re-read every grant that lives on a settings screen, on every resume.
   ///
   /// All Files Access is given on a settings screen in another task. There is no
   /// result and no callback, so returning to the foreground is the only moment
@@ -167,6 +181,21 @@ class _GShellState extends ConsumerState<GShell> with WidgetsBindingObserver {
     // Notification access is granted the same way and read back the same way:
     // a settings screen in another task, no result, no callback.
     ref.invalidate(messageCaptureProvider);
+    // Usage Access is the third of these, and it covers two more returns from
+    // another task than the other two do: the trip to grant it, and the trip
+    // into an app's own storage screen, where the user may have cleared a cache
+    // and made every size on the Apps page wrong. Native holds the list for the
+    // life of the process and drops it on both of those trips, so a resume that
+    // followed neither costs a sum over a list already in memory.
+    ref.invalidate(appsStateProvider);
+    ref.invalidate(appsProvider);
+    ref.invalidate(appsProgressProvider);
+    // A flexible download that finished while the app was in the background
+    // is only visible by asking again: the install stream is alive but a
+    // process that was swapped out may have missed the event that carried it.
+    // Throttled to once every thirty minutes inside the controller, so a
+    // resume from the camera costs nothing.
+    ref.read(gUpdateProvider.notifier).refresh();
   }
 
   /// Back, in the only order that makes sense.

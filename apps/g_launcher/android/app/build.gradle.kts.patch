@@ -1,0 +1,13 @@
+Add to the `dependencies { }` block in android/app/build.gradle.kts:
+
+    // PHASE P3 - the key manager.
+    //
+    // A keystore key signs behind a biometric prompt, and the prompt has to
+    // carry the CryptoObject wrapping the initialised Signature. BiometricPrompt
+    // is the only API that does that across the OEM range this launcher targets;
+    // the platform KeyguardManager path cannot carry a CryptoObject at all.
+    //
+    // androidx.biometric also papers over the fingerprint API split at 28 and
+    // the device-credential fallback at 30, which on an install base of Infinix,
+    // Tecno and Redmi is most of the value.
+    implementation("androidx.biometric:biometric:1.1.0")

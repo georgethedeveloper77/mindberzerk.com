@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'accent.dart';
+import 'typeface.dart';
 
 /// The only place in the app where a colour literal is allowed to exist.
 ///
@@ -248,14 +249,101 @@ class GMotion {
   static const Curve exit = Curves.easeInCubic;
 }
 
+/// The type ramp, resolved for one typeface.
+///
+/// Every style here is geometry plus a family. The geometry is fixed and lives
+/// in the private constants below; the family is whatever the user picked, and
+/// it is baked into the style rather than inherited from the theme.
+///
+/// ─── WHY BAKED IN AND NOT INHERITED ──────────────────────────────────────────
+///
+/// A TextStyle with a null family inherits one from the enclosing
+/// DefaultTextStyle, so setting ThemeData.fontFamily would appear to work. It
+/// would also miss every RichText in the app, because RichText does not read
+/// DefaultTextStyle at all, and GStat draws every figure on the device page
+/// with one. Half the app would change face and the numbers would not.
+///
+/// It would also break the mono styles in the other direction: they set a
+/// fallback stack and no family, so an inherited proportional family would win
+/// outright and the byte counts would stop being monospaced without anything
+/// reporting it.
+@immutable
+class GTypeSet {
+  const GTypeSet._({
+    required this.face,
+    required this.display,
+    required this.title,
+    required this.heading,
+    required this.body,
+    required this.bodySmall,
+    required this.label,
+    required this.micro,
+    required this.navLabel,
+    required this.monoDisplay,
+    required this.monoNumber,
+    required this.monoSmall,
+    required this.overline,
+    required this.badge,
+  });
+
+  final GTypeface face;
+
+  final TextStyle display;
+  final TextStyle title;
+  final TextStyle heading;
+  final TextStyle body;
+  final TextStyle bodySmall;
+  final TextStyle label;
+  final TextStyle micro;
+  final TextStyle navLabel;
+  final TextStyle monoDisplay;
+  final TextStyle monoNumber;
+  final TextStyle monoSmall;
+  final TextStyle overline;
+  final TextStyle badge;
+
+  /// Resolves the whole ramp in one pass.
+  ///
+  /// Thirteen styles is thirteen manifest lookups, which is why this is built
+  /// once per typeface change and cached on GType rather than computed at every
+  /// getter. Calling it also registers the download with google_fonts, so
+  /// bootstrap can await the result before the first frame.
+  factory GTypeSet.of(GTypeface face) {
+    final String? sans = face.sansFamily;
+    final String? mono = face.monoFamily;
+    TextStyle s(TextStyle base) => applyFace(base, sans);
+    TextStyle m(TextStyle base) => applyFace(base, mono);
+
+    return GTypeSet._(
+      face: face,
+      display: s(GType._display),
+      title: s(GType._title),
+      heading: s(GType._heading),
+      body: s(GType._body),
+      bodySmall: s(GType._bodySmall),
+      label: s(GType._label),
+      micro: s(GType._micro),
+      navLabel: s(GType._navLabel),
+      monoDisplay: m(GType._monoDisplay),
+      monoNumber: m(GType._monoNumber),
+      monoSmall: m(GType._monoSmall),
+      overline: m(GType._overline),
+      badge: m(GType._badge),
+    );
+  }
+}
+
 /// Type ramp. Colour is never baked in: callers apply a token colour with
 /// copyWith so one style can serve both themes.
 ///
-/// The mono styles set no fontFamily. They fall back to the platform monospace
-/// face and enable tabular figures, which is what actually matters for numbers
-/// that update live without the row jittering. Swap in JetBrains Mono (OFL,
-/// licence-clean) by adding the family to the fallback list once the font ships
-/// in assets.
+/// These were compile time constants and are now getters over a cached
+/// [GTypeSet]. Call sites did not change: `GType.heading.copyWith(...)` reads
+/// the same either way. The one thing that no longer compiles is using a style
+/// inside a const expression, which nothing did, because every call site
+/// immediately copyWiths a runtime colour onto it.
+///
+/// The mono styles keep their fallback stack. Under the System typeface they
+/// behave exactly as before: no family, platform monospace, tabular figures.
 class GType {
   const GType._();
 
@@ -265,46 +353,46 @@ class GType {
     'monospace',
   ];
 
-  static const TextStyle display = TextStyle(
+  static const TextStyle _display = TextStyle(
     fontSize: 31,
     height: 1.2,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.7,
   );
 
-  static const TextStyle title = TextStyle(
+  static const TextStyle _title = TextStyle(
     fontSize: 20,
     height: 1.25,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.4,
   );
 
-  static const TextStyle heading = TextStyle(
+  static const TextStyle _heading = TextStyle(
     fontSize: 15,
     height: 1.3,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.15,
   );
 
-  static const TextStyle body = TextStyle(
+  static const TextStyle _body = TextStyle(
     fontSize: 14,
     height: 1.5,
     fontWeight: FontWeight.w400,
   );
 
-  static const TextStyle bodySmall = TextStyle(
+  static const TextStyle _bodySmall = TextStyle(
     fontSize: 12.5,
     height: 1.5,
     fontWeight: FontWeight.w400,
   );
 
-  static const TextStyle label = TextStyle(
+  static const TextStyle _label = TextStyle(
     fontSize: 11.5,
     height: 1.4,
     fontWeight: FontWeight.w500,
   );
 
-  static const TextStyle micro = TextStyle(
+  static const TextStyle _micro = TextStyle(
     fontSize: 10.5,
     height: 1.35,
     fontWeight: FontWeight.w500,
@@ -312,13 +400,13 @@ class GType {
 
   /// Bottom bar label. Larger than [micro] because it is the only text in the
   /// app a user reads at arm's length while reaching with a thumb.
-  static const TextStyle navLabel = TextStyle(
+  static const TextStyle _navLabel = TextStyle(
     fontSize: 13,
     height: 1.2,
     fontWeight: FontWeight.w500,
   );
 
-  static const TextStyle monoDisplay = TextStyle(
+  static const TextStyle _monoDisplay = TextStyle(
     fontSize: 34,
     height: 1.1,
     fontWeight: FontWeight.w600,
@@ -327,7 +415,7 @@ class GType {
     fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 
-  static const TextStyle monoNumber = TextStyle(
+  static const TextStyle _monoNumber = TextStyle(
     fontSize: 13,
     height: 1.3,
     fontWeight: FontWeight.w500,
@@ -335,7 +423,7 @@ class GType {
     fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 
-  static const TextStyle monoSmall = TextStyle(
+  static const TextStyle _monoSmall = TextStyle(
     fontSize: 10.5,
     height: 1.35,
     fontWeight: FontWeight.w400,
@@ -344,7 +432,7 @@ class GType {
   );
 
   /// The uppercase section label from the mockup.
-  static const TextStyle overline = TextStyle(
+  static const TextStyle _overline = TextStyle(
     fontSize: 9.5,
     height: 1.3,
     fontWeight: FontWeight.w500,
@@ -352,13 +440,57 @@ class GType {
     fontFamilyFallback: _monoStack,
   );
 
-  static const TextStyle badge = TextStyle(
+  static const TextStyle _badge = TextStyle(
     fontSize: 9,
     height: 1.2,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.6,
     fontFamilyFallback: _monoStack,
   );
+
+  static GTypeSet _set = GTypeSet.of(GTypeface.fallback);
+
+  /// The face currently painted. Read by the settings picker so the tick sits
+  /// on the right row even before the controller has rebuilt.
+  static GTypeface get face => _set.face;
+
+  /// Swaps the ramp. Called from bootstrap before the first frame and from the
+  /// theme controller on every change, always BEFORE state is assigned, so the
+  /// rebuild that follows already reads the new styles.
+  ///
+  /// This is global mutable state, which is normally the wrong shape in a
+  /// Riverpod app. The alternative was a ThemeExtension holding the ramp and a
+  /// `context.type.heading` lookup at all 149 files that currently say
+  /// `GType.heading`. The cost of the shortcut is that a widget which reads a
+  /// style and depends on nothing from the theme will not rebuild on its own.
+  /// Nothing in this app is in that position: every one of them calls
+  /// `context.g` for a colour on the next line, and that is an InheritedWidget
+  /// dependency.
+  static void install(GTypeface face) {
+    if (face == _set.face) return;
+    _set = GTypeSet.of(face);
+  }
+
+  static TextStyle get display => _set.display;
+  static TextStyle get title => _set.title;
+  static TextStyle get heading => _set.heading;
+  static TextStyle get body => _set.body;
+  static TextStyle get bodySmall => _set.bodySmall;
+  static TextStyle get label => _set.label;
+  static TextStyle get micro => _set.micro;
+  static TextStyle get navLabel => _set.navLabel;
+  static TextStyle get monoDisplay => _set.monoDisplay;
+  static TextStyle get monoNumber => _set.monoNumber;
+  static TextStyle get monoSmall => _set.monoSmall;
+  static TextStyle get overline => _set.overline;
+  static TextStyle get badge => _set.badge;
+
+  /// The ramp for a face that is not installed, for the settings preview.
+  ///
+  /// Building a set is what asks google_fonts for the file, so drawing the
+  /// picker is also what downloads the six faces the user has not chosen. That
+  /// is deliberate: tapping a row then has nothing to wait for.
+  static GTypeSet preview(GTypeface face) => GTypeSet.of(face);
 }
 
 /// Sugar so widgets read `context.g.accent` instead of a Theme.of lookup.

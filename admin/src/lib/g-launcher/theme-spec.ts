@@ -12,6 +12,7 @@
  * required block (fromJson throws without it); everything else has a Dart-side
  * default and is omitted from the payload when unset.
  */
+import { isKnownFamily, isMonospaceFamily } from './font-catalogue';
 
 export type ShellName = 'gnome' | 'plasma' | 'tiling' | 'tui' | 'aqua';
 export type ChromeName = 'adwaita' | 'breeze' | 'aqua' | 'generic';
@@ -533,6 +534,48 @@ export function validateDraft(draft: ThemeDraft): string[] {
     if (f.family.trim() && !namedFamilies.includes(f.family.trim())) {
       p.push(`Font '${f.family}' is shipped but not named by typography`);
     }
+  }
+
+  // ─── AND THE DIRECTION THAT ACTUALLY BITES ────────────────────────────────
+  //
+  // The check above catches a font shipped and never used, which wastes bytes.
+  // This one catches a family NAMED and never resolvable, which is the failure
+  // that reaches users: the device hands the string to `fontFamily`, nothing
+  // has registered it, and the text silently renders in the platform default.
+  // No error, no log, no crash. `UbuntuMon` publishes exactly as happily as
+  // `UbuntuMono`.
+  //
+  // Three ways a family can resolve, and it needs one of them:
+  //   bundled          declared in pubspec, works offline on a cold boot
+  //   Google Fonts     fetched at runtime and cached
+  //   shipped in pack  files carried in `fonts`, registered by FontRegistry
+  const shippedFamilies = (s.fonts ?? [])
+    .map((f) => f.family.trim())
+    .filter(Boolean);
+
+  for (const [slot, family] of [
+    ['display', s.typography?.display],
+    ['mono', s.typography?.mono],
+  ] as const) {
+    const f = family?.trim();
+    if (!f) continue;
+    if (isKnownFamily(f) || shippedFamilies.includes(f)) continue;
+    p.push(
+      `Font '${f}' (${slot}) is not bundled, not on Google Fonts, and not shipped by this pack: it will render in the system font`,
+    );
+  }
+
+  // A proportional mono family is not a typo and does not look like one, which
+  // is why it needs saying. `terminal_screen.dart` derives the PTY column count
+  // by measuring a run of glyphs in this family, so a proportional face makes
+  // the count too generous and the remote host formats for a width the screen
+  // does not have. Its output then wraps mid-field, which reads as a bug in the
+  // SSH client rather than as a font choice.
+  const monoFamily = s.typography?.mono?.trim();
+  if (monoFamily && isKnownFamily(monoFamily) && !isMonospaceFamily(monoFamily)) {
+    p.push(
+      `Font '${monoFamily}' is not monospaced: the terminal's column count is measured from it`,
+    );
   }
 
   if (s.paletteLight) {

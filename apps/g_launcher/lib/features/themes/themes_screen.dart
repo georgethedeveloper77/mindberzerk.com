@@ -7,6 +7,7 @@ import '../../design/components/components.dart';
 import '../../design/tokens/typography.dart';
 import '../../engine/effective_theme.dart';
 import '../../data/billing/entitlements.dart';
+import '../../data/billing/pending_apply.dart';
 import '../../data/cdn/pack_repository.dart';
 import 'theme_catalog.dart';
 
@@ -148,7 +149,33 @@ class ThemesScreen extends ConsumerWidget {
           // packBridgeProvider is listening for exactly that. Kicking off a
           // download on the return of buy() would race the entitlement push and
           // usually lose.
+          // ── RECORD THE INTENT BEFORE OPENING PLAY ──────────────────
+          //
+          // A tap on a locked card is "I want to wear this", not "I would like
+          // to own this". The download happens either way once the entitlement
+          // lands; this is what tells the app to APPLY the distro too, and only
+          // for a purchase that started with a deliberate tap.
+          //
+          // Set BEFORE `buy()` rather than after, because a purchase can
+          // complete before that await returns on a fast payment method, and an
+          // intent recorded afterwards would arrive too late to be read.
+          //
+          // ON DISK, not in memory: the install now runs in a worker that
+          // outlives this process, so an intent that does not is an intent that
+          // is missing exactly when the download took the scenic route. See
+          // [PendingApply] for the expiry that keeps that honest.
+          final store = ref.read(prefsStoreProvider);
+          await PendingApply.set(store, c.sku!);
+
           final started = await ref.read(buyProvider)(c.sku!);
+          if (!started) {
+            // OUTSIDE the mounted check, deliberately. Play never opened, so
+            // nothing will ever consume the intent, and one left on disk would
+            // apply this distro at the next launch inside the window. Tying
+            // that cleanup to whether this screen is still mounted would leave
+            // it armed in exactly the case where the user navigated away.
+            await PendingApply.clear(store);
+          }
           if (!started && context.mounted) {
             // Either Play is unreachable (de-Googled ROM, no Play Services) or
             // the product does not exist in the console. Both render as a card

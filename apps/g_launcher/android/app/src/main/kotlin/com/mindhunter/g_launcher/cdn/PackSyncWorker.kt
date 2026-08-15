@@ -2,6 +2,8 @@ package com.mindhunter.g_launcher.cdn
 
 import android.content.Context
 import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -66,6 +68,23 @@ import java.util.concurrent.TimeUnit
 class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
     override fun doWork(): Result {
+        // ── A TARGETED INSTALL IS A DIFFERENT JOB IN THE SAME WORKER ─────────
+        //
+        // Everything below this line follows one rule: ONLY UPDATE WHAT IS
+        // ALREADY INSTALLED. That rule exists so a background job can never
+        // spend someone's storage on packs they did not ask for, and it is
+        // exactly wrong for the case this branch serves, where a user has just
+        // PAID for a pack that is by definition not installed yet.
+        //
+        // So it is a branch rather than a parameter. Same worker, because
+        // WorkManager is already the thing that survives the process being
+        // killed, and a second worker would be a second lifecycle to keep in
+        // step with this one.
+        val targets = inputData.getStringArray(KEY_TARGETS)
+        if (targets != null && targets.isNotEmpty()) {
+            return installTargets(targets.toList())
+        }
+
         val packsRoot = File(applicationContext.filesDir, "packs")
         packsRoot.mkdirs()
 
@@ -220,8 +239,131 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
         0
     }
 
+    /**
+     * Install exactly [ids], as soon as WorkManager will run us.
+     *
+     * ─── WHY THIS RUNS IN A WORKER AT ALL ────────────────────────────────────
+     *
+     * The purchase path used to call `syncPack` through the Pigeon host API,
+     * which runs on the Flutter engine's thread and dies with the process. A
+     * launcher is the first thing Android reclaims when a game wants memory, so
+     * on the 3GB devices this app targets, opening any app right after buying
+     * could kill a half-finished download of something the user had just paid
+     * for, with nothing left to resume it. WorkManager is the only thing here
+     * that outlives that.
+     *
+     * ─── AND WHY THERE IS NO NOTIFICATION ────────────────────────────────────
+     *
+     * `setForeground` would make this start immediately and would stop the OS
+     * deprioritising it, but it requires FOREGROUND_SERVICE_DATA_SYNC, a typed
+     * service entry and a Play Console declaration that is reviewed. The thing
+     * actually worth protecting is that a PAID download is not lost, and
+     * ordinary work already gives that: it survives the process, it retries
+     * with backoff, and it resumes by itself.
+     *
+     * What is given up is the guarantee of running RIGHT NOW. WorkManager may
+     * defer by seconds or, on an aggressive OEM battery manager, longer. The
+     * cost of that is a pack landing quietly some time after the purchase,
+     * which is why `installedPackIds` is worth checking at startup: see the
+     * note on the resume path in the Dart layer.
+     */
+    private fun installTargets(ids: List<String>): Result {
+        val packsRoot = File(applicationContext.filesDir, "packs")
+        packsRoot.mkdirs()
+
+        val verifier = PackVerifier(
+            acceptedKeys = PackKeys.accepted,
+            appVersionCode = appVersionCode(),
+        )
+        val loader = ThemeAssetLoader(packsRoot, verifier)
+        val downloader = PackDownloader(
+            client = CdnClient(CdnConfig.baseUrl(packsRoot)),
+            loader = loader,
+            packsRoot = packsRoot,
+            acceptedKeys = PackKeys.accepted,
+            verifier = verifier,
+        )
+
+        val index = when (val r = downloader.refreshIndex()) {
+            is IndexResult.Updated -> r.index
+            is IndexResult.Unchanged -> r.index
+            is IndexResult.Stale -> r.kept
+            is IndexResult.Failed -> return Result.retry()
+            is IndexResult.Rejected -> return Result.failure()
+        }
+
+        var failed = false
+        for (id in ids) {
+            when (downloader.syncPack(id, index)) {
+                is SyncResult.Installed, is SyncResult.UpToDate -> Unit
+                // ONLY A TRANSPORT FAILURE IS RETRIED, and it is the only
+                // member that describes one. `NotOffered` means the index does
+                // not carry this pack, which includes the entitlement case
+                // because an unowned pack is not offered; `AppTooOld` needs a
+                // Play release; `NoSpace` needs the user to free some; a
+                // `Rejected` signature is not going to verify on the second
+                // attempt. Retrying any of them spends battery and someone's
+                // data to arrive at the same answer.
+                is SyncResult.NotOffered,
+                is SyncResult.AppTooOld,
+                is SyncResult.NoSpace,
+                is SyncResult.Rejected,
+                SyncResult.Cancelled,
+                -> Unit
+                // Failed, and anything added later. A transport failure is the
+                // normal case on a phone and the whole reason this is a worker.
+                else -> failed = true
+            }
+        }
+
+        // RETRY rather than failure. The usual cause of a partial install is
+        // the network dropping mid-pass, and the point of routing this through
+        // WorkManager is that it comes back on its own. A user must never have
+        // to remember that they paid for something.
+        return if (failed) Result.retry() else Result.success()
+    }
+
     companion object {
         private const val WORK_NAME = "g_launcher_pack_sync"
+        private const val KEY_TARGETS = "targets"
+
+        /**
+         * Install [ids], surviving the app being killed.
+         *
+         * EXPEDITED, with a non-expedited fallback. A purchase is the most
+         * user-initiated thing this app does, so it should not sit behind a
+         * daily sweep. `RUN_AS_NON_EXPEDITED_WORK_REQUEST` is what makes that
+         * safe without a foreground service: an app that has exhausted its
+         * expedited quota degrades to ordinary work instead of throwing, which
+         * is the difference between "slower" and "the thing they paid for
+         * never arrived".
+         *
+         * UNIQUE PER PACK SET and KEEP, so a double tap, or a second
+         * entitlement push for the same purchase, does not download twice.
+         */
+        fun installNow(context: Context, ids: List<String>) {
+            if (ids.isEmpty()) return
+
+            val request = OneTimeWorkRequestBuilder<PackSyncWorker>()
+                .setInputData(
+                    Data.Builder()
+                        .putStringArray(KEY_TARGETS, ids.toTypedArray())
+                        .build(),
+                )
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build(),
+                )
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "$WORK_NAME-install-${ids.sorted().joinToString("+")}",
+                ExistingWorkPolicy.KEEP,
+                request,
+            )
+        }
 
         /**
          * The most this job will pull over someone's mobile data, per pack.

@@ -51,6 +51,8 @@ class LauncherPrefs {
     this.cornerRadius,
     this.labelLines,
     this.textScale,
+    this.displayFont,
+    this.monoFont,
     this.gestures = const {},
     this.hiddenApps = const {},
     this.hiddenAppsSearchable,
@@ -80,9 +82,16 @@ class LauncherPrefs {
   /// an unknown future version should reset to defaults, not throw on the home
   /// screen.
   ///
-  /// Still 1: `dockGridButton`, `workspaceCount` and `wallpapersHidden` are
-  /// additive and `fromJson` tolerates their absence, so old prefs files parse
-  /// unchanged. Additive fields never bump the schema.
+  /// Still 1: `dockGridButton`, `workspaceCount`, `wallpapersHidden`,
+  /// `displayFont` and `monoFont` are additive and `fromJson` tolerates their
+  /// absence, so old prefs files parse unchanged. Additive fields never bump
+  /// the schema.
+  ///
+  /// The font pair is worth a word because it is ALSO promoted to GlobalPrefs,
+  /// and promotion is the case that usually forces a bump there: a field that
+  /// already held per-theme values loses them when it moves buckets, which is
+  /// what `withV2PromotionsFrom` exists to carry across. These two have never
+  /// held a value anywhere, so there is nothing to carry and nothing to bump.
   static const int schemaVersion = 1;
 
   // --- layout (null = inherit from ThemeSpec) ---
@@ -414,6 +423,46 @@ class LauncherPrefs {
   final int? labelLines;
   final double? textScale;
 
+  // --- fonts (global bucket: see GlobalPrefs) ---
+
+  /// The family every label, title and menu is set in, overriding whatever the
+  /// distro authored in its `theme.json`.
+  ///
+  /// THREE STATES, AND ONLY ONE OF THEM IS A FAMILY NAME:
+  ///
+  ///   null              no preference. Ubuntu comes up in Ubuntu, Kali in
+  ///                     Kali's face. The default, and the point of the product.
+  ///   `systemChoice`    the phone's own typeface, whatever the user set it to
+  ///                     in Android's settings. Resolves to a null `fontFamily`.
+  ///   anything else     that family, fetched once from the Play Services font
+  ///                     provider and cached to disk.
+  ///
+  /// "Follow the distro" and "follow the phone" are different answers and a
+  /// single null cannot hold both, which is why the second is a real stored
+  /// string rather than a second flavour of absent. See font_catalogue.dart.
+  ///
+  /// PROMOTED TO THE GLOBAL BUCKET, unlike almost everything above it. A font
+  /// is a fact about the person reading it: someone who chose a family because
+  /// it is what they can read comfortably means it on Plasma too, and per theme
+  /// they would have to say so again on every distro they ever tried.
+  final String? displayFont;
+
+  /// The family the terminal, the TUI shell and every fixed-width readout use.
+  ///
+  /// Separate from [displayFont] deliberately: wanting JetBrains Mono in an SSH
+  /// session says nothing at all about wanting it under the app icons.
+  ///
+  /// ONLY EVER HOLDS A FIXED-ADVANCE FAMILY, and that is enforced at the picker
+  /// rather than here. `terminal_screen.dart` derives the PTY column count by
+  /// measuring a run of glyphs in this family and sends the number to the remote
+  /// host. A proportional face makes the count too generous, the host formats
+  /// for a width the screen does not have, and its output wraps where nothing
+  /// can show it. That has been seen on device.
+  ///
+  /// Its "system" value is `systemMonoChoice`, not `systemChoice`, for the same
+  /// reason: the platform default is proportional.
+  final String? monoFont;
+
   // --- gestures ---
   /// gestureId -> binding. A binding is a GestureAction id, or "app:<key>".
   /// Unset gestures fall back to defaultGestures — including the v1
@@ -667,6 +716,8 @@ class LauncherPrefs {
     double? cornerRadius,
     int? labelLines,
     double? textScale,
+    String? displayFont,
+    String? monoFont,
     Map<String, String>? gestures,
     Set<String>? hiddenApps,
     bool? hiddenAppsSearchable,
@@ -728,6 +779,8 @@ class LauncherPrefs {
       cornerRadius: cornerRadius ?? this.cornerRadius,
       labelLines: labelLines ?? this.labelLines,
       textScale: textScale ?? this.textScale,
+      displayFont: displayFont ?? this.displayFont,
+      monoFont: monoFont ?? this.monoFont,
       gestures: gestures ?? this.gestures,
       hiddenApps: hiddenApps ?? this.hiddenApps,
       hiddenAppsSearchable:
@@ -808,6 +861,8 @@ class LauncherPrefs {
     bool cornerRadius = false,
     bool labelLines = false,
     bool textScale = false,
+    bool displayFont = false,
+    bool monoFont = false,
   }) {
     return LauncherPrefs(
       dockSide: dockSide ? null : this.dockSide,
@@ -862,6 +917,11 @@ class LauncherPrefs {
       cornerRadius: cornerRadius ? null : this.cornerRadius,
       labelLines: labelLines ? null : this.labelLines,
       textScale: textScale ? null : this.textScale,
+      // THE ONLY ROUTE BACK TO THE DISTRO'S OWN FONT. copyWith cannot write
+      // null, so without these two lines "use the distro's font" is a choice
+      // the picker offers and cannot deliver: it would appear to do nothing.
+      displayFont: displayFont ? null : this.displayFont,
+      monoFont: monoFont ? null : this.monoFont,
       gestures: gestures,
       hiddenApps: hiddenApps,
       hiddenAppsSearchable:
@@ -943,6 +1003,8 @@ class LauncherPrefs {
         if (cornerRadius != null) 'cornerRadius': cornerRadius,
         if (labelLines != null) 'labelLines': labelLines,
         if (textScale != null) 'textScale': textScale,
+        if (displayFont != null) 'displayFont': displayFont,
+        if (monoFont != null) 'monoFont': monoFont,
         'gestures': gestures,
         'hiddenApps': hiddenApps.toList(),
         if (hiddenAppsSearchable != null)
@@ -1017,6 +1079,8 @@ class LauncherPrefs {
       cornerRadius: (j['cornerRadius'] as num?)?.toDouble(),
       labelLines: (j['labelLines'] as num?)?.toInt(),
       textScale: (j['textScale'] as num?)?.toDouble(),
+      displayFont: j['displayFont'] as String?,
+      monoFont: j['monoFont'] as String?,
       gestures: ((j['gestures'] as Map?) ?? const {})
           .map((k, v) => MapEntry(k as String, v as String)),
       hiddenApps: ((j['hiddenApps'] as List?) ?? const [])
@@ -1123,6 +1187,8 @@ class LauncherPrefs {
         other.cornerRadius == cornerRadius &&
         other.labelLines == labelLines &&
         other.textScale == textScale &&
+        other.displayFont == displayFont &&
+        other.monoFont == monoFont &&
         const MapEquality<String, String>().equals(other.gestures, gestures) &&
         const SetEquality<String>().equals(other.hiddenApps, hiddenApps) &&
         other.hiddenAppsSearchable == hiddenAppsSearchable &&
@@ -1190,6 +1256,8 @@ class LauncherPrefs {
         cornerRadius,
         labelLines,
         textScale,
+        displayFont,
+        monoFont,
         const MapEquality<String, String>().hash(gestures),
         const SetEquality<String>().hash(hiddenApps),
         hiddenAppsSearchable,

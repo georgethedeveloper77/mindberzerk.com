@@ -60,5 +60,46 @@
         "text": "Last login: now on tty1"
       }
     ]
+  },
+  "terminal": {
+    "appLabel": "Terminal",
+    "prompt": "~ ❯ ",
+    "scrollbackLines": 5000,
+    "palette": {
+      "bg": "#080D08",
+      "fg": "#52F088",
+      "cursor": "#52F088",
+      "selection": "#2152F088",
+      "ansi": [
+        "#0A140A",
+        "#E85C5C",
+        "#52F088",
+        "#E8B84B",
+        "#5C9CE8",
+        "#A98CE8",
+        "#4BD6C0",
+        "#C8D8C8",
+        "#2E7A48",
+        "#FF7A7A",
+        "#7DF5A8",
+        "#FFD166",
+        "#82B8F5",
+        "#C6AEF5",
+        "#7FE8DC",
+        "#EAF5EA"
+      ]
+    },
+    "aliases": [
+      {
+        "name": "wipe",
+        "action": "terminal.clear",
+        "summary": "Clear the pane"
+      },
+      {
+        "name": "tweak",
+        "action": "launcher.openSettings",
+        "summary": "G Launcher Settings"
+      }
+    ]
   }
 }

@@ -47,6 +47,8 @@ class DevicePreview extends StatelessWidget {
     this.background,
     this.clockLabel,
     this.dateLabel,
+    this.tiles = const <Widget>[],
+    this.overlay,
   });
 
   final ThemePalette palette;
@@ -89,6 +91,37 @@ class DevicePreview extends StatelessWidget {
   final String? clockLabel;
   final String? dateLabel;
 
+  /// REAL CONTENT for the grid, in order. Empty keeps the flat placeholders.
+  ///
+  /// ─── WIDGETS, NOT PACKAGE NAMES ─────────────────────────────────────────
+  ///
+  /// Taking a list of app entries here would drag the icon pipeline into a
+  /// widget whose entire job is drawing rectangles: `AppIcon` is a
+  /// `ConsumerWidget`, so this file would gain a Riverpod import, and it is
+  /// drawn inside settings rows, chooser tiles and a value chip at thumbnail
+  /// size. Six icon lookups behind a 24px chip is a lot of work for a picture.
+  ///
+  /// So the CALLER decides what a tile is and this decides where it goes. The
+  /// setup stage passes real `AppIcon`s; every existing caller passes nothing
+  /// and gets exactly what it got before.
+  ///
+  /// SHORT LISTS ARE FINE. A grid asks for `across * down` tiles and takes
+  /// what it is given, falling back to the placeholder for the rest, because a
+  /// phone with four apps installed is a real phone and a grid that threw on
+  /// it would be a crash during setup.
+  final List<Widget> tiles;
+
+  /// Drawn OVER the desktop canvas, inside the dock's remaining space.
+  ///
+  /// The setup widgets step uses it to show where the chosen desklets will
+  /// land. It sits inside the canvas rather than over the whole preview so it
+  /// cannot cover the dock or the top bar, which are the two things the
+  /// neighbouring steps are asking about.
+  ///
+  /// Ignored by every mode except [DevicePreviewMode.desktop]: a drawer has no
+  /// canvas to lay anything over.
+  final Widget? overlay;
+
   /// A bordered phone (Settings, folders) or edge to edge (setup).
   ///
   /// Setup runs the preview FULL BLEED: the whole screen is the desktop you are
@@ -100,7 +133,7 @@ class DevicePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = switch (mode) {
       DevicePreviewMode.desktop => _desktop(),
-      DevicePreviewMode.drawer => _grid(cols, 5, radius: 3),
+      DevicePreviewMode.drawer => _grid(cols, radius: 3),
       DevicePreviewMode.folder => _folder(),
       DevicePreviewMode.lock => _lock(),
     };
@@ -146,16 +179,46 @@ class DevicePreview extends StatelessWidget {
       gridButton: gridButton,
     );
 
+    // ── THE CANVAS USED TO BE A Spacer, AND THAT WAS THE WHOLE DESKTOP ────
+    //
+    // A top bar and a dock, with nothing between them. At 150dp in a settings
+    // row that is enough to tell three distros apart, which is all it was ever
+    // asked to do. Drawn full width as the setup stage it is mostly empty
+    // wallpaper with one strip of pips floating in it, and it reads as a
+    // rendering failure rather than as a desktop.
+    //
+    // So the space between them is now the home page it is supposed to be:
+    // `cols` across, `rows` deep, or as many rows as actually fit.
+    //
+    // PLACEHOLDERS, NOT REAL APPS, and deliberately even though [tiles] would
+    // supply them. A home layout does not exist during setup and does not
+    // exist at all until the user arranges one, so filling this with their
+    // apps would be a picture of an arrangement nobody has made. The drawer is
+    // the honest place for real apps, because a drawer IS every installed app.
+    final grid = _grid(cols, radius: 3, maxDown: rows, placeholders: false);
+    final canvas = overlay == null
+        ? grid
+        : Stack(fit: StackFit.expand, children: [grid, overlay!]);
+
     return Column(
       children: [
-        Container(height: 10, color: palette.bar),
+        // Scales with the rest of the furniture. A fixed 10px bar above a grid
+        // that grew by a factor of three is the same mismatch the padding had.
+        LayoutBuilder(
+          builder: (context, c) => Container(
+            height: 10 * (c.maxWidth / 150.0).clamp(1.0, 2.6),
+            color: palette.bar,
+          ),
+        ),
         Expanded(
           child: switch (dock) {
-            DockSide.left => Row(children: [strip, const Spacer()]),
-            DockSide.right => Row(children: [const Spacer(), strip]),
-            DockSide.bottom => Column(children: [const Spacer(), strip]),
-            // The authentic empty desktop: no dock at all.
-            DockSide.off => const SizedBox.expand(),
+            DockSide.left => Row(children: [strip, Expanded(child: canvas)]),
+            DockSide.right => Row(children: [Expanded(child: canvas), strip]),
+            DockSide.bottom =>
+              Column(children: [Expanded(child: canvas), strip]),
+            // The authentic empty desktop: no dock at all. Still a desktop
+            // though, so it keeps its grid.
+            DockSide.off => canvas,
           },
         ),
       ],
@@ -204,23 +267,142 @@ class DevicePreview extends StatelessWidget {
     );
   }
 
-  Widget _grid(int across, int down, {required double radius}) {
-    return Padding(
-      padding: const EdgeInsets.all(10),
-      child: GridView.count(
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: across,
-        mainAxisSpacing: 7,
-        crossAxisSpacing: 7,
-        children: [
-          for (var i = 0; i < across * down; i++)
-            Container(
-              decoration: BoxDecoration(
-                color: palette.onDark.withValues(alpha: 0.20),
-                borderRadius: BorderRadius.circular(radius),
-              ),
-            ),
-        ],
+  /// The app drawer's grid.
+  ///
+  /// ─── THE ROW COUNT IS DERIVED, AND IT USED TO BE THE CONSTANT 5 ─────────
+  ///
+  /// This was a `GridView.count` asking for five rows with 10px padding and
+  /// 7px gaps, and every one of those numbers was authored against the 150dp
+  /// framed thumbnail this widget started life as. A GridView.count makes
+  /// SQUARE cells from the width alone, so at full stage width four columns
+  /// produce cells roughly four times taller than they were, five of them are
+  /// far taller than the box, and the grid is silently clipped part way
+  /// through the third row. On the thumbnail it looked correct; on the stage it
+  /// looked broken, and nothing in between reported anything.
+  ///
+  /// So the tile is sized by BOTH axes, exactly as [_folder] already is, and
+  /// the row count falls out of what actually fits. That is also the honest
+  /// picture: a drawer draws as many rows as the screen has room for, and a
+  /// preview claiming five rows in a box with room for two was never showing
+  /// the real thing anyway.
+  ///
+  /// ─── AND THE FURNITURE SCALES WITH IT ───────────────────────────────────
+  ///
+  /// Same fix and same reason as the folder sheet. Fixed padding inside a
+  /// widget drawn at 150dp and at 400dp is furniture that stays put while its
+  /// contents change by a factor of three, which is what made the icons read
+  /// as edge to edge here: a 10px inset around a 95dp tile is not an inset.
+  /// [maxDown] caps the derived row count. The DRAWER passes none, because a
+  /// drawer is as long as it needs to be; the HOME canvas passes `rows`,
+  /// because a home page has a fixed number and drawing a sixth would be
+  /// showing a layout the shell will never produce.
+  /// [placeholders] draws the flat slab for a cell [tiles] does not fill.
+  ///
+  /// ─── THE DESKTOP PASSES FALSE, AND THAT IS NOT A REGRESSION ─────────────
+  ///
+  /// A drawer with no content still has to look like a drawer, so its empty
+  /// cells are drawn: at thumbnail size in a settings row the slabs ARE the
+  /// picture. A home page is the opposite. It has no content during setup
+  /// because no arrangement exists yet, so its slabs were fifteen translucent
+  /// rectangles laid over the distro's wallpaper, and at stage size that reads
+  /// as a rendering fault rather than as an empty desktop.
+  ///
+  /// An empty desktop is a real thing and looks like a wallpaper, a bar and a
+  /// dock. That is what it draws now.
+  Widget _grid(int across, {required double radius, int? maxDown, bool placeholders = true}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The width the fixed numbers below were authored against, so at 150dp
+        // and above the thumbnail stays pixel-identical to what it was.
+        const reference = 150.0;
+        // CAPPED AT 1.8, not 2.6. Scaling the furniture linearly with width
+        // kept the thumbnail correct and made the stage wrong the other way:
+        // at 360dp the 10px inset became 24 and the 7px gap became 17, so four
+        // tiles sat in a field of padding and read as slabs rather than as a
+        // grid. The tile is what should grow with the box; the space around it
+        // grows more slowly, which is how every real grid on a phone behaves.
+        final s = (constraints.maxWidth / reference).clamp(1.0, 1.8);
+
+        final pad = 10.0 * s;
+        final gap = 7.0 * s;
+
+        final usable = constraints.maxWidth - pad * 2 - gap * (across - 1);
+        if (across < 1 || usable <= 0 || !usable.isFinite) {
+          return const SizedBox.expand();
+        }
+        final tile = usable / across;
+
+        // How many WHOLE rows fit. A partial row is the clipping this method
+        // exists to stop, so the last one that does not fit is simply not
+        // drawn. Floor of one, because a box too short for a single row still
+        // has to render something rather than an empty rectangle.
+        final vertical = constraints.maxHeight - pad * 2;
+        final fits = vertical.isFinite && tile > 0
+            ? ((vertical + gap) / (tile + gap)).floor()
+            : 4;
+        final ceiling = maxDown ?? 8;
+        final down = fits.clamp(1, ceiling < 1 ? 1 : ceiling);
+
+        return Padding(
+          padding: EdgeInsets.all(pad),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var r = 0; r < down; r++) ...[
+                if (r > 0) SizedBox(height: gap),
+                SizedBox(
+                  height: tile,
+                  child: Row(
+                    children: [
+                      for (var col = 0; col < across; col++) ...[
+                        if (col > 0) SizedBox(width: gap),
+                        SizedBox(
+                          width: tile,
+                          height: tile,
+                          // The corner scales with the tile. A fixed 3px on a
+                          // 30dp thumbnail tile is a soft corner; the same 3px
+                          // on a 90dp stage tile is a square.
+                          child: _cell(
+                            r * across + col,
+                            radius * s,
+                            placeholders,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// One grid cell: a real tile when the caller supplied one, else the flat
+  /// placeholder this preview has always drawn.
+  ///
+  /// No decoration behind a real tile. An icon already carries its own
+  /// silhouette and plate, and a translucent square under every one of them
+  /// reads as the whole grid being selected at once.
+  Widget _cell(int i, double radius, bool placeholders) {
+    if (i < tiles.length) return tiles[i];
+    if (!placeholders) return const SizedBox.shrink();
+    // INSET, at the same fraction a real icon takes of its cell. A placeholder
+    // filling its cell edge to edge is denser than the thing it stands in for,
+    // so a grid of them reads as a wall of slabs while the same grid of real
+    // icons reads as apps. The two have to occupy the same share of the cell
+    // or the preview changes shape the moment content arrives.
+    return FractionallySizedBox(
+      widthFactor: 0.78,
+      heightFactor: 0.78,
+      child: Container(
+        decoration: BoxDecoration(
+          color: palette.onDark.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(radius),
+        ),
       ),
     );
   }

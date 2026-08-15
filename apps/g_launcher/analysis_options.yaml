@@ -9,6 +9,26 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # ─── A VENDORED PACKAGE IS NOT THIS PROJECT'S CODE ────────────────────
+    #
+    # `third_party/dartssh2` is a fork of a published package, checked in so the
+    # fork survives a pub cache wipe and a new machine. Because it lives inside
+    # the repo, the analyzer treats it as ordinary project source no matter what
+    # pub resolved, so without this line every lint upstream chose differently
+    # lands in every `flutter analyze` run.
+    #
+    # That is not just noise. It once produced a genuinely confusing signal: an
+    # error reported inside `[dartssh2] lib/src/ssh_agent.dart` while the app
+    # was still importing the UNFORKED copy from the pub cache, because the
+    # override had not been added yet. Two unrelated facts, one message.
+    #
+    # The fork's own correctness is guarded by `tools/fork_dartssh2.py`, which
+    # asserts every anchor, and by the app failing to compile if the fork is
+    # missing. Neither of those needs the linter.
+    - third_party/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

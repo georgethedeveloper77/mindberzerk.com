@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+11
+version: 6.0.0+12
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -94,6 +94,33 @@ dependencies:
   file_picker: 12.0.0-beta.7
   firebase_crashlytics: ^5.2.7
 
+  # ─── RESOLVED FROM A VENDORED FORK, NOT FROM PUB ─────────────────────────
+  #
+  # The version constraint stays, and the SOURCE is redirected by
+  # `dependency_overrides` in the WORKSPACE ROOT pubspec, which is the only
+  # place pub accepts one. It points at `apps/g_launcher/third_party/dartssh2`.
+  #
+  # The fork is four lines of behaviour and three of visibility, applied by
+  # `tools/fork_dartssh2.py`:
+  #
+  #   `SSHKeyPair.sign` returns `FutureOr<SSHSignature>` rather than
+  #   `SSHSignature`. An Android keystore key signs behind a biometric prompt
+  #   and a platform channel, both futures, so a keystore identity could not
+  #   satisfy the synchronous interface at all. FutureOr keeps every existing
+  #   implementation compiling untouched.
+  #
+  #   `lib/dartssh2.dart` exports `src/ssh_hostkey.dart`. `SSHKeyPair` is
+  #   public and the two types in its own signature were not, which made the
+  #   interface impossible to implement from outside the package.
+  #
+  # BUMPING THE VERSION MEANS RE-VENDORING AND RE-RUNNING THE SCRIPT. It
+  # asserts every anchor matched exactly once, so a release that moved the code
+  # fails loudly rather than silently reverting the fork. Raising this
+  # constraint without doing that resolves to an unforked copy and the keystore
+  # identity stops compiling, which is the good failure.
+  dartssh2: ^2.22.5
+  google_fonts: ^8.2.1
+
 flutter_gen:
   assets:
     exclude:
@@ -153,6 +180,8 @@ flutter:
     # Not a font — the licence text, loaded by LicenseRegistry in main.dart.
     # The Ubuntu Font Licence requires it to travel with the fonts.
     - assets/fonts/UBUNTU-FONT-LICENCE-1.0.txt
+    - assets/fonts/catalogue.json
+    - assets/fonts/licences/
   # Ubuntu + Ubuntu Mono are what make the Ubuntu theme feel real.
   #
   # These family names are load-bearing: they must match theme.json

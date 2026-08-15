@@ -523,6 +523,36 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             });
           }
 
+          // ── RESERVED SLOT MIGRATION ──────────────────────────────────
+          //
+          // The reserved block grew from two cells to three when the Terminal
+          // entry landed, so anything stored at flat 2 is now inside it and
+          // would be skipped by the renderer: still in storage, gone from the
+          // screen. Nothing fails, an app just disappears.
+          //
+          // Guarded on the data rather than on a version flag, so it runs once
+          // and then never again on its own; see
+          // DrawerSlots.needsReservedMigration. Separate from the reflow above
+          // because it has to run even when the grid shape has not changed.
+          if (DrawerSlots.needsReservedMigration(theme.prefs)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                    (p) => DrawerSlots.migrateReserved(
+                      p,
+                      liveAppKeys: {
+                        for (final i in items)
+                          if (i is AppDrawerItem) i.entry.componentKey,
+                      },
+                      liveFolderIds: {
+                        for (final i in items)
+                          if (i is FolderDrawerItem) i.folder.id,
+                      },
+                    ),
+                  );
+            });
+          }
+
           final per = grid.cols * grid.rows;
           body = Expanded(
             child: DrawerPager(
@@ -1601,6 +1631,25 @@ Widget _tileFor(
                   icon: LauncherBrandIcon(
                     theme: theme,
                     size: theme.iconSizeDp,
+                  ),
+                ),
+              TerminalDrawerItem() => _ActionTile(
+                  key: const ValueKey('terminal'),
+                  item: item,
+                  theme: theme,
+                  labelLines: labelLines,
+                  // A tool, not a branded surface. The same reasoning that
+                  // gives Device Settings a plain gear rather than a logo.
+                  icon: SizedBox(
+                    width: theme.iconSizeDp,
+                    height: theme.iconSizeDp,
+                    child: Center(
+                      child: Icon(
+                        Icons.terminal,
+                        size: theme.iconSizeDp * 0.82,
+                        color: theme.palette.onDark,
+                      ),
+                    ),
                   ),
                 ),
               DeviceSettingsItem() => _ActionTile(

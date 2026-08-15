@@ -34,6 +34,12 @@ enum GestureAction {
   activities('activities', 'Open Activities', false),
   showDock('showDock', 'Show dock', false),
   search('search', 'Search apps', false),
+
+  /// Hands off to the phone's own assistant. [needsService] is false: this is an
+  /// ordinary intent, and it must never be dragged into the accessibility
+  /// disclosure flow, which exists for four specific capabilities and would be
+  /// a policy problem if it started covering anything else.
+  assistant('assistant', 'Voice assistant', false),
   notifications('notifications', 'Notification shade', true),
   quickSettings('quickSettings', 'Quick settings', true),
   recents('recents', 'Recent apps', true),
@@ -189,6 +195,24 @@ Future<bool> runGesture(
     case GestureAction.search:
       onSearch();
       return true;
+    case GestureAction.assistant:
+      // ─── WHATEVER THE PHONE ALREADY HAS ────────────────────────────────
+      //
+      // ACTION_ASSIST is what long-press-home fires, so this opens the user's
+      // own assistant: Gemini, Bixby, Alexa, or whatever a Transsion device
+      // shipped with. The launcher has no opinion and no speech code.
+      //
+      // VOICE_COMMAND as the fallback, because a handful of assistants declare
+      // only that one. Trying it costs an intent that fails in the same
+      // millisecond, and skipping it costs those users the feature.
+      //
+      // False when neither resolves, which is a real state on a de-Googled ROM.
+      // The caller says so out loud rather than leaving a bound gesture that
+      // silently does nothing.
+      if (await api.openIntent('android.intent.action.ASSIST', null, null)) {
+        return true;
+      }
+      return api.openIntent('android.intent.action.VOICE_COMMAND', null, null);
     case GestureAction.notifications:
     case GestureAction.quickSettings:
     case GestureAction.recents:

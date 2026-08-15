@@ -145,7 +145,8 @@ class StageMotion extends Notifier<bool> {
   }
 }
 
-final stageMovingProvider = NotifierProvider<StageMotion, bool>(StageMotion.new);
+final stageMovingProvider =
+    NotifierProvider<StageMotion, bool>(StageMotion.new);
 
 /// How many routes are stacked over the desktop.
 ///
@@ -183,17 +184,18 @@ class StageRouteObserver extends NavigatorObserver {
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previous) {
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     // `previous == null` is the FIRST route, which IS the desktop rather than
     // something over it. Counting it would leave the stage permanently deaf.
-    if (previous != null) _set(_depth + 1);
+    if (previousRoute != null) _set(_depth + 1);
   }
 
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previous) => _set(_depth - 1);
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(_depth - 1);
 
   @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previous) =>
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
       _set(_depth - 1);
 
   @override

@@ -2,6 +2,7 @@ import 'server-only';
 
 import { getObject, putObject } from '@/lib/core/r2';
 import type { AppId } from '@/lib/core/catalogue';
+import { skuKind, type SkuKind } from '@/lib/core/skus';
 
 /**
  * PRODUCT IDS KEPT BY HAND.
@@ -79,6 +80,32 @@ export interface ManualProduct {
   note: string;
   /** Unix seconds, or 0 for a seeded id that has never been written. */
   addedAt: number;
+
+  /**
+   * What this product sells, when the prefix cannot say.
+   *
+   * ─── THE ONLY FIELD HERE THAT IS AN ASSERTION ABOUT MEANING ──────────────
+   *
+   * Everything else in this file is "George says this ID exists in Play". This
+   * one says what it is FOR, and it exists because `terminal_pro` unlocks a
+   * feature rather than a pack and can never gain a `feature_` prefix: a Play
+   * product ID is permanent.
+   *
+   * Absent means "read it from the prefix", which is right for every product
+   * that follows the scheme. Present overrides. See [kindOf].
+   */
+  kind?: SkuKind;
+}
+
+/**
+ * What a hand-kept product sells: the declaration if there is one, else the
+ * prefix.
+ *
+ * One function so the panel, the report and the pickers cannot disagree about
+ * whether a given ID is a feature.
+ */
+export function kindOf(p: ManualProduct): SkuKind {
+  return p.kind ?? skuKind(p.productId);
 }
 
 async function read(app: AppId): Promise<ManualProduct[]> {
@@ -96,6 +123,10 @@ async function read(app: AppId): Promise<ManualProduct[]> {
         productId: String(p.productId),
         note: String(p.note ?? ''),
         addedAt: Number(p.addedAt) || 0,
+        // Unknown or absent falls back to the prefix rather than being stored
+        // as a wrong answer. A document written before this field existed is
+        // the common case, not an error.
+        kind: isKind(p.kind) ? p.kind : undefined,
       }));
   } catch {
     throw new Error('product-ids.json is present but does not parse. Fix it in the bucket first.');
@@ -124,10 +155,20 @@ export async function readManualProducts(app: AppId): Promise<ManualProductsResu
  */
 const ID_RE = /^[a-z][a-z0-9_]{2,60}$/;
 
+const KINDS: readonly SkuKind[] = ['distro', 'icons', 'bundle', 'feature', 'other'];
+const isKind = (v: unknown): v is SkuKind =>
+  typeof v === 'string' && (KINDS as readonly string[]).includes(v);
+
 export async function addManualProduct(
   app: AppId,
   productId: string,
   note: string,
+  /**
+   * Optional, and only worth passing for a feature. Everything else reads
+   * correctly from its prefix, and storing a kind that merely repeats the
+   * prefix is a second copy of the same fact.
+   */
+  kind?: SkuKind,
 ): Promise<{ ok: true; products: ManualProduct[] } | { ok: false; error: string }> {
   const id = productId.trim();
   if (!ID_RE.test(id)) {
@@ -150,7 +191,13 @@ export async function addManualProduct(
     return { ok: true, products };
   }
 
-  products.push({ productId: id, note: note.trim(), addedAt: Math.floor(Date.now() / 1000) });
+  products.push({
+    productId: id,
+    note: note.trim(),
+    addedAt: Math.floor(Date.now() / 1000),
+    // Stored only when it says something the prefix does not.
+    kind: kind && kind !== skuKind(id) ? kind : undefined,
+  });
   products.sort((a, b) => a.productId.localeCompare(b.productId));
 
   try {

@@ -12,6 +12,24 @@ export interface Assignment {
   file: string;
   blob: Blob;
   url: string;
+  /**
+   * The ORIGINAL upload, before `renderHeroIcon` or the composer touched it.
+   *
+   * ─── WITHOUT THIS THE STYLE BAR CANNOT EXIST ────────────────────────────
+   *
+   * Restyling has to recompose from the source every time. Compose from the
+   * previous output instead and the second nudge of a colour tints a tinted
+   * plate, so the third produces something no setting describes and no
+   * sequence of clicks can undo. The standalone icon builder gets this for
+   * free because it keeps `entry.file`; this grid discarded the upload the
+   * moment it had a blob, which is why composing had to arrive with a new
+   * field rather than as a pure addition.
+   *
+   * OPTIONAL, because a draft saved before today has none. An assignment with
+   * no source simply cannot be restyled: the bar leaves it alone rather than
+   * guessing, and re-uploading that one icon fixes it.
+   */
+  source?: Blob;
 }
 
 /**
@@ -96,6 +114,7 @@ function AppTile(props: {
         file: fileNameFor(props.pkg),
         blob: rendered.blob,
         url: rendered.url,
+        source: file,
       });
     } catch {
       setErr(true);
@@ -268,7 +287,12 @@ function BulkAdd(props: {
       const rendered = await renderHeroIcon(file);
       const previous = props.assignments[pkg];
       if (previous) URL.revokeObjectURL(previous.url);
-      props.onAssign(pkg, { file: fileNameFor(pkg), blob: rendered.blob, url: rendered.url });
+      props.onAssign(pkg, {
+        file: fileNameFor(pkg),
+        blob: rendered.blob,
+        url: rendered.url,
+        source: file,
+      });
       return true;
     } catch {
       return false;

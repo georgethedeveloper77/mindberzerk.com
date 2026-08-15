@@ -59,3 +59,17 @@ melos:
       # Having the regen command in exactly one place, here, is cheap insurance.
       run: cd apps/g_launcher && dart run pigeon --input pigeons/launcher_api.dart
       description: Regenerate the native bridge.
+
+dependency_overrides:
+  # The async-signer fork. An Android keystore key signs behind a biometric
+  # prompt and a platform channel, both futures, and `SSHKeyPair.sign` was
+  # declared synchronous, so a keystore identity could not exist at all.
+  #
+  # HERE rather than in apps/g_launcher/pubspec.yaml: pub accepts
+  # dependency_overrides only in a workspace root.
+  #
+  # Re-apply after any version bump. tools/fork_dartssh2.py asserts every
+  # anchor, so a release that moved the code fails loudly instead of silently
+  # reverting the fork.
+  dartssh2:
+    path: apps/g_launcher/third_party/dartssh2

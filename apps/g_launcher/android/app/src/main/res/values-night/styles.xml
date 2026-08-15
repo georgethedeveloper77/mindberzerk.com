@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       values-night/ MUST mirror values/ item-for-item.
@@ -23,7 +23,12 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+
+        <!-- API 27 (o_mr1), minSdk 26. See values/styles.xml for why this is
+             annotated in place instead of split into a values-v27/ variant. -->
+        <item
+            name="android:windowLayoutInDisplayCutoutMode"
+            tools:targetApi="o_mr1">shortEdges</item>
     </style>
 
     <style name="LaunchTheme" parent="LauncherTheme" />

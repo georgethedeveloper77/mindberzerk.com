@@ -36,7 +36,20 @@ export const SKU_PREFIX = {
   bundle: 'bundle_',
 } as const;
 
-export type SkuKind = 'distro' | 'icons' | 'bundle' | 'other';
+/**
+ * ─── `feature` HAS NO PREFIX, AND CANNOT GET ONE ────────────────────────────
+ *
+ * `terminal_pro` unlocks behaviour in the app rather than a downloadable pack.
+ * It was created in Play before this kind existed, and a Play product ID is
+ * PERMANENT, so it can never become `feature_terminal_pro`.
+ *
+ * [skuKind] therefore cannot infer it, and does not try. A feature is DECLARED,
+ * on the hand-kept entry, and the declaration overrides the prefix. Without
+ * that, `commerceReport` warns "this product unlocks nothing" forever on a
+ * product that is working exactly as intended, and a warning that can never be
+ * cleared is one people learn to scroll past.
+ */
+export type SkuKind = 'distro' | 'icons' | 'bundle' | 'feature' | 'other';
 
 /** Play's own product-ID rule. Mirrors `isSafeSku` in sign.ts. */
 const SKU = /^[a-z0-9][a-z0-9_]{0,63}$/;
@@ -90,7 +103,10 @@ export function skuProblems(sku: string, expect?: SkuKind): string[] {
   }
   if (sku.length > 64) out.push(`'${sku}' is longer than 64 characters.`);
 
-  if (expect && expect !== 'other' && skuKind(sku) !== expect) {
+  // A FEATURE IS EXEMPT from the prefix check. There is no `feature_` prefix to
+  // match, and the whole point of the kind is that it was declared rather than
+  // inferred.
+  if (expect && expect !== 'other' && expect !== 'feature' && skuKind(sku) !== expect) {
     out.push(`'${sku}' does not start with '${SKU_PREFIX[expect]}'. Product IDs cannot be renamed later.`);
   }
   return out;
@@ -105,6 +121,8 @@ export function skuKindLabel(kind: SkuKind): string {
       return 'Icon pack';
     case 'bundle':
       return 'Bundle';
+    case 'feature':
+      return 'Feature';
     default:
       return 'Other';
   }

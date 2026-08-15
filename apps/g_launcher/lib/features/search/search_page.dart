@@ -30,6 +30,24 @@ import '../drawer/drawer_items.dart';
 /// [ThemedScaffold], so on Ubuntu it reads aubergine and on KDE it reads Breeze,
 /// the same rule as Settings and Wallpaper. The One UI screenshot is the
 /// reference for the LAYOUT, not for a fixed neutral palette.
+/// Whether this phone can transcribe speech at all.
+///
+/// Decides whether the microphone is DRAWN, not whether it works. A device with
+/// no recogniser, a de-Googled ROM or some budget builds, gets a search bar with
+/// no microphone in it rather than one that fails on tap. Same rule the stat
+/// rows follow: an absent capability is an absent control, because a button that
+/// does nothing reads as a broken app rather than a missing component.
+///
+/// Answers false while it is still asking, so the microphone fades in a frame
+/// late rather than appearing and then vanishing under the user's thumb.
+final speechAvailableProvider = FutureProvider<bool>((ref) async {
+  try {
+    return await ref.read(launcherHostApiProvider).canRecognizeSpeech();
+  } catch (_) {
+    return false;
+  }
+});
+
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key, required this.theme});
 
@@ -67,6 +85,29 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
     _focus.requestFocus();
     _setQuery(term);
+  }
+
+  /// Hand the microphone to whatever recogniser the phone has, and type what it
+  /// heard into the field.
+  ///
+  /// FILLS THE FIELD, DOES NOT SUBMIT. The results list filters as the query
+  /// changes, so the user sees what was heard and what it matched at the same
+  /// moment, and a misheard word costs a correction rather than launching the
+  /// wrong app.
+  ///
+  /// Null is every non-answer at once: cancelled, heard nothing, no recogniser,
+  /// or the Activity rebuilt while the recogniser was on screen. All four mean
+  /// leave the field exactly as the user left it.
+  Future<void> _dictate() async {
+    final heard = await ref.read(launcherHostApiProvider).recognizeSpeech(
+          'Search apps',
+        );
+
+    // The recogniser was a full-screen Activity, so this page has been off
+    // screen and may not be coming back.
+    if (!mounted || heard == null) return;
+
+    _searchFor(heard);
   }
 
   /// Launch an app. When it came from a typed result, [recordTerm] is the query
@@ -344,7 +385,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     // Settings app and never G Launcher's. Worse for the theme picker, which
     // nobody knows to look for under "G Launcher Settings" — hence the aliases
     // in drawer_items, shared so the three surfaces cannot drift.
-    final launcherHits = launcherItemsMatching(_query);
+    // The label is passed rather than defaulted, so searching on Kali finds
+    // "Kali Terminal" and the result row says what the drawer says.
+    final launcherHits = launcherItemsMatching(
+      _query,
+      terminalLabel: terminalLabelFor(widget.theme),
+    );
 
     if (results.isEmpty && launcherHits.isEmpty) {
       return Center(
@@ -503,14 +549,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
               ),
             ),
-            // Speech capture needs a plugin we haven't added; honest placeholder
-            // for now rather than a dead button.
-            _BarIcon(
-              icon: Icons.mic_none_outlined,
-              color: c.textMuted,
-              tooltip: 'Voice search',
-              onTap: () => context.showMessage('Voice search is coming soon'),
-            ),
+            // Present only when something on this phone can actually listen.
+            // The placeholder that used to live here said "coming soon", which
+            // was honest at the time and is a promise now kept: the launcher
+            // does no speech itself, it asks whatever recogniser the user
+            // already has.
+            if (ref.watch(speechAvailableProvider).asData?.value ?? false)
+              _BarIcon(
+                icon: Icons.mic_none_outlined,
+                color: c.textMuted,
+                tooltip: 'Voice search',
+                onTap: _dictate,
+              ),
             _BarIcon(
               icon: Icons.more_vert,
               color: c.textMuted,
@@ -887,6 +937,10 @@ class _LauncherHit extends StatelessWidget {
       DeviceSettingsItem() => (
           Icon(Icons.settings, size: 26, color: c.textMuted),
           'Opens Android settings',
+        ),
+      TerminalDrawerItem() => (
+          Icon(Icons.terminal, size: 26, color: c.textMuted),
+          'Commands, system info, shell',
         ),
       AppDrawerItem() || FolderDrawerItem() => (
           const SizedBox.shrink(),

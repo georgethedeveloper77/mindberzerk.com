@@ -5,6 +5,7 @@ import '../platform/launcher_api.g.dart' as api;
 import 'boot_spec.dart';
 import 'desklet_skin.dart';
 import 'splash_spec.dart';
+import 'terminal_spec.dart';
 import 'theme_source.dart';
 
 /// A distro, as data.
@@ -33,6 +34,7 @@ class ThemeSpec {
     this.logo,
     this.boot,
     this.splash,
+    this.terminal,
     this.desklets = const DeskletThemeBlock(),
     this.gestures = const {},
     this.source = const ThemeSource.bundled(),
@@ -151,6 +153,23 @@ class ThemeSpec {
   /// people who want the full `[  OK  ]` scroll; the two are alternatives, not
   /// a sequence — see home_screen, which plays one or the other.
   final SplashSpec? splash;
+
+  /// This distro's terminal identity: the sixteen ANSI colours, the prompt, the
+  /// drawer entry's label, and any aliases the pack binds.
+  ///
+  /// Null falls back to `TerminalSpec.defaultForShell(shell)` at the call site,
+  /// the same promise [boot] and [splash] make, so a theme that predates this
+  /// block still gets a terminal that looks like its family.
+  ///
+  /// ADDITIVE ON PURPOSE. [palette] carries six colours and none of them is an
+  /// ANSI colour, so a terminal cannot be drawn from it. Widening ThemePalette
+  /// to sixteen would have made every theme.json and every published pack
+  /// declare colours that only one surface reads.
+  ///
+  /// A theme having a terminal is INDEPENDENT of its shell being `tui`. Kali is
+  /// `shell: gnome` and needs one, because the Terminal app is a drawer entry
+  /// and gnome distros have drawers.
+  final TerminalSpec? terminal;
 
   /// What this distro puts on its desktop, and how it draws it. PHASE D3.
   ///
@@ -320,6 +339,9 @@ class ThemeSpec {
       ),
       splash: SplashSpec.fromJson(
         (json['splash'] as Map?)?.cast<String, dynamic>(),
+      ),
+      terminal: TerminalSpec.fromJson(
+        (json['terminal'] as Map?)?.cast<String, dynamic>(),
       ),
       desklets: DeskletThemeBlock.fromJson(
         (json['desklets'] as Map?)?.cast<String, dynamic>(),

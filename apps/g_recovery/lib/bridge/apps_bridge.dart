@@ -20,6 +20,8 @@ class AppsBridge {
   Future<List<AppEntry>> apps() async =>
       await _guard(_api.apps) ?? const <AppEntry>[];
 
+  Future<AppsProgress?> readProgress() => _guard(_api.readProgress);
+
   Future<bool> openAppSettings(String packageName) async =>
       await _guard(() => _api.openAppSettings(packageName)) ?? false;
 
@@ -59,6 +61,44 @@ final FutureProvider<List<AppEntry>> appsProvider =
     FutureProvider<List<AppEntry>>(
       (Ref ref) => ref.watch(appsBridgeProvider).apps(),
     );
+
+/// How far the current read has got, polled while it runs.
+///
+/// ─── POLLED RATHER THAN PUSHED ─────────────────────────────────────────────
+///
+/// A FlutterApi would let native push each step, at the cost of a second
+/// registration path in MainActivity and a callback surface to keep alive for
+/// the whole life of the app. What is being reported is two integers that
+/// change a few hundred times over a few seconds; asking for them four times a
+/// second costs a binder call that returns three volatile fields, and native
+/// answers it off the worker so it never queues behind the read.
+///
+/// ─── IT ENDS BY ITSELF ─────────────────────────────────────────────────────
+///
+/// The loop stops on the first answer that reports nothing in flight and some
+/// work done, so the stream closes when the read finishes whether or not
+/// anything is still listening. Nothing here needs a timer to be cancelled.
+///
+/// The guard on `done` matters: before the read has started, native honestly
+/// answers zero and not reading, and a loop that stopped there would give up
+/// before the first package was sized.
+final StreamProvider<AppsProgress> appsProgressProvider =
+    StreamProvider<AppsProgress>((Ref ref) async* {
+      final AppsBridge bridge = ref.watch(appsBridgeProvider);
+
+      bool alive = true;
+      ref.onDispose(() => alive = false);
+
+      while (alive) {
+        final AppsProgress? progress = await bridge.readProgress();
+        if (progress == null) return;
+
+        yield progress;
+        if (!progress.reading && progress.done > 0) return;
+
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    });
 
 /// How apps are ordered on the list screen.
 enum AppSort {

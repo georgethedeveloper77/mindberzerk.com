@@ -329,6 +329,78 @@ class PackHostApiImpl(
     override fun setOwnedSkus(skus: List<String>, callback: (Result<Unit>) -> Unit) {
         ownedSkus = skus.toSet()
         callback(Result.success(Unit))
+        claimOwned()
+    }
+
+    /**
+     * ANYTHING OWNED AND NOT INSTALLED, FETCHED IN THE BACKGROUND.
+     *
+     * ─── WHY THIS IS THE RIGHT PLACE, AND NOT THE PURCHASE HANDLER ───────────
+     *
+     * `setOwnedSkus` is called on EVERY change to the owned set, which is three
+     * separate moments that all mean the same thing:
+     *
+     *   a completed purchase, which is the case everyone thinks of;
+     *   the first push after app start, which catches a download that a killed
+     *     process, a dead network or a cleared cache never finished;
+     *   a restore, which is a reinstall or a new phone.
+     *
+     * Wiring this to the purchase alone would fix the first and leave the other
+     * two as "you paid and it never arrived", which is the same bug wearing a
+     * different hat. One trigger covers all three because they are all just
+     * "the set of things this person owns has changed".
+     *
+     * ─── AND WHY THE WORK IS ENQUEUED RATHER THAN DONE HERE ──────────────────
+     *
+     * This object lives on the Flutter engine. A launcher is the first process
+     * Android reclaims when a game wants memory, so a download started here
+     * dies with it and nothing resumes it. `PackSyncWorker` outlives the
+     * process, retries with backoff and comes back by itself, which is the only
+     * property that makes "you paid, so it will arrive" true rather than
+     * hopeful.
+     *
+     * ─── THE CACHED INDEX, NEVER A FETCH ─────────────────────────────────────
+     *
+     * `cachedIndex` reads what is already on disk. Refreshing here would put a
+     * network call on the path of every entitlement push, including the empty
+     * one at startup, to answer a question the cache can usually answer. When
+     * the cache is cold there is nothing to claim yet, and the next foreground
+     * refresh calls this again through the ordinary push.
+     *
+     * Silent throughout. Nothing here was asked for by the user in this moment,
+     * so a failure is not theirs to act on: the worker retries, and the
+     * storefront still shows a Get button that works.
+     */
+    private fun claimOwned() {
+        val owned = ownedSkus
+        if (owned.isEmpty()) return
+
+        io.execute {
+            try {
+                val index = downloader.cachedIndex() ?: return@execute
+
+                val wanted = index.packs
+                    .filter { p ->
+                        // `isUnlocked` rather than a sku comparison of our own.
+                        // Entitlement lives in the SIGNED index as grants, and a
+                        // second reading of it here is a second thing to keep in
+                        // step with the panel. A free pack is unlocked too, which
+                        // is why the sku test is separate and comes first: this
+                        // claims what was PAID for, not the whole catalogue.
+                        p.sku != null &&
+                            p.sku in owned &&
+                            index.isUnlocked(p.packId, owned) &&
+                            loader.installedVersion(p.packId) < p.version
+                    }
+                    .map { it.packId }
+
+                if (wanted.isNotEmpty()) {
+                    PackSyncWorker.installNow(appContext, wanted)
+                }
+            } catch (_: Throwable) {
+                // See above: silent by design.
+            }
+        }
     }
 
     override fun setCdnBaseUrl(url: String, callback: (Result<Unit>) -> Unit) = onIo(callback) {

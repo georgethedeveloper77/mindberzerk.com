@@ -1,0 +1,431 @@
+{
+  "version": 1,
+  "note": "Curated subset of Google Fonts. Fetched at runtime through the Play Services font provider, never bundled. See tools/gen_font_catalogue.py.",
+  "families": [
+    {
+      "family": "Anonymous Pro",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Anton",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Archivo",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Assistant",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Audiowide",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Azeret Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Barlow",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Bebas Neue",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Bitter",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Cabin",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Comfortaa",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Cormorant Garamond",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Courier Prime",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Cousine",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Crimson Text",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "DM Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "DM Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Domine",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "EB Garamond",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Exo 2",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Figtree",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Fira Code",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Fira Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Fira Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Fredoka",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Heebo",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "IBM Plex Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "IBM Plex Serif",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Inconsolata",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Inter",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "JetBrains Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Josefin Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Karla",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Lato",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Lexend",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Libre Baskerville",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Lora",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Manrope",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Martian Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Merriweather",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Montserrat",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Mulish",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Nanum Gothic Coding",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Newsreader",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Noto Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Noto Sans Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Noto Serif",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Nunito",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Nunito Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Open Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Orbitron",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Oswald",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Outfit",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Overpass Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Oxygen",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "PT Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "PT Serif",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Playfair Display",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Plus Jakarta Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Poppins",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Public Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Quicksand",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Raleway",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Red Hat Display",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Red Hat Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Righteous",
+      "category": "display",
+      "licence": "ofl"
+    },
+    {
+      "family": "Roboto",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Roboto Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Roboto Slab",
+      "category": "serif",
+      "licence": "apache"
+    },
+    {
+      "family": "Rubik",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Share Tech Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Sora",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Source Code Pro",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Source Sans 3",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Source Serif 4",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Space Grotesk",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Space Mono",
+      "category": "monospace",
+      "licence": "ofl"
+    },
+    {
+      "family": "Spectral",
+      "category": "serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Titillium Web",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Ubuntu",
+      "category": "sans-serif",
+      "licence": "ufl"
+    },
+    {
+      "family": "Ubuntu Mono",
+      "category": "monospace",
+      "licence": "ufl"
+    },
+    {
+      "family": "Urbanist",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Work Sans",
+      "category": "sans-serif",
+      "licence": "ofl"
+    },
+    {
+      "family": "Zilla Slab",
+      "category": "serif",
+      "licence": "ofl"
+    }
+  ]
+}

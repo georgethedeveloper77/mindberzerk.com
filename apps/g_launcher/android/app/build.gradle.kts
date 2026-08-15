@@ -17,6 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.mindhunter.g_launcher"
+
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,8 +29,9 @@ android {
 
     defaultConfig {
         applicationId = "com.mindhunter.g_launcher"
-        minSdk = flutter.minSdkVersion
+
         targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true

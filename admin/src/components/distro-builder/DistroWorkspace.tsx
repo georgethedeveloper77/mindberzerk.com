@@ -3,11 +3,15 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { BuilderShell, useToast } from '@/components/console';
-import { Section, Field, TextInput, NumberInput, SelectInput, Segmented, Toggle } from '@/components/theme-builder/primitives';
+import { Section, Field, TextInput, NumberInput, SelectInput, Segmented, Toggle, FontSelect } from '@/components/theme-builder/primitives';
 import { PaletteEditor, LayoutEditor, GesturesEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
 import { AppGrid, type Assignment } from './AppGrid';
+import { composeIcon, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
+import { glyphToBlob, type GlyphLite } from '@/lib/g-launcher/glyph-blob';
+import { GlyphPicker, IconStyleBar } from '@/app/components/icon-compose-bar';
+import { renderHeroIcon } from '@/lib/core/image-trim';
 import { publishDistroAction, saveDistroDraftAction } from '@/app/apps/[app]/distros/actions';
 import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
 import {
@@ -692,6 +696,87 @@ export function DistroWorkspace({
       return next;
     });
   }
+
+  /**
+   * The composed style for this pack, or null for "art as authored".
+   *
+   * SAME DEFAULT AS THE STANDALONE BUILDER, and for the same reason: every pack
+   * published before today was rendered without composing, so a workspace that
+   * opened in styling mode would silently restyle a republished distro.
+   */
+  const [style, setStyle] = React.useState<ComposeSpec | null>(null);
+  const [restyling, setRestyling] = React.useState(false);
+  const [pickingGlyph, setPickingGlyph] = React.useState(false);
+
+  /**
+   * Recompose every assignment that still has its source.
+   *
+   * ─── SEQUENTIAL, AND SKIPPING WHAT IT CANNOT DO ─────────────────────────
+   *
+   * Each pass decodes and re-encodes a full image, so forty at once stalls the
+   * tab long enough to look like a crash.
+   *
+   * An assignment saved before `source` existed is LEFT ALONE rather than
+   * re-rendered from its output. Recomposing a composed plate is the one thing
+   * this whole design exists to prevent, and a slightly inconsistent pack with
+   * one un-restyled icon is a smaller problem than one icon that has been
+   * plated twice and cannot be recovered without a re-upload.
+   */
+  async function restyle(next: ComposeSpec | null) {
+    setStyle(next);
+    const pairs = Object.entries(assignments);
+    if (pairs.length === 0) return;
+    setRestyling(true);
+    for (const [pkg, a] of pairs) {
+      if (!a.source) continue;
+      try {
+        const png = next
+          ? await composeIcon(next, a.source)
+          : (await renderHeroIcon(new File([a.source], a.file))).blob;
+        if (!png) continue;
+        URL.revokeObjectURL(a.url);
+        onAssign(pkg, {
+          ...a,
+          blob: png,
+          url: URL.createObjectURL(png),
+        });
+      } catch {
+        // One bad source leaves its icon at the previous render rather than
+        // sinking the batch, which matches every other loop in this pipeline.
+      }
+    }
+    setRestyling(false);
+  }
+
+  /**
+   * A picked brand glyph, assigned to a slot.
+   *
+   * The slot is the FIRST UNFILLED one whose label matches the glyph's title,
+   * falling back to the first unfilled slot at all. Guessing from a package id
+   * the way the standalone builder does is not available here, because this
+   * grid is keyed by slot rather than by filename.
+   */
+  async function addGlyph(glyph: GlyphLite) {
+    setPickingGlyph(false);
+    const wanted = glyph.title.toLowerCase();
+    const target =
+      entries.find((e) => !assignments[e.pkg] && e.label.toLowerCase() === wanted) ??
+      entries.find((e) => !assignments[e.pkg]);
+    if (!target) return;
+
+    const src = glyphToBlob(glyph);
+    const png = style
+      ? await composeIcon(style, src)
+      : (await renderHeroIcon(new File([src], `${glyph.slug}.svg`, { type: 'image/svg+xml' }))).blob;
+    if (!png) return;
+
+    onAssign(target.pkg, {
+      file: `${target.pkg.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}.png`,
+      blob: png,
+      url: URL.createObjectURL(png),
+      source: src,
+    });
+  }
   function onAddApp(pkg: string, label: string) {
     setEntries((prev) => (prev.some((e) => e.pkg === pkg) ? prev : [{ pkg, label }, ...prev]));
   }
@@ -988,11 +1073,11 @@ export function DistroWorkspace({
                     <Field label="min app version">
                       <NumberInput value={spec.minAppVersion} min={0} step={1} onChange={(v) => setS({ minAppVersion: v ?? 0 })} />
                     </Field>
-                    <Field label="display font">
-                      <TextInput value={spec.typography?.display ?? ''} placeholder="Ubuntu" onChange={(v) => setS({ typography: { ...spec.typography, display: v || null } })} />
+                    <Field label="display font" hint="labels and titles">
+                      <FontSelect value={spec.typography?.display ?? ''} mono={false} placeholder="Ubuntu" onChange={(v) => setS({ typography: { ...spec.typography, display: v || null } })} />
                     </Field>
-                    <Field label="mono font">
-                      <TextInput value={spec.typography?.mono ?? ''} placeholder="UbuntuMono" onChange={(v) => setS({ typography: { ...spec.typography, mono: v || null } })} />
+                    <Field label="mono font" hint="terminal and readouts">
+                      <FontSelect value={spec.typography?.mono ?? ''} mono placeholder="UbuntuMono" onChange={(v) => setS({ typography: { ...spec.typography, mono: v || null } })} />
                     </Field>
                   </div>
                   <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}`, fontFamily: C.mono, fontSize: 11.5, color: C.faint }}>
@@ -1026,7 +1111,7 @@ export function DistroWorkspace({
                 </Section>
 
                 <Section title="icon shape" hint="the general look; specific app icons live in the Icons tab">
-                  <IconStyleEditor icons={spec.icons ?? {}} setIcons={(p) => setSpec((s) => ({ ...s, icons: { ...(s.icons ?? {}), ...p } }))} />
+                  <IconStyleEditor spec={spec} icons={spec.icons ?? {}} setIcons={(p) => setSpec((s) => ({ ...s, icons: { ...(s.icons ?? {}), ...p } }))} />
                 </Section>
 
                 <Section title="wallpapers & logo" hint="uploaded and shipped inside the pack as bare files">
@@ -1118,6 +1203,36 @@ export function DistroWorkspace({
                 </Section>
                 {iconSource === 'build' ? (
                   <Section title="app icons" hint="assign an image per app; the rest inherit the theme's icon shape">
+                    {/* ── THE SAME COMPOSER THE STANDALONE BUILDER HAS ──────
+                        Two icon builders existed, and every feature was
+                        landing in one of them. This is the port, not a second
+                        implementation: `IconStyleBar`, `GlyphPicker` and
+                        `composeIcon` are the same modules, so the next change
+                        to any of them reaches both screens.
+
+                        The real fix is one builder behind both routes, and
+                        this is not it. It is the version that ships Kali
+                        tonight. */}
+                    <div style={{ marginBottom: 12 }}>
+                      <IconStyleBar
+                        style={style}
+                        onChange={restyle}
+                        count={Object.keys(assignments).length}
+                        busy={restyling}
+                      />
+                      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                        <button type="button" onClick={() => setPickingGlyph((v) => !v)}>
+                          {pickingGlyph ? 'Close glyphs' : 'Brand glyph'}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: 10 }}>
+                        <GlyphPicker
+                          open={pickingGlyph}
+                          onClose={() => setPickingGlyph(false)}
+                          onPick={addGlyph}
+                        />
+                      </div>
+                    </div>
                     <AppGrid entries={entries} assignments={assignments} masked={false} onAssign={onAssign} onAddApp={onAddApp} />
                   </Section>
                 ) : null}

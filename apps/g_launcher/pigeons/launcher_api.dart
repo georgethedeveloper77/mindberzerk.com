@@ -822,6 +822,47 @@ abstract class LauncherHostApi {
   /// say so instead of the tap doing nothing. A phone with no gallery and no
   /// file manager is not a crash.
   bool openIntent(String action, String? uri, String? type);
+
+  // ─── VOICE ─────────────────────────────────────────────────────────────────
+  //
+  // The launcher does not do speech. It asks whatever the phone already has,
+  // which on these devices is the Google app, Bixby on a Samsung, or on a
+  // de-Googled ROM nothing at all. Three lines of surface for a feature that
+  // would otherwise be a plugin, a permission and a Play declaration.
+
+  /// Can anything on this phone transcribe speech?
+  ///
+  /// Asked so the microphone in the search field can be ABSENT rather than
+  /// present and dead. Same rule the stats rows follow: a control that does
+  /// nothing is worse than no control, because the user concludes the app is
+  /// broken rather than that the phone lacks a recogniser.
+  ///
+  /// Needs the matching `<intent>` in the manifest's `<queries>` block.
+  /// `resolveActivity` is package-visibility filtered on Android 11+ and this
+  /// app deliberately does not hold QUERY_ALL_PACKAGES, so without it this
+  /// returns false on every modern phone and the microphone hides itself
+  /// everywhere.
+  @async
+  bool canRecognizeSpeech();
+
+  /// Run the phone's own speech recogniser and return what it heard, or null.
+  ///
+  /// ─── WHY THE INTENT AND NOT SpeechRecognizer ──────────────────────────────
+  ///
+  /// `SpeechRecognizer` listens inline with no screen change, which is nicer,
+  /// and costs RECORD_AUDIO, a runtime permission prompt and a microphone entry
+  /// on the data-safety form. `ACTION_RECOGNIZE_SPEECH` hands the job to
+  /// whichever recogniser the user already has, with that recogniser's own UI,
+  /// and needs no permission at all. For a launcher whose whole pitch is that it
+  /// does not surveil anyone, the second is not a compromise.
+  ///
+  /// Null covers every non-answer: cancelled, misheard, no recogniser, or the
+  /// Activity torn down while the recogniser was on screen. The caller leaves
+  /// the search field alone in all four cases.
+  ///
+  /// [prompt] is the line the recogniser shows above its microphone.
+  @async
+  String? recognizeSpeech(String? prompt);
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

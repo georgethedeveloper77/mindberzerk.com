@@ -9,6 +9,7 @@ import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuKindLabel } from '@/lib/core/skus';
 import { readManualProducts } from '@/lib/core/product-ids';
 import { ProductIds } from '@/components/studio/product-ids';
+import { CommerceMap } from '@/components/studio/commerce-map';
 
 /**
  * COMMERCE - is everything that has a price actually for sale?
@@ -104,10 +105,23 @@ export default async function CommercePage({
     if (reached.length > 0) linked[row.sku] = reached;
   }
 
-  // With the bucket unreachable there is no catalogue to compare against, so
-  // "orphan" would be a lie about every product. Show the Play side plainly
-  // instead: it is the half that still loaded, and it is worth seeing.
-  const playSide = report.indexError ? (report.play.ok ? report.play.products : []) : report.orphans;
+  // The Play-only products used to be split out here, because with the bucket
+  // unreachable "orphan" would be a lie about every product. They are rows now,
+  // in the `untracked` state, and the map draws them with no line. The reason
+  // survives; the separate list does not.
+
+  // ─── ONE POPULATION, COUNTED ONCE ────────────────────────────────────────
+  //
+  // The old header read "0 products, 0 paid packs, 2 free", which counts three
+  // different things and adds up to nothing: rows came only from the signed
+  // index, while eight product IDs sat in a panel below it. Both were true.
+  //
+  // These four are subsets of the same list and sum to its length, so the line
+  // is checkable at a glance.
+  const selling = report.rows.filter((r) => r.state === 'selling').length;
+  const features = report.rows.filter((r) => r.state === 'feature').length;
+  const unlinked = report.rows.filter((r) => r.state === 'unlinked').length;
+  const untracked = report.rows.filter((r) => r.state === 'untracked').length;
 
   const sellable = report.rows.filter((r) => r.sellable).length;
   const broken = report.rows.filter((r) => worstTone(r.problems) === 'bad').length;
@@ -226,12 +240,35 @@ export default async function CommercePage({
         })}
       </div>
 
+      {/* ─── THE MAP ─────────────────────────────────────────────────────
+          Products on the left, packs on the right, the lines between them.
+          It answers "what connects to what", which the list below cannot:
+          a column can say what a product unlocks and cannot show that one
+          pack is sold three ways. The list answers "what is wrong", which
+          is a different question, so the two are not the duplicated pair
+          this page used to carry. */}
+      <CommerceMap
+        app={app}
+        rows={report.rows}
+        packs={report.packs}
+        selected={sel ?? null}
+      />
+
+      <p className="px-1 font-mono text-[11px] uppercase tracking-[0.15em] text-site-ink-3">
+        {selling} selling &middot; {features} feature &middot; {unlinked} not linked
+        {untracked > 0 && <> &middot; {untracked} in Play only</>}
+      </p>
+
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
         <div className="flex min-w-0 flex-col gap-4">
           <section className="overflow-hidden rounded-[18px] border border-site-line bg-site-card shadow-site-soft">
             {shown.length === 0 ? (
               <p className="px-[18px] py-10 text-center text-[13px] text-site-ink-3">
-                {report.rows.length === 0 ? 'No products. Every pack is free.' : `No ${active} products.`}
+                {/* The old zero-products empty state is gone. It became
+                    unreachable the moment rows came from three sources, and it
+                    was the most misleading line on the screen: it claimed there
+                    were none while sitting directly above eight product IDs. */}
+                {`No ${active} products.`}
               </p>
             ) : (
               shown.map((r) => {
@@ -283,38 +320,18 @@ export default async function CommercePage({
             )}
           </section>
 
-          {playSide.length > 0 && (
-            <SoftPanel
-              title={report.indexError ? 'Configured in Play' : 'In Play, not in the catalogue'}
-              right={<span className="font-mono text-[11.5px] text-site-ink-3">{playSide.length}</span>}
-              flush
-            >
-              {playSide.map((p) => (
-                <div
-                  key={p.productId}
-                  className="flex items-center gap-3 border-t border-site-line px-[18px] py-2.5 first:border-t-0"
-                >
-                  <span className="w-[170px] shrink-0 truncate font-mono text-[11.5px] text-site-ink">
-                    {p.productId}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-site-ink-2">
-                    {p.title ?? <span className="text-site-ink-3">no listing</span>}
-                  </span>
-                  <span
-                    className={`shrink-0 font-mono text-[11.5px] ${
-                      p.activeOptions === 0 ? 'text-site-plan' : 'text-site-ink-3'
-                    }`}
-                  >
-                    {p.activeOptions} active
-                  </span>
-                </div>
-              ))}
-            </SoftPanel>
-          )}
+          {/* The "In Play" panel was here, and its contents are now the
+              `untracked` state inside the map: a product on the left with no
+              line into anything. Same fact, in the place a reader is already
+              looking. A separate panel implied it was a different kind of
+              thing, which is exactly the split this restructure removes. */}
 
+          {/* The LIST here is now the map's left column; what stays is the
+              way to add one, because a product created in Play has to be
+              written down somewhere before anything can offer it. */}
           <SoftPanel
-            title="Product IDs"
-            note="kept by hand, offered by every builder"
+            title="Add a product ID"
+            note="after you create it in Play Console"
             right={<span className="font-mono text-[11.5px] text-site-ink-3">{manual.products.length}</span>}
           >
             {manual.unreachable ? (

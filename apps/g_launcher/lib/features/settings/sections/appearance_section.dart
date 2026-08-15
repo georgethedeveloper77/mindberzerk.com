@@ -16,6 +16,7 @@ import '../../../data/repositories/app_repository.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
 import '../../../engine/effective_theme.dart';
+import '../../../engine/font_catalogue.dart';
 import '../../icons/icon_theme_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
@@ -33,6 +34,18 @@ String _iconsLong(EffectiveTheme theme) {
 String _iconsShort(EffectiveTheme theme) {
   if (theme.prefs.systemIconPack != null) return 'Custom';
   return theme.prefs.iconPackId ?? 'Distro';
+}
+
+/// The trailing label on a font row.
+///
+/// Reads the STORED value, not the resolved family, and that is deliberate: the
+/// row should say what the user chose rather than what it resolved to. "Distro"
+/// is more useful than "Ubuntu" here, because the next distro will say Distro
+/// too and that is the fact worth showing.
+String _fontShort(String? choice) {
+  if (choice == null) return 'Distro';
+  if (choice == systemChoice || choice == systemMonoChoice) return 'System';
+  return choice;
 }
 
 /// Appearance: the distro, its artwork, and how text reads.
@@ -53,6 +66,13 @@ List<Widget> appearanceSection(
   // Pigeon host API type, which this file does not import.
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
   ref.read(launcherHostApiProvider);
+
+  // Watched, not awaited: a section builder returns widgets synchronously. The
+  // rows render immediately with an empty list and pick the families up on the
+  // rebuild the moment the asset is parsed, which is one frame on any device.
+  final catalogue = ref.watch(fontCatalogueProvider).asData?.value;
+  final fonts = catalogue?.families ?? const <FontEntry>[];
+  final monoFonts = catalogue?.monospace ?? const <FontEntry>[];
 
   final mode = theme.prefs.themeMode ?? 'system';
   final hasLight = theme.spec.paletteLight != null;
@@ -314,6 +334,58 @@ List<Widget> appearanceSection(
               max: 1.4,
               format: (v) => '${(v * 100).round()}%',
               onCommit: (v) => notifier.edit((p) => p.copyWith(textScale: v)),
+            ),
+          ),
+        ),
+
+        // ── THE TWO FONT ROWS ──────────────────────────────────────────
+        //
+        // In this group because it is already scoped 'All distros', which is
+        // exactly what these are: the family lives in the global bucket, so
+        // choosing one holds across every distro the user tries. Putting them
+        // under Appearance beside the wallpaper would have implied the
+        // opposite.
+        //
+        // The catalogue is read through a provider rather than awaited here,
+        // because a section builder returns widgets synchronously and cannot
+        // await anything. While it loads, the trailing label still reads
+        // correctly (it comes from prefs, not the catalogue) and the sheet
+        // opens with the two platform choices and no list, which is a thin
+        // sheet for one frame rather than a blocked tap.
+        FilterRow(
+          const ['font', 'typeface', 'display font', 'family'],
+          SettingsRow(
+            icon: Icons.text_fields,
+            title: 'Display font',
+            subtitle: 'Labels, titles and menus',
+            trailing: ValueLabel(_fontShort(theme.prefs.displayFont)),
+            onTap: () => showFontSheet(
+              context,
+              notifier,
+              title: 'Display font',
+              mono: false,
+              current: theme.prefs.displayFont,
+              catalogue: fonts,
+            ),
+          ),
+        ),
+        FilterRow(
+          const ['font', 'monospace', 'mono', 'terminal', 'typeface'],
+          SettingsRow(
+            icon: Icons.terminal,
+            title: 'Monospace font',
+            subtitle: 'The terminal and fixed-width readouts',
+            trailing: ValueLabel(_fontShort(theme.prefs.monoFont)),
+            onTap: () => showFontSheet(
+              context,
+              notifier,
+              title: 'Monospace font',
+              mono: true,
+              // Only fixed-advance families. The terminal derives its PTY
+              // column count by measuring this face, so a proportional one
+              // sends the remote host a width the screen does not have.
+              current: theme.prefs.monoFont,
+              catalogue: monoFonts,
             ),
           ),
         ),

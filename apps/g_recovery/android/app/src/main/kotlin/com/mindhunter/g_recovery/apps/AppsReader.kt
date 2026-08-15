@@ -41,6 +41,28 @@ internal class AppsReader(context: Context) {
     private val packages: PackageManager = app.packageManager
 
     /**
+     * How many packages have been sized, and how many there are.
+     *
+     * ─── READ FROM ANOTHER THREAD WHILE THE LOOP RUNS ────────────────────────
+     *
+     * The whole point of these two is to be legible from outside the worker
+     * thread mid read, so they are volatile and they are plain counters. They
+     * are the only honest source for a progress figure: the screen reports what
+     * has actually been sized rather than a guess at how long it will take.
+     *
+     * [total] is zero until the package list exists, which is the first second
+     * or so. A caller seeing zero has been told the truth, that the count is
+     * not known yet, and should say so rather than invent one.
+     */
+    @Volatile
+    var done: Int = 0
+        private set
+
+    @Volatile
+    var total: Int = 0
+        private set
+
+    /**
      * Whether Usage Access has been granted.
      *
      * Read from AppOpsManager rather than a held flag, because the user can
@@ -83,6 +105,9 @@ internal class AppsReader(context: Context) {
     }.getOrDefault(false)
 
     fun read(): List<AppEntry> {
+        done = 0
+        total = 0
+
         if (!hasUsageAccess()) return emptyList()
 
         val stats = app.getSystemService(StorageStatsManager::class.java)
@@ -91,10 +116,20 @@ internal class AppsReader(context: Context) {
             ?: return emptyList()
         val user = Process.myUserHandle()
 
+        // Queried ONCE and handed down.
+        //
+        // queryUsageStats over a year is one of the two expensive calls in this
+        // path, and it used to run twice: once here for the timestamps, and
+        // again inside installed() for the package names. Same call, same
+        // answer, twice the wait.
         val lastUsed = lastUsedByPackage()
+
+        val infos = installed(lastUsed)
+        total = infos.size
+
         val out = mutableListOf<AppEntry>()
 
-        for (info in installed()) {
+        for (info in infos) {
             // Every package is a separate query into the stats service, and one
             // that throws must not end the loop: a work profile app or a package
             // mid uninstall will refuse, and the other two hundred are fine.
@@ -114,6 +149,11 @@ internal class AppsReader(context: Context) {
                 )
             }.getOrNull()
 
+            // Counted whether or not it produced a row. The bar measures work
+            // done against work to do, and a package that refused to answer
+            // still took its turn.
+            done++
+
             if (entry != null) out += entry
         }
 
@@ -129,7 +169,7 @@ internal class AppsReader(context: Context) {
      * without QUERY_ALL_PACKAGES it returns very little. The usage stats list
      * fills the gap, and the union of the two is what this reports.
      */
-    private fun installed(): List<ApplicationInfo> {
+    private fun installed(lastUsed: Map<String, Long>): List<ApplicationInfo> {
         val byPm = runCatching {
             packages.getInstalledApplications(0)
         }.getOrDefault(emptyList())
@@ -137,7 +177,7 @@ internal class AppsReader(context: Context) {
         val seen = byPm.mapTo(mutableSetOf()) { it.packageName }
         val out = byPm.toMutableList()
 
-        for (name in lastUsedByPackage().keys) {
+        for (name in lastUsed.keys) {
             if (!seen.add(name)) continue
             val info = runCatching {
                 packages.getApplicationInfo(name, 0)
@@ -183,15 +223,54 @@ internal class AppsHostApiImpl(context: Context) : AppsHostApi {
     @Volatile
     private var cached: List<AppEntry>? = null
 
+    /** Whether a read is in the loop right now, for the progress poll. */
+    @Volatile
+    private var reading: Boolean = false
+
+    /**
+     * Set when the user is sent to the Usage Access screen, cleared by the next
+     * grant check. See [checkAccess].
+     */
+    @Volatile
+    private var awaitingGrant: Boolean = false
+
     fun dispose() {
         worker.shutdownNow()
     }
 
+    /**
+     * Whether Usage Access is on, allowing for the system lying about it once.
+     *
+     * ─── THE READ RIGHT AFTER THE TOGGLE CAN BE STALE ────────────────────────
+     *
+     * The grant happens in another task with no result and no callback, so this
+     * app learns about it by asking on resume. On several OEM builds the first
+     * ask after the toggle still answers with the old value, and a single false
+     * there is expensive: the screen settles on the ask-for-permission state
+     * that the user has just satisfied, with nothing left to trigger another
+     * look.
+     *
+     * So the one check that follows a trip to the settings screen is allowed a
+     * second attempt, and only that one. Every other check answers immediately,
+     * including the check for a user who went to the screen and chose not to
+     * grant: they pay 400ms once, and then never again.
+     */
+    private fun checkAccess(): Boolean {
+        val first = reader.hasUsageAccess()
+        if (first || !awaitingGrant) {
+            awaitingGrant = false
+            return first
+        }
+
+        awaitingGrant = false
+        Thread.sleep(400)
+        return reader.hasUsageAccess()
+    }
+
     override fun state(callback: (Result<AppsState>) -> Unit) {
         worker.execute {
-            val granted = reader.hasUsageAccess()
-            val apps = if (granted) (cached ?: reader.read().also { cached = it })
-            else emptyList()
+            val granted = checkAccess()
+            val apps = if (granted) (cached ?: load()) else emptyList()
 
             reply(
                 callback,
@@ -212,13 +291,37 @@ internal class AppsHostApiImpl(context: Context) : AppsHostApi {
         // Dropped, so the next read is fresh. The user is on their way to grant
         // it, and an empty cached list would survive the grant otherwise.
         cached = null
+        awaitingGrant = true
         main.post { callback(Result.success(ok)) }
     }
 
     override fun apps(callback: (Result<List<AppEntry>>) -> Unit) {
         worker.execute {
-            reply(callback, cached ?: reader.read().also { cached = it })
+            reply(callback, cached ?: load())
         }
+    }
+
+    /**
+     * How far the read has got, answered without touching the worker.
+     *
+     * ─── IT MUST NOT QUEUE ───────────────────────────────────────────────────
+     *
+     * The worker is a single thread and the read owns it for the whole of its
+     * run. A progress call submitted there would sit behind the very thing it
+     * is reporting on and answer once, at the end, which is the one moment
+     * nobody needs it. So this reads three volatile fields on the calling
+     * thread and replies straight away.
+     */
+    override fun readProgress(callback: (Result<AppsProgress>) -> Unit) {
+        callback(
+            Result.success(
+                AppsProgress(
+                    done = reader.done.toLong(),
+                    total = reader.total.toLong(),
+                    reading = reading,
+                ),
+            ),
+        )
     }
 
     override fun openAppSettings(
@@ -230,6 +333,16 @@ internal class AppsHostApiImpl(context: Context) : AppsHostApi {
         // app holds are stale the moment the settings screen opens.
         cached = null
         main.post { callback(Result.success(ok)) }
+    }
+
+    /** The read, with the in-flight flag held around it. */
+    private fun load(): List<AppEntry> {
+        reading = true
+        return try {
+            reader.read().also { cached = it }
+        } finally {
+            reading = false
+        }
     }
 
     private fun <T> reply(callback: (Result<T>) -> Unit, value: T) {

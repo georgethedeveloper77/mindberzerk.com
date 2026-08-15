@@ -22,11 +22,28 @@ import 'launcher_prefs.dart';
 ///
 /// ─── RESERVED SLOTS ────────────────────────────────────────────────────────
 ///
-/// Flat slots 0 and 1 (page 0, indices 0 and 1) belong to the launcher's own
-/// entries, G Launcher Settings and Device Settings, in every mode. They are
-/// not stored, not draggable and not drop targets; every function here starts
-/// counting at [reservedSlots]. Burying the launcher's settings mid-grid is
-/// the bug the pinned block fixed, and Custom does not get to reintroduce it.
+/// Flat slots 0, 1 and 2 (page 0, indices 0 to 2) belong to the launcher's own
+/// entries, G Launcher Settings, Device Settings and the Terminal, in every
+/// mode. They are not stored, not draggable and not drop targets; every
+/// function here starts counting at [reservedSlots]. Burying the launcher's
+/// settings mid-grid is the bug the pinned block fixed, and Custom does not get
+/// to reintroduce it.
+///
+/// ─── THE COUNT WENT FROM TWO TO THREE, AND THAT MOVED PEOPLE'S APPS ────────
+///
+/// A stored slot is a flat position, so raising [reservedSlots] means whatever
+/// sat at flat 2 is now inside the reserved block and would be skipped by every
+/// renderer: present in storage, absent from the screen. That is the worst
+/// outcome available, because nothing fails and an app simply disappears.
+///
+/// [migrateReserved] handles it, and it is SELF DETECTING rather than versioned:
+/// an arrangement that predates the change is exactly one that still has a
+/// stored slot below [reservedSlots]. Re-packing removes that condition, so the
+/// migration runs once and is idempotent afterwards with no flag to persist and
+/// no version number to get wrong.
+///
+/// Order survives, gaps do not, which is the same trade [reflow] already makes
+/// and for the same reason: a gap's cell no longer means what it meant.
 ///
 /// ─── TOLERANT BY DESIGN ────────────────────────────────────────────────────
 ///
@@ -41,7 +58,9 @@ class DrawerSlots {
   const DrawerSlots._();
 
   /// Flat slots below this are the launcher's own entries. See the class note.
-  static const int reservedSlots = 2;
+  ///
+  /// RAISING THIS IS A DATA MIGRATION. See [migrateReserved].
+  static const int reservedSlots = 3;
 
   /// The frozen per-page capacity, floored at 1 so a corrupt prefs file can
   /// divide nothing by zero on the home screen.
@@ -379,6 +398,54 @@ class DrawerSlots {
     // then leaving the pages the user had grown it to hanging off the end,
     // empty, would not be a clean up. Growing it again is one tap.
     return compacted.clearing(drawerPageCount: true);
+  }
+
+  /// Does this arrangement predate the current [reservedSlots]?
+  ///
+  /// True when anything is stored inside the reserved block, which can only
+  /// happen if it was written when the block was smaller. Self detecting on
+  /// purpose: a persisted version flag is one more thing to write, one more
+  /// thing to forget to write, and one more thing that can disagree with the
+  /// data it describes.
+  ///
+  /// Cheap enough to call on every layout pass, which is where it is called.
+  static bool needsReservedMigration(LauncherPrefs p) {
+    for (final s in p.drawerSlots) {
+      if (flatOf(p, s.page, s.index) < reservedSlots) return true;
+    }
+    return false;
+  }
+
+  /// Re-pack an arrangement written against a smaller reserved block.
+  ///
+  /// Returns [p] unchanged when there is nothing to migrate, so this is safe to
+  /// call unconditionally and settles after one pass.
+  ///
+  /// Deliberately NOT [cleanUp]: that also clears `drawerPageCount`, and taking
+  /// away pages someone grew the drawer to is a side effect they did not ask
+  /// for and would read as the launcher losing their arrangement. This moves
+  /// things and nothing else.
+  static LauncherPrefs migrateReserved(
+    LauncherPrefs p, {
+    required Set<String> liveAppKeys,
+    required Set<String> liveFolderIds,
+  }) {
+    if (!needsReservedMigration(p)) return p;
+
+    final live = _liveSorted(p, liveAppKeys, liveFolderIds);
+    final per = capacity(p);
+
+    return p.copyWith(
+      drawerSlots: [
+        for (var i = 0; i < live.length; i++)
+          DrawerSlot(
+            page: (reservedSlots + i) ~/ per,
+            index: (reservedSlots + i) % per,
+            componentKey: live[i].componentKey,
+            folderId: live[i].folderId,
+          ),
+      ],
+    );
   }
 
   /// Drop dead entries WITHOUT compacting: uninstalls must not haunt slots,

@@ -171,7 +171,23 @@ export default async function IconBuilderPage({
   // is the newer work, while `publishedVersion` below keeps coming from the
   // index, so publishing writes v(entry+1) and cannot silently rewrite v1 over
   // a live pack. The banner says which state the screen is in.
-  const draft = id ? await readIconDraft(app, id) : null;
+  const rawDraft = id ? await readIconDraft(app, id) : null;
+
+  // ── A DRAFT THAT MATCHES WHAT IS LIVE IS NOT WORK IN PROGRESS ────────────
+  //
+  // Publishing leaves the draft in place, deliberately, because it carries the
+  // preview settings `pack.json` does not. The consequence was that this page
+  // read "a draft exists" and reported "a draft is AHEAD", so a pack said
+  // "draft ahead of v8, publishing writes v9" against the v8 it had just
+  // written, and went on saying it forever.
+  //
+  // `publishedAtVersion` is what tells the two apart. Equal to the live
+  // version means the draft IS what devices have, so it is still used as the
+  // content source (it is the only copy of plate, radius and shape) but it no
+  // longer claims to be newer than anything.
+  const draft = rawDraft;
+  const draftIsAhead =
+    !!rawDraft && (entry == null || rawDraft.publishedAtVersion !== entry.version);
   if (draft) {
     // The bytes are FETCHED, not linked. `IconBuilder` decodes every icon with
     // `atob`, so handing it an https URL is not a degraded preview, it is an
@@ -212,7 +228,7 @@ export default async function IconBuilderPage({
         meta,
         entry ? entry.title || entry.packId : draft ? draft.name || draft.packId : 'New icon pack',
         entry
-          ? `${draft ? 'draft ahead of' : 'editing'} v${entry.version}, publishing writes v${entry.version + 1}`
+          ? `${draftIsAhead ? 'draft ahead of' : 'editing'} v${entry.version}, publishing writes v${entry.version + 1}`
           : draft
             ? `draft, ${draft.icons.length} ${draft.icons.length === 1 ? 'icon' : 'icons'}, never published`
             : `${hero.length} hero ${hero.length === 1 ? 'pack' : 'packs'} published`,
@@ -221,7 +237,9 @@ export default async function IconBuilderPage({
       {draft && (
         <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[13px] leading-relaxed text-site-info">
           {entry
-            ? `Opened from a saved draft, which is ahead of the published v${entry.version}. Publishing writes v${entry.version + 1}; until then devices keep v${entry.version}.`
+            ? draftIsAhead
+              ? `Opened from a saved draft, which is ahead of the published v${entry.version}. Publishing writes v${entry.version + 1}; until then devices keep v${entry.version}.`
+              : `Opened from the saved draft behind the published v${entry.version}, which it matches. Publishing again writes v${entry.version + 1} with the same art.`
             : `Opened from a draft. Nothing here is live: publishing will create ${draft.packId} at version 1 and it will reach devices on their next sync.`}
         </p>
       )}

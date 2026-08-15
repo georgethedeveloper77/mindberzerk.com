@@ -10,19 +10,35 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:g_launcher/data/prefs/prefs_repository.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/font_catalogue.dart';
 import 'settings_rows.dart';
 
-Future<T?> settingsSheet<T>(BuildContext context, Widget child) {
+/// [scrollControlled] is OPT-IN and off by default, which keeps every existing
+/// sheet behaving exactly as it did.
+///
+/// Without it `showModalBottomSheet` caps the sheet at nine sixteenths of the
+/// screen, and a child taller than that does not scroll or shrink: it overflows
+/// and paints the yellow-and-black stripes. That is fine for the pickers here
+/// that offer four to seven fixed rows and cannot grow. It is not fine for a
+/// list of eighty-five families, which is why the font picker passes true and
+/// bounds its own height instead.
+Future<T?> settingsSheet<T>(
+  BuildContext context,
+  Widget child, {
+  bool scrollControlled = false,
+}) {
   final data = ChromeScope.of(context);
   final s = SettingsSkin.fromData(data);
   return showModalBottomSheet<T>(
     context: context,
     backgroundColor: s.card,
+    isScrollControlled: scrollControlled,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
@@ -244,21 +260,160 @@ void showSliderSheet(
   );
 }
 
+/// The font picker, for either the display family or the mono one.
+///
+/// ─── SCROLLABLE, UNLIKE EVERY OTHER SHEET HERE ──────────────────────────────
+///
+/// The others offer four to seven options and fit. This one offers eighty-five,
+/// so the option list is a [ListView] inside a height-constrained box rather
+/// than a Column that would overflow off the bottom of the screen.
+///
+/// ─── THE ROWS ARE NOT SET IN THE FAMILY THEY NAME, AND THAT IS A CHOICE ─────
+///
+/// Showing each name in its own face is the obviously better picker, and it was
+/// left out of this cut deliberately. Rendering it requires REGISTERING the
+/// family, `FontLoader` has no unregister, and scrolling this list would stack
+/// eighty-five families into the process for the life of it. On the budget
+/// phones this ships for that is not a preview, it is a leak.
+///
+/// The honest version fetches on demand for the visible window and holds a
+/// bounded set. Worth building; not worth blocking the feature on.
+///
+/// ─── WHY MONO GETS A DIFFERENT LIST AND A DIFFERENT SYSTEM ROW ──────────────
+///
+/// `terminal_screen.dart` computes the PTY column count by measuring a run of
+/// glyphs in the mono family and sends that number to the remote host. A
+/// proportional face there makes the count too generous and the host formats
+/// for a width the screen does not have. So the mono list is filtered to
+/// monospace, and its system row offers Android's `monospace` alias rather than
+/// the platform default, which is proportional.
+void showFontSheet(
+  BuildContext context,
+  PrefsNotifier notifier, {
+  required String title,
+  required bool mono,
+  required String? current,
+  required List<FontEntry> catalogue,
+}) {
+  // '_theme' never reaches storage. It is the sheet's way of spelling the null
+  // that means "no preference", exactly as showShapeSheet does.
+  const distroKey = '_theme';
+  final selected = current ?? distroKey;
+  final systemKey = mono ? systemMonoChoice : systemChoice;
+
+  settingsSheet<void>(
+    context,
+    scrollControlled: true,
+    // ─── WHY THIS SHEET SIZES ITSELF AND THE OTHERS DO NOT ─────────────────
+    //
+    // The default sheet is capped at nine sixteenths of the screen and does not
+    // scroll, so a fixed 360 of list under a head and two rows overflowed the
+    // bottom by about seventy pixels on a normal phone. Raising or lowering that
+    // constant only moves which phone it happens on.
+    //
+    // So: scroll-controlled, which lets the sheet be as tall as it asks for, and
+    // a ceiling expressed as a FRACTION of the screen rather than a number of
+    // pixels. Flexible then gives the list whatever is left after the fixed rows
+    // above it, on any screen, with no arithmetic that can drift.
+    ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.72,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          settingsSheetHead(context, title),
+          SheetOption(
+            label: "The distro's own font",
+            selected: selected == distroKey,
+            onTap: () {
+              notifier.edit(
+                // copyWith cannot write null; clearing is what reaches the
+                // distro default.
+                (p) => mono
+                    ? p.clearing(monoFont: true)
+                    : p.clearing(displayFont: true),
+              );
+              Navigator.pop(context);
+            },
+          ),
+          SheetOption(
+            label: mono ? 'System monospace' : 'System font',
+            selected: selected == systemKey,
+            onTap: () {
+              notifier.edit(
+                (p) => mono
+                    ? p.copyWith(monoFont: systemKey)
+                    : p.copyWith(displayFont: systemKey),
+              );
+              Navigator.pop(context);
+            },
+          ),
+          if (catalogue.isNotEmpty)
+            // Flexible, not a fixed height: it takes whatever the ConstrainedBox
+            // above has left after the head and the two rows, so the list ends
+            // exactly at the sheet's bottom on any screen. ListView still builds
+            // its rows lazily inside it.
+            Flexible(
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: catalogue.length,
+                itemBuilder: (context, i) {
+                  final entry = catalogue[i];
+                  return SheetOption(
+                    label: entry.family,
+                    previewFamily: entry.family,
+                    previewText: entry.sampleFor(mono: mono),
+                    selected: selected == entry.family,
+                    onTap: () {
+                      notifier.edit(
+                        (p) => mono
+                            ? p.copyWith(monoFont: entry.family)
+                            : p.copyWith(displayFont: entry.family),
+                      );
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
 class SheetOption extends StatelessWidget {
   const SheetOption({
     super.key,
     required this.label,
     required this.onTap,
     this.selected = false,
+    this.previewFamily,
+    this.previewText,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
+  /// Draw [previewText] in this family instead of drawing [label] in the
+  /// interface font. Null for every non-font sheet, which is all of them but
+  /// one.
+  final String? previewFamily;
+
+  /// Null falls back to [label]. The font picker passes a longer string for
+  /// monospace families; see [FontEntry.sampleText].
+  final String? previewText;
+
   @override
   Widget build(BuildContext context) {
     final s = SettingsSkin.of(context);
+    final colour = selected ? s.acc : s.tx;
+    final family = previewFamily;
+
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -266,19 +421,105 @@ class SheetOption extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? s.acc : s.tx,
-                  fontSize: 15,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
+              child: family == null
+                  ? Text(
+                      label,
+                      style: TextStyle(
+                        color: colour,
+                        fontSize: 15,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    )
+                  : _FontPreview(
+                      family: family,
+                      text: previewText ?? label,
+                      colour: colour,
+                      fallback: label,
+                      bold: selected,
+                    ),
             ),
             if (selected) Icon(Icons.check, size: 20, color: s.acc),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One row of the font picker, set in the family it names.
+///
+/// ─── PREVIEWS ARE THE POINT, NOT A GARNISH ──────────────────────────────────
+///
+/// Eighty-five family names in one typeface is a quiz, not a picker: nobody
+/// chooses between Manrope and Figtree from the words. And for monospace it is
+/// strictly impossible, because Fira Code and Fira Mono differ in exactly one
+/// thing, the coding ligatures, so a list that cannot draw `=>` cannot tell
+/// them apart at all.
+///
+/// ─── WHY THIS IS A Text AND NOT AN Image ────────────────────────────────────
+///
+/// It was an image, briefly, rasterised natively to avoid registering eighty-five
+/// families with `FontLoader`, which has no unregister. That was a real concern
+/// and the wrong trade: it needed a Pigeon round trip, a native renderer, a
+/// certificate array and a bitmap cache, to render text that `google_fonts`
+/// draws in one line.
+///
+/// The leak is real and bounded. A user who scrolls the whole list leaves every
+/// family they passed resident for the life of the process, a few megabytes on
+/// a screen almost nobody opens twice. If that ever shows up in a memory
+/// profile the answer is to cap the list, not to rebuild the renderer.
+///
+/// ─── LIGATURES COME FREE ────────────────────────────────────────────────────
+///
+/// Flutter shapes through HarfBuzz, which applies `calt` by default, so Fira
+/// Code's arrows render as arrows without anything being asked for.
+class _FontPreview extends StatelessWidget {
+  const _FontPreview({
+    required this.family,
+    required this.text,
+    required this.colour,
+    required this.fallback,
+    required this.bold,
+  });
+
+  final String family;
+  final String text;
+  final Color colour;
+  final String fallback;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = TextStyle(
+      color: colour,
+      fontSize: 15,
+      fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+    );
+
+    TextStyle style;
+    try {
+      // Returns immediately with a fallback face and fetches in the background.
+      // Registering the font relayouts the text that uses it, so the row corrects
+      // itself when the bytes land with no listener and no rebuild of ours.
+      style = GoogleFonts.getFont(family, textStyle: base);
+    } catch (e) {
+      // A family the package does not know, which means the catalogue and the
+      // package's manifest have drifted. The row still names the font and is
+      // still selectable; it just cannot show it.
+      debugPrint('Font preview unavailable for $family: $e');
+      return Text(fallback, style: base, maxLines: 1);
+    }
+
+    return Text(
+      text,
+      style: style,
+      maxLines: 1,
+      // Cut at the right edge rather than squeezed. The mono samples are long,
+      // and scaling them down would misrepresent the very letterforms the row
+      // exists to show.
+      overflow: TextOverflow.clip,
+      softWrap: false,
     );
   }
 }

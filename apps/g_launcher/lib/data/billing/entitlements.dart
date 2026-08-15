@@ -3,8 +3,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_account/g_account.dart';
 
+// The cycle with terminal_entitlement.dart is deliberate and harmless: it reads
+// this file's providers, this file reads its sku constant, and Dart resolves
+// both lazily. boot_spec.dart and theme_spec.dart already pair the same way.
+import '../../features/terminal/terminal_entitlement.dart';
 import '../../platform/pack_api.g.dart';
 import '../cdn/pack_repository.dart';
+import '../prefs/prefs_repository.dart';
+import 'pending_apply.dart';
 
 /// PHASE C3 — the app-side wiring over `g_account`.
 ///
@@ -62,6 +68,27 @@ final productSkusProvider = Provider<String>((ref) {
       if (p.sku != null && p.sku!.isNotEmpty) p.sku!,
     for (final b in bundles)
       if (b.sku.isNotEmpty) b.sku,
+
+    // ─── A PRODUCT THAT IS NOT IN THE CATALOGUE ────────────────────────────
+    //
+    // Everything above is derived from the signed index, which is the whole
+    // argument for a catalogue rather than a compiled-in list: publish a paid
+    // distro, attach its product ID, and it is purchasable with no app release.
+    //
+    // Terminal Pro is not a pack. It downloads nothing, it is signed by
+    // nothing, and it appears nowhere in the index, so nothing above can name
+    // it and Play would never be asked about it. No price would render and
+    // `buy()` would return false, which presents as the product not existing.
+    //
+    // This is a constant and the doc on `kProductSkus` warned about exactly
+    // that, so the distinction is worth being precise about: that constant was
+    // wrong because it DERIVED what unlocks what, in a second place, from
+    // stale strings. This only says "also ask Play about this product". The
+    // ownership rule for packs is untouched and still lives once, natively.
+    //
+    // A second feature product goes here too. A second product that unlocks a
+    // PACK does not: that is an index entitlement.
+    kTerminalProSku,
   };
 
   final sorted = skus.toList()..sort();
@@ -133,6 +160,55 @@ final buyProvider = Provider<Future<bool> Function(String)>((ref) {
   return (sku) => ref.read(entitlementServiceProvider).buy(sku);
 });
 
+/// Honour a purchase that was owed an apply, at startup.
+///
+/// ─── THE CASE THIS EXISTS FOR ───────────────────────────────────────────────
+///
+/// Buy Kali, open a game, and Android reclaims the launcher. `PackSyncWorker`
+/// carries on and the pack lands correctly, because outliving the process is
+/// the entire reason it is a worker. But the apply lived in Dart, and Dart is
+/// gone, so the user comes back to a distro they paid for and a desktop that
+/// ignored it. That is the original complaint, moved later and made harder to
+/// see.
+///
+/// ─── AND WHY APPLYING AT LAUNCH IS NOT THE THING I ARGUED AGAINST ───────────
+///
+/// The objection to auto-applying is about swapping someone's desktop while
+/// they are mid-task. It does not hold here: a launcher IS the home screen, so
+/// at this moment they are looking at it deliberately, and finding what they
+/// bought already on is the promise being kept.
+///
+/// [PendingApply] carries the expiry. Past its window the record lapses, the
+/// card reads as installed, and a tap does what a tap does.
+Future<void> _resumePendingApply(Ref ref) async {
+  final store = ref.read(prefsStoreProvider);
+  final sku = await PendingApply.take(store);
+  if (sku == null) return;
+
+  List<PackInfo> packs;
+  try {
+    packs = await ref.read(catalogueProvider.future);
+  } catch (_) {
+    // The catalogue could not be read, so the sku cannot be resolved to a
+    // pack. The record is already consumed by `take`, which is right: a
+    // retry loop over an intent nobody can see would be worse than one
+    // missed apply that a single tap fixes.
+    return;
+  }
+
+  for (final p in packs) {
+    // INSTALLED, not merely owned. The worker may still be running, or may
+    // have been deferred by an OEM battery manager for longer than the
+    // download ever takes. Applying a theme whose pack is not on disk
+    // resolves to nothing and falls back to Ubuntu, which is a worse outcome
+    // than not applying at all.
+    if (p.sku == sku && p.packType == 'theme' && p.installedVersion > 0) {
+      await ref.read(selectedThemeIdProvider.notifier).select(p.packId);
+      return;
+    }
+  }
+}
+
 /// "Restore purchases", for a Settings row.
 ///
 /// THAT ROW IS NOT OPTIONAL. A user who reinstalls, or signs in on a new phone,
@@ -163,19 +239,82 @@ final packBridgeProvider = Provider<void>((ref) {
 
   registerPackFlutterApi(ref);
 
-  // A completed purchase should start the download immediately. Making someone
-  // pay, then find the theme and tap Get, is a second step for something they
-  // have already committed to.
+  // ── A COMPLETED PURCHASE STARTS THE DOWNLOAD ITSELF ──────────────────────
   //
-  // Fire-and-forget with a guard: the entitlement push and this listener race,
-  // and native re-checks entitlement before downloading anyway, so a download
-  // that arrives a beat early simply reports notEntitled and the user taps
-  // once. Awaiting the push here would serialise the two and make the common
-  // case slower to protect the rare one.
+  // The comment here said this for months and the code did not do it: it
+  // pushed entitlements, invalidated the catalogue, and stopped. So a purchase
+  // unlocked a card and left it sitting there, and the user had to find the
+  // theme again and tap Get. Paying and then being handed back an unchanged
+  // screen reads as a failed transaction, which is the worst thing a paywall
+  // can do.
+  //
+  // ─── EVERY PACK THE SKU UNLOCKS, NOT JUST THE THEME ──────────────────────
+  //
+  // `distro_kali` grants the theme AND its icon pack, and someone who bought
+  // Kali bought Kali, not "a theme, with icons arriving in a couple of hours".
+  // `PackInfo.sku` is already on every entry, so the catalogue answers this
+  // without a second source of truth: install everything carrying this sku.
+  //
+  // The push is AWAITED first, unlike the fire-and-forget it replaces. Native
+  // re-checks entitlement before downloading, so installing before the push
+  // lands returns notEntitled and the user is back to tapping. That race was
+  // acceptable when nothing auto-installed; it is the whole operation now.
   final service = ref.read(entitlementServiceProvider);
   final sub = service.purchased.listen((sku) async {
     await ref.read(packActionsProvider).pushEntitlements(service.ownedNow);
     ref.invalidate(catalogueProvider);
+
+    List<PackInfo> packs;
+    try {
+      packs = await ref.read(catalogueProvider.future);
+    } catch (_) {
+      // The catalogue could not be read, so there is nothing to resolve the
+      // sku against. The entitlement is pushed and permanent, so the card is
+      // unlocked and one tap still works. Silence beats a message about an
+      // internal step nobody initiated.
+      return;
+    }
+
+    final mine = [for (final p in packs) if (p.sku == sku) p];
+    if (mine.isEmpty) return;
+
+    // Sequential: each install verifies signatures and writes to disk, and two
+    // at once on a budget phone is how a download that would have worked runs
+    // out of memory instead.
+    final actions = ref.read(packActionsProvider);
+    for (final p in mine) {
+      await actions.install(p.packId);
+    }
+
+    // ── AND APPLY, ONLY IF THEY ARE STILL IN THE FLOW THEY STARTED ─────────
+    //
+    // See [PendingApply]. Consumed here whether or not a theme was among the
+    // packs, because an intent that outlives its own purchase would fire on
+    // the next unrelated one.
+    final store = ref.read(prefsStoreProvider);
+    final wanted = await PendingApply.take(store);
+    if (wanted != sku) return;
+
+    for (final p in mine) {
+      // The THEME pack, not the icon pack. `installedPackDir` is what the
+      // engine resolves a selection against, and selecting an icon pack id
+      // would resolve to nothing and fall back to Ubuntu.
+      if (p.packType == 'theme') {
+        await ref.read(selectedThemeIdProvider.notifier).select(p.packId);
+        break;
+      }
+    }
   });
   ref.onDispose(sub.cancel);
+
+  // ── ONCE, AT STARTUP ─────────────────────────────────────────────────────
+  //
+  // In this provider's BODY rather than in `_Root.build`, because build runs
+  // on every rebuild and this must run once. `keepAlive` above makes the
+  // provider's lifetime the container's, so its body is the one place in this
+  // app that is genuinely a single startup hook.
+  //
+  // Unawaited: nothing should wait on it, and it resolves against the
+  // catalogue which the storefront is loading anyway.
+  unawaited(_resumePendingApply(ref));
 });

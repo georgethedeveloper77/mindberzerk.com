@@ -76,6 +76,8 @@ class GlobalPrefs {
     this.panelTint,
     this.panelRadius,
     this.badgeStyle,
+    this.displayFont,
+    this.monoFont,
   });
 
   // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -176,6 +178,36 @@ class GlobalPrefs {
   /// every distro is exactly the complaint this bucket exists to answer.
   final String? badgeStyle;
 
+  // ── FONTS ─────────────────────────────────────────────────────────────────
+
+  /// The family every label, title and menu is set in, overriding whatever the
+  /// distro authored.
+  ///
+  /// Global for the reason the whole bucket exists: a font is a fact about the
+  /// person reading it. Someone who set Atkinson because it is what they can
+  /// read comfortably means it on Plasma too, and per theme they would have to
+  /// say so again on every distro they tried.
+  ///
+  /// What the distro ships is NOT deleted by this and is not meant to be. Null
+  /// means no preference and Ubuntu comes up in Ubuntu, which is the default
+  /// and the point of the product.
+  ///
+  /// NOT PART OF SCHEMA 3, and there is no schema 3. The top-up mechanism below
+  /// exists because PROMOTING a field that already lived per theme silently
+  /// discards the user's value on first run. These two have never lived
+  /// anywhere, so there is nothing to carry across and [schemaVersion] stays
+  /// where it is.
+  final String? displayFont;
+
+  /// The family the terminal, the TUI shell and every monospaced readout use.
+  ///
+  /// Separate from [displayFont] on purpose: wanting JetBrains Mono in an SSH
+  /// session says nothing about wanting it under the app icons.
+  ///
+  /// Only ever holds a FIXED-ADVANCE family, enforced at the picker. See
+  /// font_catalogue.dart for why that gate is not cosmetic.
+  final String? monoFont;
+
   /// Read the promoted fields off a [LauncherPrefs].
   ///
   /// Used for the one-time migration and for splitting an edit.
@@ -207,6 +239,8 @@ class GlobalPrefs {
         panelTint: p.panelTint,
         panelRadius: p.panelRadius,
         badgeStyle: p.badgeStyle,
+        displayFont: p.displayFont,
+        monoFont: p.monoFont,
       );
 
   /// Overlay these values onto [p], replacing whatever the per-theme store held
@@ -245,6 +279,8 @@ class GlobalPrefs {
       panelTint: panelTint == null,
       panelRadius: panelRadius == null,
       badgeStyle: badgeStyle == null,
+      displayFont: displayFont == null,
+      monoFont: monoFont == null,
     );
 
     return cleared.copyWith(
@@ -275,6 +311,8 @@ class GlobalPrefs {
       panelTint: panelTint,
       panelRadius: panelRadius,
       badgeStyle: badgeStyle,
+      displayFont: displayFont,
+      monoFont: monoFont,
     );
   }
 
@@ -309,6 +347,8 @@ class GlobalPrefs {
         if (panelTint != null) 'panelTint': panelTint,
         if (panelRadius != null) 'panelRadius': panelRadius,
         if (badgeStyle != null) 'badgeStyle': badgeStyle,
+        if (displayFont != null) 'displayFont': displayFont,
+        if (monoFont != null) 'monoFont': monoFont,
       };
 
   factory GlobalPrefs.fromJson(Map<String, dynamic> j) => GlobalPrefs(
@@ -339,6 +379,8 @@ class GlobalPrefs {
         panelTint: (j['panelTint'] as num?)?.toDouble(),
         panelRadius: (j['panelRadius'] as num?)?.toDouble(),
         badgeStyle: j['badgeStyle'] as String?,
+        displayFont: j['displayFont'] as String?,
+        monoFont: j['monoFont'] as String?,
       );
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
@@ -394,6 +436,8 @@ class GlobalPrefs {
         panelTint: panelTint,
         panelRadius: panelRadius,
         badgeStyle: badgeStyle,
+        displayFont: displayFont,
+        monoFont: monoFont,
       );
 
   /// Value equality, and it is load-bearing for the same reason it is on
@@ -433,6 +477,8 @@ class GlobalPrefs {
         panelTint,
         panelRadius,
         badgeStyle,
+        displayFont,
+        monoFont,
       ]);
 }
 

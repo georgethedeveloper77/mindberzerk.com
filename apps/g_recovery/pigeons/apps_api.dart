@@ -117,4 +117,33 @@ abstract class AppsHostApi {
   /// The system storage screen for one app, where Clear cache actually works.
   @async
   bool openAppSettings(String packageName);
+
+  /// How far the current read has got.
+  ///
+  /// Answered off the worker thread. A progress call queued behind the read
+  /// would report once, at the end, which is the one moment nobody needs it.
+  @async
+  AppsProgress readProgress();
+}
+
+
+/// How far the current read has got. Codec 131.
+///
+/// DECLARED LAST, which is what keeps AppEntry on 129 and AppsState on 130.
+class AppsProgress {
+  AppsProgress({
+    required this.done,
+    required this.total,
+    required this.reading,
+  });
+
+  /// Packages sized so far. Counted by the loop, never estimated.
+  int done;
+
+  /// Packages to size. Zero until the package list exists, which is the first
+  /// second or so, and a caller seeing zero has been told the count is not
+  /// known rather than handed a guess.
+  int total;
+
+  bool reading;
 }

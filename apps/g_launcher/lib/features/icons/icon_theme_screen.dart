@@ -209,10 +209,39 @@ class _Screen extends ConsumerWidget {
       return best;
     }
 
+    // What the DISTRO itself asks for, in its own theme.json. Read HERE rather
+    // than further down, because the partition below has to know it.
+    final distroPack = theme.spec.icons.heroPack;
+
     final currentPacks = <PackInfo>[];
     final byDistro = <String, List<PackInfo>>{};
     final standalone = <PackInfo>[];
+    PackInfo? namedByDistro;
     for (final p in packs) {
+      // ── THE PACK THE DISTRO NAMES BELONGS TO NO SHELF ──────────────────
+      //
+      // It is drawn by the Distro default card below, which carries its
+      // preview, its progress and its Get affordance. Letting it fall through
+      // to a shelf as well draws THE SAME PACK TWICE: once as the selected
+      // default and once as an uninstalled card offering to Get something the
+      // device is already wearing.
+      //
+      // This used to be handled by `if (p.packId != distroPack)` at the
+      // currentPacks call site alone, which was correct only while the named
+      // pack always carried the distro's own id prefix. That is not a rule:
+      // `icons.heroPack` may name ANY pack, and a distro naming a STANDALONE
+      // one is a supported case that Ubuntu now uses. Such a pack took the
+      // `base == null` branch, missed the guard, and duplicated. Excluding it
+      // once here covers all three shelves instead of one.
+      //
+      // It is also where the default card's own pack is found, because
+      // searching `currentPacks` for it had the same prefix assumption baked
+      // in: a standalone default was never found, so the card fell back to the
+      // generator schematic and offered no way to install what it named.
+      if (distroPack != null && p.packId == distroPack) {
+        namedByDistro = p;
+        continue;
+      }
       final base = distroOf(p.packId);
       if (base == null) {
         standalone.add(p);
@@ -222,6 +251,8 @@ class _Screen extends ConsumerWidget {
         (byDistro[base] ??= <PackInfo>[]).add(p);
       }
     }
+    // FINAL, so the analyzer's promotion holds inside the card builder below.
+    final PackInfo? defaultPack = namedByDistro;
     final otherDistros = byDistro.keys.toList()
       ..sort((a, b) => distroTitles[a]!
           .toLowerCase()
@@ -236,9 +267,6 @@ class _Screen extends ConsumerWidget {
 
     final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
 
-    // What the DISTRO itself asks for, when the user has chosen nothing. Named
-    // in the Distro-default card's subtitle so "default" is never a mystery.
-    final distroPack = theme.spec.icons.heroPack;
     final selectedHero = theme.prefs.iconPackId;
     final selectedSystem = theme.prefs.systemIconPack;
 
@@ -398,13 +426,6 @@ class _Screen extends ConsumerWidget {
             // because the named pack IS what "default" means and leaving the
             // generator running after that tap reads as the choice failing.
             Builder(builder: (context) {
-              PackInfo? defaultPack;
-              for (final p in currentPacks) {
-                if (p.packId == distroPack) {
-                  defaultPack = p;
-                  break;
-                }
-              }
               final c = ChromeScope.of(context).colors;
               final st = defaultPack == null
                   ? null
@@ -451,15 +472,17 @@ class _Screen extends ConsumerWidget {
                 },
               );
             }),
+            // No `p.packId != distroPack` guard here any more. The partition
+            // above removes the named pack from every shelf, so a second rule
+            // at one call site would be a copy that only covers one of three.
             for (final p in currentPacks)
-              if (p.packId != distroPack)
-                _PackCard(
-                  theme: theme,
-                  pack: p,
-                  active: selectedHero == p.packId,
-                  progress: progress[p.packId],
-                  onTap: (status) => tapPack(p, status),
-                ),
+              _PackCard(
+                theme: theme,
+                pack: p,
+                active: selectedHero == p.packId,
+                progress: progress[p.packId],
+                onTap: (status) => tapPack(p, status),
+              ),
           ]),
 
           for (final base in otherDistros) ...[

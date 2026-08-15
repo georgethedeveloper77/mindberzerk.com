@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics.dart';
+import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
@@ -14,17 +15,19 @@ import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
+import '../../design/device_stage.dart';
+import '../../engine/desklet_spec.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/theme_registry.dart';
+import '../../engine/theme_spec.dart';
+import '../../i18n/i18n.dart';
 // AppEntry, for resolving a suggestion's componentKeys into icons.
 import '../../platform/launcher_api.g.dart';
 import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
 import '../drawer/app_icon.dart';
-import '../drawer/folder_glyph.dart';
-import '../../engine/theme_registry.dart';
-import '../../engine/theme_spec.dart';
-import '../../i18n/i18n.dart';
 import '../drawer/drawer_actions.dart';
+import '../drawer/folder_glyph.dart';
 import 'setup_chrome.dart';
 
 /// **Initial setup, as a distro installer.** T1.
@@ -135,7 +138,42 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// them) are created when the user advances past the step unless they
   /// untick it — creation is the default outcome, not a button they must
   /// find. Cleared folders remain available later in Settings > Folders.
-  bool _createFolders = true;
+  /// Suggested folders the user has UNTICKED.
+  ///
+  /// ─── SKIPPED, NOT CHOSEN, AND THE DIRECTION MATTERS ─────────────────────
+  ///
+  /// A set of chosen names would have to be seeded from a list that is proposed
+  /// asynchronously, so an empty set on the first frame would read as "the user
+  /// wants none" and the step would default to off. Recording the EXCEPTIONS
+  /// keeps the default at all-on with no seeding at all, which is the behaviour
+  /// the old boolean had and the one the copy still promises.
+  final Set<String> _skippedFolders = <String>{};
+
+  /// Desklet kind ids to place on the first desktop.
+  ///
+  /// CHOSEN, not skipped, which is the opposite of [_skippedFolders] and is
+  /// right for the opposite reason. Folder suggestions are proposed
+  /// asynchronously, so an empty set could not be told apart from "not loaded
+  /// yet". Desklet kinds are a compile-time list, so the default can simply BE
+  /// the default, and unticking everything is a meaningful answer rather than
+  /// an unresolved one.
+  ///
+  /// Two, because one is not a demonstration and three fills a phone. The
+  /// identity piece and the one that moves.
+  final Set<String> _widgets = <String>{'fastfetch', 'monitor'};
+
+  /// Suffix, because this loop mints several ids in one synchronous pass.
+  int _deskletSeq = 0;
+
+  /// Matches `terminal_commands.dart`: `dk` plus a microsecond stamp. That one
+  /// mints ONE id per command and needs no more; this places up to six inside
+  /// a single loop, where a repeated microsecond would give two desklets the
+  /// same id and deleting either would take both.
+  String _newDeskletId() =>
+      'dk${DateTime.now().microsecondsSinceEpoch}${_deskletSeq++}';
+
+  /// 'top' | 'middle' | 'bottom'. Where the chosen desklets land on page 0.
+  String _widgetSpot = 'top';
 
   /// Badges step: ON BY DEFAULT, and it is a WANT rather than a grant.
   ///
@@ -254,12 +292,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // require finding a button, and unticking the row is the opt-out.
     // Best-effort like the desktop seeding — a grouping failure must never
     // block setup.
-    if (_step == _SetupStep.folders && _createFolders) {
+    if (_step == _SetupStep.folders) {
       try {
         final theme = ref.read(effectiveThemeProvider).asData?.value;
         if (theme != null) {
           final apps = ref.read(shellAppsProvider(theme));
-          final suggestions = FolderSuggestions.propose(apps, theme.prefs);
+          // FILTERED, not gated. `acceptAll` has always taken a list, so a
+          // partial selection needs no new engine call: the folders the user
+          // unticked simply are not in the list handed to it. Everything about
+          // ids, membership and ordering stays where it already lives.
+          final suggestions = FolderSuggestions.propose(apps, theme.prefs)
+              .where((sg) => !_skippedFolders.contains(sg.name))
+              .toList();
           if (suggestions.isNotEmpty) {
             await ref.read(prefsProvider(theme.spec.id).notifier).edit(
                   (p) => FolderSuggestions.acceptAll(
@@ -272,6 +316,142 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         }
       } catch (e, s) {
         debugPrint('setup: creating suggested folders failed: $e\n$s');
+      }
+    }
+
+    // ── DESKLETS, PLACED ON THE WAY OUT ───────────────────────────────
+    //
+    // Same shape as folders above and for the same reason: the default outcome
+    // should not require finding a button, and advancing IS the commit.
+    //
+    // ─── placeAt REFUSES RATHER THAN RELOCATING ───────────────────────
+    //
+    // That is correct for an authored starter, where a silently reflowed tile
+    // makes the whole desktop look like a mistake. It is a trap here: two
+    // desklets asked for the same row collide, the second call returns the
+    // prefs UNCHANGED, and a widget the user ticked simply never appears with
+    // nothing reported anywhere.
+    //
+    // So each one is tried at its computed row, and if the prefs come back
+    // identical the same kind is handed to `place`, which packs it wherever it
+    // fits. Position is a preference; being present is not.
+    if (_step == _SetupStep.widgets) {
+      try {
+        final theme = ref.read(effectiveThemeProvider).asData?.value;
+        if (theme != null) {
+          // THE DESKLET GRID, not the icon grid. `deskletCols` is finer:
+          // `search` spans 8 of it while the home grid is 4 or 5 wide, and
+          // `_clampSpanX` would have squashed every kind against the wrong
+          // number. This is what `desklet_picker` passes and there is exactly
+          // one right answer.
+          final cols = theme.deskletCols;
+          final rows = theme.deskletRows;
+          var next = theme.prefs;
+
+          // ── THE AUTHORED STARTER IS OVERRULED, FOR SHORTLIST KINDS ONLY ─
+          //
+          // `StarterDesktop` places what theme.json asks for the first time a
+          // distro is worn, which is why Ubuntu arrives with a glance whether
+          // or not this step was answered. Once the user HAS been asked, their
+          // answer has to win, or unticking something does nothing and the
+          // step is decoration.
+          //
+          // Scoped to the six ids this step offers. Anything else the starter
+          // placed, and anything the user added by hand, is left alone: this
+          // owns the question it asked and nothing more.
+          for (final dk in [...next.desklets]) {
+            if (dk.page != 0) continue;
+            if (!_StepWidgets.shortlist.contains(dk.kind)) continue;
+            next = DeskletLayout.remove(next, dk.id);
+          }
+
+          // Ticked kinds in CATALOGUE order, not tap order, so two people who
+          // chose the same set get the same desktop.
+          final chosen = [
+            for (final k in DeskletKinds.all)
+              if (_widgets.contains(k.id)) k,
+          ];
+
+          // ── TWO ACROSS WHERE THEY FIT ──────────────────────────────────
+          //
+          // `free`, `ls`, `uptime` and `df` span 2 of a grid that is 8 wide, so
+          // stacking them one per row wastes three quarters of the desktop and
+          // looks like a column of ribbons. Pack left to right, wrap when the
+          // next one will not fit, and advance the row by the TALLEST tile in
+          // the row just finished rather than by the last one placed.
+          var col = 0;
+          var rowTall = 0;
+          final rowsUsed = <int>[];
+          for (final k in chosen) {
+            if (col + k.defaultSpanX > cols && col > 0) {
+              rowsUsed.add(rowTall);
+              col = 0;
+              rowTall = 0;
+            }
+            col += k.defaultSpanX;
+            if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
+          }
+          if (rowTall > 0) rowsUsed.add(rowTall);
+          final tall = rowsUsed.fold<int>(0, (n, h) => n + h);
+
+          // Where the block starts. Bottom subtracts the whole height so the
+          // last row ENDS at the last row rather than starting there and being
+          // refused off the edge.
+          final spare = rows - tall;
+          var cursorRow = switch (_widgetSpot) {
+            'bottom' => spare,
+            'middle' => spare ~/ 2,
+            _ => 0,
+          };
+          if (cursorRow < 0) cursorRow = 0;
+
+          col = 0;
+          rowTall = 0;
+          for (final k in chosen) {
+            if (col + k.defaultSpanX > cols && col > 0) {
+              cursorRow += rowTall;
+              col = 0;
+              rowTall = 0;
+            }
+
+            final before = next;
+            next = DeskletLayout.placeAt(
+              next,
+              kindId: k.id,
+              page: 0,
+              col: col,
+              row: cursorRow,
+              cols: cols,
+              rows: rows,
+              newId: _newDeskletId,
+            );
+            // placeAt REFUSES rather than relocating, and returns the prefs
+            // unchanged when it does. Correct for an authored starter, a trap
+            // here: a tile the user ticked would silently never appear.
+            // Position is a preference; being present is not.
+            if (identical(next, before)) {
+              next = DeskletLayout.place(
+                next,
+                kindId: k.id,
+                page: 0,
+                cols: cols,
+                rows: rows,
+                newId: _newDeskletId,
+              );
+            }
+
+            col += k.defaultSpanX;
+            if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
+          }
+
+          if (!identical(next, theme.prefs)) {
+            await ref
+                .read(prefsProvider(theme.spec.id).notifier)
+                .edit((_) => next);
+          }
+        }
+      } catch (e, st) {
+        debugPrint('setup: placing desklets failed: $e\n$st');
       }
     }
 
@@ -472,6 +652,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                           _ => ref.t('setup.next.continue'),
                         },
                         body: _body(theme, skin, current),
+                        stage: _stage(theme, skin, current),
                         // The welcome step is the one built around a LIST, so
                         // it is the one that should grow into the window. The
                         // rest are a handful of rows and look wrong stretched.
@@ -483,6 +664,254 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         ),
       ),
     );
+  }
+
+  /// The live desktop above the step, or null where one would be dishonest.
+  ///
+  /// ─── THREE STEPS GET NO STAGE, AND EACH FOR ITS OWN REASON ──────────────
+  ///
+  /// [_SetupStep.welcome] asks for a language and the home role. Both are facts
+  /// about ANDROID rather than about the desktop, and at that point no distro
+  /// has been chosen, so the stage would have to invent one to draw. A preview
+  /// of a decision the user has not made yet is decoration.
+  ///
+  /// THE CONSOLE SKIN, because a TTY installer that drew a picture of a desktop
+  /// would give the whole thing away. The frame refuses it there too, so this
+  /// is belt and braces on the one rule the mono branch exists to keep.
+  ///
+  /// [_SetupStep.install] draws its own full-screen version, which is the
+  /// payoff the rest of the wizard is building toward. A 260dp stage above it
+  /// would be the same picture, smaller, twice.
+  ///
+  /// ─── THE MODE FOLLOWS THE QUESTION ──────────────────────────────────────
+  ///
+  /// Asking about drawer columns while showing a desktop means the answer
+  /// changes something off screen, which is the failure the per-step previews
+  /// were built to avoid and which a single fixed stage would reintroduce. So
+  /// the stage switches what it is a picture OF, while remaining the same
+  /// desktop: the drawer step shows the drawer, the folders step shows a
+  /// folder, everything else shows the desktop. [DeviceStage] cross-fades
+  /// between them for free, because `mode` is part of its signature.
+  Widget? _stage(EffectiveTheme? theme, SetupSkin skin, _SetupStep step) {
+    if (theme == null) return null;
+    if (skin.kind == SetupFrameKind.console) return null;
+    if (step == _SetupStep.welcome || step == _SetupStep.install) return null;
+
+    // ── THE DISTRO STEP OWNS THE STAGE RATHER THAN WATCHING IT ─────────────
+    //
+    // Every other step ASKS A QUESTION and the stage answers it: pick a dock
+    // side, watch the dock move. The distro step is the one where the stage IS
+    // the question, so it becomes a deck the user swipes rather than a picture
+    // that follows a list of rows underneath.
+    //
+    // That also removes the duplication the old screen had. A card list of
+    // three distros under a stage showing the selected one drew the same
+    // desktop twice, once at 62dp inside a row and once at 260dp above it.
+    if (step == _SetupStep.distro) {
+      return _DistroDeck(active: theme.spec.id);
+    }
+
+    final mode = switch (step) {
+      _SetupStep.drawer => DevicePreviewMode.drawer,
+      _SetupStep.folders => DevicePreviewMode.folder,
+      _ => DevicePreviewMode.desktop,
+    };
+
+    return DeviceStage(
+      // The palette's identity, and the switcher's key. See DeviceStage: a
+      // stale id here is a stage that stops repainting when the distro changes,
+      // which is the one failure that looks like the setting being broken.
+      themeId: theme.spec.id,
+      palette: theme.palette,
+      mode: mode,
+      // Straight off EffectiveTheme, which is where the RESOLVED answers live:
+      // distro default, then the user's override, already merged. Reading
+      // `theme.spec` here instead would draw the distro's opinion rather than
+      // the choice the previous step just made, so the stage would ignore the
+      // very answers it exists to show.
+      dock: theme.dock,
+      // The drawer is denser than home by convention and carries its own
+      // count, so a stage previewing the DRAWER must use it or the columns
+      // step would move a number the picture does not respond to.
+      cols: mode == DevicePreviewMode.drawer ? theme.drawerCols : theme.cols,
+      // ── THE TWO VALUES THE PER-STEP PREVIEW CARRIED ────────────────────
+      //
+      // The stage replaces `_Preview`, so it has to answer everything that
+      // widget answered. It did not, at first: `gridButton` and `rows` were
+      // left at DevicePreview's defaults, which would have made the dock
+      // step's app-grid rows and the folder step's row count move a picture
+      // that never responded. That is the exact failure DeviceStage's own
+      // signature note warns about, one layer up.
+      //
+      // Both come from `prefs` rather than from the resolved theme because
+      // neither is promoted onto EffectiveTheme: `dockGridButton` and
+      // `folderRows` live on LauncherPrefs and are read here the same way
+      // `_Preview` read them.
+      gridButton: theme.prefs.dockGridButton ?? 'end',
+      rows: theme.prefs.folderRows ?? 3,
+      framed: false,
+      background: _stageWallpaper(theme),
+      tiles: _stageTiles(mode),
+      // Only the widgets step draws these. Everywhere else the desktop canvas
+      // stays empty, which is what it looks like before anything is placed.
+      overlay: step == _SetupStep.widgets ? _widgetGhosts(theme) : null,
+    );
+  }
+
+  /// Blocks where the chosen desklets will land, over the desktop stage.
+  ///
+  /// ─── GHOSTS, NOT THE REAL DESKLETS ──────────────────────────────────────
+  ///
+  /// Rendering the actual widgets here would mean running the stats poller and
+  /// the conky skin inside a 240dp preview during setup, and every one of them
+  /// is a ConsumerWidget with its own stream. The question this step asks is
+  /// WHERE and HOW MANY, not what the numbers say, and a labelled block answers
+  /// both. The real thing appears one screen later, on the desktop itself,
+  /// which is the payoff the install step exists for.
+  ///
+  /// Proportions come from `defaultSpanY` against the theme's row count, so a
+  /// block is the height the desklet will actually occupy rather than a
+  /// decorative bar.
+  Widget? _widgetGhosts(EffectiveTheme theme) {
+    final kinds = [
+      for (final k in DeskletKinds.all)
+        if (_widgets.contains(k.id)) k,
+    ];
+    if (kinds.isEmpty) return null;
+
+    final rows = theme.rows < 1 ? 1 : theme.rows;
+    final tall = kinds.fold<int>(0, (n, k) => n + k.defaultSpanY);
+    // The PALETTE's own colours, not a constructed ChromeData. Building one
+    // here would mean matching the four named arguments the screen's own
+    // bootstrap passes, and `DevicePreview` already draws from exactly these
+    // two for the same reason: the ghosts sit inside the picture, so they
+    // should take the picture's colours rather than the chrome's.
+    final accent = theme.palette.accent;
+    final ink = theme.palette.onDark;
+
+    final stack = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final k in kinds)
+          Expanded(
+            flex: k.defaultSpanY,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.22),
+                  border: Border.all(color: accent, width: 1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  k.id == 'monitor' ? 'conky' : k.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 9, color: ink),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    // The remaining rows, split above and below according to the chosen spot.
+    final spare = rows - tall;
+    final above = switch (_widgetSpot) {
+      'bottom' => spare,
+      'middle' => spare ~/ 2,
+      _ => 0,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          if (above > 0) Expanded(flex: above, child: const SizedBox()),
+          Expanded(flex: tall, child: stack),
+          if (spare - above > 0)
+            Expanded(flex: spare - above, child: const SizedBox()),
+        ],
+      ),
+    );
+  }
+
+  /// The user's OWN apps, for the drawer stage.
+  ///
+  /// ─── ONLY THE DRAWER, AND ONLY BECAUSE THAT IS THE HONEST ONE ───────────
+  ///
+  /// The drawer stage is a picture of a grid of every installed app, so filling
+  /// it with the first N installed apps is the same thing at a smaller size.
+  /// The DESKTOP stage is not: its grid is the home layout, which does not
+  /// exist yet during setup, so putting real apps there would show a home
+  /// screen arrangement the user is never going to get. The folder stage is
+  /// the same objection, one level in.
+  ///
+  /// So the picture is real exactly where being real is true, and stays
+  /// abstract everywhere it would be a guess dressed up as a promise.
+  ///
+  /// ─── NO SORT, AND NO USAGE DATA ─────────────────────────────────────────
+  ///
+  /// The drawer's own order is the resolved one and it is not available here.
+  /// Taking `appListProvider` in its natural order gives the same apps the
+  /// drawer will show, in an order that is merely not yet the final one, which
+  /// is a smaller lie than ranking them by a usage history that on a fresh
+  /// install does not exist.
+  ///
+  /// An empty or still-loading list falls through to the placeholders, so a
+  /// slow query during setup degrades to what this screen drew yesterday
+  /// rather than to a blank grid.
+  List<Widget> _stageTiles(DevicePreviewMode mode) {
+    if (mode != DevicePreviewMode.drawer) return const <Widget>[];
+    final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+    if (apps.isEmpty) return const <Widget>[];
+
+    // Enough for the widest grid the columns step offers (6) at the rows the
+    // stage can show. Asking for more would render icons that are clipped away
+    // and pay the native icon pipeline for every one of them.
+    const budget = 6 * 5;
+    return [
+      for (final app in apps.take(budget))
+        // Sized by the grid cell rather than by a number here: a fixed size
+        // inside a GridView tile is how the same widget ends up correct at
+        // 260dp and overflowing at 120dp, which is the bug the folder sheet
+        // above already paid for once.
+        LayoutBuilder(
+          builder: (context, c) {
+            final cell = c.maxWidth < c.maxHeight ? c.maxWidth : c.maxHeight;
+            return Center(
+              // NOT the full cell. The real drawer puts a label under every
+              // icon, so an icon that fills its cell edge to edge is DENSER
+              // than the thing being previewed, and at stage size that reads
+              // as a wall of artwork rather than as an app grid. Holding back
+              // roughly the share a label line occupies makes the preview's
+              // rhythm match the drawer it is a picture of.
+              child: AppIcon(entry: app, size: cell * 0.78),
+            );
+          },
+        ),
+    ];
+  }
+
+  /// The distro's wallpaper as a plain provider, or null.
+  ///
+  /// The sibling of [_wallpaperFor] and deliberately NOT the same thing. That
+  /// one returns a [DecorationImage] dimmed hard, because it is a BACKDROP
+  /// behind a translucent installer window and an undimmed photo there makes
+  /// the text unreadable. This is the desktop ITSELF, seen through the stage,
+  /// so dimming it would be previewing a wallpaper the user will never get.
+  ///
+  /// The guard is the same and has to be: `isThemeAssetRef` is what keeps a
+  /// path that is not a theme reference out of `spec.asset`, and duplicating
+  /// the resolution rule rather than the guard is how the app previously ended
+  /// up with four copies of the wallpaper decision.
+  ImageProvider? _stageWallpaper(EffectiveTheme theme) {
+    final source =
+        theme.spec.wallpapers.isNotEmpty ? theme.spec.wallpapers.first : null;
+    if (source == null || !isThemeAssetRef(source)) return null;
+    return theme.spec.asset(source).image;
   }
 
   /// The distro's own wallpaper, dimmed, as the installer's backdrop.
@@ -498,9 +927,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   DecorationImage? _wallpaperFor(EffectiveTheme? theme) {
     if (theme == null) return null;
 
-    final source = theme.spec.wallpapers.isNotEmpty
-        ? theme.spec.wallpapers.first
-        : null;
+    final source =
+        theme.spec.wallpapers.isNotEmpty ? theme.spec.wallpapers.first : null;
     if (source == null || !isThemeAssetRef(source)) return null;
 
     return DecorationImage(
@@ -542,6 +970,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
         _SetupStep.folders => ref.t('setup.title.folders'),
+        // LITERAL, not a key. The i18n migration has not run over this step
+        // yet, and a `ref.t` against a key that does not exist renders the key
+        // itself, which is worse on screen than English is.
+        _SetupStep.widgets => 'Desktop widgets',
         _SetupStep.notifications => ref.t('setup.title.notifications'),
         _SetupStep.install => ref.t('setup.title.install'),
       };
@@ -554,6 +986,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
         _SetupStep.folders => ref.t('setup.subtitle.folders'),
+        _SetupStep.widgets => 'Conky and fastfetch, on your home screen.',
         _SetupStep.notifications => ref.t('setup.subtitle.notifications'),
         _SetupStep.install => ref.t('setup.subtitle.install'),
       };
@@ -567,15 +1000,26 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             onRequest: _openHomePicker,
           ),
         _SetupStep.distro => _StepDistro(mono: skin.mono),
-        _SetupStep.appearance =>
-          _StepAppearance(theme: theme, mono: skin.mono),
+        _SetupStep.appearance => _StepAppearance(theme: theme, mono: skin.mono),
         _SetupStep.dock => _StepDock(theme: theme, mono: skin.mono),
         _SetupStep.drawer => _StepDrawer(theme: theme, mono: skin.mono),
         _SetupStep.folders => _StepFolders(
             theme: theme,
             mono: skin.mono,
-            createFolders: _createFolders,
-            onCreateFoldersChanged: (v) => setState(() => _createFolders = v),
+            skipped: _skippedFolders,
+            onToggle: (name) => setState(() {
+              if (!_skippedFolders.remove(name)) _skippedFolders.add(name);
+            }),
+          ),
+        _SetupStep.widgets => _StepWidgets(
+            theme: theme,
+            mono: skin.mono,
+            chosen: _widgets,
+            spot: _widgetSpot,
+            onToggle: (id) => setState(() {
+              if (!_widgets.remove(id)) _widgets.add(id);
+            }),
+            onSpot: (v) => setState(() => _widgetSpot = v),
           ),
         _SetupStep.notifications => _StepNotifications(
             theme: theme,
@@ -597,6 +1041,7 @@ enum _SetupStep {
   dock('Dock'),
   drawer('App drawer'),
   folders('Folders'),
+  widgets('Widgets'),
   notifications('Badges'),
   install('Install');
 
@@ -641,6 +1086,21 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
     _SetupStep.dock,
     _SetupStep.drawer,
     _SetupStep.folders,
+    // ── WIDGETS SIT BESIDE FOLDERS, AND BEFORE NOTIFICATIONS ──────────
+    //
+    // Folders and desklets are the same question asked twice: what is on your
+    // screens. Adjacent, so someone answering one is already in that frame of
+    // mind.
+    //
+    // It cannot come earlier, because a desklet is SKINNED BY THE DISTRO and
+    // the picker would be showing an Ubuntu conky to someone about to choose
+    // Terminal. And it cannot come later, because notifications has to stay
+    // last: see the note below, which is the one rule this list has.
+    //
+    // NOT in the terminal list, and not an oversight: the TUI shell has no
+    // desktop to put a desklet on, so offering one would be offering a place
+    // that does not exist.
+    _SetupStep.widgets,
     // ─── AFTER THE ICONS EXIST, BEFORE THE INSTALL ────────────────────
     //
     // Late on purpose. This is the only step that asks for a PERMISSION, and
@@ -743,25 +1203,25 @@ class _StepWelcome extends ConsumerWidget {
         // names, with the active one in the accent colour.
         Expanded(
           child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: d.colors.line),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              children: [
-                for (final l in localesForDisplay())
-                  _LanguageLine(
-                    label: l.nativeName,
-                    active: l.code == activeCode,
-                    mono: mono,
-                    onTap: () => ref.read(i18nProvider.notifier).select(l),
-                  ),
-              ],
+            decoration: BoxDecoration(
+              border: Border.all(color: d.colors.line),
+              borderRadius: BorderRadius.circular(9),
             ),
-          ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                children: [
+                  for (final l in localesForDisplay())
+                    _LanguageLine(
+                      label: l.nativeName,
+                      active: l.code == activeCode,
+                      mono: mono,
+                      onTap: () => ref.read(i18nProvider.notifier).select(l),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 18),
@@ -846,6 +1306,102 @@ class _LanguageLine extends StatelessWidget {
 /// finger: pick the terminal and the wizard becomes a console before the row
 /// has finished highlighting. That is the demo, and it is why this step is
 /// third rather than last.
+/// The distro chooser, as a deck of full-width desktops.
+///
+/// ─── SWIPE, NOT A LIST OF ROWS ──────────────────────────────────────────────
+///
+/// The old step was three rows carrying a 62dp thumbnail each, under a stage
+/// that already showed the selected distro at 260dp. So the same desktop was
+/// drawn twice on one screen, the big copy was the one nobody was choosing
+/// from, and the small copies were too small to show what a desktop is: at 62dp
+/// a dock and a grid are four grey pips.
+///
+/// One picture, at the size that makes the difference legible, and the gesture
+/// that changes it is the same one the drawer uses.
+///
+/// ─── THE PAGE IS THE SELECTION, AND IT COMMITS ON SETTLE ────────────────────
+///
+/// `onPageChanged` fires once the page has settled, not during the drag, so a
+/// swipe that is released half way and springs back does not write anything.
+/// Writing during the drag would mean the theme resolving, the whole chrome
+/// rebuilding and the palette changing under a finger that has not chosen yet.
+///
+/// ─── AND WHY IT DOES NOT WATCH THE SELECTION ────────────────────────────────
+///
+/// [active] seeds the initial page and nothing more. Watching it would make the
+/// deck jump to whatever the controller just wrote, which is where it already
+/// is, and on a slow write it would fight the user's own drag. The page is the
+/// source of truth while this widget is alive; the selection is the record of
+/// it.
+class _DistroDeck extends ConsumerStatefulWidget {
+  const _DistroDeck({required this.active});
+
+  /// The currently selected distro id, used ONCE to pick the opening page.
+  final String active;
+
+  @override
+  ConsumerState<_DistroDeck> createState() => _DistroDeckState();
+}
+
+class _DistroDeckState extends ConsumerState<_DistroDeck> {
+  PageController? _controller;
+  int _page = 0;
+
+  @override
+  void dispose() {
+    // Captured, never read through `ref`: reading a provider in dispose throws
+    // in Riverpod, and a controller is not a provider anyway.
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final specs = ref.watch(setupDistrosProvider).asData?.value ?? const [];
+    if (specs.isEmpty) return const SizedBox.expand();
+
+    // Built on the first frame that HAS specs, not in initState, because the
+    // opening page depends on a list that is loaded asynchronously. An
+    // initState controller would always open on page zero and then have
+    // nothing to correct it with that would not also animate in front of the
+    // user.
+    if (_controller == null) {
+      final start = specs.indexWhere((sp) => sp.id == widget.active);
+      _page = start < 0 ? 0 : start;
+      _controller = PageController(initialPage: _page);
+    }
+
+    return PageView.builder(
+      controller: _controller,
+      itemCount: specs.length,
+      onPageChanged: (i) {
+        setState(() => _page = i);
+        final spec = specs[i];
+        Analytics.themeSelected(spec.id);
+        ref.read(selectedThemeIdProvider.notifier).select(spec.id);
+      },
+      itemBuilder: (context, i) {
+        final spec = specs[i];
+        return DevicePreview(
+          palette: spec.palette,
+          mode: DevicePreviewMode.desktop,
+          dock: spec.layout.dock,
+          cols: spec.layout.cols,
+          rows: spec.layout.rows,
+          framed: false,
+          // The SPEC's own wallpaper, so each page is that distro rather than
+          // the selected one wearing a different palette. Guarded the same way
+          // the backdrop is: see _stageWallpaper.
+          background: spec.wallpapers.isNotEmpty &&
+                  isThemeAssetRef(spec.wallpapers.first)
+              ? spec.asset(spec.wallpapers.first).image
+              : null,
+        );
+      },
+    );
+  }
+}
+
 class _StepDistro extends ConsumerWidget {
   const _StepDistro({required this.mono});
 
@@ -880,17 +1436,121 @@ class _StepDistro extends ConsumerWidget {
       );
     }
 
+    // ── THE CAPTION FOR THE DECK ABOVE ─────────────────────────────────────
+    //
+    // The cards are gone. They drew the same three desktops the deck now draws
+    // full width, at 62dp, where a dock and a grid are four grey pips, and they
+    // drew them a second time under a stage already showing the selected one.
+    //
+    // What is left is the part a picture cannot say: the name, the release, the
+    // one line about the shell, and which icon pack comes with it. Everything
+    // here follows the SELECTION, which the deck writes when a page settles, so
+    // the caption and the picture can never disagree.
+    // ── EMPTY IS A REAL STATE, AND IT IS THE FIRST FRAME ───────────────────
+    //
+    // `setupDistrosProvider` reads three theme.json files off the bundle, so
+    // the first build of this step ALWAYS has an empty list. The mono branch
+    // above happens to survive it, because a `for` over nothing draws nothing;
+    // this branch did not, and `specs.first` threw "Bad state: No element" on
+    // the frame before the assets landed.
+    //
+    // Nothing rather than a spinner, matching the deck above and `_Root`: a
+    // wizard that flashes a progress indicator between its own steps reads as
+    // broken, and this resolves within a frame or two.
+    if (specs.isEmpty) return const SizedBox.shrink();
+
+    // A plain loop rather than `firstOrNull`, which is a package:collection
+    // extension this file does not import and would not be worth importing for
+    // one lookup over a list of three.
+    var spec = specs.first;
+    for (final sp in specs) {
+      if (sp.id == active) {
+        spec = sp;
+        break;
+      }
+    }
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+    final heroPack = spec.icons.heroPack;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final spec in specs)
-          _DistroCard(
-            spec: spec,
-            selected: spec.id == active,
-            onTap: () {
-              Analytics.themeSelected(spec.id);
-              ref.read(selectedThemeIdProvider.notifier).select(spec.id);
-            },
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(spec.name, style: d.text.display),
+            const SizedBox(width: 8),
+            if (spec.version.isNotEmpty)
+              Text(
+                spec.version,
+                style: d.text.caption.copyWith(color: c.textFaint),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          context.t(_taglineKeyFor(spec.shell)),
+          style: d.text.body.copyWith(color: c.textMuted),
+        ),
+        if (heroPack != null && heroPack.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Palette swatches rather than the pack's own art, and the copy
+              // says ARRIVES rather than implying it is already here. The pack
+              // is downloaded after setup, so at this moment the device does
+              // not have it and a strip of its real icons would be a claim
+              // this screen cannot back. Three colours from the distro's own
+              // palette stand in without promising anything.
+              for (final swatch in [c.accent, c.text, c.line])
+                Padding(
+                  padding: const EdgeInsets.only(right: 5),
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: swatch,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Arrives with $heroPack icons',
+                  style: d.text.caption.copyWith(color: c.textMuted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
+        ],
+        const SizedBox(height: 14),
+        // Which of the three you are on, and how many there are. Without this
+        // a deck is a screen with one desktop on it and no reason to swipe.
+        Row(
+          children: [
+            for (final sp in specs)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Container(
+                  width: sp.id == active ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: sp.id == active ? c.accent : c.line,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            const Spacer(),
+            Text(
+              'Swipe the desktop above',
+              style: d.text.caption.copyWith(color: c.textFaint),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -928,88 +1588,6 @@ class _StepDistro extends ConsumerWidget {
 /// layout scalars, all of which `setupDistrosProvider` has already loaded. No
 /// wallpaper decode, no icon lookup, no EffectiveTheme to build. Three of them
 /// on one screen is three gradients and some rectangles.
-class _DistroCard extends StatelessWidget {
-  const _DistroCard({
-    required this.spec,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final ThemeSpec spec;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = ChromeScope.of(context);
-    final c = d.colors;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: selected ? c.accent.withValues(alpha: 0.10) : null,
-            border: Border.all(
-              color: selected ? c.accent : c.line,
-              width: selected ? 1.5 : 1,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // The distro's OWN palette and dock side, so the three cards are
-              // visibly three different desktops rather than three labels.
-              SizedBox(
-                height: 62,
-                child: DevicePreview(
-                  palette: spec.palette,
-                  mode: DevicePreviewMode.desktop,
-                  dock: spec.layout.dock,
-                  cols: spec.layout.cols,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(spec.name, style: d.text.title),
-                        ),
-                        if (spec.version.isNotEmpty)
-                          Text(
-                            spec.version,
-                            style: d.text.caption.copyWith(color: c.textFaint),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      // context.t, not ref.t: _DistroCard is a StatelessWidget
-                      // and has no WidgetRef. A language switch rebuilds the
-                      // tree through MaterialApp.locale, so it still updates.
-                      context.t(_taglineKeyFor(spec.shell)),
-                      style: d.text.caption.copyWith(color: c.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _StepAppearance extends ConsumerWidget {
   const _StepAppearance({required this.theme, required this.mono});
 
@@ -1028,26 +1606,31 @@ class _StepAppearance extends ConsumerWidget {
     // describing it. No new preview widget, and no second idea of what a
     // desktop looks like.
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Preview(theme: theme, mode: DevicePreviewMode.desktop),
-        const SizedBox(height: 14),
-        for (final e in const [
-          ('system', 'Match the system', 'Follows the phone\'s own light and dark switch.'),
-          ('light', 'Always light', null),
-          ('dark', 'Always dark', null),
-        ])
-          SetupRow(
-            title: e.$2,
-            subtitle: e.$3,
-            selected: mode == e.$1,
-            mono: mono,
-            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-            // Written through the ordinary per-theme notifier even though the
-            // value is global. `PrefsNotifier.edit` routes it; a call site that
-            // knew which bucket a field lived in would be a call site that can
-            // pick wrong.
-            onTap: () => notifier.edit((p) => p.copyWith(themeMode: e.$1)),
-          ),
+        SetupChoice(
+          mono: mono,
+          selected: mode,
+          options: const {
+            'system': 'System',
+            'light': 'Light',
+            'dark': 'Dark',
+          },
+          // Written through the ordinary per-theme notifier even though the
+          // value is global. `PrefsNotifier.edit` routes it; a call site that
+          // knew which bucket a field lived in would be a call site that can
+          // pick wrong.
+          onChanged: (v) => notifier.edit((p) => p.copyWith(themeMode: v)),
+        ),
+        const SizedBox(height: 10),
+        // The one subtitle worth keeping, as a caption under the strip rather
+        // than as a line on every option. The other two never needed one:
+        // "Light" and "Dark" explain themselves.
+        Text(
+          "Follows the phone's own light and dark switch.",
+          softWrap: true,
+          style: d.text.caption.copyWith(color: d.colors.textMuted),
+        ),
         if (!hasLight) ...[
           const SizedBox(height: 10),
           Text(
@@ -1072,53 +1655,57 @@ class _StepDock extends ConsumerWidget {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
     final grid = theme.prefs.dockGridButton ?? 'end';
 
+    final d = ChromeScope.of(context);
+    final side = switch (theme.dock) {
+      DockSide.left => 'left',
+      DockSide.right => 'right',
+      DockSide.bottom => 'bottom',
+      DockSide.off => 'off',
+    };
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Preview(
-          theme: theme,
-          mode: DevicePreviewMode.desktop,
-          gridButton: grid,
-        ),
-        const SizedBox(height: 14),
-        SetupRow(
-          title: ref.t('setup.downTheLeftEdge'),
-          subtitle: ref.t('setup.dock.leftSub', {'name': theme.spec.name}),
-          selected: theme.dock == DockSide.left,
+        const _MiniLabel(text: 'Where it sits'),
+        const SizedBox(height: 8),
+        SetupChoice(
           mono: mono,
-          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'left')),
+          selected: side,
+          // RIGHT IS ABSENT ON PURPOSE, as it was before. The three answers are
+          // the ones the shells actually ship, and a fourth chip for a side no
+          // bundled distro uses would cost a quarter of the strip's width to
+          // offer a layout nobody asked for. A theme authoring `right` still
+          // resolves and still draws; it simply is not offered here.
+          options: const {
+            'left': 'Left',
+            'bottom': 'Bottom',
+            'off': 'None',
+          },
+          onChanged: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
         ),
-        SetupRow(
-          title: ref.t('setup.alongTheBottom'),
-          selected: theme.dock == DockSide.bottom,
-          mono: mono,
-          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'bottom')),
-        ),
-        SetupRow(
-          title: ref.t('setup.noDock'),
-          subtitle: ref.t('setup.theDrawerIsStill'),
-          selected: theme.dock == DockSide.off,
-          mono: mono,
-          marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-          onTap: () => notifier.edit((p) => p.copyWith(dockSide: 'off')),
+        const SizedBox(height: 10),
+        Text(
+          theme.dock == DockSide.off
+              ? ref.t('setup.theDrawerIsStill')
+              : ref.t('setup.dock.leftSub', {'name': theme.spec.name}),
+          softWrap: true,
+          style: d.text.caption.copyWith(color: d.colors.textMuted),
         ),
         if (theme.dock != DockSide.off) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           _MiniLabel(text: ref.t('setup.appGridButton')),
-          for (final e in const {
-            'end': 'At the far end of the dock',
-            'start': 'First in the dock',
-            'off': 'Hidden',
-          }.entries)
-            SetupRow(
-              title: e.value,
-              selected: grid == e.key,
-              mono: mono,
-              marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-              onTap: () =>
-                  notifier.edit((p) => p.copyWith(dockGridButton: e.key)),
-            ),
+          const SizedBox(height: 8),
+          SetupChoice(
+            mono: mono,
+            selected: grid,
+            options: const {
+              'end': 'End',
+              'start': 'Start',
+              'off': 'Hidden',
+            },
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(dockGridButton: v)),
+          ),
         ],
       ],
     );
@@ -1142,12 +1729,6 @@ class _StepDrawer extends ConsumerWidget {
 
     return Column(
       children: [
-        _Preview(
-          theme: theme,
-          mode: DevicePreviewMode.drawer,
-          cols: theme.drawerCols,
-        ),
-        const SizedBox(height: 14),
         const _MiniLabel(text: 'Columns'),
         Row(
           children: [
@@ -1194,17 +1775,18 @@ class _StepFolders extends ConsumerWidget {
   const _StepFolders({
     required this.theme,
     required this.mono,
-    required this.createFolders,
-    required this.onCreateFoldersChanged,
+    required this.skipped,
+    required this.onToggle,
   });
 
   final EffectiveTheme theme;
   final bool mono;
 
-  /// The default-on toggle, owned by the wizard state so that _next can read
-  /// it when the user advances (the moment creation actually happens).
-  final bool createFolders;
-  final ValueChanged<bool> onCreateFoldersChanged;
+  /// Names the user has unticked. Owned by the wizard state so that `_next`
+  /// can read it when the user advances, which is the moment creation actually
+  /// happens.
+  final Set<String> skipped;
+  final ValueChanged<String> onToggle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1248,21 +1830,36 @@ class _StepFolders extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ─── EACH FOLDER IS ITS OWN ANSWER NOW ─────────────────────────
+        //
+        // This was a grid of folders you could look at and ONE checkbox
+        // underneath reading "create 8 folders". So the screen showed eight
+        // decisions and offered one, and the only way to refuse the Google
+        // block was to refuse the Games folder with it. Tapping a folder is
+        // the obvious gesture and it was doing nothing.
+        //
+        // The tile itself is untouched: selection is drawn AROUND it, as a
+        // ring and a mark, so a folder that will not be created is dimmed
+        // rather than redrawn. `FolderTile` keeps knowing about folders and
+        // this keeps knowing about choosing.
         Wrap(
           spacing: 10,
           runSpacing: 12,
           children: [
-            for (final s in ordered)
-              SizedBox(
-                width: 68,
+            for (final sg in ordered)
+              _PickableFolder(
+                name: sg.name,
+                chosen: !skipped.contains(sg.name),
+                mono: mono,
+                onTap: () => onToggle(sg.name),
                 child: FolderTile(
                   theme: theme,
-                  name: s.name,
+                  name: sg.name,
                   size: 60,
                   // Resolved against the live app list, so a member that has
                   // been uninstalled between propose and paint is absent rather
                   // than a gap. whereType drops the nulls in one pass.
-                  members: s.componentKeys
+                  members: sg.componentKeys
                       .map((k) => byKey[k])
                       .whereType<AppEntry>()
                       .toList(),
@@ -1271,18 +1868,18 @@ class _StepFolders extends ConsumerWidget {
               ),
           ],
         ),
-        const SizedBox(height: 16),
-        SetupRow(
-          title: ref.t(
-            'setup.folders.create',
-            {'n': '${suggestions.length}'},
-          ),
-          subtitle: '${ref.t('setup.groupedByWhatThe')} '
-              '${ref.t('setup.folders.createdWhenYouContinue')}',
-          selected: createFolders,
-          marker: SetupMarker.check,
-          mono: mono,
-          onTap: () => onCreateFoldersChanged(!createFolders),
+        const SizedBox(height: 14),
+        Text(
+          // COUNTS WHAT IS TICKED, not what was proposed. A line reading
+          // "8 folders" over six ticked ones is the kind of small lie that
+          // makes someone stop trusting the rest of the screen.
+          switch (ordered.length - skipped.length) {
+            0 => 'No folders will be created.',
+            1 => '1 folder will be created when you continue.',
+            final n => '$n folders will be created when you continue.',
+          },
+          softWrap: true,
+          style: d.text.body.copyWith(color: d.colors.text),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1309,6 +1906,78 @@ class _StepFolders extends ConsumerWidget {
 /// The lines are keyed by SHELL, so a console install talks like pacstrap and a
 /// wizard talks like Ubiquity. Nothing here mentions erasing, formatting or
 /// partitioning, and nothing here ever should.
+/// Selection chrome around a folder tile.
+///
+/// A ring and a mark, drawn AROUND the child rather than by it. `FolderTile` is
+/// also used in Settings and in the drawer, where nothing is being chosen, so
+/// teaching it about selection would put a concept in three screens to serve
+/// one. Unticked is dimmed rather than hidden, because the point of the grid is
+/// seeing what you are turning down.
+class _PickableFolder extends StatelessWidget {
+  const _PickableFolder({
+    required this.name,
+    required this.chosen,
+    required this.mono,
+    required this.onTap,
+    required this.child,
+  });
+
+  final String name;
+  final bool chosen;
+  final bool mono;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 76,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              decoration: BoxDecoration(
+                color:
+                    chosen && !mono ? c.accent.withValues(alpha: 0.12) : null,
+                border: Border.all(
+                  color: chosen ? c.accent : c.line,
+                  width: chosen ? 1.5 : 1,
+                ),
+                borderRadius: BorderRadius.circular(mono ? 0 : 12),
+              ),
+              // Dimmed rather than greyed: a colour filter would fight every
+              // icon inside the tile, and half opacity reads as "off" on any
+              // wallpaper.
+              child: Opacity(opacity: chosen ? 1 : 0.45, child: child),
+            ),
+            if (chosen)
+              Positioned(
+                top: -5,
+                right: -3,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: c.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check, size: 12, color: c.surface),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StepInstall extends StatefulWidget {
   const _StepInstall({
     required this.theme,
@@ -1425,38 +2094,6 @@ class _StepInstallState extends State<_StepInstall> {
 /// cannot tell which of the two things on screen you are configuring. A phone
 /// inside the content area is unambiguous, and it is also how every real
 /// installer shows a layout choice.
-class _Preview extends StatelessWidget {
-  const _Preview({
-    required this.theme,
-    required this.mode,
-    this.cols,
-    this.gridButton,
-  });
-
-  final EffectiveTheme theme;
-  final DevicePreviewMode mode;
-  final int? cols;
-  final String? gridButton;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 150,
-      child: Center(
-        child: DevicePreview(
-          palette: theme.palette,
-          framed: true,
-          mode: mode,
-          dock: theme.dock,
-          gridButton: gridButton ?? theme.prefs.dockGridButton ?? 'end',
-          cols: cols ?? theme.drawerCols,
-          rows: theme.prefs.folderRows ?? 3,
-        ),
-      ),
-    );
-  }
-}
-
 class _MiniLabel extends StatelessWidget {
   const _MiniLabel({required this.text});
 
@@ -1515,7 +2152,6 @@ class _NagLine extends StatelessWidget {
   }
 }
 
-
 /// Notification badges: the one step that asks for a permission.
 ///
 /// ─── WHY IT ASKS HERE AND NOT SILENTLY LATER ────────────────────────────────
@@ -1537,6 +2173,190 @@ class _NagLine extends StatelessWidget {
 /// own Continue is the skip. Nothing on this screen is required, nothing is
 /// written unless the user acts, and the launcher works identically without it.
 /// Adding a Skip beside Continue would imply the two do different things.
+/// Which desklets land on the first desktop, and where.
+///
+/// ─── A SHORTLIST, NOT THE PICKER ────────────────────────────────────────────
+///
+/// `DeskletKinds.all` is the full catalogue and the long-press menu already
+/// shows it. Repeating it here would make this the longest step in the wizard
+/// and would ask someone who has never seen a desklet to evaluate a dozen. So
+/// this offers the six that are legible with no explanation, and the caption
+/// points at the menu for the rest.
+///
+/// ─── AND THE NAMES ARE THE LINUX ONES ───────────────────────────────────────
+///
+/// `df -h`, `free -h`, `uptime`, `fastfetch`, `conky`. Those labels already
+/// live on the kinds; this only refuses to translate them into "Storage" and
+/// "Memory" on the way past. They are the reason this launcher is not a Nova
+/// clone, and the first screen a new user sees is the wrong place to hide it.
+class _StepWidgets extends ConsumerWidget {
+  const _StepWidgets({
+    required this.theme,
+    required this.mono,
+    required this.chosen,
+    required this.spot,
+    required this.onToggle,
+    required this.onSpot,
+  });
+
+  final EffectiveTheme theme;
+  final bool mono;
+  final Set<String> chosen;
+  final String spot;
+  final ValueChanged<String> onToggle;
+  final ValueChanged<String> onSpot;
+
+  /// The six offered, in this order. Ids, so a label change never breaks the
+  /// mapping and a kind this build does not have simply drops out below.
+  ///
+  /// PUBLIC, because `_next` sweeps the authored starter using exactly this
+  /// set: any of these already on page 0 is removed before the chosen ones are
+  /// placed, so unticking one actually unticks it. Two copies of this list
+  /// would mean a kind this step offers but the sweep does not know about,
+  /// which appears twice.
+  static const shortlist = <String>[
+    'fastfetch',
+    'monitor',
+    // The one Ubuntu's own theme.json places. Offered here so it can be turned
+    // OFF, which was the whole reason it kept coming back.
+    'glance',
+    'battery',
+    'df',
+    'free',
+    'uptime',
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    final kinds = [
+      for (final id in shortlist)
+        if (DeskletKinds.byId(id) != null) DeskletKinds.byId(id)!,
+    ];
+    if (kinds.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final k in kinds)
+              _WidgetChoice(
+                // `conky` rather than `System monitor`. The kind's own label is
+                // the settings-screen name and this is the shop window.
+                label: k.id == 'monitor' ? 'conky' : k.label,
+                chosen: chosen.contains(k.id),
+                mono: mono,
+                onTap: () => onToggle(k.id),
+              ),
+          ],
+        ),
+        // ─── THE POSITION STRIP IS ABSENT, NOT DISABLED ──────────────────
+        //
+        // Nothing ticked means nothing to place, so there is no question left
+        // to ask. A greyed-out control asks the reader to work out WHY it is
+        // greyed out, and the answer is already on the screen above it.
+        if (chosen.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const _MiniLabel(text: 'Where they sit'),
+          const SizedBox(height: 8),
+          SetupChoice(
+            mono: mono,
+            selected: spot,
+            options: const {
+              'top': 'Top',
+              'middle': 'Middle',
+              'bottom': 'Bottom',
+            },
+            onChanged: onSpot,
+          ),
+        ],
+        const SizedBox(height: 12),
+        Text(
+          chosen.isEmpty
+              ? 'No widgets. Long press the desktop to add one any time.'
+              : switch (chosen.length) {
+                  1 => '1 widget, on your first workspace.',
+                  final n => '$n widgets, on your first workspace.',
+                },
+          softWrap: true,
+          style: d.text.body.copyWith(color: c.text),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Every one is skinned by ${theme.spec.name}. More in the desktop menu later.',
+          softWrap: true,
+          style: d.text.caption.copyWith(color: c.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+/// One tickable desklet name.
+///
+/// Deliberately NOT a preview of the desklet. A conky rendered at 60dp is four
+/// grey bars, and six of them side by side is the wall of slabs the desktop
+/// canvas already got wrong once. The stage above is where the picture goes;
+/// this is where the name goes.
+class _WidgetChoice extends StatelessWidget {
+  const _WidgetChoice({
+    required this.label,
+    required this.chosen,
+    required this.mono,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool chosen;
+  final bool mono;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: chosen && !mono ? c.accent.withValues(alpha: 0.14) : null,
+          border: Border.all(
+            color: chosen ? c.accent : c.line,
+            width: chosen ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(mono ? 0 : 10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              chosen ? Icons.check : Icons.add,
+              size: 14,
+              color: chosen ? c.accent : c.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: d.text.body.copyWith(
+                color: chosen ? c.text : c.textMuted,
+                fontFamily: mono ? null : d.text.caption.fontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StepNotifications extends ConsumerStatefulWidget {
   const _StepNotifications({
     required this.theme,

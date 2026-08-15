@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       LauncherTheme — the ONE window theme. Named to match
@@ -41,7 +41,22 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+
+        <!--
+          API 27 (o_mr1), and minSdk is 26. Annotated rather than split into a
+          values-v27/ variant on purpose: a variant means this style exists in
+          four files instead of two, and the rule directly above in
+          values-night/styles.xml is that the two must mirror item for item. Four
+          copies is how that rule gets broken.
+
+          Safe on 26 because aapt2 compiles the attribute to a resource id the
+          older platform does not know, and unknown style attributes are skipped
+          rather than faulted. The device simply lays out without cutout
+          awareness, which is correct: API 26 predates cutouts entirely.
+        -->
+        <item
+            name="android:windowLayoutInDisplayCutoutMode"
+            tools:targetApi="o_mr1">shortEdges</item>
     </style>
 
     <!--

@@ -7,9 +7,26 @@ import 'package:g_launcher/engine/desklet_spec.dart';
 /// the entire reason it is pure. Rectangle packing is where "it landed on top of
 /// my monitor" bugs live, and those are miserable to find on a device.
 
-/// A 5-wide, 4-tall desktop grid, roughly what a theme actually ships.
-const cols = 5;
-const rows = 4;
+/// A 5-wide, 4-tall desktop, expressed in the FINE GRID the engine works in.
+///
+/// ─── THE UNIT THESE TESTS TAKE IS NOT THE ICON GRID ─────────────────────────
+///
+/// `theme.layout.grid` is 5x4, and this file used to pass those two numbers
+/// straight to `place`. That stopped being right when the desklet grid was
+/// split off from the icon grid: every span in `DeskletKinds` was multiplied by
+/// [DeskletLayout.colFactor] and [DeskletLayout.rowFactor], and every real
+/// caller now passes `theme.deskletCols` and `theme.deskletRows`, which are the
+/// icon grid times those factors.
+///
+/// Passing 5x4 therefore tested a grid narrower than a single clock, so spans
+/// clamped to the GRID rather than to the KIND and four assertions about kind
+/// maxima started measuring the wrong thing. The numbers below are derived from
+/// the factors rather than written out, so the next change to either moves the
+/// tests with it instead of silently invalidating them again.
+const iconCols = 5;
+const iconRows = 4;
+const cols = iconCols * DeskletLayout.colFactor;
+const rows = iconRows * DeskletLayout.rowFactor;
 
 int _n = 0;
 String _id() => 'd${_n++}';
@@ -90,7 +107,9 @@ void main() {
 
     test('fills row-major, not column-major', () {
       var p = _empty();
-      // Three 2x1 clocks on a 5-wide grid: two fit on row 0, the third wraps.
+      // Three default clocks, 4x2 each, on a 10-wide grid: two fit on row 0
+      // and the third wraps to row 2, which is the first row clear of the two
+      // above it rather than the next row down.
       for (var i = 0; i < 3; i++) {
         p = DeskletLayout.place(
           p,
@@ -102,9 +121,11 @@ void main() {
         );
       }
       expect(p.desklets[0].row, 0);
+      expect(p.desklets[0].col, 0);
       expect(p.desklets[1].row, 0);
-      expect(p.desklets[1].col, 2);
-      expect(p.desklets[2].row, 1, reason: 'third clock must wrap to row 1');
+      expect(p.desklets[1].col, DeskletKinds.clock.defaultSpanX);
+      expect(p.desklets[2].row, DeskletKinds.clock.defaultSpanY,
+          reason: 'the third clock clears the two above it, not just one row');
       expect(p.desklets[2].col, 0);
     });
 
@@ -121,10 +142,18 @@ void main() {
     });
 
     test('a full page returns prefs unchanged by identity', () {
-      // One monitor is 2x3 at minimum; fill the grid with 1x1 notes instead.
+      // Filled with the NARROWEST thing that can be placed, which is a note at
+      // its own minimum rather than a literal 1x1: `placeAt` clamps a requested
+      // span up to the kind's minimum before testing whether it fits, so asking
+      // for 1x1 in every column would place a 2-wide note in column 0 and then
+      // refuse the next five attempts for overlapping it.
+      //
+      // Stepping by the clamped width fills the page exactly, which is what
+      // makes the identity assertion below mean anything.
+      final step = DeskletKinds.notes.minSpanX;
       var p = _empty();
       for (var r = 0; r < rows; r++) {
-        for (var c = 0; c < cols; c++) {
+        for (var c = 0; c < cols; c += step) {
           p = DeskletLayout.placeAt(
             p,
             kindId: 'notes',
@@ -139,7 +168,7 @@ void main() {
           );
         }
       }
-      expect(p.desklets, hasLength(cols * rows));
+      expect(p.desklets, hasLength((cols ~/ step) * rows));
 
       final after = DeskletLayout.place(
         p,

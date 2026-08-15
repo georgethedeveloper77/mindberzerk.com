@@ -10,6 +10,7 @@ import 'bootstrap.dart';
 import 'core/crash.dart';
 import 'core/freeze_watchdog.dart';
 import 'data/prefs/prefs_repository.dart';
+import 'engine/font_catalogue.dart';
 import 'firebase_options.dart';
 import 'i18n/i18n.dart';
 
@@ -86,12 +87,48 @@ Future<void> _initFirebase() async {
 /// bundle; the Ubuntu wallpapers and the Yaru icon set are a separate question
 /// and are not settled by this.
 ///
+/// ─── AND THE FAMILIES THE USER FETCHES ──────────────────────────────────────
+///
+/// A family chosen in Settings arrives from the Play Services font provider,
+/// which hands over font bytes and no licence text at all. The obligation does
+/// not arrive with them: OFL and Apache-2.0 both require the notice to travel
+/// with the font, and this app renders its whole interface in whatever the user
+/// picked.
+///
+/// So the three texts ship in the APK and the catalogue says which one each
+/// family carries. Registering ALL THREE unconditionally rather than only the
+/// ones actually loaded is a deliberate simplification: the alternative is
+/// threading the live font choice into a licence callback that runs long after
+/// it was made, to save a few kilobytes on a page almost nobody opens. The
+/// families list on each entry is what makes the page honest about scope.
+///
 /// Lazy: the callback only runs if someone opens the licence page.
 void _registerFontLicences() {
   LicenseRegistry.addLicense(() async* {
-    final licence =
+    final ubuntu =
         await rootBundle.loadString('assets/fonts/UBUNTU-FONT-LICENCE-1.0.txt');
-    yield LicenseEntryWithLineBreaks(const ['Ubuntu', 'UbuntuMono'], licence);
+    yield LicenseEntryWithLineBreaks(const ['Ubuntu', 'UbuntuMono'], ubuntu);
+
+    // Read from the catalogue rather than hardcoded, so adding a family to
+    // assets/fonts/catalogue.json cannot leave its licence unlisted.
+    final catalogue = await FontCatalogue.load();
+    for (final licence in const ['ofl', 'apache']) {
+      final families = catalogue.families
+          .where((e) => e.licence == licence)
+          .map((e) => e.family)
+          .toList(growable: false);
+      if (families.isEmpty) continue;
+
+      try {
+        final text = await rootBundle
+            .loadString('assets/fonts/licences/$licence.txt');
+        yield LicenseEntryWithLineBreaks(families, text);
+      } catch (e) {
+        // A missing licence file must not take the licence PAGE down, which is
+        // the one screen a reviewer is guaranteed to open.
+        debugPrint('Licence text $licence.txt missing: $e');
+      }
+    }
   });
 }
 

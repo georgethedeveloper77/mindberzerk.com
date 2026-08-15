@@ -9,6 +9,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/terminal_spec.dart';
 import '../../platform/launcher_api.g.dart';
 
 /// What the Activities drawer shows: real apps, plus a small number of
@@ -82,6 +83,55 @@ class DeviceSettingsItem extends DrawerItem {
   @override
   String get label => title;
 }
+
+/// The Terminal, surfaced as a drawer entry.
+///
+/// ─── WHY THIS IS A DRAWER ENTRY AND NOT AN ACTIVITY ─────────────────────────
+///
+/// The obvious implementation is an exported activity-alias enabled per theme,
+/// so the OS lists it like any app. It is also the wrong one: the label is
+/// per distro, the icon is per distro, and the entry would then have to be
+/// enabled and disabled as themes are installed and switched, with a launcher
+/// restart to see it.
+///
+/// As a [DrawerItem] it costs nothing. Every drawer already switches on this
+/// type, so list, grid, cube, horizontal and Kickoff all get it at once, and it
+/// follows a theme change in the same frame the palette does.
+///
+/// ─── WHY IT CARRIES ITS LABEL ───────────────────────────────────────────────
+///
+/// [LauncherSettingsItem] and [DeviceSettingsItem] each expose a `static const
+/// title`, because their names are fixed. This one is not: it is
+/// `TerminalSpec.appLabel`, so Kali says "Kali Terminal" and COSMIC says
+/// "COSMIC Terminal". A static title would be a fourth place for a name to
+/// live and the only place it could be wrong.
+class TerminalDrawerItem extends DrawerItem {
+  const TerminalDrawerItem([this.title = defaultTitle]);
+
+  /// Used where no theme is in hand. Every path that has one passes it.
+  static const String defaultTitle = 'Terminal';
+
+  final String title;
+
+  @override
+  String get label => title;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TerminalDrawerItem && other.title == title;
+
+  @override
+  int get hashCode => title.hashCode;
+}
+
+/// This theme's terminal label, with the shell family default behind it.
+///
+/// A theme that predates the `terminal` block still gets a terminal, which is
+/// the promise `TerminalSpec.defaultForShell` makes and the reason a Kali user
+/// on `shell: gnome` is not left without one.
+String terminalLabelFor(EffectiveTheme theme) =>
+    theme.spec.terminal?.appLabel ??
+    TerminalSpec.defaultForShell(theme.spec.shell).appLabel;
 
 /// The drawer's contents: the theme's app list wrapped as items, with the
 /// launcher-owned entries appended and the whole thing re-sorted so they sit in
@@ -159,9 +209,16 @@ final drawerItemsProvider =
   // KDE already reached this conclusion independently — kickoff_drawer keeps
   // them out of its main list and pins them to its footer. This brings the grid
   // drawers into line rather than leaving one shell right and three wrong.
+  //
+  // THE TERMINAL SITS WITH THEM, and for the same reason rather than a new one.
+  // It is launcher-owned, it is not an installed package, and a person looking
+  // for it is looking for this launcher's terminal specifically. Sorted in
+  // alphabetically it would land under T among 261 icons on the one distro
+  // whose entire pitch is that it has a terminal.
   final launcherEntries = <DrawerItem>[
     const LauncherSettingsItem(),
     const DeviceSettingsItem(),
+    TerminalDrawerItem(terminalLabelFor(theme)),
   ];
 
   // ── SORT MODES ──────────────────────────────────────────────────────────
@@ -364,8 +421,11 @@ final drawerCustomGridProvider =
   // `needed` is at least 1 and `per` at least 1, but a one-column one-row grid
   // would leave no room for the second reserved cell, so both writes below are
   // bounds-checked rather than assumed.
+  // Bounds-checked rather than assumed: a one-column one-row grid leaves no
+  // room for the second and third reserved cells.
   if (cells.isNotEmpty) cells[0] = const LauncherSettingsItem();
   if (cells.length > 1) cells[1] = const DeviceSettingsItem();
+  if (cells.length > 2) cells[2] = TerminalDrawerItem(terminalLabelFor(theme));
   placed.forEach((flat, item) {
     if (flat < cells.length) cells[flat] = item;
   });
@@ -412,11 +472,18 @@ final drawerSearchProvider = Provider.family<List<DrawerItem>,
 ///
 /// Empty for an empty query — a caller showing its own pre-typing layout does
 /// not want these injected into it.
-List<DrawerItem> launcherItemsMatching(String query) {
+List<DrawerItem> launcherItemsMatching(
+  String query, {
+  String terminalLabel = TerminalDrawerItem.defaultTitle,
+}) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return const [];
 
-  const all = <DrawerItem>[LauncherSettingsItem(), DeviceSettingsItem()];
+  final all = <DrawerItem>[
+    const LauncherSettingsItem(),
+    const DeviceSettingsItem(),
+    TerminalDrawerItem(terminalLabel),
+  ];
   return [
     for (final i in all)
       if (_matches(i, q)) i,
@@ -435,6 +502,7 @@ bool _matches(DrawerItem item, String q) {
   final aliases = switch (item) {
     LauncherSettingsItem() => launcherSettingsAliases,
     DeviceSettingsItem() => deviceSettingsAliases,
+    TerminalDrawerItem() => terminalAliases,
     // Folders match on the name the user gave them, which is already the label.
     AppDrawerItem() || FolderDrawerItem() => const <String>[],
   };
@@ -469,4 +537,22 @@ const deviceSettingsAliases = <String>[
   'system',
   'device',
   'phone',
+];
+
+/// The words that should find the terminal.
+///
+/// The label already matches "terminal" on every theme that uses that word, and
+/// several do not: a Kali user types "terminal", a KDE user might type
+/// "konsole", and someone who lives in a shell types "sh" or "bash" without
+/// thinking. All three should land in the same place.
+const terminalAliases = <String>[
+  'terminal',
+  'konsole',
+  'shell',
+  'console',
+  'command',
+  'cmd',
+  'bash',
+  'tty',
+  'ssh',
 ];

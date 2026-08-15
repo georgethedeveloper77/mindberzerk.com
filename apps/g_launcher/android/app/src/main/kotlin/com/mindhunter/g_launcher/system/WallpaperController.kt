@@ -1,5 +1,6 @@
 package com.mindhunter.g_launcher.system
 
+import android.annotation.SuppressLint
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -8,7 +9,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
@@ -71,14 +71,12 @@ class WallpaperController(context: Context) {
         }
 
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                if (applyToLock) {
-                    manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                manager.setBitmap(bitmap)
+            // The flag-based overload is API 24 and minSdk is 26, so there is no
+            // legacy branch here. The single-argument setBitmap() it replaced
+            // could not target home and lock separately.
+            manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
+            if (applyToLock) {
+                manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
             }
             true
         } catch (e: Exception) {
@@ -94,9 +92,9 @@ class WallpaperController(context: Context) {
     // ---- stash / restore -------------------------------------------------
     //
     // A theme replacing your wallpaper is fine. A theme replacing your wallpaper
-    // with no way back is not — the wallpaper is often a photo of someone's kid,
-    // and "I tried a theme and lost it" is unforgivable in a way a wrong colour
-    // never is.
+    // with no way back is not. The honest position on how much of a net this
+    // actually is, is in stashWallpaper's own comment. Read it before treating
+    // restore as a guarantee anywhere else in the codebase.
 
     /**
      * Copies the current system wallpaper aside, ONCE.
@@ -106,17 +104,36 @@ class WallpaperController(context: Context) {
      * would stash the FIRST theme's wallpaper as "yours", and the original would
      * be gone for good.
      *
-     * Best effort, and honestly so. Reading the wallpaper back has been
-     * progressively restricted — Android 13+ limits getWallpaperFile for apps
-     * that did not set it, and a device whose wallpaper is a live wallpaper or
-     * an OEM default has no file to hand over at all. Any of those return false,
-     * the Dart side hides its restore option, and nothing pretends otherwise.
+     * THIS IS EXPECTED TO RETURN FALSE ON ALMOST EVERY SHIPPING DEVICE, and that
+     * is not a bug to chase. Reading the wallpaper back has been closed off in
+     * two stages:
+     *
+     *   API 26 to 32   getWallpaperFile needs READ_EXTERNAL_STORAGE, which this
+     *                  app does not declare and will not: a launcher asking for
+     *                  storage to read a wallpaper is a worse trade than losing
+     *                  the feature.
+     *   API 33+        restricted to the app that set the wallpaper. A storage
+     *                  permission would not help even if we held one, and the
+     *                  alternatives lint names (MANAGE_EXTERNAL_STORAGE,
+     *                  READ_WALLPAPER_INTERNAL) are respectively unshippable for
+     *                  a launcher and signature-level.
+     *
+     * A live wallpaper or an OEM default has no file to hand over either way.
+     *
+     * So: the call is left in because it costs nothing and does work on the odd
+     * ROM that permits it, false is the normal return, the Dart side hides its
+     * restore option, and nothing pretends otherwise. If restore needs to be
+     * real rather than opportunistic, it has to come from the user picking their
+     * own wallpaper through ACTION_OPEN_DOCUMENT before the first theme apply.
+     * That is a product decision, not a fix to this method.
      */
+    @SuppressLint("MissingPermission")
     fun stashWallpaper(): Boolean {
         val stash = stashFile()
         if (stash.exists() && stash.length() > 0) return true
 
         return try {
+            // Throws SecurityException on most devices. Caught below, by design.
             val fd = manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM)
                 ?: return false // live wallpaper, OEM default, or not readable
 
@@ -235,8 +252,8 @@ class WallpaperController(context: Context) {
 
     private fun sampleSize(w: Int, h: Int, reqW: Int, reqH: Int): Int {
         var sample = 1
-        var halfW = w / 2
-        var halfH = h / 2
+        val halfW = w / 2
+        val halfH = h / 2
         while (halfW / sample >= reqW && halfH / sample >= reqH) {
             sample *= 2
         }

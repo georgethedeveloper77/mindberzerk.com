@@ -8,18 +8,22 @@ import '../../app/theme/tokens.dart';
 import '../../bridge/content_api.g.dart';
 import '../../bridge/messages_api.g.dart';
 import '../../bridge/recovery_api.g.dart';
+import '../../core/app_info.dart';
 import '../../core/content/content_store.dart';
 import '../../core/format.dart';
 import '../../core/i18n/g_strings.dart';
+import '../../core/messenger/g_message.dart';
+import '../../core/messenger/g_messenger.dart';
+import '../../core/update/app_update.dart';
 import '../../ui/g_app_bar.dart';
 import '../../ui/g_badge.dart';
 import '../../ui/g_card.dart';
 import '../device/tools/screen_test_page.dart';
 import '../learn/limits_page.dart';
-import '../pro/pro_page.dart';
-import '../pro/state/pro_providers.dart';
 import '../messages/messages_page.dart';
 import '../messages/state/messages_providers.dart';
+import '../pro/pro_page.dart';
+import '../pro/state/pro_providers.dart';
 import '../recovery/state/recovery_providers.dart';
 import '../server/server_page.dart';
 import '../storage/browse/browse_page.dart';
@@ -37,6 +41,8 @@ class MorePage extends ConsumerWidget {
     final RecoverySummary? summary = ref.watch(prescanProvider).value;
     final GThemeState theme = ref.watch(gThemeProvider);
     final bool pro = ref.watch(proUnlockedProvider);
+    final GUpdateState update = ref.watch(gUpdateProvider);
+    final GAppInfo appInfo = ref.watch(gAppInfoProvider);
 
     return GPageBody(
       children: <Widget>[
@@ -109,7 +115,7 @@ class MorePage extends ConsumerWidget {
               title: pro ? 'Pro is on' : 'Pro',
               detail: pro
                   ? 'Scheduled backups, video compression, more servers'
-                  : 'One payment for the work the app does without you',
+                  : 'Onetime Payment',
               onTap: () => Navigator.of(context).push(ProPage.route()),
             ),
           ],
@@ -178,13 +184,177 @@ class MorePage extends ConsumerWidget {
               icon: Icons.info_outline_rounded,
               hue: t.dim,
               title: context.s('G Recovery'),
-              detail: '2.0.0  ·  Mindberzerk',
+              // No version at all rather than a placeholder, on the one
+              // phone where the package read failed. The rule holds here as
+              // everywhere: an absent figure is an absent line.
+              detail: appInfo.hasVersion
+                  ? '${appInfo.version}  ·  Mindberzerk'
+                  : 'Mindberzerk',
               onTap: () => Navigator.of(context).push(PrivacyPage.route()),
             ),
+            // Absent on any build Play did not install, which is every build
+            // during development and every sideload. Silence rather than a row
+            // explaining why the row cannot work.
+            if (_updateVisible(update.stage))
+              _MoreRow(
+                icon: _updateIcon(update.stage),
+                hue: _updateHue(t, update.stage),
+                title: _updateTitle(context, update.stage),
+                detail: _updateDetail(context, update, appInfo),
+                onTap: () => _tapUpdate(context, ref, update),
+              ),
           ],
         ),
       ],
     );
+  }
+
+  /// Only once Play has answered.
+  ///
+  /// idle is the window between launch and the first check coming back, and
+  /// unavailable is every build Play does not own. Both draw nothing, so the
+  /// row appears when it has something true to say and never flickers through
+  /// a state it is about to leave.
+  static bool _updateVisible(GUpdateStage stage) =>
+      stage != GUpdateStage.idle && stage != GUpdateStage.unavailable;
+
+  static IconData _updateIcon(GUpdateStage stage) => switch (stage) {
+    GUpdateStage.available => Icons.system_update_alt_rounded,
+    GUpdateStage.downloading => Icons.downloading_rounded,
+    GUpdateStage.ready => Icons.restart_alt_rounded,
+    _ => Icons.verified_outlined,
+  };
+
+  /// Never the warning tone.
+  ///
+  /// The flag badge on this row type is amber, and amber means caution
+  /// everywhere else in the app. A newer version is not a caution, so the state
+  /// is carried by the icon's own colour and the title, and the badge is left
+  /// for the things that have earned it.
+  static Color _updateHue(GTokens t, GUpdateStage stage) => switch (stage) {
+    GUpdateStage.ready => t.success,
+    GUpdateStage.available || GUpdateStage.downloading => t.accent,
+    _ => t.dim,
+  };
+
+  /// Context is threaded in so every literal below sits inside an s() call.
+  ///
+  /// tool/i18n/extract.py collects by reading the source for string literals
+  /// written directly inside s(), so a helper that cannot reach a context is a
+  /// helper whose strings can never be translated. That is how these four
+  /// escaped the table on the first pass.
+  static String _updateTitle(BuildContext context, GUpdateStage stage) =>
+      switch (stage) {
+        GUpdateStage.available => context.s('Update available'),
+        GUpdateStage.downloading => context.s('Downloading update'),
+        GUpdateStage.ready => context.s('Restart to finish updating'),
+        GUpdateStage.checking => context.s('Checking'),
+        _ => context.s('Up to date'),
+      };
+
+  /// Build, not version.
+  ///
+  /// availableVersionCode is the build number, and the row above this one says
+  /// 2.0.0. Calling the incoming one "version 13" beside it would read as a
+  /// contradiction, so the two are named for what they each are.
+  static String _updateDetail(
+    BuildContext context,
+    GUpdateState update,
+    GAppInfo info,
+  ) {
+    switch (update.stage) {
+      case GUpdateStage.available:
+        final int? there = update.availableVersionCode;
+        final int? here = info.build;
+        if (there == null) return context.s('A newer build is on Play');
+        // Two numbers when both are known, because one number on its own
+        // invites the reader to compare it against the 2.0.0 in the row above
+        // and find that it does not match. Interpolated lines are left
+        // untranslated here, as every other detail line on this page is.
+        if (here == null) return 'Build $there is on Play';
+        return 'Build $here now, build $there on Play';
+      case GUpdateStage.downloading:
+        return context.s('Play is fetching it in the background');
+      case GUpdateStage.ready:
+        return context.s('Tap to install and restart');
+      case GUpdateStage.checking:
+        return context.s('Asking Play');
+      case GUpdateStage.current:
+      case GUpdateStage.idle:
+      case GUpdateStage.unavailable:
+        return context.s('Tap to check again');
+    }
+  }
+
+  /// One row, four meanings, and nothing happens that was not tapped.
+  ///
+  /// Immediate is reserved for two cases: a release marked urgent, and a phone
+  /// where Play refuses a flexible update outright. Everything else downloads in
+  /// the background and waits, because a full screen Play sheet over the app
+  /// someone just opened is the behaviour this row exists to avoid.
+  static Future<void> _tapUpdate(
+    BuildContext context,
+    WidgetRef ref,
+    GUpdateState update,
+  ) async {
+    final GUpdateController controller = ref.read(gUpdateProvider.notifier);
+
+    if (update.stage == GUpdateStage.downloading) return;
+
+    if (update.stage == GUpdateStage.ready) {
+      final GUpdateOutcome outcome = await controller.install();
+      // Reaching this line at all usually means it did not work: a successful
+      // install kills the process from inside Play.
+      if (!context.mounted || outcome == GUpdateOutcome.done) return;
+      GMessenger.show(
+        context,
+        GMessage.danger(context.s('Play could not install the update')),
+      );
+      return;
+    }
+
+    if (update.stage == GUpdateStage.available) {
+      final bool immediate =
+          update.immediateAllowed &&
+          (update.isUrgent || !update.flexibleAllowed);
+      final GUpdateOutcome outcome = immediate
+          ? await controller.updateNow()
+          : await controller.download();
+      if (!context.mounted) return;
+      switch (outcome) {
+        // Denied is a decision, not a fault. Saying anything here would be
+        // arguing with someone who has just said no.
+        case GUpdateOutcome.done:
+        case GUpdateOutcome.denied:
+          return;
+        case GUpdateOutcome.failed:
+        case GUpdateOutcome.notPossible:
+          GMessenger.show(
+            context,
+            GMessage.warning(context.s('Play could not start the update')),
+          );
+      }
+      return;
+    }
+
+    // Up to date, or mid check. Either way the tap means check again, and this
+    // one is deliberate so it is allowed to say what it found.
+    final GUpdateOutcome outcome = await controller.refresh(force: true);
+    if (!context.mounted) return;
+    if (outcome != GUpdateOutcome.done) {
+      GMessenger.show(
+        context,
+        GMessage.warning(context.s('Play did not answer')),
+      );
+      return;
+    }
+    final GUpdateStage now = ref.read(gUpdateProvider).stage;
+    if (now == GUpdateStage.current) {
+      GMessenger.show(
+        context,
+        GMessage.success(context.s('This is the newest build')),
+      );
+    }
   }
 
   static String _modeName(ThemeMode mode) => switch (mode) {

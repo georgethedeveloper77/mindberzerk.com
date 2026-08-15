@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import '../desklets/desklet_edit.dart';
 import '../drawer/drawer_state.dart';
@@ -84,6 +85,21 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
     // one tap and is remembered by the simple fact that nothing changed.
     if (!ok && binding.action.needsService && mounted) {
       await requestGestureService(context, ref);
+    }
+
+    // ─── THE ONE FAILURE THAT HAS TO SPEAK ──────────────────────────────
+    //
+    // Every other unbound or dead gesture is correctly silent: nothing was
+    // promised. This one was. The user went into Settings and deliberately
+    // bound a gesture to their assistant, and on a phone with no assistant
+    // installed, a de-Googled ROM or some budget builds, both intents fail and
+    // the gesture would do nothing forever with no way to find out why.
+    //
+    // Not a nag. It cannot appear unless the user bound it and then performed
+    // it, and it says what is wrong rather than pointing at a settings screen
+    // that cannot fix it.
+    if (!ok && binding.action == GestureAction.assistant && mounted) {
+      context.showMessage('No voice assistant is set up on this phone');
     }
   }
 

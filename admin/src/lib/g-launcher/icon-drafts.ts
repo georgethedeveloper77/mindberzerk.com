@@ -83,6 +83,33 @@ export interface IconDraft {
   shape?: string;
   icons: IconDraftIcon[];
   updatedAt: number;
+  /**
+   * The pack version this draft's content was last published as, or absent.
+   *
+   * ─── WHY A DRAFT HAS TO KNOW THIS ───────────────────────────────────────
+   *
+   * Publishing does not touch the draft store. `IconBuilder.publish` writes a
+   * pack and leaves `icon-drafts.json` exactly as it was, which is correct:
+   * the draft carries `plate`, `radius` and `shape`, and `pack.json` carries
+   * none of them, so deleting the draft on publish would throw away the
+   * preview settings the draft exists to preserve.
+   *
+   * The cost was that "a draft exists" and "a draft is AHEAD of what is live"
+   * became the same fact. Every screen read the first and reported the second,
+   * so the moment a pack was published its own builder said "draft ahead of
+   * v8, publishing writes v9" against a v8 it had just written, permanently.
+   *
+   * This is the missing bit: the version the draft's content became. Equal to
+   * the live version means the draft MATCHES what devices have; absent or
+   * lower means there is genuinely newer work here.
+   *
+   * CLEARED BY EVERY SAVE, which falls out of [writeIconDraft] taking the
+   * field from its caller rather than merging it: pressing Save draft is a
+   * statement that this content is not what was published, whether or not the
+   * bytes happen to differ. Honest in the direction that matters, since the
+   * failure it replaces was claiming unpublished work that did not exist.
+   */
+  publishedAtVersion?: number;
 }
 
 type DraftMap = Record<string, IconDraft>;
@@ -127,6 +154,18 @@ export async function readIconDraft(app: AppId, packId: string): Promise<IconDra
   } catch {
     return null;
   }
+}
+
+/**
+ * Bucket key for one draft asset.
+ *
+ * EXPORTED because `pack-rename.ts` reads draft bytes back out of R2 directly
+ * rather than over public HTTPS, and a second literal of this path in that file
+ * is exactly the two-copies problem `publish-core.ts` exists to prevent: change
+ * the directory here and the rename would silently read nothing.
+ */
+export function draftAssetKey(app: AppId, packId: string, file: string): string {
+  return `${ASSET_DIR(app, packId)}/${file}`;
 }
 
 /** Public URL for one draft asset, for rehydrating the builder in the browser. */
@@ -204,6 +243,42 @@ export async function writeIconDraft(
     return { ok: true, updatedAt };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
+  }
+}
+
+/**
+ * Record that this draft's content is now live at [version].
+ *
+ * A NARROW WRITE: metadata only, assets untouched, and it refuses to create a
+ * draft that does not exist. Called after a successful publish, and a failure
+ * here leaves the banner stale rather than breaking anything, which is why the
+ * caller does not await it as part of the publish result.
+ */
+export async function stampIconDraftPublished(
+  app: AppId,
+  packId: string,
+  version: number,
+): Promise<{ ok: boolean }> {
+  if (!Number.isInteger(version) || version < 1) return { ok: false };
+  let map: DraftMap;
+  try {
+    map = await readDrafts(app);
+  } catch {
+    return { ok: false };
+  }
+  const draft = map[packId];
+  if (!draft) return { ok: false };
+
+  map[packId] = { ...draft, publishedAtVersion: version };
+  try {
+    await putObject(
+      KEY(app),
+      Buffer.from(JSON.stringify({ drafts: map }, null, 2) + '\n', 'utf8'),
+      'application/json',
+    );
+    return { ok: true };
+  } catch {
+    return { ok: false };
   }
 }
 

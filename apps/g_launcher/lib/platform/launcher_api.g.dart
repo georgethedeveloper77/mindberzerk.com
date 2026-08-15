@@ -1693,6 +1693,72 @@ class LauncherHostApi {
     ;
     return pigeonVar_replyValue! as bool;
   }
+
+  /// Can anything on this phone transcribe speech?
+  ///
+  /// Asked so the microphone in the search field can be ABSENT rather than
+  /// present and dead. Same rule the stats rows follow: a control that does
+  /// nothing is worse than no control, because the user concludes the app is
+  /// broken rather than that the phone lacks a recogniser.
+  ///
+  /// Needs the matching `<intent>` in the manifest's `<queries>` block.
+  /// `resolveActivity` is package-visibility filtered on Android 11+ and this
+  /// app deliberately does not hold QUERY_ALL_PACKAGES, so without it this
+  /// returns false on every modern phone and the microphone hides itself
+  /// everywhere.
+  Future<bool> canRecognizeSpeech() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.canRecognizeSpeech$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Run the phone's own speech recogniser and return what it heard, or null.
+  ///
+  /// ─── WHY THE INTENT AND NOT SpeechRecognizer ──────────────────────────────
+  ///
+  /// `SpeechRecognizer` listens inline with no screen change, which is nicer,
+  /// and costs RECORD_AUDIO, a runtime permission prompt and a microphone entry
+  /// on the data-safety form. `ACTION_RECOGNIZE_SPEECH` hands the job to
+  /// whichever recogniser the user already has, with that recogniser's own UI,
+  /// and needs no permission at all. For a launcher whose whole pitch is that it
+  /// does not surveil anyone, the second is not a compromise.
+  ///
+  /// Null covers every non-answer: cancelled, misheard, no recogniser, or the
+  /// Activity torn down while the recogniser was on screen. The caller leaves
+  /// the search field alone in all four cases.
+  ///
+  /// [prompt] is the line the recogniser shows above its microphone.
+  Future<String?> recognizeSpeech(String? prompt) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.recognizeSpeech$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[prompt]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
 }
 
 /// Implemented in Dart by `AppList`. Native pushes the *full* list on every

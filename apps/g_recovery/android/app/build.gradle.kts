@@ -43,7 +43,7 @@ android {
         minSdk = 24
 
         targetSdk = flutter.targetSdkVersion
-        // Both read from the pubspec version, currently 2.0.0+7.
+        // Both read from the pubspec version, currently 2.0.0+12.
         // Live on Play is versionCode 6, versionName 1.0.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -63,6 +63,15 @@ android {
             signingConfig = signingConfigs.getByName(
                 if (keystorePropertiesFile.exists()) "release" else "debug"
             )
+
+            // R8, and everything in proguard-rules.pro exists because of it.
+            //
+            // Full mode is the default from AGP 8 and is not optional in 9.
+            // Anything the app reaches by reflection rather than by call is
+            // invisible to it and gets removed: Room's generated constructor,
+            // jcifs config fields, WorkManager's worker classes. Each one fails
+            // in release only, and none of them fails anywhere near the code
+            // that caused it.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -71,15 +80,6 @@ android {
             )
         }
     }
-}
-
-dependencies {
-
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-
-    // Pairs with `isCoreLibraryDesugaringEnabled` above. Bump if AGP asks for a
-    // newer one; it names the required version in the failure.
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 kotlin {
@@ -92,11 +92,28 @@ flutter {
     source = "../.."
 }
 
+// ONE dependencies block. There were two, and Gradle merges them without
+// complaint, which is the problem: a version declared in the second block for
+// something already declared in the first is resolved silently and the losing
+// line stays in the file looking authoritative.
 dependencies {
+    // Pairs with `isCoreLibraryDesugaringEnabled` above. Bump if AGP asks for a
+    // newer one; it names the required version in the failure.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+
+    // Ed25519, for verifying signed content packs.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("eu.agno3.jcifs:jcifs-ng:2.1.10")
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
+    implementation("eu.agno3.jcifs:jcifs-ng:2.1.10")
+
+    // Scheduling for the backup worker.
+    //
+    // Drags in Room 2.6.1 transitively, which is the only reason this app has a
+    // database at all and the reason proguard-rules.pro carries a Room rule.
+    // Nothing here uses Room directly.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     // WebDAV, and the only reason it needs a library at all.
     //

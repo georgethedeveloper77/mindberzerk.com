@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 
 import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
 import { isAppId, type AppId } from '@/lib/core/registry';
-import { deleteIconDraft, writeIconDraft, type DraftAsset } from '@/lib/g-launcher/icon-drafts';
+import {
+  deleteIconDraft,
+  stampIconDraftPublished,
+  writeIconDraft,
+  type DraftAsset,
+} from '@/lib/g-launcher/icon-drafts';
 
 /**
  * Save and delete an icon pack draft.
@@ -109,4 +114,34 @@ export async function deleteIconDraftAction(app: string, packId: string): Promis
     return { ok: true, updatedAt: 0 };
   }
   return result;
+}
+
+/**
+ * Mark the open draft as published at [version].
+ *
+ * SEPARATE FROM THE PUBLISH ROUTE ON PURPOSE. `api/publish/pack` is shared with
+ * the distro workspace and knows nothing about the icon draft store; teaching
+ * it would put a draft-store write inside the one path that has to stay a pure
+ * sign-and-upload. So the builder calls this after its publish returns, and a
+ * failure here is cosmetic: the banner stays stale until the next save.
+ */
+export async function markIconDraftPublishedAction(
+  app: string,
+  packId: string,
+  version: number,
+): Promise<{ ok: boolean }> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { ok: false };
+    throw e;
+  }
+  if (!isAppId(app) || !packId) return { ok: false };
+
+  const res = await stampIconDraftPublished(app as AppId, packId, version);
+  if (res.ok) {
+    revalidatePath(`/apps/${app}/icons`);
+    revalidatePath(`/apps/${app}/icons/builder`);
+  }
+  return res;
 }

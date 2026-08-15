@@ -14,6 +14,7 @@ import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
 import '../../platform/launcher_api.g.dart';
 import '../settings/settings_screen.dart';
+import '../terminal/terminal_screen.dart';
 import 'app_icon.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
@@ -112,6 +113,9 @@ void activateDrawerItem(
     case LauncherSettingsItem():
       HapticFeedback.lightImpact();
       openLauncherSettings(context, theme);
+    case TerminalDrawerItem():
+      HapticFeedback.lightImpact();
+      openTerminal(context, theme);
     case DeviceSettingsItem():
       HapticFeedback.lightImpact();
       // Reuse the API's existing generic deep-link seam rather than a bespoke

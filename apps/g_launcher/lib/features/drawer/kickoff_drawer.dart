@@ -62,6 +62,12 @@ class KickoffDrawer extends ConsumerWidget {
       for (final i in items)
         if (switch (i) {
           AppDrawerItem() || FolderDrawerItem() => true,
+          // THE TERMINAL GOES IN THE LIST, not the footer, and it is the one
+          // launcher entry that does. The footer holds the two SETTINGS
+          // entries, which are chrome you configure; the terminal is something
+          // you open, which is what the list is for. A third footer button
+          // would also put three labels where two already fill the width.
+          TerminalDrawerItem() => true,
           LauncherSettingsItem() || DeviceSettingsItem() => false,
         })
           i,
@@ -137,6 +143,7 @@ class KickoffDrawer extends ConsumerWidget {
         FolderDrawerItem(:final folder) => folder.id,
         LauncherSettingsItem() => 'launcher-settings',
         DeviceSettingsItem() => 'device-settings',
+        TerminalDrawerItem() => 'terminal',
       };
 
   /// The rail's three views over the one list.
@@ -291,8 +298,13 @@ class _Row extends ConsumerWidget {
             drawerFolderSettings(context, ref, theme, f,
                 anchor: AnchoredMenu.anchorOf(context)),
         // Neither pin nor uninstall nor rename applies to a launcher entry, and
-        // an empty sheet is worse than none.
-        LauncherSettingsItem() || DeviceSettingsItem() => null,
+        // an empty sheet is worse than none. The terminal will eventually earn
+        // a menu of its own (new session, snippets, hosts); until those exist,
+        // showing an empty one would be the same mistake.
+        LauncherSettingsItem() ||
+        DeviceSettingsItem() ||
+        TerminalDrawerItem() =>
+          null,
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -309,6 +321,14 @@ class _Row extends ConsumerWidget {
                   LauncherBrandIcon(theme: theme, size: size),
                 DeviceSettingsItem() => Icon(
                     Icons.settings,
+                    size: size * 0.82,
+                    color: onDark,
+                  ),
+                // A plain glyph rather than the brand mark. The brand mark says
+                // "this launcher's own settings"; the terminal is a tool, and
+                // it reads as one next to the app icons it sits among.
+                TerminalDrawerItem() => Icon(
+                    Icons.terminal,
                     size: size * 0.82,
                     color: onDark,
                   ),

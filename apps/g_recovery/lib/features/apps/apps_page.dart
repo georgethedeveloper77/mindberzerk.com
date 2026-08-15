@@ -55,23 +55,25 @@ class AppsPage extends ConsumerWidget {
           SliverFillRemaining(
             hasScrollBody: false,
             child: _NeedsAccess(
-              onGrant: () async {
-                await ref.read(appsBridgeProvider).requestUsageAccess();
-                ref.invalidate(appsStateProvider);
-                ref.invalidate(appsProvider);
-              },
+              // Nothing is invalidated here.
+              //
+              // ─── THE ANSWER DOES NOT EXIST YET ─────────────────────────────
+              //
+              // requestUsageAccess only fires the intent; it returns the moment
+              // the settings screen is asked for, while the user is still
+              // standing in front of it. A refresh at this point reads the
+              // grant as absent, which it is, and stores that. Nothing later
+              // disagreed with it, so the screen stayed on this panel after the
+              // user had already flipped the switch.
+              //
+              // The shell re-reads on resume, which is the only moment the
+              // answer can have changed.
+              onGrant: () =>
+                  ref.read(appsBridgeProvider).requestUsageAccess(),
             ),
           )
         else if (apps.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Text(
-                context.s('Reading app sizes'),
-                style: GType.monoSmall.copyWith(color: t.dim),
-              ),
-            ),
-          )
+          const SliverFillRemaining(hasScrollBody: false, child: _Reading())
         else ...<Widget>[
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
@@ -132,8 +134,10 @@ class AppsPage extends ConsumerWidget {
                       await ref
                           .read(appsBridgeProvider)
                           .openAppSettings(apps[index].packageName);
-                      ref.invalidate(appsStateProvider);
-                      ref.invalidate(appsProvider);
+                      // Same reasoning as the grant above: the user has not
+                      // cleared anything yet. Native drops its cache when the
+                      // settings screen opens, and the shell re-reads when they
+                      // come back.
                     },
                   ),
                 );
@@ -185,6 +189,91 @@ class AppsPage extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The wait, counted.
+///
+/// ─── WHY THERE IS A NUMBER HERE AT ALL ───────────────────────────────────────
+///
+/// StorageStatsManager answers one package per call, so a phone with three
+/// hundred apps is three hundred round trips and several seconds of nothing.
+/// A spinner would cover that honestly enough, and would also be the one screen
+/// in this app that asks someone to wait without saying for what.
+///
+/// The two numbers are counted by the loop itself and read mid run, so the bar
+/// measures work rather than time. Before the package list exists there is no
+/// total, and the line says so by not appearing: an unknown denominator is left
+/// blank rather than filled with a guess.
+class _Reading extends ConsumerWidget {
+  const _Reading();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GTokens t = context.g;
+    final AppsProgress? progress = ref.watch(appsProgressProvider).value;
+
+    final int total = progress?.total ?? 0;
+    final int done = progress?.done ?? 0;
+    final double fraction = total <= 0
+        ? 0
+        : (done / total).clamp(0.0, 1.0).toDouble();
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: GSpace.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              context.s('Reading app sizes'),
+              textAlign: TextAlign.center,
+              style: GType.monoSmall.copyWith(color: t.dim),
+            ),
+            if (total > 0) ...<Widget>[
+              const SizedBox(height: GSpace.md),
+              // The denominator is the package count, not a percentage. A
+              // person who sees 300 understands why this takes a moment, and a
+              // person who sees 40 understands why it did not.
+              Text(
+                '${GFormat.count(done)} / ${GFormat.count(total)}',
+                style: GType.monoNumber.copyWith(color: t.text, fontSize: 15),
+              ),
+              const SizedBox(height: GSpace.md),
+              SizedBox(
+                width: 160,
+                child: ClipRRect(
+                  borderRadius: GRadius.all(4),
+                  child: SizedBox(
+                    height: 4,
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned.fill(child: ColoredBox(color: t.panelAlt)),
+                        // Animated so the bar slides between polls rather than
+                        // stepping four times a second, which reads as a stall
+                        // between each step.
+                        Positioned.fill(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: AnimatedFractionallySizedBox(
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOut,
+                              widthFactor: fraction,
+                              heightFactor: 1,
+                              child: ColoredBox(color: t.accent),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

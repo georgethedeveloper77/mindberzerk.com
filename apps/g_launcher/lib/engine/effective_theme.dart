@@ -10,6 +10,7 @@ import '../data/prefs/starter_desktop.dart';
 import '../data/repositories/app_repository.dart';
 import '../platform/launcher_api.g.dart' as api;
 import '../system/wallpaper_source.dart';
+import 'font_catalogue.dart';
 import 'layout_resolver.dart';
 import 'theme_engine.dart';
 import 'font_registry.dart';
@@ -182,7 +183,100 @@ class EffectiveTheme {
   /// exists.
   ThemePalette get palette =>
       dark ? spec.palette : (spec.paletteLight ?? spec.palette);
-  ThemeTypography get typography => spec.typography;
+  /// The families actually on screen: the distro's, unless the user said
+  /// otherwise.
+  ///
+  /// ─── NO LONGER A PASSTHROUGH ────────────────────────────────────────────
+  ///
+  /// `spec.typography` is what the distro authored, and for a faithful Kali it
+  /// is what should render. But a font is a property of the PERSON as much as
+  /// of the desktop being imitated, so [LauncherPrefs.displayFont] and
+  /// [LauncherPrefs.monoFont] sit in the global bucket and win when set.
+  ///
+  /// Null means the user expressed no preference, which is the same "inherit"
+  /// that every other override in this class means. [systemChoice] is a real
+  /// value meaning the platform's own face, and it maps to a null `fontFamily`
+  /// because that is how Flutter spells it. The two are NOT the same thing and
+  /// collapsing them would make "follow my phone" unexpressible.
+  ///
+  /// Nothing downstream changes. `terminal_view.dart` still reads
+  /// `typography.mono` and every label still reads `typography.display`; they
+  /// simply start getting a different answer.
+  /// ─── NOT IN ==, AND THAT IS SOUND RATHER THAN AN OVERSIGHT ──────────────
+  ///
+  /// These two families are computed from `prefs`, `spec` and a static map that
+  /// `FontRegistry` fills, so in principle two EffectiveThemes could compare
+  /// equal and return different families if the map changed between them.
+  ///
+  /// It cannot, because of the ordering in `effectiveThemeProvider`: every fetch
+  /// is awaited BEFORE the theme is constructed and emitted, so the map is
+  /// already settled by the time anything reads this. A later emit with the same
+  /// prefs and the same spec id resolves to the same families by construction.
+  ///
+  /// Changing a font changes `prefs`, which `==` does compare, so the repaint
+  /// happens. Break the await ordering and this stops being true, which is one
+  /// more reason it is guarded as tightly as it is.
+  ThemeTypography get typography => ThemeTypography(
+        display: _font(prefs.displayFont, spec.typography.display),
+        mono: _font(prefs.monoFont, spec.typography.mono),
+      );
+
+  /// One override resolved against what the distro authored.
+  ///
+  /// The fallback is the DISTRO'S family, not null, and that matters on a cold
+  /// start: a chosen font whose bytes have not arrived yet paints in Ubuntu for
+  /// a moment rather than dropping to the platform default and back, which reads
+  /// as a flicker into the wrong typeface.
+  static String? _font(String? choice, String? authored) {
+    if (choice == null) {
+      // NO USER OVERRIDE, so the distro's own family, and it goes through the
+      // SAME resolution. That is the fix for a bug that reached publish: the
+      // authored name used to be handed to `fontFamily` raw, so a distro naming
+      // any family the APK does not bundle rendered in the platform default.
+      // It validated in the panel, signed, published and came up wrong, with no
+      // error anywhere in the chain.
+      return _resolve(authored);
+    }
+
+    // Flutter spells "the platform's own face" as a null family.
+    if (choice == systemChoice) return null;
+
+    // NOT null. `monospace` is an Android family alias the platform resolves to
+    // a fixed-advance face; a null here would hand the terminal the proportional
+    // default and break its column count. See font_catalogue.dart.
+    if (choice == systemMonoChoice) return systemMonoChoice;
+
+    // Falls back to the DISTRO'S family rather than to null while a fetch is in
+    // flight, so a cold start shows Ubuntu for a moment instead of flickering
+    // into the platform default and back.
+    return _resolve(choice) ?? _resolve(authored);
+  }
+
+  /// One family name turned into one Flutter can actually resolve.
+  ///
+  /// Bundled families and pack-shipped families are registered under exactly the
+  /// name they are written with, so they pass through. A family fetched by
+  /// `google_fonts` is NOT: the package picks its own registered name, and
+  /// handing the requested one to `fontFamily` resolves to nothing and silently
+  /// paints Roboto. That indirection is the whole reason `FontRegistry` keeps a
+  /// map instead of just a set.
+  ///
+  /// Null while a fetch is still running, which the caller reads as "not yet"
+  /// rather than as an error.
+  static String? _resolve(String? family) {
+    if (family == null || family.isEmpty) return null;
+
+    // In the APK. Nothing had to register it and nothing can rename it.
+    if (bundledFamilies.contains(family)) return family;
+
+    // NULL WHEN THE MAP MISSES, and that is the point rather than a shortcut.
+    // Returning the raw name here would hand `fontFamily` a string nothing has
+    // registered, which resolves to nothing and paints Roboto while looking
+    // exactly like a deliberate choice. Null lets the caller fall back to the
+    // distro's own face instead.
+    return FontRegistry.resolvedFamily(family);
+  }
+
   ShellKind get shell => spec.shell;
 
   /// The resolved chrome family, surfaced here so the chrome layer reads it off
@@ -419,6 +513,29 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // theme today.
   await FontRegistry.ensure(spec);
   final prefs = await ref.watch(prefsProvider(spec.id).future);
+
+  // ─── AND THE USER'S OWN CHOICE, ON THE SAME SIDE OF THE LINE ─────────────
+  //
+  // Read AFTER prefs, because that is where the choice lives, and awaited
+  // BEFORE resolve for exactly the reason the pack fonts are: a family named in
+  // a published theme whose bytes have not been registered measures as the
+  // platform fallback at first layout.
+  //
+  // For the display font that is a flash of the wrong face. For the mono font
+  // it is worse, and it has been seen on device: `terminal_screen.dart` derives
+  // the PTY column count by measuring a run of glyphs, so a fallback measured
+  // there sends the remote host a width the screen does not have and its output
+  // wraps where nothing can show it.
+  //
+  // Cheap after the first call. Both families are cached to disk, so this is a
+  // file read on a cold start and a set lookup on every resolve after it.
+  await Future.wait([
+    // What the DISTRO names, when the pack did not ship the file itself.
+    FontRegistry.ensureSpecFonts(spec),
+    // And what the USER picked, which wins over it.
+    FontRegistry.ensureFamily(prefs.displayFont),
+    FontRegistry.ensureFamily(prefs.monoFont),
+  ]);
 
   // Watched, so flipping Android's own dark mode repaints the desktop under
   // the user's thumb rather than on next launch.

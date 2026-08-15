@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { C } from './console';
+import { IconStylePreview } from './IconStylePreview';
 import { Field, TextInput, NumberInput, SelectInput, Segmented, Toggle, ColorField } from './primitives';
 import {
   CHROMES,
@@ -511,9 +512,23 @@ export function GesturesEditor(props: {
 export function IconStyleEditor(props: {
   icons: IconStyleJson;
   setIcons: (p: Partial<IconStyleJson>) => void;
+  /**
+   * The whole spec, for the live preview.
+   *
+   * OPTIONAL, so the existing call site compiles untouched and the panel
+   * degrades to what it drew yesterday rather than failing to build. Pass it
+   * and the icons appear above the fields.
+   */
+  spec?: ThemeSpecJson;
 }) {
-  const { icons, setIcons } = props;
+  const { icons, setIcons, spec } = props;
   return (
+    <>
+      {spec ? (
+        <div style={{ marginBottom: 14 }}>
+          <IconStylePreview spec={{ ...spec, icons }} />
+        </div>
+      ) : null}
     <div style={twoCol}>
       <Field label="treatment">
         <SelectInput<string>
@@ -549,6 +564,62 @@ export function IconStyleEditor(props: {
           onChange={(v) => setIcons({ backgroundColor: v.trim() === '' ? null : v.trim() })}
         />
       </Field>
+      {/* ── THE FOUR THAT WERE MISSING ────────────────────────────────────
+          `IconStyle` carries ten fields and this editor offered six, so a
+          distro's icon identity could only ever be a flat plate. That is fine
+          for Ubuntu and it is why nobody noticed; it is the whole blocker for
+          Garuda, whose look IS a gradient, and it is the reason three paid
+          distros are waiting on hand-drawn art they do not actually need.
+
+          Between the generator and the CC0 brand layer the coverage is already
+          100%, so a paid distro's icons can be entirely GENERATED: a plate
+          colour, a gradient, a corner radius and a treatment. No drawn files,
+          no licence exposure, and it ships over the CDN like everything else.
+          These four are what makes that authorable here instead of by hand
+          editing theme.json. */}
+      <Field label="gradient end" hint="#hex, blank = flat">
+        <TextInput
+          value={icons.backgroundGradientEnd ?? ''}
+          placeholder="#FF2E88"
+          onChange={(v) =>
+            setIcons({ backgroundGradientEnd: v.trim() === '' ? null : v.trim() })
+          }
+        />
+      </Field>
+      <Field label="gradient angle" hint="degrees, blank = default">
+        <NumberInput
+          value={icons.gradientAngle ?? null}
+          min={0}
+          max={360}
+          step={5}
+          placeholder="135"
+          onChange={(v) => setIcons({ gradientAngle: v })}
+        />
+      </Field>
+      <Field label="monochrome tint" hint="#hex, themed icons only">
+        <TextInput
+          value={icons.monochromeTint ?? ''}
+          placeholder="#9FE1CB"
+          onChange={(v) =>
+            setIcons({ monochromeTint: v.trim() === '' ? null : v.trim() })
+          }
+        />
+      </Field>
+      {/* A TEXT FIELD, NOT A SELECT, and deliberately. `brandTreatment` is a
+          Kotlin enum on the device and this repo has no exported list of its
+          members, so a dropdown here would be a list somebody typed from
+          memory. A value that does not match falls back on the device rather
+          than failing, and an invented option that never matches would be
+          worse than a blank box. Give it a select when the enum is shared. */}
+      <Field label="brand treatment" hint="blank = follow treatment">
+        <TextInput
+          value={icons.brandTreatment ?? ''}
+          placeholder=""
+          onChange={(v) =>
+            setIcons({ brandTreatment: v.trim() === '' ? null : v.trim() })
+          }
+        />
+      </Field>
       <Field label="hero pack" hint="hand-drawn set id">
         <TextInput
           value={icons.heroPack ?? ''}
@@ -564,6 +635,7 @@ export function IconStyleEditor(props: {
         />
       </Field>
     </div>
+    </>
   );
 }
 
@@ -596,18 +668,56 @@ export function PassthroughEditor(props: {
   );
 }
 
+/** One spelling of "this object as editable text", used by both the initial
+ *  seed and the resync. Two copies of this would eventually disagree about
+ *  indentation and reformat the box on every import. */
+function format(value: unknown): string {
+  return value == null ? '' : JSON.stringify(value, null, 2);
+}
+
 function JsonArea(props: {
   label: string;
   hint: string;
   value: unknown;
   onChange: (v: unknown) => void;
 }) {
-  const [text, setText] = React.useState(() =>
-    props.value == null ? '' : JSON.stringify(props.value, null, 2),
-  );
+  const [text, setText] = React.useState(() => format(props.value));
   const [err, setErr] = React.useState<string | null>(null);
 
+  /**
+   * ─── THE TEXT WAS SEEDED ONCE AND NEVER AGAIN ──────────────────────────
+   *
+   * `useState` with an initialiser runs on the FIRST RENDER ONLY, so importing
+   * a theme.json replaced `spec.boot`, `spec.splash` and `spec.desklets` while
+   * all three textareas kept the empty string they were born with. The data
+   * was there and would have published correctly; the boxes were lying about
+   * it, which is worse than losing it, because the obvious response is to
+   * paste the block again into a field that already has one.
+   *
+   * ─── AND WHY A FLAG RATHER THAN COMPARING THE VALUE ────────────────────
+   *
+   * Reseeding whenever `props.value` changes would reformat the box WHILE
+   * SOMEONE IS TYPING: type `{"a":1}`, this parses it, the parent hands back
+   * an object, and the next render would rewrite the field as `{\n  "a": 1\n}`
+   * with the caret somewhere new. So a change that came FROM here is skipped
+   * exactly once and any other change reseeds.
+   *
+   * Invalid text never reaches the parent, so `props.value` does not change
+   * and the effect does not fire, which is what lets a half-typed block sit
+   * there without being helpfully corrected.
+   */
+  const fromHere = React.useRef(false);
+  React.useEffect(() => {
+    if (fromHere.current) {
+      fromHere.current = false;
+      return;
+    }
+    setText(format(props.value));
+    setErr(null);
+  }, [props.value]);
+
   function handle(t: string) {
+    fromHere.current = true;
     setText(t);
     if (t.trim() === '') {
       setErr(null);

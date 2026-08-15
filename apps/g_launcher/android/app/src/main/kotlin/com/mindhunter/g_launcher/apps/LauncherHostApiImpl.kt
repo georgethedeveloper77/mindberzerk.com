@@ -3,6 +3,7 @@ package com.mindhunter.g_launcher.apps
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.speech.RecognizerIntent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
@@ -339,6 +340,106 @@ class LauncherHostApiImpl(
         }
     }
 
+    // ---- voice -----------------------------------------------------------
+
+    /**
+     * The speech callback in flight, if any.
+     *
+     * ONE AT A TIME, and that is not a limitation worth engineering around: the
+     * recogniser is a full-screen Activity, so a second request can only exist
+     * if the first is still on screen, which cannot happen. A second request
+     * resolves the first as null rather than leaving a callback that Pigeon
+     * will wait on forever.
+     */
+    private var speechCallback: ((Result<String?>) -> Unit)? = null
+
+    override fun canRecognizeSpeech(callback: (Result<Boolean>) -> Unit) {
+        io.execute {
+            val available = runCatching {
+                appContext.packageManager.resolveActivity(
+                    Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH),
+                    0,
+                ) != null
+            }.getOrDefault(false)
+            main.post { callback(Result.success(available)) }
+        }
+    }
+
+    override fun recognizeSpeech(prompt: String?, callback: (Result<String?>) -> Unit) {
+        // Anything already waiting is answered now. See the field comment.
+        speechCallback?.invoke(Result.success(null))
+        speechCallback = null
+
+        val activity = activityRef?.get()
+        if (activity == null || activity.isFinishing || activity.isDestroyed) {
+            // startActivityForResult needs an Activity and only an Activity. No
+            // appContext fallback here, unlike openIntent: a NEW_TASK start
+            // returns its result to nobody, so it would transcribe into the void.
+            callback(Result.success(null))
+            return
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            // Not set to a fixed locale. The recogniser defaults to whatever the
+            // phone is set to, and hardcoding en-US here would be a launcher
+            // shipping to Kenya and Nigeria deciding what language its users
+            // speak.
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            if (prompt != null) putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+        }
+
+        speechCallback = callback
+
+        try {
+            activity.startActivityForResult(intent, REQ_SPEECH)
+        } catch (_: android.content.ActivityNotFoundException) {
+            // canRecognizeSpeech said yes and this says no. The resolve and the
+            // start are two moments and the answer can change between them, the
+            // same race openIntent documents.
+            speechCallback = null
+            callback(Result.success(null))
+        }
+    }
+
+    /**
+     * Routed from LauncherActivity.onActivityResult. Returns true if consumed.
+     *
+     * Takes `data`, which the widget host's equivalent does not need and this
+     * one cannot work without: the transcript rides in the extras, so a router
+     * that drops the Intent hands back a successful result with nothing in it.
+     */
+    fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ): Boolean {
+        if (requestCode != REQ_SPEECH) return false
+
+        val callback = speechCallback
+        speechCallback = null
+        // Consumed either way. A result arriving with no callback waiting means
+        // the Activity was rebuilt mid-recognition, and passing it on to super
+        // would be handing the widget host a request code it does not own.
+        if (callback == null) return true
+
+        val heard = if (resultCode == android.app.Activity.RESULT_OK) {
+            data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.takeIf { it.isNotBlank() }
+        } else {
+            // Cancelled, or the recogniser heard nothing it was confident about.
+            null
+        }
+
+        callback(Result.success(heard))
+        return true
+    }
+
     // ---- wallpaper -------------------------------------------------------
 
     override fun setWallpaper(
@@ -599,4 +700,15 @@ class LauncherHostApiImpl(
         brandPack = brandPack,
         brandTreatment = BrandTreatment.parse(brandTreatment),
     )
+
+    private companion object {
+        /**
+         * Must not collide with WidgetHostController's REQ_BIND (0x0B1D) or
+         * REQ_CONFIG (0x0C06). Both routers see every result, and two owners
+         * claiming one code means whichever is asked first eats the other's
+         * answer. Same hex-mnemonic convention, kept so a future third code is
+         * obviously checked against these two.
+         */
+        const val REQ_SPEECH = 0x05EE
+    }
 }

@@ -156,6 +156,13 @@ class LauncherActivity : FlutterActivity() {
     @Deprecated("Superseded by the Activity Result APIs; still the reliable path with a warmed engine.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         if (widgetHost.onActivityResult(requestCode, resultCode)) return
+        // The speech recogniser comes back here too, and unlike the widget
+        // flows it needs `data`: the transcript rides in the Intent extras, so
+        // a router that drops it would return a successful result with nothing
+        // in it. Each handler owns its own request codes and returns false for
+        // anything else, so the order of these two lines does not matter today
+        // and should stay that way.
+        if (hostApi.onActivityResult(requestCode, resultCode, data)) return
         super.onActivityResult(requestCode, resultCode, data)
     }
 
@@ -189,18 +196,26 @@ class LauncherActivity : FlutterActivity() {
         }
     }
 
-    /**
-     * Back must never leave the launcher. The system treats a launcher's back
-     * as "do nothing" — Dart decides whether to close a drawer or ignore it.
-     */
-    @Deprecated("Superseded by predictive back; still the reliable path today.")
-    override fun onBackPressed() {
-        // super does NOT finish the activity. FlutterActivity.onBackPressed only
-        // sends popRoute over the navigation channel; if Dart's PopScope refuses,
-        // nothing happens, which is exactly "back never leaves the launcher".
-        // Swallowing it here severed the channel instead.
-        super.onBackPressed()
-    }
+    // ── BACK ────────────────────────────────────────────────────────────────
+    //
+    // There is deliberately no onBackPressed override here. There used to be
+    // one, and it did nothing but call super, so deleting it changes no
+    // behaviour at all while removing the GestureBackNavigation lint error.
+    //
+    // The behaviour it was documenting is FlutterActivity's own and survives
+    // untouched: back sends popRoute over the navigation channel, and if Dart's
+    // PopScope refuses, nothing happens. That is exactly "back never leaves the
+    // launcher". Nothing here finishes the activity, and nothing should. An
+    // override that SWALLOWED back rather than delegating would sever the
+    // channel, which is the bug the old comment was warning about.
+    //
+    // Which mechanism delivers it depends on the platform: below 33 the system
+    // calls onBackPressed, and on 33+ the manifest sets
+    // enableOnBackInvokedCallback=true so the gesture arrives through
+    // FlutterActivity's own OnBackInvokedCallback instead. Both land in the
+    // embedding. Overriding here only intercepted the first of the two, which
+    // is worse than not overriding: it would have looked like the single place
+    // back is handled while being dead code on every modern device.
 
     /**
      * THE line that lets the system wallpaper show through.

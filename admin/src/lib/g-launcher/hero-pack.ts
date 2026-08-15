@@ -109,14 +109,31 @@ export function validateHeroPack(meta: HeroPackDraftMeta, entries: HeroIconEntry
   // is a real package id and the check below is the same one it always was.
   // A role id would fail it, which is correct: a role that never expanded is a
   // slot that would ship as a package name no device has.
-  const seenFile = new Set<string>();
+  //
+  // ─── THERE IS NO DUPLICATE-FILENAME CHECK, AND THERE MUST NOT BE ──────────
+  //
+  // This function used to refuse a filename that appeared twice, which was
+  // correct when a row was one package and became wrong the moment rows became
+  // ROLES. One drawn Phone icon is deliberately mapped onto the AOSP, Google
+  // and Samsung dialers by `expandRoleEntries`, so after expansion a three
+  // package role produces three entries sharing one file. That is the design,
+  // and checking for it here reported the role table working as an error:
+  // "Filename 'messages.png' is used twice", once per extra package.
+  //
+  // Nothing was catching it because `IconBuilder.publish` never calls this; it
+  // has its own `duplicates` memo over the UNEXPANDED slots, which is where a
+  // repeated filename really is a fault and where it is still caught. The rule
+  // belongs upstream of the expansion, so a caller that hands this expanded
+  // entries must do its own pre-expansion duplicate check.
+  //
+  // The PACKAGE check below stays, and is the one that matters after
+  // expansion: two roles claiming the same package id would make `pack.json`
+  // describe one app with two different drawings.
   for (const e of drawn) {
     if (!isValidPackage(e.pkg)) p.push(`'${e.pkg}' is not a valid Android package name`);
     if (seenPkg.has(e.pkg)) p.push(`Package '${e.pkg}' is listed twice`);
     seenPkg.add(e.pkg);
     if (!isBareFilename(e.file)) p.push(`Filename '${e.file}' must be a bare name`);
-    if (seenFile.has(e.file)) p.push(`Filename '${e.file}' is used twice`);
-    seenFile.add(e.file);
   }
   return p;
 }

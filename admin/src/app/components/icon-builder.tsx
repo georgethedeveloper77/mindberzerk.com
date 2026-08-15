@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { saveIconDraftAction } from '@/app/apps/[app]/icons/builder/actions';
+import {
+  markIconDraftPublishedAction,
+  saveIconDraftAction,
+} from '@/app/apps/[app]/icons/builder/actions';
 import { useRouter } from 'next/navigation';
 
 import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
@@ -15,6 +18,10 @@ import {
   isPackageName,
 } from '@/lib/g-launcher/icon-pack';
 import { renderHeroIcon } from '@/lib/core/image-trim';
+import { composeIcon, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
+import type { GlyphLite } from '@/lib/g-launcher/glyph-blob';
+import { glyphToBlob } from '@/lib/g-launcher/glyph-blob';
+import { GlyphPicker, IconStyleBar } from '@/app/components/icon-compose-bar';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
 import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
@@ -329,15 +336,105 @@ export function IconBuilder({
   const existing = publishedVersion[packId];
   const version = existing ? existing + 1 : 1;
 
-  const render = useCallback(async (entry: Entry): Promise<Entry> => {
-    try {
-      const out = await renderHeroIcon(entry.file);
-      if (entry.url) URL.revokeObjectURL(entry.url);
-      return { ...entry, url: out.url, blob: out.blob, aspect: out.aspect, error: null, busy: false };
-    } catch (e) {
-      return { ...entry, url: null, blob: null, error: (e as Error).message, busy: false };
+  /**
+   * The composed style, or null for "ship the art as authored".
+   *
+   * NULL IS THE DEFAULT AND MUST STAY THAT WAY. Every pack published before
+   * today was built with `renderHeroIcon` alone, so a builder that opened in a
+   * composing mode would silently restyle a republished pack the first time
+   * anyone pressed publish on it.
+   */
+  const [style, setStyle] = useState<ComposeSpec | null>(null);
+  const [restyling, setRestyling] = useState(false);
+  const [pickingGlyph, setPickingGlyph] = useState(false);
+
+  /**
+   * ─── ALWAYS FROM `entry.file`, NEVER FROM `entry.blob` ───────────────────
+   *
+   * `file` is the SOURCE and `blob` is the output, and the two must not be
+   * confused here: composing from the previous output would tint a tinted
+   * plate, so the third nudge of a colour slider would produce something no
+   * setting describes. The builder already keeps the source for every row,
+   * which is what makes the style bar reversible at all.
+   *
+   * The style is a PARAMETER rather than a closure capture. This function is
+   * called from loops that run across many awaits, and a `useCallback` reading
+   * `style` would need it in its dependency list, which would rebuild the
+   * callback mid-loop and leave half a batch rendered against the old value.
+   */
+  const render = useCallback(
+    async (entry: Entry, styleNow: ComposeSpec | null): Promise<Entry> => {
+      try {
+        if (entry.url) URL.revokeObjectURL(entry.url);
+        if (!styleNow) {
+          const out = await renderHeroIcon(entry.file);
+          return { ...entry, url: out.url, blob: out.blob, aspect: out.aspect, error: null, busy: false };
+        }
+        const png = await composeIcon(styleNow, entry.file);
+        if (!png) throw new Error('The canvas was unavailable, so nothing was composed.');
+        return {
+          ...entry,
+          url: URL.createObjectURL(png),
+          blob: png,
+          // A composed icon is square by construction, so there is no aspect to
+          // measure. Saying 1 is a fact rather than a default.
+          aspect: 1,
+          error: null,
+          busy: false,
+        };
+      } catch (e) {
+        return { ...entry, url: null, blob: null, error: (e as Error).message, busy: false };
+      }
+    },
+    [],
+  );
+
+  /**
+   * Recompose every row against [next].
+   *
+   * SEQUENTIAL, like the intake loop above and for the same reason: each pass
+   * decodes and re-encodes a full image, and forty at once stalls the tab long
+   * enough to look like a crash.
+   */
+  async function restyle(next: ComposeSpec | null) {
+    setStyle(next);
+    const rows = entries;
+    if (rows.length === 0) return;
+    setRestyling(true);
+    setEntries((all) => all.map((e) => ({ ...e, busy: true })));
+    for (const entry of rows) {
+      const done = await render(entry, next);
+      setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
     }
-  }, []);
+    setRestyling(false);
+  }
+
+  /**
+   * A picked brand glyph becomes an ordinary intake file.
+   *
+   * Named `<slug>.svg` on purpose: `guessPackage` already maps `whatsapp` to
+   * `com.whatsapp` through the hint table, so a pick arrives mapped with no new
+   * code, and a slug no hint recognises arrives unmapped and visible, which is
+   * exactly what a dropped file does.
+   */
+  async function addGlyph(glyph: GlyphLite) {
+    setPickingGlyph(false);
+    const blob = glyphToBlob(glyph);
+    const file = new File([blob], `${glyph.slug}.svg`, { type: 'image/svg+xml' });
+    const entry: Entry = {
+      id: `${Date.now()}-${glyph.slug}`,
+      file,
+      pkg: guessPackage(file.name) ?? '',
+      url: null,
+      blob: null,
+      aspect: 1,
+      error: null,
+      busy: true,
+    };
+    setEntries((e) => [...e, entry]);
+    const done = await render(entry, style);
+    setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
+  }
 
   async function addFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -361,7 +458,7 @@ export function IconBuilder({
     // Sequential: each decode reads back a full image, and forty at once stalls
     // a mid-range phone long enough to look like a crash.
     for (const entry of added) {
-      const done = await render(entry);
+      const done = await render(entry, style);
       setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
     }
   }
@@ -385,7 +482,7 @@ export function IconBuilder({
       busy: true,
     };
     setEntries((e) => [...e, entry]);
-    const done = await render(entry);
+    const done = await render(entry, style);
     setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
   }
 
@@ -592,6 +689,11 @@ export function IconBuilder({
       const json = await res.json();
       if (!res.ok) setError(json.error ?? 'Publish failed');
       else {
+        // The draft now MATCHES what devices will have. Without this the
+        // builder reopens saying "draft ahead of v8, publishing writes v9"
+        // against the v8 it just wrote, forever. Not awaited into the result:
+        // a failed stamp is a stale sentence, not a failed publish.
+        void markIconDraftPublishedAction(app, packId, Number(json.version));
         setResult(
           `${json.packId} v${json.version} · ${json.fileCount} files · ${(json.sizeBytes / 1024).toFixed(0)} KB` +
             (json.grantedTo ? ` · included with ${json.grantedTo}` : ''),
@@ -607,17 +709,18 @@ export function IconBuilder({
 
   return (
     <div className="space-y-3">
-      {(busy || draftBusy) && (
-        <>
-          <style>{'@keyframes ibSlide {0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'}</style>
-          <div className="relative h-[3px] overflow-hidden rounded bg-site-line">
-            <div
-              className="absolute inset-y-0 left-0 w-1/3 bg-site-ink"
-              style={{ animation: 'ibSlide 1.1s linear infinite' }}
-            />
-          </div>
-        </>
-      )}
+      {/* ── THE RAIL AND THE NOTICES ARE MIRRORED, TOP AND BOTTOM ────────────
+          This form is over a thousand lines tall and the icon grid alone is
+          forty rows, so the two ends of it are never on screen together. The
+          rail used to exist only here and the messages only at the far end,
+          which meant the two facts you most need were each visible from
+          exactly one scroll position: start a publish from the bottom and
+          nothing appears to happen, read an error from the top and there is
+          nothing to read. Both are rendered at both ends now, from one
+          definition each, so whichever end you are looking at is telling you
+          the truth. */}
+      <BusyRail busy={busy || draftBusy} />
+      <Notices error={error} result={result} draftNote={draftNote} />
       {/* ── pack ─────────────────────────────────────────────────────────── */}
       <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -926,6 +1029,40 @@ export function IconBuilder({
           >
             Add a folder
           </label>
+          <button
+            type="button"
+            onClick={() => setPickingGlyph((v) => !v)}
+            className="rounded-lg border border-site-line bg-site-card px-4 py-2 text-[13px] text-site-ink-2"
+          >
+            {pickingGlyph ? 'Close glyphs' : 'Brand glyph'}
+          </button>
+        </div>
+
+        {/* ── COMPOSE, AND WHY IT LIVES HERE ────────────────────────────────
+            Beside the intake, because it is intake: a plate and a tint are
+            another way of getting art into the pack, not a setting about the
+            pack. Everything below this point, the review list, the core-set
+            grid, publish, is unchanged and does not know composing exists.
+
+            It is what makes a distro icon pack possible at all without drawn
+            files. Kali's own set is GPL-3 and so is Garuda's, so the identity
+            has to come from a plate you defined rather than from art somebody
+            else licensed. */}
+        <div className="mt-3 rounded-[14px] border border-site-line bg-site-sunk p-3">
+          <IconStyleBar
+            style={style}
+            onChange={restyle}
+            count={entries.length}
+            busy={restyling}
+          />
+        </div>
+
+        <div className="mt-3">
+          <GlyphPicker
+            open={pickingGlyph}
+            onClose={() => setPickingGlyph(false)}
+            onPick={addGlyph}
+          />
         </div>
         <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
           SVG, PNG, WEBP, or JPEG, loose, in a folder, or in a zip. Each drawing
@@ -1095,22 +1232,8 @@ export function IconBuilder({
         </section>
       )}
 
-      {error && (
-        <p className="rounded-card border border-site-plan/40 bg-site-plan-soft px-3 py-2 text-[13px] leading-relaxed text-site-plan">
-          {error}
-        </p>
-      )}
-      {result && (
-        <p className="rounded-card border border-site-ok/40 bg-site-ok-soft px-3 py-2 font-mono text-[11.5px] text-site-ok">
-          {result}
-        </p>
-      )}
-
-      {draftNote && (
-        <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[12.5px] leading-relaxed text-site-info">
-          {draftNote}
-        </p>
-      )}
+      <Notices error={error} result={result} draftNote={draftNote} />
+      <BusyRail busy={busy || draftBusy} />
 
       <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] flex flex-col gap-2.5 md:static md:flex-row md:items-center">
         <button
@@ -1148,6 +1271,83 @@ export function IconBuilder({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The working rail. INDETERMINATE, and deliberately so.
+ *
+ * Nothing in this flow reports a fraction. A publish signs, uploads several
+ * hundred KB and rewrites the index, and the browser learns about each of those
+ * only when it finishes. A percentage here would therefore be an invented
+ * figure, which is the one thing this project does not ship, and a bar that
+ * sits at 90 percent for forty seconds is worse than no bar at all: it reads as
+ * a stall rather than as work.
+ *
+ * A moving stripe says only "something is happening", which is exactly what is
+ * known and exactly what the reader needs.
+ *
+ * The keyframes ride inline rather than in globals.css because they exist for
+ * this one element, and a rule in the global sheet that only one component uses
+ * is a rule nobody dares delete later. Two rails render the same block, which
+ * is harmless: identical `@keyframes` of the same name resolve to one.
+ */
+function BusyRail({ busy }: { busy: boolean }) {
+  if (!busy) return null;
+  return (
+    <>
+      <style>{'@keyframes ibSlide {0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'}</style>
+      <div
+        className="relative h-[3px] overflow-hidden rounded bg-site-line"
+        role="progressbar"
+        aria-label="Working"
+      >
+        <div
+          className="absolute inset-y-0 left-0 w-1/3 bg-site-ink"
+          style={{ animation: 'ibSlide 1.1s linear infinite' }}
+        />
+      </div>
+    </>
+  );
+}
+
+/**
+ * The three outcome messages, rendered identically at both ends of the form.
+ *
+ * ONE DEFINITION, TWO CALL SITES. The alternative was copying three JSX blocks
+ * to the top of the render, and a second copy of a message is a message that
+ * eventually disagrees with the first: someone changes the error styling in one
+ * place, or adds a fourth state to one and not the other, and the two ends of
+ * the same screen start reporting different things about the same publish.
+ */
+function Notices({
+  error,
+  result,
+  draftNote,
+}: {
+  error: string | null;
+  result: string | null;
+  draftNote: string | null;
+}) {
+  if (!error && !result && !draftNote) return null;
+  return (
+    <>
+      {error && (
+        <p className="rounded-card border border-site-plan/40 bg-site-plan-soft px-3 py-2 text-[13px] leading-relaxed text-site-plan">
+          {error}
+        </p>
+      )}
+      {result && (
+        <p className="rounded-card border border-site-ok/40 bg-site-ok-soft px-3 py-2 font-mono text-[11.5px] text-site-ok">
+          {result}
+        </p>
+      )}
+      {draftNote && (
+        <p className="rounded-[14px] bg-site-info-soft px-4 py-3 text-[12.5px] leading-relaxed text-site-info">
+          {draftNote}
+        </p>
+      )}
+    </>
   );
 }
 

@@ -274,6 +274,92 @@ class SetupRow extends StatelessWidget {
 /// not touch prefs, and it never decides whether Continue is allowed. The
 /// screen passes a title, a body and a footer callback, exactly the way
 /// [BootSequence] takes a [BootSpec] and renders it without knowing why.
+/// A row of equal-width choices, for a setting with two to four answers.
+///
+/// ─── WHY THE ROWS WENT ──────────────────────────────────────────────────────
+///
+/// Light, dark and system were three full-width rows with radio markers and a
+/// subtitle each, and so were the dock sides. That shape is right in Settings,
+/// where a screen is a long list of unrelated things and a row is how you tell
+/// them apart. It is wrong under a live stage: the stage has already answered
+/// "what does this do", so the rows were repeating it in prose and taking three
+/// times the height to do it, which pushed the stage down and made the one
+/// thing worth looking at smaller.
+///
+/// A chip strip says the same thing in one line. The explanation, where one is
+/// genuinely needed, moves to a single caption under the strip rather than a
+/// subtitle on every option.
+///
+/// ─── EQUAL WIDTHS, AND A CAP OF FOUR ────────────────────────────────────────
+///
+/// Every option gets the same width, so the strip reads as one control rather
+/// than as a row of buttons of assorted importance. That only works while the
+/// longest label still fits: past four options, or with labels longer than a
+/// word or two, the text starts eliding and a list is the honest shape again.
+/// The drawer's column picker is the same control with four numbers in it.
+class SetupChoice extends StatelessWidget {
+  const SetupChoice({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.mono = false,
+  });
+
+  /// Value to label, in display order.
+  final Map<String, String> options;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  /// The console keeps square brackets and no fill, like everything else there.
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+    final entries = options.entries.toList();
+
+    return Row(
+      children: [
+        for (var i = 0; i < entries.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onChanged(entries[i].key),
+              child: Container(
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: entries[i].key == selected && !mono
+                      ? c.accent.withValues(alpha: 0.14)
+                      : null,
+                  border: Border.all(
+                    color: entries[i].key == selected ? c.accent : c.line,
+                    width: entries[i].key == selected ? 1.5 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(mono ? 0 : 10),
+                ),
+                child: Text(
+                  mono && entries[i].key == selected
+                      ? '[${entries[i].value}]'
+                      : entries[i].value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: d.text.body.copyWith(
+                    color: entries[i].key == selected ? c.text : c.textMuted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class SetupInstallerFrame extends StatelessWidget {
   const SetupInstallerFrame({
     super.key,
@@ -289,6 +375,7 @@ class SetupInstallerFrame extends StatelessWidget {
     this.onBack,
     this.status,
     this.footerNote,
+    this.stage,
     this.fills = false,
   });
 
@@ -311,6 +398,28 @@ class SetupInstallerFrame extends StatelessWidget {
 
   /// Rendered above the footer buttons. The home-role nag lives here.
   final Widget? footerNote;
+
+  /// The LIVE DESKTOP, drawn once for the whole wizard.
+  ///
+  /// ─── WHY IT IS A SLOT ON THE FRAME AND NOT A WIDGET IN EACH STEP ────────
+  ///
+  /// Every step used to draw its own small preview: appear, do one job, be
+  /// thrown away. Nothing accumulated, so seven answers produced seven
+  /// unrelated pictures and the payoff arrived only at the boot sequence. The
+  /// thing this product actually has is that the desktop is being ASSEMBLED in
+  /// front of you, and that is only legible if it is the SAME desktop the whole
+  /// way through.
+  ///
+  /// So the frame owns it. The steps below it change; this does not, except in
+  /// the one way that matters, which is that each answer visibly edits it.
+  ///
+  /// NULL IS A FIRST-CLASS ANSWER and the layout is byte-identical to before
+  /// when it is null. The welcome step passes none, because language and the
+  /// home role are facts about Android rather than about the desktop and there
+  /// is no distro chosen yet to draw. The console skin passes none for the
+  /// reason its title bar does not exist: a TTY installer that drew a picture
+  /// of a desktop would give the whole thing away.
+  final Widget? stage;
 
   /// Should [body] STRETCH to the bottom of the window?
   ///
@@ -344,7 +453,7 @@ class SetupInstallerFrame extends StatelessWidget {
               if (skin.kind == SetupFrameKind.wizard &&
                   skin.progress == SetupProgress.rail)
                 _Rail(steps: steps, step: step),
-              Expanded(child: _content(d)),
+              Expanded(child: _stageAndContent(d)),
             ],
           ),
         ),
@@ -432,6 +541,46 @@ class SetupInstallerFrame extends StatelessWidget {
   /// something inside it built to scroll anyway.
   ///
   /// Non-filling steps keep the old scroll view untouched.
+  /// The stage above, the step below.
+  ///
+  /// ─── THE HEIGHT IS THE FRAME'S DECISION, NOT THE CALLER'S ───────────────
+  ///
+  /// A step cannot know it. The rail is present on some skins and not others,
+  /// the footer grows when the home-role nag is showing, and the window is
+  /// maximised, so the space left for a stage is a fact about THIS frame at
+  /// THIS moment. A caller passing a fixed height would be right on the phone
+  /// it was measured on and wrong on a 5 inch Tecno, where the controls would
+  /// be pushed under the footer.
+  ///
+  /// A FRACTION, CLAMPED. Roughly two fifths of what is left, never below
+  /// 120dp (smaller than that and the dock and grid stop being readable, so it
+  /// is decoration rather than a preview) and never above 260dp (beyond that
+  /// it starts crowding the controls on a tall screen without showing more).
+  /// Short screens shrink the stage; they do not scroll the controls away.
+  Widget _stageAndContent(ChromeData d) {
+    if (stage == null || skin.kind == SetupFrameKind.console) return _content(d);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = (constraints.maxHeight * 0.42).clamp(120.0, 260.0);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ClipRect, because DevicePreview draws a wallpaper edge to edge
+            // and an unclipped child of a fixed-height box paints outside it
+            // rather than being cut. The clip is what makes the stage a window
+            // onto the desktop instead of a picture floating over the step.
+            SizedBox(
+              height: h,
+              child: ClipRect(child: stage),
+            ),
+            Expanded(child: _content(d)),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _content(ChromeData d) {
     final c = d.colors;
     final centred = skin.kind == SetupFrameKind.assistant;

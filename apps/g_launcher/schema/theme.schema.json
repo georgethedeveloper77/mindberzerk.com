@@ -41,13 +41,49 @@
     },
 
     "palette": { "$ref": "#/$defs/palette" },
+    "paletteLight": {
+      "allOf": [{ "$ref": "#/$defs/palette" }],
+      "$comment": "The LIGHT variant, optional. `palette` remains the dark one and keeps its name: renaming it to paletteDark would have been tidier and would also have broken every bundled theme.json and every pack already published. A theme without this block simply has no light mode; EffectiveTheme falls back to `palette` rather than inventing a pale version of it."
+    },
     "typography": { "$ref": "#/$defs/typography" },
     "logo": { "$ref": "#/$defs/logo" },
     "layout": { "$ref": "#/$defs/layout" },
     "icons": { "$ref": "#/$defs/icons" },
     "splash": { "$ref": "#/$defs/splash" },
+    "terminal": { "$ref": "#/$defs/terminal" },
     "boot": { "$ref": "#/$defs/boot" },
     "desklets": { "$ref": "#/$defs/desklets" },
+
+    "wallpapersLight": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assetPath" },
+      "$comment": "Wallpapers for LIGHT mode. Empty or absent means use `wallpapers` in both. The launcher runs TRANSPARENT over the system wallpaper, so a light palette over a dark photograph does not read as a light theme: it reads as the chrome having lost its colour."
+    },
+
+    "fonts": {
+      "type": "array",
+      "$comment": "Font families this pack ships, registered at runtime. A CDN theme cannot edit pubspec.yaml, so naming a family in `typography` is not enough for anything that did not ship in the APK. A family with no name or no files is dropped at parse.",
+      "items": {
+        "type": "object",
+        "required": ["family", "files"],
+        "additionalProperties": false,
+        "properties": {
+          "family": { "type": "string", "minLength": 1 },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "$comment": "BARE FILENAMES for an installed pack: PackPaths.installedFile refuses a separator, so every asset inside a pack is flat."
+          }
+        }
+      }
+    },
+
+    "gestures": {
+      "type": "object",
+      "$comment": "Gesture id to action id. String values only; anything else is dropped rather than fatal. The action ids are NOT enumerated here because bindingFor screens them beside the enum, which is the same arrangement terminal aliases have except that those ARE enumerated, because a bad terminal alias fails silently and a bad gesture does not.",
+      "additionalProperties": { "type": "string" }
+    },
 
     "wallpapers": {
       "type": "array",
@@ -186,6 +222,93 @@
       }
     },
 
+    "terminal": {
+      "type": "object",
+      "required": ["appLabel", "palette"],
+      "additionalProperties": false,
+      "$comment": "This distro's terminal. ADDITIVE and optional: palette holds six colours and none of them is an ANSI colour, so a terminal cannot be drawn from it. Absent falls back to TerminalSpec.defaultForShell. Having a terminal is INDEPENDENT of shell being tui, because the Terminal app is a drawer entry and gnome/plasma/tiling/aqua distros all have drawers.",
+      "properties": {
+        "appLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "$comment": "The drawer entry's label. SHORT, because the drawer renders it in list, grid, cube and horizontal layouts and the narrowest gives it one line under an icon. Beyond 24 it ellipsises."
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 64,
+          "$comment": "Tokens: {user} {host} {cwd} {distro} {exit}. An unknown token renders LITERALLY rather than being stripped, so an authoring mistake is visible instead of silently eating a segment."
+        },
+        "scrollbackLines": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 50000,
+          "$comment": "CLAMPED to 500-50000 by TerminalSpec's constructor. Enforced here so an author is told rather than silently corrected. A CDN theme cannot decide your phone holds fifty thousand lines in memory."
+        },
+        "palette": { "$ref": "#/$defs/terminalPalette" },
+        "aliases": {
+          "type": "array",
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/terminalAlias" },
+          "$comment": "Names bound to actions this build already has. A pack can NEVER express shell, a URL, a package name or an intent here: a downloadable theme that could ship executable commands would be remote code execution on a home screen. Duplicates are dropped on parse, first declaration wins."
+        }
+      }
+    },
+
+    "terminalPalette": {
+      "type": "object",
+      "required": ["bg", "fg", "ansi"],
+      "additionalProperties": false,
+      "$comment": "Role colours (ok, warn, err, dim) are NOT authored. They are read out of ansi at indices 2, 3, 1 and 8, because in every real terminal green IS success and red IS failure: that is what the program emitting the escape code means. Four authored duplicates would be four chances to disagree with the sixteen sitting beside them.",
+      "properties": {
+        "bg": { "$ref": "#/$defs/color" },
+        "fg": { "$ref": "#/$defs/color" },
+        "cursor": { "$ref": "#/$defs/color" },
+        "selection": { "$ref": "#/$defs/color" },
+        "ansi": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/color" },
+          "$comment": "Standard order: black, red, green, yellow, blue, magenta, cyan, white, then the eight bright variants. INDEX IS THE SGR CODE OFFSET, so the order is not a style choice. A short or malformed array fails the whole terminal block rather than being padded: padding puts some escape codes on a colour nobody chose, which reads as a rendering bug instead of an authoring one."
+        }
+      }
+    },
+
+    "terminalAlias": {
+      "type": "object",
+      "required": ["name", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,15}$",
+          "$comment": "Lowercased on parse. Must not collide with a command name or alias in the registry; the runtime resolves the builtin first, so a colliding alias silently does nothing."
+        },
+        "action": {
+          "enum": [
+            "launcher.openSettings",
+            "launcher.openThemes",
+            "desklet.spawn",
+            "terminal.clear",
+            "terminal.help",
+            "remote.ssh",
+            "remote.hosts",
+            "remote.host",
+            "terminal.open",
+            "remote.key"
+          ],
+          "$comment": "The wire names of CommandAction. ENUMERATED HERE and asserted against the enum by terminal_spec_test, the same arrangement kindId has: the runtime keeps an unknown id and simply fails to bind it, so without this list a typo would vanish silently. ADDING AN ACTION MEANS UPDATING THIS LIST AND THAT TEST."
+        },
+        "args": {
+          "type": "object",
+          "$comment": "Scalars only. Anything else is dropped on parse. A nested structure here would be a small language, and a small language in a downloadable pack is how this stops being data.",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "summary": { "type": "string", "maxLength": 48 }
+      }
+    },
+
     "boot": {
       "type": "object",
       "required": ["lines"],
@@ -262,7 +385,7 @@
 
     "kindId": {
       "enum": [
-        "clock", "monitor", "fastfetch", "network", "storage",
+        "glance", "clock", "monitor", "fastfetch", "network", "storage",
         "battery", "notes", "search",
         "free", "df", "ls", "uptime"
       ],

@@ -261,9 +261,19 @@ export default async function IconsPage({
   // that row as a pending marker, and only a draft for an id nobody has
   // published yet gets a row of its own.
   const publishedIdSet = new Set(published.map((p) => p.packId));
+  //
+  // ─── PENDING MEANS AHEAD, NOT MERELY PRESENT ──────────────────────────────
+  //
+  // Publishing leaves the draft in place, because it is the only copy of the
+  // preview settings. So "a draft exists" stopped meaning "there is
+  // unpublished work" the first time anything was published, and this row wore
+  // a DRAFT PENDING chip permanently. `publishedAtVersion` is the draft's
+  // record of what its content became; equal to the live version means there
+  // is nothing pending and the chip is a lie.
   const merged = published.map((p) => {
     const d = iconDrafts.drafts.find((x) => x.packId === p.packId);
-    return d
+    const ahead = !!d && d.publishedAtVersion !== p.version;
+    return ahead && d
       ? { ...p, pendingDraft: { count: d.icons.length, updatedAt: d.updatedAt } }
       : { ...p, pendingDraft: null as { count: number; updatedAt: number } | null };
   });
@@ -436,7 +446,7 @@ export default async function IconsPage({
                       both facts. */}
                   {!c.draft && c.pendingDraft ? (
                     <span
-                      title={`${c.pendingDraft.count} icons saved, never published`}
+                      title={`${c.pendingDraft.count} icons saved as a draft on top of the live v${c.version}`}
                       className="shrink-0 rounded-full bg-site-info-soft px-2 py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.05em] text-site-info"
                     >
                       draft pending
@@ -562,16 +572,35 @@ export default async function IconsPage({
                 </div>
               )}
 
+              {/* THE SUBJECT OF THE SENTENCE IS THE DRAFT, NOT THE PACK, and
+                  the old wording left that to the reader. "has never been
+                  published" sat directly under a row labelled v2, which reads
+                  as a claim about the pack and is the exact sentence that
+                  makes someone press publish on something already live. Both
+                  version numbers are named now, so there is nothing to infer. */}
               {!selected.draft && selected.pendingDraft && (
                 <p className="mt-3 rounded-[10px] bg-site-info-soft px-3 py-2 text-[11.5px] leading-relaxed text-site-info">
-                  A draft of {selected.pendingDraft.count} icons is saved against this pack and has
-                  never been published. Edit opens the draft; publishing from there writes the next
-                  version.
+                  {selected.pendingDraft.count} icons are saved as an unpublished draft on top of
+                  the live v{selected.version}. Edit opens the draft; publishing from there writes
+                  v{selected.version + 1}.
                 </p>
               )}
 
-              <div className="mt-3 border-t border-site-line pt-3">
+              {/* ── EDIT AND RENAME, AND WHY RENAME IS NOT A FIELD ──────────
+                  The builder's Pack id is read-only once a pack is open, and
+                  correctly so: the id is the primary key of the draft, the
+                  bucket directory, the index entry and the device's install
+                  path, so typing a new one there published a SECOND pack at v1
+                  and left the original live and orphaned. A rename is therefore
+                  a migration rather than an edit, and it gets its own screen
+                  which reads the live state, reports what it will do, and only
+                  then moves the art, publishes the new id and repoints every
+                  distro that names the old one. */}
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-site-line pt-3">
                 <SoftButton href={`/apps/${appId}/icons/builder?id=${selected.packId}`}>Edit</SoftButton>
+                <SoftButton href={`/apps/${appId}/icons/rename?from=${selected.packId}`}>
+                  Rename id
+                </SoftButton>
               </div>
 
               {/* ── DELETE LIVES HERE NOW, AND UNPUBLISH STILL LIVES THERE ──

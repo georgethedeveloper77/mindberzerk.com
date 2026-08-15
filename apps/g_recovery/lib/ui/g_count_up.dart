@@ -19,6 +19,14 @@ import 'package:flutter/material.dart';
 /// with the same value does nothing and a genuinely new figure counts from the
 /// old one to the new. That is the correct behaviour in both cases and it is why
 /// this is not an AnimationController.
+///
+/// ─── IT FORCES TABULAR FIGURES ───────────────────────────────────────────────
+///
+/// Proportional digits have different widths, so a figure counting from 0 to
+/// 128.4 GB changes width roughly forty times on the way up and drags whatever
+/// sits beside it back and forth. Every mono style in the ramp already asks for
+/// the feature; a caller that hands in a sans style would not, and that caller
+/// is the reason this is applied here rather than trusted.
 class GCountUp extends StatelessWidget {
   const GCountUp({
     required this.value,
@@ -37,14 +45,25 @@ class GCountUp extends StatelessWidget {
   final TextStyle style;
   final Duration duration;
 
+  /// Respects a style that already asked for features of its own. Overwriting
+  /// the list would drop small caps or slashed zero from a caller that wanted
+  /// them, so this only fills the gap.
+  TextStyle get _steady => style.fontFeatures == null
+      ? style.copyWith(
+          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        )
+      : style;
+
   @override
   Widget build(BuildContext context) {
+    final TextStyle steady = _steady;
+
     if (MediaQuery.disableAnimationsOf(context)) {
       return Text(
         format(value),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: style,
+        style: steady,
       );
     }
 
@@ -56,7 +75,7 @@ class GCountUp extends StatelessWidget {
         format(shown),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: style,
+        style: steady,
       ),
     );
   }

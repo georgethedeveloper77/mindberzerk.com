@@ -350,6 +350,11 @@ class _AllList extends ConsumerWidget {
                   size: size * 0.85,
                   color: theme.palette.onDark,
                 ),
+              TerminalDrawerItem() => Icon(
+                  Icons.terminal,
+                  size: size * 0.85,
+                  color: theme.palette.onDark,
+                ),
             },
           ),
           label: Text(
@@ -370,7 +375,10 @@ class _AllList extends ConsumerWidget {
             final FolderDrawerItem f => () =>
                 drawerFolderSettings(context, ref, theme, f,
                 anchor: AnchoredMenu.anchorOf(context)),
-            LauncherSettingsItem() || DeviceSettingsItem() => null,
+            LauncherSettingsItem() ||
+            DeviceSettingsItem() ||
+            TerminalDrawerItem() =>
+              null,
           },
         );
       },

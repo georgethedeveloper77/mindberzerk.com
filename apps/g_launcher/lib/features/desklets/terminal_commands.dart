@@ -7,19 +7,35 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import '../settings/settings_screen.dart';
+import '../terminal/command_registry.dart';
+import '../terminal/terminal_screen.dart';
 import '../themes/themes_screen.dart';
 
-/// What the terminal shell understands. PHASE D6.
+/// What the terminal shell understands. PHASE D6, now reading from the shared
+/// registry.
 ///
-/// ─── REPLACES THE `_commands` SET IN tui_shell ──────────────────────────────
+/// ─── WHAT MOVED, AND WHY IT HAD TO ──────────────────────────────────────────
 ///
-/// That set held four synonyms for one action. This is a table, because the
-/// terminal now does three different kinds of thing:
+/// The table itself is now [TerminalRegistry], and this class is the TUI
+/// shell's dispatcher over it. Nothing about the prompt changes: same commands,
+/// same completion, same ordering, same aliases.
 ///
-///   NAVIGATE   `settings`, `themes` push a screen
-///   SPAWN      `free -h`, `df -h`, `ls`, `top`, `neofetch`, `date`, `uptime`
-///              leave a LIVE block in the pane that survives a restart
-///   MANAGE     `clear`, `help`
+/// It moved because a SECOND terminal surface is landing. The Terminal app is a
+/// drawer entry like Settings, so it appears on gnome, plasma, tiling and aqua
+/// distros, none of which run this shell. Kali is `shell: gnome`; without that
+/// entry a Kali user has no terminal at all.
+///
+/// Two surfaces was about to mean two tables, and the day they disagree one of
+/// them is wrong and nothing fails. `settings` means the same thing typed at
+/// either prompt. The registry is where that fact lives once.
+///
+/// ─── WHAT STAYED HERE ───────────────────────────────────────────────────────
+///
+/// Dispatch, because dispatch is per surface and genuinely different. This
+/// shell NAVIGATES by pushing a route, and SPAWNS by writing a desklet into the
+/// pane. The Terminal app has no pane and no `Navigator` of this shell's, so it
+/// will answer the same [CommandAction] differently. Folding both into the
+/// registry would put two unrelated implementations behind one switch.
 ///
 /// ─── WHY SPAWNING WRITES A DESKLET ──────────────────────────────────────────
 ///
@@ -29,149 +45,49 @@ import '../themes/themes_screen.dart';
 /// already live and already persisted, so the terminal gets both for free and
 /// the pane renderer is the same one the graphical desktops use.
 ///
-/// ─── AND WHY SETTINGS IS IN THIS TABLE AT ALL ───────────────────────────────
+/// ─── AND WHY SETTINGS IS IN THE TABLE AT ALL ────────────────────────────────
 ///
-/// Every other shell surfaces G Launcher's own settings as a drawer entry —
+/// Every other shell surfaces G Launcher's own settings as a drawer entry.
 /// `drawerItemsProvider` appends a `LauncherSettingsItem` downstream of the
 /// hidden-apps filter, so the GNOME grid, KDE's Kickoff and the tiling launcher
 /// all have it, and any new distro on those shells inherits it as data.
 ///
-/// The terminal has no drawer. It fuzzy-matches installed APPS, and a launcher
-/// entry is not one, so without this table Settings is unreachable here. Typing
+/// The TUI shell has no drawer. It fuzzy-matches installed APPS, and a launcher
+/// entry is not one, so without the table Settings is unreachable here. Typing
 /// the command is also the most authentic possible answer on a shell whose
 /// entire premise is typing.
 class TerminalCommands {
   const TerminalCommands._();
 
-  /// Canonical command -> what it does. Aliases are resolved by [lookup].
-  ///
-  /// `ps` IS DELIBERATELY ABSENT. Android does not expose other processes to a
-  /// sandboxed app, and a fabricated process list would be exactly the lie the
-  /// nullable-stats rule exists to prevent. `top` stands in for it and is real:
-  /// it spawns the monitor desklet, which reads the same snapshot everything
-  /// else does.
-  static const _spawn = <String, String>{
-    'free': 'free',
-    'df': 'df',
-    'ls': 'ls',
-    'uptime': 'uptime',
-    'top': 'monitor',
-    'htop': 'monitor',
-    'conky': 'monitor',
-    'neofetch': 'fastfetch',
-    'fastfetch': 'fastfetch',
-    'date': 'clock',
-    'cal': 'clock',
-    'ifstat': 'network',
-    'ip': 'network',
-    'acpi': 'battery',
-    'du': 'storage',
-  };
-
-  static const _navigate = <String>{
-    'settings',
-    'gsettings',
-    'config',
-    'prefs',
-    'themes',
-    'distro',
-  };
-
-  static const _manage = <String>{'clear', 'reset', 'help', '?'};
+  /// This shell's slice of the registry.
+  static const CommandSurface _surface = CommandSurface.tui;
 
   /// Every command name, for completion and for the match list.
-  static List<String> get names => [
-        ..._navigate,
-        ..._spawn.keys,
-        ..._manage,
-      ];
+  static List<String> get names => TerminalRegistry.namesFor(_surface);
 
   /// What a command does, one line, for the match list.
-  ///
-  /// Deliberately phrased as OUTCOMES rather than as descriptions of the
-  /// command: someone reading this row has already typed three letters and
-  /// wants to know whether enter will do the thing they meant.
-  static String describe(String name) => switch (name) {
-        'settings' ||
-        'gsettings' ||
-        'config' ||
-        'prefs' =>
-          'G Launcher Settings',
-        'themes' || 'distro' => 'Switch distro',
-        'free' => 'Memory, live',
-        'df' || 'du' => 'Storage, live',
-        'ls' => 'Installed apps',
-        'uptime' => 'Time since boot',
-        'top' || 'htop' || 'conky' => 'System monitor, live',
-        'neofetch' || 'fastfetch' => 'System info',
-        'date' || 'cal' => 'Clock',
-        'ifstat' || 'ip' => 'Network throughput',
-        'acpi' => 'Battery detail',
-        'clear' || 'reset' => 'Clear the pane',
-        'help' || '?' => 'List commands',
-        _ => '',
-      };
+  static String describe(String name) => TerminalRegistry.describe(name);
 
   /// Commands matching what has been typed so far, best first.
-  ///
-  /// PREFIX, not fuzzy, and that is the shell convention rather than a
-  /// shortcut: `se` should complete to `settings`, and no shell has ever
-  /// matched `stg`. The app matcher stays fuzzy because app names are things
-  /// you half-remember; command names are things you know.
-  ///
-  /// Aliases are collapsed by their description, so typing `s` does not print
-  /// four rows that all say "G Launcher Settings".
-  static List<String> matching(String raw) {
-    final q = _canonical(raw);
-    if (q.isEmpty) return const [];
-
-    final seen = <String>{};
-    final out = <String>[];
-
-    // Exact first, so a full word never sits below a longer command that
-    // happens to start with it.
-    for (final n in names) {
-      if (n == q && seen.add(describe(n))) out.add(n);
-    }
-    for (final n in names) {
-      if (n != q && n.startsWith(q) && seen.add(describe(n))) out.add(n);
-    }
-    return out;
-  }
+  static List<String> matching(String raw) =>
+      TerminalRegistry.matching(raw, surface: _surface);
 
   /// The command enter should run, or null.
-  ///
-  /// Exact match, else a UNIQUE prefix. `se` runs `settings` because nothing
-  /// else starts with it; `c` runs nothing because `config`, `conky`, `cal`,
-  /// `clear` and `cancel` all do. Ambiguity resolves to "not a command", so the
-  /// app matcher gets it and the user is never surprised by which of five
-  /// things fired.
-  static String? resolve(String raw) {
-    final q = _canonical(raw);
-    if (q.isEmpty) return null;
-    if (names.contains(q)) return q;
-
-    final hits = matching(q);
-    return hits.length == 1 ? hits.first : null;
-  }
+  static String? resolve(String raw) =>
+      TerminalRegistry.resolve(raw, surface: _surface);
 
   /// Is [raw] something we handle? Checked BEFORE the app matcher, so a command
   /// always beats an app that happens to fuzzy-match it.
   ///
-  /// This is what makes typing `settings` open OURS rather than Android's, and
-  /// the match list has to agree — see [TerminalMatches]. Before that widget
-  /// existed the screen showed `launch Settings` pointing at Android's app
-  /// while enter opened the launcher's, which reads as ours being missing.
-  static bool handles(String raw) => resolve(raw) != null;
+  /// The match list has to agree, which is why `TerminalMatches` calls the same
+  /// pair. Before it did, the screen showed `launch Settings` pointing at
+  /// Android's app while enter opened the launcher's, which reads as ours being
+  /// missing.
+  static bool handles(String raw) =>
+      TerminalRegistry.handles(raw, surface: _surface);
 
-  /// Strip arguments and normalise.
-  ///
-  /// `free -h` and `free` are the same command; so are `ls -la` and `ls`. The
-  /// flags are not parsed because none of them would change anything we can
-  /// actually do, and silently ignoring a flag the user typed is friendlier
-  /// than refusing a command over it.
-  static String _canonical(String raw) =>
-      raw.trim().toLowerCase().split(RegExp(r'\s+')).first;
+  /// Shown by `help`. Built from the table rather than typed out beside it.
+  static String get helpLine => TerminalRegistry.helpLine;
 
   /// Run it. Returns false when the command is not ours, so the caller falls
   /// through to launching an app.
@@ -181,35 +97,65 @@ class TerminalCommands {
     EffectiveTheme theme,
     String raw,
   ) {
-    final c = resolve(raw);
-    if (c == null) return false;
+    final name = resolve(raw);
+    if (name == null) return false;
 
-    if (_navigate.contains(c)) {
-      HapticFeedback.selectionClick();
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => (c == 'themes' || c == 'distro')
-              ? const ThemesScreen()
-              : SettingsScreen(theme: theme),
-        ),
-      );
-      return true;
-    }
+    final command = TerminalRegistry.command(name);
+    if (command == null) return false;
 
-    if (_manage.contains(c)) {
-      if (c == 'help' || c == '?') {
+    // Exhaustive on purpose. A new CommandAction stops this switch compiling,
+    // which is the point of an enum here: a command that the registry advertises
+    // and this shell silently ignores would autocomplete and then do nothing.
+    switch (command.action) {
+      case CommandAction.openSettings:
+        _push(context, SettingsScreen(theme: theme));
+        return true;
+
+      case CommandAction.openThemes:
+        _push(context, const ThemesScreen());
+        return true;
+
+      case CommandAction.openTerminal:
+        HapticFeedback.selectionClick();
+        openTerminal(context, theme);
+        return true;
+
+      case CommandAction.help:
         context.showMessage(helpLine);
         return true;
-      }
-      _clearPane(ref, theme);
-      return true;
+
+      case CommandAction.clearPane:
+        _clearPane(ref, theme);
+        return true;
+
+      case CommandAction.spawnDesklet:
+        _spawnKind(context, ref, theme, command.spawnKind!);
+        return true;
+
+      case CommandAction.sshConnect:
+      case CommandAction.sshHosts:
+      case CommandAction.sshHost:
+      case CommandAction.sshKey:
+        // HANDED OVER, not refused.
+        //
+        // This shell has no scrollback, so it cannot render a remote session or
+        // a host list. What it can do is open the surface that can, carrying
+        // the line the person actually typed, which is what makes `ssh myserver`
+        // work at the home prompt of the Terminal distro.
+        //
+        // `raw` rather than the resolved name, because the arguments are the
+        // whole instruction here: `ssh` alone is a usage message.
+        HapticFeedback.selectionClick();
+        openTerminal(context, theme, initialCommand: raw.trim());
+        return true;
     }
+  }
 
-    final kind = _spawn[c];
-    if (kind == null) return false;
-
-    _spawnKind(context, ref, theme, kind);
-    return true;
+  static void _push(BuildContext context, Widget screen) {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
   }
 
   static void _spawnKind(
@@ -221,7 +167,7 @@ class TerminalCommands {
     final before = ref.read(prefsProvider(theme.spec.id)).value;
     if (before == null) return;
 
-    // The pane ignores position entirely — order is the layout — so this packs
+    // The pane ignores position entirely, order is the layout, so this packs
     // with `place` and never cares where it lands. The cols/rows are passed
     // because the pure engine takes them; on a pane they only bound the clamp.
     final after = DeskletLayout.place(
@@ -258,9 +204,4 @@ class TerminalCommands {
       return out;
     });
   }
-
-  /// Shown by `help`, and short enough to fit a toast — a terminal that answers
-  /// `help` with a wall of text on a phone is a terminal nobody reads.
-  static const helpLine =
-      'free · df · ls · top · uptime · date · neofetch · settings · clear';
 }

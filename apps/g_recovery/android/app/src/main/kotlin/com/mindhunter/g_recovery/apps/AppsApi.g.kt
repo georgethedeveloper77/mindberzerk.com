@@ -323,6 +323,63 @@ data class AppsState (
     return "AppsState(usageAccess=$usageAccess, totalBytes=$totalBytes, cacheBytes=$cacheBytes, count=$count)"
   }
 }
+
+/**
+ * How far the current read has got. Codec 131.
+ *
+ * DECLARED LAST, which is what keeps AppEntry on 129 and AppsState on 130.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AppsProgress (
+  /** Packages sized so far. Counted by the loop, never estimated. */
+  val done: Long,
+  /**
+   * Packages to size. Zero until the package list exists, which is the first
+   * second or so, and a caller seeing zero has been told the count is not
+   * known rather than handed a guess.
+   */
+  val total: Long,
+  val reading: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AppsProgress {
+      val done = pigeonVar_list[0] as Long
+      val total = pigeonVar_list[1] as Long
+      val reading = pigeonVar_list[2] as Boolean
+      return AppsProgress(done, total, reading)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      done,
+      total,
+      reading,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AppsProgress
+    return AppsApiPigeonUtils.deepEquals(this.done, other.done) && AppsApiPigeonUtils.deepEquals(this.total, other.total) && AppsApiPigeonUtils.deepEquals(this.reading, other.reading)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + AppsApiPigeonUtils.deepHash(this.done)
+    result = 31 * result + AppsApiPigeonUtils.deepHash(this.total)
+    result = 31 * result + AppsApiPigeonUtils.deepHash(this.reading)
+    return result
+  }
+  override fun toString(): String {
+    return "AppsProgress(done=$done, total=$total, reading=$reading)"
+  }
+}
 private open class AppsApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -336,6 +393,11 @@ private open class AppsApiPigeonCodec : StandardMessageCodec() {
           AppsState.fromList(it)
         }
       }
+      131.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AppsProgress.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -347,6 +409,10 @@ private open class AppsApiPigeonCodec : StandardMessageCodec() {
       }
       is AppsState -> {
         stream.write(130)
+        writeValue(stream, value.toList())
+      }
+      is AppsProgress -> {
+        stream.write(131)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -370,6 +436,13 @@ interface AppsHostApi {
   fun apps(callback: (Result<List<AppEntry>>) -> Unit)
   /** The system storage screen for one app, where Clear cache actually works. */
   fun openAppSettings(packageName: String, callback: (Result<Boolean>) -> Unit)
+  /**
+   * How far the current read has got.
+   *
+   * Answered off the worker thread. A progress call queued behind the read
+   * would report once, at the end, which is the one moment nobody needs it.
+   */
+  fun readProgress(callback: (Result<AppsProgress>) -> Unit)
 
   companion object {
     /** The codec used by AppsHostApi. */
@@ -441,6 +514,24 @@ interface AppsHostApi {
             val args = message as List<Any?>
             val packageNameArg = args[0] as String
             api.openAppSettings(packageNameArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(AppsApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(AppsApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_recovery.AppsHostApi.readProgress$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.readProgress{ result: Result<AppsProgress> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(AppsApiPigeonUtils.wrapError(error))

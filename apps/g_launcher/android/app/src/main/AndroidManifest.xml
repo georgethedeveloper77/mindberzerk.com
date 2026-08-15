@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       THE fix for "only Samsung apps show up, WhatsApp doesn't".
@@ -56,6 +57,32 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+      A PURCHASED PACK MUST FINISH DOWNLOADING EVEN IF THE USER LEAVES.
+
+      A launcher is the first process Android reclaims when a game wants
+      memory. Someone who buys a distro and then opens any app can have this
+      process killed mid-download, and without a foreground service the work
+      dies with it: they have paid, and nothing arrives. WorkManager's
+      `setForeground` is what keeps the job alive across that, and these two
+      permissions are what let it.
+
+      DATA_SYNC is the correct type and the only defensible one here. The work
+      is a user-initiated transfer of content they just bought; it is not
+      media playback, not location, not a short service. Play requires a
+      console declaration for the type, and that is the wording to use:
+      downloading purchased theme and icon packs, started by the user, ending
+      when the download completes.
+
+      NOT REQUESTED AT RUNTIME. Both are normal permissions. POST_NOTIFICATIONS
+      above IS a runtime permission on 13+, and is deliberately never prompted
+      for during a purchase: without it the notification is invisible, the work
+      still runs and still completes, and asking someone for notification
+      access in the middle of paying is the worst possible moment.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <uses-permission android:name="com.android.vending.BILLING" />
 
     <!--
@@ -107,6 +134,29 @@
 
         <intent>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent>
+
+        <!--
+          VOICE. The launcher does no speech of its own; it hands off to
+          whatever the phone already has.
+
+          WITHOUT THESE THE MICROPHONE HIDES ITSELF ON EVERY MODERN PHONE, which
+          is the same silent Android 11 filtering described above for icon packs
+          and the installer. `canRecognizeSpeech` calls resolveActivity, that
+          call is package-visibility filtered, this app deliberately holds no
+          QUERY_ALL_PACKAGES, and so a device with a perfectly good recogniser
+          reports having none. It reads as "voice search was never built".
+
+          ASSIST is listed for the same reason. `openIntent` fires it without
+          resolving first, so the gesture works either way, but anything that
+          checks before offering it needs this entry to get an honest answer.
+        -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.ASSIST" />
         </intent>
 
         <!--
@@ -255,6 +305,26 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+
+        <!--
+          WORKMANAGER'S OWN SERVICE, TYPED.
+
+          `SystemForegroundService` is declared by the WorkManager library, and
+          on Android 14+ a foreground service with no `foregroundServiceType`
+          throws `MissingForegroundServiceTypeException` the moment
+          `setForeground` is called. The library cannot know which type an app
+          needs, so the app declares it here and the manifest merger folds it
+          into the library's entry.
+
+          `tools:node="merge"` rather than a full redeclaration: this adds one
+          attribute to what the library already declares. Replacing it wholesale
+          would mean re-stating internals that are the library's to change.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
     </application>
 </manifest>

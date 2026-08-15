@@ -1327,6 +1327,40 @@ interface LauncherHostApi {
    * file manager is not a crash.
    */
   fun openIntent(action: String, uri: String?, type: String?): Boolean
+  /**
+   * Can anything on this phone transcribe speech?
+   *
+   * Asked so the microphone in the search field can be ABSENT rather than
+   * present and dead. Same rule the stats rows follow: a control that does
+   * nothing is worse than no control, because the user concludes the app is
+   * broken rather than that the phone lacks a recogniser.
+   *
+   * Needs the matching `<intent>` in the manifest's `<queries>` block.
+   * `resolveActivity` is package-visibility filtered on Android 11+ and this
+   * app deliberately does not hold QUERY_ALL_PACKAGES, so without it this
+   * returns false on every modern phone and the microphone hides itself
+   * everywhere.
+   */
+  fun canRecognizeSpeech(callback: (Result<Boolean>) -> Unit)
+  /**
+   * Run the phone's own speech recogniser and return what it heard, or null.
+   *
+   * ─── WHY THE INTENT AND NOT SpeechRecognizer ──────────────────────────────
+   *
+   * `SpeechRecognizer` listens inline with no screen change, which is nicer,
+   * and costs RECORD_AUDIO, a runtime permission prompt and a microphone entry
+   * on the data-safety form. `ACTION_RECOGNIZE_SPEECH` hands the job to
+   * whichever recogniser the user already has, with that recogniser's own UI,
+   * and needs no permission at all. For a launcher whose whole pitch is that it
+   * does not surveil anyone, the second is not a compromise.
+   *
+   * Null covers every non-answer: cancelled, misheard, no recogniser, or the
+   * Activity torn down while the recogniser was on screen. The caller leaves
+   * the search field alone in all four cases.
+   *
+   * [prompt] is the line the recogniser shows above its microphone.
+   */
+  fun recognizeSpeech(prompt: String?, callback: (Result<String?>) -> Unit)
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -1868,6 +1902,44 @@ interface LauncherHostApi {
               LauncherApiPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.canRecognizeSpeech$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.canRecognizeSpeech{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.recognizeSpeech$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val promptArg = args[0] as String?
+            api.recognizeSpeech(promptArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)
