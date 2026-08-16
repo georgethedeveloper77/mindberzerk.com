@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { completeSignIn, signIn } from '@/lib/core/firebase-client';
+import { signIn } from '@/lib/core/firebase-client';
 
 /**
  * The only page reachable without a session, at `/admin`.
@@ -81,68 +81,18 @@ export default function AdminSignInPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // ── FINISH A REDIRECT THE MOMENT THIS PAGE LOADS ───────────────────────
-  //
-  // With a popup, `signIn` did the whole exchange and returned a result. A
-  // redirect has no such moment: the user leaves, signs in at Google, and comes
-  // back as a FRESH LOAD carrying a pending credential that only
-  // `getRedirectResult` can collect. Without this effect they would sign in
-  // successfully and land straight back on this screen with no error and
-  // nothing in the log, which is indistinguishable from the button not working.
-  //
-  // `busy` is set for the whole check so the button cannot be pressed into a
-  // second redirect while the first is being collected. The `idle` case clears
-  // it silently, because a first visit with no redirect in flight is not an
-  // error and must not flash one.
-  useEffect(() => {
-    let live = true;
-    setBusy(true);
-    completeSignIn()
-      .then((outcome) => {
-        if (!live) return;
-        if (outcome.state === 'ok') {
-          // The console, not `/`: `/` is the public site now, and the proxy
-          // lets a session-holding browser stay there, so landing on it after
-          // sign-in would leave an admin looking at the marketing page.
-          router.replace(outcome.returnTo ?? '/dashboard');
-          router.refresh();
-          // Deliberately still busy. The route is changing, and clearing it
-          // here would repaint an enabled button for the frame before it goes.
-          return;
-        }
-        if (outcome.state === 'error') setError(outcome.error);
-        setBusy(false);
-      })
-      .catch(() => {
-        if (!live) return;
-        setError('Sign-in failed. Try again.');
-        setBusy(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [router]);
-
   async function onSignIn() {
     setBusy(true);
     setError(null);
-    try {
-      // Where the gate wanted them, so signing in does not always dump someone
-      // on the dashboard when they followed a link to a distro. `?next=` is
-      // read rather than `document.referrer`, which is empty on a redirect and
-      // wrong on a bookmark.
-      const next = new URLSearchParams(window.location.search).get('next');
-      // Relative paths only. An absolute URL here would be an open redirect
-      // wearing a query parameter, and the one thing this page must not do is
-      // send a signed-in admin somewhere else entirely.
-      const safe = next && next.startsWith('/') && !next.startsWith('//')
-          ? next
-          : undefined;
-      await signIn(safe);
-      // Not reached: the document unloads. Nothing after this line runs, which
-      // is why there is no success branch here any more.
-    } catch {
-      setError('Sign-in could not start. Try again.');
+    const result = await signIn();
+    if (result.ok) {
+      // The console, not `/`: `/` is the public site now, and the proxy lets a
+      // session-holding browser stay there, so landing on it after sign-in
+      // would leave an admin looking at the marketing page.
+      router.replace('/dashboard');
+      router.refresh();
+    } else {
+      setError(result.error ?? 'Sign-in failed.');
       setBusy(false);
     }
   }
