@@ -52,6 +52,22 @@ export interface HeroPack {
   masked: boolean;
   /** packageName (or componentKey) -> filename inside the pack. */
   icons: Record<string, string>;
+  /**
+   * Credit line for art under CC BY or CC BY-SA. Absent for own work.
+   *
+   * ─── AN ADDITIVE KEY, WHICH IS WHY THIS IS SAFE ───────────────────────────
+   *
+   * `HeroIconResolver.readPack` reads `id`, `name`, `masked` and `icons` by
+   * name and ignores everything else, so every launcher already shipped keeps
+   * working against a pack that carries this and every pack without it stays
+   * byte-identical. That is the ONLY reason a schema change is acceptable here
+   * without a launcher release: it is not read, it is carried.
+   *
+   * It exists because BY-SA attribution has to travel WITH the art rather than
+   * live in the panel. A credit that only exists in an admin screen is not
+   * attribution, it is a note to oneself.
+   */
+  attribution?: string;
 }
 
 export interface HeroEntry {
@@ -67,10 +83,18 @@ export function buildHeroPackJson(
   name: string,
   masked: boolean,
   entries: HeroEntry[],
+  attribution?: string,
 ): HeroPack {
   const icons: Record<string, string> = {};
   for (const e of entries) icons[e.pkg] = e.file;
-  return { id, name, masked, icons };
+  const pack: HeroPack = { id, name, masked, icons };
+  // OMITTED, not written empty. Every pack published before attribution existed
+  // has no such key, and a pack that gains `"attribution": ""` would differ from
+  // its predecessor in the signed manifest for no reason anybody could explain
+  // reading the diff.
+  const credit = (attribution ?? '').trim();
+  if (credit) pack.attribution = credit;
+  return pack;
 }
 
 /**
@@ -249,4 +273,152 @@ export function isPackageName(value: string): boolean {
   // The resolver also accepts a full componentKey for apps with several
   // launchable activities: pkg/class#serial.
   return /^[a-z][a-z0-9_.]+\/[A-Za-z0-9_.$]+#\d+$/.test(value);
+}
+
+// ── strict matching, for archive-scale intake ───────────────────────────────
+
+/**
+ * `guessPackage` IS RIGHT FOR ONE FILE AND WRONG FOR FIFTEEN THOUSAND.
+ *
+ * Its hint test is `stem.includes(hint)`, which is the correct generosity when
+ * a human drops one drawing in and can see the row it produced. Run the same
+ * rule across a real Android icon pack and it collapses unrelated art onto core
+ * packages. Measured against the actual function, with plausible Arcticons
+ * filenames:
+ *
+ *   com.android.vending  playstation, play_store, google_play_books,
+ *                        google_play_games, shopee, softwareupdate, storeman
+ *   com.android.mms      sms_backup, chat_gpt, snapchat, wechat, messagesbygoogle
+ *   com.google.../keep   notepadpp, keepassdx, keeper
+ *   com.android.dialer   call_of_duty, callisto
+ *   com.android.camera2  photomath, photopea, camerafv5
+ *
+ * `google_maps.svg` lands on the SEARCH BOX, because the `google` hint on Search
+ * is tested before Maps and first match wins.
+ *
+ * Every one of those groups is a duplicate package, and `ready` in the builder
+ * requires `duplicates.size === 0`. So the outcome is not a few wrong icons: it
+ * is a publish button that greys out, with the cause buried in one of several
+ * thousand rows and nothing on screen naming it. That is this codebase's
+ * signature failure, and it arrives the first time somebody drops a real pack in.
+ *
+ * ── SO BULK INTAKE MATCHES ON THE WHOLE STEM, NOT A SUBSTRING ───────────────
+ *
+ * `settings.svg` is Settings. `snapchat.svg` is Snapchat, not Messages.
+ * `call_of_duty.svg` is nothing, and nothing is the correct answer. What used to
+ * be a wrong mapping is now an unclaimed file in the Other icons pool, where it
+ * is searchable and one tap from being assigned deliberately.
+ *
+ * The cost is real and worth naming: `google_maps.svg` no longer auto-claims
+ * Maps either. Token matching would recover it, and would also hand
+ * `call_of_duty` to Phone, because `call` is a token. Given that any pack worth
+ * importing ships an `appfilter.xml` that answers this exactly, and that the
+ * pool is searchable, strictness is the better trade. One search beats a silently
+ * wrong dialer icon on every device.
+ *
+ * `guessPackage` is UNTOUCHED and still used for single picks and glyphs, where
+ * one visible row carries one visible guess.
+ */
+
+/** Lowercase alphanumerics only. `Google_Maps.svg` becomes `googlemaps`. */
+export function normaliseStem(fileName: string): string {
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Every stem that names a role, to the roles claiming it.
+ *
+ * Built once. A stem with more than one claimant is AMBIGUOUS and matches
+ * nothing: `memo` is a hint on both Recorder and Notes, and picking whichever
+ * came first in the array would be an arbitrary answer dressed as a confident
+ * one. The role id and the label both count as stems, so `grecovery.svg` and
+ * `app_store.svg` land without either needing to be added to `hints`.
+ */
+const STEM_CLAIMS: Map<string, string[]> = (() => {
+  const claims = new Map<string, string[]>();
+  const add = (stem: string, roleId: string) => {
+    if (!stem) return;
+    const held = claims.get(stem);
+    if (!held) claims.set(stem, [roleId]);
+    else if (!held.includes(roleId)) held.push(roleId);
+  };
+  for (const role of CORE_ROLES) {
+    add(role.id, role.id);
+    add(normaliseStem(role.label), role.id);
+    for (const hint of role.hints) add(normaliseStem(hint), role.id);
+  }
+  return claims;
+})();
+
+export type StemMatch =
+  | { kind: 'role'; role: string }
+  | { kind: 'package'; pkg: string }
+  | { kind: 'ambiguous'; roles: string[] }
+  | { kind: 'none' };
+
+/**
+ * What a file name claims, strictly.
+ *
+ * A `kind` rather than a nullable string because the four outcomes need
+ * different handling by the caller, and collapsing them loses the one that
+ * matters: `ambiguous` is a file the author should look at, and it must not read
+ * as `none` and disappear into a pool of thousands.
+ *
+ * The `package` case keeps the one piece of `guessPackage` that is exact rather
+ * than fuzzy: a file literally named `com.google.android.dialer.svg` is a
+ * package id, and treating that as unmatched would be perverse.
+ *
+ * THREE OR MORE SEGMENTS, deliberately, which is stricter than `isPackageName`.
+ * Two segments would make any dotted filename a package: `arcticons.dark.svg`
+ * would become the app `arcticons.dark`, and a false positive here assigns art
+ * to an app nobody named. A two-segment id like `com.whatsapp` therefore goes
+ * to the shelf instead, where `appfilter.xml` has very likely already labelled
+ * it and one tap claims it correctly. A miss is cheap now; a wrong assignment
+ * never was.
+ */
+/**
+ * Reverse-DNS roots, for the one case below where two segments is enough.
+ *
+ * `com.whatsapp` is a real package id with a single dot after its root, and a
+ * file literally named `com.whatsapp.svg` naming its own app is not something
+ * to send to a shelf. But `{1,}` alone would read `phone.dark.svg` and
+ * `icon.large.svg` as package ids, which is a confident wrong answer.
+ *
+ * So: three or more segments is a package regardless, and two segments is a
+ * package only when the first is a root that actually starts package ids. That
+ * accepts `com.whatsapp` and rejects `phone.dark`, which is the whole
+ * distinction being drawn.
+ */
+const DNS_ROOTS = new Set([
+  'com', 'org', 'net', 'io', 'co', 'app', 'dev', 'me', 'tv', 'xyz',
+  'cn', 'ru', 'de', 'uk', 'in', 'id', 'br', 'jp', 'kr', 'fr', 'nl', 'eu',
+]);
+
+/** Does this bare stem name an Android package outright? */
+function looksLikePackageStem(raw: string): boolean {
+  if (!/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/i.test(raw)) return false;
+  const parts = raw.toLowerCase().split('.');
+  if (parts.length >= 3) return true;
+  return DNS_ROOTS.has(parts[0]);
+}
+
+export function matchStemStrict(fileName: string): StemMatch {
+  const raw = fileName.replace(/\.[^.]+$/, '');
+  if (looksLikePackageStem(raw)) {
+    return { kind: 'package', pkg: raw.toLowerCase() };
+  }
+  const stem = normaliseStem(fileName);
+  if (!stem) return { kind: 'none' };
+  const claims = STEM_CLAIMS.get(stem);
+  if (!claims) return { kind: 'none' };
+  if (claims.length > 1) return { kind: 'ambiguous', roles: claims };
+  return { kind: 'role', role: claims[0] };
+}
+
+/** A role by id, or null. Named so callers stop re-scanning CORE_ROLES inline. */
+export function roleById(id: string): CoreRole | null {
+  return CORE_ROLES.find((r) => r.id === id) ?? null;
 }

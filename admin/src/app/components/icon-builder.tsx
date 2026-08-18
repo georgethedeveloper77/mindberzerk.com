@@ -7,9 +7,18 @@ import {
 } from '@/app/apps/[app]/icons/builder/actions';
 import { useRouter } from 'next/navigation';
 
-import { expandPicked, LICENSE_ATTESTATION, type RefusedFile } from '@/lib/g-launcher/bulk-icons';
 import {
-  CORE_PACKAGES,
+  expandArchive,
+  fileFromArt,
+  licenseProblem,
+  LICENSE_LANES,
+  type LicenseLane,
+  type RawArt,
+  type RefusedFile,
+} from '@/lib/g-launcher/bulk-icons';
+import { IconShelf } from '@/app/components/icon-shelf';
+import { normaliseHex, recolourBytes, isRecolourable } from '@/lib/g-launcher/svg-recolor';
+import {
   CORE_ROLES,
   expandRoleEntries,
   buildHeroPackJson,
@@ -324,6 +333,43 @@ export function IconBuilder({
   // attestation was made when it was first published.
   const [licensed, setLicensed] = useState<boolean>(() => !!initial);
 
+  // ── THE LICENSE LANE, WHICH USED TO BE A SINGLE CHECKBOX ─────────────────
+  //
+  // Two lanes existed: "CC0, MIT, or my own work" and an implicit refusal of
+  // anything the scan caught. Art under CC BY or CC BY-SA fell between them and
+  // came out the wrong side: Arcticons licenses its icons BY-SA and ships bare
+  // path SVGs with no license text, so they pass the scan and land under a
+  // checkbox asserting they are CC0.
+  //
+  // `attribution` is written into pack.json rather than kept here, because a
+  // credit that exists only in an admin screen is not attribution.
+  const [lane, setLane] = useState<LicenseLane>('own');
+  // NOT seeded from `initial`, and that is a known gap rather than an oversight.
+  // `RehydratedPack` is built by `lib/core/cdn.ts`, which reads pack.json for
+  // the icon map and does not carry this key, so reopening a published BY-SA
+  // pack starts the credit blank. Saying so here is better than a cast that
+  // reads as restored and is always undefined. Two lines in `cdn.ts` close it.
+  const [attribution, setAttribution] = useState('');
+
+  // ── THE UNCLAIMED SHELF ──────────────────────────────────────────────────
+  //
+  // Bytes, not entries. See `icon-shelf.tsx` for why the distinction is the
+  // whole reason a fifteen-thousand-file archive can be opened at all.
+  const [shelf, setShelf] = useState<RawArt[]>([]);
+  const [intakeNote, setIntakeNote] = useState<string | null>(null);
+
+  // ── LINE COLOUR ──────────────────────────────────────────────────────────
+  //
+  // Null means "as authored", which is the default and must stay the default:
+  // a builder that opened in a recolouring mode would restyle a republished
+  // pack the first time anyone pressed publish, exactly as `style` would.
+  //
+  // Applied at INTAKE, before rasterisation, so no `IconStyle` field and no
+  // Pigeon regeneration is involved. See `svg-recolor.ts`.
+  const [lineColour, setLineColour] = useState<string | null>(null);
+  const [lineDraft, setLineDraft] = useState('#367BF0');
+  const [recolourable, setRecolourable] = useState(0);
+
   // Display-only. At folder scale the rows needing a human are the point, and
   // they should not be buried under forty that guessed fine.
   const [unmappedFirst, setUnmappedFirst] = useState(false);
@@ -436,24 +482,87 @@ export function IconBuilder({
     setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
   }
 
+  /**
+   * Intake, which is now THREE TIERS rather than one flatten.
+   *
+   * ─── WHAT CHANGED, AND THE FAILURE IT CLOSES ─────────────────────────────
+   *
+   * This used to call `expandPicked`, turn EVERY expanded file into an `Entry`,
+   * and run `guessPackage` over each name. Two things broke at archive scale
+   * and both broke silently.
+   *
+   * `guessPackage` matches by substring, so a real icon set collapses onto a
+   * handful of packages: `play_store`, `playstation`, `shopee`, `storeman`,
+   * `softwareupdate`, `google_play_books` and `google_play_games` all become
+   * `com.android.vending`. Every collapse is a duplicate, `ready` requires
+   * `duplicates.size === 0`, and the result is a greyed-out Publish button with
+   * nothing on screen saying which of thousands of rows caused it.
+   *
+   * And every file became an Entry, meaning a File, a Blob, an object URL and a
+   * `renderHeroIcon` pass each. At fourteen thousand files the tab dies.
+   *
+   * `expandArchive` fixes both by answering a different question: what does the
+   * archive CONFIDENTLY know? An `appfilter.xml` is the pack author's own
+   * package-to-drawable map and is trusted first; exact filename stems come
+   * second; everything else goes to the shelf as bytes, where it is searchable
+   * and costs nothing until claimed.
+   */
   async function addFiles(files: FileList | null) {
     if (!files?.length) return;
-    // Expansion first: zips flatten, folders lose their noise, license-marked
-    // SVGs are refused by name. Only what survives enters the pipeline.
-    const intake = await expandPicked(Array.from(files));
+    setIntakeNote(null);
+
+    const intake = await expandArchive(Array.from(files));
     setRefused(intake.refused);
-    if (intake.files.length === 0) return;
+
+    // Offered only when there is something it could actually act on. A recolour
+    // control on a set of finished multi-colour art is a control that does
+    // nothing, which is worse than an absent one.
+    const canRecolour = intake.unclaimed
+      .concat(intake.claimed.map((c) => c.art))
+      .filter(
+        (a) => a.mime === 'image/svg+xml' && isRecolourable(new TextDecoder().decode(a.bytes)),
+      ).length;
+    setRecolourable(canRecolour);
+
+    setShelf(intake.unclaimed);
+
+    const parts: string[] = [];
+    if (intake.appfilterCount > 0) {
+      parts.push(
+        `Read ${intake.appfilterCount} mappings from appfilter.xml, so these are the pack author\u2019s own, not guesses.`,
+      );
+    } else if (intake.source === 'filenames') {
+      parts.push('No appfilter.xml, so matching used exact file names only.');
+    }
+    parts.push(
+      `${intake.claimed.length} matched a core app, ${intake.unclaimed.length} went to Other icons.`,
+    );
+    if (intake.deduped > 0) {
+      parts.push(`${intake.deduped} duplicate copies of the same icon were dropped, best kept.`);
+    }
+    setIntakeNote(parts.join(' '));
+
+    if (intake.claimed.length === 0) return;
+
+    // Only CLAIMED art is rendered, and one role holds one file, so this loop
+    // is bounded by the core set rather than by the archive.
     const stamp = Date.now();
-    const added: Entry[] = intake.files.map((file, i) => ({
-      id: `${stamp}-${i}-${file.name}`,
-      file,
-      pkg: guessPackage(file.name) ?? '',
-      url: null,
-      blob: null,
-      aspect: 1,
-      error: null,
-      busy: true,
-    }));
+    const added: Entry[] = [];
+    for (let i = 0; i < intake.claimed.length; i++) {
+      const c = intake.claimed[i];
+      if (covered.has(c.slot)) continue;
+      added.push({
+        id: `${stamp}-${i}-${c.art.stem}`,
+        file: fileFromArt(recolourArt(c.art)),
+        pkg: c.slot,
+        url: null,
+        blob: null,
+        aspect: 1,
+        error: null,
+        busy: true,
+      });
+    }
+    if (added.length === 0) return;
     setEntries((e) => [...e, ...added]);
     // Sequential: each decode reads back a full image, and forty at once stalls
     // a mid-range phone long enough to look like a crash.
@@ -461,6 +570,36 @@ export function IconBuilder({
       const done = await render(entry, style);
       setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
     }
+  }
+
+  /** Line colour applied to the bytes, before anything rasterises them. */
+  function recolourArt(art: RawArt): RawArt {
+    if (!lineColour) return art;
+    return { ...art, bytes: recolourBytes(art.bytes, art.mime, lineColour) };
+  }
+
+  /**
+   * A shelf row becoming a real icon.
+   *
+   * The bytes were held unrendered until exactly this moment, which is what
+   * kept the archive affordable. One file goes through the normal pipeline and
+   * the row is indistinguishable from a dropped file afterwards.
+   */
+  async function claimFromShelf(art: RawArt, slot: string) {
+    setShelf((all) => all.filter((a) => a.id !== art.id));
+    const entry: Entry = {
+      id: `${Date.now()}-${art.stem}`,
+      file: fileFromArt(recolourArt(art)),
+      pkg: slot,
+      url: null,
+      blob: null,
+      aspect: 1,
+      error: null,
+      busy: true,
+    };
+    setEntries((e) => [...e, entry]);
+    const done = await render(entry, style);
+    setEntries((all) => all.map((e) => (e.id === entry.id ? done : e)));
   }
 
   /**
@@ -525,6 +664,11 @@ export function IconBuilder({
     [],
   );
 
+  // Null when the attestation is complete. A sentence rather than a boolean,
+  // because it disables Publish and a disabled button with no reason beside it
+  // is this codebase's most-repeated bug.
+  const licenceIssue = licensed ? licenseProblem(lane, attribution) : 'The license attestation is needed before publishing.';
+
   const ready = useMemo(
     () =>
       entries.length > 0 &&
@@ -533,9 +677,9 @@ export function IconBuilder({
       ) &&
       duplicates.size === 0 &&
       /^[a-z0-9._-]+$/.test(packId) &&
-      licensed &&
+      licenceIssue === null &&
       !busy,
-    [entries, duplicates, packId, licensed, busy, slotMapped],
+    [entries, duplicates, packId, licenceIssue, busy, slotMapped],
   );
 
   const covered = new Set(entries.map((e) => e.pkg));
@@ -659,6 +803,14 @@ export function IconBuilder({
       body.append('paths', fileName);
     }
 
+    // Credit ships INSIDE the pack, not beside it. `HeroIconResolver` reads
+    // four keys by name and ignores the rest, so this is additive: every
+    // launcher already in the field keeps working, and a pack with no credit is
+    // byte-identical to one built before attribution existed.
+    if (lane === 'attributed' && attribution.trim()) {
+      body.set('attribution', attribution.trim());
+    }
+
     const pack = buildHeroPackJson(
       packId,
       name || packId,
@@ -666,6 +818,7 @@ export function IconBuilder({
       expandRoleEntries(
         entries.map((e) => ({ slot: e.pkg, file: fileNameFor(e.pkg) })),
       ),
+      lane === 'attributed' ? attribution : undefined,
     );
     body.append(
       'files',
@@ -1071,6 +1224,67 @@ export function IconBuilder({
           guessed from filenames and reviewed below; nothing uploads until you
           publish.
         </p>
+        {/* ── LINE COLOUR ──────────────────────────────────────────────────
+            Shown only when the intake found monotone SVG art, because that is
+            the only kind it can retarget without damage. A two-colour icon is
+            left alone rather than flattened: flattening one is a mistake, and
+            flattening a whole set silently is the kind nobody notices until it
+            is published.
+
+            It rewrites the SVG's paint before rasterisation, so no IconStyle
+            field, no Pigeon regeneration and no icon-cache fingerprint is
+            involved. The bytes that ship are already the right colour. */}
+        {recolourable > 0 && (
+          <div className="mt-3 rounded-[14px] border border-site-line bg-site-sunk p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13px] text-site-ink-2">Line colour</span>
+              <button
+                type="button"
+                onClick={() => setLineColour(null)}
+                className={`rounded-lg border px-2.5 py-1.5 text-[12px] ${
+                  lineColour === null
+                    ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep'
+                    : 'border-site-line text-site-ink-2'
+                }`}
+              >
+                As authored
+              </button>
+              <span
+                className="size-8 shrink-0 rounded-lg border border-site-line"
+                style={{ background: lineDraft }}
+              />
+              <input
+                value={lineDraft}
+                onChange={(e) => setLineDraft(e.target.value)}
+                autoCapitalize="none"
+                spellCheck={false}
+                className="w-32 rounded-lg border border-site-line bg-site-card px-2.5 py-1.5 font-mono text-[13px]"
+              />
+              <button
+                type="button"
+                onClick={() => setLineColour(normaliseHex(lineDraft))}
+                disabled={normaliseHex(lineDraft) === null}
+                className={`rounded-lg border px-2.5 py-1.5 text-[12px] disabled:opacity-40 ${
+                  lineColour !== null
+                    ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep'
+                    : 'border-site-line text-site-ink-2'
+                }`}
+              >
+                Recolour
+              </button>
+            </div>
+            <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
+              {lineColour
+                ? `${recolourable} monotone drawings will ship in ${lineColour}. Art with two or more colours is left exactly as it was.`
+                : `${recolourable} of the drawings picked are monotone line art, so they can carry a distro\u2019s own colour. Recolouring an adapted set makes it a derivative work, which matters under CC BY-SA.`}
+            </p>
+          </div>
+        )}
+
+        {/* ── THE LICENSE LANE ─────────────────────────────────────────────
+            One checkbox became a checkbox plus a lane, because a lane was
+            missing. See LICENSE_LANES in bulk-icons for the case that fell
+            through: BY-SA art scans clean and then sits under a claim of CC0. */}
         <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11.5px] leading-relaxed text-site-ink-2">
           <input
             type="checkbox"
@@ -1078,8 +1292,49 @@ export function IconBuilder({
             onChange={(e) => setLicensed(e.target.checked)}
             className="mt-0.5"
           />
-          <span>{LICENSE_ATTESTATION}</span>
+          <span>
+            I have the right to publish this art. GPL sets (Papirus, Numix, Flat Remix) cannot ship
+            over the CDN in any form.
+          </span>
         </label>
+
+        {licensed && (
+          <div className="mt-2 rounded-[14px] border border-site-line bg-site-sunk p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {LICENSE_LANES.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setLane(l.id)}
+                  className={`rounded-lg border px-2.5 py-1.5 text-[12px] ${
+                    lane === l.id
+                      ? 'border-site-accent/40 bg-site-accent-soft text-site-accent-deep'
+                      : 'border-site-line text-site-ink-2'
+                  }`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
+              {LICENSE_LANES.find((l) => l.id === lane)?.note}
+            </p>
+            {lane === 'attributed' && (
+              <input
+                value={attribution}
+                onChange={(e) => setAttribution(e.target.value)}
+                placeholder="Based on Arcticons by Team Arcticons, CC BY-SA 4.0, recoloured"
+                className="mt-2 w-full rounded-lg border border-site-line bg-site-card px-3 py-2 text-[13px]"
+              />
+            )}
+          </div>
+        )}
+
+        {intakeNote && (
+          <p className="mt-3 rounded-[14px] bg-site-info-soft px-4 py-3 text-[12.5px] leading-relaxed text-site-info">
+            {intakeNote}
+          </p>
+        )}
         {refused.length > 0 && (
           <div className="mt-3 space-y-1">
             {refused.map((r, i) => (
@@ -1181,6 +1436,19 @@ export function IconBuilder({
         </section>
       )}
 
+      {/* ── the unclaimed shelf ──────────────────────────────────────────────
+          Between the pack and the core set, which is where it belongs in the
+          reading order: these are the icons the archive HAD, sitting below the
+          ones it placed and above the slots still empty. Held as bytes; see
+          icon-shelf.tsx. */}
+      <IconShelf
+        items={shelf}
+        takenSlots={covered}
+        lineColour={lineColour}
+        onClaim={({ art, slot }) => void claimFromShelf(art, slot)}
+        onClear={() => setShelf([])}
+      />
+
       {/* ── coverage ─────────────────────────────────────────────────────────
           ALWAYS RENDERED, not only once files exist. Hidden behind
           `entries.length > 0` this doubled as the builder's app list and was
@@ -1261,9 +1529,14 @@ export function IconBuilder({
           A draft is stored for you alone. It publishes nothing, bumps no version and reaches no
           device.
         </span>
-        {!licensed && entries.length > 0 && (
+        {licenceIssue && entries.length > 0 && (
+          <p className="mt-2 text-[11.5px] text-site-plan">{licenceIssue}</p>
+        )}
+        {duplicates.size > 0 && (
           <p className="mt-2 text-[11.5px] text-site-plan">
-            Publishing needs the license attestation above.
+            {duplicates.size} {duplicates.size === 1 ? 'app has' : 'apps have'} two icons, so
+            publishing is held: {[...duplicates].slice(0, 4).join(', ')}
+            {duplicates.size > 4 ? ' and more' : ''}. Use Unmapped first above to find them.
           </p>
         )}
         {publishedIds.length > 0 && !packId && (
