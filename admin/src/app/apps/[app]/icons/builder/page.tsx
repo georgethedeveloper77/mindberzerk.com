@@ -13,6 +13,7 @@ import {
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
 import { skuCatalogue } from '@/lib/core/sku-catalogue';
 import { draftAssetUrl, readIconDraft } from '@/lib/g-launcher/icon-drafts';
+import { expandRoleEntries } from '@/lib/g-launcher/icon-pack';
 import { readAllDraftsSafe } from '@/lib/g-launcher/themes';
 
 export const dynamic = 'force-dynamic';
@@ -88,7 +89,7 @@ export default async function IconBuilderPage({
   searchParams,
 }: {
   params: Promise<{ app: string }>;
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ id?: string; draft?: string }>;
 }) {
   const gate = await adminGate();
   if (gate) return gate;
@@ -96,7 +97,9 @@ export default async function IconBuilderPage({
   const { app } = await params;
   if (!isAppId(app)) notFound();
 
-  const { id } = await searchParams;
+  const { id, draft: draftParam } = await searchParams;
+  // Explicit opt-in to a draft that does not cover the live pack. See below.
+  const wantsDraft = draftParam === '1';
   const meta = appMeta(app);
   const [live, play, themeDrafts] = await Promise.all([
     readLiveIndex(app),
@@ -154,8 +157,13 @@ export default async function IconBuilderPage({
   for (const p of hero) publishedVersion[p.packId] = p.version;
 
   const entry = id ? (hero.find((p) => p.packId === id) ?? null) : null;
-  let initial: RehydratedPack | null = null;
-  if (entry) initial = await readPublishedHeroPack(app, entry);
+  // KEPT SEPARATE from `initial`, which the draft branch below overwrites. The
+  // live pack is the yardstick a draft is measured against, and a yardstick a
+  // draft can overwrite measures nothing.
+  const publishedPack: RehydratedPack | null = entry
+    ? await readPublishedHeroPack(app, entry)
+    : null;
+  let initial: RehydratedPack | null = publishedPack;
 
   // ── A DRAFT IS READ EVEN WHEN THE PACK IS PUBLISHED ───────────────────────
   //
@@ -185,9 +193,65 @@ export default async function IconBuilderPage({
   // version means the draft IS what devices have, so it is still used as the
   // content source (it is the only copy of plate, radius and shape) but it no
   // longer claims to be newer than anything.
-  const draft = rawDraft;
+  // ── A STAMP IS A CLAIM, AND A CLAIM CAN BE FALSE ─────────────────────────
+  //
+  // `publishedAtVersion === entry.version` was read as "this draft IS what is
+  // live". It is not that. It is the draft SAYING so, and the stamp is applied
+  // by `markIconDraftPublishedAction` to whatever draft happens to exist at the
+  // moment of a publish, without anyone comparing content. Publish without
+  // having pressed Save draft and a stale draft inherits the stamp for work it
+  // does not contain.
+  //
+  // The consequence was not cosmetic. A draft outranks a published pack on this
+  // page, so a six-icon draft holding a false stamp shadowed a twenty-seven-icon
+  // live pack, and `draftIsAhead` reported "which it matches" because it only
+  // ever compared the stamps. Twenty-one icons live on the CDN and unreachable
+  // from the only screen that edits them.
+  //
+  // So the claim is CHECKED. Both sides are expanded to package mappings first,
+  // because a draft stores role ids and a published pack stores packages, and
+  // one role covers up to three of them: comparing them raw would report every
+  // pack as divergent.
+  const draftMappings = rawDraft
+    ? new Set(
+        expandRoleEntries(rawDraft.icons.map((i) => ({ slot: i.pkg, file: i.file }))).map(
+          (e) => e.pkg,
+        ),
+      )
+    : new Set<string>();
+  const liveMappings = new Set((publishedPack?.icons ?? []).map((i) => i.pkg));
+
+  const missingFromDraft = [...liveMappings].filter((p) => !draftMappings.has(p));
+
+  // ── THE STAMP IS IRRELEVANT TO THIS QUESTION ─────────────────────────────
+  //
+  // The first version of this check only fired when a draft CLAIMED to be the
+  // live version (`publishedAtVersion === entry.version`), on the theory that a
+  // false claim is what makes a draft untrustworthy. That was too narrow by
+  // exactly the case that matters: a draft carrying NO stamp reports itself as
+  // "ahead" of the live pack, sails past a check keyed on the stamp, and
+  // shadows it just as completely. A zero-icon draft opened an empty builder
+  // over a live pack of thirty-four mappings and the banner called it progress.
+  //
+  // Being ahead and being short are not opposites. A draft can hold newer art
+  // for six roles and still be missing the other seven, and no stamp anywhere
+  // distinguishes that from a finished pack. So the question is only ever: does
+  // this draft cover everything devices already have?
+  const draftIsShort = !!rawDraft && missingFromDraft.length > 0;
+
+  // ── SHORT MEANS ASK, NOT REFUSE ──────────────────────────────────────────
+  //
+  // Removing an icon is a legitimate edit, so "the published pack always wins"
+  // would make deletion impossible. What is NOT legitimate is choosing between
+  // them silently, which is what this page did in both directions.
+  //
+  // So the complete source opens by default, the draft is left untouched in the
+  // bucket, and `?draft=1` opens it deliberately. The safe path is the one you
+  // get by doing nothing, and the destructive one requires saying so.
+  const openDraft = wantsDraft || !draftIsShort;
+  const draft = openDraft ? rawDraft : null;
   const draftIsAhead =
-    !!rawDraft && (entry == null || rawDraft.publishedAtVersion !== entry.version);
+    !!draft && (entry == null || draft.publishedAtVersion !== entry.version);
   if (draft) {
     // The bytes are FETCHED, not linked. `IconBuilder` decodes every icon with
     // `atob`, so handing it an https URL is not a degraded preview, it is an
@@ -244,6 +308,32 @@ export default async function IconBuilderPage({
         </p>
       )}
 
+      {draftIsShort && !wantsDraft && (
+        <p className={bad}>
+          A saved draft exists for {id}, but it is missing {missingFromDraft.length}{' '}
+          {missingFromDraft.length === 1 ? 'mapping' : 'mappings'} that the published v
+          {entry?.version} has, so this pack was opened from the CDN instead and the draft was left
+          untouched. Publishing from here keeps every icon. To work on the draft anyway, open{' '}
+          <a className="underline" href={`?id=${encodeURIComponent(id ?? '')}&draft=1`}>
+            the draft
+          </a>
+          , or delete it below once you are satisfied nothing in it is worth keeping.
+        </p>
+      )}
+
+      {draftIsShort && wantsDraft && (
+        <p className={bad}>
+          This is the draft, and it is missing {missingFromDraft.length}{' '}
+          {missingFromDraft.length === 1 ? 'mapping' : 'mappings'} the published v{entry?.version}{' '}
+          has. Publishing it removes those from every device that has this pack. To open the
+          complete pack instead, open{' '}
+          <a className="underline" href={`?id=${encodeURIComponent(id ?? '')}`}>
+            the published pack
+          </a>
+          .
+        </p>
+      )}
+
       {id && !entry && !draft && (
         <p className={bad}>
           No published hero pack and no draft has the id {id}. Starting a new pack instead, so
@@ -276,6 +366,11 @@ export default async function IconBuilderPage({
         publishedIds={hero.map((p) => p.packId)}
         publishedVersion={publishedVersion}
         initial={initial}
+        // The live yardstick, so publish can refuse to shrink a pack silently.
+        // Zero when nothing is published, which correctly disables the guard
+        // rather than comparing against an imaginary pack.
+        liveMappings={publishedPack?.icons.length ?? 0}
+        hasDraft={!!rawDraft}
         distros={distros}
         // ── THE DRAFT'S PREVIEW SETTINGS, WHICH WERE BEING DROPPED ──────
         //

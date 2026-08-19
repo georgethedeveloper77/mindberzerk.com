@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  deleteIconDraftAction,
   markIconDraftPublishedAction,
   saveIconDraftAction,
 } from '@/app/apps/[app]/icons/builder/actions';
@@ -209,6 +210,8 @@ export function IconBuilder({
   publishedIds,
   publishedVersion,
   initial,
+  liveMappings = 0,
+  hasDraft = false,
   preview,
   distros = [],
   play,
@@ -218,6 +221,16 @@ export function IconBuilder({
   publishedVersion: Record<string, number>;
   /** A published pack to edit, or null for a new one. See `lib/cdn.ts`. */
   initial?: RehydratedPack | null;
+  /**
+   * How many package mappings the LIVE pack has, or 0 when nothing is live.
+   *
+   * Separate from `initial` on purpose. `initial` may be a draft, and a draft
+   * is exactly the thing that can be smaller than what devices hold; asking it
+   * how big the live pack is would be asking the suspect for an alibi.
+   */
+  liveMappings?: number;
+  /** Whether a saved draft exists for this pack, so Delete draft can be offered. */
+  hasDraft?: boolean;
   /**
    * Every distro this pack could belong to: base id plus display title, read
    * from the theme drafts and the live theme packs on the server. Belonging is
@@ -716,17 +729,28 @@ export function IconBuilder({
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftNote, setDraftNote] = useState<string | null>(null);
 
-  async function saveDraft() {
-    // The one rule a draft has to satisfy, because the id is its filename and
-    // its address. Everything else may legitimately be unfinished.
-    if (!packId.trim()) {
-      setError('A pack id is needed before a draft can be saved.');
-      return;
-    }
-    setDraftBusy(true);
-    setError(null);
-    setDraftNote(null);
-
+  /**
+   * The draft payload, built once and used by BOTH save and publish.
+   *
+   * ─── WHY PUBLISH HAS TO WRITE THE DRAFT TOO ───────────────────────────────
+   *
+   * Publish used to call `markIconDraftPublishedAction` alone, which stamps
+   * WHATEVER DRAFT HAPPENS TO EXIST with the new version and never looks at its
+   * contents. So a stale six-icon draft, left over from an earlier sitting,
+   * received the stamp for a twenty-seven-icon publish and thereby claimed to
+   * BE that publish. `page.tsx` prefers a draft over a published pack, and
+   * `draftIsAhead` compares version stamps rather than art, so reopening the
+   * pack showed six icons under a banner reading "which it matches".
+   *
+   * Twenty-one icons, live on the CDN, unreachable from the only screen that
+   * edits them. Reported as success at every step.
+   *
+   * Writing the draft from the state that was just published makes the two
+   * agree BY CONSTRUCTION rather than by a stamp asserting they agree. The
+   * stamp stays, because it still answers a question content cannot: whether
+   * this content has been published yet.
+   */
+  function draftBody(): { body: FormData; icons: { pkg: string; file: string }[] } {
     const body = new FormData();
     body.set('app', app);
     body.set('packId', packId.trim());
@@ -750,6 +774,21 @@ export function IconBuilder({
       icons.push({ pkg: e.pkg, file: fileName });
     }
     body.set('icons', JSON.stringify(icons));
+    return { body, icons };
+  }
+
+  async function saveDraft() {
+    // The one rule a draft has to satisfy, because the id is its filename and
+    // its address. Everything else may legitimately be unfinished.
+    if (!packId.trim()) {
+      setError('A pack id is needed before a draft can be saved.');
+      return;
+    }
+    setDraftBusy(true);
+    setError(null);
+    setDraftNote(null);
+
+    const { body, icons } = draftBody();
 
     try {
       const res = await saveIconDraftAction(body);
@@ -767,7 +806,74 @@ export function IconBuilder({
     }
   }
 
+  /**
+   * Remove the saved draft for this pack, leaving anything published alone.
+   *
+   * There was no way to do this from the builder at all, which is why a stale
+   * draft could shadow a live pack with no route back: the draft won on open,
+   * and nothing on the screen could remove it. A published pack is untouched,
+   * so pressing this on a live pack reopens it from the CDN.
+   */
+  async function dropDraft() {
+    if (!packId.trim()) return;
+    setDraftBusy(true);
+    setError(null);
+    setDraftNote(null);
+    try {
+      const res = await deleteIconDraftAction(app, packId.trim());
+      if (res.ok) {
+        setDraftNote('Draft deleted. Nothing published was touched. Reload to reopen from the CDN.');
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
+  /**
+   * Mappings this publish would write. Compared against what is live.
+   *
+   * `expandRoleEntries` is what makes the two comparable: an entry's `pkg` is a
+   * ROLE for anything added from the core grid, and one role covers up to three
+   * packages, so six entries are fifteen mappings. Counting entries against
+   * mappings would have made every pack look like it was shrinking.
+   */
+  const nextMappings = useMemo(
+    () =>
+      expandRoleEntries(
+        entries.filter((e) => e.blob && e.pkg).map((e) => ({ slot: e.pkg, file: fileNameFor(e.pkg) })),
+      ).length,
+    [entries],
+  );
+
+  // Cleared whenever the count changes, so a confirmation cannot outlive the
+  // number it was given for.
+  const [shrinkOk, setShrinkOk] = useState(false);
+  useEffect(() => setShrinkOk(false), [nextMappings]);
+
+  const shrink = liveMappings > 0 && nextMappings < liveMappings ? liveMappings - nextMappings : 0;
+
   async function publish() {
+    // ── A PACK MAY NOT QUIETLY GET SMALLER ────────────────────────────────
+    //
+    // Publish replaces every file, so writing fewer mappings than are live
+    // DELETES the difference from every device. That is sometimes what an
+    // author wants and it is never what an author wants by accident, and
+    // nothing on this screen distinguished the two.
+    //
+    // This is the guard that would have caught the stale-draft bug at the last
+    // possible moment: six icons about to overwrite twenty-seven, with the
+    // number said out loud instead of a button that looked ready.
+    if (shrink > 0 && !shrinkOk) {
+      setError(
+        `This would publish ${nextMappings} mappings over the ${liveMappings} that are live, removing ${shrink} from every device that has this pack. Confirm below if that is intended.`,
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
@@ -842,11 +948,30 @@ export function IconBuilder({
       const json = await res.json();
       if (!res.ok) setError(json.error ?? 'Publish failed');
       else {
-        // The draft now MATCHES what devices will have. Without this the
-        // builder reopens saying "draft ahead of v8, publishing writes v9"
-        // against the v8 it just wrote, forever. Not awaited into the result:
-        // a failed stamp is a stale sentence, not a failed publish.
-        void markIconDraftPublishedAction(app, packId, Number(json.version));
+        // ── THE DRAFT IS REWRITTEN FROM WHAT WAS JUST PUBLISHED ─────────
+        //
+        // Stamping alone was the bug. `markIconDraftPublishedAction` records a
+        // version against whatever draft exists and never compares content, so
+        // publishing without having pressed Save draft handed the stamp to a
+        // stale draft, which then claimed to BE this publish and shadowed it on
+        // every reopen. Writing first means the draft holds this art, so the
+        // stamp is a true statement rather than an assertion.
+        //
+        // Awaited, unlike the bare stamp it replaces: a failed stamp was only a
+        // stale sentence, but a failed WRITE leaves the old draft in place and
+        // still shadowing, which the author has to know about.
+        try {
+          const saved = await saveIconDraftAction(draftBody().body);
+          if (saved.ok) await markIconDraftPublishedAction(app, packId, Number(json.version));
+          else
+            setDraftNote(
+              `Published, but the draft could not be updated: ${saved.error} Reopening this pack may show older art. Delete the draft to reopen from the CDN.`,
+            );
+        } catch {
+          setDraftNote(
+            'Published, but the draft could not be updated. Reopening this pack may show older art. Delete the draft to reopen from the CDN.',
+          );
+        }
         setResult(
           `${json.packId} v${json.version} · ${json.fileCount} files · ${(json.sizeBytes / 1024).toFixed(0)} KB` +
             (json.grantedTo ? ` · included with ${json.grantedTo}` : ''),
@@ -1525,10 +1650,38 @@ export function IconBuilder({
           {draftBusy ? 'Saving' : 'Save draft'}
         </button>
 
+        {/* DELETE DRAFT, which had no control at all until a stale draft
+            shadowed a live pack and there was no route back. Only offered when
+            a draft is actually open, and it never touches what is published:
+            on a live pack this reopens it from the CDN. */}
+        {hasDraft && (
+          <button
+            onClick={dropDraft}
+            disabled={draftBusy || !packId.trim()}
+            className="w-full rounded-lg border border-site-line bg-site-card px-4 py-3 text-[13px] text-site-plan transition hover:border-site-plan/45 disabled:opacity-40 md:w-auto md:py-2"
+          >
+            Delete draft
+          </button>
+        )}
+
         <span className="text-[11.5px] leading-relaxed text-site-ink-3 md:max-w-[34ch]">
           A draft is stored for you alone. It publishes nothing, bumps no version and reaches no
           device.
         </span>
+        {shrink > 0 && (
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11.5px] leading-relaxed text-site-plan">
+            <input
+              type="checkbox"
+              checked={shrinkOk}
+              onChange={(e) => setShrinkOk(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Yes, publish {nextMappings} over the {liveMappings} that are live and remove {shrink}{' '}
+              from every device.
+            </span>
+          </label>
+        )}
         {licenceIssue && entries.length > 0 && (
           <p className="mt-2 text-[11.5px] text-site-plan">{licenceIssue}</p>
         )}
