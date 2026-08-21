@@ -4,32 +4,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../engine/effective_theme.dart';
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_surface.dart';
+import '../home_grid.dart';
 import 'workspace_controller.dart';
 
 /// The vertical-workspace surface shared by the non-GNOME shells.
 ///
-/// The wallpaper is drawn by WindowManager beneath Flutter, so the pages are
-/// empty; a light parallax tint gives the swipe something to move against
-/// (sliding between identical empty pages otherwise reads as a dead gesture).
-/// The owning shell holds the [PageController] so a pager tap or a HOME press
-/// can drive it too, not only a swipe. GnomeShell keeps its own inline copy of
-/// this; the Plasma and tiling shells share this one.
+/// The wallpaper is drawn by WindowManager beneath Flutter, so the pages carry
+/// no background of their own; a light parallax tint gives the swipe something
+/// to move against (sliding between identical empty pages otherwise reads as a
+/// dead gesture). The owning shell holds the [PageController] so a pager tap or
+/// a HOME press can drive it too, not only a swipe. GnomeShell keeps its own
+/// inline copy of this; the Plasma and tiling shells share this one.
 class WorkspaceCanvas extends ConsumerWidget {
   const WorkspaceCanvas({
     super.key,
+    required this.theme,
     required this.controller,
     required this.count,
-    this.theme,
   });
 
   final PageController controller;
   final int count;
 
-  /// PHASE D3. NULLABLE, and that is a migration convenience rather than an
-  /// oversight: a shell that has not been passed a theme yet keeps the old
-  /// empty pages instead of failing to compile. Pass it and the workspace draws
-  /// its desklets.
-  final EffectiveTheme? theme;
+  /// ─── REQUIRED, AND IT USED TO BE NULLABLE ──────────────────────────────
+  ///
+  /// PHASE D3 made this optional so a shell that had not been updated yet kept
+  /// the old empty pages instead of failing to compile. Both callers were then
+  /// left un-updated, so BOTH of them built `SizedBox.expand()` on every page
+  /// forever: the Plasma and tiling desktops could not show a desklet at all,
+  /// on any workspace, and nothing anywhere said so. A user who added a clock
+  /// watched it vanish, which is indistinguishable from the picker being
+  /// broken.
+  ///
+  /// A migration convenience that outlives its migration is just a silent
+  /// failure mode. Required means the next shell to mount this cannot repeat
+  /// it: it will not compile until it decides.
+  final EffectiveTheme theme;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,9 +69,38 @@ class WorkspaceCanvas extends ConsumerWidget {
           // authentic reading has not changed (no app icons here), but a real
           // desktop does carry desklets, and this is where they live. Nothing
           // else in any shell had to move.
-          itemBuilder: (_, page) => theme == null
-              ? const SizedBox.expand()
-              : DeskletSurfaceView(theme: theme!, page: page),
+          //
+          // DeskletSurfaceView returns an empty page as `SizedBox.expand()` on
+          // its own when there is nothing to draw and edit mode is off, so the
+          // authentic bare desktop is still what an un-arranged workspace
+          // looks like. The difference is that it is now a decision that
+          // surface makes, rather than a null check up here that no desklet
+          // could ever get past.
+          itemBuilder: (_, page) => Stack(
+            children: [
+              // ─── ICONS UNDER, DESKLETS OVER ─────────────────────────────
+              //
+              // Which is what a real desktop does: a Plasma widget floats above
+              // the Folder View, never beneath it. It also matters for touch,
+              // because a desklet is draggable in edit mode and an icon grid
+              // laid on top would take the press before the tile saw it.
+              //
+              // An empty DeskletSurfaceView returns `SizedBox.expand()` with no
+              // child, which does not absorb a hit test, so the grid underneath
+              // stays reachable through the gaps between tiles.
+              //
+              // Gated on the DISTRO, not on the shell. Plasma and Cinnamon carry
+              // an icon grid; the tiling shells and Aqua mount this same canvas
+              // and will not, because their themes say false. GNOME never
+              // reaches here at all, since it inlines its own pager, which is
+              // correct today and is the thing to revisit when Mint arrives.
+              if (theme.desktopIcons)
+                Positioned.fill(child: HomeGrid(theme: theme, page: page)),
+              Positioned.fill(
+                child: DeskletSurfaceView(theme: theme, page: page),
+              ),
+            ],
+          ),
         ),
         Positioned.fill(
           child: _Parallax(controller: controller, pageCount: count),

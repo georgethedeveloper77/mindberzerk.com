@@ -125,6 +125,12 @@ class PackInfo {
     required this.state,
     required this.unlocked,
     this.sku,
+    this.previewShell,
+    this.previewBgTop,
+    this.previewBgBottom,
+    this.previewBar,
+    this.previewDock,
+    this.previewAccent,
   });
 
   String packId;
@@ -169,6 +175,30 @@ class PackInfo {
   /// Ownership is Play's answer and is already folded into [unlocked].
   String? sku;
 
+  /// The shell this distro draws: "gnome" | "plasma" | "aqua" | "tiling" |
+  /// "tui". Picks WHICH miniature the card renders.
+  ///
+  /// Null on every pack published before this field existed, and the card falls
+  /// back to the flat rectangle it draws today. Optional the whole way down, so
+  /// nothing already in the index has to be republished.
+  String? previewShell;
+
+  /// The six palette colours, as "#RRGGBB" or "#AARRGGBB", exactly as they
+  /// appear in the pack's own theme.json.
+  ///
+  /// Strings rather than ints because that is how they are authored, how they
+  /// travel in the index, and how the panel already stores them. Parsing them
+  /// once on the Dart side beats three representations of the same colour.
+  String? previewBgTop;
+
+  String? previewBgBottom;
+
+  String? previewBar;
+
+  String? previewDock;
+
+  String? previewAccent;
+
   List<Object?> _toList() {
     return <Object?>[
       packId,
@@ -181,6 +211,12 @@ class PackInfo {
       state,
       unlocked,
       sku,
+      previewShell,
+      previewBgTop,
+      previewBgBottom,
+      previewBar,
+      previewDock,
+      previewAccent,
     ];
   }
 
@@ -200,6 +236,12 @@ class PackInfo {
       state: result[7]! as String,
       unlocked: result[8]! as bool,
       sku: result[9] as String?,
+      previewShell: result[10] as String?,
+      previewBgTop: result[11] as String?,
+      previewBgBottom: result[12] as String?,
+      previewBar: result[13] as String?,
+      previewDock: result[14] as String?,
+      previewAccent: result[15] as String?,
     );
   }
 
@@ -212,7 +254,7 @@ class PackInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku);
+    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent);
   }
 
   @override
@@ -221,7 +263,7 @@ class PackInfo {
 
   @override
   String toString() {
-    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku)';
+    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku, previewShell: $previewShell, previewBgTop: $previewBgTop, previewBgBottom: $previewBgBottom, previewBar: $previewBar, previewDock: $previewDock, previewAccent: $previewAccent)';
   }
 }
 

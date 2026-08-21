@@ -189,7 +189,12 @@ function extFor(file: File): string {
  * drift from the validator the icon path already trusts.
  */
 function wallpaperNameFor(file: File): string {
-  const fallback = `wall_${Date.now().toString(36)}.${extFor(file)}`;
+  // Two unnamed files picked in the same batch resolve in the same millisecond,
+  // so the timestamp alone would give them one name and the second would
+  // silently replace the first. Only reached when a file has no usable stem.
+  const fallback = `wall_${Date.now().toString(36)}${Math.random()
+    .toString(36)
+    .slice(2, 6)}.${extFor(file)}`;
   const base = file.name.split(/[\\/]/).pop() ?? '';
   const dot = base.lastIndexOf('.');
   const stem = (dot > 0 ? base.slice(0, dot) : base)
@@ -786,6 +791,29 @@ export function DistroWorkspace({
     set({ name, blob, url: URL.createObjectURL(blob) });
   }
 
+  /**
+   * Add a batch of wallpapers.
+   *
+   * ONE setState, not one per file. A loop of `setWallpapers` calls with
+   * `upsertAsset` would work, but each name is resolved against the list as it
+   * stood when that call ran, so two files resolving to the same kept name
+   * inside one batch would both append instead of the second replacing the
+   * first. Folding the whole batch in a single updater makes a multi-pick
+   * behave exactly like the same files picked one at a time.
+   */
+  function addWallpapers(files: File[]) {
+    const added: Asset[] = files.map((f) => ({
+      name: wallpaperNameFor(f),
+      blob: f,
+      url: URL.createObjectURL(f),
+    }));
+    setWallpapers((prev) => {
+      let next = prev;
+      for (const a of added) next = upsertAsset(next, a);
+      return next;
+    });
+  }
+
   // ── SAVE DRAFT ────────────────────────────────────────────────────────
   //
   // A distro is wallpapers, a palette, a boot log and an icon set, and that is
@@ -915,6 +943,13 @@ export function DistroWorkspace({
 
       const fd = new FormData();
       fd.append('meta', JSON.stringify(meta));
+      // ─── PUBLISH SAVES THE DRAFT TOO ────────────────────────────────────
+      //
+      // The SAME `themeDraft` save sends, so publishing and saving cannot
+      // disagree about what is being edited. Publishing used to ship a pack and
+      // leave the stored draft untouched, so reopening showed the last SAVE and
+      // every edit that went straight to publish looked lost.
+      fd.append('draft', JSON.stringify(themeDraft));
       for (const w of wallpapers) fd.append(`asset:${w.name}`, w.blob, w.name);
       if (logoLight) fd.append(`asset:${logoLight.name}`, logoLight.blob, logoLight.name);
       if (logoDark && logoDark.name !== logoLight?.name) fd.append(`asset:${logoDark.name}`, logoDark.blob, logoDark.name);
@@ -929,7 +964,13 @@ export function DistroWorkspace({
       }
 
       const res = await publishDistroAction(fd);
-      if (res.ok) toast.success(`Published ${base}: theme v${res.themeVersion}${res.iconVersion ? `, icons v${res.iconVersion}` : ''}`);
+      if (res.ok) {
+        toast.success(`Published ${base}: theme v${res.themeVersion}${res.iconVersion ? `, icons v${res.iconVersion}` : ''}`);
+        // The packs shipped and the draft did not. Its own toast rather than a
+        // suffix on the success line: the publish genuinely worked, and the
+        // thing to act on is that this workspace will reopen out of date.
+        if (res.warning) toast.error(res.warning);
+      }
       else toast.error(res.error);
     } catch (e) {
       toast.error((e as Error).message);
@@ -1118,7 +1159,7 @@ export function DistroWorkspace({
                   <AssetList
                     label="wallpapers"
                     assets={wallpapers}
-                    onAdd={(file) => pickAsset(file, wallpaperNameFor(file), (a) => setWallpapers((w) => upsertAsset(w, a)))}
+                    onAdd={(files) => addWallpapers(files)}
                     onRemove={(name) => setWallpapers((w) => w.filter((x) => x.name !== name))}
                   />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
@@ -1375,7 +1416,7 @@ function Unlock({ label, by }: { label: string; by: string[] }) {
     </div>
   );
 }
-function AssetList(props: { label: string; assets: Asset[]; onAdd: (file: File) => void; onRemove: (name: string) => void }) {
+function AssetList(props: { label: string; assets: Asset[]; onAdd: (files: File[]) => void; onRemove: (name: string) => void }) {
   const ref = React.useRef<HTMLInputElement>(null);
   return (
     <Field label={props.label} hint="webp or png; keeps its filename, which theme.json will reference; re-uploading a name replaces it">
@@ -1403,7 +1444,11 @@ function AssetList(props: { label: string; assets: Asset[]; onAdd: (file: File) 
         >
           + add
         </button>
-        <input ref={ref} type="file" accept="image/webp,image/png,image/jpeg" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onAdd(f); e.target.value = ''; }} />
+        {/* MULTIPLE. Picking one at a time meant seven trips through the file
+            dialog for a distro with seven wallpapers, and the names come from
+            the files themselves, so a batch behaves exactly like the same files
+            picked one by one: same-name replaces, new names append. */}
+        <input ref={ref} type="file" multiple accept="image/webp,image/png,image/jpeg" style={{ display: 'none' }} onChange={(e) => { const picked = Array.from(e.target.files ?? []); if (picked.length) props.onAdd(picked); e.target.value = ''; }} />
       </div>
     </Field>
   );

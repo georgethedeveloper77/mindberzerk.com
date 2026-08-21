@@ -14,6 +14,7 @@ import {
   signPack,
   type IndexEntitlement,
   type IndexPack,
+  type IndexPreview,
   type PackFile,
   type PackType,
 } from '@/lib/core/sign';
@@ -202,6 +203,15 @@ export interface PackUpload {
   summary: string;
   /** null = free. */
   sku: string | null;
+
+  /**
+   * The storefront preview, or undefined to publish without one.
+   *
+   * Optional on the upload rather than derived in here, because a pack is not
+   * always a theme: an icon pack and a hero pack go through this same function
+   * and neither has a palette to preview. The caller knows which it is holding.
+   */
+  preview?: IndexPreview;
   files: PackFile[];
 }
 
@@ -246,6 +256,10 @@ export async function uploadPack(
     title: upload.title,
     summary: upload.summary,
     sku: upload.sku,
+    // OMITTED when absent, not written as null. An entry with `preview: null`
+    // and one with no `preview` key are the same thing to the device, and the
+    // spread keeps the index readable for the packs that have no palette.
+    ...(upload.preview ? { preview: upload.preview } : {}),
   };
 }
 

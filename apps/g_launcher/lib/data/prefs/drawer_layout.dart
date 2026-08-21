@@ -72,6 +72,50 @@ class DrawerLayout {
     );
   }
 
+  /// Turn a GENERATED folder into one the user owns.
+  ///
+  /// ─── WHY A DERIVED FOLDER HAS TO MATERIALISE BEFORE IT CAN BE EDITED ──────
+  ///
+  /// The library builds category folders from what each app declares about
+  /// itself, so they exist only for as long as that stays true. Removing an app
+  /// from such a folder cannot stick: the folder is rebuilt on the next launch
+  /// and the app is filed straight back in, because its manifest still says
+  /// SOCIAL.
+  ///
+  /// So the first edit converts it. The members it had at that moment are
+  /// written to `drawerFolders` under a real id, and from then on it is an
+  /// ordinary folder that the user governs and the generator no longer touches.
+  /// `drawerItemsProvider` needs no change to respect that: apps inside a real
+  /// folder are already in its `folded` set, so they never reach the bucketing
+  /// that would have regenerated the category.
+  ///
+  /// ─── THE NAME IS KEPT, THE ID IS NOT ──────────────────────────────────────
+  ///
+  /// It keeps reading "Social" because that is what the user is looking at and
+  /// renaming it to "Folder" mid-edit would be baffling. It cannot keep the
+  /// `cat:` id, because that prefix is exactly what marks a folder as generated
+  /// and every read of `isCategoryFolder` would still call it derived.
+  ///
+  /// Idempotent by construction: a `cat:` id can never already be in
+  /// `drawerFolders`, so calling this twice on the same folder is impossible in
+  /// practice, and a caller that passes an id already present gets its prefs
+  /// back unchanged rather than a duplicate.
+  static LauncherPrefs materialise(
+    LauncherPrefs p,
+    String name,
+    List<String> members, {
+    required String Function() newFolderId,
+  }) {
+    if (members.isEmpty) return p;
+
+    return p.copyWith(
+      drawerFolders: [
+        ...p.drawerFolders,
+        AppFolder(id: newFolderId(), name: name, members: members),
+      ],
+    );
+  }
+
   /// Drop a loose app onto an existing folder.
   static LauncherPrefs addToFolder(
     LauncherPrefs p,

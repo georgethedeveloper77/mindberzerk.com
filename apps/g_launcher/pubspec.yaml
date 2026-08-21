@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+12
+version: 6.0.0+13
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -26,7 +26,7 @@ dependencies:
   collection: ^1.18.0
 
   device_info_plus: ^13.2.0
-  firebase_analytics: ^12.4.5
+  firebase_analytics: ^12.4.6
   firebase_core: ^4.12.1
   flutter:
     sdk: flutter

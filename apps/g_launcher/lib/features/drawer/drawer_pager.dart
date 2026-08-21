@@ -584,9 +584,56 @@ class _Dots extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = DefaultTextStyle.of(context).style.color ?? Colors.white;
 
+    // ─── DOTS UNTIL THEY DO NOT FIT, THEN A COUNT ─────────────────────────
+    //
+    // This was an unbounded Row and it overflowed by 108dp on a drawer with
+    // fourteen pages: 6dp of dot plus 6dp of margin is 12dp each, so it runs
+    // out of phone somewhere around twenty and there is no upper bound on how
+    // many pages a drawer can have.
+    //
+    // Shrinking the dots was the other option and it fails for the same reason
+    // one page further on. It also fails at the job: fourteen 3dp dots cannot
+    // be counted, and an indicator nobody can read is decoration.
+    //
+    // So past the point where they fit, it says which page you are on in
+    // words. That is MORE useful at that count, not a degraded fallback: the
+    // number is the only thing anyone could have got from fourteen dots.
+    const dotWidth = 12.0;
+    const addWidth = 24.0;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10, top: 2),
-      child: Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final needed = count * dotWidth + (onAdd != null ? addWidth : 0);
+          if (needed > constraints.maxWidth) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${page + 1} / $count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color.withValues(alpha: 0.55),
+                  ),
+                ),
+                if (onAdd != null) _AddPage(color: color, onAdd: onAdd!),
+              ],
+            );
+          }
+
+          return _dots(color);
+        },
+      ),
+    );
+  }
+
+  /// The dot row itself. `dotWidth` above is the SAME 12dp this draws: 6dp of
+  /// circle plus 3dp of margin each side. Kept as a constant at the call site
+  /// rather than measured here, because the caller has to know the width
+  /// before it can decide whether to call this at all.
+  Widget _dots(Color color) {
+    return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (var i = 0; i < count; i++)
@@ -599,25 +646,40 @@ class _Dots extends StatelessWidget {
                 color: color.withValues(alpha: i == page ? 0.85 : 0.30),
               ),
             ),
-          if (onAdd != null)
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onAdd?.call();
-              },
-              // The dot is 6dp and a 6dp tap target is a miss waiting to
-              // happen, so the padding is the hit box rather than decoration.
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                child: Icon(
-                  Icons.add,
-                  size: 12,
-                  color: color.withValues(alpha: 0.45),
-                ),
-              ),
-            ),
+          if (onAdd != null) _AddPage(color: color, onAdd: onAdd!),
         ],
+      );
+  }
+}
+
+/// The "+" that grows the drawer, in Custom only.
+///
+/// Its own widget because BOTH indicator shapes need it and neither should own
+/// it: a copy in each is a copy that drifts, and the hit box below is exactly
+/// the kind of detail that would drift first.
+class _AddPage extends StatelessWidget {
+  const _AddPage({required this.color, required this.onAdd});
+
+  final Color color;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onAdd();
+      },
+      // The dot is 6dp and a 6dp tap target is a miss waiting to happen, so
+      // the padding is the hit box rather than decoration.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Icon(
+          Icons.add,
+          size: 12,
+          color: color.withValues(alpha: 0.45),
+        ),
       ),
     );
   }

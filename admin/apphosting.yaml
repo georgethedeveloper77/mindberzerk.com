@@ -49,7 +49,7 @@ env:
   # This panel can write to the CDN that every installed launcher trusts, so
   # "who may sign in" is not a setting, it is a credential.
   - variable: ADMIN_UIDS
-    secret: admin-uids@5
+    secret: admin-uids
     availability:
       - RUNTIME
 

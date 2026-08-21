@@ -245,7 +245,29 @@ data class PackInfo (
    * null = free. PRESENTATION ONLY: it tells the card which price to draw.
    * Ownership is Play's answer and is already folded into [unlocked].
    */
-  val sku: String? = null
+  val sku: String? = null,
+  /**
+   * The shell this distro draws: "gnome" | "plasma" | "aqua" | "tiling" |
+   * "tui". Picks WHICH miniature the card renders.
+   *
+   * Null on every pack published before this field existed, and the card falls
+   * back to the flat rectangle it draws today. Optional the whole way down, so
+   * nothing already in the index has to be republished.
+   */
+  val previewShell: String? = null,
+  /**
+   * The six palette colours, as "#RRGGBB" or "#AARRGGBB", exactly as they
+   * appear in the pack's own theme.json.
+   *
+   * Strings rather than ints because that is how they are authored, how they
+   * travel in the index, and how the panel already stores them. Parsing them
+   * once on the Dart side beats three representations of the same colour.
+   */
+  val previewBgTop: String? = null,
+  val previewBgBottom: String? = null,
+  val previewBar: String? = null,
+  val previewDock: String? = null,
+  val previewAccent: String? = null
 )
  {
   companion object {
@@ -260,7 +282,13 @@ data class PackInfo (
       val state = pigeonVar_list[7] as String
       val unlocked = pigeonVar_list[8] as Boolean
       val sku = pigeonVar_list[9] as String?
-      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku)
+      val previewShell = pigeonVar_list[10] as String?
+      val previewBgTop = pigeonVar_list[11] as String?
+      val previewBgBottom = pigeonVar_list[12] as String?
+      val previewBar = pigeonVar_list[13] as String?
+      val previewDock = pigeonVar_list[14] as String?
+      val previewAccent = pigeonVar_list[15] as String?
+      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku, previewShell, previewBgTop, previewBgBottom, previewBar, previewDock, previewAccent)
     }
   }
   fun toList(): List<Any?> {
@@ -275,6 +303,12 @@ data class PackInfo (
       state,
       unlocked,
       sku,
+      previewShell,
+      previewBgTop,
+      previewBgBottom,
+      previewBar,
+      previewDock,
+      previewAccent,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -285,7 +319,7 @@ data class PackInfo (
       return true
     }
     val other = other as PackInfo
-    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku)
+    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku) && PackApiPigeonUtils.deepEquals(this.previewShell, other.previewShell) && PackApiPigeonUtils.deepEquals(this.previewBgTop, other.previewBgTop) && PackApiPigeonUtils.deepEquals(this.previewBgBottom, other.previewBgBottom) && PackApiPigeonUtils.deepEquals(this.previewBar, other.previewBar) && PackApiPigeonUtils.deepEquals(this.previewDock, other.previewDock) && PackApiPigeonUtils.deepEquals(this.previewAccent, other.previewAccent)
   }
 
   override fun hashCode(): Int {
@@ -300,10 +334,16 @@ data class PackInfo (
     result = 31 * result + PackApiPigeonUtils.deepHash(this.state)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.unlocked)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.sku)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewShell)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewBgTop)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewBgBottom)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewBar)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewDock)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.previewAccent)
     return result
   }
   override fun toString(): String {
-    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku)"
+    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku, previewShell=$previewShell, previewBgTop=$previewBgTop, previewBgBottom=$previewBgBottom, previewBar=$previewBar, previewDock=$previewDock, previewAccent=$previewAccent)"
   }
 }
 

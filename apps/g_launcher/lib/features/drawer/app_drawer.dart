@@ -21,6 +21,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 import 'app_icon.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
+import 'library_view.dart';
 import 'folder_overlay.dart';
 
 /// The Activities drawer.
@@ -478,7 +479,24 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // has no business deciding whether the drawer has a search bar.
         final Widget body;
 
-        if (mode == 'custom') {
+        // ─── THE LIBRARY IS ITS OWN VIEW ──────────────────────────────────
+        //
+        // FIRST, and outside the mode chain entirely, because the library is
+        // not a variant of the pager: it has no pages, no slots, no drag, no
+        // merge and no sort mode. Two earlier attempts built it as a grouping
+        // inside `DrawerPager`, and each fix uncovered the next thing that
+        // widget assumed. Everything those attempts added here has been
+        // removed; this branch is the whole of the integration.
+        //
+        // `items` is the same list every other mode gets. `drawerItemsProvider`
+        // already emits folders then the rest under `library` grouping, and
+        // LibraryView cuts its sections out of that rather than asking for a
+        // second, differently ordered provider.
+        if (theme.drawerGrouping == 'library') {
+          body = Expanded(
+            child: LibraryView(theme: theme, items: items),
+          );
+        } else if (mode == 'custom') {
           // ── THE GRID FOLLOWS THE SCREEN, LIKE EVERY OTHER MODE ────────
           //
           // The row count came from `drawerSlotRows`, frozen when Custom was

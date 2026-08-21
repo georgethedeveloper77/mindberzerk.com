@@ -453,11 +453,14 @@ class _Fact extends StatelessWidget {
 ///
 /// ─── A FUNCTION, NOT A WIDGET ────────────────────────────────────────────────
 ///
-/// A widget returns exactly one sliver, and this body is inherently many: a
-/// header and a grid per day. Returning the list and spreading it at the call
-/// site puts every one of them directly in the page's own CustomScrollView,
-/// rather than nesting them in a wrapper sliver that has to be reasoned about
-/// separately.
+/// A widget returns exactly one sliver, and this body is inherently many: one
+/// SliverMainAxisGroup per day. Returning the list and spreading it at the call
+/// site puts every day directly in the page's own CustomScrollView, alongside
+/// the sort row and the facts card, rather than nesting them all in a wrapper
+/// sliver that has to be reasoned about separately.
+///
+/// The per-day grouping is not stylistic. See the comment on the loop below: it
+/// is what stops pinned headers from accumulating over the grid.
 ///
 /// [tokens] is passed in rather than read from a context, because a function has
 /// none.
@@ -499,91 +502,96 @@ List<Widget> _fileSlivers({
   }
 
   return <Widget>[
-    for (final DateGroup<StorageFile> group in groups) ...<Widget>[
-      // NOT PINNED, AND THIS IS THE BUG THAT HID EVERY PHOTO.
-      //
-      // A pinned sliver adds its extent to constraints.overlap for every
-      // sliver after it, so pinned headers ACCUMULATE rather than pushing
-      // each other out. Two or three is the case everyone tests. Forty days
-      // of photos is forty headers, each painting an opaque background, and
-      // by the fourteenth the stack covers the whole viewport and paints
-      // over the grids behind it. The grids were laying out correctly the
-      // entire time and being hidden.
-      //
-      // Unpinned, each header scrolls away with its own day, which is also
-      // what the rest of the app now does: one surface that moves together.
-      //
-      // Sticky day labels are recoverable later by wrapping EACH day in its
-      // own SliverMainAxisGroup, which scopes a pinned child to that group's
-      // extent. One group around all the days, which is what I tried first,
-      // does the opposite and is what made this look like an extent bug.
-      SliverPersistentHeader(
-        delegate: GGroupHeader(
-          label: group.label,
-          meta:
-              '${GFormat.count(group.count)}  ·  '
-              '${GFormat.bytes(group.bytes)}',
-          tokens: t,
-          muted: !group.dated,
-          // A day is the unit people think in when clearing a phone.
-          // Without this, a Saturday of ninety photos is ninety taps.
-          selected: selecting
-              ? group.items.every((StorageFile f) => picked.contains(f.fileId))
-              : null,
-          onToggleAll: selecting
-              ? () => onToggleGroup(
-                  group.items.map((StorageFile f) => f.fileId).toList(),
-                )
-              : null,
-        ),
+    // ONE DAY, ONE SLIVER GROUP.
+    //
+    // Pinning is scoped to the nearest sliver container. Laid out flat, that
+    // container is the page's whole scroll view: a pinned header adds its
+    // extent to constraints.overlap for every sliver after it, so the headers
+    // ACCUMULATE rather than pushing each other out. Two or three days is the
+    // case everyone tests. Forty days of photos is forty opaque headers, and
+    // by the fourteenth the stack covers the viewport and paints over grids
+    // that were laying out correctly the entire time.
+    //
+    // Unpinning them fixed the hiding and lost the labels. SliverMainAxisGroup
+    // is the fix that keeps both: the containing extent becomes the day, so
+    // the next day's header evicts the previous one and exactly one is pinned,
+    // always the one whose files are on screen. One group around ALL the days
+    // does the opposite, which is what made this look like an extent bug.
+    for (final DateGroup<StorageFile> group in groups)
+      SliverMainAxisGroup(
+        slivers: <Widget>[
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: GGroupHeader(
+              label: group.label,
+              meta:
+                  '${GFormat.count(group.count)}  ·  '
+                  '${GFormat.bytes(group.bytes)}',
+              tokens: t,
+              muted: !group.dated,
+              // A day is the unit people think in when clearing a phone.
+              // Without this, a Saturday of ninety photos is ninety taps.
+              selected: selecting
+                  ? group.items.every(
+                      (StorageFile f) => picked.contains(f.fileId),
+                    )
+                  : null,
+              onToggleAll: selecting
+                  ? () => onToggleGroup(
+                      group.items.map((StorageFile f) => f.fileId).toList(),
+                    )
+                  : null,
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
+            sliver: mode == GViewMode.grid
+                ? SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 128,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                        ),
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final StorageFile file = group.items[index];
+                      return _Cell(
+                        file: file,
+                        selected: picked.contains(file.fileId),
+                        selecting: selecting,
+                        // Tap views, long press selects, and once anything is
+                        // selected tap selects too. Same grammar as the
+                        // recovery grid, because a person who learned it there
+                        // should not have to learn it again here.
+                        onTap: () =>
+                            selecting ? onToggle(file.fileId) : onOpen(file),
+                        onLongPress: () => onToggle(file.fileId),
+                      );
+                    }, childCount: group.items.length),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final StorageFile file = group.items[index];
+                      return _Row(
+                        file: file,
+                        selected: picked.contains(file.fileId),
+                        detailed: mode == GViewMode.details,
+                        onTap: () =>
+                            selecting ? onToggle(file.fileId) : onOpen(file),
+                        onLongPress: () => onToggle(file.fileId),
+                      );
+                    }, childCount: group.items.length),
+                  ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
+        ],
       ),
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-        sliver: mode == GViewMode.grid
-            ? SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 128,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
-                ),
-                delegate: SliverChildBuilderDelegate((
-                  BuildContext context,
-                  int index,
-                ) {
-                  final StorageFile file = group.items[index];
-                  return _Cell(
-                    file: file,
-                    selected: picked.contains(file.fileId),
-                    selecting: selecting,
-                    // Tap views, long press selects, and once anything is
-                    // selected tap selects too. Same grammar as the
-                    // recovery grid, because a person who learned it there
-                    // should not have to learn it again here.
-                    onTap: () =>
-                        selecting ? onToggle(file.fileId) : onOpen(file),
-                    onLongPress: () => onToggle(file.fileId),
-                  );
-                }, childCount: group.items.length),
-              )
-            : SliverList(
-                delegate: SliverChildBuilderDelegate((
-                  BuildContext context,
-                  int index,
-                ) {
-                  final StorageFile file = group.items[index];
-                  return _Row(
-                    file: file,
-                    selected: picked.contains(file.fileId),
-                    detailed: mode == GViewMode.details,
-                    onTap: () =>
-                        selecting ? onToggle(file.fileId) : onOpen(file),
-                    onLongPress: () => onToggle(file.fileId),
-                  );
-                }, childCount: group.items.length),
-              ),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
-    ],
   ];
 }
 

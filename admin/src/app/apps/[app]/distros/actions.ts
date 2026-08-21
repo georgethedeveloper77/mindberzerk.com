@@ -102,7 +102,7 @@ export async function publishDistroAction(formData: FormData): Promise<DistroPub
     };
   }
 
-  return publishDistro({
+  const published = await publishDistro({
     app: meta.app as AppId,
     theme: {
       packId: meta.theme.packId,
@@ -118,7 +118,93 @@ export async function publishDistroAction(formData: FormData): Promise<DistroPub
     distroTitle: meta.distroTitle,
     distroSummary: meta.distroSummary,
   });
+
+  if (!published.ok) return published;
+  return {
+    ...published,
+    warning: await persistDraftAfterPublish(
+      meta.app as AppId,
+      formData,
+      themeAssets,
+    ),
+  };
 }
+
+/**
+ * Write the draft that produced the pack that just shipped.
+ *
+ * ─── THE TRAP THIS CLOSES ───────────────────────────────────────────────────
+ *
+ * `writeDraft` was called from exactly two places, save and duplicate, and
+ * publish was not one of them. So publishing built a signed pack out of the
+ * form on screen, shipped it to every device, and left the STORED draft
+ * untouched. Reopening the workspace loads the draft, so you saw whatever you
+ * last SAVED rather than what you last PUBLISHED.
+ *
+ * Every confusing symptom came from that single gap: fonts changed and
+ * published reverted on reopen, and a distro published with seven wallpapers
+ * reopened with none, because the wallpapers had never been STORED, only
+ * shipped. Nothing was ever deleted. The one button carrying the most
+ * consequential verb was the only one that did not write the form back.
+ *
+ * ─── AFTER THE PUBLISH, AND NEVER ABLE TO FAIL IT ───────────────────────────
+ *
+ * The packs are already on the CDN and already in the signed index by the time
+ * this runs. There is no version of "the draft would not save" that makes
+ * unpublishing them the right answer, so every failure here becomes a warning
+ * on a successful result rather than an error.
+ *
+ * Before the publish would have been the other option, and it is worse:
+ * `writeDraft` throws on a draft that fails ITS validation, which is a
+ * different and stricter thing than being publishable, so a valid publish could
+ * have been blocked by a draft rule it never had to satisfy before.
+ *
+ * ─── OPTIONAL, SO AN OLD CLIENT STILL PUBLISHES ─────────────────────────────
+ *
+ * A form with no `draft` field skips this entirely. That is a browser running
+ * a cached bundle from before this change, and its publish should behave
+ * exactly as it did rather than failing on a field it does not know to send.
+ */
+async function persistDraftAfterPublish(
+  app: AppId,
+  formData: FormData,
+  themeAssets: { file: string; bytes: Buffer }[],
+): Promise<string | undefined> {
+  const raw = formData.get('draft');
+  if (typeof raw !== 'string' || !raw) return undefined;
+
+  let draft: ThemeDraft;
+  try {
+    draft = JSON.parse(raw) as ThemeDraft;
+  } catch {
+    return 'Published, but the draft did not parse and was not saved.';
+  }
+  if (!draft?.id) return 'Published, but the draft had no id and was not saved.';
+
+  // ART FIRST, SPEC LAST, matching `saveDistroDraftAction`. A partial failure
+  // then leaves stored bytes nothing references, rather than a draft naming
+  // files that were never stored, which is the state elementary ended up in.
+  //
+  // These are the SAME buffers the pack was built from, so the draft and the
+  // published pack cannot disagree about what the art is.
+  const assets: DraftAsset[] = themeAssets.map((a) => ({
+    name: a.file,
+    bytes: a.bytes,
+    contentType: 'application/octet-stream',
+  }));
+
+  const stored = await writeDraftAssets(app, draft.id, assets);
+  if (!stored.ok) return `Published, but the draft art did not save: ${stored.error}`;
+
+  try {
+    await writeDraft(app, draft);
+  } catch (e) {
+    return `Published, but the draft did not save: ${(e as Error).message}`;
+  }
+
+  return undefined;
+}
+
 
 /**
  * Delete a distro: unpublish what it put in the index, then remove its draft.

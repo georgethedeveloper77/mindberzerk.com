@@ -200,6 +200,17 @@ Future<void> showDrawerAppMenu(
   final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
   final host = context; // outlives the menu; safe for showMessage post-pop
 
+  // ONE body for Uninstall, called from either the glyph strip or the row
+  // beneath it depending on whether this distro has a desktop grid. A local
+  // closure rather than a top-level helper, so it keeps the notifier's real
+  // type instead of taking it as an untypeable parameter.
+  Future<void> uninstall() async {
+    final status = await notifier.uninstall(entry);
+    if (UninstallStatus.succeeded(status)) return;
+    if (!host.mounted) return;
+    host.showMessage(host.t(uninstallRefusalKey(status)));
+  }
+
   // Built from the theme rather than looked up. The drawer body is not
   // guaranteed to sit under a ChromeScope, and the tiling launcher and Kickoff
   // both call this from surfaces that certainly do not.
@@ -237,9 +248,60 @@ Future<void> showDrawerAppMenu(
     leading: AppIcon(entry: entry, size: 30),
     onInfo: () => notifier.openInfo(entry),
     actions: [
-      // "Add to home" became "Pin to dock": the authentic desktop has no grid,
-      // so the old item added apps to a screen that displays nothing. The dock
-      // is where home apps live now.
+      // ─── ADD TO HOME IS BACK, WHERE THERE IS A HOME TO ADD TO ────────────
+      //
+      // It became "Pin to dock" on the reasoning that the authentic desktop has
+      // no grid, so the old item added apps to a screen that displays nothing.
+      // That was true of every distro then shipping and it is still true of
+      // most: GNOME shows a bare desktop, elementary shows a bare desktop, and
+      // a tiling WM has no desktop at all.
+      //
+      // It was never true of Plasma. Folder View is KDE's default containment,
+      // so the one distro whose desktop DOES carry icons was the one with no way
+      // to put an app on it, and a reviewer said exactly that.
+      //
+      // So the item is gated on the distro rather than restored for everyone.
+      // ABSENT, not greyed, and that is a deliberate departure from the
+      // settings rule: a settings list is a catalogue, where a hidden row makes
+      // someone conclude the feature does not exist, but this is three glyphs
+      // under a thumb, and a dead one there is an obstacle in front of the tap
+      // they actually wanted.
+      if (theme.desktopIcons)
+        MenuAction(
+          icon: Icons.add_to_home_screen,
+          label: context.t('shell.addToHome'),
+          onTap: () {
+            final before = theme.prefs;
+            final after = HomeLayout.addToHome(
+              before,
+              entry.componentKey,
+              page: 0,
+              capacity: theme.rows * theme.cols,
+            );
+            // TWO REASONS addToHome CAN REFUSE, and they need different
+            // sentences. It returns `p` unchanged when the page is full AND
+            // when the app is already on the desktop, so testing identity alone
+            // would tell someone their desktop was full while they were looking
+            // at empty cells.
+            if (HomeLayout.isOnHome(before, entry.componentKey)) {
+              if (host.mounted) {
+                host.showMessage(host.t('drawer.alreadyOnHome'));
+              }
+              return;
+            }
+            if (identical(before, after)) {
+              if (host.mounted) host.showMessage(host.t('drawer.homeIsFull'));
+              return;
+            }
+            prefs.edit((p) => HomeLayout.addToHome(
+                  p,
+                  entry.componentKey,
+                  page: 0,
+                  capacity: theme.rows * theme.cols,
+                ));
+          },
+        ),
+
       if (isPinned)
         MenuAction(
           icon: Icons.push_pin_outlined,
@@ -324,28 +386,51 @@ Future<void> showDrawerAppMenu(
       // Work profile is still filtered here rather than round-tripped, because
       // that one is knowable from the entry and there is no version of it that
       // succeeds.
-      if (!entry.isWorkProfile)
+      // ─── AND IT LEAVES THE STRIP WHEN THE STRIP IS FULL ─────────────────
+      //
+      // `AnchoredMenu` states the rule and the reason: THREE, not four, because
+      // at a readable label size on a 360dp phone a fourth column forces the
+      // words to one line and then to an ellipsis, and anything past three goes
+      // in `rows` underneath.
+      //
+      // Uninstall is the one that leaves, not Hide or Pin, and not because it
+      // is least useful. It is the only destructive item here, and a strip is
+      // hit by muscle memory after the second use, so the arrangement to avoid
+      // is the one where the most-tapped glyph sits next to the irreversible
+      // one. Below the divider it is deliberate again.
+      //
+      // On a distro with no desktop grid nothing moves: three actions, same
+      // three glyphs, same order as before this change.
+      if (!entry.isWorkProfile && !theme.desktopIcons)
         MenuAction(
           icon: Icons.delete_outline,
           label: context.t('drawer.uninstall'),
           danger: true,
-          onTap: () async {
-            final status = await notifier.uninstall(entry);
-            if (UninstallStatus.succeeded(status)) return;
-            if (!host.mounted) return;
-            host.showMessage(host.t(uninstallRefusalKey(status)));
-          },
+          onTap: uninstall,
         )
-      else
+      else if (entry.isWorkProfile)
         MenuAction(
           icon: Icons.info_outline,
           label: context.t('shell.appInfo'),
           onTap: () => notifier.openInfo(entry),
         ),
     ],
-    rows: (sheet) => const [],
+    rows: (sheet) => [
+      if (!entry.isWorkProfile && theme.desktopIcons)
+        ThemedListRow(
+          icon: Icons.delete_outline,
+          title: context.t('drawer.uninstall'),
+          danger: true,
+          onTap: () {
+            Navigator.pop(sheet);
+            uninstall();
+          },
+        ),
+    ],
   );
 }
+
+
 
 /// Point at [entry] wherever it actually lives, and get the user looking at it.
 ///

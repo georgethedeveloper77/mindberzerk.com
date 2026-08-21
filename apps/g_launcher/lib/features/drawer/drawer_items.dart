@@ -145,6 +145,107 @@ String terminalLabelFor(EffectiveTheme theme) =>
 /// Note this is drawer-only. The dock and home grid read [shellAppsProvider]
 /// directly and never see these entries, which is correct: the dock resolves
 /// component keys against installed apps, and a launcher entry has none.
+/// The `id` prefix every generated category folder carries.
+///
+/// The one thing that tells a synthetic folder from one the user built. It is a
+/// prefix rather than a flag on [FolderDrawerItem] because the id travels
+/// everywhere the folder does: into the overlay, into `DrawerLayout` calls,
+/// into slot storage. A flag would have to be threaded through all of those and
+/// would be dropped by the first place that reconstructs an [AppFolder] from an
+/// id alone.
+const kCategoryFolderPrefix = 'cat:';
+
+/// True for a folder this file generated rather than one the user made.
+bool isCategoryFolder(String folderId) =>
+    folderId.startsWith(kCategoryFolderPrefix);
+
+/// Which folder an app belongs in, or null to leave it loose.
+///
+/// ─── READ, NOT GUESSED ──────────────────────────────────────────────────────
+///
+/// Every answer here comes from `ApplicationInfo.category`, which the app
+/// itself declares in its manifest, or from `isGame`, which the bridge already
+/// resolves from the modern category with a fallback to the legacy
+/// `FLAG_IS_GAME`. Nothing is inferred from a package name or a label.
+///
+/// That restraint is the whole point. A category folder built by name-matching
+/// files Signal under Shopping once, and after that nobody trusts any folder on
+/// the screen. A drawer that groups less but never lies is worth more than one
+/// that groups everything and is sometimes absurd.
+///
+/// ─── UNDEFINED STAYS LOOSE, AND THAT IS MOST APPS ───────────────────────────
+///
+/// `CATEGORY_UNDEFINED` is the default and plenty of apps never set it, so on a
+/// real device a large share returns null here. They render as loose icons in
+/// the A to Z run rather than being swept into a folder called Other.
+///
+/// A folder holding most of the drawer is not organisation, and its 2x2 preview
+/// would show four arbitrary icons out of two hundred. Loose is the honest
+/// rendering: the library degrades into the grid that already works.
+String? _categoryFolderName(AppEntry a) {
+  // GAMES FIRST, and it is not just the category. `isGame` also catches apps
+  // that predate the category and only set the legacy flag, which is a lot of
+  // what is actually installed on a budget phone.
+  if (a.isGame) return 'Games';
+
+  // The numbers are `ApplicationInfo`'s own constants. They are written as
+  // literals rather than imported because the bridge hands over a plain int and
+  // there is no Dart-side enum to compare against.
+  return switch (a.category) {
+    0 => 'Games', // CATEGORY_GAME, for anything isGame missed
+    1 => 'Media', // AUDIO
+    2 => 'Media', // VIDEO
+    3 => 'Media', // IMAGE
+    4 => 'Social', // SOCIAL
+    5 => 'News',
+    6 => 'Travel', // MAPS
+    7 => 'Productivity',
+    8 => 'Utilities', // ACCESSIBILITY
+    // ─── EVERYTHING ELSE HAS A FOLDER, AND THAT IS A REVERSAL ───────────
+    //
+    // These used to return null and render as loose icons, on the reasoning
+    // that `CATEGORY_UNDEFINED` is the default most apps never set, so an Other
+    // folder would swallow a large share of the drawer and its preview would
+    // show four arbitrary icons.
+    //
+    // iOS has exactly this folder and it works, because a folder is not a
+    // summary. It OPENS into a scrollable grid; the tile only ever promises its
+    // top few and a count. A big Other is not a broken folder, it is a big
+    // folder, and it beats a hundred loose icons after the categories.
+    //
+    // -1 is CATEGORY_UNDEFINED. Anything else is a constant from an Android
+    // newer than this build knows about, and lands here for the same reason.
+    _ => 'Other',
+  };
+}
+
+/// The order category folders appear in.
+///
+/// FIXED, not alphabetical and not by size. A drawer whose folders reorder
+/// themselves as you install things is a drawer you cannot build muscle memory
+/// against, and size-ordering means the biggest folder moves to the front the
+/// first time you install two of something.
+const _categoryOrder = [
+  'Social',
+  'Media',
+  'Productivity',
+  'Games',
+  'News',
+  'Travel',
+  'Utilities',
+  // LAST, always. It is the remainder, and on a device where few apps declare
+  // a category it is also the biggest, which is exactly why it must not be the
+  // first thing the eye lands on.
+  'Other',
+];
+
+/// Below this, a category renders as loose icons instead of a folder.
+///
+/// A folder holding one app is strictly worse than that app sitting loose: same
+/// tap count to launch it becomes two, and its 2x2 preview is three quarters
+/// empty. Two is the smallest number where a folder saves any space at all.
+const _minCategoryMembers = 2;
+
 final drawerItemsProvider =
     Provider.family<List<DrawerItem>, EffectiveTheme>((ref, theme) {
   final apps = ref.watch(shellAppsProvider(theme));
@@ -233,6 +334,100 @@ final drawerItemsProvider =
   // built; the drawer body itself renders the sparse grid via
   // [drawerCustomGridProvider], gaps included.
   final mode = prefs.drawerSortMode ?? 'custom';
+
+  // ── THE LIBRARY ─────────────────────────────────────────────────────────
+  //
+  // Category folders, generated from what each app declares about itself.
+  // Reached only under `drawerGrouping: 'library'`, so every other distro's
+  // drawer is byte-identical to what it was.
+  //
+  // ─── BEFORE THE SORT MODES, AND THAT IS THE CORRECTION ────────────────────
+  //
+  // This sat at the BOTTOM, after `custom` had already returned its slot grid.
+  // The reasoning was that a grid the user arranged by hand is the one thing
+  // grouping must not rewrite, which sounds right and is wrong for one reason:
+  // `drawerSortMode ?? 'custom'` means custom is the DEFAULT. So on any device
+  // where nobody had gone looking for the sort setting, picking Library did
+  // absolutely nothing, with no message saying why.
+  //
+  // Grouping outranks sort mode because it is the stronger statement. Custom is
+  // usually a default nobody chose; Library is a switch somebody deliberately
+  // moved. Switching back restores the slot grid untouched, because this reads
+  // the arrangement and never writes it.
+  if (theme.drawerGrouping == 'library') {
+    final loose = <DrawerItem>[
+      for (final a in apps)
+        if (!folded.contains(a.componentKey)) AppDrawerItem(a),
+    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+
+    final buckets = <String, List<AppEntry>>{};
+    for (final item in loose) {
+      final entry = (item as AppDrawerItem).entry;
+      final name = _categoryFolderName(entry);
+      if (name == null) continue;
+      (buckets[name] ??= []).add(entry);
+    }
+
+    // A folder of one is worse than that app sitting loose: two taps to launch
+    // instead of one. Its members go to Other rather than back to the loose
+    // run, because with Other existing there is no loose run left to go to.
+    final strays = <AppEntry>[];
+    buckets.removeWhere((name, v) {
+      if (name == 'Other' || v.length >= _minCategoryMembers) return false;
+      strays.addAll(v);
+      return true;
+    });
+    if (strays.isNotEmpty) (buckets['Other'] ??= []).addAll(strays);
+
+    // ─── MOST USED FIRST, INSIDE EVERY FOLDER ─────────────────────────────
+    //
+    // The tile shows its first three large and the next few as a cluster, so
+    // "first" is the whole question: alphabetical order means a folder called
+    // Social leads with whatever happens to start with A.
+    //
+    // `frequentAppsProvider` is the same frecency ranking the `mostUsed` sort
+    // mode uses, so nothing new is measured and no figure is invented. Apps
+    // with no usage yet keep their alphabetical order behind the ranked ones,
+    // which is what makes a fresh install still look deliberate.
+    final freq = ref.watch(frequentAppsProvider);
+    final rank = {for (var i = 0; i < freq.length; i++) freq[i]: i};
+    for (final list in buckets.values) {
+      list.sort((a, b) {
+        final ra = rank[a.componentKey] ?? 1 << 30;
+        final rb = rank[b.componentKey] ?? 1 << 30;
+        if (ra != rb) return ra.compareTo(rb);
+        return a.label.toLowerCase().compareTo(b.label.toLowerCase());
+      });
+    }
+
+    final filed = <String>{
+      for (final members in buckets.values)
+        for (final a in members) a.componentKey,
+    };
+
+    final categoryFolders = <DrawerItem>[
+      for (final name in _categoryOrder)
+        if (buckets[name] != null)
+          FolderDrawerItem(
+            AppFolder(
+              id: '$kCategoryFolderPrefix$name',
+              name: name,
+              members: [for (final a in buckets[name]!) a.componentKey],
+            ),
+            buckets[name]!,
+          ),
+    ];
+
+    return [
+      // The user's own folders still come first. Something you built outranks
+      // something that was derived for you.
+      ...folders,
+      ...categoryFolders,
+      ...launcherEntries,
+      for (final item in loose)
+        if (!filed.contains((item as AppDrawerItem).entry.componentKey)) item,
+    ];
+  }
 
   if (mode == 'custom') {
     // The STORED pair here, not the live one, and that is not the same

@@ -270,6 +270,53 @@ export interface IndexPack {
   title: string;
   summary: string;
   sku?: string | null;
+
+  /**
+   * The storefront preview: which shell to draw, and the six palette colours.
+   *
+   * ─── OPTIONAL, AND OMITTED ENTIRELY WHEN ABSENT ───────────────────────────
+   *
+   * The device already knows how to draw a miniature desktop for any shell; the
+   * bundled distros have used that renderer since the storefront shipped. What
+   * a CDN distro lacked was the DATA, so every downloadable pack fell back to a
+   * flat rectangle, which made a paid distro the emptiest card on the screen.
+   *
+   * Roughly 120 bytes per entry.
+   *
+   * ─── AND IT CHANGES WHAT GETS SIGNED ──────────────────────────────────────
+   *
+   * The index is signed over its bytes, so an entry that gains fields is a
+   * different document. That is fine because the panel re-signs on every
+   * publish, but it does mean a pack only carries a preview once it has been
+   * REPUBLISHED. Nothing published by `tools/publish-index.sh` or by an older
+   * deploy gains one retroactively, and the device treats its absence exactly
+   * as it treats an old index: falls back, draws nothing invented.
+   *
+   * Serialised as a nested `preview` object rather than six flat keys, because
+   * an index entry is hand-read often enough that one named block beats six
+   * prefixed siblings. The bridge flattens it on the far side, where a nested
+   * class would have cost a Pigeon codec id.
+   */
+  preview?: IndexPreview;
+}
+
+/** The six values a card needs to draw a distro it has never installed. */
+export interface IndexPreview {
+  /** "gnome" | "plasma" | "aqua" | "tiling" | "tui". Picks the miniature. */
+  shell: string;
+
+  /**
+   * Colours exactly as the theme.json authors them: "#RRGGBB" or "#AARRGGBB".
+   *
+   * Strings, not numbers. That is how the palette is written, how the panel
+   * stores it, and how the device parses it, so passing it through untouched
+   * keeps one representation rather than three.
+   */
+  bgTop: string;
+  bgBottom: string;
+  bar: string;
+  dock: string;
+  accent: string;
 }
 
 export interface IndexEntitlement {

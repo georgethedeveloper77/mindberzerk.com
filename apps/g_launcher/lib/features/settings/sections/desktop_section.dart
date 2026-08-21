@@ -129,10 +129,46 @@ List<Widget> desktopSection(
             ),
           ),
         ),
+        // ── DESKTOP ICONS ──────────────────────────────────────────
+        //
+        // DIMMED AND INERT ON A DISTRO WITH NO GRID, which is the rule
+        // `SettingsToggleRow.enabled` already states: a setting that applies
+        // only elsewhere is greyed with the reason in its subtitle rather than
+        // hidden, because hiding it makes someone who has read about the
+        // feature conclude this build does not have it.
+        //
+        // The override is one-way and `LayoutResolver` enforces it, so this
+        // switch can only ever turn icons OFF. A Ubuntu user cannot turn them
+        // on, because a bare desktop is what GNOME IS rather than a setting
+        // somebody forgot to expose. The subtitle says exactly that: it
+        // describes the distro instead of withholding a feature.
+        FilterRow(
+          const [
+            'desktop icons',
+            'icons on desktop',
+            'folder view',
+            'apps on home',
+          ],
+          SettingsToggleRow(
+            icon: Icons.apps_outlined,
+            accent: true,
+            title: context.t('settings.desktopIcons'),
+            subtitle: theme.spec.layout.desktopIcons
+                ? context.t('settings.appsOnTheWorkspace')
+                : context.t('settings.bareDesktop', {'name': theme.spec.name}),
+            value: theme.desktopIcons,
+            enabled: theme.spec.layout.desktopIcons,
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(desktopIcons: v)),
+          ),
+        ),
         FilterRow(
           // Relabeled from "Home grid". The authentic-desktop decision
-          // removed home-screen app icons, so "Home grid" implied an
-          // icon grid that no longer exists. This rows × columns is the
+          // removed home-screen app icons everywhere, so "Home grid"
+          // implied an icon grid that did not exist. They are back on the
+          // distros that authentically have one, and this grid now shapes
+          // BOTH: it is the placement grid for icons where a distro carries
+          // them, and the desklet grid everywhere. This rows × columns is the
           // desktop's placement grid — where widgets / conky tiles snap
           // once WidgetHost lands. The old "home grid" search term is kept
           // so anyone looking for the previous name still finds this.

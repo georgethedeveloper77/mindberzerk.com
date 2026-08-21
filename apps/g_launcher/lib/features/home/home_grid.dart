@@ -20,9 +20,19 @@ import '../drawer/app_icon.dart';
 /// gestures and paint, nothing more — which is why "I dragged an app into a
 /// folder and lost it" is a class of bug we can actually rule out.
 class HomeGrid extends ConsumerWidget {
-  const HomeGrid({super.key, required this.theme});
+  const HomeGrid({super.key, required this.theme, required this.page});
 
   final EffectiveTheme theme;
+
+  /// ─── WHICH WORKSPACE THIS GRID IS ─────────────────────────────────────
+  ///
+  /// Every read in this file used to be `HomeLayout.itemAt(prefs, 0, index)`,
+  /// with the page hardcoded to zero. `HomeLayout` has been page-aware from the
+  /// start; the widget simply threw the parameter away, so swiping to workspace
+  /// two showed workspace one's icons and dropping anything there wrote it back
+  /// to page one. It was invisible only because nothing has mounted this widget
+  /// since the desktop grid was removed.
+  final int page;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,10 +41,23 @@ class HomeGrid extends ConsumerWidget {
     final prefs = theme.prefs;
     final capacity = theme.rows * theme.cols;
 
-    // First run: nobody has arranged anything, so seed with the first N apps
-    // rather than showing an empty desktop and looking broken. The moment the
-    // user drags ANYTHING, their layout takes over completely.
-    final seeded = prefs.homeItems.isEmpty;
+    // ─── NO SEEDED DESKTOP ────────────────────────────────────────────────
+    //
+    // This began `final seeded = prefs.homeItems.isEmpty;` and, on a desktop
+    // nobody had arranged yet, drew the first N apps so the screen would not
+    // look broken. What it actually produced was a screen that looked finished
+    // and was inert: those cells were built with `slot: null`, so long press did
+    // nothing on any of them, and they were not wrapped in `_Draggable`, so they
+    // could not be moved either. A desktop full of icons that refuse every
+    // gesture is a worse first impression than an empty one, and it is the
+    // literal complaint in the review that started this work.
+    //
+    // An empty desktop is also the honest one. KDE's Folder View shows the
+    // contents of a folder that is empty on a fresh install, so nothing is what
+    // Plasma actually does. A distro that wants a populated desktop out of the
+    // box can author it, the same way it authors desklets: `StarterDesktop`
+    // already applies authored placements once per theme, through the same
+    // clamps a user drag goes through.
 
     // ─── THE CELL IS MEASURED, NOT GUESSED ────────────────────────────────
     //
@@ -86,19 +109,10 @@ class HomeGrid extends ConsumerWidget {
           ),
           itemCount: capacity,
           itemBuilder: (context, index) {
-            if (seeded) {
-              if (index >= apps.length) return const SizedBox.shrink();
-              return _AppCell(
-                theme: theme,
-                entry: apps[index],
-                slot: null,
-                iconSize: iconSize,
-              );
-            }
-
-            final item = HomeLayout.itemAt(prefs, 0, index);
+            final item = HomeLayout.itemAt(prefs, page, index);
             return _Slot(
               theme: theme,
+              page: page,
               index: index,
               item: item,
               byKey: byKey,
@@ -120,6 +134,7 @@ double _labelFontSize(EffectiveTheme theme) => 11 * theme.textScale;
 class _Slot extends ConsumerWidget {
   const _Slot({
     required this.theme,
+    required this.page,
     required this.index,
     required this.item,
     required this.byKey,
@@ -127,6 +142,9 @@ class _Slot extends ConsumerWidget {
   });
 
   final EffectiveTheme theme;
+
+  /// The workspace this slot belongs to. A drop writes here, not to page zero.
+  final int page;
   final int index;
   final HomeItem? item;
   final Map<String, AppEntry> byKey;
@@ -185,6 +203,7 @@ class _Slot extends ConsumerWidget {
       child: _AppCell(
         theme: theme,
         entry: entry,
+        page: page,
         slot: index,
         iconSize: iconSize,
       ),
@@ -198,23 +217,26 @@ class _Slot extends ConsumerWidget {
     HapticFeedback.mediumImpact();
 
     notifier.edit((p) {
-      final target = HomeLayout.itemAt(p, 0, index);
+      final target = HomeLayout.itemAt(p, page, index);
 
+      // Both ends are THIS page. A drag cannot cross workspaces in one gesture,
+      // because the pager does not scroll while a tile is held, so from and to
+      // are the same page by construction rather than by assumption.
       if (target == null) {
         return HomeLayout.move(
           p,
-          fromPage: 0,
+          fromPage: page,
           fromIndex: from,
-          toPage: 0,
+          toPage: page,
           toIndex: index,
         );
       }
 
       return HomeLayout.mergeOrSwap(
         p,
-        fromPage: 0,
+        fromPage: page,
         fromIndex: from,
-        toPage: 0,
+        toPage: page,
         toIndex: index,
         newFolderId: () =>
             'f${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}',
@@ -253,6 +275,7 @@ class _AppCell extends ConsumerWidget {
   const _AppCell({
     required this.theme,
     required this.entry,
+    required this.page,
     required this.slot,
     required this.iconSize,
   });
@@ -261,9 +284,15 @@ class _AppCell extends ConsumerWidget {
   final AppEntry entry;
   final double iconSize;
 
-  /// null when this cell is part of the un-arranged seed layout — there is no
-  /// slot to remove it from yet.
-  final int? slot;
+  /// Which workspace this cell is on, so Remove takes it off THIS one. The
+  /// call below said page zero, which on workspace two removed whichever icon
+  /// happened to share the slot index on workspace one.
+  final int page;
+
+  /// NON-NULL now. It was nullable only for the seeded layout, whose cells had
+  /// no slot to be removed from, and that layout is gone. Every cell this grid
+  /// builds is a real placement, so every cell answers a long press.
+  final int slot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -277,7 +306,7 @@ class _AppCell extends ConsumerWidget {
         HapticFeedback.lightImpact();
         ref.read(appListProvider.notifier).launch(entry, iconBounds: bounds);
       },
-      onLongPress: slot == null ? null : () => _menu(context, ref),
+      onLongPress: () => _menu(context, ref),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -303,7 +332,7 @@ class _AppCell extends ConsumerWidget {
               Navigator.pop(sheet);
               ref
                   .read(prefsProvider(theme.spec.id).notifier)
-                  .edit((p) => HomeLayout.removeFromHome(p, 0, slot!));
+                  .edit((p) => HomeLayout.removeFromHome(p, page, slot));
             },
           ),
           ThemedListRow(

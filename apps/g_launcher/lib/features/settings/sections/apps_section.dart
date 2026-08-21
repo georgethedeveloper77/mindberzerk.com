@@ -94,7 +94,12 @@ List<Widget> applicationsSection(
             // group of one exists to carry a heading nobody needed. Three or
             // four rows in the whole app need this and none of them is worth a
             // heading of its own.
-            subtitle: 'This distro',
+            subtitle: theme.drawerGrouping == 'library'
+                ? 'The library is two columns'
+                : 'This distro',
+            subtitleTint: theme.drawerGrouping == 'library'
+                ? SettingsSkin.of(context).warn
+                : null,
             trailing: ChipValue(
               label: '${theme.drawerCols}',
               preview: DevicePreview(
@@ -103,14 +108,27 @@ List<Widget> applicationsSection(
                 cols: theme.drawerCols,
               ),
             ),
-            onTap: () => showStepperSheet(
-              context,
-              title: context.t('settings.drawerColumns'),
-              value: theme.drawerCols,
-              min: 3,
-              max: 8,
-              onChanged: (v) => notifier.edit((p) => p.copyWith(drawerCols: v)),
-            ),
+            // ── INERT UNDER LIBRARY ────────────────────────────────
+            //
+            // The library is two columns and its tile is drawn for two: three
+            // large icons plus a cluster does not survive being squeezed to a
+            // fifth of the screen. So the number is not a preference there, it
+            // is a property of the layout.
+            //
+            // A null `onTap` is how `SettingsRow` says inert; it has no
+            // `enabled` flag. The tinted subtitle carries the reason, the same
+            // way `_GestureRow` tints its workspace-scrolling warning.
+            onTap: theme.drawerGrouping == 'library'
+                ? null
+                : () => showStepperSheet(
+                      context,
+                      title: context.t('settings.drawerColumns'),
+                      value: theme.drawerCols,
+                      min: 3,
+                      max: 8,
+                      onChanged: (v) =>
+                          notifier.edit((p) => p.copyWith(drawerCols: v)),
+                    ),
           ),
         ),
         // ── THE PICTURE IS THE CONTROL ─────────────────────────────
@@ -128,8 +146,23 @@ List<Widget> applicationsSection(
           const ['drawer', 'scroll', 'pages', 'cube', 'list', 'vertical'],
           PreviewChoice<String>(
             title: context.t('settings.drawerScrolls'),
-            subtitle: context.t('settings.oneLongListOr'),
-            value: theme.drawerScrollStyle,
+            // ── DIMMED UNDER LIBRARY ───────────────────────────────
+            //
+            // The library is one vertical run of tiles. Pages and Cube are
+            // motions for a grid of app icons and there is no sensible way to
+            // page a two-column folder list, so the choice has one answer
+            // there and the row says so rather than offering three.
+            subtitle: theme.drawerGrouping == 'library'
+                ? 'The library is always one list'
+                : context.t('settings.oneLongListOr'),
+            enabled: theme.drawerGrouping != 'library',
+            // Shown as List regardless of what the pref holds, because that is
+            // what the drawer is actually doing. Leaving the stored value
+            // selected would put the ring on Cube while the screen renders a
+            // list.
+            value: theme.drawerGrouping == 'library'
+                ? 'vertical'
+                : theme.drawerScrollStyle,
             onSelect: (v) =>
                 notifier.edit((p) => p.copyWith(drawerScrollStyle: v)),
             options: [
@@ -159,18 +192,54 @@ List<Widget> applicationsSection(
         // Hiding it means someone who read about the feature concludes
         // it does not exist; disabling it with the reason attached
         // teaches the rule in one glance.
+        // ── THREE VALUES, SO NOT A SWITCH ANY MORE ────────────────────
+        //
+        // This was a toggle reading `drawerGrouping == 'az'`, which was exact
+        // while the field held two values. It holds three now, and a switch
+        // cannot express the third: turning it off from Library would have to
+        // pick between 'none' and 'az' on the user's behalf, and there is no
+        // right answer to that.
+        //
+        // `Seg` is the same control the search-bar row directly below uses for
+        // its own three positions, so this is the house pattern rather than a
+        // new one.
+        //
+        // ENABLED ON EVERY LAYOUT, unlike before. A to Z headings genuinely
+        // only make sense down a list, but FOLDERS work in a paged grid as
+        // well as a scroll, so gating the whole row on `vertical` would have
+        // hidden Library from the layouts that can use it. The subtitle
+        // carries the caveat instead.
         FilterRow(
-          const ['a to z', 'az', 'alphabet', 'grouping', 'sections'],
-          SettingsToggleRow(
+          const [
+            'a to z',
+            'az',
+            'alphabet',
+            'grouping',
+            'sections',
+            'library',
+            'folders',
+            'categories',
+          ],
+          SettingsRow(
             icon: Icons.sort_by_alpha,
             title: context.t('settings.groupAToZ'),
-            subtitle: theme.drawerScrollStyle == 'vertical'
-                ? 'Letter headings down the list'
-                : 'Only on the list layout',
-            value: theme.drawerGrouping == 'az',
-            enabled: theme.drawerScrollStyle == 'vertical',
-            onChanged: (v) => notifier.edit(
-              (p) => p.copyWith(drawerGrouping: v ? 'az' : 'none'),
+            subtitle: switch (theme.drawerGrouping) {
+              'library' => 'Apps filed into category folders',
+              'az' => theme.drawerScrollStyle == 'vertical'
+                  ? 'Letter headings down the list'
+                  : 'Headings need the list layout',
+              _ => 'One flat run of apps',
+            },
+            trailing: Seg(
+              value: theme.drawerGrouping,
+              options: const {
+                'none': 'Off',
+                'az': 'A to Z',
+                'library': 'Library',
+              },
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(drawerGrouping: v),
+              ),
             ),
           ),
         ),

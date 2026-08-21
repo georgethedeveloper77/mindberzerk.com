@@ -6,6 +6,7 @@ import '../engine/effective_theme.dart';
 import '../features/drawer/shell_drawer.dart';
 import '../features/drawer/drawer_state.dart';
 import '../features/gestures/gesture_layer.dart';
+import '../features/home/desktop_hold.dart';
 import '../features/home/workspaces/workspace_controller.dart';
 import '../system/system_stats.dart';
 
@@ -53,17 +54,42 @@ class _TilingShellState extends ConsumerState<TilingShell> {
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: GestureLayer(
-            theme: theme,
-            child: WorkspaceCanvas(controller: _pages, count: count),
-          ),
-        ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(bottom: false, child: _Waybar(theme: theme)),
+        // ─── THE BAR IS A SIBLING OF THE WORKSPACE, NOT A LID ON IT ───────
+        //
+        // Same change, same reason, as the Plasma panel: the workspace used to
+        // draw nothing, so a bar floating over a filled canvas cost nothing.
+        // Now that desklets render here, a tile in the top row would sit under
+        // the waybar, placed and saved and unreadable.
+        Column(
+          children: [
+            SafeArea(bottom: false, child: _Waybar(theme: theme)),
+            Expanded(
+              // removeTop, because the SafeArea above has already consumed the
+              // status-bar inset for the bar. The desklet surface reads the
+              // window's view padding directly, so without this it adds a
+              // second status-bar gutter below a bar that is already clear of
+              // it, and every top-row tile sits a status bar too low.
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: GestureLayer(
+                  theme: theme,
+                  // Same gap as Plasma had: no long press at all, so the
+                  // desktop menu was unreachable from this shell. A tiling WM
+                  // has no dock and no desktop icons, which makes the hold the
+                  // ONLY pointer route to wallpaper and themes here.
+                  child: DesktopHold(
+                    theme: theme,
+                    child: WorkspaceCanvas(
+                      theme: theme,
+                      controller: _pages,
+                      count: count,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         // ShellDrawer directly; `_Launcher` was a back contract and nothing
         // else, and that contract moved to home_screen. The rofi-shaped

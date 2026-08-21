@@ -179,6 +179,67 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     });
   }
 
+  /// ─── THE ID THIS OVERLAY IS SHOWING, WHICH CAN CHANGE UNDER IT ──────────
+  ///
+  /// `widget.folderId` is the id the overlay was OPENED with, and for a
+  /// generated folder that id stops existing the moment `_editable` converts
+  /// it: the members move into a real folder and the category is no longer
+  /// rebuilt for them.
+  ///
+  /// Every lookup below was keyed on `widget.folderId`, so the first edit made
+  /// the folder vanish from under itself and the "dissolved while open" branch
+  /// popped the overlay. From the outside that looked exactly like a gesture
+  /// doing nothing: press, and the folder closes.
+  ///
+  /// So the id lives in state and follows the conversion. `widget.folderId` is
+  /// now only the STARTING value and must not be read anywhere else.
+  late String _id = widget.folderId;
+
+  /// A generated category folder, which owns nothing until it is edited.
+  bool get _generated => isCategoryFolder(_id);
+
+  /// ─── MATERIALISE ON FIRST EDIT ──────────────────────────────────────────
+  ///
+  /// This was `_readOnly`, and every gesture here was gated on it: rename
+  /// passed a null callback, the member menu returned early, drops were
+  /// refused, Add and Ungroup were not rendered. Defensible while the
+  /// alternative was writes that silently did nothing, and still wrong: it made
+  /// an opened category folder completely inert.
+  ///
+  /// The problem was never that the writes failed. It was that they could not
+  /// STICK. The folder is rebuilt from each app's declared category on the next
+  /// launch, so removing an app from Social put it straight back.
+  ///
+  /// Converting solves both. The first edit writes the folder into
+  /// `drawerFolders` under a real id with the members it holds right now, and
+  /// from then on it is an ordinary folder: every gesture works, and it stays
+  /// as the user left it because `drawerItemsProvider` skips apps that are
+  /// already in a folder when it builds the categories.
+  ///
+  /// Returns the id to edit AGAINST. Callers must use the return value rather
+  /// than `widget.folderId`, which after a conversion still names a generated
+  /// folder that no longer describes anything.
+  Future<String> _editable(FolderDrawerItem live) async {
+    if (!_generated) return _id;
+
+    final id = newDrawerFolderId();
+    await ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+          (p) => DrawerLayout.materialise(
+            p,
+            live.folder.name,
+            [for (final m in live.members) m.componentKey],
+            newFolderId: () => id,
+          ),
+        );
+
+    // BEFORE returning, so the rebuild that this write triggers already looks
+    // the folder up under its new id. Setting it after would leave one frame
+    // where the overlay searches for a folder that no longer exists, which is
+    // all the "dissolved while open" branch needs to pop the screen.
+    if (mounted) setState(() => _id = id);
+    return id;
+  }
+
   void _commitRename() {
     final controller = _renaming;
     if (controller == null) return;
@@ -187,11 +248,39 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     setState(() => _renaming = null);
     controller.dispose();
 
+    // ─── CONVERT, THEN RENAME ────────────────────────────────────────────
+    //
+    // Renaming a generated folder is the clearest case for materialising:
+    // calling it "Chat" only means anything if it then STAYS Chat, and a
+    // derived Social folder is rebuilt under its own name every launch.
+    //
+    // Fire and forget rather than awaited, matching every other write on this
+    // screen: the overlay reads its folder live from the provider, so the
+    // rename lands on the next build either way.
+    //
     // A blank name is refused by DrawerLayout.rename rather than stored, so
     // clearing the field and pressing Enter simply keeps the old name.
-    ref
-        .read(prefsProvider(widget.theme.spec.id).notifier)
-        .edit((p) => DrawerLayout.rename(p, widget.folderId, name));
+    final live = _live();
+    if (live == null) return;
+
+    () async {
+      final id = await _editable(live);
+      await ref
+          .read(prefsProvider(widget.theme.spec.id).notifier)
+          .edit((p) => DrawerLayout.rename(p, id, name));
+    }();
+  }
+
+  /// The folder as it stands right now, or null if it has just been dissolved.
+  ///
+  /// Read from the provider rather than captured, because `_commitRename` runs
+  /// from a focus listener that can fire after the members have changed.
+  FolderDrawerItem? _live() {
+    final items = ref.read(drawerItemsProvider(widget.theme));
+    for (final i in items) {
+      if (i is FolderDrawerItem && i.folder.id == _id) return i;
+    }
+    return null;
   }
 
   @override
@@ -211,7 +300,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     final live = ref
         .watch(drawerItemsProvider(theme))
         .whereType<FolderDrawerItem>()
-        .where((f) => f.folder.id == widget.folderId)
+        .where((f) => f.folder.id == _id)
         .firstOrNull;
 
     // Dissolved while open — the last-but-one member was pulled out, or the
@@ -309,10 +398,23 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
 
                   const Spacer(),
 
+                  // RENDERED FOR EVERY FOLDER, generated ones included. They
+                  // were hidden on a category folder because its writes could
+                  // not stick; `_editable` converts it first, so they can.
                   _Actions(
                     theme: theme,
                     onAdd: () => _addApps(theme, live),
                     onUngroup: () {
+                      // ─── NO CONVERSION HERE ────────────────────────────
+                      //
+                      // The one action that does not need it. `dissolve`
+                      // against a `cat:` id is a no-op, and a no-op is the
+                      // CORRECT result: a generated folder that is ungrouped
+                      // simply gets rebuilt by the categories, which is what
+                      // ungrouping it should do. Materialising it first, only
+                      // to delete it, would be two writes to reach the state
+                      // it was already in.
+                      //
                       // Pop FIRST. Dissolving rebuilds this widget with no
                       // folder to show; the auto-close above would handle it,
                       // but popping here runs the exit animation instead of
@@ -332,6 +434,11 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
                     theme: theme,
                     members: live.members,
                     folderId: live.folder.id,
+                    // Closed over `live` HERE, where it is in scope. The panel
+                    // and the tiles hold plain data and no ref, so the
+                    // conversion decision is made by the only widget that can
+                    // make it and handed down as a callback.
+                    editable: () => _editable(live),
                     cols: cols,
                     rows: rows,
                     perPage: perPage,
@@ -464,16 +571,23 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
             onPressed: () {
               Navigator.of(dialogCtx).pop();
               if (chosen.isEmpty) return;
-              // ONE edit, not one per app. Each `edit` is a write and a
-              // rebuild; folding the whole selection into a single transform
-              // means the drawer animates once.
-              ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
-                var next = p;
-                for (final k in chosen) {
-                  next = DrawerLayout.addToFolder(next, folder.folder.id, k);
-                }
-                return next;
-              });
+              // Converts a generated folder first: `addToFolder` against a
+              // `cat:` id finds nothing and returns prefs unchanged, so the
+              // sheet would close having added nothing.
+              () async {
+                final id = await _editable(folder);
+
+                // ONE edit, not one per app. Each `edit` is a write and a
+                // rebuild; folding the whole selection into a single transform
+                // means the drawer animates once.
+                await ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
+                  var next = p;
+                  for (final k in chosen) {
+                    next = DrawerLayout.addToFolder(next, id, k);
+                  }
+                  return next;
+                });
+              }();
             },
           ),
       ],
@@ -503,7 +617,12 @@ class _Title extends StatelessWidget {
   final bool unnamed;
   final TextEditingController? controller;
   final FocusNode focus;
-  final VoidCallback onStartRename;
+  /// NULLABLE, and null means this folder cannot be renamed.
+  ///
+  /// Passed straight to the title's `onTap`, so a null also removes the ripple
+  /// and the pointer cursor: the title stops advertising a tap that would do
+  /// nothing rather than merely ignoring it.
+  final VoidCallback? onStartRename;
   final VoidCallback onCommit;
 
   @override
@@ -666,6 +785,7 @@ class _Panel extends StatefulWidget {
     required this.theme,
     required this.members,
     required this.folderId,
+    required this.editable,
     required this.cols,
     required this.rows,
     required this.perPage,
@@ -677,6 +797,16 @@ class _Panel extends StatefulWidget {
   final EffectiveTheme theme;
   final List<AppEntry> members;
   final String folderId;
+
+  /// Converts a generated folder into a real one and answers with the id to
+  /// write against. Threaded down from `_FolderOverlayState`, which is the only
+  /// thing here holding a `ref` and the live folder.
+  ///
+  /// The panel and its tiles are deliberately plain widgets over plain data, so
+  /// neither can look the folder up for itself. Passing the decision down is
+  /// what keeps that true.
+  final Future<String> Function() editable;
+
   final int cols;
   final int rows;
   final int perPage;
@@ -890,6 +1020,7 @@ class _PanelState extends State<_Panel> {
                 ),
                 itemCount: count,
                 itemBuilder: (_, i) => _MemberTile(
+                  editable: widget.editable,
                   theme: theme,
                   entry: members[start + i],
                   folderId: folderId,
@@ -916,6 +1047,7 @@ class _MemberTile extends ConsumerStatefulWidget {
     required this.theme,
     required this.entry,
     required this.folderId,
+    required this.editable,
     this.onDragOver,
     this.onDragDone,
   });
@@ -923,6 +1055,14 @@ class _MemberTile extends ConsumerStatefulWidget {
   final EffectiveTheme theme;
   final AppEntry entry;
   final String folderId;
+
+  /// Converts a generated folder into a real one and answers with the id to
+  /// write against.
+  ///
+  /// A hook back to the panel rather than logic here, because materialising is
+  /// a decision about the FOLDER and this widget is one member of it. Six tiles
+  /// each converting independently would race and write six folders.
+  final Future<String> Function() editable;
 
   /// Where a hovering drag is, in GLOBAL coordinates, reported to the panel.
   ///
@@ -972,28 +1112,57 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
   void _openMenu() {
     // No `_held = true` here. `onDragStarted` already set it when the timer
     // completed; this only holds it until the panel closes.
-    showFolderMemberMenu(
-      context,
-      ref,
-      widget.theme,
-      at: _down,
-      folderId: widget.folderId,
-      entry: widget.entry,
-    ).whenComplete(() {
+    // ─── CONVERT BEFORE OPENING, NOT AFTER CHOOSING ──────────────────────
+    //
+    // Every verb on this menu writes through `DrawerLayout` keyed by the folder
+    // id, and a `cat:` id matches nothing, so on a generated folder the sheet
+    // used to be refused outright.
+    //
+    // Converting when the menu OPENS rather than when an item is tapped costs a
+    // write the user might not have needed, and it is worth it: the menu is
+    // built with an id, so deferring means every item would have to convert
+    // itself and re-derive its own id afterwards.
+    //
+    // The cost is bounded and honest: a generated folder whose menu was opened
+    // and dismissed becomes a real folder holding exactly what it held. Nothing
+    // about it looks different, and the user can Ungroup it.
+    () async {
+      final id = await widget.editable();
+      if (!mounted) return;
+
+      await showFolderMemberMenu(
+        context,
+        ref,
+        widget.theme,
+        at: _down,
+        folderId: id,
+        entry: widget.entry,
+      );
       if (mounted) setState(() => _held = false);
-    });
+    }();
   }
 
-  void _accept(String sourceKey) {
+  Future<void> _accept(String sourceKey) async {
     final after = _dropAfter ?? false;
     setState(() => _dropAfter = null);
     widget.onDragDone?.call();
 
     HapticFeedback.selectionClick();
-    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
+
+    // Converts a generated folder before reordering inside it, for the reason
+    // `_editable` gives: an order written against a derived folder is rebuilt
+    // away on the next launch.
+    final id = await widget.editable();
+    if (!mounted) return;
+
+    await ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
           (p) => DrawerLayout.reorderMembers(
             p,
-            widget.folderId,
+            // `id`, NOT `widget.folderId`. After a conversion the widget still
+            // names the generated folder, which no longer exists, and
+            // `reorderMembers` would find nothing and return prefs unchanged:
+            // exactly the silent no-op this whole change was undoing.
+            id,
             sourceKey,
             widget.entry.componentKey,
             after: after,
@@ -1046,6 +1215,10 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
     // rather than only its edges, which is what makes a short drag land where
     // it looks like it will.
     return DragTarget<String>(
+      // Accepted on every folder now. It was refused at the door on a
+      // generated one, because `reorderMembers` against a `cat:` id returns
+      // unchanged prefs, which would have shown the insert marker, played the
+      // haptic and then put the icon back. `_accept` converts first.
       onWillAcceptWithDetails: (d) => !_isSource(d.data),
       onLeave: (_) {
         if (_dropAfter != null) setState(() => _dropAfter = null);

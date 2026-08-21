@@ -13,9 +13,9 @@ import '../design/branded_message.dart';
 import '../design/components/components.dart';
 import '../engine/effective_theme.dart';
 import '../features/dock/aqua_dock_metrics.dart';
-import '../features/drawer/shell_drawer.dart';
 import '../features/drawer/app_icon.dart';
 import '../features/drawer/drawer_state.dart';
+import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
 import '../features/home/aqua/aqua_dock.dart';
 import '../features/home/aqua/aqua_menu_bar.dart';
@@ -290,7 +290,11 @@ class _AquaShellState extends ConsumerState<AquaShell> {
                     HapticFeedback.mediumImpact();
                     showDesktopMenu(context, ref, theme);
                   },
-                  child: WorkspaceCanvas(controller: _pages, count: count),
+                  child: WorkspaceCanvas(
+                    theme: theme,
+                    controller: _pages,
+                    count: count,
+                  ),
                 ),
               ),
             ),
@@ -305,17 +309,17 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         // is the worst-looking version of this bug: the icons are large and
         // unevenly sized, so they read as a second broken grid.
         if (!activitiesOpen)
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: insets.bottom + 8,
-          child: AquaDock(
-            entries: entries,
-            palette: theme.palette,
-            opacity: theme.dockOpacity,
-            onLaunchpad: _openLaunchpad,
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: insets.bottom + 8,
+            child: AquaDock(
+              entries: entries,
+              palette: theme.palette,
+              opacity: theme.dockOpacity,
+              onLaunchpad: _openLaunchpad,
+            ),
           ),
-        ),
 
         // ShellDrawer directly; `_Launchpad` was a back contract and nothing
         // else. The interim note about real Launchpad being paged rather than

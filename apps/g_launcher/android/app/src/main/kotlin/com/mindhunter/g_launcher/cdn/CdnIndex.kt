@@ -221,6 +221,16 @@ data class CdnIndex(
                         // a price, NOT so the client can decide entitlement.
                         // Entitlement is Play's answer, never the CDN's.
                         sku = o.optString("sku", "").ifEmpty { null },
+                        // The preview block, if this entry carries one. Read
+                        // through the same optString-then-ifEmpty pattern as
+                        // `sku`, so a missing block and an empty one are the
+                        // same thing: absent.
+                        previewShell = previewStr(o, "shell"),
+                        previewBgTop = previewStr(o, "bgTop"),
+                        previewBgBottom = previewStr(o, "bgBottom"),
+                        previewBar = previewStr(o, "bar"),
+                        previewDock = previewStr(o, "dock"),
+                        previewAccent = previewStr(o, "accent"),
                     ),
                 )
             }
@@ -300,6 +310,23 @@ data class EntitlementSet(
         CdnIndex.WILDCARD in grants || packId in grants
 }
 
+/**
+ * One field out of an entry's optional `preview` object.
+ *
+ * A nested object in the JSON, six flat fields on the far side of the bridge.
+ * The nesting is right for a hand-authored theme.json, where `preview` reads as
+ * one thing; flat is right for the Pigeon class, where a new nested class would
+ * take a codec id and renumber every existing one.
+ *
+ * Returns null for a missing `preview`, a missing key, or an empty string,
+ * because a card cannot draw with any of the three and they should not be three
+ * different code paths.
+ */
+private fun previewStr(o: org.json.JSONObject, key: String): String? {
+    val p = o.optJSONObject("preview") ?: return null
+    return p.optString(key, "").ifEmpty { null }
+}
+
 /** One downloadable pack, as advertised by the index. */
 data class CdnPack(
     val packId: String,
@@ -313,4 +340,22 @@ data class CdnPack(
     val title: String,
     val summary: String,
     val sku: String?,
+    /**
+     * The storefront preview: which shell to draw and the six palette colours
+     * to draw it in.
+     *
+     * ALL NULLABLE, and every one of them optional in the JSON. A pack
+     * published before this block existed parses exactly as it did and the
+     * card falls back to the flat rectangle it draws today, so nothing already
+     * in the index has to be republished.
+     *
+     * Presentation only, like [title] and [summary]. Nothing here is ever
+     * consulted to decide whether a pack may be installed.
+     */
+    val previewShell: String? = null,
+    val previewBgTop: String? = null,
+    val previewBgBottom: String? = null,
+    val previewBar: String? = null,
+    val previewDock: String? = null,
+    val previewAccent: String? = null,
 )

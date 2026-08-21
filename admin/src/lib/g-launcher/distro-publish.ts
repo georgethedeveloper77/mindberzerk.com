@@ -41,7 +41,30 @@ export interface DistroPublishInput {
 }
 
 export type DistroPublishResult =
-  | { ok: true; themeVersion: number; iconVersion: number | null }
+  | {
+      ok: true;
+      themeVersion: number;
+      iconVersion: number | null;
+      /**
+       * ─── SET AFTER THE PACKS ARE ALREADY LIVE ───────────────────────────
+       *
+       * Not written by [publishDistro] itself, which has nothing to warn
+       * about: by the time it returns, either both packs and the index write
+       * succeeded or the result is the `ok: false` branch.
+       *
+       * This carries the bookkeeping that happens AFTER the publish, in
+       * `publishDistroAction`, where the draft that produced the shipped pack
+       * is written back. That step runs against a CDN and a signed index that
+       * are already updated, so there is no failure of it that makes
+       * unpublishing the right answer. It reports and the publish still
+       * succeeded.
+       *
+       * OPTIONAL, so a caller that only publishes and never persists a draft
+       * still satisfies the type without inventing a field. Read it as "the
+       * publish worked, and here is what to mention", never as a failure.
+       */
+      warning?: string;
+    }
   | { ok: false; error: string };
 
 /**
@@ -128,6 +151,24 @@ export async function publishDistro(
         title: input.theme.title,
         summary: input.theme.summary,
         sku: input.theme.sku,
+        // ── THE STOREFRONT PREVIEW ──────────────────────────────────────
+        //
+        // Derived from the spec being published, not authored separately, so it
+        // cannot disagree with the pack it describes. There is no second place
+        // to keep in sync and nothing new for anyone to fill in: republish a
+        // distro and its card gains a real miniature.
+        //
+        // The DARK palette specifically. `paletteLight` exists on some specs and
+        // the storefront is dark, so previewing a light variant would draw a
+        // card that looks nothing like the screen it lands on.
+        preview: {
+          shell: input.theme.spec.shell,
+          bgTop: input.theme.spec.palette.bgTop,
+          bgBottom: input.theme.spec.palette.bgBottom,
+          bar: input.theme.spec.palette.bar,
+          dock: input.theme.spec.palette.dock,
+          accent: input.theme.spec.palette.accent,
+        },
         files: themeFiles,
       },
       keyId,

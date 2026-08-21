@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
@@ -24,7 +23,7 @@ import '../features/desklets/desklet_surface.dart';
 import '../features/drawer/drawer_state.dart';
 import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
-import '../features/home/gnome/desktop_menu.dart';
+import '../features/home/desktop_hold.dart';
 import '../features/home/gnome/gnome_dock.dart';
 import '../features/home/gnome/gnome_top_bar.dart';
 import '../features/home/workspaces/workspace_controller.dart';
@@ -425,29 +424,15 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         // drag resolves to a workspace change. No arena fight —
                         // the thing the handoff warns about is claiming an axis
                         // a scrollable owns, which this does not do.
-                        _DesktopHold(
-                          // ── NOT BUILT AT ALL WHILE EDITING ─────────────
-                          //
-                          // This was gated inside the callback, which is not a
-                          // gate. A LongPressGestureRecognizer that returns
-                          // early has still WON the arena: it took the pointer
-                          // from the tile underneath, which then never received
-                          // the hold it was waiting for. So holding a widget in
-                          // edit mode did nothing at all, and holding one at
-                          // rest opened the desktop menu instead of picking the
-                          // widget up. Both are the same bug, and the only cure
-                          // is for this recognizer not to exist right now.
-                          //
-                          // At rest it is still exactly GNOME's right-click:
-                          // hold the EMPTY desktop for the wallpaper, themes,
-                          // widgets and settings bar. A hold that lands on a
-                          // tile is claimed by the tile, because the tile is
-                          // deeper in the tree and wins the arena on its own.
-                          enabled: !editing,
-                          onHold: () {
-                            HapticFeedback.mediumImpact();
-                            showDesktopMenu(context, ref, theme);
-                          },
+                        //
+                        // The edit-mode gate, the haptic and the reason the
+                        // callback is nulled rather than the child returned all
+                        // moved into DesktopHold when it was extracted for the
+                        // other three shells. This shell's behaviour is
+                        // unchanged; it is simply no longer the only shell that
+                        // has it.
+                        DesktopHold(
+                          theme: theme,
                           child: PageView.builder(
                             controller: _pages,
                             // The DISTRO's axis, not this shell's. GNOME
@@ -671,47 +656,6 @@ class _Activities extends ConsumerWidget {
   /// fires on the same press.
   @override
   Widget build(BuildContext context, WidgetRef ref) => ShellDrawer(theme: theme);
-}
-
-/// The desktop's own long press, which can be switched off entirely.
-///
-/// A widget rather than a conditional at the call site purely so the PageView
-/// below it is written once. [enabled] false returns the child untouched, so no
-/// recognizer is registered and nothing competes for the pointer; see the note
-/// at the call site for why returning early from the handler is not the same
-/// thing.
-class _DesktopHold extends StatelessWidget {
-  const _DesktopHold({
-    required this.enabled,
-    required this.onHold,
-    required this.child,
-  });
-
-  final bool enabled;
-  final VoidCallback onHold;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    // A NULL callback, not an early return of the child. Returning the child
-    // would change the shape of the tree, and this wraps the workspace
-    // PageView: the shape change unmounts it, a remounted PageView carries a
-    // brand new PageController, and the desktop would jump back to workspace
-    // one every time edit mode toggled. GestureDetector builds a recognizer
-    // only for a non-null callback, so this registers nothing while editing and
-    // the tree keeps its shape.
-    //
-    // The wrapper claims NO axis: it is translucent and handles long press
-    // only. A held press with no movement resolves to the desktop menu; any
-    // drag resolves to a workspace change. No arena fight, because the thing
-    // the handoff warns about is claiming an axis a scrollable owns, which this
-    // does not do.
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onLongPress: enabled ? onHold : null,
-      child: child,
-    );
-  }
 }
 
 /// Vertical parallax. The wallpaper is drawn by WindowManager underneath

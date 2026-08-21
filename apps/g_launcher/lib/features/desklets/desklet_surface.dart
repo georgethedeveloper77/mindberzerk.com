@@ -126,7 +126,12 @@ class DeskletSurfaceView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = DeskletLayout.renderable(theme.prefs, page);
-    final editing = ref.watch(deskletEditProvider).active;
+    // editingDesklets, NOT active. `active` is now true in panel edit mode too,
+    // and this surface must stay at rest for that one: handles on every widget
+    // on the desktop while somebody is editing the panel would say the wrong
+    // thing about what is being edited, and would swallow the drags meant for
+    // it.
+    final editing = ref.watch(deskletEditProvider).editingDesklets;
 
     // An EMPTY page still needs a surface while editing, or there is nowhere to
     // tap to add the first desklet. Outside edit mode it stays a genuinely
@@ -301,12 +306,53 @@ class _Tile extends StatelessWidget {
     // 6-column one, where clipping would behead it and scrolling would put a
     // scrollbar on a wallpaper. Scale down only: blowing a small tile up to
     // fill a large cell would make a 1x1 note look like a poster.
-    return Align(
-      alignment: _alignFor(skin),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+    //
+    // ─── A CARD NEEDS A WIDTH BEFORE IT CAN BE MEASURED ─────────────────────
+    //
+    // FittedBox measures its child with `const BoxConstraints()`, which is
+    // infinite on BOTH axes, and that is a question the two surfaces answer
+    // very differently.
+    //
+    // A BARE desklet is a conky: text hanging off the wallpaper at whatever
+    // size it was authored. Infinite width is a fair question and it has a
+    // real answer, so this path is unchanged.
+    //
+    // A CARD is a container, and `_CardRow` in desklet_frame lays a label out
+    // with `Expanded` so the value sits against the right edge. `Expanded`
+    // under an unbounded width is a hard error, and `_Bar(width: null)` beneath
+    // it is the same error twice. The child threw during layout, so FittedBox
+    // never assigned its own size, and the next paint asserted on `hasSize`:
+    // two exceptions, one cause, neither naming it.
+    //
+    // Nothing about that is Plasma's fault, and nothing about it is new. Bare
+    // is GNOME's surface and card is Breeze's, so the card row had simply never
+    // been laid out by anything, because until the workspace canvas started
+    // passing a theme the Plasma desktop rendered nothing at all.
+    //
+    // BOUND THE WIDTH, LEAVE THE HEIGHT FREE. The cell width is the edge the
+    // row wanted to right-align against, so this is the number `Expanded` was
+    // always asking for. Height stays unbounded, so a card taller than its cell
+    // is still measured honestly and still scales down. Bare and terminal keep
+    // the old unbounded measurement, so a conky that outgrows its cell shrinks
+    // rather than wrapping.
+    final bounded = switch (skin.surface) {
+      DeskletSurface.card || DeskletSurface.panel => true,
+      DeskletSurface.bare || DeskletSurface.terminal => false,
+    };
+
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
         alignment: _alignFor(skin),
-        child: child,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: _alignFor(skin),
+          child: bounded
+              ? ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: child,
+                )
+              : child,
+        ),
       ),
     );
   }

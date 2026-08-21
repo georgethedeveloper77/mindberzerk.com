@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
@@ -37,6 +38,51 @@ import 'theme_catalog.dart';
 /// The catalogue is read from the CACHED index, so this screen opens instantly
 /// and works offline; a refresh runs in the background on open and re-reads
 /// only if something actually changed.
+/// Which slice of the catalogue the storefront is showing.
+///
+/// ─── WHY THERE IS NO "POPULAR" ──────────────────────────────────────────────
+///
+/// It was asked for and it cannot be built honestly yet. Nothing counts distro
+/// installs: that is Phase 6 and it is blocked on the launcher emitting
+/// `app_present` and on BigQuery export. A tab labelled Popular would be
+/// ordered by nothing, and on a STORE screen that is not a harmless placeholder
+/// but an implicit claim that other people bought these.
+///
+/// [paid] is the honest tab that works today, derived from `sku != null` with
+/// no new data, and it is the same axis the admin panel already filters on.
+///
+/// The other honest version is Featured, an authored flag set per distro in the
+/// panel. It is editorial rather than measured, which is fine and true, but it
+/// needs the signed index to carry the flag, so it would list only bundled
+/// distros until that lands. Swapping this arm for it is one filter and one
+/// label.
+enum ThemeTab {
+  all,
+  installed,
+  paid;
+
+  String get label => switch (this) {
+        ThemeTab.all => 'All',
+        ThemeTab.installed => 'Installed',
+        ThemeTab.paid => 'Paid',
+      };
+
+  bool matches(ThemeCard c) => switch (this) {
+        ThemeTab.all => true,
+        ThemeTab.installed => c.status.onDevice,
+        ThemeTab.paid => c.sku != null,
+      };
+}
+
+/// AUTO-DISPOSES, so closing the storefront resets it to All.
+///
+/// Deliberate: a tab is a filter you applied a moment ago, not a preference.
+/// Coming back days later to a Paid-only list, having forgotten you narrowed
+/// it, reads as distros having disappeared.
+final themeTabProvider = StateProvider.autoDispose<ThemeTab>(
+  (ref) => ThemeTab.all,
+);
+
 class ThemesScreen extends ConsumerWidget {
   const ThemesScreen({super.key});
 
@@ -55,6 +101,16 @@ class ThemesScreen extends ConsumerWidget {
     // Watched here so a price arriving from Play repaints the whole grid at
     // once, rather than each card independently re-reading a provider family.
     ref.watch(ownedSkusProvider);
+
+    final tab = ref.watch(themeTabProvider);
+
+    // Filtered for display only. `cards` stays whole for the counts on the
+    // tabs, which have to say how many are in each slice rather than how many
+    // are in the slice you are already looking at.
+    final shown = [
+      for (final c in cards)
+        if (tab.matches(c)) c,
+    ];
 
     final activeId = activeSpec?.id;
     // If nothing string-matches the loaded spec, the bundled card (Ubuntu) is
@@ -213,28 +269,78 @@ class ThemesScreen extends ConsumerWidget {
           const _Header(),
 
           // ── Grid ────────────────────────────────────────────────────────
-          GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cards.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              mainAxisExtent: 150,
+          _Tabs(cards: cards),
+
+          // A filter can legitimately be empty: Paid before any paid distro is
+          // published, for one. Says so rather than showing a blank page, which
+          // is indistinguishable from a catalogue that failed to load.
+          if (shown.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 28),
+              child: Text(
+                // Literal, like every other string on this screen. Three
+                // `context.t` keys here would be the only localised text in the
+                // file and would need keys that do not exist yet; the screen
+                // localises as a unit or not at all.
+                switch (tab) {
+                  ThemeTab.installed => 'Nothing installed yet.',
+                  ThemeTab.paid => 'No paid distros yet.',
+                  ThemeTab.all => 'No distros to show.',
+                },
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: ChromeScope.of(context).colors.textMuted,
+                  fontSize: 12.5,
+                ),
+              ),
             ),
-            itemBuilder: (context, i) {
-              final c = cards[i];
-              return _ThemeCard(
-                card: c,
-                active: isActive(c),
-                // null when nothing is in flight for this pack, which is the
-                // normal case; the card only grows a bar while it is downloading.
-                progress: progress[c.packIdOrSpec],
-                onTap: () => tapCard(c),
-              );
-            },
+
+          // ─── ONE COLUMN, AND SIZED BY ITS CONTENT ─────────────────────
+          //
+          // This was a two-up grid of 150dp cells, which gives a preview about
+          // 100dp tall and 150 wide. At that size a mini desktop can show a
+          // colour and very little else, so every CDN distro read as a coloured
+          // rectangle with a price beside it, and the distro being charged for
+          // was the emptiest thing on the screen.
+          //
+          // A full-width card gives the preview 152dp of height and the whole
+          // width, which is enough to draw a panel, a dock, windows and icons:
+          // the distro's signature rather than its palette. It also leaves room
+          // under the meta row for what the card is actually for, which is
+          // saying what this distro DOES.
+          //
+          // ─── AND WHY IT IS NOT A GridView ANY MORE ────────────────────────
+          //
+          // It was, with a fixed `mainAxisExtent`, on the reasoning that cards
+          // of differing heights make a list that jumps about as the catalogue
+          // loads. That reasoning was wrong the moment feature rows existed:
+          // the three bundled distros carry two rows and a CDN pack carries
+          // none, so the cards ALWAYS differ. Fixing the height did not make
+          // them uniform, it just forced variable text into a constant box, and
+          // it overflowed by 3dp at the default font size. At a system text
+          // scale of 1.3 it would have overflowed by thirty.
+          //
+          // A Column of self-sizing cards has no such cliff. The preview stays
+          // fixed at 152 so every card shows the same size picture; everything
+          // below it takes the height its text actually needs.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                for (var i = 0; i < shown.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  _ThemeCard(
+                    card: shown[i],
+                    active: isActive(shown[i]),
+                    // null when nothing is in flight for this pack, which is
+                    // the normal case; the card only grows a bar while it is
+                    // downloading.
+                    progress: progress[shown[i].packIdOrSpec],
+                    onTap: () => tapCard(shown[i]),
+                  ),
+                ],
+              ],
+            ),
           ),
 
           // ── More ────────────────────────────────────────────────────────
@@ -278,6 +384,103 @@ class ThemesScreen extends ConsumerWidget {
 // Card
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The filter strip.
+///
+/// Counts come from the WHOLE list, not the filtered one, because the number on
+/// a tab has to say how many are in that slice rather than how many are in the
+/// slice already on screen. A Paid tab reading 0 while showing nine paid
+/// distros is the version of this that gets shipped by accident.
+class _Tabs extends ConsumerWidget {
+  const _Tabs({required this.cards});
+
+  final List<ThemeCard> cards;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(themeTabProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      child: Row(
+        children: [
+          for (final t in ThemeTab.values) ...[
+            if (t != ThemeTab.values.first) const SizedBox(width: 8),
+            _TabChip(
+              label: t.label,
+              // No count on All: it is the total, and a number there is the one
+              // figure on the strip that tells you nothing you can act on.
+              count: t == ThemeTab.all
+                  ? null
+                  : cards.where(t.matches).length,
+              selected: t == current,
+              onTap: () => ref.read(themeTabProvider.notifier).state = t,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int? count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return Material(
+      color: selected ? c.accent : c.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: selected ? c.accent : c.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                  color: selected ? c.onAccent : c.text,
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: selected
+                        ? c.onAccent.withValues(alpha: 0.75)
+                        : c.textMuted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ThemeCard extends StatelessWidget {
   const _ThemeCard({
     this.progress,
@@ -311,8 +514,18 @@ class _ThemeCard extends StatelessWidget {
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          // MIN, now that nothing above fixes this card's height. Without it
+          // the Column takes the unbounded height a Column parent offers and
+          // the card stretches to whatever the page can give it.
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
+            // FIXED, not Expanded. The card's height is fixed by the grid, so
+            // an Expanded preview would eat whatever the feature rows did not
+            // use and a distro with no features would get a taller picture than
+            // one with two. Same picture on every card, regardless of how much
+            // it has to say.
+            SizedBox(
+              height: 152,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -381,10 +594,92 @@ class _ThemeCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            // ─── WHAT THIS DISTRO DOES ──────────────────────────────────
+            //
+            // The first two EXCLUSIVE features, in authored order, so the order
+            // written in the panel is the order they sell in. Skin entries are
+            // filtered out here rather than being shown last: a card with two
+            // rows has room to say something the settings cannot already do,
+            // and "Noto Sans, squircle icons" is not that.
+            //
+            // Renders NOTHING when the list is empty, which is every CDN pack
+            // until the signed index carries a features block. An empty gap is
+            // honest; invented rows on a paid product are not.
+            ..._featureRows(context),
           ],
         ),
       ),
     );
+  }
+
+  /// Takes the context and re-reads the scope rather than accepting the colours
+  /// as a parameter. `d.colors`' type is not named anywhere in this file, and
+  /// naming it here to write a signature would be guessing at an API for the
+  /// sake of one call site.
+  List<Widget> _featureRows(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+    final shown = [
+      for (final f in card.features)
+        if (f.exclusive) f,
+    ].take(2).toList();
+
+    if (shown.isEmpty) return const [];
+
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final f in shown)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // The accent dot carries the "exclusive" claim without a
+                    // tag: every row here is exclusive by construction, so a
+                    // label reading EX on all of them would say nothing.
+                    Container(
+                      width: 5,
+                      height: 5,
+                      margin: const EdgeInsets.only(top: 5, right: 7),
+                      decoration: BoxDecoration(
+                        color: c.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${f.title}. ',
+                              style: TextStyle(
+                                color: c.text,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            TextSpan(
+                              text: f.body,
+                              style: TextStyle(color: c.textMuted),
+                            ),
+                          ],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 }
 

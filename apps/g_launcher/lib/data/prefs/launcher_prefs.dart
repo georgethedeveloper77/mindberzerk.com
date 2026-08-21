@@ -18,6 +18,10 @@ class LauncherPrefs {
     this.dockSide,
     this.dockGridButton,
     this.topBar,
+    this.desktopIcons,
+    this.panelModules,
+    this.panelHeight,
+    this.panelSide,
     this.rows,
     this.cols,
     this.drawerCols,
@@ -105,6 +109,57 @@ class LauncherPrefs {
   final String? dockGridButton;
 
   final bool? topBar;
+
+  /// The user's answer to "icons on my desktop", and ONLY as a way to say no.
+  ///
+  /// Null inherits the distro. True is indistinguishable from null, because a
+  /// distro with no grid stays without one either way: `LayoutResolver` ANDs
+  /// this with the theme's capability rather than letting it win outright.
+  /// Stored per theme like every other override here, so turning icons off on
+  /// Plasma leaves Mint's alone.
+  final bool? desktopIcons;
+
+  /// The panel the user built, as module names in order. Null inherits the
+  /// distro's.
+  ///
+  /// ─── A WHOLE PANEL, NOT A DIFF ──────────────────────────────────────────
+  ///
+  /// Storing "removed the tray" would have to survive the distro later changing
+  /// its own panel, and there is no honest answer to what a removal means once
+  /// the thing it removed is no longer there. A replacement has no such
+  /// question: while this is set, it IS the panel, and clearing it hands the
+  /// panel back to the distro whole.
+  ///
+  /// Names rather than indices, because `PanelModule.name` round-trips through
+  /// the same `parse` a theme.json goes through, and an unknown name written by
+  /// a newer build is dropped exactly as an unknown module in a theme is.
+  ///
+  /// An EMPTY list is meaningful and distinct from null: it is a panel the user
+  /// has emptied. `PanelSpec.fromJson` drops an empty panel at parse, which is
+  /// right for an authored theme and wrong here, so the resolver keeps it.
+  final List<String>? panelModules;
+
+  /// Panel thickness in dp, or null for the distro's own.
+  ///
+  /// SEPARATE FROM [panelModules] rather than folded into it, because the two
+  /// are set independently: someone can thicken the panel without removing a
+  /// module, and clearing the modules back to the distro's should not silently
+  /// throw away a height they chose. Reset in the edit bar clears both, which
+  /// is the one place they move together.
+  final double? panelHeight;
+
+  /// Which edge the panel sits on: 'top', 'bottom', 'left', 'right', or null
+  /// for the distro's own.
+  ///
+  /// A STRING, like [dockSide] and [topBarSide] beside it, and for the reason
+  /// their docs give: a value written by a newer build has to survive a round
+  /// trip through an older one rather than crashing it, and an enum index would
+  /// not. Every read goes through a parser that falls back.
+  ///
+  /// SEPARATE from [topBarSide], which is a different panel. A GNOME theme's
+  /// bar and a Plasma panel can both exist in one app and neither should move
+  /// when the other does.
+  final String? panelSide;
   final int? rows;
   final int? cols;
 
@@ -683,6 +738,10 @@ class LauncherPrefs {
     String? dockSide,
     String? dockGridButton,
     bool? topBar,
+    bool? desktopIcons,
+    List<String>? panelModules,
+    double? panelHeight,
+    String? panelSide,
     int? rows,
     int? cols,
     int? drawerCols,
@@ -746,6 +805,10 @@ class LauncherPrefs {
       dockSide: dockSide ?? this.dockSide,
       dockGridButton: dockGridButton ?? this.dockGridButton,
       topBar: topBar ?? this.topBar,
+      desktopIcons: desktopIcons ?? this.desktopIcons,
+      panelModules: panelModules ?? this.panelModules,
+      panelHeight: panelHeight ?? this.panelHeight,
+      panelSide: panelSide ?? this.panelSide,
       rows: rows ?? this.rows,
       cols: cols ?? this.cols,
       drawerCols: drawerCols ?? this.drawerCols,
@@ -816,6 +879,10 @@ class LauncherPrefs {
     bool dockSide = false,
     bool dockGridButton = false,
     bool topBar = false,
+    bool desktopIcons = false,
+    bool panelModules = false,
+    bool panelHeight = false,
+    bool panelSide = false,
     bool rows = false,
     bool cols = false,
     bool drawerCols = false,
@@ -871,6 +938,10 @@ class LauncherPrefs {
       // "restore defaults" on Icons and bar could turn the bar back ON but
       // could never hand it back to the distro's own answer.
       topBar: topBar ? null : this.topBar,
+      desktopIcons: desktopIcons ? null : this.desktopIcons,
+      panelModules: panelModules ? null : this.panelModules,
+      panelHeight: panelHeight ? null : this.panelHeight,
+      panelSide: panelSide ? null : this.panelSide,
       rows: rows ? null : this.rows,
       cols: cols ? null : this.cols,
       drawerCols: drawerCols ? null : this.drawerCols,
@@ -968,6 +1039,10 @@ class LauncherPrefs {
         if (dockSide != null) 'dockSide': dockSide,
         if (dockGridButton != null) 'dockGridButton': dockGridButton,
         if (topBar != null) 'topBar': topBar,
+        if (desktopIcons != null) 'desktopIcons': desktopIcons,
+        if (panelModules != null) 'panelModules': panelModules,
+        if (panelHeight != null) 'panelHeight': panelHeight,
+        if (panelSide != null) 'panelSide': panelSide,
         if (rows != null) 'rows': rows,
         if (cols != null) 'cols': cols,
         if (drawerCols != null) 'drawerCols': drawerCols,
@@ -1044,6 +1119,12 @@ class LauncherPrefs {
       dockSide: j['dockSide'] as String?,
       dockGridButton: j['dockGridButton'] as String?,
       topBar: j['topBar'] as bool?,
+      desktopIcons: j['desktopIcons'] as bool?,
+      panelModules: (j['panelModules'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
+      panelHeight: (j['panelHeight'] as num?)?.toDouble(),
+      panelSide: j['panelSide'] as String?,
       rows: (j['rows'] as num?)?.toInt(),
       cols: (j['cols'] as num?)?.toInt(),
       drawerCols: (j['drawerCols'] as num?)?.toInt(),
@@ -1154,6 +1235,11 @@ class LauncherPrefs {
         other.dockSide == dockSide &&
         other.dockGridButton == dockGridButton &&
         other.topBar == topBar &&
+        other.desktopIcons == desktopIcons &&
+        const ListEquality<String>()
+            .equals(other.panelModules, panelModules) &&
+        other.panelHeight == panelHeight &&
+        other.panelSide == panelSide &&
         other.rows == rows &&
         other.cols == cols &&
         other.drawerCols == drawerCols &&
@@ -1223,6 +1309,10 @@ class LauncherPrefs {
         dockSide,
         dockGridButton,
         topBar,
+        desktopIcons,
+        const ListEquality<String>().hash(panelModules),
+        panelHeight,
+        panelSide,
         rows,
         cols,
         drawerCols,

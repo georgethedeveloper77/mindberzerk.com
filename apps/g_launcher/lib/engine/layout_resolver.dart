@@ -26,6 +26,10 @@ class ResolvedLayout {
     required this.topBarStats,
     required this.panels,
     required this.workspaceAxis,
+    required this.desktopIcons,
+    required this.panelEdit,
+    required this.panelHeight,
+    required this.panelSide,
     required this.rows,
     required this.cols,
     required this.drawerCols,
@@ -56,7 +60,28 @@ class ResolvedLayout {
   /// Which way workspaces page. Theme-authored; not a user override, because a
   /// distro that pages the wrong way is not that distro.
   final WorkspaceAxis workspaceAxis;
-  final int rows;
+
+  /// Does the desktop carry app icons? Resolved ONE WAY ONLY: the distro sets
+  /// the ceiling and the user may lower it. See [LayoutResolver.resolve].
+  final bool desktopIcons;
+
+  /// Theme-authored only. Whether the user MAY edit the panel is not itself
+  /// something the user edits.
+  final bool panelEdit;
+
+  /// Panel thickness in dp, or null to let the shell use its own default.
+  ///
+  /// A SCALAR here rather than a field on the resolved [PanelSpec], because
+  /// height resolves the way `rows` and `cols` do (user's, else the distro's)
+  /// and putting it back inside the panel would mean two places asking the same
+  /// question. The shell reads this and falls back to its own constant.
+  final double? panelHeight;
+
+  /// Which edge the shell's own panel sits on.
+  ///
+  /// NON-NULL, unlike [panelHeight], because there is no such thing as a panel
+  /// with no edge: something has to be decided, and bottom is what Plasma does.
+  final TopBarSide panelSide;  final int rows;
   final int cols;
   final int drawerCols;
 
@@ -95,6 +120,10 @@ class ResolvedLayout {
           other.topBarStats == topBarStats &&
           other.panels.length == panels.length &&
           other.workspaceAxis == workspaceAxis &&
+          other.desktopIcons == desktopIcons &&
+          other.panelEdit == panelEdit &&
+          other.panelHeight == panelHeight &&
+          other.panelSide == panelSide &&
           other.rows == rows &&
           other.cols == cols &&
           other.drawerCols == drawerCols &&
@@ -113,6 +142,10 @@ class ResolvedLayout {
         topBarStats,
         panels.length,
         workspaceAxis,
+        desktopIcons,
+        panelEdit,
+        panelHeight,
+        panelSide,
         rows,
         cols,
         drawerCols,
@@ -177,6 +210,41 @@ abstract final class LayoutResolver {
     return fallback;
   }
 
+  /// The edge the shell's own panel sits on.
+  ///
+  /// ─── THE THEME DOES NOT GET A VOTE YET, AND THAT IS HONEST ──────────────
+  ///
+  /// It looks like this should fall back to the side the theme authored, and it
+  /// cannot, because `ThemeSpec._panels` SYNTHESISES a panel for any theme that
+  /// authored none. By the time the list arrives here an authored panel and a
+  /// synthesised one are indistinguishable, so "the theme's side" would read a
+  /// GNOME top bar's edge and move Plasma's panel to it.
+  ///
+  /// Bottom is therefore the default, which is what Plasma does and what this
+  /// shell has always drawn. A distro wanting a left panel out of the box needs
+  /// authored and synthesised panels told apart first, which is a change to
+  /// ThemeSpec rather than a line here.
+  static TopBarSide _panelSide(LauncherPrefs prefs) => switch (prefs.panelSide) {
+        'top' => TopBarSide.top,
+        'bottom' => TopBarSide.bottom,
+        'left' => TopBarSide.left,
+        'right' => TopBarSide.right,
+        // Null, or a value from a newer build. Same contract as `dockSide`.
+        _ => TopBarSide.bottom,
+      };
+
+  /// The height the theme put on its bottom panel, if it authored one.
+  ///
+  /// Bottom, for the same reason the Plasma shell matches on bottom: that is
+  /// the panel this scalar describes, and a synthesised TOP bar's height would
+  /// be the wrong answer to the question the shell is asking.
+  static double? _authoredHeight(ThemeSpec spec) {
+    for (final p in spec.layout.panels) {
+      if (p.side == TopBarSide.bottom) return p.height;
+    }
+    return null;
+  }
+
   static ResolvedLayout resolve(ThemeSpec spec, LauncherPrefs prefs) {
     return ResolvedLayout(
       dock: switch (prefs.dockSide) {
@@ -203,21 +271,70 @@ abstract final class LayoutResolver {
       // overriding one of several panels from two scalars is not expressible,
       // and silently rewriting an authored layout would be worse than ignoring
       // the override.
-      panels: spec.layout.panels.length == 1 && spec.layout.panels.first.height == null
+      // ─── A BUILT PANEL SUPERSEDES BOTH ─────────────────────────────────
+      //
+      // Two things below produce a panel: a theme that authored one, and the
+      // synthesis that turns `topBar` and `topBarSide` into one for a theme
+      // that did not. A panel the user assembled by hand beats both, and beats
+      // them WHOLESALE rather than merging.
+      //
+      // Merging was the alternative and it has no honest semantics. "Removed
+      // the tray" has to survive the distro later shipping a panel with no tray
+      // in it, and there is no correct answer to what the removal then means.
+      // A replacement raises no such question: while this is set it IS the
+      // panel, and clearing it hands the panel back to the distro intact, which
+      // is what Reset in the edit bar does.
+      //
+      // THE SIDE IS STORED NOW. This said BOTTOM, hardcoded, with a note that
+      // a second editable panel would need the side kept alongside the modules.
+      // The Edge control is that need arriving, so it is.
+      panels: prefs.panelModules != null
           ? [
               PanelSpec(
-                side: switch (prefs.topBarSide) {
-                  'top' => TopBarSide.top,
-                  'bottom' => TopBarSide.bottom,
-                  'left' => TopBarSide.left,
-                  'right' => TopBarSide.right,
-                  _ => spec.layout.panels.first.side,
-                },
-                modules: spec.layout.panels.first.modules,
+                side: _panelSide(prefs),
+                modules: prefs.panelModules!
+                    .map(PanelModule.parse)
+                    .whereType<PanelModule>()
+                    .toList(),
               ),
             ]
-          : spec.layout.panels,
+          : spec.layout.panels.length == 1 && spec.layout.panels.first.height == null
+              ? [
+                  PanelSpec(
+                    side: switch (prefs.topBarSide) {
+                      'top' => TopBarSide.top,
+                      'bottom' => TopBarSide.bottom,
+                      'left' => TopBarSide.left,
+                      'right' => TopBarSide.right,
+                      _ => spec.layout.panels.first.side,
+                    },
+                    modules: spec.layout.panels.first.modules,
+                  ),
+                ]
+              : spec.layout.panels,
       workspaceAxis: spec.layout.workspaceAxis,
+      // ─── AND ONLY DOWNWARDS ───────────────────────────────────────────────
+      //
+      // Every other override on this page is symmetric: a null inherits the
+      // distro and a set value replaces it, either direction. This one is not,
+      // and deliberately.
+      //
+      // The distro decides whether a desktop grid EXISTS. A Plasma user who
+      // wants a bare desktop is expressing a preference and gets it; a GNOME
+      // user switching icons on would be asking for a shell GNOME does not
+      // have, and granting it would make the one distro whose whole idea is an
+      // empty desktop indistinguishable from the one whose idea is a full one.
+      // That is the difference between a theme and a colour scheme.
+      //
+      // It also keeps the Settings row honest. A greyed row that says Ubuntu
+      // keeps a bare desktop is TRUE here, rather than being a control that
+      // exists and is arbitrarily withheld.
+      desktopIcons: spec.layout.desktopIcons && (prefs.desktopIcons ?? true),
+      panelEdit: spec.layout.panelEdit,
+      // The user's, else whatever the distro authored on the panel this shell
+      // draws, else null and the shell uses its own default.
+      panelHeight: prefs.panelHeight ?? _authoredHeight(spec),
+      panelSide: _panelSide(prefs),
       rows: prefs.rows ?? spec.layout.rows,
       cols: prefs.cols ?? spec.layout.cols,
       // Drawer defaults to the SAME width as home (a clean 4-wide), not home+1.
@@ -233,7 +350,7 @@ abstract final class LayoutResolver {
       drawerGrouping: _pick(
         prefs.drawerGrouping,
         spec.layout.drawerGrouping,
-        const {'none', 'az'},
+        const {'none', 'az', 'library'},
         defaultDrawerGrouping,
       ),
       iconSizeDp: prefs.iconSizeDp ?? defaultIconSizeDp,

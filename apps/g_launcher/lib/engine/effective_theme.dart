@@ -34,6 +34,10 @@ class EffectiveTheme {
     required this.topBarStats,
     required this.panels,
     required this.workspaceAxis,
+    required this.desktopIcons,
+    required this.panelEdit,
+    required this.panelHeight,
+    required this.panelSide,
     required this.rows,
     required this.cols,
     required this.drawerCols,
@@ -72,6 +76,21 @@ class EffectiveTheme {
 
   /// Which way workspaces page. See [WorkspaceAxis].
   final WorkspaceAxis workspaceAxis;
+
+  /// Does the desktop carry app icons? The distro's answer, lowered by the
+  /// user's if they have turned it off. Read by `WorkspaceCanvas`, which is the
+  /// only thing that mounts the grid.
+  final bool desktopIcons;
+
+  /// Can the user rearrange this distro's panel? Read by the Plasma shell to
+  /// decide whether a long press on the panel opens edit mode.
+  final bool panelEdit;
+
+  /// Panel thickness in dp, null for the shell's own default.
+  final double? panelHeight;
+
+  /// Which edge the shell's own panel sits on. Never null.
+  final TopBarSide panelSide;
   final int rows;
   final int cols;
 
@@ -334,6 +353,10 @@ class EffectiveTheme {
       topBarStats: layout.topBarStats,
       panels: layout.panels,
       workspaceAxis: layout.workspaceAxis,
+      desktopIcons: layout.desktopIcons,
+      panelEdit: layout.panelEdit,
+      panelHeight: layout.panelHeight,
+      panelSide: layout.panelSide,
       rows: layout.rows,
       cols: layout.cols,
       drawerCols: layout.drawerCols,
@@ -459,6 +482,10 @@ class EffectiveTheme {
           other.topBarStats == topBarStats &&
           other.panels.length == panels.length &&
           other.workspaceAxis == workspaceAxis &&
+          other.desktopIcons == desktopIcons &&
+          other.panelEdit == panelEdit &&
+          other.panelHeight == panelHeight &&
+          other.panelSide == panelSide &&
           other.rows == rows &&
           other.cols == cols &&
           other.drawerCols == drawerCols &&
@@ -470,8 +497,17 @@ class EffectiveTheme {
           other.iconScale == iconScale &&
           other.iconCacheId == iconCacheId;
 
+  /// ─── hashAll, NOT hash ────────────────────────────────────────────────
+  ///
+  /// `Object.hash` takes at most 20 positional arguments and this list reached
+  /// 21. `Object.hashAll` takes an iterable and has no ceiling, which is why
+  /// `LauncherPrefs` has used it for its own longer list all along.
+  ///
+  /// The failure was loud and immediate, which is the good version: the
+  /// alternative would have been quietly dropping a field from the hash and
+  /// getting a theme that compares unequal but hashes the same.
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         spec.id,
         prefs,
         dark,
@@ -481,6 +517,10 @@ class EffectiveTheme {
         topBarStats,
         panels.length,
         workspaceAxis,
+        desktopIcons,
+        panelEdit,
+        panelHeight,
+        panelSide,
         rows,
         cols,
         drawerCols,
@@ -491,7 +531,7 @@ class EffectiveTheme {
         textScale,
         iconScale,
         iconCacheId,
-      );
+      ]);
 }
 
 /// The one provider the shells watch.

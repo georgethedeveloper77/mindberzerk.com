@@ -59,6 +59,16 @@ class PackInfo {
     required this.state,
     required this.unlocked,
     this.sku,
+    // OPTIONAL, like `sku`, and last. Every existing construction of this class
+    // keeps compiling untouched, which matters because the Kotlin side builds
+    // one per index entry and a required field would have broken all of them
+    // before the mapping that supplies these even existed.
+    this.previewShell,
+    this.previewBgTop,
+    this.previewBgBottom,
+    this.previewBar,
+    this.previewDock,
+    this.previewAccent,
   });
 
   final String packId;
@@ -101,6 +111,53 @@ class PackInfo {
   /// null = free. PRESENTATION ONLY: it tells the card which price to draw.
   /// Ownership is Play's answer and is already folded into [unlocked].
   final String? sku;
+
+  // ─── THE PREVIEW BLOCK ────────────────────────────────────────────────────
+  //
+  // APPENDED, all six, after every existing field. Field order IS the decode
+  // index, so anything inserted above would renumber the rest and every device
+  // running an older build would misread the whole class. Same rule
+  // `AppEntry.category` follows in the other schema.
+  //
+  // ─── SIX FLAT STRINGS, NOT A PreviewSpec CLASS ────────────────────────────
+  //
+  // A nested class would read better and it would cost a CODEC ID. Enums are
+  // numbered before classes in the generated codec, so a new class shifts every
+  // existing class's id and breaks the bridge in a way that compiles cleanly
+  // and fails at runtime. Six nullable strings on a class that already exists
+  // cost nothing.
+  //
+  // ─── WHY THE CARD NEEDS THEM AT ALL ───────────────────────────────────────
+  //
+  // `theme_catalog` can already draw a miniature desktop for any shell: the
+  // renderer takes a palette and a layout and the bundled distros use it. What
+  // it cannot do is draw one for a pack it has never installed, because the
+  // index carries a title and a summary and no colours. So every CDN distro
+  // renders `PreviewLayout.unknown`, which is a flat rectangle, and a paid
+  // distro is the emptiest card on the storefront.
+  //
+  // Roughly 120 bytes per entry, and it is what turns a name and a price into
+  // something that looks like a product.
+
+  /// The shell this distro draws: "gnome" | "plasma" | "aqua" | "tiling" |
+  /// "tui". Picks WHICH miniature the card renders.
+  ///
+  /// Null on every pack published before this field existed, and the card falls
+  /// back to the flat rectangle it draws today. Optional the whole way down, so
+  /// nothing already in the index has to be republished.
+  final String? previewShell;
+
+  /// The six palette colours, as "#RRGGBB" or "#AARRGGBB", exactly as they
+  /// appear in the pack's own theme.json.
+  ///
+  /// Strings rather than ints because that is how they are authored, how they
+  /// travel in the index, and how the panel already stores them. Parsing them
+  /// once on the Dart side beats three representations of the same colour.
+  final String? previewBgTop;
+  final String? previewBgBottom;
+  final String? previewBar;
+  final String? previewDock;
+  final String? previewAccent;
 }
 
 /// A purchasable bundle, as advertised by the signed index.

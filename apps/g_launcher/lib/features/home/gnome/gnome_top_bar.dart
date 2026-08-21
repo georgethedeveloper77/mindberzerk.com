@@ -103,14 +103,45 @@ class GnomeTopBar extends ConsumerWidget {
               compact: stacked,
             ),
           PanelModule.spacer => const Spacer(),
-          _ => m == (stats.isEmpty ? null : stats.first)
-              ? _Modules(
-                  palette: palette,
-                  fontFamily: displayFontFamily,
-                  stacked: stacked,
-                  show: stats,
-                )
-              : const SizedBox.shrink(),
+
+          // The three readouts share one widget and one stats subscription, so
+          // it is drawn at the FIRST of them in the theme's order and skipped
+          // at the others. `stats.first` cannot throw here: reaching this arm
+          // means `m` is one of the three, so `stats` contains at least `m`.
+          PanelModule.network ||
+          PanelModule.memory ||
+          PanelModule.storage =>
+            m == stats.first
+                ? _Modules(
+                    palette: palette,
+                    fontFamily: displayFontFamily,
+                    stacked: stacked,
+                    show: stats,
+                  )
+                : const SizedBox.shrink(),
+
+          // ─── EXPLICIT, WHERE A `_` USED TO BE ────────────────────────────
+          //
+          // This arm was `_ =>`, and that catch-all is why growing the enum for
+          // the Plasma panel was safe in the worst sense: five new modules
+          // compiled cleanly and rendered NOTHING here, silently, which is
+          // indistinguishable from the modules being broken.
+          //
+          // `DockSide` states the rule this file was quietly opted out of: an
+          // enum grows, the compiler lists every site that decides, and each
+          // one answers on purpose. Now it does. A sixth module added tomorrow
+          // will not compile until this bar says what it does with it.
+          //
+          // And what it does is nothing, deliberately. This is GNOME's bar. A
+          // task strip on it would be a Windows taskbar, and a kickoff button
+          // would be a start menu. A theme listing them here has authored
+          // something GNOME is not, so the bar declines rather than obliging.
+          PanelModule.kickoff ||
+          PanelModule.tasks ||
+          PanelModule.pager ||
+          PanelModule.tray ||
+          PanelModule.clock =>
+            const SizedBox.shrink(),
         },
     ];
   }

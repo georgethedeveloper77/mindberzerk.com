@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { sendReset, signIn, signInWithEmail } from '@/lib/core/firebase-client';
+import { signIn } from '@/lib/core/firebase-client';
 import { REGISTRY, type AppMeta } from '@/lib/core/registry';
 
 /**
@@ -13,33 +13,28 @@ import { REGISTRY, type AppMeta } from '@/lib/core/registry';
  * project and authorises nothing, and the ID token it produces is posted once
  * to /api/auth/session and never stored.
  *
- * ─── THE HERO IS RENDERED, NOT UPLOADED ─────────────────────────────────────
+ * ─── ONE BUTTON ─────────────────────────────────────────────────────────────
  *
- * A two-column sign-in wants an image on one side, and every version of that
- * costs an asset: a screenshot that dates the moment a distro changes, a stock
- * photograph that belongs to nobody, an illustration that has to be commissioned
- * and then maintained.
+ * There was an email and password form here, added when Google sign-in broke.
+ * It could never have worked: the single account on this project has Google as
+ * its only provider, so there is no password credential to check against, and
+ * every attempt returned "that email and password did not match" against
+ * nothing. Two fields, a submit button and a reset link, all of them dead.
  *
- * So the left column is DRAWN. It is the launcher's own boot sequence and
- * desktop, in CSS, from the same palette the panel and the product share. It
- * cannot go stale because there is nothing to regenerate, it adds no bytes to
- * fetch, and it is the one image that could not belong to any other company's
- * login page. The product is a Linux desktop emulator; this is that, at the
- * front door.
- *
- * The boot lines advance on a timer and then stop at a prompt. They stop on
- * purpose: an animation that loops forever competes with the button it sits
- * beside, and this screen has exactly one thing to do.
+ * Google works again because the cause was found: the auth helper iframe was
+ * on a third-party origin. `proxy.ts` now serves it from this origin and
+ * `firebase-client.ts` points `authDomain` at the current host. See both for
+ * the full explanation. With that fixed there is no second path worth keeping,
+ * and a login screen with one obvious action is the one people get right.
  *
  * ─── AND NO EXPLANATION OF THE AUTH MODEL ───────────────────────────────────
  *
  * This page used to end with a paragraph saying access is a fixed list of UIDs
- * and that a successful Google sign-in could still be refused. It was written
- * for an audience of one while the panel was being built. In production the
- * audience is anyone who reaches the URL, and every sentence of it is
- * reconnaissance: it confirms the panel is live, names the auth model, and tells
- * a stranger that signing in with any account probes whether that account is on
- * the list. The person who is allowed in already knew.
+ * and that a successful Google sign-in could still be refused. In production
+ * the audience is anyone who reaches the URL, and every sentence of it is
+ * reconnaissance: it confirms the panel is live, names the auth model, and
+ * tells a stranger that signing in with any account probes whether that account
+ * is on the list. The person who is allowed in already knew.
  *
  * The refusal still explains itself, and only to someone who got through
  * Google: `signIn` returns "That account is not authorised for this panel" on a
@@ -49,11 +44,6 @@ import { REGISTRY, type AppMeta } from '@/lib/core/registry';
 
 /**
  * ─── THE HERO ROTATES THROUGH THE STUDIO, NOT ONE APP ───────────────────────
- *
- * It read "Your phone, running a real desktop" over a Ubuntu dock, which is G
- * Launcher's marketing on the front door of a console that publishes two live
- * apps, a public site, and more behind them. The sentence was true when this
- * panel had one product.
  *
  * The slides come from [REGISTRY], so a third app appears here the day it is
  * added and nobody has to remember this file exists.
@@ -101,9 +91,6 @@ export default function AdminSignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [lines, setLines] = useState(0);
   const [slide, setSlide] = useState(0);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [note, setNote] = useState<string | null>(null);
 
   // One line every 260ms, then stop. `prefers-reduced-motion` skips straight to
   // the finished state rather than being ignored: the whole point of the
@@ -133,8 +120,7 @@ export default function AdminSignInPage() {
   //
   // `prefers-reduced-motion` STOPS AT THE FIRST SLIDE rather than cycling
   // faster or without a transition. The whole feature is motion; someone who
-  // asked for less of it wants none, and one app on the front door is exactly
-  // what this page was yesterday.
+  // asked for less of it wants none.
   //
   // Also skipped for a single-app registry, where a "rotation" of one is a
   // timer that repaints the same thing forever.
@@ -151,58 +137,20 @@ export default function AdminSignInPage() {
   const app = SLIDES[slide] ?? REGISTRY[0];
   const hero = HERO[app.id];
 
-  /**
-   * Where both paths end up.
-   *
-   * The console, not `/`: `/` is the public site now, and the proxy lets a
-   * session-holding browser stay there, so landing on it after sign-in would
-   * leave an admin looking at the marketing page.
-   */
-  function landed() {
-    router.replace('/dashboard');
-    router.refresh();
-  }
-
-  async function onEmailSignIn() {
-    if (!email.trim() || !password) return;
+  async function onSignIn() {
     setBusy(true);
     setError(null);
-    setNote(null);
-    const result = await signInWithEmail(email, password);
+    const result = await signIn();
     if (result.ok) {
-      landed();
+      // The console, not `/`: `/` is the public site now, and the proxy lets a
+      // session-holding browser stay there, so landing on it after sign-in
+      // would leave an admin looking at the marketing page.
+      router.replace('/dashboard');
+      router.refresh();
       return;
     }
     setError(result.error ?? 'Sign-in failed.');
     setBusy(false);
-  }
-
-  async function onReset() {
-    if (!email.trim()) {
-      setError('Enter your email first.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    await sendReset(email);
-    // Always the same message, whether or not an account exists. See
-    // `sendReset`: telling someone an address is unknown turns this into a way
-    // to find out which addresses can reach the panel.
-    setNote('If that address has an account, a reset link is on its way.');
-    setBusy(false);
-  }
-
-  async function onSignIn() {
-    setBusy(true);
-    setError(null);
-    setNote(null);
-    const result = await signIn();
-    if (result.ok) {
-      landed();
-    } else {
-      setError(result.error ?? 'Sign-in failed.');
-      setBusy(false);
-    }
   }
 
   return (
@@ -212,15 +160,10 @@ export default function AdminSignInPage() {
           button below the fold, and the button is the only reason anyone opens
           this page. */}
       <section className="relative hidden overflow-hidden bg-surface-0 lg:block">
-        {/* A desktop gradient in the launcher's own Ubuntu aubergine, with the
-            accent bleeding in from the corner. Same two-stop treatment the
-            distro previews use, at wall size. */}
         {/* ── EVERY COLOUR HERE IS THE APP'S OWN TINT ───────────────────────
             `color-mix` rather than five hand-picked shades per app: the
             registry carries one colour and a hero that needed a palette per
-            entry would be a hero nobody adds an app to. Mixing toward black
-            gives the same aubergine-to-near-black fall for Ubuntu orange that
-            it gives for Recovery blue.
+            entry would be a hero nobody adds an app to.
 
             `transition-[background]` on the wrapper is what makes the swap read
             as one desktop changing rather than two screens cutting. */}
@@ -269,9 +212,7 @@ export default function AdminSignInPage() {
                 The keyframe is declared here rather than in globals.css
                 because exactly one element uses it, and a rule in the global
                 sheet that nothing else references is a rule nobody dares
-                delete later. `motion-safe:` so it is skipped entirely for
-                someone who asked for less motion, who is also not seeing the
-                rotation at all. */}
+                delete later. */}
             <style>{'@keyframes heroIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'}</style>
             <div key={app.id} className="motion-safe:animate-[heroIn_500ms_ease-out]">
               <h1 className="mt-8 max-w-md text-3xl leading-tight font-semibold tracking-tight text-ink xl:text-4xl">
@@ -354,63 +295,14 @@ export default function AdminSignInPage() {
             admin.mindberzerk.com
           </p>
 
-          {/* ── EMAIL FIRST, GOOGLE SECOND ──────────────────────────────────
-              Google's popup delivers its credential through an iframe on the
-              auth domain, which is a third-party origin here, and browsers have
-              been closing that off. It fails without saying why. Email touches
-              none of that machinery, so it is the path that works today and the
-              one the eye should land on.
-
-              NOT A <form>. Enter is handled per field below, which is the same
-              behaviour with none of the default-submit and full-page-reload
-              surprises a form brings to a client component. */}
-          <div className="mt-6 flex flex-col gap-2.5">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onEmailSignIn()}
-              placeholder="you@mindberzerk.com"
-              autoComplete="username"
-              autoFocus
-              disabled={busy}
-              aria-label="Email"
-              className="w-full rounded-lg border border-line-soft bg-surface-1 px-3.5 py-2.5 text-data text-ink placeholder:text-ink-3 disabled:opacity-50"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onEmailSignIn()}
-              placeholder="Password"
-              autoComplete="current-password"
-              disabled={busy}
-              aria-label="Password"
-              className="w-full rounded-lg border border-line-soft bg-surface-1 px-3.5 py-2.5 text-data text-ink placeholder:text-ink-3 disabled:opacity-50"
-            />
-            <button
-              onClick={onEmailSignIn}
-              disabled={busy || !email.trim() || !password}
-              className="w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-50"
-            >
-              {busy ? 'Signing in' : 'Sign in'}
-            </button>
-            <button
-              onClick={onReset}
-              disabled={busy}
-              className="self-start text-micro text-ink-3 underline-offset-2 hover:underline disabled:opacity-50"
-            >
-              Forgot the password
-            </button>
-          </div>
-
-          {/* Google, demoted but kept. The fault is a browser storage policy
-              rather than anything here, so it may start working again, and a
-              path that costs four lines to keep is not worth deleting twice. */}
+          {/* THE ACCENT BUTTON, because it is now the only one. It was the
+              secondary outline treatment while the dead password form held the
+              primary slot, which put the emphasis on the path that could not
+              work. */}
           <button
             onClick={onSignIn}
             disabled={busy}
-            className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 text-data font-medium text-ink-2 transition hover:brightness-110 disabled:opacity-50"
+            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-50"
           >
             {/* Google's mark, inline, because a login button that says only
                 "continue" is one people hesitate over. No network request and
@@ -421,17 +313,12 @@ export default function AdminSignInPage() {
                 d="M21.35 11.1h-9.17v2.98h5.27c-.23 1.37-1.6 4.02-5.27 4.02-3.17 0-5.76-2.62-5.76-5.85s2.59-5.85 5.76-5.85c1.8 0 3.01.77 3.7 1.43l2.52-2.43C16.78 3.9 14.66 3 12.18 3 7.14 3 3.06 7.08 3.06 12.12s4.08 9.12 9.12 9.12c5.27 0 8.76-3.7 8.76-8.92 0-.6-.06-1.05-.14-1.5z"
               />
             </svg>
-            Continue with Google
+            {busy ? 'Signing in' : 'Continue with Google'}
           </button>
 
           {error && (
             <p className="mt-3 rounded-card border border-bad/40 bg-bad-dim px-3 py-2 text-data leading-relaxed text-bad">
               {error}
-            </p>
-          )}
-          {note && (
-            <p className="mt-3 rounded-card border border-line-soft bg-surface-1 px-3 py-2 text-data leading-relaxed text-ink-2">
-              {note}
             </p>
           )}
 

@@ -6,8 +6,13 @@ import '../app/theme/tokens.dart';
 ///
 /// A pinned sliver rather than a row inside the list, because the point of
 /// grouping a long grid is knowing which day you are looking at after you have
-/// scrolled past the label. Successive pinned headers push each other out, which
-/// is the behaviour every gallery has and which a plain list item cannot do.
+/// scrolled past the label. A plain list item cannot do that.
+///
+/// MUST be placed inside a SliverMainAxisGroup holding that day's items, not
+/// dropped straight into the scroll view's sliver list. Pinning is scoped to the
+/// nearest sliver container, so laid out flat these accumulate: every header
+/// scrolled past stays stuck to the top and the stack grows by one per group
+/// until it covers the content. Grouped, each header evicts the one before it.
 ///
 /// It paints its own opaque background. A transparent pinned header lets the
 /// grid scroll through the text underneath it.

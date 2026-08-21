@@ -21,6 +21,32 @@ import { NextResponse, type NextRequest } from 'next/server';
  * export as well would silently do nothing.
  */
 
+/**
+ * ── THE FIREBASE SIGN-IN HELPER, SERVED FROM OUR OWN ORIGIN ────────────────
+ *
+ * This is the fix for Google sign-in, and it is Firebase's documented Option 3.
+ *
+ * The Auth SDK runs its sign-in helper in an iframe on `authDomain`. Pointed at
+ * mindberzerk-3eaf5.firebaseapp.com, that iframe is a THIRD-PARTY ORIGIN, and
+ * every current browser partitions or blocks its storage. The SDK cannot read
+ * back the result, so a sign-in that actually succeeded is reported as
+ * cancelled. Redirect fails identically, because it uses the same iframe.
+ *
+ * Forwarding `/__/auth/*` here makes the helper same-origin: `authDomain` is set
+ * to the current host in lib/core/firebase-client.ts, the browser sees the
+ * helper on its own origin, and the storage question never arises.
+ *
+ * A REWRITE, NOT A REDIRECT. The forwarding must be invisible to the browser;
+ * a 302 puts the helper back on a third-party origin and restores the bug
+ * exactly. `NextResponse.rewrite` proxies, which is what is wanted.
+ *
+ * THIS BRANCH RUNS FIRST, before the public allowlist and before the cookie
+ * checks. `/__/auth/handler` carries no session by definition, so any later
+ * branch would bounce it to the sign-in page and the popup would land on a
+ * login screen instead of finishing.
+ */
+const AUTH_HELPER = 'https://mindberzerk-3eaf5.firebaseapp.com';
+
 /** Where a signed-out browser is sent. A real page, not a redirect target. */
 const SIGN_IN = '/admin';
 
@@ -43,6 +69,15 @@ const PUBLIC = new Set<string>(['/']);
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // See [AUTH_HELPER]. First branch, unconditionally. `/__/firebase` is
+  // included alongside `/__/auth` because the handler page fetches
+  // `init.json` from whatever origin it is loaded on, which is now this one.
+  if (pathname.startsWith('/__/auth') || pathname.startsWith('/__/firebase')) {
+    return NextResponse.rewrite(
+      new URL(pathname + request.nextUrl.search, AUTH_HELPER),
+    );
+  }
 
   // ── /admin IS THE SIGN-IN PAGE; /admin/* IS STILL STRIPPED ────────────────
   //

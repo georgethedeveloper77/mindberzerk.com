@@ -124,7 +124,25 @@ export const WORKSPACE_AXES = ['vertical', 'horizontal'] as const;
 export const DRAWER_SCROLLS = ['vertical', 'pages', 'cube'] as const;
 export type DrawerScrollName = (typeof DRAWER_SCROLLS)[number];
 
-export const DRAWER_GROUPINGS = ['none', 'az'] as const;
+/**
+ * How the drawer groups apps.
+ *
+ * ─── 'library' IS NEW AND ITS ABSENCE WAS SILENT ────────────────────────────
+ *
+ * The import guard below tests membership in this list and drops anything that
+ * fails, which is the right behaviour for a spec written by a newer build. It
+ * also means that until this array knew the word, importing a theme.json with
+ * `drawerGrouping: "library"` published a pack with the key MISSING, while
+ * `drawerScrollStyle: "vertical"` on the adjacent line came through fine
+ * because 'vertical' was already in DRAWER_SCROLLS.
+ *
+ * One key present, its neighbour gone, no error and no warning. The device then
+ * fell back to the engine default and the whole feature looked unbuilt.
+ *
+ * Adding a value here is therefore not cosmetic: this list is the panel's whole
+ * vocabulary, and a value the panel cannot say is a value no distro can ship.
+ */
+export const DRAWER_GROUPINGS = ['none', 'az', 'library'] as const;
 export type DrawerGroupingName = (typeof DRAWER_GROUPINGS)[number];
 export type WorkspaceAxisName = (typeof WORKSPACE_AXES)[number];
 

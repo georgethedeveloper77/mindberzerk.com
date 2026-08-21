@@ -153,6 +153,7 @@ class PreviewChoice<T> extends StatelessWidget {
     required this.onSelect,
     this.title,
     this.subtitle,
+    this.enabled = true,
   });
 
   /// The setting's name, above the pictures. Optional, because a chooser that
@@ -165,11 +166,31 @@ class PreviewChoice<T> extends StatelessWidget {
   final T value;
   final ValueChanged<T> onSelect;
 
+  /// False dims the tiles and stops them answering a tap.
+  ///
+  /// ─── THE SAME RULE SettingsToggleRow ALREADY STATES ───────────────────────
+  ///
+  /// Dimmed and inert, never absent. A choice that only applies under some
+  /// other mode is shown greyed with the reason in [subtitle], because hiding
+  /// it makes someone who has read about the feature conclude this build does
+  /// not have it.
+  ///
+  /// The SELECTED tile keeps its accent ring while dimmed, deliberately. The
+  /// row still has an answer, it is just not one you can change from here, and
+  /// a disabled control that also loses its value looks broken rather than
+  /// locked.
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     final c = ChromeScope.of(context).colors;
 
-    final row = Row(
+    // 0.4 is the alpha `SettingsToggleRow` dims its title by (settings_rows,
+    // `enabled ? s.tx : s.mut.withValues(alpha: 0.4)`), so a greyed picture row
+    // and a greyed switch row sit at the same weight in one list.
+    final row = Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < options.length; i++) ...[
@@ -180,7 +201,11 @@ class PreviewChoice<T> extends StatelessWidget {
               // The picture is the affordance but the whole column is the
               // tap, which is what makes this usable with a thumb.
               behavior: HitTestBehavior.opaque,
-              onTap: () => onSelect(options[i].value),
+              // Null, not an ignored call. A GestureDetector with no callback
+              // registers no recognizer at all, so a disabled row does not
+              // quietly swallow a tap that the scroll underneath it could have
+              // used.
+              onTap: enabled ? () => onSelect(options[i].value) : null,
               child: Column(
                 children: [
                   DecoratedBox(
@@ -226,6 +251,7 @@ class PreviewChoice<T> extends StatelessWidget {
           ),
         ],
       ],
+      ),
     );
 
     if (title == null) {

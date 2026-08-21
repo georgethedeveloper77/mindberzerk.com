@@ -182,6 +182,21 @@ class PackHostApiImpl(
                 state = stateOf(p.packId, p.minAppVersion, p.version, installed),
                 unlocked = index.isUnlocked(p.packId, ownedSkus),
                 sku = p.sku,
+                // The storefront preview, straight through. Null on every entry
+                // published before the block existed, and the card falls back
+                // to the neutral rectangle it drew before.
+                //
+                // Passed on rather than interpreted: nothing here knows what a
+                // shell name means or what a colour looks like. `theme_catalog`
+                // parses the hex and picks the layout, which keeps the one
+                // place that draws the miniature as the one place that decides
+                // how to draw it.
+                previewShell = p.previewShell,
+                previewBgTop = p.previewBgTop,
+                previewBgBottom = p.previewBgBottom,
+                previewBar = p.previewBar,
+                previewDock = p.previewDock,
+                previewAccent = p.previewAccent,
             )
         }
     }

@@ -4,8 +4,6 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
   signInWithPopup,
   type UserCredential,
 } from 'firebase/auth';
@@ -21,30 +19,71 @@ import {
  * Nothing in this file may import from lib/sign.ts or lib/r2.ts. Both are
  * marked `server-only` so the build would fail, which is the point of the
  * marker.
+ *
+ * ─── GOOGLE IS THE ONLY WAY IN, AND THE PASSWORD FORM IS GONE ───────────────
+ *
+ * The one account on this project has ONE provider, Google. There is no
+ * password credential attached to it, so `signInWithEmailAndPassword` could
+ * only ever return `auth/invalid-credential`, which the form rendered as "that
+ * email and password did not match". That message was true and useless: there
+ * was nothing to match against.
+ *
+ * Keeping a form that cannot succeed costs a real thing. It is a box a stranger
+ * can throw guesses at, against an account that has no password to guess, and
+ * every guess looks exactly like the operator getting it wrong. Deleted.
  */
+
+/**
+ * ─── WHY authDomain IS THE CURRENT HOST AND NOT THE PROJECT'S ───────────────
+ *
+ * This is the fix for the popup failure, and it is Firebase's own documented
+ * one (Option 3, "Proxy auth requests to firebaseapp.com").
+ *
+ * The SDK runs its sign-in helper in an iframe on `authDomain`. With that set
+ * to `mindberzerk-3eaf5.firebaseapp.com` while the app runs on
+ * mindberzerk.com, the iframe is a THIRD-PARTY ORIGIN, and every current
+ * browser partitions or blocks storage there. The SDK cannot read back the
+ * result, so a sign-in that actually succeeded is reported as cancelled. That
+ * is the whole bug, and no amount of retrying or switching to redirect fixes
+ * it, because redirect uses the same iframe.
+ *
+ * Pointing authDomain at the host the browser is already on makes the helper
+ * SAME-ORIGIN. No third-party storage, no partitioning, no COOP severing the
+ * opener. `proxy.ts` forwards `/__/auth/*` to the real helper so the code the
+ * iframe loads is still Firebase's.
+ *
+ * READ FROM `window` RATHER THAN HARDCODED, because this backend answers on
+ * more than one hostname (the custom domain, the App Hosting default, and
+ * localhost in dev) and the correct value is whichever one the browser is on.
+ * A hardcoded value would be wrong on two of the three, and wrong here means
+ * back to the third-party iframe.
+ *
+ * BOTH HOSTS MUST BE REGISTERED or you get `auth/unauthorized-domain`:
+ *   - Firebase console, Authentication, Settings, Authorized domains
+ *   - Google Cloud console, Credentials, the Web client's Authorized redirect
+ *     URIs, as `https://<host>/__/auth/handler` (the suffix is required)
+ *
+ * The env var stays as the fallback for any non-browser evaluation.
+ */
+function authDomain(): string | undefined {
+  if (typeof window !== 'undefined') return window.location.hostname;
+  return process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+}
+
 function app() {
   if (getApps().length) return getApp();
   return initializeApp({
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    authDomain: authDomain(),
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   });
 }
 
 /**
- * Sign in and exchange for a session cookie.
+ * Trade a Firebase credential for the session cookie.
  *
  * The ID token is used ONCE and never stored. After this returns, auth lives
  * entirely in an httpOnly cookie the page cannot read.
- */
-/**
- * Trade a Firebase credential for the session cookie.
- *
- * ONE EXCHANGE, TWO WAYS IN. Google and email produce the same thing, an ID
- * token, and everything after that point is identical: the allowlist decides,
- * the 403 branch signs back out, and the cookie is httpOnly. Duplicating this
- * per provider is how the two paths would eventually disagree about what a
- * rejection means.
  */
 async function exchange(
   credential: UserCredential,
@@ -61,11 +100,6 @@ async function exchange(
     // Signed in to Firebase successfully, and not on the allowlist. Sign back
     // out locally so the next attempt is a clean one rather than silently
     // reusing the same rejected account.
-    //
-    // WORTH KNOWING FOR THE EMAIL PATH: a password account has a DIFFERENT UID
-    // from the Google account of the same person, so an allowlist carrying only
-    // the Google UID lands here. That is the correct behaviour and the message
-    // says what to do about it.
     await getAuth(app()).signOut();
     return { ok: false, error: 'That account is not authorised for this panel.' };
   }
@@ -75,73 +109,37 @@ async function exchange(
 }
 
 /**
- * Sign in with email and password.
+ * ─── ONE MESSAGE PER FAILURE, NOT ONE MESSAGE FOR ALL OF THEM ───────────────
  *
- * ─── WHY THIS EXISTS AT ALL ─────────────────────────────────────────────────
+ * Every failure used to collapse to "Sign-in was cancelled or blocked", which
+ * covered a closed window, a blocked popup, and a domain missing from the
+ * Firebase allowlist. Those need three different actions and one of them is a
+ * console setting, so the flat message cost days.
  *
- * Google popup sign-in stopped working, and the cause is not in this codebase.
- * Firebase delivers the popup's credential through a hidden iframe on the AUTH
- * DOMAIN, which is `mindberzerk-3eaf5.firebaseapp.com` while the app runs on
- * mindberzerk.com and localhost. That iframe needs storage on a third-party
- * origin, and browsers have been closing that off. The console fills with
- * "Cross-Origin-Opener-Policy would block the window.close call" from Firebase's
- * own popup module, the SDK cannot see its popup finish, and a successful
- * sign-in is reported as cancelled. Redirect fails on the same root cause with
- * a quieter symptom.
- *
- * Email and password touches none of that: no popup, no iframe, no third-party
- * storage, no opener to sever. For a panel with one user it is not a downgrade,
- * it is the mechanism that has the fewest ways to break.
- *
- * ─── AND IT WEAKENS NOTHING ─────────────────────────────────────────────────
- *
- * Signing in only produces a UID. `requireAdmin` still checks it against the
- * allowlist server-side, and that is where access is actually decided. What
- * changes is how someone proves who they are, not what that proof buys.
- *
- * ERRORS ARE DELIBERATELY VAGUE. Firebase distinguishes `user-not-found` from
- * `wrong-password`, and repeating that distinction tells a stranger which of
- * the two halves they got right. One message for both.
+ * NAMING `unauthorized-domain` OUT LOUD IS DELIBERATE. It is a configuration
+ * fault on a panel with one operator, and the alternative is staring at
+ * "blocked" while the fix sits in a console tab. A stranger learns only that
+ * this is a Firebase app, which the network tab already says.
  */
-export async function signInWithEmail(
-  email: string,
-  password: string,
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const credential = await signInWithEmailAndPassword(
-      getAuth(app()),
-      email.trim(),
-      password,
-    );
-    return await exchange(credential);
-  } catch {
-    return { ok: false, error: 'That email and password did not match.' };
-  }
-}
+const MESSAGES: Record<string, string> = {
+  'auth/popup-closed-by-user': 'The Google window closed before it finished.',
+  'auth/cancelled-popup-request': 'Another sign-in window was already open.',
+  'auth/popup-blocked':
+    'The browser blocked the Google window. Allow popups for this site, then try again.',
+  'auth/unauthorized-domain':
+    'This hostname is not in the Firebase authorised domains list. Add it under Authentication, Settings.',
+  'auth/network-request-failed': 'The network dropped during sign-in.',
+  'auth/operation-not-allowed':
+    'Google sign-in is disabled for this Firebase project.',
+};
 
 /**
- * Send a reset email.
+ * Sign in with Google. The only path in.
  *
- * ALWAYS REPORTS SUCCESS, even for an address with no account. Saying "no such
- * user" turns this box into a way to test whether an address can reach the
- * panel, and the person who is allowed in already knows their own address.
- */
-export async function sendReset(email: string): Promise<{ ok: boolean }> {
-  try {
-    await sendPasswordResetEmail(getAuth(app()), email.trim());
-  } catch {
-    // Swallowed on purpose. See above.
-  }
-  return { ok: true };
-}
-
-/**
- * Sign in with Google.
- *
- * KEPT, below the form, despite currently failing. The fault is a browser
- * storage policy rather than anything here, so it may simply start working
- * again, and deleting a path that costs four lines to keep would mean writing
- * it a third time. See [signInWithEmail] for why it is no longer the primary.
+ * POPUP RATHER THAN REDIRECT, on purpose. With a same-origin authDomain both
+ * work, and popup keeps the page mounted, so there is no `getRedirectResult`
+ * to run on load and no window where a half-finished flow is indistinguishable
+ * from a cold start.
  */
 export async function signIn(): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -150,8 +148,14 @@ export async function signIn(): Promise<{ ok: boolean; error?: string }> {
       new GoogleAuthProvider(),
     );
     return await exchange(credential);
-  } catch {
-    return { ok: false, error: 'Sign-in was cancelled or blocked.' };
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? '';
+    // The raw code is appended for anything unmapped. An unknown failure with
+    // its Firebase code attached is diagnosable; "sign-in failed" is not.
+    return {
+      ok: false,
+      error: MESSAGES[code] ?? `Sign-in failed. (${code || 'unknown error'})`,
+    };
   }
 }
 

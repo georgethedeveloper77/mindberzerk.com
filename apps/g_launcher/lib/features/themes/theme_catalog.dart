@@ -102,6 +102,17 @@ enum CardStatus {
   /// arrives, and the app looks broken rather than out of date.
   requiresAppUpdate;
 
+  /// On this device right now, so switching to it costs nothing.
+  ///
+  /// Bundled counts. It ships in the APK, which is the strongest form of being
+  /// installed, and a tab called Installed that hid Ubuntu would be absurd.
+  /// `updateAvailable` counts too: it is on disk and it applies, the update is
+  /// an offer rather than a precondition.
+  bool get onDevice =>
+      this == CardStatus.bundled ||
+      this == CardStatus.installed ||
+      this == CardStatus.updateAvailable;
+
   static CardStatus parse(String raw, {required bool unlocked, required bool free}) {
     if (raw == 'requiresAppUpdate') return CardStatus.requiresAppUpdate;
     if (raw == 'bundled') return CardStatus.bundled;
@@ -166,6 +177,35 @@ class ThemePreviewSpec {
 }
 
 @immutable
+/// One thing a distro does that the card can name.
+///
+/// ─── TWO ON THE CARD, THE REST ON THE DETAIL PAGE ─────────────────────────
+///
+/// A card carrying five of these is a wall of text people scroll past, so the
+/// card shows the first two [exclusive] ones in AUTHORED ORDER. The order they
+/// are written in is therefore the order they sell in, which makes it a real
+/// editorial decision rather than an accident of the data.
+///
+/// [exclusive] means the all-access settings cannot reproduce it. That word is
+/// the whole price argument: a distro whose list is all `false` is selling a
+/// palette, and either needs a feature built or should not be paid.
+@immutable
+class ThemeFeature {
+  const ThemeFeature({
+    required this.title,
+    required this.body,
+    this.exclusive = true,
+  });
+
+  final String title;
+
+  /// One short sentence. It is set beside the title on a phone card, so a
+  /// second sentence is a second line nobody reads.
+  final String body;
+
+  final bool exclusive;
+}
+
 class ThemeCard {
   const ThemeCard({
     required this.id,
@@ -181,6 +221,7 @@ class ThemeCard {
     this.sizeBytes = 0,
     this.remoteVersion = 0,
     this.installedVersion = 0,
+    this.features = const [],
   });
 
   /// Where this card is right now. Defaults to [CardStatus.bundled] so a floor
@@ -227,6 +268,10 @@ class ThemeCard {
         sizeBytes: p.sizeBytes,
         remoteVersion: p.version,
         installedVersion: p.installedVersion,
+        // Kept from the floor card. The index has no features block yet, so a
+        // bundled distro keeps the rows authored here and a CDN-only one has
+        // none until it does.
+        features: features,
       );
 
   final String id;
@@ -243,6 +288,12 @@ class ThemeCard {
 
   final ThemeTier tier;
   final ThemePreviewSpec preview;
+
+  /// What this distro does differently. EMPTY IS A VALID STATE and renders as a
+  /// card with no feature rows, which is what every CDN pack gets until the
+  /// signed index carries a `features` block. A card that invented rows for a
+  /// theme it knows nothing about would be lying about a paid product.
+  final List<ThemeFeature> features;
 
   /// The bundled ThemeSpec's `id` this card corresponds to, if any. Used to
   /// light up the active border. Only Ubuntu has one today.
@@ -342,17 +393,110 @@ final bundledThemeCardsProvider = Provider<List<ThemeCard>>(
 /// and a preview that misrepresents a theme is worse than one that admits it
 /// does not know yet. `_ThemePreview` renders [PreviewLayout.unknown] as a
 /// neutral chrome-derived placeholder.
+/// Parse one "#RRGGBB" or "#AARRGGBB" out of the index, or null.
+///
+/// Strings on the wire because that is how a theme.json authors a colour and
+/// how the panel already stores one. Parsed here, once, rather than carried as
+/// an int the panel would have to compute and the index would have to explain.
+Color? _previewColor(String? hex) {
+  if (hex == null) return null;
+
+  var v = hex.trim();
+  if (v.startsWith('#')) v = v.substring(1);
+  // 6 digits means fully opaque. Same convention `ThemePalette` uses, so a
+  // colour reads identically here and in the shell that eventually draws it.
+  if (v.length == 6) v = 'FF$v';
+  if (v.length != 8) return null;
+
+  final n = int.tryParse(v, radix: 16);
+  return n == null ? null : Color(n);
+}
+
+/// The card's miniature, built from the index's optional preview block.
+///
+/// ─── THE RENDERER WAS ALWAYS THERE ──────────────────────────────────────────
+///
+/// `_ThemePreview` can already draw any of seven layouts from a palette, and
+/// the bundled distros have used it since the storefront shipped. The only
+/// thing a CDN distro lacked was the DATA: the index carried a title and a
+/// summary and no colours, so every downloadable pack fell back to
+/// [PreviewLayout.unknown], a flat rectangle. On a paid distro that made the
+/// card you charge for the emptiest one on the screen.
+///
+/// ─── AND IT STILL FALLS BACK, DELIBERATELY ──────────────────────────────────
+///
+/// Every field is optional and every pack published before the block existed
+/// has none of them, so this returns the same flat rectangle for those rather
+/// than inventing colours. A guessed palette on a paid product is worse than an
+/// honest blank: it would be wrong, and it would look deliberate.
+///
+/// The gate is `previewShell` plus the two background stops, because those
+/// three are what the renderer cannot draw anything without. `bar`, `dock` and
+/// `accent` each degrade on their own.
+ThemePreviewSpec _previewFromPack(PackInfo p) {
+  const fallback = ThemePreviewSpec(
+    bg: [Color(0xFF14141A), Color(0xFF0A0A0E)],
+    bar: Color(0xFF1E1E26),
+    layout: PreviewLayout.unknown,
+  );
+
+  final top = _previewColor(p.previewBgTop);
+  final bottom = _previewColor(p.previewBgBottom);
+  final shell = p.previewShell;
+  if (top == null || bottom == null || shell == null) return fallback;
+
+  final accent = _previewColor(p.previewAccent);
+  final bar = _previewColor(p.previewBar) ?? fallback.bar;
+
+  return ThemePreviewSpec(
+    bg: [top, bottom],
+    bar: bar,
+    // ─── SHELLS MAP ONTO LAYOUTS, THEY ARE NOT THE SAME LIST ───────────
+    //
+    // `PreviewLayout` is named for what it DRAWS, not for the shell that wants
+    // it: `dockLeft`, `dockBottom`, `iconsCentered`, `iconsLeft`,
+    // `dockMagnified`, `terminal`. I first wrote this switch with arms called
+    // gnome, plasma and aqua, which do not exist.
+    //
+    // gnome is `dockLeft` because that is Ubuntu's left rail, which is the
+    // GNOME the floor card already draws. plasma is `dockBottom`, its floating
+    // Breeze strip. aqua is `dockMagnified`, because the magnification IS the
+    // recognisable thing about that desktop, as the enum's own doc says.
+    // tiling is `iconsLeft`, which is what Arch's floor card uses.
+    //
+    // Unknown for a shell string from a newer build, the same contract every
+    // other parsed enum here follows: degrade, never throw.
+    layout: switch (shell) {
+      'gnome' => PreviewLayout.dockLeft,
+      'plasma' => PreviewLayout.dockBottom,
+      'aqua' => PreviewLayout.dockMagnified,
+      'tiling' => PreviewLayout.iconsLeft,
+      'tui' => PreviewLayout.terminal,
+      _ => PreviewLayout.unknown,
+    },
+    accent: accent,
+    dockBg: _previewColor(p.previewDock),
+    // Three tiles, the same count the floor cards use, tinted off the accent so
+    // the miniature reads as this distro rather than as a grey mock. Drawn from
+    // the palette rather than from the pack's real icons, which are not on the
+    // device until it is installed.
+    icons: accent == null
+        ? const []
+        : [
+            accent,
+            accent.withValues(alpha: 0.72),
+            accent.withValues(alpha: 0.48),
+          ],
+  );
+}
+
 ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       id: p.packId,
       name: p.title,
       version: p.summary.isEmpty ? 'v${p.version}' : p.summary,
       tag: 'Distro',
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
-      preview: const ThemePreviewSpec(
-        bg: [Color(0xFF14141A), Color(0xFF0A0A0E)],
-        bar: Color(0xFF1E1E26),
-        layout: PreviewLayout.unknown,
-      ),
+      preview: _previewFromPack(p),
       specId: p.packId,
       status: CardStatus.parse(p.state, unlocked: p.unlocked, free: p.sku == null),
       sku: p.sku,
@@ -394,6 +538,21 @@ const _floorCards = <ThemeCard>[
           accent: _ubuntuOrange,
           icons: [_ubuntuOrange, Color(0xFF3A6EA5)],
         ),
+        features: [
+          ThemeFeature(
+            title: 'Activities overview',
+            body: 'Windows, workspaces and search on one surface.',
+          ),
+          ThemeFeature(
+            title: 'Left vertical dock',
+            body: 'Always visible, show-apps button at the foot.',
+          ),
+          ThemeFeature(
+            title: 'Aubergine and orange',
+            body: 'Ubuntu Sans, Yaru squircles.',
+            exclusive: false,
+          ),
+        ],
       ),
       ThemeCard(
         id: 'terminal',
@@ -408,6 +567,16 @@ const _floorCards = <ThemeCard>[
           bar: Color(0xFF0E1A0E),
           layout: PreviewLayout.terminal,
         ),
+        features: [
+          ThemeFeature(
+            title: 'Everything by command',
+            body: 'Launch, search and read device state from a prompt.',
+          ),
+          ThemeFeature(
+            title: 'Scrollback buffer',
+            body: 'Your session history stays where you left it.',
+          ),
+        ],
       ),
       ThemeCard(
         id: 'kde-plasma-6',
@@ -425,6 +594,21 @@ const _floorCards = <ThemeCard>[
           accent: Color(0xFF3DAEE9), // Breeze blue
           icons: [Color(0xFF3DAEE9), Color(0xFF1D99F3), Color(0xFF27AE60)],
         ),
+        features: [
+          ThemeFeature(
+            title: 'Panel edit mode',
+            body: 'Hold the panel, add or remove modules, move it to any edge.',
+          ),
+          ThemeFeature(
+            title: 'Desktop icons',
+            body: 'Folder View, with apps placed on the workspace itself.',
+          ),
+          ThemeFeature(
+            title: 'Breeze palette',
+            body: 'Noto Sans, squircle icons.',
+            exclusive: false,
+          ),
+        ],
       ),
       // The paid distros (Kali, Garuda, Pop!_OS) live ONLY in themeMoreProvider
       // below, as coming-soon rows, until three things ship together: their

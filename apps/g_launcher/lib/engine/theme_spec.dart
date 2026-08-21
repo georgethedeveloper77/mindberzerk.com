@@ -712,6 +712,8 @@ class ThemeLayout {
     this.topBarStats = false,
     this.panels = const [],
     this.workspaceAxis = WorkspaceAxis.vertical,
+    this.desktopIcons = false,
+    this.panelEdit = false,
     required this.rows,
     required this.cols,
     this.iconScale = 1.0,
@@ -767,7 +769,45 @@ class ThemeLayout {
   /// Which way workspaces page. Defaults to vertical, which is what this shell
   /// has always done and what GNOME does.
   final WorkspaceAxis workspaceAxis;
-  final int rows;
+
+  /// Does this distro's desktop carry app icons?
+  ///
+  /// ─── OFF BY DEFAULT, AND THAT IS THE AUTHENTIC ANSWER FOR MOST ──────────
+  ///
+  /// GNOME 40 and later show nothing on the desktop, elementary shows nothing,
+  /// and a tiling WM has no desktop to show anything on. Those are the distros
+  /// shipping today, so false is not a cautious default, it is the correct one
+  /// for every theme that exists at the time of writing.
+  ///
+  /// KDE is the opposite case and the reason this field exists: Folder View is
+  /// Plasma's DEFAULT containment, so a Plasma desktop with no icon grid is not
+  /// a minimal Plasma, it is a Plasma missing the thing a Plasma user reaches
+  /// for first. Cinnamon is the same, which is what Linux Mint will need.
+  ///
+  /// A capability, not a preference. The user may turn icons OFF on a distro
+  /// that has them; they cannot turn them on where the distro has none, because
+  /// GNOME having a bare desktop IS GNOME rather than a setting someone forgot
+  /// to expose. `LayoutResolver` enforces that direction.
+  final bool desktopIcons;
+
+  /// Can the user rearrange this distro's panel?
+  ///
+  /// ─── A FIELD, NOT A SHELL CHECK, AND FOR A PRODUCT REASON ───────────────
+  ///
+  /// The authenticity argument for gating this is weaker than it looks. A GNOME
+  /// user of THIS app can already move the top bar to any edge and toggle its
+  /// readouts, which real GNOME does not offer, so "GNOME's bar is not editable"
+  /// is a line this launcher already crossed.
+  ///
+  /// The argument that survives is that panel editing is what Plasma is sold
+  /// on, and Manjaro and Garuda are sold partly on inheriting it. A field hands
+  /// it to exactly the distros that carry it and lets a CDN distro opt in
+  /// without an APK release. A `switch` on shell kind would hardcode the answer
+  /// and would quietly grant it to every future plasma-shell distro, whether or
+  /// not that was the intent.
+  ///
+  /// Off by default, like [desktopIcons], so no distro shipping today changes.
+  final bool panelEdit;  final int rows;
   final int cols;
 
   /// A per-theme multiplier on every icon, everywhere: drawer, dock, folders.
@@ -865,6 +905,8 @@ class ThemeLayout {
       topBarStats: j['topBarStats'] as bool? ?? false,
       panels: _panels(j),
       workspaceAxis: WorkspaceAxis.parse(j['workspaceAxis'] as String?),
+      desktopIcons: j['desktopIcons'] as bool? ?? false,
+      panelEdit: j['panelEdit'] as bool? ?? false,
       rows: (grid['rows'] as num?)?.toInt() ?? 5,
       cols: (grid['cols'] as num?)?.toInt() ?? 4,
       iconScale: IconSizing.parseScale(j['iconScale']),
@@ -879,6 +921,11 @@ class ThemeLayout {
       drawerGrouping: switch (j['drawerGrouping'] as String?) {
         'none' => 'none',
         'az' => 'az',
+        // Category folders, iOS App Library shaped. Paired with
+        // `drawerScrollStyle: 'vertical'` it is the whole look; on its own it
+        // is folders in whatever motion the distro already uses, which is a
+        // coherent thing to want rather than a broken half.
+        'library' => 'library',
         _ => null,
       },
     );
@@ -920,7 +967,44 @@ enum PanelModule {
 
   /// Pushes everything after it to the far end. A panel with no spacer packs
   /// to the leading edge, which is what a dense polybar does.
-  spacer;
+  spacer,
+
+  // ─── THE PLASMA FAMILY ────────────────────────────────────────────────────
+  //
+  // The five above describe a GNOME top bar, which is the only panel that
+  // existed when this enum was written. Plasma's panel is five different
+  // things, and none of them was addressable: `_PlasmaPanel` hardcoded them
+  // into a Row because there was no way to write "kickoff" in a theme.json.
+  //
+  // That is what made panel edit mode impossible rather than merely unbuilt.
+  // A user cannot rearrange a list that does not exist, and a distro could not
+  // ship a different arrangement without an APK release, which is the thing
+  // the whole theme layer is for.
+
+  /// The application launcher button. Plasma's, and Mint's under another name.
+  kickoff,
+
+  /// Open windows as labelled buttons. A taskbar, not a dock: the dock shows
+  /// what you pinned, this shows what is running.
+  tasks,
+
+  /// The workspace squares.
+  pager,
+
+  /// Status icons.
+  tray,
+
+  /// Time, with the date beneath it where the panel is tall enough.
+  ///
+  /// ─── AND WHY GNOME STILL WILL NOT HAVE ONE ──────────────────────────────
+  ///
+  /// `gnome_top_bar` argues that the bar carries no clock because Android's
+  /// status bar a few pixels above it already shows one, and duplicating it is
+  /// the opposite of authentic. That argument is untouched. The module exists
+  /// because a BOTTOM panel is nowhere near the status bar and a Plasma panel
+  /// without a clock is not a Plasma panel. GNOME's theme simply does not list
+  /// it, which is the difference between a vocabulary and a mandate.
+  clock;
 
   static PanelModule? parse(String raw) => switch (raw) {
         'activities' => PanelModule.activities,
@@ -928,6 +1012,11 @@ enum PanelModule {
         'memory' => PanelModule.memory,
         'storage' => PanelModule.storage,
         'spacer' => PanelModule.spacer,
+        'kickoff' => PanelModule.kickoff,
+        'tasks' => PanelModule.tasks,
+        'pager' => PanelModule.pager,
+        'tray' => PanelModule.tray,
+        'clock' => PanelModule.clock,
         // An unknown module from a newer catalogue is DROPPED, not fatal. A
         // panel missing one readout is a panel; a theme that fails to parse is
         // a black screen.

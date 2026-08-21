@@ -741,9 +741,15 @@ class _Facts extends StatelessWidget {
 /// The grid, cut into days.
 ///
 /// A CustomScrollView rather than a ListView of sections, because a pinned
-/// sliver header is the only thing that survives being scrolled past. Successive
-/// pinned headers push each other out, which is what makes a long grid readable
-/// and what a header built as an ordinary list item can never do.
+/// sliver header is the only thing that survives being scrolled past, and
+/// knowing which day is on screen is the whole reason to group a long grid.
+///
+/// Each day is a SliverMainAxisGroup, and that is load bearing rather than
+/// tidiness. Pinning is scoped to the nearest sliver container, so a flat list
+/// of headers and grids pins every header to the viewport and never releases
+/// one: at six days found the headers owned the top 230 dp and the grid ran
+/// behind them. Grouped, the next day's header evicts the previous one and only
+/// the day being looked at is ever on screen.
 ///
 /// One code path serves both view modes. List mode groups identically, because a
 /// documents category is unreadable as squares but is not thereby exempt from
@@ -784,87 +790,107 @@ class _Grouped extends StatelessWidget {
 
     return CustomScrollView(
       slivers: <Widget>[
-        for (final DateGroup<RecoverableItem> group in groups) ...<Widget>[
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: GGroupHeader(
-              label: group.label,
-              meta:
-                  '${GFormat.count(group.count)}  ·  '
-                  '${GFormat.bytes(group.bytes)}',
-              tokens: t,
-              muted: !group.dated,
-              // Only once something is selected. Offering a select all before
-              // the user has expressed any intent puts a destructive shortcut on
-              // a browsing screen.
-              selected: selecting
-                  ? group.items.every(
-                      (RecoverableItem item) => selected.contains(item.itemId),
-                    )
-                  : null,
-              onToggleAll: selecting
-                  ? () => onToggleGroup(
-                      group.items
-                          .map((RecoverableItem item) => item.itemId)
-                          .toList(),
-                    )
-                  : null,
-            ),
-          ),
-          if (mode == GViewMode.grid)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              sliver: SliverGrid(
-                // A fixed EXTENT, not a fixed column count. Three columns look
-                // right at 360 dp and absurd on a foldable, and this keeps the
-                // tile size stable across both.
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 128,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
+        // ONE GROUP, ONE SLIVER GROUP, and that is the whole fix for the bug
+        // where six headers ended up stacked over a grid that was scrolling
+        // invisibly behind them.
+        //
+        // A pinned header pins for the length of whatever contains it. Laid out
+        // flat, that container is the whole scroll view, so every header a
+        // user scrolled past stayed on screen forever and the stack grew by
+        // 38 dp per day. SliverMainAxisGroup makes the containing extent the
+        // group itself, so the next day's header pushes the previous one off
+        // the top and exactly one is ever pinned: the one whose items are on
+        // screen.
+        for (final DateGroup<RecoverableItem> group in groups)
+          SliverMainAxisGroup(
+            slivers: <Widget>[
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: GGroupHeader(
+                  label: group.label,
+                  meta:
+                      '${GFormat.count(group.count)}  ·  '
+                      '${GFormat.bytes(group.bytes)}',
+                  tokens: t,
+                  muted: !group.dated,
+                  // Only once something is selected. Offering a select all
+                  // before the user has expressed any intent puts a destructive
+                  // shortcut on a browsing screen.
+                  selected: selecting
+                      ? group.items.every(
+                          (RecoverableItem item) =>
+                              selected.contains(item.itemId),
+                        )
+                      : null,
+                  onToggleAll: selecting
+                      ? () => onToggleGroup(
+                          group.items
+                              .map((RecoverableItem item) => item.itemId)
+                              .toList(),
+                        )
+                      : null,
                 ),
-                delegate: SliverChildBuilderDelegate((
-                  BuildContext context,
-                  int index,
-                ) {
-                  final RecoverableItem item = group.items[index];
-                  return ItemGridTile(
-                    item: item,
-                    selected: selected.contains(item.itemId),
-                    selecting: selecting,
-                    // Tap views, long press selects, and once anything is
-                    // selected tap selects too. Standard gallery behaviour,
-                    // and it is what stops the most common action on a photo
-                    // grid, looking at a photo, from being unreachable.
-                    onTap: () =>
-                        selecting ? onToggle(item.itemId) : onOpen(item),
-                    onLongPress: () => onToggle(item.itemId),
-                  );
-                }, childCount: group.items.length),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: GSpace.gutter),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((
-                  BuildContext context,
-                  int index,
-                ) {
-                  final RecoverableItem item = group.items[index];
-                  return ItemRow(
-                    item: item,
-                    selected: selected.contains(item.itemId),
-                    detailed: mode == GViewMode.details,
-                    onTap: () =>
-                        selecting ? onToggle(item.itemId) : onOpen(item),
-                    onLongPress: () => onToggle(item.itemId),
-                  );
-                }, childCount: group.items.length),
-              ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
-        ],
+              if (mode == GViewMode.grid)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GSpace.gutter,
+                  ),
+                  sliver: SliverGrid(
+                    // A fixed EXTENT, not a fixed column count. Three columns
+                    // look right at 360 dp and absurd on a foldable, and this
+                    // keeps the tile size stable across both.
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 128,
+                      crossAxisSpacing: 6,
+                      mainAxisSpacing: 6,
+                    ),
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final RecoverableItem item = group.items[index];
+                      return ItemGridTile(
+                        item: item,
+                        selected: selected.contains(item.itemId),
+                        selecting: selecting,
+                        // Tap views, long press selects, and once anything is
+                        // selected tap selects too. Standard gallery behaviour,
+                        // and it is what stops the most common action on a
+                        // photo grid, looking at a photo, from being
+                        // unreachable.
+                        onTap: () =>
+                            selecting ? onToggle(item.itemId) : onOpen(item),
+                        onLongPress: () => onToggle(item.itemId),
+                      );
+                    }, childCount: group.items.length),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GSpace.gutter,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final RecoverableItem item = group.items[index];
+                      return ItemRow(
+                        item: item,
+                        selected: selected.contains(item.itemId),
+                        detailed: mode == GViewMode.details,
+                        onTap: () =>
+                            selecting ? onToggle(item.itemId) : onOpen(item),
+                        onLongPress: () => onToggle(item.itemId),
+                      );
+                    }, childCount: group.items.length),
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: GSpace.md)),
+            ],
+          ),
         // Clears the action bar, which floats over the last row.
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
