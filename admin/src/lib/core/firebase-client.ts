@@ -53,21 +53,51 @@ import {
  * iframe loads is still Firebase's.
  *
  * READ FROM `window` RATHER THAN HARDCODED, because this backend answers on
- * more than one hostname (the custom domain, the App Hosting default, and
- * localhost in dev) and the correct value is whichever one the browser is on.
- * A hardcoded value would be wrong on two of the three, and wrong here means
- * back to the third-party iframe.
+ * more than one hostname (the custom domain and the App Hosting default) and
+ * the correct value is whichever one the browser is on. A hardcoded value
+ * would be wrong on one of them, and wrong here means back to the third-party
+ * iframe.
  *
- * BOTH HOSTS MUST BE REGISTERED or you get `auth/unauthorized-domain`:
+ * ─── BUT NOT ON localhost, AND THE REASON IS EXACT ──────────────────────────
+ *
+ * Firebase builds the handler URL as `https://<authDomain>/__/auth/handler`.
+ * ALWAYS https, and an authDomain carries NO PORT. So on http://localhost:3000
+ * a hostname-derived authDomain sends the popup to `https://localhost/__/auth/
+ * handler`, which is port 443 on a machine serving 3000 over http, and the
+ * popup dies on ERR_CONNECTION_REFUSED before it reaches any Firebase code.
+ *
+ * The test is therefore not "is there a window" but "can this origin actually
+ * answer https on the default port". Anything else falls back to the project
+ * domain, which is what dev used before and what dev keeps.
+ *
+ * THAT MEANS LOCAL SIGN-IN STILL USES THE THIRD-PARTY IFRAME, with whatever
+ * flakiness the browser's storage partitioning brings. It is the honest
+ * trade: the proxy fix needs a real https origin, and localhost is not one.
+ * Sign in against the deployed backend when the popup matters.
+ *
+ * BOTH PRODUCTION HOSTS MUST BE REGISTERED or you get
+ * `auth/unauthorized-domain`:
  *   - Firebase console, Authentication, Settings, Authorized domains
  *   - Google Cloud console, Credentials, the Web client's Authorized redirect
  *     URIs, as `https://<host>/__/auth/handler` (the suffix is required)
  *
- * The env var stays as the fallback for any non-browser evaluation.
+ * `localhost` belongs in the Firebase list too, for the fallback path.
  */
 function authDomain(): string | undefined {
-  if (typeof window !== 'undefined') return window.location.hostname;
-  return process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+  const fallback = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+  if (typeof window === 'undefined') return fallback;
+
+  const { protocol, port, hostname } = window.location;
+
+  // Not https, so `https://<hostname>/` is a guess about a server that may not
+  // exist. This is the localhost:3000 case.
+  if (protocol !== 'https:') return fallback;
+
+  // https on a non-default port. An authDomain cannot express the port, so the
+  // handler URL would silently target 443 instead.
+  if (port !== '' && port !== '443') return fallback;
+
+  return hostname;
 }
 
 function app() {
@@ -128,6 +158,11 @@ const MESSAGES: Record<string, string> = {
     'The browser blocked the Google window. Allow popups for this site, then try again.',
   'auth/unauthorized-domain':
     'This hostname is not in the Firebase authorised domains list. Add it under Authentication, Settings.',
+  // Seen when the popup opened but could not load the handler at all. The
+  // usual cause is an authDomain pointing at a host that does not answer
+  // https on port 443. See [authDomain].
+  'auth/internal-error':
+    'The Google window could not load the sign-in handler. Check that authDomain resolves over https.',
   'auth/network-request-failed': 'The network dropped during sign-in.',
   'auth/operation-not-allowed':
     'Google sign-in is disabled for this Firebase project.',
