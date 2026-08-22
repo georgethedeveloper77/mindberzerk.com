@@ -370,6 +370,52 @@ export function signIndex(opts: {
     }
   }
 
+  /**
+   * Refuse to sign an entry that lost a field on the way in.
+   *
+   * ─── WHY THIS EXISTS, AND WHAT IT ALREADY COST ────────────────────────────
+   *
+   * The rebuild above copies entries FIELD BY FIELD, deliberately: this is the
+   * document a signature is verified over, so it must contain exactly what this
+   * file intends and not whatever a caller hung on the object.
+   *
+   * The price of that safety is that a new field on `IndexPack` reaches here
+   * and is thrown away unless someone remembers to name it. That is precisely
+   * what happened with `preview`: the type, the upload, the Kotlin parse, the
+   * bridge and the card were all correct, six themes published with no preview,
+   * and nothing anywhere reported a problem. It took a manual trace to find.
+   *
+   * So the rebuild stays and the silence goes. If the source entry carries a
+   * key the rebuilt one does not, that is a field someone added and forgot to
+   * copy, and publishing is the wrong moment to be relaxed about it.
+   *
+   * ─── IT THROWS RATHER THAN WARNING ────────────────────────────────────────
+   *
+   * A warning in a server log is a warning nobody reads. A publish that fails
+   * loudly costs one confused minute; a publish that succeeds while dropping a
+   * field costs an afternoon, which is the measured price of the last one.
+   *
+   * Undefined values do not count as present, so an optional field left unset
+   * is not a dropped field.
+   */
+  function assertNothingDropped(built: IndexPack, i: number): IndexPack {
+    const source = opts.packs[i];
+    const lost = Object.keys(source).filter(
+      (k) =>
+        (source as Record<string, unknown>)[k] !== undefined &&
+        !(k in built),
+    );
+
+    if (lost.length > 0) {
+      throw new Error(
+        `buildIndex dropped ${lost.join(', ')} from '${source.packId}'. ` +
+          'Every field is copied by name in this file; add the missing ones ' +
+          'to the packs.map above.',
+      );
+    }
+    return built;
+  }
+
   const body = {
     formatVersion: FORMAT_VERSION,
     generatedAt: opts.generatedAt,
@@ -399,7 +445,7 @@ export function signIndex(opts: {
       // The cost of that safety is precisely this: a new field is not published
       // until it is named HERE.
       ...(p.preview ? { preview: p.preview } : {}),
-    })),
+    })).map(assertNothingDropped),
     // ALWAYS PRESENT, even when empty. Every index publish-index.sh ever wrote
     // carried this field, so the on-device parser has only ever been exercised
     // against indexes that have it; the one index that omitted it was also the
