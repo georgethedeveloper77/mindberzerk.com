@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/core/firebase-client';
+import { signIn, signInWithPassword } from '@/lib/core/firebase-client';
 import { REGISTRY, type AppMeta } from '@/lib/core/registry';
 
 /**
@@ -13,19 +13,23 @@ import { REGISTRY, type AppMeta } from '@/lib/core/registry';
  * project and authorises nothing, and the ID token it produces is posted once
  * to /api/auth/session and never stored.
  *
- * ─── ONE BUTTON ─────────────────────────────────────────────────────────────
+ * ─── PASSWORD FIRST, GOOGLE SECOND ──────────────────────────────────────────
  *
- * There was an email and password form here, added when Google sign-in broke.
- * It could never have worked: the single account on this project has Google as
- * its only provider, so there is no password credential to check against, and
- * every attempt returned "that email and password did not match" against
- * nothing. Two fields, a submit button and a reset link, all of them dead.
+ * The order is the point, and it is the opposite of what it was.
  *
- * Google works again because the cause was found: the auth helper iframe was
- * on a third-party origin. `proxy.ts` now serves it from this origin and
- * `firebase-client.ts` points `authDomain` at the current host. See both for
- * the full explanation. With that fixed there is no second path worth keeping,
- * and a login screen with one obvious action is the one people get right.
+ * A password form sat here before and could not work, because the account had
+ * no password credential linked. It does now, on the SAME UID, so both paths
+ * end at the same record and the allowlist is unchanged.
+ *
+ * The password field takes the top slot because it is the path that cannot be
+ * broken from a console. Google depends on an OAuth client, an authDomain, a
+ * reverse proxy and redirect URIs whose changes Google warns may take hours to
+ * propagate, and while any of that is wrong the panel is shut. The password is
+ * one HTTPS call. On a panel with one operator, the credential that still
+ * works during a misconfiguration is the one that belongs first.
+ *
+ * Google stays because it is the better credential when it works, with nothing
+ * to store or remember, and it is already wired.
  *
  * ─── AND NO EXPLANATION OF THE AUTH MODEL ───────────────────────────────────
  *
@@ -89,6 +93,8 @@ export default function AdminSignInPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [lines, setLines] = useState(0);
   const [slide, setSlide] = useState(0);
 
@@ -137,10 +143,15 @@ export default function AdminSignInPage() {
   const app = SLIDES[slide] ?? REGISTRY[0];
   const hero = HERO[app.id];
 
-  async function onSignIn() {
+  /**
+   * Both providers end here, because from this point they are identical: a
+   * session cookie exists or it does not, and the reason it exists has no
+   * bearing on where the browser goes next.
+   */
+  async function run(attempt: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
     setError(null);
-    const result = await signIn();
+    const result = await attempt();
     if (result.ok) {
       // The console, not `/`: `/` is the public site now, and the proxy lets a
       // session-holding browser stay there, so landing on it after sign-in
@@ -151,6 +162,11 @@ export default function AdminSignInPage() {
     }
     setError(result.error ?? 'Sign-in failed.');
     setBusy(false);
+    // The PASSWORD is cleared and the EMAIL is not. A failed attempt means the
+    // password was wrong or the account has none, and either way the stored
+    // string is worth nothing. The email is almost certainly right and
+    // retyping it is pure friction.
+    setPassword('');
   }
 
   return (
@@ -295,14 +311,54 @@ export default function AdminSignInPage() {
             admin.mindberzerk.com
           </p>
 
-          {/* THE ACCENT BUTTON, because it is now the only one. It was the
-              secondary outline treatment while the dead password form held the
-              primary slot, which put the emphasis on the path that could not
-              work. */}
-          <button
-            onClick={onSignIn}
+          {/* ── the password path ──────────────────────────────────────────
+              NOT AN HTML `form`. A real form submits on Enter through a
+              navigation this page never wants, and the handler is async, so
+              the whole thing would be `preventDefault` plus a manual call.
+              Enter is wired directly on the password field instead, which is
+              the only key behaviour a form was providing. */}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             disabled={busy}
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-50"
+            placeholder="Email"
+            autoComplete="username"
+            className="mt-6 w-full rounded-lg border border-line-soft bg-surface-0 px-4 py-3 text-data text-ink outline-none transition placeholder:text-ink-3 focus:border-accent disabled:opacity-50"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !busy) {
+                void run(() => signInWithPassword(email, password));
+              }
+            }}
+            disabled={busy}
+            placeholder="Password"
+            autoComplete="current-password"
+            className="mt-2 w-full rounded-lg border border-line-soft bg-surface-0 px-4 py-3 text-data text-ink outline-none transition placeholder:text-ink-3 focus:border-accent disabled:opacity-50"
+          />
+          {/* Disabled on empty fields rather than validated on submit. An
+              attempt with nothing typed can only fail, and refusing to make it
+              is clearer than reporting it. */}
+          <button
+            onClick={() => run(() => signInWithPassword(email, password))}
+            disabled={busy || !email || !password}
+            className="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-data font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-50"
+          >
+            {busy ? 'Signing in' : 'Sign in'}
+          </button>
+
+          {/* ── the Google path ────────────────────────────────────────────
+              The OUTLINE treatment, one step down. It is the better credential
+              when it works, and the one that stops working for reasons no
+              amount of retrying fixes, so it does not get the emphasis. */}
+          <button
+            onClick={() => run(signIn)}
+            disabled={busy}
+            className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border border-line-soft px-4 py-3 text-data font-medium text-ink transition hover:bg-surface-0 disabled:opacity-50"
           >
             {/* Google's mark, inline, because a login button that says only
                 "continue" is one people hesitate over. No network request and
@@ -313,7 +369,7 @@ export default function AdminSignInPage() {
                 d="M21.35 11.1h-9.17v2.98h5.27c-.23 1.37-1.6 4.02-5.27 4.02-3.17 0-5.76-2.62-5.76-5.85s2.59-5.85 5.76-5.85c1.8 0 3.01.77 3.7 1.43l2.52-2.43C16.78 3.9 14.66 3 12.18 3 7.14 3 3.06 7.08 3.06 12.12s4.08 9.12 9.12 9.12c5.27 0 8.76-3.7 8.76-8.92 0-.6-.06-1.05-.14-1.5z"
               />
             </svg>
-            {busy ? 'Signing in' : 'Continue with Google'}
+            Continue with Google
           </button>
 
           {error && (
