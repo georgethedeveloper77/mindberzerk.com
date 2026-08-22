@@ -384,6 +384,21 @@ export function signIndex(opts: {
       title: p.title,
       summary: p.summary,
       ...(p.sku ? { sku: p.sku } : {}),
+      // ─── AND THE PREVIEW, WHICH THIS BLOCK SILENTLY DROPPED ─────────────
+      //
+      // Every entry is rebuilt here FIELD BY FIELD rather than spread, so a
+      // field added to `IndexPack` reaches this function and is thrown away.
+      // That is why six published themes had no preview while `uploadPack`
+      // was correctly attaching one: type, upload, bridge and card were all
+      // right, and the last step before signing quietly copied nine fields out
+      // of ten.
+      //
+      // The rebuild itself is deliberate and stays: this is the document every
+      // device verifies a signature over, so it must contain exactly what this
+      // file intends and not whatever a caller happened to hang on the object.
+      // The cost of that safety is precisely this: a new field is not published
+      // until it is named HERE.
+      ...(p.preview ? { preview: p.preview } : {}),
     })),
     // ALWAYS PRESENT, even when empty. Every index publish-index.sh ever wrote
     // carried this field, so the on-device parser has only ever been exercised
