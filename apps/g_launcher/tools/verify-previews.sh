@@ -87,6 +87,21 @@ if [[ -d "$ADMIN" ]]; then
     "publish derives one from the spec" \
     "apply store_previews_panel.zip."
 
+  # THE STEP THAT WAS MISSING FROM THIS SCRIPT, and it is the one that failed.
+  #
+  # `buildIndex` rebuilds every entry field by field rather than spreading it,
+  # so `IndexPack` gaining a field is not enough: the signer has to name it or
+  # it is dropped at the last step before signing. Type, upload, bridge and card
+  # were all correct for six published themes while this line was absent.
+  #
+  # The rebuild is deliberate, because the index is what a signature is verified
+  # over and it must contain what this file intends rather than whatever a
+  # caller hung on the object. This check is the price of that.
+  grep_file "$ADMIN/src/lib/core/sign.ts" \
+    "p.preview ? { preview: p.preview }" \
+    "the SIGNER writes it into the document" \
+    "buildIndex rebuilds entries field by field and drops anything it does not name. Apply store_previews_signer.zip."
+
   # DEPLOYED, not just present. `publishDistroAction` is a server action, so it
   # runs whatever Firebase App Hosting built, never your working tree. This is
   # the link that has actually been failing.
