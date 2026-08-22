@@ -4,6 +4,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
   signInWithPopup,
   type UserCredential,
 } from 'firebase/auth';
@@ -20,17 +21,27 @@ import {
  * marked `server-only` so the build would fail, which is the point of the
  * marker.
  *
- * ─── GOOGLE IS THE ONLY WAY IN, AND THE PASSWORD FORM IS GONE ───────────────
+ * ─── TWO PROVIDERS, ONE ACCOUNT, ONE UID ────────────────────────────────────
  *
- * The one account on this project has ONE provider, Google. There is no
- * password credential attached to it, so `signInWithEmailAndPassword` could
- * only ever return `auth/invalid-credential`, which the form rendered as "that
- * email and password did not match". That message was true and useless: there
- * was nothing to match against.
+ * There was a password form here before, and it could not work: the account had
+ * Google as its ONLY provider, so there was no password credential to check
+ * against and every attempt returned `auth/invalid-credential`. The form
+ * rendered that as "that email and password did not match", which was true and
+ * useless. There was nothing to match against.
  *
- * Keeping a form that cannot succeed costs a real thing. It is a box a stranger
- * can throw guesses at, against an account that has no password to guess, and
- * every guess looks exactly like the operator getting it wrong. Deleted.
+ * The password is now LINKED TO THE SAME USER by `scripts/set-admin-password.
+ * mjs`. Firebase models one user as one UID with a list of providers, so
+ * linking adds a way in rather than a second account: the UID is unchanged,
+ * the allowlist secret needs no edit, and both buttons below land on the same
+ * record.
+ *
+ * WHY KEEP BOTH. Google is the better day-to-day credential and needs no
+ * password stored anywhere. But it depends on an OAuth client, an authDomain,
+ * a reverse proxy and console changes that Google itself warns can take hours
+ * to propagate, and when any of that is misconfigured the panel is simply
+ * shut. The password path depends on none of it. It is the way in when the
+ * other way is broken, which on a one-operator panel is the failure that
+ * actually matters.
  */
 
 /**
@@ -165,7 +176,22 @@ const MESSAGES: Record<string, string> = {
     'The Google window could not load the sign-in handler. Check that authDomain resolves over https.',
   'auth/network-request-failed': 'The network dropped during sign-in.',
   'auth/operation-not-allowed':
-    'Google sign-in is disabled for this Firebase project.',
+    'That sign-in method is disabled for this Firebase project.',
+
+  // ── password codes ────────────────────────────────────────────────────────
+  //
+  // `invalid-credential` IS DELIBERATELY VAGUE, and that is Firebase's design
+  // rather than an omission. It covers a wrong password, an unknown email and
+  // an account with no password linked, all with one code, so a stranger
+  // cannot use the login form to discover which addresses have accounts.
+  // Repeating that vagueness back is correct even though it is the least
+  // helpful message here.
+  'auth/invalid-credential': 'That email and password did not match.',
+  'auth/invalid-email': 'That is not a valid email address.',
+  'auth/user-disabled': 'That account is disabled.',
+  'auth/too-many-requests':
+    'Too many attempts. Firebase has paused sign-in for this account. Wait a few minutes.',
+  'auth/missing-password': 'Enter a password.',
 };
 
 /**
@@ -187,6 +213,38 @@ export async function signIn(): Promise<{ ok: boolean; error?: string }> {
     const code = (e as { code?: string }).code ?? '';
     // The raw code is appended for anything unmapped. An unknown failure with
     // its Firebase code attached is diagnosable; "sign-in failed" is not.
+    return {
+      ok: false,
+      error: MESSAGES[code] ?? `Sign-in failed. (${code || 'unknown error'})`,
+    };
+  }
+}
+
+/**
+ * Sign in with the password linked to the same account.
+ *
+ * NOTHING ABOUT THE AUTHDOMAIN, THE PROXY OR THE OAUTH CLIENT IS INVOLVED.
+ * This is a single HTTPS call to Firebase's identity endpoint, which is the
+ * entire reason this path exists: it cannot be broken by a console setting
+ * that has not propagated yet.
+ *
+ * The allowlist still runs. `exchange` posts to the same session route and a
+ * UID that is not on the list is refused here exactly as it is for Google, so
+ * this adds a way to prove who you are, not a way around the check.
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const credential = await signInWithEmailAndPassword(
+      getAuth(app()),
+      email.trim(),
+      password,
+    );
+    return await exchange(credential);
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? '';
     return {
       ok: false,
       error: MESSAGES[code] ?? `Sign-in failed. (${code || 'unknown error'})`,
