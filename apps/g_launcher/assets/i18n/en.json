@@ -607,5 +607,6 @@
   "drawer.uninstallWorkProfile": "Work profile apps are managed by your organisation",
   "drawer.uninstallUnknownApp": "That app is no longer installed",
   "drawer.uninstallNoInstaller": "This device has no app installer to handle that",
-  "drawer.uninstallFailed": "The system refused that uninstall"
+  "drawer.uninstallFailed": "The system refused that uninstall",
+  "drawer.removeFromHome": "Remove from home"
 }

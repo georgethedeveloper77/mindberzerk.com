@@ -1,6 +1,7 @@
 package com.mindhunter.g_launcher
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.core.view.WindowCompat
 import com.mindhunter.g_launcher.widgets.StageBridge
@@ -49,6 +50,35 @@ class LauncherActivity : FlutterActivity() {
         // Draw behind the status and nav bars. A desktop shell paints its own
         // top bar; it cannot do that under a system-reserved inset.
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // ─── AND THEN TURN OFF THE SCRIM THE SYSTEM ADDS BACK ───────────────
+        //
+        // `navigationBarColor` is already transparent in styles.xml, and the
+        // platform's answer to a transparent navigation bar is to paint an 80%
+        // opaque background behind it whenever the device is on three-button
+        // navigation. `isNavigationBarContrastEnforced` defaults to TRUE, so
+        // that happens without anything in this project asking for it.
+        //
+        // On gesture navigation there is no scrim and this line changes
+        // nothing, which is why it has never shown up on the S22. On a
+        // three-button device it is a grey band across the bottom of every
+        // wallpaper, under every distro, and it looks like the wallpaper is
+        // wrong rather than like a system default.
+        //
+        // Three-button is still the out-of-box setting on a lot of Infinix and
+        // Tecno hardware, which is the audience this launcher is for.
+        //
+        // NOT the XML attribute `android:enforceNavigationBarContrast`. That is
+        // API 29+ and declaring it in values/styles.xml would need a values-v29
+        // split for one boolean. The guard below is the same decision expressed
+        // where the rest of the window setup already lives.
+        //
+        // Deliberately NOT paired with a manual scrim of our own. The system
+        // bar sits over whatever the shell draws there, and every shell already
+        // owns that strip: a dock, a panel, or bare wallpaper by choice.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         // Lend this Activity to the widget host for the bind/config result flow.
         widgetHost.attachActivity(this)

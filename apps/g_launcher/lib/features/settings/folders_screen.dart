@@ -67,6 +67,9 @@ class FoldersScreen extends ConsumerWidget {
       // how a setting becomes unfindable.
       title: context.t('settings.appsAndFolders'),
       body: ListView(
+        // Clears the navigation bar. Trailing padding rather than a SafeArea,
+        // so the list still scrolls behind a transparent bar.
+        padding: EdgeInsets.only(bottom: context.bottomInset),
         children: [
           // The folder itself, drawn at the current settings. Columns, rows and
           // shape are all visible in one picture, which is the whole reason

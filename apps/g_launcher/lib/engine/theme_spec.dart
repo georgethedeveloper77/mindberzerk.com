@@ -711,6 +711,7 @@ class ThemeLayout {
     this.topBarSide = TopBarSide.top,
     this.topBarStats = false,
     this.panels = const [],
+    this.panelsAuthored = false,
     this.workspaceAxis = WorkspaceAxis.vertical,
     this.desktopIcons = false,
     this.panelEdit = false,
@@ -766,6 +767,40 @@ class ThemeLayout {
   /// Empty means no panel at all, which is what `topBar: false` has always
   /// meant and what the tiling and TUI shells want.
   final List<PanelSpec> panels;
+
+  /// Did the theme.json actually contain a `panels` key?
+  ///
+  /// ─── THE DIFFERENCE BETWEEN "AUTHORED NOTHING" AND "AUTHORED THE
+  ///     DEFAULT", WHICH NOTHING COULD SEE BEFORE ────────────────────────────
+  ///
+  /// [_panels] returns a list either way. A theme that authored panels gets
+  /// its own; a theme that did not gets one SYNTHESISED from [topBar],
+  /// [topBarSide] and [topBarStats]. Downstream those two are the same type,
+  /// the same length, and carry the same fields, so by the time the list
+  /// reaches `LayoutResolver` there is no way left to tell them apart.
+  ///
+  /// That is not a tidiness complaint. `LayoutResolver` needed the distinction
+  /// twice and could not have it, so it guessed both times:
+  ///
+  ///   * the synthesis-override branch tested `panels.length == 1 &&
+  ///     panels.first.height == null`, which is TRUE of a real authored panel
+  ///     that happens to be alone and heightless. Such a distro had its panel
+  ///     side quietly rebound to the `topBarSide` pref, which is the setting
+  ///     for the OTHER kind of panel entirely.
+  ///   * `_panelSide` gave up and hardcoded bottom, with a comment saying a
+  ///     distro wanting a left panel out of the box needs authored and
+  ///     synthesised panels told apart first. This is that.
+  ///
+  /// A DERIVED flag, not a theme.json key. Nothing authors `panelsAuthored`;
+  /// it is the answer to "was `panels` present", computed once at parse where
+  /// the raw JSON is still in scope and the question is still answerable. So
+  /// there is no `theme-spec.ts` constant, no canonicaliser arm, and no import
+  /// guard to add on the panel side.
+  ///
+  /// An authored EMPTY list counts as authored. `panels: []` is a distro
+  /// saying it draws no panel, which is a decision, and it must not be
+  /// confused with `topBar: false` arriving at the same `const []`.
+  final bool panelsAuthored;
 
   /// Which way workspaces page. Defaults to vertical, which is what this shell
   /// has always done and what GNOME does.
@@ -931,6 +966,10 @@ class ThemeLayout {
       topBarSide: TopBarSide.parse(j['topBarSide'] as String?),
       topBarStats: j['topBarStats'] as bool? ?? false,
       panels: _panels(j),
+      // The raw key, asked here and nowhere else. `_panels` cannot answer it
+      // for us: it returns the same type from both branches, which is the
+      // whole problem this flag exists to fix.
+      panelsAuthored: j['panels'] is List,
       workspaceAxis: WorkspaceAxis.parse(j['workspaceAxis'] as String?),
       desktopIcons: j['desktopIcons'] as bool? ?? false,
       panelEdit: j['panelEdit'] as bool? ?? false,

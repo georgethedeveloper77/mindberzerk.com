@@ -1,6 +1,7 @@
 package com.mindhunter.g_launcher.icons
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
@@ -72,9 +73,15 @@ class HeroIconResolver(context: Context) {
     /**
      * The hand-drawn icon for this component, or null to fall through to the
      * generator. A missing hero icon is NOT an error — by design, most apps miss.
+     *
+     * [sizePx] is the edge the renderer will draw this at, and it is a REQUEST
+     * rather than a promise: [decodeSampled] only ever halves, so what comes
+     * back is at least this big and never upscaled. Pass the same value that
+     * reaches `IconRenderer.renderHero`, because that is the size the drawable
+     * is about to be squeezed into by `drawLayer`.
      */
     @Synchronized
-    fun resolve(componentKey: String): Drawable? {
+    fun resolve(componentKey: String, sizePx: Int): Drawable? {
         val p = pack ?: return null
         val key = ComponentKey.parse(componentKey) ?: return null
 
@@ -83,8 +90,68 @@ class HeroIconResolver(context: Context) {
             ?: return null
 
         val bytes = openPackFile(p.id, filename) ?: return null
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+        val bitmap = decodeSampled(bytes, sizePx) ?: return null
         return BitmapDrawable(appContext.resources, bitmap)
+    }
+
+    /**
+     * Decode at the size we are going to draw at, not at whatever size the pack
+     * author happened to export.
+     *
+     * ─── THE COST OF NOT DOING THIS ─────────────────────────────────────────
+     *
+     * `IconRenderer.drawLayer` calls `setBounds(0, 0, sizePx, sizePx)` and
+     * draws, so a `BitmapDrawable` is scaled down by the canvas at paint time
+     * no matter how large its bitmap is. The full-resolution decode was
+     * therefore always thrown away: correct output, wasted allocation.
+     *
+     * The waste is not small. A 512px source is 1 MB at ARGB_8888 against the
+     * 83 KB the 144px result needs, and a hero pack is 40 to 60 icons that all
+     * pass through here on a cold drawer. Google Play flags this decode site
+     * for exactly this reason.
+     *
+     * ─── WHY POWERS OF TWO ONLY ─────────────────────────────────────────────
+     *
+     * `inSampleSize` is documented to round DOWN to a power of two, so asking
+     * for 3 silently gets 2 and the arithmetic you thought you did is not the
+     * arithmetic that ran. Halving in a loop is the same result stated
+     * honestly, and it stops one step before the result would be smaller than
+     * requested, so nothing is ever upscaled to fill the tile. Hero art is the
+     * most expensive pixels in the app and softening it to save memory would
+     * be selling the wrong trade.
+     *
+     * The bounds pass reads the header only. It does not allocate pixels.
+     */
+    private fun decodeSampled(bytes: ByteArray, sizePx: Int): Bitmap? {
+        if (sizePx <= 0) return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+
+        // A pack file that is not an image at all, or is truncated. Fall through
+        // to the plain decode so the caller's own null handling stays the single
+        // place a bad hero icon is dealt with.
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+
+        var sample = 1
+        while (
+            bounds.outWidth / (sample * 2) >= sizePx &&
+            bounds.outHeight / (sample * 2) >= sizePx
+        ) {
+            sample *= 2
+        }
+
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            // inDensity and inTargetDensity are both left at 0, so
+            // `setDensityFromOptions` leaves the bitmap's density exactly where
+            // the no-Options decode left it. This method must not change what
+            // the drawable reports, only how many pixels back it.
+            inScaled = false
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
     }
 
     // ---- pack loading ----------------------------------------------------

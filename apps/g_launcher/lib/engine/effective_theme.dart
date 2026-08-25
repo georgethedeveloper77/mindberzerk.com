@@ -33,6 +33,7 @@ class EffectiveTheme {
     required this.topBarSide,
     required this.topBarStats,
     required this.panels,
+    required this.panelsAuthored,
     required this.workspaceAxis,
     required this.desktopIcons,
     required this.panelEdit,
@@ -74,6 +75,17 @@ class EffectiveTheme {
   /// Every panel the shell should draw. Resolved in [LayoutResolver]; shells
   /// read this and never the spec.
   final List<PanelSpec> panels;
+
+  /// Did this distro author [panels], or were they synthesised from the legacy
+  /// `topBar` trio? See [ThemeLayout.panelsAuthored].
+  ///
+  /// Here so a SHELL can ask it, which is the point of the field existing at
+  /// all: a shell handed a synthesised bar and a shell handed an authored one
+  /// currently receive the same list and cannot behave differently. Nothing
+  /// reads it yet, and that is deliberate rather than dead weight, because the
+  /// alternative was leaving each new slot to re-derive the answer from the
+  /// shape of the list the way `LayoutResolver` used to.
+  final bool panelsAuthored;
 
   /// Which way workspaces page. See [WorkspaceAxis].
   final WorkspaceAxis workspaceAxis;
@@ -372,6 +384,7 @@ class EffectiveTheme {
       topBarSide: layout.topBarSide,
       topBarStats: layout.topBarStats,
       panels: layout.panels,
+      panelsAuthored: layout.panelsAuthored,
       workspaceAxis: layout.workspaceAxis,
       desktopIcons: layout.desktopIcons,
       panelEdit: layout.panelEdit,
@@ -526,6 +539,11 @@ class EffectiveTheme {
   /// to fix later. It comes from `spec.layout` with no prefs input, so it cannot
   /// change without `spec.id` changing, which is already compared. Adding it
   /// would be harmless and would imply the two can move independently.
+  ///
+  /// [panelsAuthored] is absent for exactly the same reason and by the same
+  /// test: it is derived from the raw theme.json at parse and takes no prefs
+  /// input, so it moves only when `spec.id` moves. The test to apply to any
+  /// future field here is that one, not "is it new".
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

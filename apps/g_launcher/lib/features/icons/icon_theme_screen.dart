@@ -739,7 +739,9 @@ class _Screen extends ConsumerWidget {
       // points at a distro that has since left the catalogue, which is why this
       // is a lookup rather than a stored PackInfo.
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 28),
+        // The 28 is the list's own breathing room; the inset clears the
+        // navigation bar on top of it. No longer const: the inset is runtime.
+        padding: EdgeInsets.only(bottom: 28 + context.bottomInset),
         children: [
           // ── ours, grouped by distro ───────────────────────────────────────
           //

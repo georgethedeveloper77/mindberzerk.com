@@ -32,7 +32,9 @@ class LanguageSettingsPage extends ConsumerWidget {
     return ThemedScaffold(
       title: ref.t('settings.language.title'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        // The 28 is the list's own breathing room; the inset clears the
+        // navigation bar on top of it. No longer const: the inset is runtime.
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 28 + context.bottomInset),
         children: [
           SetupRow(
             title: ref.t('settings.language.system'),

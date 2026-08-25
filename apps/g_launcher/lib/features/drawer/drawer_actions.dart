@@ -193,6 +193,27 @@ Future<void> showDrawerAppMenu(
   /// Hide stays exactly where it was on every surface that shows apps in place,
   /// which is where "get this off my drawer" is a sentence that makes sense.
   bool offerLocate = false,
+
+  /// Non-null when the menu was opened from a HOME SLOT rather than from a
+  /// list of every app, in which case it removes the app from that slot.
+  ///
+  /// ─── A CALLBACK, NOT A (page, slot) PAIR ────────────────────────────────
+  ///
+  /// This file is deliberately ignorant of home-screen geometry. Everything
+  /// else it does is expressible as "this app", and taking `page` and `index`
+  /// here would put slot arithmetic in the one place that serves five drawers,
+  /// four of which have no slots at all. The caller already holds both numbers
+  /// and already holds the notifier; it hands down the verb.
+  ///
+  /// ─── AND IT REPLACES ADD TO HOME RATHER THAN JOINING IT ─────────────────
+  ///
+  /// The strip holds three. An app being long-pressed on the desktop is by
+  /// definition already on the desktop, so Add to home there could only ever
+  /// return the "already on home" message: a glyph that exists to refuse. The
+  /// swap is the same shape [offerLocate] uses a few lines down, and for the
+  /// same reason. The three positions stay put, so muscle memory survives
+  /// moving between the drawer and the desktop.
+  VoidCallback? onRemoveFromHome,
 }) {
   HapticFeedback.mediumImpact();
   final notifier = ref.read(appListProvider.notifier);
@@ -266,7 +287,16 @@ Future<void> showDrawerAppMenu(
       // someone conclude the feature does not exist, but this is three glyphs
       // under a thumb, and a dead one there is an obstacle in front of the tap
       // they actually wanted.
-      if (theme.desktopIcons)
+      // Opened from a home slot: the app is already here, so the leading glyph
+      // is the way OFF the desktop rather than the way onto it. See
+      // [onRemoveFromHome].
+      if (onRemoveFromHome != null)
+        MenuAction(
+          icon: Icons.remove_circle_outline,
+          label: context.t('drawer.removeFromHome'),
+          onTap: onRemoveFromHome,
+        )
+      else if (theme.desktopIcons)
         MenuAction(
           icon: Icons.add_to_home_screen,
           label: context.t('shell.addToHome'),

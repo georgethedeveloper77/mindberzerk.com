@@ -12,7 +12,9 @@ import '../../platform/launcher_api.g.dart';
 import '../../design/components/components.dart';
 import '../../design/grid_metrics.dart';
 import '../../design/icon_sizing.dart';
+import '../../design/components/press_pop.dart';
 import '../drawer/app_icon.dart';
+import '../drawer/drawer_actions.dart';
 
 /// The home workspace: apps, folders, drag-and-drop.
 ///
@@ -198,15 +200,15 @@ class _Slot extends ConsumerWidget {
     final entry = byKey[it.componentKey];
     if (entry == null) return const SizedBox.expand();
 
-    return _Draggable(
-      index: index,
-      child: _AppCell(
-        theme: theme,
-        entry: entry,
-        page: page,
-        slot: index,
-        iconSize: iconSize,
-      ),
+    // NOT wrapped in [_Draggable], unlike the folder above. See [_AppCell]:
+    // it owns its own draggable because the hold-versus-drag split has to
+    // happen inside the widget that knows what a hold MEANS.
+    return _AppCell(
+      theme: theme,
+      entry: entry,
+      page: page,
+      slot: index,
+      iconSize: iconSize,
     );
   }
 
@@ -249,6 +251,19 @@ class _Slot extends ConsumerWidget {
   }
 }
 
+/// The plain draggable, now FOLDERS ONLY.
+///
+/// Apps moved off it because the hold-versus-drag split has to live in the
+/// same State as the menu it decides about; see [_AppCell]. A folder has no
+/// menu to contest the hold, so it keeps the simple wrapper: hold to move it,
+/// tap to open it.
+///
+/// The two therefore drag differently on purpose. This one uses the default
+/// anchor, so the feedback keeps the grab offset the thumb landed with; the
+/// app cell uses the pointer anchor because its release offset has to be
+/// measurable against pointer-down. Neither affects where a drop LANDS, since
+/// [DragTarget] hit-tests the pointer either way and `_Slot` reads only
+/// `d.data`.
 class _Draggable extends StatelessWidget {
   const _Draggable({required this.index, required this.child});
   final int index;
@@ -271,7 +286,36 @@ class _Draggable extends StatelessWidget {
   }
 }
 
-class _AppCell extends ConsumerWidget {
+/// One app on the desktop. Tap launches, hold opens the menu, drag files it.
+///
+/// ─── THE MENU COULD NOT OPEN, AND THAT IS WHY IT WAS NEVER FIXED ────────────
+///
+/// This was a [ConsumerWidget] carrying `onLongPress: () => _menu(...)`, and
+/// every one of these cells was wrapped by [_Draggable], which is a
+/// [LongPressDraggable]. The draggable consumes the long press. The inner
+/// handler therefore never fired, on any distro, ever: the two-row sheet it
+/// pointed at was unreachable, which is the only reason nobody noticed that the
+/// desktop menu offered neither Pin to dock nor Uninstall while the drawer's
+/// offered both.
+///
+/// `app_drawer.dart` met this first and solved it, so this is that solution
+/// ported rather than a second invention. Intent is read on RELEASE: if nothing
+/// accepted the drop and the finger never travelled past [_slop], it was a hold,
+/// so the menu opens; if it travelled, it was a drag. Two things that pattern
+/// needs and the old code had neither of:
+///
+///   * [pointerDragAnchorStrategy], so the release offset is the FINGER. Under
+///     the default strategy it is the feedback's top-left, which on a grid is
+///     most of a tile away from the pointer, so the slop test could never pass
+///     and the menu would never open even after the wrapper was removed.
+///   * a [Listener] capturing pointer-down, because the draggable reports no
+///     start position and the cell's own corner is not a stand-in for it.
+///
+/// Owning the draggable HERE rather than staying inside [_Draggable] is what
+/// makes that possible: the release test needs the drag callbacks and the menu
+/// in one State. [_FolderCell] keeps the wrapper, since a folder opens on TAP
+/// and has no menu to contest the hold.
+class _AppCell extends ConsumerStatefulWidget {
   const _AppCell({
     required this.theme,
     required this.entry,
@@ -295,57 +339,140 @@ class _AppCell extends ConsumerWidget {
   final int slot;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        final box = context.findRenderObject() as RenderBox?;
-        final bounds = (box != null && box.hasSize)
-            ? box.localToGlobal(Offset.zero) & box.size
-            : null;
-        HapticFeedback.lightImpact();
-        ref.read(appListProvider.notifier).launch(entry, iconBounds: bounds);
+  ConsumerState<_AppCell> createState() => _AppCellState();
+}
+
+class _AppCellState extends ConsumerState<_AppCell> {
+  /// Where the finger went down, for the hold-versus-drag test on release.
+  Offset? _downAt;
+
+  /// Below this, a "drag" is a hold with a shaky thumb. 24dp, the same slop
+  /// Flutter uses to tell a tap from a pan, and the same number
+  /// `app_drawer.dart` uses so the two surfaces feel identical.
+  static const _slop = 24.0;
+
+  /// Is this cell's menu open? Owned here because this State is the only thing
+  /// that knows the difference between a hold and the start of a drag, and it
+  /// only finds out after the press has already ended.
+  bool _held = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final entry = widget.entry;
+
+    // Only the ICON wears the press state. Scaling the label with it would push
+    // a two-line name into the row below, and the ring would outline text
+    // rather than an app.
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PressPop(
+          held: _held,
+          radius: widget.iconSize * 0.24,
+          ringColor: theme.palette.onDark,
+          child: AppIcon(entry: entry, size: widget.iconSize),
+        ),
+        const SizedBox(height: GridMetrics.labelGap),
+        _Label(theme: theme, text: entry.label),
+      ],
+    );
+
+    return LongPressDraggable<int>(
+      data: widget.slot,
+      // See the class doc: this is what makes the release offset the pointer
+      // rather than the feedback's corner, and the slop test therefore mean
+      // anything at all.
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      // The dip lands when the TIMER completes, not when the finger lifts, so
+      // the squash and the haptic are one event rather than two near each
+      // other. Same reasoning as the drawer tile.
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+        if (mounted) setState(() => _held = true);
       },
-      onLongPress: () => _menu(context, ref),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppIcon(entry: entry, size: iconSize),
-          const SizedBox(height: GridMetrics.labelGap),
-          _Label(theme: theme, text: entry.label),
-        ],
+      onDraggableCanceled: (_, offset) {
+        // Nothing accepted it. If it never moved, the user was holding.
+        final from = _downAt;
+        if (from == null || (offset - from).distance < _slop) {
+          // Already popped by onDragStarted. This only has to KEEP it popped
+          // until the panel closes, so the grid keeps saying which app the
+          // panel is about.
+          _menu().whenComplete(() {
+            // whenComplete and not then: the route can go by the barrier, by
+            // back, or by an action popping it, and a cell left scaled up
+            // would be a permanent claim that an app is selected.
+            if (mounted) setState(() => _held = false);
+          });
+        } else if (mounted) {
+          // It travelled, so it was a drag nothing accepted. No menu is coming,
+          // so nothing else will clear the pop.
+          setState(() => _held = false);
+        }
+      },
+      // ACCEPTED drops only. onDragEnd fires on both paths and fires AFTER
+      // onDraggableCanceled, so clearing unconditionally here would snuff the
+      // pop in the same frame the menu opened. On an accepted drop no menu is
+      // coming and this State can survive at a new index, so something has to
+      // clear it.
+      onDragEnd: (details) {
+        if (details.wasAccepted && mounted) setState(() => _held = false);
+      },
+      // Centred on the finger. The pointer anchor puts the feedback's top-left
+      // under the pointer, which reads as the icon hanging off the thumb; the
+      // fractional shift is half its own size, so it needs no measurement.
+      feedback: FractionalTranslation(
+        translation: const Offset(-0.5, -0.5),
+        child: Transform.scale(
+          scale: 1.15,
+          child: Material(color: Colors.transparent, child: content),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: 0.25, child: content),
+      child: Listener(
+        onPointerDown: (e) => _downAt = e.position,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            final box = context.findRenderObject() as RenderBox?;
+            final bounds = (box != null && box.hasSize)
+                ? box.localToGlobal(Offset.zero) & box.size
+                : null;
+            HapticFeedback.lightImpact();
+            ref.read(appListProvider.notifier).launch(entry, iconBounds: bounds);
+          },
+          child: content,
+        ),
       ),
     );
   }
 
-  void _menu(BuildContext context, WidgetRef ref) {
-    ThemedSheet.show<void>(
+  /// The SAME menu the drawer opens, with one substitution.
+  ///
+  /// It was a two-row [ThemedSheet] climbing from the bottom edge with Remove
+  /// and App info in raw English, while `showDrawerAppMenu` offered Pin to
+  /// dock, Hide, Uninstall with its refusal statuses, the app's own icon in the
+  /// header, i18n throughout, and an anchor at the tile. Keeping a second copy
+  /// was never a decision; it is what happens when the first copy is
+  /// unreachable and nobody sees the gap.
+  ///
+  /// [AnchoredMenu.anchorOf] is measured off THIS context, which is the whole
+  /// draggable rather than the icon alone. Close enough on a grid cell, and the
+  /// alternative is threading a key down to the [PressPop] for a few dp.
+  Future<void> _menu() {
+    final theme = widget.theme;
+    return showDrawerAppMenu(
       context,
-      builder: (sheet) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ThemedListRow(
-            icon: Icons.remove_circle_outline,
-            title: 'Remove from home',
-            subtitle: 'The app stays installed',
-            onTap: () {
-              Navigator.pop(sheet);
-              ref
-                  .read(prefsProvider(theme.spec.id).notifier)
-                  .edit((p) => HomeLayout.removeFromHome(p, page, slot));
-            },
-          ),
-          ThemedListRow(
-            icon: Icons.info_outline,
-            title: 'App info',
-            onTap: () {
-              Navigator.pop(sheet);
-              ref.read(appListProvider.notifier).openInfo(entry);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+      ref,
+      theme,
+      widget.entry,
+      anchor: AnchoredMenu.anchorOf(context),
+      // The verb, not the coordinates. See the parameter's doc: drawer_actions
+      // serves five drawers and four of them have no slots.
+      onRemoveFromHome: () => ref
+          .read(prefsProvider(theme.spec.id).notifier)
+          .edit((p) =>
+              HomeLayout.removeFromHome(p, widget.page, widget.slot)),
     );
   }
 }

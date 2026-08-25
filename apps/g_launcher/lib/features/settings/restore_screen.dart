@@ -86,6 +86,9 @@ class RestoreScreen extends ConsumerWidget {
     return ThemedScaffold(
       title: 'Restore defaults',
       body: ListView(
+        // Clears the navigation bar. Trailing padding rather than a SafeArea,
+        // so the list still scrolls behind a transparent bar.
+        padding: EdgeInsets.only(bottom: context.bottomInset),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

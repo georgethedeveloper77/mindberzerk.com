@@ -86,6 +86,40 @@ class ThemedScaffold extends ConsumerWidget {
   }
 }
 
+/// The navigation bar's height, or zero when there is nothing to clear.
+///
+/// ─── THE BOTTOM EDGE IS NOT A [SafeArea] PROBLEM ───────────────────────────
+///
+/// [ThemedScaffold] deliberately does not inset its own body. The top is
+/// already handled: `AppBar` wraps itself in a `SafeArea` when it exists, and
+/// `Scaffold` sizes the bar slot to include `padding.top`. When `title` is
+/// null the screen is full-bleed by design and owns the whole window.
+///
+/// The bottom is the caller's, and wrapping it here in a `SafeArea` would be
+/// the wrong fix. `SafeArea` shortens the VIEWPORT, so a list would stop dead
+/// above the navigation bar and leave a strip of bare background under it,
+/// which is the pre-edge-to-edge look Android 15 exists to get rid of. What a
+/// scrolling screen wants is the opposite: content passing behind a
+/// transparent bar, with enough trailing padding that the last row can still
+/// be scrolled clear of it.
+///
+/// So this is added to a scrollable's `padding`, never wrapped around it.
+///
+/// ─── `padding`, NOT `viewPadding` ──────────────────────────────────────────
+///
+/// The two agree until a keyboard opens. `viewPadding` is the physical inset
+/// and never moves; `padding` is that inset minus whatever the keyboard has
+/// already taken, so it collapses to zero once the IME is up.
+///
+/// The manifest sets `windowSoftInputMode=adjustResize`, so `Scaffold` has
+/// ALREADY shrunk the body clear of the keyboard by the time this is read.
+/// Using `viewPadding` here would add the navigation bar's height a second
+/// time, as a band of dead space between the last row and the keyboard, on
+/// every screen with a text field in it.
+extension ChromeInsets on BuildContext {
+  double get bottomInset => MediaQuery.paddingOf(this).bottom;
+}
+
 /// A themed app bar wired entirely from [ChromeData] — it never reads the host
 /// `ThemeData`, so it looks like the distro's bar, not Material's default.
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {

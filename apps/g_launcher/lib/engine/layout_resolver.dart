@@ -25,6 +25,7 @@ class ResolvedLayout {
     required this.topBarSide,
     required this.topBarStats,
     required this.panels,
+    required this.panelsAuthored,
     required this.workspaceAxis,
     required this.desktopIcons,
     required this.panelEdit,
@@ -57,6 +58,18 @@ class ResolvedLayout {
   /// topBarStats remain the user-facing overrides, and they feed the synthesis
   /// in ThemeLayout when a theme authors no panels of its own.
   final List<PanelSpec> panels;
+
+  /// Did the distro author its panels, or were they synthesised from the
+  /// legacy `topBar` trio? Passed straight through from
+  /// [ThemeLayout.panelsAuthored]; see that field for why the two were
+  /// indistinguishable and what it cost.
+  ///
+  /// Carried on the resolved object rather than kept private to [resolve]
+  /// because it is the same question every future SLOT will ask. A distro that
+  /// authored no panels has also, by construction, authored no opinion about
+  /// where its bar goes, and a shell reading a synthesised panel as a chosen
+  /// one is the failure mode this whole flag exists to close.
+  final bool panelsAuthored;
 
   /// Which way workspaces page. Theme-authored; not a user override, because a
   /// distro that pages the wrong way is not that distro.
@@ -129,6 +142,7 @@ class ResolvedLayout {
           other.topBarSide == topBarSide &&
           other.topBarStats == topBarStats &&
           other.panels.length == panels.length &&
+          other.panelsAuthored == panelsAuthored &&
           other.workspaceAxis == workspaceAxis &&
           other.desktopIcons == desktopIcons &&
           other.panelEdit == panelEdit &&
@@ -160,6 +174,7 @@ class ResolvedLayout {
         topBarSide,
         topBarStats,
         panels.length,
+        panelsAuthored,
         workspaceAxis,
         desktopIcons,
         panelEdit,
@@ -236,18 +251,32 @@ abstract final class LayoutResolver {
 
   /// The edge the shell's own panel sits on.
   ///
-  /// ─── THE THEME DOES NOT GET A VOTE YET, AND THAT IS HONEST ──────────────
+  /// ─── THE THEME STILL DOES NOT GET A VOTE, AND THE REASON HAS CHANGED ────
   ///
-  /// It looks like this should fall back to the side the theme authored, and it
-  /// cannot, because `ThemeSpec._panels` SYNTHESISES a panel for any theme that
-  /// authored none. By the time the list arrives here an authored panel and a
-  /// synthesised one are indistinguishable, so "the theme's side" would read a
-  /// GNOME top bar's edge and move Plasma's panel to it.
+  /// This said the theme could not be consulted because `ThemeSpec._panels`
+  /// synthesises a panel for any theme that authored none, so an authored panel
+  /// and a synthesised one were indistinguishable by the time they arrived
+  /// here, and "the theme's side" would read a GNOME top bar's edge and move
+  /// Plasma's panel to it. [ResolvedLayout.panelsAuthored] closes that: the
+  /// list can now be asked which it is.
   ///
-  /// Bottom is therefore the default, which is what Plasma does and what this
-  /// shell has always drawn. A distro wanting a left panel out of the box needs
-  /// authored and synthesised panels told apart first, which is a change to
-  /// ThemeSpec rather than a line here.
+  /// It is deliberately NOT wired up in the same change, because the obvious
+  /// wiring has a second trap underneath the first. `TopBarSide.parse` defaults
+  /// to TOP, and `PanelSpec.fromJson` calls it unconditionally, so an authored
+  /// panel that omits `side` parses to top rather than to "no opinion". Reading
+  /// `panels.first.side` here would therefore move every plasma distro that
+  /// authored a panel without naming an edge onto the top of the screen, which
+  /// is a regression dressed as a feature.
+  ///
+  /// The prerequisite is a NULLABLE side on `PanelSpec`, distinguishing "this
+  /// panel is on top" from "this panel did not say". That is a separate change
+  /// with its own readers to update (`_currentModules` in plasma_shell matches
+  /// on `side == bottom`, and would start missing panels that answer null), and
+  /// it needs a real theme.json in hand to confirm which of the live distros
+  /// actually name an edge.
+  ///
+  /// Until then: bottom, which is what Plasma does and what this shell has
+  /// always drawn.
   static TopBarSide _panelSide(LauncherPrefs prefs) => switch (prefs.panelSide) {
         'top' => TopBarSide.top,
         'bottom' => TopBarSide.bottom,
@@ -322,7 +351,23 @@ abstract final class LayoutResolver {
                     .toList(),
               ),
             ]
-          : spec.layout.panels.length == 1 && spec.layout.panels.first.height == null
+          // ─── THE FLAG, NOT THE SHAPE ────────────────────────────────
+          //
+          // This asked `panels.length == 1 && panels.first.height == null`,
+          // which was a guess at "was this panel synthesised" made from the
+          // only evidence available at the time, and it is wrong in the one
+          // direction that matters. Those are exactly the properties of the
+          // synthesised panel, and ALSO the properties of a real authored
+          // panel that happens to be alone and to take the shell default
+          // height. Such a distro had its authored edge silently rebound to
+          // the user's `topBarSide` pref, which is the control for the
+          // SYNTHESISED bar and means nothing on an authored one.
+          //
+          // `panelsAuthored` answers the question directly, at the only point
+          // where it is still answerable. The `length == 1` test stays as a
+          // guard on `.first`, not as evidence: synthesis returns either one
+          // panel or `const []`, and the empty case must not reach `.first`.
+          : !spec.layout.panelsAuthored && spec.layout.panels.length == 1
               ? [
                   PanelSpec(
                     side: switch (prefs.topBarSide) {
@@ -336,6 +381,7 @@ abstract final class LayoutResolver {
                   ),
                 ]
               : spec.layout.panels,
+      panelsAuthored: spec.layout.panelsAuthored,
       workspaceAxis: spec.layout.workspaceAxis,
       // ─── AND ONLY DOWNWARDS ───────────────────────────────────────────────
       //

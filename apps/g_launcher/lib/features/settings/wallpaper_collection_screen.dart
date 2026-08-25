@@ -144,6 +144,9 @@ class WallpaperCollectionScreen extends ConsumerWidget {
     return ThemedScaffold(
       title: collection.name,
       body: ListView(
+        // Clears the navigation bar. Trailing padding rather than a SafeArea,
+        // so the list still scrolls behind a transparent bar.
+        padding: EdgeInsets.only(bottom: context.bottomInset),
         children: [
           if (collection.paths.isEmpty)
             Padding(

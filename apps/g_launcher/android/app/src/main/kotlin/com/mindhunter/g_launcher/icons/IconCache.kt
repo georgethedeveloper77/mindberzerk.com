@@ -410,8 +410,26 @@ class IconCache(
         return renderer.renderHero(drawable, style, sizePx, false)
     }
 
+    /**
+     * [sizePx] goes to the RESOLVER as well as the renderer, and that second
+     * use is the whole of the Play "bitmap image optimization" fix.
+     *
+     * The resolver decodes the pack's PNG; the renderer then draws it into a
+     * `sizePx` tile. Before, those two knew different things: the decode ran at
+     * the source's own resolution and the renderer scaled it down, so the extra
+     * pixels were allocated and immediately discarded.
+     *
+     * NOTHING WAS ADDED TO [cacheKey] FOR THIS, and it is worth saying why,
+     * because a decode that varies with size is normally exactly the shape of a
+     * stale-bitmap bug. `sizePx` has been in the key since this file was
+     * written, for the unrelated reason that home and drawer ask at different
+     * sizes. A 96px request and a 144px request were already separate entries,
+     * so they stay separate now that they decode differently. Adding an
+     * `IconStyle` field here would have been the wrong instinct: nothing about
+     * this is theme content.
+     */
     private fun renderHero(componentKey: String, sizePx: Int): Bitmap? {
-        val hero = heroes.resolve(componentKey) ?: return null
+        val hero = heroes.resolve(componentKey, sizePx) ?: return null
         return renderer.renderHero(hero, style, sizePx, heroes.packWantsMask())
     }
 
