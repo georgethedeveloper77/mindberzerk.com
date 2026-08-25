@@ -1,0 +1,137 @@
+{
+  "id": "terminal",
+  "name": "Terminal",
+  "version": "type-to-launch",
+  "shell": "tui",
+  "tier": "free",
+  "palette": {
+    "bgTop": "#080D08",
+    "bgBottom": "#080D08",
+    "bar": "#0E1A0E",
+    "dock": "#0E1A0E",
+    "accent": "#FFB000",
+    "onDark": "#C8D8C8"
+  },
+  "typography": {
+    "display": "JetBrains Mono",
+    "mono": "JetBrains Mono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "boot": {
+    "tailMs": 500,
+    "lines": [
+      {
+        "kind": "dim",
+        "text": "[    0.000000] booting g_launcher tty ..."
+      },
+      {
+        "kind": "ok",
+        "text": "mounted /proc /sys /dev"
+      },
+      {
+        "kind": "ok",
+        "text": "started device stats collector"
+      },
+      {
+        "kind": "ok",
+        "text": "started battery monitor"
+      },
+      {
+        "kind": "ok",
+        "text": "loaded UbuntuMono glyphs"
+      },
+      {
+        "kind": "ok",
+        "text": "reached target multi-user"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "g-tty login: user (automatic)"
+      },
+      {
+        "kind": "plain",
+        "text": "Last login: now on tty1"
+      }
+    ]
+  },
+  "splash": {
+    "style": "text",
+    "durationMs": 700
+  },
+  "desklets": {
+    "offers": [
+      "fastfetch",
+      "monitor",
+      "uptime",
+      "free",
+      "df",
+      "battery",
+      "network"
+    ],
+    "starter": [
+      {
+        "kind": "fastfetch",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 4,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  },
+  "icons": {
+    "brandPack": "terminal-line"
+  }
+}

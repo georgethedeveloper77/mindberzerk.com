@@ -223,6 +223,74 @@ class IconCache(
     }
 
     /**
+     * Render a handful of apps in an ARBITRARY tint, for the storefront.
+     *
+     * ─── NOT THROUGH THE CACHE, AND THAT IS THE WHOLE POINT ───────────────────
+     *
+     * Every other path in this file goes through [get], which is keyed by
+     * `style.fingerprint()` and writes to both tiers. A previewed tint must not
+     * touch either: the key does not carry the previewed colour, so writing
+     * Kali blue while the user is on Ubuntu would poison the drawer with a pack
+     * nobody bought, and it would survive a restart because the disk tier does.
+     *
+     * So this renders straight to bytes and keeps nothing. It costs a render per
+     * call, which is the correct trade for eight icons a user is looking at
+     * while deciding whether to pay.
+     *
+     * ─── AND IT NEEDS NO PURCHASE, BY CONSTRUCTION ────────────────────────────
+     *
+     * The geometry is `arcticons-line`, already installed because it is free and
+     * required by whichever pack the device already has. A derived pack is 207
+     * bytes of colour. So a preview is installed geometry plus a hex value, and
+     * asking Play for permission to show it would be asking about something the
+     * device is already holding.
+     *
+     * [tint] is the pack's colour. The plate follows the same rule the real
+     * renderer uses, `IconContrast.plateFor`, so what the user is shown is what
+     * they would get rather than a flattering approximation.
+     *
+     * Returns one entry per requested package, null where nothing could be
+     * drawn, so the caller can lay out a fixed grid without matching lengths.
+     */
+    fun preview(
+        componentKeys: List<String>,
+        tint: Int,
+        sizePx: Int,
+        callback: (List<ByteArray?>) -> Unit,
+    ) {
+        io.execute {
+            val out = componentKeys.map { key ->
+                runCatching { renderPreview(key, tint, sizePx) }.getOrNull()
+            }
+            callback(out)
+        }
+    }
+
+    private fun renderPreview(componentKey: String, tint: Int, sizePx: Int): ByteArray? {
+        val glyph = brands.resolve(componentKey) ?: return null
+        val paths = brands.parsePaths(glyph)
+        if (paths.isEmpty()) return null
+
+        // The pack's own tint REPLACES whatever colour the installed pack
+        // stamped, which is exactly what a derived pack does on the device. The
+        // rest of the style is the user's: their shape, their corner radius,
+        // their size. A preview in someone else's shape would be selling a
+        // product that does not exist.
+        val bitmap = renderer.renderBrand(
+            glyph.copy(color = tint),
+            paths,
+            brands.viewBox,
+            style,
+            sizePx,
+            stroked = brands.stroked,
+            strokeWidth = brands.strokeWidth,
+        )
+        val bytes = bitmap.toPngBytes()
+        bitmap.recycle()
+        return bytes
+    }
+
+    /**
      * A verified pack just landed. Drop everything derived from the old one.
      *
      * THE DISK TIER IS THE SUBTLE HALF. The cache key includes
@@ -255,6 +323,25 @@ class IconCache(
     fun clear() {
         memory.evictAll()
         io.execute { diskDir.listFiles()?.forEach { it.delete() } }
+    }
+
+    /**
+     * Android is asking for memory back. Give up bitmaps, keep the disk.
+     *
+     * THE DISK TIER IS NOT TOUCHED AT ANY LEVEL, and that is the entire point
+     * of having one. Every comment in this file about a launcher being killed
+     * constantly was describing a real thing: `dumpsys activity exit-info`
+     * showed six LOW_MEMORY kills in fourteen hours. Dropping disk here would
+     * mean every one of those kills is followed by two hundred re-renders on
+     * the next home press, which is the visible stall the disk tier exists to
+     * prevent, arriving at exactly the worst moment.
+     *
+     * [full] false halves the tier instead of emptying it, for the level where
+     * the launcher is still on screen. `trimToSize` evicts least-recently-used
+     * first, so what survives is what the user is currently looking at.
+     */
+    fun trimMemory(full: Boolean) {
+        if (full) memory.evictAll() else memory.trimToSize(MEMORY_BUDGET_BYTES / 2)
     }
 
     fun shutdown() = io.shutdown()
@@ -335,8 +422,20 @@ class IconCache(
      */
     private fun renderBrand(componentKey: String, sizePx: Int): Bitmap? {
         val glyph = brands.resolve(componentKey) ?: return null
-        val path = brands.parsePath(glyph) ?: return null
-        return renderer.renderBrand(glyph, path, brands.viewBox, style, sizePx)
+        val paths = brands.parsePaths(glyph)
+        // A glyph whose every path failed to parse falls through to the layer
+        // below rather than drawing an empty tile. One malformed drawing in a
+        // CDN pack must cost its own icon, never the drawer.
+        if (paths.isEmpty()) return null
+        return renderer.renderBrand(
+            glyph,
+            paths,
+            brands.viewBox,
+            style,
+            sizePx,
+            stroked = brands.stroked,
+            strokeWidth = brands.strokeWidth,
+        )
     }
 
     private fun renderGenerated(componentKey: String, sizePx: Int): Bitmap? {
@@ -369,6 +468,20 @@ class IconCache(
      * someone edits a CDN theme without bumping its id, this keeps stale icons
      * out of the cache instead of shipping a bug that only reproduces on
      * devices that happened to fetch the old theme first.
+     */
+    /**
+     * NOTHING WAS ADDED HERE FOR THE LINE PACK, AND THAT IS THE POINT.
+     *
+     * A stroked brand pack is selected by `brandPack`, which is already in this
+     * string, and coloured by `monochromeTint`, which is also already here. So
+     * switching a distro from Kali blue to Mint green re-keys every cached
+     * bitmap for free, with no new `IconStyle` field, no Pigeon regeneration
+     * and none of the eight places a field has to be threaded through.
+     *
+     * The pack's own `style` and `strokeWidth` deliberately do NOT appear.
+     * They are properties of the pack rather than of the theme, so they can
+     * only change when the pack does, and a pack update already clears both
+     * cache tiers through [onPackChanged].
      */
     private fun IconStyle.fingerprint(): String =
         "${treatment.name}:$cornerRadius:$foregroundScale:$backgroundColor:" +

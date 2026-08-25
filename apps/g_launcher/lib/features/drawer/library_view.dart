@@ -292,6 +292,7 @@ class _Cell extends ConsumerWidget {
             size: size,
             editing: editing,
             onUninstall: onUninstall,
+            onLaunch: (e) => ref.read(appListProvider.notifier).launch(e),
           ),
           (item as FolderDrawerItem).folder.name,
           () => showFolderOverlay(
@@ -417,6 +418,7 @@ class _FolderTile extends StatelessWidget {
     required this.size,
     required this.editing,
     required this.onUninstall,
+    required this.onLaunch,
   });
 
   final EffectiveTheme theme;
@@ -424,6 +426,19 @@ class _FolderTile extends StatelessWidget {
   final double size;
   final bool editing;
   final Future<void> Function(AppEntry) onUninstall;
+
+  /// ─── THE LARGE THREE LAUNCH, THE CLUSTER OPENS ────────────────────────────
+  ///
+  /// They were laid out so they COULD be tapped and then never wired, so the
+  /// whole tile opened the folder and a 57dp WhatsApp icon did not start
+  /// WhatsApp. That is the wrong answer to the most obvious gesture on the
+  /// screen: an icon that looks tappable and is not teaches the user that the
+  /// tile is a picture rather than a control.
+  ///
+  /// The cluster stays a folder opener, which is also what it looks like: four
+  /// icons too small to aim at individually, which is exactly the affordance
+  /// for "there is more in here".
+  final void Function(AppEntry) onLaunch;
 
   @override
   Widget build(BuildContext context) {
@@ -462,7 +477,19 @@ class _FolderTile extends StatelessWidget {
                   size: big,
                   editing: editing,
                   onUninstall: onUninstall,
-                  child: AppIcon(entry: large[i], size: big),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    // Null while editing, so a jiggling grid does not launch
+                    // anything: the badge owns the tap in that mode, and the
+                    // cell above has already gone inert for the same reason.
+                    //
+                    // A non-null callback here beats the cell's own onTap,
+                    // because this detector is deeper in the tree and wins the
+                    // arena outright. That is the whole mechanism: no flag, no
+                    // hit-test maths, just depth.
+                    onTap: editing ? null : () => onLaunch(large[i]),
+                    child: AppIcon(entry: large[i], size: big),
+                  ),
                 )
               : null,
         );

@@ -1,0 +1,150 @@
+{
+  "id": "pop-os-2204-theme",
+  "name": "Pop!_OS",
+  "version": "1",
+  "shell": "gnome",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#2B2B2B",
+    "bgBottom": "#161616",
+    "bar": "#1B1B1B",
+    "dock": "#CC1B1B1B",
+    "accent": "#48B9C7",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Fira Sans",
+    "mono": "Fira Mono"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "workspaceAxis": "horizontal",
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1,
+    "drawerScrollStyle": "vertical",
+    "drawerGrouping": "az"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.2,
+    "foregroundScale": 1,
+    "brandPack": "pop-os-2204-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_185908005.png",
+    "image_2026-08-23_190021062.png",
+    "image_2026-08-24_122414921.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.9.3-76060903-generic ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started System76 Power Daemon"
+      },
+      {
+        "kind": "ok",
+        "text": "Started System76 Scheduler"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

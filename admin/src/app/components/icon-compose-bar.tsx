@@ -3,7 +3,12 @@
 import * as React from 'react';
 
 import { ICON_TREATMENTS } from '@/lib/g-launcher/theme-spec';
-import type { ComposeSpec, PlateKind } from '@/lib/g-launcher/icon-compose';
+import {
+  DEFAULT_COMPOSE,
+  type ComposeSpec,
+  type PlateKind,
+} from '@/lib/g-launcher/icon-compose';
+import { MIN_STROKE, MAX_STROKE, clampStroke } from '@/lib/g-launcher/svg-stroke';
 import {
   fetchGlyphs,
   glyphToDataUrl,
@@ -49,18 +54,27 @@ export function IconStyleBar({
   if (!style) {
     return (
       <div style={{ ...row, justifyContent: 'space-between' }}>
+        {/* ─── THIS STATE USED TO BE A DEAD END ─────────────────────────────
+            One sentence and one button, with nothing saying what the button
+            would do. Every pack shipped so far was published from here, which
+            means nobody ever saw the plate, inset or stroke controls, and the
+            defaults behind that button were never reviewed by anyone.
+
+            Naming the three settings it would apply is not decoration. The
+            inset in particular decides whether a line set reaches a budget
+            phone as a drawn line or a grey smear, and it was 0.34 for a year
+            because no screen ever said so. */}
         <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-          Art ships as authored.
+          Art ships as authored, at whatever plate, inset and stroke weight the
+          files already carry.
         </span>
         <button
           onClick={() =>
-            onChange({
-              plate: { kind: 'colour', colour: '#16191D' },
-              treatment: 'roundedSquare',
-              cornerRadius: 0.22,
-              inset: 0.34,
-              tint: null,
-            })
+            // Seeded from DEFAULT_COMPOSE rather than retyped. The two had
+            // already drifted apart once, and the inset is the number that
+            // decides whether a line set ships thin, so having it live in two
+            // files was a bug waiting for somebody to fix only one of them.
+            onChange({ ...DEFAULT_COMPOSE })
           }
         >
           Style every icon
@@ -155,6 +169,38 @@ export function IconStyleBar({
             style={{ width: 74, marginLeft: 6 }}
           />
         </label>
+
+        {/* ── STROKE WEIGHT ─────────────────────────────────────────────
+            Only meaningful for line art, and line art is exactly what a distro
+            icon pack is built from now. Arcticons and sets like it declare no
+            `stroke-width` at all, so every drawing inherits the SVG default of
+            1 against a 48 unit box. At the old 0.34 inset that reached a Tecno
+            Spark 10 as a 1.32 device pixel line, which antialiases to grey
+            rather than drawing.
+
+            Off by default for the same reason `tint` is: it rewrites the art,
+            and a builder that opened with it on would change the weight of a
+            republished pack the first time anyone pressed publish. */}
+        <label style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="checkbox"
+            checked={style.strokeWidth != null}
+            onChange={(e) => set({ strokeWidth: e.target.checked ? 1.7 : null })}
+          />
+          stroke
+        </label>
+        {style.strokeWidth != null ? (
+          <input
+            type="number"
+            min={MIN_STROKE}
+            max={MAX_STROKE}
+            step={0.1}
+            value={style.strokeWidth}
+            onChange={(e) => set({ strokeWidth: clampStroke(Number(e.target.value)) })}
+            style={{ width: 74 }}
+            aria-label="stroke weight"
+          />
+        ) : null}
 
         {/* TINT IS OPT IN, because it is the one setting that DESTROYS
             information: a full colour logo tinted is a flat shape and the

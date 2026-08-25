@@ -1,0 +1,154 @@
+{
+  "id": "elementary-os-8-theme",
+  "name": "elementary OS",
+  "version": "8",
+  "shell": "aqua",
+  "tier": "pro",
+  "palette": {
+    "bgTop": "#48586B",
+    "bgBottom": "#252E38",
+    "bar": "#1E252D",
+    "dock": "#1AFFFFFF",
+    "accent": "#3689E6",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Inter",
+    "mono": "Roboto Mono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "drawerScrollStyle": "vertical",
+    "drawerGrouping": "library"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.3,
+    "foregroundScale": 1,
+    "backgroundColor": "#2B333D",
+    "brandPack": "elementary-os-8-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "wp2030141-elementary-wallpapers.webp",
+    "wp7764699-elementary-os-wallpapers.webp",
+    "wp7764704-elementary-os-wallpapers.webp",
+    "wp7764706-elementary-os-wallpapers.webp",
+    "wp7764716-elementary-os-wallpapers.webp",
+    "wp7764724-elementary-os-wallpapers.webp",
+    "wp7764741-elementary-os-wallpapers.webp"
+  ],
+  "minAppVersion": 6,
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Avahi mDNS/DNS-SD Stack"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting elementary Greeter ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started elementary Greeter"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1000
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "bare",
+        "font": "display",
+        "accent": false
+      },
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "network": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "storage": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "battery": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      }
+    }
+  }
+}

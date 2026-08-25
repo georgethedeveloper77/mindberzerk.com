@@ -6,6 +6,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
@@ -52,11 +53,31 @@ class LauncherHostApiImpl(
     context: Context,
     private val flutterApi: LauncherFlutterApi,
     private val widgetHost: WidgetHostController,
+    /**
+     * Is any Activity STARTED? Handed straight to [AppChangeWatcher], which is
+     * the only thing here that needs it. See its parameter doc for why.
+     *
+     * A LAMBDA RATHER THAN A BOOLEAN, because this object is built once in
+     * `LauncherApplication.onCreate` and the answer changes many times a day.
+     * Defaulted to true so any test or caller that has not wired a tracker gets
+     * the pre-existing behaviour rather than a silently inert watcher, which is
+     * the failure mode that would look exactly like package changes not firing.
+     */
+    private val isForeground: () -> Boolean = { true },
 ) : LauncherHostApi {
 
     private val appContext = context.applicationContext
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+
+    /**
+     * How many icons one preview call may render.
+     *
+     * The storefront shows eight. This is a ceiling on a path that deliberately
+     * bypasses both cache tiers, so every icon is a fresh render on the IO
+     * thread and an unbounded list would be a stall with no upper bound.
+     */
+    private val MAX_PREVIEW = 16
 
     private val repository = AppRepository(appContext)
     private val roles = RoleRequester(appContext)
@@ -72,7 +93,7 @@ class LauncherHostApiImpl(
         brands = BrandIconResolver(appContext),
     )
 
-    private val watcher = AppChangeWatcher(appContext, repository) { reason, apps ->
+    private val watcher = AppChangeWatcher(appContext, repository, isForeground) { reason, apps ->
         // An icon pack IS an installed app, so its install, update or removal
         // already arrives here for free. Hooking it is what makes an UPDATED
         // pack take effect, rather than the resolver serving drawables from a
@@ -90,6 +111,27 @@ class LauncherHostApiImpl(
     }
 
     fun start() = watcher.start()
+
+    /**
+     * An Activity started. Release anything the watcher held while hidden.
+     *
+     * Called from `LauncherApplication`'s lifecycle tracker rather than from
+     * `LauncherActivity.onStart`, because the Application already owns this
+     * object and a call in the Activity is a line that a later Activity, or a
+     * second one, forgets to make. Same reasoning as `IconCache` registering
+     * itself with `PackChangeNotifier`.
+     */
+    fun onForeground() = watcher.onForeground()
+
+    /**
+     * Android is asking for memory. Forwarded to the icon cache, which is the
+     * only bitmap tier this object owns.
+     *
+     * The Dart image cache is dealt with separately by `MemoryTrimmer`, through
+     * the engine rather than through here, because this object has no engine
+     * reference and should not grow one to carry a diagnostic.
+     */
+    fun trimMemory(full: Boolean) = iconCache.trimMemory(full)
 
     fun stop() {
         watcher.stop()
@@ -241,6 +283,32 @@ class LauncherHostApiImpl(
         // IconCache calls back on an IO thread; Pigeon replies must go out from
         // the main thread.
         iconCache.get(componentKey, sizePx.toInt()) { bytes ->
+            main.post { callback(Result.success(bytes)) }
+        }
+    }
+
+    override fun previewIcons(
+        componentKeys: List<String>,
+        tintHex: String,
+        sizePx: Long,
+        callback: (Result<List<ByteArray?>>) -> Unit,
+    ) {
+        // An unparseable colour yields nulls rather than an exception. This is a
+        // storefront preview: a grid of blanks is a bad look, a crash while
+        // someone decides whether to spend money is worse.
+        val tint = runCatching { Color.parseColor(tintHex) }.getOrNull()
+        if (tint == null) {
+            callback(Result.success(componentKeys.map { null }))
+            return
+        }
+
+        // Capped. The caller asks for eight; a malformed request asking for all
+        // 249 would render 249 bitmaps off-cache on one thread while the user
+        // waits. The cap is here rather than in Dart because this is the side
+        // that pays for it.
+        val keys = componentKeys.take(MAX_PREVIEW)
+
+        iconCache.preview(keys, tint, sizePx.toInt()) { bytes ->
             main.post { callback(Result.success(bytes)) }
         }
     }

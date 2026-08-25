@@ -169,6 +169,21 @@ export async function publishDistro(
           dock: input.theme.spec.palette.dock,
           accent: input.theme.spec.palette.accent,
         },
+        // ── THE STOREFRONT ROWS ─────────────────────────────────────────
+        //
+        // Derived from the spec, exactly like the preview above, and for the
+        // same reason: a row authored beside the pack rather than inside it can
+        // end up describing a different distro, which is how elementary once
+        // shipped with Kali's summary.
+        //
+        // `?? []` rather than omitting, because absent and empty differ on
+        // `IndexPack`. A spec that reaches this function HAS been through the
+        // panel, so it either names rows or has decided not to; only entries
+        // published before the field existed are genuinely absent, and those do
+        // not come through here. Sending `[]` is the honest answer and it stops
+        // the device falling back to floor-card rows for a distro whose author
+        // removed them.
+        features: input.theme.spec.features ?? [],
         files: themeFiles,
       },
       keyId,

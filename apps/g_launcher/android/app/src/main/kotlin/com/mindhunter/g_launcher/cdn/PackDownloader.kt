@@ -157,12 +157,63 @@ class PackDownloader(
         packId: String,
         index: CdnIndex,
         cancelled: AtomicBoolean = AtomicBoolean(false),
+        /**
+         * Pack ids already being synced further up this call chain.
+         *
+         * Cycle break for the recursion below.
+         *
+         * ─── BEFORE `onProgress`, NOT AFTER ───────────────────────────────
+         *
+         * It went last at first, which broke every existing caller. Kotlin
+         * binds a trailing lambda to the LAST parameter, so
+         *
+         *     downloader.syncPack(packId, index, cancel) { done, total -> ... }
+         *
+         * started passing the progress lambda as `visiting` and the compiler
+         * reported it as an argument type mismatch inside PackHostApiImpl,
+         * pointing at a call site nobody had touched.
+         *
+         * A trailing lambda parameter must stay last. Anything added to this
+         * signature goes above it.
+         */
+        visiting: Set<String> = emptySet(),
         onProgress: ((done: Long, total: Long) -> Unit)? = null,
     ): SyncResult {
         val remote = index.pack(packId) ?: return SyncResult.NotOffered(packId)
 
         val installed = loader.installedVersion(packId)
         if (remote.version <= installed) return SyncResult.UpToDate(installed)
+
+        // ─── DEPENDENCIES FIRST, OR THIS PACK ARRIVES AND DRAWS NOTHING ─────
+        //
+        // A derived icon pack is about 200 bytes: a colour and a pointer at
+        // `arcticons-line`, which carries the 13,622 drawings all fourteen
+        // distros share. Installed on its own it verifies, resolves and renders
+        // absolutely nothing, with no error at any layer, because "no glyph for
+        // this package" is the same answer an uncovered app gives.
+        //
+        // The index declares this in `requires`. Nothing acted on it until now,
+        // which is why the field alone was never the fix: it described the
+        // dependency and no code followed it.
+        //
+        // RECURSIVE, VIA syncPack ITSELF, so a dependency's own dependencies
+        // resolve. `visiting` breaks cycles: a malformed index naming two packs
+        // that require each other would otherwise recurse until the stack goes,
+        // and this runs in a WorkManager job where that is a silent failure.
+        //
+        // A dependency that is ALREADY INSTALLED returns `UpToDate` and costs
+        // one map lookup, so the common case after the first sync is free.
+        for (need in remote.requires) {
+            if (need == packId || need in visiting) continue
+            when (val dep = syncPack(need, index, cancelled, visiting + packId, onProgress)) {
+                is SyncResult.Installed, is SyncResult.UpToDate -> Unit
+                // The dependent pack is NOT attempted. Downloading it anyway
+                // would leave a paid pack installed and blank, which is worse
+                // than not having it: the user sees it in their library and
+                // nothing changes on screen.
+                else -> return SyncResult.MissingDependency(need, dep)
+            }
+        }
 
         // Cheap refusal before any transfer. The pack's own manifest carries
         // the authoritative minAppVersion and PackVerifier enforces it; this is
@@ -297,4 +348,16 @@ sealed class SyncResult {
     object Cancelled : SyncResult()
     data class Rejected(val reason: VerifyResult) : SyncResult()
     data class Failed(val detail: String) : SyncResult()
+
+    /**
+     * A pack this one cannot work without could not be installed.
+     *
+     * Carries the failing dependency's OWN result rather than flattening to a
+     * string, because the caller's next step depends on it: `AppTooOld` means
+     * update the app, `NoSpace` means free some, `Failed` means retry. Losing
+     * that distinction would turn every dependency problem into one unhelpful
+     * message, and the whole reason this case exists is that the alternative
+     * failure, a paid pack installed and blank, explains nothing at all.
+     */
+    data class MissingDependency(val packId: String, val cause: SyncResult) : SyncResult()
 }

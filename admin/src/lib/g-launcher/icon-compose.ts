@@ -1,5 +1,7 @@
 'use client';
 
+import { setStroke, withIntrinsicSize } from '@/lib/g-launcher/svg-stroke';
+
 /**
  * COMPOSE AN ICON: a plate you define, art you supply, one PNG you own.
  *
@@ -37,9 +39,28 @@
  * more load-bearing of the two because it ships inside the signed manifest.
  */
 
-/** The device fits every drawing to a 192 square. Match it, or the pack ships
- *  art that is rescaled on the way in and looks softer than what was authored. */
-export const ICON_SIZE = 192;
+/**
+ * The square every drawing is composed into.
+ *
+ * ─── RAISED FROM 192, AND THE OLD NUMBER WAS BELOW THE DEVICE ───────────────
+ *
+ * `app_icon.dart` asks for `size * devicePixelRatio`, and `IconSizing` lets a
+ * grid icon reach 64dp before a theme's `iconScale` is applied. On a Galaxy S22
+ * at dpr 3.0 a 52dp icon is 156 device pixels; at 64dp it is 192, exactly at
+ * the old ceiling, and past it with any `iconScale` above 1.0. Authoring at 192
+ * therefore meant the phone was upscaling a raster on the devices this launcher
+ * is tested on, which shows on line art before anything else.
+ *
+ * 256 sits above every grid size these devices ask for, so the phone always
+ * downscales, which is the direction that stays sharp. Measured cost across 61
+ * composed Arcticons drawings at 256 on a plate: mean 11.8 KB per PNG, so a
+ * 193-icon pack is about 2.3 MB and six distro packs about 13.6 MB on R2.
+ *
+ * PACKS ALREADY PUBLISHED ARE UNAFFECTED. Their PNGs are whatever size they
+ * were composed at and the launcher scales them as it always has. Only newly
+ * composed art changes, so this is safe to land without touching the CDN.
+ */
+export const ICON_SIZE = 256;
 
 export type PlateKind = 'colour' | 'gradient' | 'image' | 'none';
 
@@ -74,6 +95,30 @@ export interface ComposeSpec {
    */
   inset: number;
   /**
+   * Stroke weight for line art, in the source viewBox's own units, or null to
+   * draw at whatever weight the file declares.
+   *
+   * ─── WHY THIS IS A COMPOSE SETTING AND NOT AN IconStyle FIELD ─────────────
+   *
+   * The same argument `svg-recolor.ts` makes for colour, and it is stronger
+   * here. A weight is a property of the ART, so it can be baked before the
+   * bytes are written and never has to reach the device. Putting it in
+   * `IconStyle` would mean the eight-place ritual plus a Pigeon wire change,
+   * and a missed `iconCacheId` or `fingerprint()` fails silently by serving
+   * stale bitmaps that look like art which is merely a little thin.
+   *
+   * ─── AND WHY IT MATTERS AT ALL ───────────────────────────────────────────
+   *
+   * Arcticons, and every line set built like it, declares no `stroke-width`,
+   * so all 13,623 drawings inherit the SVG default of 1 against a 48 unit box.
+   * Composed at the default inset below, that reaches a Tecno Spark 10 as a
+   * 1.32 device pixel line, which antialiases to grey rather than drawing. The
+   * same art at weight 1.7 and inset 0.06 lands at 3.20 px and holds.
+   *
+   * Ignored for raster art, which has no strokes to set.
+   */
+  strokeWidth?: number | null;
+  /**
    * Recolour the foreground to this, keeping its alpha, or null to draw the art
    * as it is.
    *
@@ -85,11 +130,29 @@ export interface ComposeSpec {
   tint?: string | null;
 }
 
+/**
+ * ─── THE INSET WAS 0.34 AND THAT IS TWO INSETS FOR LINE ART ─────────────────
+ *
+ * 0.34 approximates Android's adaptive-icon safe zone, which is the right
+ * default for a full-bleed logo that would otherwise touch the plate edge. It
+ * is the wrong default for a line set, because a line set has already been
+ * drawn with its own margin: measured across Arcticons, the art sits roughly
+ * 9% inside its 48 unit box on every side. Composing at 0.34 insets a second
+ * time, so the drawing occupies about 44% of the tile against an installed
+ * pack that draws it full bleed, and the strokes thin in proportion.
+ *
+ * 0.12 is the compromise: enough to keep art clear of a circle treatment's
+ * corner, close enough to how the same drawing renders when Android rasterises
+ * it from a VectorDrawable. A logo that genuinely needs the safe zone can still
+ * ask for it, which is the direction that costs one slider rather than a set
+ * that ships thin.
+ */
 export const DEFAULT_COMPOSE: ComposeSpec = {
   plate: { kind: 'colour', colour: '#16191D' },
   treatment: 'roundedSquare',
   cornerRadius: 0.22,
-  inset: 0.34,
+  inset: 0.12,
+  strokeWidth: null,
   tint: null,
 };
 
@@ -171,6 +234,38 @@ function tinted(bmp: ImageBitmap, tint: string, w: number, h: number): HTMLCanva
 }
 
 /**
+ * Decode [art] at [px], giving a vector an intrinsic size first.
+ *
+ * `withIntrinsicSize` lives in `svg-stroke.ts` beside the other intake
+ * rewrites, so there is one implementation of "make this SVG rasterise at a
+ * chosen size" rather than a copy here that drifts from it.
+ *
+ * A blob that claims to be SVG but cannot be read as text falls through to a
+ * plain decode rather than throwing, on the same rule as everything else in
+ * this file: one bad input costs its own icon, never the batch.
+ */
+async function bitmapAtSize(
+  art: Blob,
+  px: number,
+  strokeWidth?: number | null,
+): Promise<ImageBitmap> {
+  if (art.type !== 'image/svg+xml') return await createImageBitmap(art);
+  try {
+    let text = await art.text();
+    // Weight BEFORE size. `setStroke` reads the file's own declarations and
+    // `withIntrinsicSize` rewrites the root element; doing it the other way
+    // round works today and would break the moment either learns to care about
+    // the root's attributes, which is the kind of ordering dependency worth
+    // spending one comment to remove.
+    if (strokeWidth != null) text = setStroke(text, strokeWidth);
+    const sized = withIntrinsicSize(text, Math.max(1, Math.round(px)));
+    return await createImageBitmap(new Blob([sized], { type: 'image/svg+xml' }));
+  } catch {
+    return await createImageBitmap(art);
+  }
+}
+
+/**
  * Compose one icon. Returns null when the canvas is unavailable.
  *
  * [foreground] may be null: a plate with nothing on it is a legitimate result
@@ -234,8 +329,19 @@ export async function composeIcon(
   // ── the foreground ───────────────────────────────────────────────────────
   if (foreground) {
     try {
-      const bmp = await createImageBitmap(foreground);
       const room = size * (1 - Math.max(0, Math.min(0.9, spec.inset)));
+      // RASTERISE AT THE ROOM, NOT AT THE SVG'S DEFAULT.
+      //
+      // A vector handed straight to `createImageBitmap` with no width or height
+      // is sized by the CSS default object size, which for a square viewBox is
+      // 150x150 no matter what it is about to be drawn at. Every pixel above
+      // that was an upscale of art that could have been rendered sharp, and it
+      // is the difference between this pipeline and an installed icon pack,
+      // where Android rasterises the VectorDrawable at the requested size.
+      //
+      // Raster input is passed through untouched: a PNG has a real intrinsic
+      // size and re-wrapping it would be meaningless.
+      const bmp = await bitmapAtSize(foreground, room, spec.strokeWidth);
       const s = Math.min(room / bmp.width, room / bmp.height);
       const dw = bmp.width * s;
       const dh = bmp.height * s;

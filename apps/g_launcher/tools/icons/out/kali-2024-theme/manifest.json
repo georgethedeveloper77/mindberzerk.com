@@ -1,0 +1,21 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "kali-2024-theme",
+  "version": 1787590303,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "2864646.webp", "size": 26238, "sha256": "bd1c4576fa44e73ea9111cb35a439b0344968c15982af5830b8f8644fe9bc6b6"},
+    {"path": "3266654.webp", "size": 31166, "sha256": "87e8a09f45b4eba22e46ebbe72117d00299b0cd550b8d594398b92bd65bea7bd"},
+    {"path": "6188003.webp", "size": 116348, "sha256": "bac9bac09411afbc6d94c2a884f49474f7ba6b741dca5fb3b8c2e6fb342c0e0c"},
+    {"path": "6188123.webp", "size": 4642, "sha256": "9587d8d904889e52bc1ff979e254aaf78e730da10cfc81d639e026c6bd8e8c10"},
+    {"path": "6468743.webp", "size": 6004, "sha256": "e2c1595428540c32946ce177080bc703e73fe65e4ff61e6f3347ac1eb479a9af"},
+    {"path": "image_2026-08-15_200806847-optimized.webp", "size": 9580, "sha256": "337127f341e497cf288cadeb537d1e2eadd2a4c90176f14308f7c5fc9bf51ab1"},
+    {"path": "image_2026-08-15_201057040.webp", "size": 6236, "sha256": "24c3a5b1333068456b3e067715c585a10bbe7e8788d2eb40148fb9dd96d4ce0d"},
+    {"path": "kali-ferrofluid.webp", "size": 140028, "sha256": "047e7cc1cfceaeac1c65bd9e2c9ab840a82a15a7c046c8d0c54b6bef8b866395"},
+    {"path": "logo_dark.webp", "size": 19138, "sha256": "846fb587eb234bdb2982b86b454f2e1e57f75ba4c6e01703414797cadb298392"},
+    {"path": "logo_light.webp", "size": 19138, "sha256": "846fb587eb234bdb2982b86b454f2e1e57f75ba4c6e01703414797cadb298392"},
+    {"path": "theme.json", "size": 4033, "sha256": "fe37c7a96fc9f5af85b86580e02b054bca2d856a5e2e07080376f14141ea83e6"}
+  ]
+}

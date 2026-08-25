@@ -1123,6 +1123,51 @@ class LauncherHostApi {
     return pigeonVar_replyValue as Uint8List?;
   }
 
+  /// PNG bytes for several icons in an ARBITRARY tint, for the storefront.
+  ///
+  /// ─── WHY IT LIVES HERE AND NOT ON `PackHostApi` ───────────────────────────
+  ///
+  /// It went on `PackHostApi` first, which reads well: previews are a storefront
+  /// concern and the storefront is packs. But `PackHostApiImpl` is downloads and
+  /// entitlement and holds no `IconCache`, while `LauncherHostApiImpl` builds
+  /// one with six collaborators and already serves [getIcon] from it.
+  ///
+  /// Reaching across would have meant threading a cache into a class whose job
+  /// is fetching bytes, or exposing a singleton. Rendering an icon is this
+  /// interface's job; the fact that a storefront is asking does not change that.
+  ///
+  /// ─── NEEDS NO PURCHASE, AND NO INSTALL ────────────────────────────────────
+  ///
+  /// `arcticons-line` holds all 13,622 drawings and is already on the device: it
+  /// is free, and required by whichever official pack the user has. A derived
+  /// pack adds only a colour. So previewing Kali blue on an Ubuntu device is
+  /// installed geometry plus a hex value.
+  ///
+  /// NOT CACHED. `IconCache` keys bitmaps by the applied style, which carries no
+  /// previewed colour, so caching these would poison the drawer with a pack
+  /// nobody bought and it would survive a restart.
+  ///
+  /// One entry per key, in order, null where nothing could be drawn, so a fixed
+  /// grid can be laid out without matching lengths.
+  Future<List<Uint8List?>> previewIcons(List<String> componentKeys, String tintHex, int sizePx) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewIcons$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKeys, tintHex, sizePx]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
+  }
+
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   Future<void> clearIconCache() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.clearIconCache$pigeonVar_messageChannelSuffix';

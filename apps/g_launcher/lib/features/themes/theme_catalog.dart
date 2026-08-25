@@ -210,8 +210,8 @@ class ThemeCard {
   const ThemeCard({
     required this.id,
     required this.name,
-    required this.version,
-    required this.tag,
+    required this.subtitle,
+    this.tag,
     required this.tier,
     required this.preview,
     this.specId,
@@ -251,7 +251,7 @@ class ThemeCard {
   ThemeCard withPack(PackInfo p) => ThemeCard(
         id: id,
         name: name,
-        version: version,
+        subtitle: subtitle,
         tag: tag,
         // Recomputed: a floor card authored as `pro` before billing existed
         // must follow the catalogue, not its own stale guess.
@@ -268,10 +268,32 @@ class ThemeCard {
         sizeBytes: p.sizeBytes,
         remoteVersion: p.version,
         installedVersion: p.installedVersion,
-        // Kept from the floor card. The index has no features block yet, so a
-        // bundled distro keeps the rows authored here and a CDN-only one has
-        // none until it does.
-        features: features,
+        // ─── THE INDEX WINS, BUT ONLY WHEN IT SPOKE ────────────────────────
+        //
+        // Three states, and collapsing any two of them is a bug:
+        //
+        //   null          this entry predates the features block. Keep the
+        //                 floor card's rows, which is how the three bundled
+        //                 distros stay correct without republishing.
+        //   empty list    this entry HAS the block and chose to name nothing.
+        //                 An editorial decision, and overriding it with the
+        //                 floor card's rows would silently ignore it.
+        //   non-empty     use it.
+        //
+        // The first cut of this used `p.features ?? features` with an empty
+        // list treated as absent, which reads fine and makes "publish a distro
+        // with no rows" impossible to express.
+        features: p.features == null
+            ? features
+            : [
+                for (final f in p.features!)
+                  if (f != null)
+                    ThemeFeature(
+                      title: f.title,
+                      body: f.body,
+                      exclusive: f.exclusive,
+                    ),
+              ],
       );
 
   final String id;
@@ -280,11 +302,28 @@ class ThemeCard {
   final String name;
 
   /// The meta line under the name: "24.04 · GNOME". Set in mono by the card.
-  final String version;
+  ///
+  /// ─── IT WAS CALLED `version`, AND THAT IS WHY IT SHOWED ONE ───────────────
+  ///
+  /// The field has always held the SUMMARY. It was named `version` and carried
+  /// a `'v${p.version}'` fallback for packs whose summary was empty, so the
+  /// moment the catalogue shipped empty summaries every card in the store read
+  /// `v1787590303`. A pack version is a developer lever: it decides whether an
+  /// update is offered and it belongs nowhere near a storefront.
+  ///
+  /// EMPTY IS A VALID VALUE and renders as nothing. A card with a name and no
+  /// meta line is plain; a card with a name and a build number is broken, and
+  /// looks it.
+  final String subtitle;
 
   /// The small DE tag shown when the card is neither active nor Pro
   /// ("Plasma", "GNOME", "TUI").
-  final String tag;
+  ///
+  /// NULL when unknown, and then no chip is drawn at all. Every CDN card used
+  /// to read `Distro` here, which spent the most valuable corner of the card on
+  /// the one word all fourteen shared. A chip earns its place by telling the
+  /// cards apart, and one that cannot do that is worse than an empty corner.
+  final String? tag;
 
   final ThemeTier tier;
   final ThemePreviewSpec preview;
@@ -490,11 +529,40 @@ ThemePreviewSpec _previewFromPack(PackInfo p) {
   );
 }
 
+/// The index's shell name, as a chip label.
+///
+/// Returns null for an unknown or absent shell, and the card then draws no chip
+/// rather than a placeholder. `previewShell` is absent on every entry published
+/// before the preview block existed, so null is the common case today, not an
+/// error.
+///
+/// The labels are the DESKTOP's name, not the engine's: a user reading a card
+/// knows what GNOME is and has never heard of `aqua`, which is our word for the
+/// metaphor rather than anyone's product. `tui` becomes TUI because that is
+/// what the Terminal floor card has always said.
+String? _shellTag(String? shell) => switch (shell) {
+      'gnome' => 'GNOME',
+      'plasma' => 'Plasma',
+      'aqua' => 'Desktop',
+      'tiling' => 'Tiling',
+      'tui' => 'TUI',
+      // Includes null, and any shell a newer catalogue names that this build
+      // does not know. Degrades to no chip, never to a guess.
+      _ => null,
+    };
+
 ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       id: p.packId,
       name: p.title,
-      version: p.summary.isEmpty ? 'v${p.version}' : p.summary,
-      tag: 'Distro',
+      // NO VERSION FALLBACK. See [ThemeCard.subtitle]: an empty summary draws
+      // nothing, because the alternative was printing the pack version and it
+      // did exactly that on all fourteen distros.
+      subtitle: p.summary,
+      // The shell, when the entry carries a preview to name it, and otherwise
+      // nothing. Derived rather than stored because `PackInfo` has no shell of
+      // its own: `previewShell` is the only place the index says what kind of
+      // desktop this is.
+      tag: _shellTag(p.previewShell),
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
       preview: _previewFromPack(p),
       specId: p.packId,
@@ -524,7 +592,7 @@ const _floorCards = <ThemeCard>[
       ThemeCard(
         id: 'ubuntu',
         name: 'Ubuntu',
-        version: '24.04 · GNOME',
+        subtitle: '24.04 · GNOME',
         tag: 'GNOME',
         tier: ThemeTier.free,
         specId: 'ubuntu-24-04',
@@ -557,7 +625,7 @@ const _floorCards = <ThemeCard>[
       ThemeCard(
         id: 'terminal',
         name: 'Terminal',
-        version: 'type-to-launch',
+        subtitle: 'type-to-launch',
         tag: 'TUI',
         tier: ThemeTier.free,
         specId: 'terminal',
@@ -581,7 +649,7 @@ const _floorCards = <ThemeCard>[
       ThemeCard(
         id: 'kde-plasma-6',
         name: 'KDE Plasma',
-        version: '6 · Breeze',
+        subtitle: '6 · Breeze',
         tag: 'Plasma',
         tier: ThemeTier.free,
         specId: 'kde-plasma-6',

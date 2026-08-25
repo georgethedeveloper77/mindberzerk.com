@@ -69,29 +69,101 @@ const isFilter = (v: string | undefined): v is FilterName =>
   !!v && (FILTERS as readonly string[]).includes(v);
 
 /** A drawable icon: either a CDN file or a 24x24 glyph path. */
-type Art = { kind: 'file'; url: string } | { kind: 'path'; d: string };
+type Art =
+  | { kind: 'file'; url: string }
+  /**
+   * Vector art, drawn inline.
+   *
+   * [viewBox] and [stroke] are carried per glyph rather than assumed, because
+   * the two packs that produce path art disagree on both: Simple Icons is a
+   * 24-unit FILLED mark, a line set is a 48-unit STROKED one. Hardcoding 24 and
+   * `fill` drew every outline drawing at double size as a solid blob.
+   *
+   * [colour] is the distro's tint. A line set publishes no colour of its own,
+   * which is the entire point: fourteen products share one geometry and differ
+   * only here.
+   */
+  | { kind: 'path'; d: string; viewBox: number; stroke: boolean; colour: string | null };
 
 /**
  * Pull drawable art out of a pack.json, whichever shape it is in.
  *
- * Deliberately tolerant: a pack whose map holds something this does not
- * recognise yields fewer icons rather than throwing, because a preview is not
- * worth taking a page down for.
+ * ─── THREE SHAPES NOW, AND THIS KNEW ONE AND A HALF ─────────────────────────
+ *
+ *   HERO      `icons: { "com.whatsapp": "whatsapp.png" }`
+ *             The value is a FILE in the pack. Rendered as an <img>.
+ *
+ *   INLINE    `icons: { "com.whatsapp": { d: "M17...", hex: "25D366" } }`
+ *             Simple Icons. A 24-unit filled mark, colour published per glyph.
+ *
+ *   LINE      `icons: { "com.whatsapp": "whatsapp" }` plus
+ *             `glyphs: { "whatsapp": ["M24,2.5...", "M9,17..."] }`
+ *             The value is a SLUG into `glyphs`, because 32,950 packages share
+ *             13,622 drawings and inlining would triple the file.
+ *
+ * The third was read as the first: a slug was treated as a filename, so every
+ * preview was a broken image and the count read 32,950 because that is how many
+ * package entries there are. That is the "NO ART" on every official pack.
+ *
+ * Deliberately tolerant: an unrecognised entry yields fewer icons rather than
+ * throwing, because a preview is not worth taking a page down for.
  */
-function artFrom(data: unknown, base: (name: string) => string): { art: Art[]; count: number } {
+function artFrom(
+  data: unknown,
+  base: (name: string) => string,
+  /** The distro's colour, for a line set. Null leaves it to the glyph. */
+  tint: string | null = null,
+): { art: Art[]; count: number } {
   if (!data || typeof data !== 'object') return { art: [], count: 0 };
-  const icons = (data as { icons?: Record<string, unknown> }).icons;
+  const pack = data as {
+    icons?: Record<string, unknown>;
+    glyphs?: Record<string, unknown>;
+    viewBox?: number;
+    style?: string;
+  };
+  const icons = pack.icons;
   if (!icons || typeof icons !== 'object') return { art: [], count: 0 };
+
+  const glyphs = pack.glyphs && typeof pack.glyphs === 'object' ? pack.glyphs : null;
+  const viewBox = typeof pack.viewBox === 'number' && pack.viewBox > 0 ? pack.viewBox : 24;
+  const stroke = pack.style === 'stroke';
 
   const art: Art[] = [];
   let count = 0;
+
+  // COUNT IS DRAWINGS, NOT PACKAGE ENTRIES. A line set maps 32,950 packages
+  // onto 13,622 drawings, and reporting the first is both wrong and flattering:
+  // the pack does not contain 32,950 icons, it contains 13,622.
+  if (glyphs) {
+    for (const [slug, paths] of Object.entries(glyphs)) {
+      count++;
+      if (art.length >= 12) continue;
+      const first = Array.isArray(paths) ? paths : [paths];
+      const d = first.find((x) => typeof x === 'string' && x.length > 0);
+      if (typeof d === 'string') art.push({ kind: 'path', d, viewBox, stroke, colour: tint });
+      // `slug` is unused here on purpose: the preview shows the first twelve
+      // drawings in file order, not a chosen set, so no lookup is needed.
+      void slug;
+    }
+    return { art, count };
+  }
+
   for (const value of Object.values(icons)) {
     if (typeof value === 'string') {
       count++;
       if (art.length < 12) art.push({ kind: 'file', url: base(value) });
     } else if (value && typeof value === 'object' && typeof (value as { d?: unknown }).d === 'string') {
       count++;
-      if (art.length < 12) art.push({ kind: 'path', d: (value as { d: string }).d });
+      if (art.length < 12) {
+        const hex = (value as { hex?: unknown }).hex;
+        art.push({
+          kind: 'path',
+          d: (value as { d: string }).d,
+          viewBox,
+          stroke,
+          colour: typeof hex === 'string' && hex ? `#${hex.replace(/^#/, '')}` : tint,
+        });
+      }
     }
   }
   return { art, count };
@@ -114,9 +186,29 @@ function Glyph({ art, size }: { art: Art; size: number }) {
       />
     );
   }
+  // The pack's OWN viewBox and fill rule. Both were hardcoded to Simple Icons'
+  // 24-unit filled mark, so a 48-unit stroked drawing rendered at double scale
+  // as a solid shape: recognisable as wrong, unrecognisable as which icon.
+  const stroked = art.stroke;
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} className="aspect-square w-full" aria-hidden="true">
-      <path d={art.d} fill="currentColor" />
+    <svg
+      viewBox={`0 0 ${art.viewBox} ${art.viewBox}`}
+      width={size}
+      height={size}
+      className="aspect-square w-full"
+      aria-hidden="true"
+    >
+      <path
+        d={art.d}
+        fill={stroked ? 'none' : (art.colour ?? 'currentColor')}
+        stroke={stroked ? (art.colour ?? 'currentColor') : 'none'}
+        // Arcticons and every set like it declare round caps and joins in
+        // source. Android's defaults are butt and miter, and so are SVG's, so
+        // without these the preview does not match what the device draws.
+        strokeWidth={stroked ? 1 : undefined}
+        strokeLinecap={stroked ? 'round' : undefined}
+        strokeLinejoin={stroked ? 'round' : undefined}
+      />
     </svg>
   );
 }
@@ -153,7 +245,29 @@ export default async function IconsPage({
   const listing = listingResult.listing;
 
   const iconTypes = new Set(['hero', 'icon', 'brand']);
-  const packs = live.packs.filter((p) => iconTypes.has(p.packType));
+  /**
+   * ─── THE SOURCE IS NOT A PRODUCT ──────────────────────────────────────────
+   *
+   * `arcticons-line` carries the 13,622 drawings all fourteen official packs
+   * point at. It has no colour of its own and nobody would choose it, so listing
+   * it puts a fifteenth row on the shelf that changes nothing when tapped.
+   *
+   * It is hidden from the LIST, not from the panel: it still has a page at
+   * `?sel=arcticons-line`, because checking the drawings is a real thing to want
+   * and it is the one pack whose preview is the whole library.
+   *
+   * Anything a pack `extends` is treated the same way, derived from the packs
+   * themselves rather than named here, so a second source added later is hidden
+   * for the same reason without anyone remembering to add it to a list.
+   */
+  const sources = new Set(
+    live.packs
+      .map((p) => (p as { requires?: string[] }).requires ?? [])
+      .flat(),
+  );
+  const packs = live.packs.filter(
+    (p) => iconTypes.has(p.packType) && (!sources.has(p.packId) || p.packId === sel),
+  );
   const themePacks = live.packs.filter((p) => p.packType === 'theme');
 
   // ── the reverse lookup: which themes name which pack ──────────────────────
@@ -191,22 +305,101 @@ export default async function IconsPage({
       // The theme pack that GRANTS this one, which is a payment fact and not a
       // usage one. Kept separate from usedBy on purpose.
       const grant = live.entitlements.find((e) => e.grants.includes(p.packId));
+
+      /**
+       * ─── WHICH DISTRO THIS PACK BELONGS TO ───────────────────────────────
+       *
+       * Three ways, in order of how much they prove.
+       *
+       * Both of the first two assumed things that stopped being true:
+       *
+       *   - the entitlement lookup required a grant ending `-theme`, and the
+       *     three BUNDLED distros are `kde-plasma-6`, `terminal` and
+       *     `ubuntu-24-04`, with no suffix and no entitlement at all because
+       *     they are free
+       *   - the id fallback stripped `-icons`, and the official packs end
+       *     `-line`
+       *
+       * So all three bundled distros' packs read STANDALONE while the eleven
+       * paid ones read IN A DISTRO. The relationship was identical; only the
+       * detection differed.
+       *
+       * The third way is the one that actually proves it and is checked FIRST:
+       * a theme naming this pack in `brandPack` or `heroPack` is not an
+       * inference at all. `usedBy` already holds that, computed from the
+       * published theme.json a few lines above.
+       */
       const distro =
-        grant?.grants.find((g) => g !== p.packId && g.endsWith('-theme')) ??
+        // Ground truth: a theme names it.
+        // A SET, not an array: `[0]` on it is undefined, which would have made
+        // this whole branch silently useless and sent every pack to the
+        // fallbacks below.
+        [...(usedBy.get(p.packId) ?? [])][0] ??
+        // Or an entitlement grants it alongside a theme pack. Matched against
+        // real theme ids rather than a suffix, so a bundled distro counts.
+        grant?.grants.find(
+          (g) => g !== p.packId && themePacks.some((t) => t.packId === g),
+        ) ??
+        // Or the ids line up. Both suffixes, because hand-built packs end
+        // `-icons` and the official ones end `-line`.
         live.packs.find(
           (t) =>
             t.packType === 'theme' &&
-            t.packId.replace(/-theme$/, '') === p.packId.replace(/-icons$/, ''),
+            t.packId.replace(/-theme$/, '') === p.packId.replace(/-(icons|line)$/, ''),
         )?.packId ??
         null;
 
       // A failed read costs this pack its preview and nothing else, which is
       // why it is caught per pack rather than around the whole list.
       const file = await readPackJson(appId, p.path, 'pack.json').catch(() => null);
+
+      /**
+       * ─── FOLLOW `extends`, THE WAY THE DEVICE DOES ────────────────────────
+       *
+       * An official pack is 207 bytes: a colour and a pointer at
+       * `arcticons-line`, which carries all 13,622 drawings. It has no art of
+       * its own, so reading its own file honestly reported NO ART and 0 icons
+       * on all fourteen. The packs were correct; the panel was looking in the
+       * wrong file.
+       *
+       * `BrandIconResolver` already does exactly this on device: sees
+       * `extends`, loads that pack's geometry, stamps `tint` on every glyph.
+       * This is the same two steps, so what the panel shows is what the phone
+       * draws rather than a second guess at it.
+       *
+       * ONE FETCH PER PACK and they run inside the same `Promise.all` as
+       * everything else, so fourteen resolutions are fourteen parallel reads of
+       * a file the CDN edge is already holding, not fourteen round trips in
+       * series.
+       */
+      const ext = (file?.data as { extends?: unknown; tint?: unknown } | undefined) ?? {};
+      const extendsId = typeof ext.extends === 'string' ? ext.extends : null;
+      const tint = typeof ext.tint === 'string' ? ext.tint : null;
+
+      let source = file?.data;
+      let sourcePath = p.path;
+      if (extendsId) {
+        // The base's own entry, for its path. Looked up rather than
+        // constructed: `path` carries a version segment and guessing it would
+        // work until the next publish.
+        const basePack = live.packs.find((x) => x.packId === extendsId);
+        const baseFile = basePack
+          ? await readPackJson(appId, basePack.path, 'pack.json').catch(() => null)
+          : null;
+        // A base that cannot be read leaves this pack with no preview, which is
+        // the honest answer: on a device it would install and draw nothing.
+        source = baseFile?.data;
+        sourcePath = basePack?.path ?? p.path;
+      }
+
       // `cdnUrl` from lib/core/cdn, not a second copy of the env fallback here.
       // That module also carries the reasoning for why the public door is the one
       // that still works while the S3 token is refused.
-      const { art, count } = artFrom(file?.data, (name) => cdnUrl(appId, p.path, name));
+      const { art, count } = artFrom(
+        source,
+        (name) => cdnUrl(appId, sourcePath, name),
+        tint,
+      );
 
       return {
         draft: false as const,
@@ -344,6 +537,7 @@ export default async function IconsPage({
           </SlabButton>
         }
       />
+
 
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => {

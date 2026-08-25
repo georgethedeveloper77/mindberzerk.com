@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "deepin-23-theme",
+  "version": 1787590303,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "3508449.webp", "size": 40452, "sha256": "1087beb2f65004ca5b0101218d4e4b02e83441de44b465a3b611e67541297848"},
+    {"path": "3508450.webp", "size": 17278, "sha256": "543912b462071a1a3258232b026a3d677d583f5bf3cc0723412dfb9ba6a15a34"},
+    {"path": "3508451.webp", "size": 27532, "sha256": "d96753eea520fd693ea91a78ff25aeb7b9bd4d3f55ca2e51adeee140be697d2c"},
+    {"path": "3508801.webp", "size": 18808, "sha256": "b8006f9f25c1e4350b9b429b77df29ffc92d4e36d429d7e5c97c2bc6a6b8acc3"},
+    {"path": "3508804.webp", "size": 74750, "sha256": "c20c9d3544abe05639944c421f8aba04bebb54926a17fe8f2580aead20cf919f"},
+    {"path": "3508809.webp", "size": 4738, "sha256": "6d3b00bf53c823e50abaa8e58720c145fa6581e781e9256263b3286153572953"},
+    {"path": "logo_dark.webp", "size": 10298, "sha256": "5d1d620f56c59d3c6a007dfab227d65ed8c8cc11bf7d6b34b8a3c217ffe3ff24"},
+    {"path": "logo_light.webp", "size": 10298, "sha256": "5d1d620f56c59d3c6a007dfab227d65ed8c8cc11bf7d6b34b8a3c217ffe3ff24"},
+    {"path": "theme.json", "size": 3072, "sha256": "33b8407396dea02d21b1552d8a87b4baca18b2ba2e1f155706081e6ad5041770"}
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "id": "fedora-40-theme",
+  "name": "Fedora",
+  "version": "1",
+  "shell": "gnome",
+  "tier": "free",
+  "chromeFamily": "adwaita",
+  "palette": {
+    "bgTop": "#1C2B3A",
+    "bgBottom": "#0F1A26",
+    "bar": "#17212B",
+    "dock": "#CC17212B",
+    "accent": "#51A2DA",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Cabin",
+    "mono": "Source Code Pro"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1,
+    "drawerScrollStyle": "cube",
+    "drawerGrouping": "none"
+  },
+  "icons": {
+    "treatment": "circle",
+    "cornerRadius": 0.5,
+    "foregroundScale": 1,
+    "brandPack": "fedora-40-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_184036531.png",
+    "image_2026-08-23_184050658.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.8.5-301.fc40.x86_64 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SELinux Policy Load"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "id": "arch-linux-theme",
+  "name": "Arch Linux",
+  "version": "1",
+  "shell": "tiling",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#0F1A24",
+    "bgBottom": "#080F16",
+    "bar": "#0B1520",
+    "dock": "#CC0B1520",
+    "accent": "#1793D1",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Fira Sans",
+    "mono": "JetBrains Mono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1
+  },
+  "icons": {
+    "treatment": "square",
+    "cornerRadius": 0,
+    "foregroundScale": 1,
+    "brandPack": "arch-linux-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_182552829.png",
+    "image_2026-08-23_182606270.png",
+    "image_2026-08-23_182621851.png",
+    "image_2026-08-23_182636219.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": ":: Synchronizing package databases..."
+      },
+      {
+        "kind": "dim",
+        "text": " core            132.4 KiB   1042 KiB/s 00:00"
+      },
+      {
+        "kind": "dim",
+        "text": " extra             8.3 MiB   6.11 MiB/s 00:01"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started systemd-networkd"
+      },
+      {
+        "kind": "dim",
+        "text": "Arch Linux 6.9.1-arch1-1 (tty1)"
+      },
+      {
+        "kind": "plain",
+        "text": "archiso login: _"
+      }
+    ]
+  },
+  "splash": {
+    "style": "text",
+    "durationMs": 900
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  }
+}

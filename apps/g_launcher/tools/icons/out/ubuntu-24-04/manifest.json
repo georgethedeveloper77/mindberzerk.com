@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "ubuntu-24-04",
+  "version": 1787590303,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "Ubuntu_24.10_Oracular_Oriole.webp", "size": 35712, "sha256": "5ee551205e724d571a76f2c0dba68acc59195ba8d45e9e78d72bebb19c15a522"},
+    {"path": "linux_ubuntu.webp", "size": 14472, "sha256": "bed1c1b86428d2bb5af35bc662a7afba3c88e90b651d501d27997455a1ccd0ce"},
+    {"path": "logo_dark.svg", "size": 9814, "sha256": "0e518b9dc767c9f3f640462281bd0b154bc6b11dd24de03283dcade4b415e892"},
+    {"path": "logo_light.svg", "size": 9814, "sha256": "0e518b9dc767c9f3f640462281bd0b154bc6b11dd24de03283dcade4b415e892"},
+    {"path": "noble_light.webp", "size": 38220, "sha256": "9663cbbbdb5ff695fad9ad87e07216391966acc61a7fcc9f96ef8a2eb1c29c69"},
+    {"path": "numbat_color.webp", "size": 51446, "sha256": "9f30ca21b6f49b40823e385cd2b775e158a36ddc9b25826f1dd8ba785a9c3784"},
+    {"path": "numbat_dark.webp", "size": 35268, "sha256": "e5006d451bf7a87edc57a190a69da98cd1019a2b2fce70fd616610ee62dd5c39"},
+    {"path": "theme.json", "size": 3127, "sha256": "67bad7b2f3b1cb8c513c246cab8fe6d73dbf70376a4dd4cd71a9196f3a22fb64"},
+    {"path": "ubuntu.webp", "size": 16510, "sha256": "0b23806dd7eb49ca690983ad9f8755f53afcc0ac17b0979fc80df5176180adaa"},
+    {"path": "ubuntu_logo.webp", "size": 10984, "sha256": "973f7a9aa1f5dfba4a25bd5d18ec474b1d9d1c66ad81387069a860ca4946c62a"}
+  ]
+}

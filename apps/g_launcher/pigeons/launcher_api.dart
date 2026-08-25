@@ -578,6 +578,39 @@ abstract class LauncherHostApi {
   @async
   Uint8List? getIcon(String componentKey, int sizePx);
 
+  /// PNG bytes for several icons in an ARBITRARY tint, for the storefront.
+  ///
+  /// ─── WHY IT LIVES HERE AND NOT ON `PackHostApi` ───────────────────────────
+  ///
+  /// It went on `PackHostApi` first, which reads well: previews are a storefront
+  /// concern and the storefront is packs. But `PackHostApiImpl` is downloads and
+  /// entitlement and holds no `IconCache`, while `LauncherHostApiImpl` builds
+  /// one with six collaborators and already serves [getIcon] from it.
+  ///
+  /// Reaching across would have meant threading a cache into a class whose job
+  /// is fetching bytes, or exposing a singleton. Rendering an icon is this
+  /// interface's job; the fact that a storefront is asking does not change that.
+  ///
+  /// ─── NEEDS NO PURCHASE, AND NO INSTALL ────────────────────────────────────
+  ///
+  /// `arcticons-line` holds all 13,622 drawings and is already on the device: it
+  /// is free, and required by whichever official pack the user has. A derived
+  /// pack adds only a colour. So previewing Kali blue on an Ubuntu device is
+  /// installed geometry plus a hex value.
+  ///
+  /// NOT CACHED. `IconCache` keys bitmaps by the applied style, which carries no
+  /// previewed colour, so caching these would poison the drawer with a pack
+  /// nobody bought and it would survive a restart.
+  ///
+  /// One entry per key, in order, null where nothing could be drawn, so a fixed
+  /// grid can be laid out without matching lengths.
+  @async
+  List<Uint8List?> previewIcons(
+    List<String> componentKeys,
+    String tintHex,
+    int sizePx,
+  );
+
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   @async
   void clearIconCache();

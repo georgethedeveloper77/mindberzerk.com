@@ -1,0 +1,153 @@
+{
+  "_": [
+    "THE FOURTEEN OFFICIAL ICON PACKS. ONE TABLE, TWO READERS.",
+    "",
+    "This file exists because the same fourteen rows were living in TypeScript",
+    "inside the admin panel, where a shell script cannot reach them. Publishing",
+    "from the panel meant clicking a button; publishing from a script meant a",
+    "second copy of the table that would drift the first time a colour changed.",
+    "",
+    "So the table moved here. `distro-recipes.ts` should import it rather than",
+    "re-declare it, and `build-official-packs.mjs` reads it directly.",
+    "",
+    "TINTS ARE THE DISTROS' OWN BRAND COLOURS, which is why six of them are blue",
+    "and why Arch and Zorin are nearly identical. That is a known and accepted",
+    "cost of using real brand values rather than a spread palette. Every one",
+    "clears 3:1 against a dark plate; Fedora at 3.7:1 is the tightest, so a",
+    "darker plate is the thing that breaks first.",
+    "",
+    "Changing a value here changes a SHIPPED PRODUCT. It is not a design token."
+  ],
+
+  "base": {
+    "packId": "arcticons-line",
+    "license": "CC-BY-SA-4.0",
+    "attribution": "Arcticons by Donnnno, CC BY-SA 4.0",
+    "_": [
+      "The geometry all fourteen point at: 13,622 drawings, 10.58 MB, published",
+      "once. Never listed on device: it has no colour of its own, so it would",
+      "appear as a fifteenth pack nobody would choose.",
+      "",
+      "Attribution is REPEATED into every derived pack rather than inherited.",
+      "CC BY-SA requires the credit to travel with the work, and the fourteen",
+      "are what a user actually receives. Seventy bytes each."
+    ]
+  },
+
+  "minAppVersion": 7,
+
+  "distros": [
+    {
+      "base": "kde-plasma-6",
+      "title": "KDE Plasma",
+      "themeId": "kde-plasma-6",
+      "packId": "kde-plasma-6-line",
+      "sku": "icons_kde_plasma",
+      "tint": "#3DAEE9"
+    },
+    {
+      "base": "terminal",
+      "title": "Terminal",
+      "themeId": "terminal",
+      "packId": "terminal-line",
+      "sku": "icons_terminal",
+      "tint": "#33FF33"
+    },
+    {
+      "base": "ubuntu-24-04",
+      "title": "Ubuntu",
+      "themeId": "ubuntu-24-04",
+      "packId": "ubuntu-24-04-line",
+      "sku": "icons_ubuntu",
+      "tint": "#E95420"
+    },
+    {
+      "base": "arch-linux",
+      "title": "Arch Linux",
+      "themeId": "arch-linux-theme",
+      "packId": "arch-linux-line",
+      "sku": "icons_arch_linux",
+      "tint": "#1793D1"
+    },
+    {
+      "base": "deepin-23",
+      "title": "Deepin",
+      "themeId": "deepin-23-theme",
+      "packId": "deepin-23-line",
+      "sku": "icons_deepin",
+      "tint": "#0081FF"
+    },
+    {
+      "base": "elementary-os-8",
+      "title": "elementary OS",
+      "themeId": "elementary-os-8-theme",
+      "packId": "elementary-os-8-line",
+      "sku": "icons_elementary_os",
+      "tint": "#3689E6"
+    },
+    {
+      "base": "endeavouros",
+      "title": "EndeavourOS",
+      "themeId": "endeavouros-theme",
+      "packId": "endeavouros-line",
+      "sku": "icons_endeavouros",
+      "tint": "#7F3FBF"
+    },
+    {
+      "base": "fedora-40",
+      "title": "Fedora",
+      "themeId": "fedora-40-theme",
+      "packId": "fedora-40-line",
+      "sku": "icons_fedora",
+      "tint": "#3C6EB4"
+    },
+    {
+      "base": "garuda-dr460nized",
+      "title": "Garuda",
+      "themeId": "garuda-dr460nized-theme",
+      "packId": "garuda-dr460nized-line",
+      "sku": "icons_garuda",
+      "tint": "#BD93F9"
+    },
+    {
+      "base": "kali-2024",
+      "title": "Kali Linux",
+      "themeId": "kali-2024-theme",
+      "packId": "kali-2024-line",
+      "sku": "icons_kali",
+      "tint": "#367BF0"
+    },
+    {
+      "base": "linux-mint-22",
+      "title": "Linux Mint",
+      "themeId": "linux-mint-22-theme",
+      "packId": "linux-mint-22-line",
+      "sku": "icons_linux_mint",
+      "tint": "#87CF3E"
+    },
+    {
+      "base": "manjaro-kde",
+      "title": "Manjaro",
+      "themeId": "manjaro-kde-theme",
+      "packId": "manjaro-kde-line",
+      "sku": "icons_manjaro",
+      "tint": "#35BF5C"
+    },
+    {
+      "base": "pop-os-2204",
+      "title": "Pop!_OS",
+      "themeId": "pop-os-2204-theme",
+      "packId": "pop-os-2204-line",
+      "sku": "icons_pop_cosmic",
+      "tint": "#48B9C7"
+    },
+    {
+      "base": "zorin-os-17",
+      "title": "Zorin OS",
+      "themeId": "zorin-os-17-theme",
+      "packId": "zorin-os-17-line",
+      "sku": "icons_zorin_os",
+      "tint": "#0F94D2"
+    }
+  ]
+}

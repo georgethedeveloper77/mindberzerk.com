@@ -1,0 +1,203 @@
+{
+  "id": "kali-2024-theme",
+  "name": "Kali Linux",
+  "version": "2024.3",
+  "shell": "gnome",
+  "tier": "pro",
+  "palette": {
+    "bgTop": "#1B2733",
+    "bgBottom": "#0D1117",
+    "bar": "#0A0E13",
+    "dock": "#14FFFFFF",
+    "accent": "#367BF0",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Noto Sans",
+    "mono": "JetBrains Mono"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "topBarStats": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "drawerScrollStyle": "vertical",
+    "drawerGrouping": "az"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.18,
+    "foregroundScale": 1,
+    "backgroundColor": "#131A22",
+    "brandPack": "kali-2024-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "6188123.webp",
+    "6468743.webp",
+    "image_2026-08-15_200806847-optimized.webp",
+    "image_2026-08-15_201057040.webp",
+    "6188003.webp",
+    "3266654.webp",
+    "2864646.webp",
+    "kali-ferrofluid.webp"
+  ],
+  "minAppVersion": 6,
+  "boot": {
+    "tailMs": 700,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.8.11-amd64 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "dim",
+        "text": "[    0.000000] Linux version 6.8.11-amd64"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting OpenBSD Secure Shell server ...",
+        "delayMs": 400
+      },
+      {
+        "kind": "ok",
+        "text": "Started OpenBSD Secure Shell server"
+      },
+      {
+        "kind": "ok",
+        "text": "Started PostgreSQL RDBMS"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting LightDM Display Manager ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started LightDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "dots",
+    "durationMs": 1100
+  },
+  "desklets": {
+    "offers": [
+      "monitor",
+      "network",
+      "storage",
+      "battery",
+      "free",
+      "df",
+      "uptime",
+      "clock"
+    ],
+    "starter": [
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      },
+      {
+        "kind": "uptime",
+        "page": 0,
+        "col": 0,
+        "row": 2,
+        "spanX": 2,
+        "spanY": 1
+      }
+    ],
+    "skins": {
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "clock": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'bootstrap.dart';
 import 'core/crash.dart';
+import 'core/exit_info.dart';
 import 'core/freeze_watchdog.dart';
 import 'data/prefs/prefs_repository.dart';
 import 'engine/font_catalogue.dart';
@@ -70,6 +73,20 @@ Future<void> _initFirebase() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await Crash.enable();
+
+    // WHY THE PREVIOUS PROCESS DIED, and why this is not part of the watchdog.
+    //
+    // The watchdog below catches a launcher that stalls and recovers. It cannot
+    // catch one that is KILLED, because the kill takes the isolate and its
+    // timer with it. The system keeps that record instead, and this is the one
+    // call that reads it. Six LOW_MEMORY exits in fourteen hours produced no
+    // Crashlytics report of any kind before this line existed.
+    //
+    // NOT awaited, deliberately. It is a platform round trip plus a handful of
+    // `recordError` calls, and every millisecond between here and `runApp` is a
+    // millisecond of blank screen after a home press. Nothing downstream reads
+    // its result.
+    unawaited(ExitInfo.reportPending());
 
     // Only once there is somewhere to send its findings. Started earlier it
     // would just buffer reports about a startup that has not finished.

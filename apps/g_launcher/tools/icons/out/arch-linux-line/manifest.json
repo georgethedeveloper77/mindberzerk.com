@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "arch-linux-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 206, "sha256": "ac6aa93595efcdd559f0cc9a7db48ce209bb7eb11b562e1c6e2d6de2a5fa5a64"}
+  ]
+}

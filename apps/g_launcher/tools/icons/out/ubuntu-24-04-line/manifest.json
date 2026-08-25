@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "ubuntu-24-04-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 204, "sha256": "56f0848d8eb299ec02bce21c9d85bea3205004c427a758668af24e8d572b27cd"}
+  ]
+}

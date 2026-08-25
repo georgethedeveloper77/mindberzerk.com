@@ -8,9 +8,12 @@ import { PaletteEditor, LayoutEditor, GesturesEditor, IconStyleEditor, Passthrou
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
 import { AppGrid, type Assignment } from './AppGrid';
+import { FeatureRowsEditor } from './FeatureRowsEditor';
 import { composeIcon, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
 import { glyphToBlob, type GlyphLite } from '@/lib/g-launcher/glyph-blob';
 import { GlyphPicker, IconStyleBar } from '@/app/components/icon-compose-bar';
+import { IconContactSheet } from '@/app/components/icon-contact-sheet';
+import { IconSetHealth } from '@/app/components/icon-set-health';
 import { renderHeroIcon } from '@/lib/core/image-trim';
 import { publishDistroAction, saveDistroDraftAction } from '@/app/apps/[app]/distros/actions';
 import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
@@ -22,11 +25,12 @@ import {
   type ChromeName,
   type ShellName,
   type ThemeDraft,
+  type ThemeFeatureJson,
   type ThemeSpecJson,
   CHROMES,
   SHELLS,
 } from '@/lib/g-launcher/theme-spec';
-import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry, expandRoleEntries } from '@/lib/g-launcher/hero-pack';
+import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry, expandRoleEntries, roleForPackage } from '@/lib/g-launcher/hero-pack';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
 import { SKU_PREFIX, distroSkuFor, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 
@@ -542,6 +546,46 @@ export function DistroWorkspace({
    * which is what makes a single drawn icon land on every vendor's phone.
    */
   const order = React.useMemo(() => expandRoleEntries(slotOrder), [slotOrder]);
+
+  /**
+   * The contact sheet and the health panel, per SLOT rather than per package.
+   *
+   * One drawn Phone icon expands to three dialer packages, and measuring it
+   * three times would put three identical readings into the ink histogram and
+   * pull the median toward whichever roles happen to cover the most vendors.
+   * The author drew one icon, so it is measured once.
+   *
+   * `blob` is the composed output, which is what ships. There is no separate
+   * source here: unlike the icon builder, this workspace does not retain the
+   * original upload once `renderHeroIcon` has run, so the composed bytes are
+   * the only art available. That means a plate makes ink coverage useless, so
+   * a styled pack measures its plate rather than its art. Called out rather
+   * than hidden: the reading is honest only while `style` is null, and closing
+   * that needs the workspace to keep sources the way the builder does.
+   */
+  const sheetTiles = React.useMemo(
+    () =>
+      entries
+        .filter((e) => assignments[e.pkg])
+        .map((e) => ({
+          id: e.pkg,
+          blob: assignments[e.pkg].blob,
+          source: assignments[e.pkg].blob,
+          label: e.label,
+          slot: e.pkg,
+        })),
+    [entries, assignments],
+  );
+
+  const healthRows = React.useMemo(
+    () =>
+      sheetTiles.map((t) => ({
+        key: `${t.label}:${t.source.size}`,
+        label: t.label,
+        art: t.source,
+      })),
+    [sheetTiles],
+  );
   // Only the 'build' source publishes an inline pack. In 'published' the grid is
   // not rendered at all, but its assignments survive a mode switch in state, and
   // sending them would upload a second pack nothing references.
@@ -639,6 +683,26 @@ export function DistroWorkspace({
   else if (!isSafePackId(base)) baseProblems.push('Distro id must be lowercase letters, digits, . _ or -');
 
   const themeProblems = base ? validateDraft(themeDraft) : [];
+  /**
+   * ─── VALIDATE THE PACK, NOT THE GRID ──────────────────────────────────────
+   *
+   * This passed `entries`, which is one row per SLOT, and a slot id is a role:
+   * `phone`, `messages`, `contacts`. `validateHeroPack` says so in its own
+   * comment, in the file it lives in:
+   *
+   *     Entries reach here ALREADY EXPANDED by `expandRoleEntries`, so every
+   *     `pkg` is a real package id.
+   *
+   * It was the only caller violating that, and the result was thirty problems
+   * reading "'phone' is not a valid Android package name" on a workspace where
+   * nothing was actually wrong. The publish path was already correct, because
+   * it builds from `order`; only the validator saw the unexpanded view, so the
+   * screen refused to publish something that would have published fine.
+   *
+   * `order` is that same expansion, already memoised above for the publish
+   * path. Using it here means the check now runs over exactly the rows that
+   * will be written into pack.json, which is the only view worth validating.
+   */
   const iconProblems = hasIcons
     ? validateHeroPack(
         {
@@ -648,7 +712,11 @@ export function DistroWorkspace({
           masked: false,
           sku: iconsSku,
         },
-        entries.map<HeroIconEntry>((e) => ({ pkg: e.pkg, label: e.label, file: assignments[e.pkg]?.file ?? '' })),
+        order.map<HeroIconEntry>((o) => ({
+          pkg: o.pkg,
+          label: roleForPackage(o.pkg)?.label ?? o.pkg,
+          file: o.file,
+        })),
       )
     : [];
 
@@ -1274,6 +1342,28 @@ export function DistroWorkspace({
                         />
                       </div>
                     </div>
+                    {/* ── THE SAME TWO PANELS THE ICON BUILDER MOUNTS ──────
+                        Imported, not reimplemented, for the reason the comment
+                        above already gives: the last time a check lived in two
+                        places, one copy learned about roles and the other did
+                        not, and this screen spent a month reporting thirty
+                        problems that were not problems. */}
+                    {Object.keys(assignments).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12 }}>
+                        <IconContactSheet
+                          tiles={sheetTiles}
+                          inset={style?.inset ?? 0}
+                          strokeWidth={style?.strokeWidth ?? null}
+                        />
+                        <IconSetHealth
+                          rows={healthRows}
+                          inset={style?.inset ?? 0}
+                          strokeWidth={style?.strokeWidth ?? null}
+                          plateNone={!style || style.plate.kind === 'none'}
+                        />
+                      </div>
+                    ) : null}
+
                     <AppGrid entries={entries} assignments={assignments} masked={false} onAssign={onAssign} onAddApp={onAddApp} />
                   </Section>
                 ) : null}
@@ -1298,6 +1388,8 @@ export function DistroWorkspace({
               iconPackId={iconPackId}
               hasIcons={hasIcons}
               play={play}
+              features={spec.features ?? []}
+              setFeatures={(f) => setSpec((s) => ({ ...s, features: f }))}
             /> : null}
           </div>
 
@@ -1339,6 +1431,8 @@ function PricingTab(props: {
   iconPackId: string;
   hasIcons: boolean;
   play: PlayLite;
+  features: ThemeFeatureJson[];
+  setFeatures: (f: ThemeFeatureJson[]) => void;
 }) {
   return (
     <>
@@ -1352,6 +1446,8 @@ function PricingTab(props: {
           </Field>
         </div>
       </Section>
+
+      <FeatureRowsEditor rows={props.features} setRows={props.setFeatures} free={props.free} />
 
       <Section title="pricing" hint="a paid distro is two products: the whole distro, and its icons alone">
         <div style={{ marginBottom: 14 }}>

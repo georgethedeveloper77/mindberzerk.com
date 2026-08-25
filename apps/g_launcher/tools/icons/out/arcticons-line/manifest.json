@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "arcticons-line",
+  "version": 1787608589,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 10584958, "sha256": "f8fb9eed4085ea17da97e302f8af11cd7ec9acbf8f88fba079014ba43572b6d9"}
+  ]
+}

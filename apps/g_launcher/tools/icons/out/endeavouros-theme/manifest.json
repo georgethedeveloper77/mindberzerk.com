@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "endeavouros-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_183511038.png", "size": 569423, "sha256": "f6dfa114415ec483bbf2dc4b5034c82fde921628cf01b5f92d5fca7b8b194b5a"},
+    {"path": "image_2026-08-23_183520819.png", "size": 1099478, "sha256": "15b2a084279b53bf3922e91d2bf85c7ae1ef37d6519ae25521bd5812d4248256"},
+    {"path": "image_2026-08-23_183529227.png", "size": 1492215, "sha256": "c0b25fbd927d63f646cb973a7f0ab5d282ed98d2d74a78a004d9911415b9aadb"},
+    {"path": "image_2026-08-23_183548139.png", "size": 1099213, "sha256": "6795296fb940d340cc41f25ebdbc674fc77232fc4984116132aeee5b54eea8f9"},
+    {"path": "image_2026-08-23_183556088.png", "size": 1427009, "sha256": "c0aadf8e98d65a69fc59b47c86defd2b6d6a46af4dbd87d3f74540697d1acf8a"},
+    {"path": "logo_dark.png", "size": 233637, "sha256": "028436408d3ebfcc6171bc5c259476b419afff5973ab215a644a8d725dba329d"},
+    {"path": "logo_light.png", "size": 233637, "sha256": "028436408d3ebfcc6171bc5c259476b419afff5973ab215a644a8d725dba329d"},
+    {"path": "theme.json", "size": 2828, "sha256": "2935c00bd3c3a8d1976416ef876d414a287fd146e5da217dea579c57afd49455"}
+  ]
+}

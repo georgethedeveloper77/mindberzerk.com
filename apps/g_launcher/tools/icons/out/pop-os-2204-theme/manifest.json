@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "pop-os-2204-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_185908005.png", "size": 716427, "sha256": "9143c11ef2bef72eb19766db2b1b01e591f234c0e18690d457ebbc27b7a95682"},
+    {"path": "image_2026-08-23_190021062.png", "size": 474668, "sha256": "5cabbbdcfe1289a44e8613f96826e49863854363fece1454b10868e5acc59647"},
+    {"path": "image_2026-08-24_122414921.png", "size": 1156569, "sha256": "93be7894fd3cc210e7a4799bcef9baaac244139f82b7013a1b140aecf0d5e6de"},
+    {"path": "logo_dark.png", "size": 4979, "sha256": "1179567eb88b0435439f35ada992bd3ffd96199af254e05ea881a2feb3e05dee"},
+    {"path": "logo_light.png", "size": 4979, "sha256": "1179567eb88b0435439f35ada992bd3ffd96199af254e05ea881a2feb3e05dee"},
+    {"path": "theme.json", "size": 2902, "sha256": "07952978bae0617fef44bfe951e73766e17b0e901d36c339a20e87ca7decb21e"}
+  ]
+}

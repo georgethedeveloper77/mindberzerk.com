@@ -1125,6 +1125,35 @@ interface LauncherHostApi {
    * runs off the main thread.
    */
   fun getIcon(componentKey: String, sizePx: Long, callback: (Result<ByteArray?>) -> Unit)
+  /**
+   * PNG bytes for several icons in an ARBITRARY tint, for the storefront.
+   *
+   * ─── WHY IT LIVES HERE AND NOT ON `PackHostApi` ───────────────────────────
+   *
+   * It went on `PackHostApi` first, which reads well: previews are a storefront
+   * concern and the storefront is packs. But `PackHostApiImpl` is downloads and
+   * entitlement and holds no `IconCache`, while `LauncherHostApiImpl` builds
+   * one with six collaborators and already serves [getIcon] from it.
+   *
+   * Reaching across would have meant threading a cache into a class whose job
+   * is fetching bytes, or exposing a singleton. Rendering an icon is this
+   * interface's job; the fact that a storefront is asking does not change that.
+   *
+   * ─── NEEDS NO PURCHASE, AND NO INSTALL ────────────────────────────────────
+   *
+   * `arcticons-line` holds all 13,622 drawings and is already on the device: it
+   * is free, and required by whichever official pack the user has. A derived
+   * pack adds only a colour. So previewing Kali blue on an Ubuntu device is
+   * installed geometry plus a hex value.
+   *
+   * NOT CACHED. `IconCache` keys bitmaps by the applied style, which carries no
+   * previewed colour, so caching these would poison the drawer with a pack
+   * nobody bought and it would survive a restart.
+   *
+   * One entry per key, in order, null where nothing could be drawn, so a fixed
+   * grid can be laid out without matching lengths.
+   */
+  fun previewIcons(componentKeys: List<String>, tintHex: String, sizePx: Long, callback: (Result<List<ByteArray?>>) -> Unit)
   /** Nukes memory + disk. For a "rebuild icon cache" button in Settings. */
   fun clearIconCache(callback: (Result<Unit>) -> Unit)
   /** Are we the home app right now? Drives the "Set as default" banner. */
@@ -1473,6 +1502,28 @@ interface LauncherHostApi {
             val componentKeyArg = args[0] as String
             val sizePxArg = args[1] as Long
             api.getIcon(componentKeyArg, sizePxArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.previewIcons$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val componentKeysArg = args[0] as List<String>
+            val tintHexArg = args[1] as String
+            val sizePxArg = args[2] as Long
+            api.previewIcons(componentKeysArg, tintHexArg, sizePxArg) { result: Result<List<ByteArray?>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LauncherApiPigeonUtils.wrapError(error))

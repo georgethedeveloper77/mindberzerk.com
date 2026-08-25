@@ -37,10 +37,38 @@
  * `composeIcon` recolours the whole thing to a silhouette regardless of what
  * came in, so this fill only matters when no tint is set, which is exactly the
  * case where the author has asked for the art as it is.
+ *
+ * ─── AND THE SVG NOW CARRIES AN INTRINSIC SIZE ──────────────────────────────
+ *
+ * THIS WAS MISSING AND EVERY COMPOSED ICON RASTERISED AT 150 PIXELS.
+ *
+ * An SVG with a viewBox and no width or height has no intrinsic size, so
+ * `createImageBitmap` falls back to the CSS default object size of 300x150,
+ * constrained to the viewBox ratio. For a square box that is 150x150, whatever
+ * the caller meant to draw it at. `composeIcon` then measures `bmp.width` as
+ * 150 and scales that raster to fill its room, so anything above 150px is an
+ * upscale of a vector that could have been rendered sharp at any size.
+ *
+ * At the old ICON_SIZE of 192 with an inset of 0.34 the room was 127px, so it
+ * happened to downscale and the bug stayed invisible. Raising either number
+ * turns it into visible softness, which is precisely why it surfaced as "the
+ * installed icon pack looks sharper than the one I built": Android rasterises
+ * a VectorDrawable at exactly the size the launcher asks for, and this did not.
+ *
+ * [px] is therefore the size the art will be DRAWN at, not the viewBox.
  */
 
 /** The box every Simple Icons path is drawn against. One copy. */
 const GLYPH_BOX = 24;
+
+/**
+ * Default intrinsic size when a caller does not name one.
+ *
+ * Above any plausible compose room, so the fallback path errs toward a
+ * downscale. A too-large intrinsic size costs a little rasterisation work; a
+ * too-small one costs sharpness, and only one of those is recoverable.
+ */
+const DEFAULT_RASTER_PX = 512;
 
 export interface GlyphLite {
   slug: string;
@@ -56,13 +84,15 @@ export interface GlyphLite {
  * where there is no composer to tint them. Leave it out for anything headed
  * into a pack.
  */
-export function glyphToBlob(glyph: GlyphLite, colour?: string): Blob {
+export function glyphToBlob(glyph: GlyphLite, colour?: string, px?: number): Blob {
   // The brand hex, unless the caller names one. `hex` is stored without the
   // leading hash by the package, which is the kind of detail that silently
   // produces a fill of "25D366" and no paint at all.
   const fill = colour ?? `#${glyph.hex}`;
+  const size = Math.max(1, Math.round(px ?? DEFAULT_RASTER_PX));
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GLYPH_BOX} ${GLYPH_BOX}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" ` +
+    `viewBox="0 0 ${GLYPH_BOX} ${GLYPH_BOX}">` +
     `<title>${escapeXml(glyph.title)}</title>` +
     `<path d="${glyph.path}" fill="${fill}"/>` +
     `</svg>`;

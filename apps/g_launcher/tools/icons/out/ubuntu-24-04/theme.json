@@ -1,0 +1,165 @@
+{
+  "id": "ubuntu-24-04",
+  "name": "Ubuntu",
+  "version": "24.04",
+  "shell": "gnome",
+  "tier": "free",
+  "palette": {
+    "bgTop": "#622A4C",
+    "bgBottom": "#220817",
+    "bar": "#1A171B",
+    "dock": "#BD201B21",
+    "accent": "#E95420",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "left",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1,
+    "backgroundColor": null,
+    "monochromeTint": null,
+    "brandPack": "ubuntu-24-04-line"
+  },
+  "logo": {
+    "light": "logo_light.svg",
+    "dark": "logo_dark.svg"
+  },
+  "wallpapers": [
+    "numbat_color.webp",
+    "noble_light.webp",
+    "numbat_dark.webp",
+    "linux_ubuntu.webp",
+    "Ubuntu_24.10_Oracular_Oriole.webp",
+    "ubuntu_logo.webp",
+    "ubuntu.webp"
+  ],
+  "minAppVersion": 6,
+  "boot": {
+    "tailMs": 700,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "grubSelected",
+        "text": "*Ubuntu",
+        "delayMs": 520
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.8.0-31-generic ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Mounted /boot/efi"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Network Manager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Snap Daemon ...",
+        "delayMs": 520
+      },
+      {
+        "kind": "ok",
+        "text": "Started Snap Daemon"
+      },
+      {
+        "kind": "ok",
+        "text": "Started User Login Management"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "dots",
+    "durationMs": 1100
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "fastfetch",
+      "network",
+      "storage",
+      "battery",
+      "notes",
+      "search"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 3,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "showTitle": true
+      }
+    }
+  }
+}

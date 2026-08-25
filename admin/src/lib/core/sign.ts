@@ -272,6 +272,43 @@ export interface IndexPack {
   sku?: string | null;
 
   /**
+   * The pack's colour, as `#rrggbb`.
+   *
+   * ─── THE ONE FIELD THE FOURTEEN DIFFER BY ─────────────────────────────────
+   *
+   * Every official icon pack points at `arcticons-line` for its 13,622 drawings
+   * and supplies only a tint. The colour IS the product, so a catalogue that
+   * lists products without it cannot describe what is for sale.
+   *
+   * What it buys concretely: the storefront previews a pack on the user's real
+   * apps WITHOUT installing it. The geometry is already on the device, free and
+   * required by whatever pack they own, so a preview needs the hex and nothing
+   * else. Without this the device would have to download a product to show
+   * someone what they would be buying.
+   *
+   * OMITTED when absent, never written as an empty string, for the same reason
+   * `requires` is: `signIndex` emits whatever is defined, so `"tint": ""` would
+   * enter the signed bytes of every pack that has no colour.
+   */
+  /**
+   * Pack ids this one cannot work without.
+   *
+   * ─── A DERIVED PACK IS A POINTER ──────────────────────────────────────────
+   *
+   * An official icon pack is ~200 bytes naming a colour and extending
+   * `arcticons-line`, which carries the drawings. Without this declaration the
+   * downloader has no reason to fetch the base, so the pointer installs,
+   * verifies, and renders nothing.
+   *
+   * OMITTED when empty rather than written as `[]`, because `signIndex` emits
+   * whatever is defined and an empty array would enter the signed bytes of
+   * every pack that depends on nothing.
+   */
+  requires?: string[];
+
+  tint?: string | null;
+
+  /**
    * The storefront preview: which shell to draw, and the six palette colours.
    *
    * ─── OPTIONAL, AND OMITTED ENTIRELY WHEN ABSENT ───────────────────────────
@@ -298,6 +335,49 @@ export interface IndexPack {
    * class would have cost a Pigeon codec id.
    */
   preview?: IndexPreview;
+
+  /**
+   * The rows the storefront card names, in AUTHORED ORDER.
+   *
+   * ─── ORDER IS THE EDITORIAL DECISION ──────────────────────────────────────
+   *
+   * The card shows the first two `exclusive` rows and the detail page shows the
+   * rest, so the order they are written in is the order they sell in. Sorting
+   * this anywhere in the pipeline would quietly take that decision away from
+   * whoever wrote them.
+   *
+   * ─── OMITTED WHEN ABSENT, EMPTY WHEN DELIBERATE ───────────────────────────
+   *
+   * Absent and `[]` are NOT the same thing here, which is unusual for this file
+   * and is the reason this comment exists. Absent means the entry predates the
+   * block, and the device keeps whatever its floor card authored. `[]` means
+   * the entry has the block and names nothing, which is a real answer for a
+   * free distro that is honestly just a palette. Collapsing them would make the
+   * second impossible to express.
+   *
+   * Same republish caveat as `preview`: the index is signed over its bytes, so
+   * a pack carries rows only once it has been republished.
+   */
+  features?: IndexFeature[];
+}
+
+/** One row on a storefront card. */
+export interface IndexFeature {
+  /** Two or three words. The bold half of the row. */
+  title: string;
+
+  /** One short sentence. It sits beside the title on a phone card. */
+  body: string;
+
+  /**
+   * Whether the all-access settings can reproduce this.
+   *
+   * REQUIRED, not optional with a default. A missing answer reads as `true`,
+   * which is the flattering direction, and this bool is the entire price
+   * argument: a paid distro whose rows are all `false` is selling a palette.
+   * Whoever writes the row states it.
+   */
+  exclusive: boolean;
 }
 
 /** The six values a card needs to draw a distro it has never installed. */
@@ -355,6 +435,28 @@ export function signIndex(opts: {
     seen.add(p.packId);
     if (!isSafeRelativePath(p.path)) throw new Error(`unsafe path '${p.path}'`);
     if (p.sku && !isSafeSku(p.sku)) throw new Error(`unsafe sku '${p.sku}'`);
+    // A dependency must be a real pack in the SAME index, and must not be
+    // itself. A dangling requirement is a pack that can never install, and the
+    // device's only symptom is a download that stops with no cause.
+    for (const need of p.requires ?? []) {
+      if (!isSafePackId(need)) throw new Error(`unsafe requires '${need}'`);
+      if (need === p.packId) throw new Error(`'${p.packId}' requires itself`);
+      // The dependency has to be IN THIS INDEX. Checked against the full pack
+      // list rather than the entry, because a requirement pointing at something
+      // that was never published, or was removed in the same edit, produces a
+      // pack that can never install and a device whose only symptom is a
+      // download that stops with no stated cause.
+      if (!opts.packs.some((q) => q.packId === need)) {
+        throw new Error(`'${p.packId}' requires '${need}', which is not in the index`);
+      }
+    }
+
+    // Six hex digits, hash required. Checked HERE rather than on the device:
+    // the panel can refuse a publish and ask the author to fix it, while a
+    // phone reading a malformed colour can only shrug and draw nothing.
+    if (p.tint && !/^#[0-9a-fA-F]{6}$/.test(p.tint)) {
+      throw new Error(`unsafe tint '${p.tint}' on '${p.packId}'`);
+    }
   }
 
   const seenSkus = new Set<string>();
@@ -400,10 +502,16 @@ export function signIndex(opts: {
    */
   function assertNothingDropped(built: IndexPack, i: number): IndexPack {
     const source = opts.packs[i];
+
+    // THROUGH `unknown`, because `IndexPack` is an interface with no index
+    // signature and TypeScript refuses a direct assertion to a keyed record:
+    // the two types do not overlap enough for it to assume the cast is safe.
+    // Widening to `unknown` first is the sanctioned way to say "I am reading
+    // this by key on purpose", and it is exactly what the compiler suggests.
+    const asRecord = source as unknown as Record<string, unknown>;
+
     const lost = Object.keys(source).filter(
-      (k) =>
-        (source as Record<string, unknown>)[k] !== undefined &&
-        !(k in built),
+      (k) => asRecord[k] !== undefined && !(k in built),
     );
 
     if (lost.length > 0) {
@@ -430,6 +538,10 @@ export function signIndex(opts: {
       title: p.title,
       summary: p.summary,
       ...(p.sku ? { sku: p.sku } : {}),
+      // Spread-when-present, matching `sku` and `requires`. A pack with no
+      // colour must not carry `"tint": ""` into the signed bytes.
+      ...(p.requires && p.requires.length > 0 ? { requires: p.requires } : {}),
+      ...(p.tint ? { tint: p.tint } : {}),
       // ─── AND THE PREVIEW, WHICH THIS BLOCK SILENTLY DROPPED ─────────────
       //
       // Every entry is rebuilt here FIELD BY FIELD rather than spread, so a
@@ -445,6 +557,15 @@ export function signIndex(opts: {
       // The cost of that safety is precisely this: a new field is not published
       // until it is named HERE.
       ...(p.preview ? { preview: p.preview } : {}),
+      // NAMED HERE, which is the whole point of the note above. `features` is
+      // the first field added to `IndexPack` since `preview` was dropped, and
+      // it would have been dropped in exactly the same way.
+      //
+      // `!= null` rather than truthy: `[]` is falsy and is a meaningful value
+      // here, so a truthiness test would publish "names nothing deliberately"
+      // as "predates the field" and the device would fall back to floor-card
+      // rows the author had removed on purpose.
+      ...(p.features != null ? { features: p.features } : {}),
     })).map(assertNothingDropped),
     // ALWAYS PRESENT, even when empty. Every index publish-index.sh ever wrote
     // carried this field, so the on-device parser has only ever been exercised

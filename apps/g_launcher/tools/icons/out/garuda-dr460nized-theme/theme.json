@@ -1,0 +1,170 @@
+{
+  "id": "garuda-dr460nized-theme",
+  "name": "Garuda Dr460nized",
+  "version": "1",
+  "shell": "plasma",
+  "tier": "pro",
+  "chromeFamily": "generic",
+  "palette": {
+    "bgTop": "#2D0B45",
+    "bgBottom": "#16062A",
+    "bar": "#1E0730",
+    "dock": "#331E0730",
+    "accent": "#FF0F7B",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Fira Sans",
+    "mono": "Fira Mono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "spacer"
+        ],
+        "height": 46
+      }
+    ],
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1,
+    "kickoffRail": "tabs"
+  },
+  "icons": {
+    "treatment": "circle",
+    "cornerRadius": 0.5,
+    "foregroundScale": 0.94,
+    "brandPack": "garuda-dr460nized-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_184519388.png",
+    "image_2026-08-23_184537225.png",
+    "image_2026-08-23_184548479.png",
+    "image_2026-08-23_184600139.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "Garuda Linux"
+      },
+      {
+        "kind": "dim",
+        "text": "Advanced options for Garuda Linux"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Snapper Timeline"
+      },
+      {
+        "kind": "ok",
+        "text": "Started BTRFS Assistant"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Garuda Performance Tweaks ..."
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SDDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  }
+}

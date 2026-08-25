@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "arch-linux-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_182552829.png", "size": 263702, "sha256": "c4681f38a2d1db0cfdaab2796dc5a722b5a162194e780f127aca3c81d69a1bd0"},
+    {"path": "image_2026-08-23_182606270.png", "size": 3240548, "sha256": "37264ed6b8c38c18d478670568f982419cf6e1d9ab1ce7bd6e878515332e66ae"},
+    {"path": "image_2026-08-23_182621851.png", "size": 96268, "sha256": "053ef85087d636d5551efc2521abfccf56d1ce9d7aa169f8b3faee51e710e1b2"},
+    {"path": "image_2026-08-23_182636219.png", "size": 69787, "sha256": "3d4bebeb60471b679224f2dc6f74a41602a1a58167298b0269b4d5fe340840d7"},
+    {"path": "logo_dark.png", "size": 40211, "sha256": "584d9aef004aa2f901c8e53a6098fdbd285315787b50132a85b51e02c6c76323"},
+    {"path": "logo_light.png", "size": 40211, "sha256": "584d9aef004aa2f901c8e53a6098fdbd285315787b50132a85b51e02c6c76323"},
+    {"path": "theme.json", "size": 2763, "sha256": "7d5ed87f11aa8e442b50d4d9d19e52e0aa731e82fd85bb75db4998f06a4d1006"}
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "id": "linux-mint-22-theme",
+  "name": "Linux Mint",
+  "version": "1",
+  "shell": "plasma",
+  "tier": "pro",
+  "palette": {
+    "bgTop": "#2C3B30",
+    "bgBottom": "#1A241D",
+    "bar": "#1E1E1E",
+    "dock": "#CC1E1E1E",
+    "accent": "#87CF3E",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Ubuntu",
+    "mono": "UbuntuMono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "spacer"
+        ],
+        "height": 40
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.14,
+    "foregroundScale": 1,
+    "brandPack": "linux-mint-22-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "4hlFhFr-linux-mint-wallpaper.webp",
+    "SlF16Av-mint-linux-wallpaper.webp",
+    "xN5x1zY-mint-linux-wallpaper.webp",
+    "yD6aeJH-mint-linux-wallpaper.webp"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "Linux Mint 22 Cinnamon"
+      },
+      {
+        "kind": "dim",
+        "text": "Advanced options for Linux Mint 22"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Show Plymouth Boot Screen."
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Disk Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Network Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Update Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started LightDM Display Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface."
+      },
+      {
+        "kind": "dim",
+        "text": "Starting Cinnamon session"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1400
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 0,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 2
+      },
+      {
+        "kind": "storage",
+        "page": 0,
+        "col": 2,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 1
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": false,
+        "timeSize": 34,
+        "timeWeight": 500,
+        "dateSize": 12,
+        "showDate": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "garuda-dr460nized-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 209, "sha256": "21fd78ad21e19e5a7f25c2cb0fe8755e1293bb1d6e313fbb054294cae540d22d"}
+  ]
+}

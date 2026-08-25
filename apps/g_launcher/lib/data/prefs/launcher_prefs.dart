@@ -51,6 +51,7 @@ class LauncherPrefs {
     this.iconSizeDp,
     this.iconTreatment,
     this.iconPackId,
+    this.iconBrandPackId,
     this.systemIconPack,
     this.cornerRadius,
     this.labelLines,
@@ -445,6 +446,36 @@ class LauncherPrefs {
   /// to find.
   final String? iconPackId;
 
+  /// The OUTLINE set underneath the hero art: one of the fourteen line packs.
+  ///
+  /// ─── WHY THIS IS NOT [iconPackId] ────────────────────────────────────────
+  ///
+  /// It was, and that was the bug. The colour strip wrote every choice into
+  /// [iconPackId], which `EffectiveTheme.resolve` routes to `IconStyle.heroPack`
+  /// and native hands to `HeroIconResolver`. That class wants a pack.json with
+  /// an `icons` map of image filenames; a derived line pack is `extends` and
+  /// `tint` and nothing else, so it parsed to null, drew nothing, and the brand
+  /// tier carried on rendering the distro's own colour. Applying any of the
+  /// thirteen other colours completed, updated the card, showed a toast, and
+  /// changed not one icon.
+  ///
+  /// ─── AND WHY TWO FIELDS RATHER THAN ONE PLUS A TIER FLAG ─────────────────
+  ///
+  /// Because a phone can hold both, and the icon pipeline is built to: hero art
+  /// on top for the forty apps somebody drew by hand, the line set underneath
+  /// for the several hundred it does not cover, the generator for the rest.
+  /// Papirus over Mint green is a reasonable thing to want and it is now
+  /// expressible. One field carrying a tier tag would make choosing either one
+  /// silently discard the other.
+  ///
+  /// Same scoping as [iconPackId], per theme, for the same reason: "Kali
+  /// desktop, Pop outlines" is a statement about the Kali desktop.
+  ///
+  /// An id, not a path. `resolve` substitutes it into `IconStyle.brandPack`,
+  /// which `iconCacheId` already reads, so overriding the VALUE rekeys the
+  /// native cache for free and no cache line needs adding here.
+  final String? iconBrandPackId;
+
   /// A THIRD-PARTY icon pack installed as its own APK: Icon Pack Studio
   /// exports, and every Nova/ADW-format pack on Play. Null = none.
   ///
@@ -771,6 +802,7 @@ class LauncherPrefs {
     double? iconSizeDp,
     String? iconTreatment,
     String? iconPackId,
+    String? iconBrandPackId,
     String? systemIconPack,
     double? cornerRadius,
     int? labelLines,
@@ -838,6 +870,7 @@ class LauncherPrefs {
       iconSizeDp: iconSizeDp ?? this.iconSizeDp,
       iconTreatment: iconTreatment ?? this.iconTreatment,
       iconPackId: iconPackId ?? this.iconPackId,
+      iconBrandPackId: iconBrandPackId ?? this.iconBrandPackId,
       systemIconPack: systemIconPack ?? this.systemIconPack,
       cornerRadius: cornerRadius ?? this.cornerRadius,
       labelLines: labelLines ?? this.labelLines,
@@ -924,6 +957,7 @@ class LauncherPrefs {
     bool iconSizeDp = false,
     bool iconTreatment = false,
     bool iconPackId = false,
+    bool iconBrandPackId = false,
     bool systemIconPack = false,
     bool cornerRadius = false,
     bool labelLines = false,
@@ -984,6 +1018,10 @@ class LauncherPrefs {
       iconSizeDp: iconSizeDp ? null : this.iconSizeDp,
       iconTreatment: iconTreatment ? null : this.iconTreatment,
       iconPackId: iconPackId ? null : this.iconPackId,
+      // The route back to the distro's own colour. copyWith cannot write null,
+      // so without this line "use the icons this distro came with" has no
+      // implementation and the last colour chosen is permanent.
+      iconBrandPackId: iconBrandPackId ? null : this.iconBrandPackId,
       systemIconPack: systemIconPack ? null : this.systemIconPack,
       cornerRadius: cornerRadius ? null : this.cornerRadius,
       labelLines: labelLines ? null : this.labelLines,
@@ -1074,6 +1112,7 @@ class LauncherPrefs {
         if (iconSizeDp != null) 'iconSizeDp': iconSizeDp,
         if (iconTreatment != null) 'iconTreatment': iconTreatment,
         if (iconPackId != null) 'iconPackId': iconPackId,
+        if (iconBrandPackId != null) 'iconBrandPackId': iconBrandPackId,
         if (systemIconPack != null) 'systemIconPack': systemIconPack,
         if (cornerRadius != null) 'cornerRadius': cornerRadius,
         if (labelLines != null) 'labelLines': labelLines,
@@ -1156,6 +1195,10 @@ class LauncherPrefs {
       iconSizeDp: (j['iconSizeDp'] as num?)?.toDouble(),
       iconTreatment: j['iconTreatment'] as String?,
       iconPackId: j['iconPackId'] as String?,
+      // Absent on every prefs file written before this field existed, which
+      // reads as null and means "the distro's own", which is what those
+      // devices are already wearing.
+      iconBrandPackId: j['iconBrandPackId'] as String?,
       systemIconPack: j['systemIconPack'] as String?,
       cornerRadius: (j['cornerRadius'] as num?)?.toDouble(),
       labelLines: (j['labelLines'] as num?)?.toInt(),
@@ -1269,6 +1312,23 @@ class LauncherPrefs {
         other.iconSizeDp == iconSizeDp &&
         other.iconTreatment == iconTreatment &&
         other.iconPackId == iconPackId &&
+        // ─── THE SEVENTH AND EIGHTH PLACES ────────────────────────────────
+        //
+        // A value class with a hand-written equality has EIGHT places a field
+        // has to appear, not six. Adding it to the constructor, the field list,
+        // copyWith, clearing, toJson and fromJson makes it save and load
+        // perfectly, and leaving it out of `==` and `hashCode` makes it do
+        // nothing at all.
+        //
+        // The failure is total and silent. `edit` writes the new prefs to disk,
+        // then hands the notifier a value that compares EQUAL to the one it
+        // already holds, so Riverpod treats it as no change and publishes
+        // nothing. `effectiveThemeProvider` never re-resolves, native is never
+        // pushed, no card repaints. Reading the phone afterwards shows the
+        // value correctly stored and the app behaving as though it had never
+        // been set, and a COLD START applies it, because on the first build
+        // there is nothing to compare against.
+        other.iconBrandPackId == iconBrandPackId &&
         other.systemIconPack == systemIconPack &&
         other.cornerRadius == cornerRadius &&
         other.labelLines == labelLines &&
@@ -1342,6 +1402,7 @@ class LauncherPrefs {
         iconSizeDp,
         iconTreatment,
         iconPackId,
+        iconBrandPackId,
         systemIconPack,
         cornerRadius,
         labelLines,

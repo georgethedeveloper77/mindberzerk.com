@@ -1,3 +1,7 @@
+// `unawaited`, for the active-theme push. Not already imported here: every
+// other async call in this file is awaited by its caller.
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/theme_engine.dart';
@@ -327,6 +331,35 @@ class PackActions {
     _ref.invalidate(catalogueProvider);
   }
 
+  /// Tell native which distro theme is applied.
+  ///
+  /// ─── THE SECOND HALF OF "IS THIS PACK AVAILABLE" ──────────────────────────
+  ///
+  /// [pushEntitlements] above answers "has this been paid for". This answers
+  /// "did it come free with the distro in use", which is a different question
+  /// with a different source: Play owns the first, Dart owns the second, and
+  /// native can read neither on its own.
+  ///
+  /// Both are needed at the same two moments: when the icons screen decides
+  /// whether to draw Get or a price, and when `installPack` re-checks
+  /// immediately before transferring. Pushing only the first is what made a
+  /// Kali device refuse its own Kali icons with "needs to be purchased first"
+  /// while the card beside it said Get.
+  ///
+  /// CALLED ON EVERY THEME CHANGE, including back to a bundled distro. Native
+  /// never persists this, so it fails closed on a restart and a missed push
+  /// costs an unnecessary purchase prompt rather than a free pack.
+  ///
+  /// An empty string clears it, which is the honest value while no theme has
+  /// resolved yet. Sending nothing at all would leave native holding the
+  /// previous distro's answer.
+  Future<void> pushActiveTheme(String? themeId) async {
+    await _ref.read(packHostApiProvider).setActiveTheme(themeId ?? '');
+    // The catalogue's `unlocked` flags are computed natively from this, so the
+    // shelf is stale until it is re-read. Same reflex as pushEntitlements.
+    _ref.invalidate(catalogueProvider);
+  }
+
   /// Hand native the Remote Config value, so the headless sync worker can read
   /// it with no Firebase dependency of its own.
   Future<void> pushCdnBaseUrl(String url) =>
@@ -334,6 +367,55 @@ class PackActions {
 }
 
 final packActionsProvider = Provider<PackActions>(PackActions.new);
+
+/// Keeps native told which distro is applied.
+///
+/// ─── THE CALLER THAT WAS MISSING ────────────────────────────────────────────
+///
+/// [PackActions.pushActiveTheme] existed and nothing called it, so native held
+/// null forever and `isIncludedWith` answered false for everything. The result
+/// was the worst possible pairing on the icons screen: the CARD said Get,
+/// because Dart knows the applied theme, and the INSTALL said "needs to be
+/// purchased first", because native did not. Same pack, same second, two
+/// answers.
+///
+/// ─── AND WHY IT WATCHES THE RESOLVED SPEC, NOT THE SELECTION ────────────────
+///
+/// It watched `selectedThemeIdProvider` and returned early on null, which
+/// reintroduced the exact failure above for the users most likely to hit it.
+///
+/// A null selection is not "no distro". It is the ordinary state of anyone who
+/// has never opened the distros screen: `activeThemeSpecProvider` reads that
+/// same null, falls through its bundled floor, and resolves Ubuntu. So the
+/// device is running Ubuntu, Dart knows it is running Ubuntu, and this pushed
+/// nothing at all. Native kept null, `ubuntu-24-04-line` was neither owned nor
+/// included, and tapping it answered "Ubuntu Icons needs to be purchased
+/// first" on a device running Ubuntu.
+///
+/// `activeThemeSpecProvider` is the one thing that always has an answer and
+/// always has the RIGHT one: it is the id the theme actually resolved to, after
+/// the installed-pack lookup, the bundled fallback and the Ubuntu floor. A
+/// selection is a request; this is the result, and inclusion is a fact about
+/// the result.
+///
+/// Mirrors the entitlement push in `entitlements.dart` exactly: watch the one
+/// source of truth, push on every change including the first, never persist.
+/// Ownership and inclusion are different facts from different owners, and both
+/// have to reach the same place before an install is allowed.
+///
+/// WATCHED, not read once. Switching distro is precisely the moment the answer
+/// changes, and a stale value here does not degrade gracefully: it refuses a
+/// pack the user is entitled to.
+final activeThemePushProvider = Provider<void>((ref) {
+  // Only a resolved value. `loading` is not "no theme", and pushing empty
+  // during startup would clear a correct answer for as long as the read takes.
+  final spec = ref.watch(activeThemeSpecProvider).asData?.value;
+  if (spec == null) return;
+  // Fire and forget is right here, unlike the purchase path: nothing is waiting
+  // on this, and the next change pushes again. A dropped push costs one
+  // unnecessary purchase prompt, never a pack given away.
+  unawaited(ref.read(packActionsProvider).pushActiveTheme(spec.id));
+});
 
 /// Refresh the catalogue whenever a storefront is opened, at most once every
 /// [_refreshInterval].

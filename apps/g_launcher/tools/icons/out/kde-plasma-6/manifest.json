@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "kde-plasma-6",
+  "version": 1787590303,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-16_225521753.webp", "size": 26318, "sha256": "2f1077e6f8434c22cb22642e6c3c05f0af56c940ee8658aec009f9d75f8203a5"},
+    {"path": "image_2026-08-16_225625334.webp", "size": 48616, "sha256": "9c72533f4f683cf4b52cad70073543c8fc7093d0f778db85cf5721e7cd0cb3ff"},
+    {"path": "image_2026-08-16_230838332.webp", "size": 16476, "sha256": "143c8fa934605c62fb2e6f7907708562e6cf7a599e4ebce7094cf98f7c6469c0"},
+    {"path": "logo_dark.webp", "size": 23202, "sha256": "6064963525ab04654917bbd39b95397da00a9b07babe314b8c4a931b426ca0eb"},
+    {"path": "logo_light.webp", "size": 23202, "sha256": "6064963525ab04654917bbd39b95397da00a9b07babe314b8c4a931b426ca0eb"},
+    {"path": "theme.json", "size": 3353, "sha256": "51fda18422e0001997bb75182db34c8944806c01653245cb0b60cb17c4e98944"}
+  ]
+}

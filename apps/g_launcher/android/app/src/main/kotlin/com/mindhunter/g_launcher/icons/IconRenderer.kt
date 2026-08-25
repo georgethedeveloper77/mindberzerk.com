@@ -167,10 +167,13 @@ class IconRenderer {
      */
     fun renderBrand(
         glyph: BrandGlyph,
-        path: Path,
+        paths: List<Path>,
         viewBox: Float,
         style: IconStyle,
         sizePx: Int,
+        /** True when the pack draws outlines. Stroke weight is in viewBox units. */
+        stroked: Boolean = false,
+        strokeWidth: Float = 1f,
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -181,22 +184,92 @@ class IconRenderer {
             canvas.clipPath(maskPath(style, sizePx))
         }
 
-        val glyphColor = when (style.brandTreatment) {
-            BrandTreatment.THEME_PLATE -> {
-                // Theme's own plate, brand-coloured glyph. If the theme sets no
+        // ─── A LINE PACK HAS NO BRAND COLOUR, SO IT HAS NO BRAND PLATE ───────
+        //
+        // `BRAND_PLATE` means "fill the tile with the brand's own colour and
+        // draw the mark on top". A line set publishes no colour: the whole
+        // point is that the DISTRO supplies it. Asking for a brand plate here
+        // would fill every tile with the fallback grey and produce 13,000
+        // identical grey squares.
+        //
+        // So a stroked pack takes the theme-plate path regardless of what the
+        // theme asked for. Handling it here rather than adding a third
+        // `BrandTreatment` case is deliberate: a new enum value renumbers every
+        // downstream Pigeon codec id, and it would be a wire-format change to
+        // express something the pack already states about itself.
+        val brandColour = glyph.color
+        val glyphColor = when {
+            stroked || brandColour == null || style.brandTreatment == BrandTreatment.THEME_PLATE -> {
+                // Theme's own plate, themed glyph. When the theme sets no
                 // background there is nothing to sit on, so fall back to the
                 // brand plate rather than drawing a coloured glyph on nothing.
-                if (fillBackground(canvas, style, sizePx)) {
-                    glyph.color
+                // ─── A STROKED PACK DARKENS THE PLATE, NOT THE INK ────────
+                //
+                // Ubuntu's theme sets its plate to the accent, so an orange
+                // outline on it is orange-on-orange. The obvious remedy is to
+                // recolour the ink, and it is the wrong one: the tint IS the
+                // product, and all fourteen packs would render white.
+                //
+                // So the PLATE moves. `plateFor` blends it toward black until
+                // the stroke reads, keeping the hue, so Ubuntu gets a warm
+                // near-black and Kali a cold one. A theme that already authored
+                // a dark plate is returned untouched.
+                //
+                // Only for stroked packs, and only when the pack names a tint.
+                // A hero pack or Simple Icons is unaffected, which is why this
+                // is here rather than in `fillBackground`, where it would
+                // repaint the generator too.
+                // Both LOCALS, and both `val`, so the null checks below smart
+                // cast. The first attempt tested `brandColour != null` inside
+                // the expression that built the plate, which left the branch
+                // yielding `Int?` and the whole `when` with it: "actual type is
+                // Int?, but Int was expected" pointing at `paint.color`, forty
+                // lines away from the cause.
+                //
+                // `style.backgroundColor` is read into a local for the same
+                // reason: it is a property of a Pigeon-generated class, and
+                // Kotlin will not smart cast one of those.
+                val strokeInk = if (stroked) brandColour else null
+                val plateBase = style.backgroundColor
+
+                if (strokeInk != null && plateBase != null) {
+                    canvas.drawColor(IconContrast.plateFor(plateBase, strokeInk))
+                    strokeInk
+                } else if (fillBackground(canvas, style, sizePx)) {
+                    // ─── THE PACK'S COLOUR WINS, NOT THE THEME'S ──────────
+                    //
+                    // This read `monochromeTint ?: brandColour`, and that order
+                    // was wrong the moment derived packs existed.
+                    //
+                    // `monochromeTint` is a THEME statement: "everything is one
+                    // accent colour". `brandColour` is now the PACK's tint,
+                    // stamped on every glyph by the `extends` resolver, and it
+                    // is the entire product: fourteen packs share one geometry
+                    // and differ only here.
+                    //
+                    // With the theme first, Ubuntu's white monochromeTint beat
+                    // the pack's orange and every one of the fourteen rendered
+                    // identically in white. Somebody who bought Kali blue while
+                    // running Ubuntu would have received white, and there is no
+                    // error anywhere that says so.
+                    //
+                    // The theme keeps its say when the pack has no colour of its
+                    // own, which is every hero and Simple Icons pack. Only a
+                    // pack that names a tint overrides it, and naming one is a
+                    // deliberate act.
+                    brandColour
+                        ?: style.monochromeTint
+                        ?: contrastOn(style.backgroundColor ?: Color.BLACK)
                 } else {
-                    canvas.drawColor(glyph.color)
-                    contrastOn(glyph.color)
+                    val plate = brandColour ?: style.monochromeTint ?: Color.BLACK
+                    canvas.drawColor(plate)
+                    contrastOn(plate)
                 }
             }
 
-            BrandTreatment.BRAND_PLATE -> {
-                canvas.drawColor(glyph.color)
-                contrastOn(glyph.color)
+            else -> {
+                canvas.drawColor(brandColour)
+                contrastOn(brandColour)
             }
         }
 
@@ -209,19 +282,40 @@ class IconRenderer {
             setScale(scale, scale)
             postTranslate(offset, offset)
         }
-        // Transform a COPY. The caller's Path is parsed per render today, but
-        // this class must not mutate anything it is handed — the moment paths
-        // get cached, an in-place transform becomes a compounding scale bug that
-        // only shows on the second draw.
-        val scaled = Path(path).apply { transform(matrix) }
-
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = glyphColor
             // `this.` is load-bearing for readability: the IconStyle parameter
             // is also called `style`, and Paint.style silently shadows it here.
-            this.style = Paint.Style.FILL
+            this.style = if (stroked) Paint.Style.STROKE else Paint.Style.FILL
+            if (stroked) {
+                // ─── ROUND CAPS AND JOINS ARE NOT A FLOURISH ─────────────────
+                //
+                // Arcticons and every set like it declare
+                // `stroke-linecap:round; stroke-linejoin:round` in their source.
+                // Android's default is BUTT and MITER, so drawing without these
+                // gives every line square ends and sharp corners, which does not
+                // look like a bug so much as like a different, worse icon set.
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+                // The width travels through the SAME viewBox-to-pixel scale the
+                // geometry does. Setting it in pixels would make a 48-unit
+                // drawing's line weight depend on the icon size, so the set
+                // would look heavier in the dock than in the drawer.
+                this.strokeWidth = strokeWidth * scale
+            }
         }
-        canvas.drawPath(scaled, paint)
+
+        // Transform a COPY. The caller's Paths are parsed per render today, but
+        // this class must not mutate anything it is handed — the moment paths
+        // get cached, an in-place transform becomes a compounding scale bug that
+        // only shows on the second draw.
+        //
+        // DRAWN SEPARATELY, not unioned into one Path. `addPath` would merge
+        // them into a single stroked shape, and where two unrelated strokes
+        // happen to end near each other the round joins would connect them.
+        for (p in paths) {
+            canvas.drawPath(Path(p).apply { transform(matrix) }, paint)
+        }
 
         canvas.restore()
         return bitmap
@@ -263,8 +357,6 @@ class IconRenderer {
             canvas.clipPath(mask)
         }
 
-        drawBackground(canvas, icon, style, sizePx)
-
         // Monochrome requested but unavailable: fall back to the real foreground
         // rather than drawing nothing. A themed launcher with holes in the grid
         // is worse than one that is 80% themed. Slice 5's hero icons close the
@@ -273,7 +365,17 @@ class IconRenderer {
         val fg = if (tint != null && icon.monochrome != null) icon.monochrome else icon.foreground
 
         val applyTint = tint != null && icon.monochrome != null
-        drawLayer(canvas, fg, sizePx, ADAPTIVE_OVERSCAN * style.foregroundScale, if (applyTint) tint else null)
+
+        // ─── THE FOREGROUND IS CHOSEN BEFORE THE BACKGROUND IS DRAWN ────────
+        //
+        // It used to be the other way round, which meant the plate was already
+        // on the canvas by the time anything knew what would be drawn over it.
+        // That ordering is what let an icon paint dark artwork onto a dark
+        // plate: nothing in the sequence ever had both facts at once.
+        val plan = legibilityPlan(fg, style, if (applyTint) tint else null)
+
+        drawBackground(canvas, icon, style, sizePx, plan.keepAppBackground)
+        drawLayer(canvas, fg, sizePx, ADAPTIVE_OVERSCAN * style.foregroundScale, plan.tint)
 
         canvas.restore()
         return bitmap
@@ -302,18 +404,82 @@ class IconRenderer {
         drawLayer(canvas, icon.foreground, sizePx, style.foregroundScale, null)
     }
 
+    /**
+     * What to draw, once the plate and the artwork have been considered together.
+     *
+     * @param tint              the colour filter for the foreground layer, or null.
+     * @param keepAppBackground true when the themed plate must be skipped and
+     *                          the app's own background layer drawn instead.
+     */
+    private data class LegibilityPlan(val tint: Int?, val keepAppBackground: Boolean)
+
+    /**
+     * ─── DARK ART ON A DARK PLATE, AND WHAT TO DO ABOUT IT ──────────────────
+     *
+     * An adaptive icon's foreground was drawn to sit on the background layer the
+     * app shipped with it. Nothing records which way round that pairing runs, and
+     * plenty of them are dark artwork over a light layer. Replacing the light
+     * layer with a dark themed plate leaves a black shape on a black square,
+     * which is what Samsung Messages, Samsung Music and My Files were doing.
+     *
+     * There are two ways out, and which one is right depends on WHICH layer is
+     * about to be drawn:
+     *
+     *   A MONOCHROME layer exists to be tinted, so a tint that cannot be seen is
+     *   simply the wrong tint, and choosing a legible one is using the layer as
+     *   its author intended. Retint.
+     *
+     *   The COLOURED foreground is real artwork. Tinting it would flatten it to
+     *   a silhouette and throw away the colours that make the app recognisable,
+     *   so the plate is the thing that gives way. The app's own background comes
+     *   back, and the icon keeps the themed SHAPE through the mask clip. Less
+     *   coherent than the rest of the set, and far better than a black square.
+     *
+     * When the theme sets no plate there is nothing to conflict with, so this is
+     * a null check and a return: the common path costs one comparison.
+     */
+    private fun legibilityPlan(
+        foreground: Drawable?,
+        style: IconStyle,
+        tint: Int?,
+    ): LegibilityPlan {
+        if (style.treatment == IconTreatment.ORIGINAL) return LegibilityPlan(tint, false)
+        val plate = IconContrast.plateLuminance(style) ?: return LegibilityPlan(tint, false)
+
+        val ink = IconContrast.inkLuminance(foreground, tint)
+            ?: return LegibilityPlan(tint, false)
+
+        if (IconContrast.ratio(ink, plate) >= IconContrast.MIN_RATIO) {
+            return LegibilityPlan(tint, false)
+        }
+
+        return if (tint != null) {
+            LegibilityPlan(IconContrast.legibleTint(plate), false)
+        } else {
+            LegibilityPlan(null, true)
+        }
+    }
+
     private fun drawBackground(
         canvas: Canvas,
         icon: ExtractedIcon,
         style: IconStyle,
         sizePx: Int,
+        keepAppBackground: Boolean,
     ) {
         // ORIGINAL means "leave the app's own shape alone". There is no clip in
         // that case, so a flat fill would paint a full SQUARE plate behind an
         // icon whose whole point was to keep its silhouette — and renderLegacy
         // already declines to plate an ORIGINAL icon, so filling here made the
         // two paths disagree. Keep the app's own background instead.
-        if (style.treatment != IconTreatment.ORIGINAL && fillBackground(canvas, style, sizePx)) {
+        //
+        // [keepAppBackground] is the second reason to decline, and it comes from
+        // `legibilityPlan`: the themed plate would have made this icon's own
+        // artwork invisible.
+        if (!keepAppBackground &&
+            style.treatment != IconTreatment.ORIGINAL &&
+            fillBackground(canvas, style, sizePx)
+        ) {
             return
         }
 

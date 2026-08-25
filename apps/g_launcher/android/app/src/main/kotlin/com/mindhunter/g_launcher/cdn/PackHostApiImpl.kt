@@ -3,7 +3,11 @@ package com.mindhunter.g_launcher.cdn
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.mindhunter.g_launcher.apps.AppRepository
+import com.mindhunter.g_launcher.icons.BrandIconResolver
 import com.mindhunter.g_launcher.pack.BundleInfo
+import com.mindhunter.g_launcher.pack.PackCoverage
+import com.mindhunter.g_launcher.pack.PackFeature
 import com.mindhunter.g_launcher.pack.PackFlutterApi
 import com.mindhunter.g_launcher.pack.PackHostApi
 import com.mindhunter.g_launcher.pack.PackInfo
@@ -129,6 +133,17 @@ class PackHostApiImpl(
     @Volatile
     private var ownedSkus: Set<String> = emptySet()
 
+    /**
+     * The distro theme applied right now, or null.
+     *
+     * Held for one reason: `isIncludedWith` needs it to answer whether a pack
+     * came free with the distro in use. NEVER PERSISTED, for the same reason
+     * [ownedSkus] is not: the applied theme is Dart's state, and a stale copy
+     * surviving a restart would keep granting a pack for a distro no longer in
+     * use.
+     */
+    private var activeThemeId: String? = null
+
     private companion object {
         /**
          * The one filename a theme pack must contain. Named once rather than
@@ -180,7 +195,12 @@ class PackHostApiImpl(
                 installedVersion = installed.toLong(),
                 sizeBytes = p.sizeBytes,
                 state = stateOf(p.packId, p.minAppVersion, p.version, installed),
-                unlocked = index.isUnlocked(p.packId, ownedSkus),
+                // AVAILABLE, not merely unlocked: a pack included with the
+                // distro in use is not owned and is not for sale either.
+                unlocked = index.isAvailable(p.packId, ownedSkus, activeThemeId),
+                // The colour, straight from the catalogue. Null for anything
+                // that carries its colours inside the art.
+                tint = p.tint,
                 sku = p.sku,
                 // The storefront preview, straight through. Null on every entry
                 // published before the block existed, and the card falls back
@@ -197,8 +217,45 @@ class PackHostApiImpl(
                 previewBar = p.previewBar,
                 previewDock = p.previewDock,
                 previewAccent = p.previewAccent,
+                // The storefront rows, mapped straight across.
+                //
+                // NULL when the entry named none, not an empty list. The two
+                // are different on this boundary and only on this boundary: an
+                // empty list means "this pack chose to say nothing", null means
+                // "this pack predates the field". The card treats them
+                // differently, because the second must keep whatever its floor
+                // card authored and the first must not.
+                features = if (p.features.isEmpty()) {
+                    null
+                } else {
+                    p.features.map {
+                        PackFeature(
+                            title = it.title,
+                            body = it.body,
+                            exclusive = it.exclusive,
+                        )
+                    }
+                },
             )
         }
+    }
+
+    /**
+     * A dependency failure's own reason, in one line.
+     *
+     * Recursive on [SyncResult.MissingDependency] so a chain reports the pack
+     * that actually stopped, not the first link. Chains of more than one are not
+     * expected today: every derived pack points straight at the geometry.
+     */
+    private fun detailOf(r: SyncResult): String = when (r) {
+        is SyncResult.AppTooOld -> "needs app version ${r.required}"
+        is SyncResult.NoSpace -> "needs ${r.needed} bytes, ${r.usable} free"
+        is SyncResult.NotOffered -> "not in the catalogue"
+        is SyncResult.Rejected -> r.reason.toString()
+        is SyncResult.Failed -> r.detail
+        SyncResult.Cancelled -> "cancelled"
+        is SyncResult.MissingDependency -> "${r.packId}: ${detailOf(r.cause)}"
+        is SyncResult.Installed, is SyncResult.UpToDate -> "ok"
     }
 
     /**
@@ -270,7 +327,16 @@ class PackHostApiImpl(
             // knows the answer, but its copy can be minutes old, and a wrongly
             // permitted download is a refund conversation while a redundant
             // check is a microsecond.
-            if (!index.isUnlocked(packId, ownedSkus)) {
+            // ─── THE CHECK THAT WAS REFUSING FREE PACKS ─────────────────────
+            //
+            // Re-checked here immediately before the transfer, which is right:
+            // the UI's copy can be minutes old and a wrongly permitted download
+            // is a refund conversation.
+            //
+            // It asked `isUnlocked`, so a device running Kali was told its own
+            // Kali icons "need to be purchased first". The card showed Get and
+            // the install refused, which is the worst pairing of the two.
+            if (!index.isAvailable(packId, ownedSkus, activeThemeId)) {
                 return@onIo result(packId, "notEntitled", "not owned")
             }
 
@@ -314,6 +380,23 @@ class PackHostApiImpl(
                     is SyncResult.Rejected ->
                         result(packId, "rejected", sync.reason.toString())
                     is SyncResult.Failed -> result(packId, "failed", sync.detail)
+                    // ─── NAMES THE DEPENDENCY, NOT JUST THE FAILURE ────────
+                    //
+                    // An icon pack is a colour pointing at the pack that holds
+                    // the drawings. If that one cannot be installed, this one
+                    // would arrive and render nothing, so the download is
+                    // refused rather than half-done.
+                    //
+                    // The dependency's own reason is unwrapped, because "could
+                    // not install arcticons-line" leaves the user with no next
+                    // step while "needs app version 9" or "needs 10 MB free"
+                    // does.
+                    is SyncResult.MissingDependency ->
+                        result(
+                            packId,
+                            "missingDependency",
+                            "needs ${sync.packId}: ${detailOf(sync.cause)}",
+                        )
                 }
             } finally {
                 inFlight.remove(packId)
@@ -344,6 +427,20 @@ class PackHostApiImpl(
     override fun setOwnedSkus(skus: List<String>, callback: (Result<Unit>) -> Unit) {
         ownedSkus = skus.toSet()
         callback(Result.success(Unit))
+        claimOwned()
+    }
+
+    override fun setActiveTheme(themeId: String, callback: (Result<Unit>) -> Unit) {
+        // Empty clears it. Dart sends "" rather than omitting the call when no
+        // theme is resolved yet, so a blank must not read as a theme named "".
+        activeThemeId = themeId.ifEmpty { null }
+        callback(Result.success(Unit))
+        // ANYTHING NOW INCLUDED AND NOT INSTALLED, FETCHED IN THE BACKGROUND.
+        //
+        // The same reflex as `claimOwned` after a purchase: switching distro is
+        // the moment that distro's icon pack becomes free, and waiting for the
+        // user to find the icons screen and tap Get would make a pack they
+        // already have look like one they need to fetch.
         claimOwned()
     }
 
@@ -388,7 +485,18 @@ class PackHostApiImpl(
      */
     private fun claimOwned() {
         val owned = ownedSkus
-        if (owned.isEmpty()) return
+
+        // ─── NOT `if (owned.isEmpty()) return` ANY MORE ──────────────────────
+        //
+        // That was right when the only way to have a pack was to buy it. It is
+        // wrong now: a distro's own icon pack is free BY INCLUSION, so a device
+        // that has bought nothing still has fourteen packs it is entitled to,
+        // one at a time, and this returned before looking at any of them.
+        //
+        // The visible symptom was applying a distro and getting generated icons
+        // until you found the icons screen and tapped Get, which is exactly the
+        // pack the distro was supposed to come with.
+        if (owned.isEmpty() && activeThemeId == null) return
 
         io.execute {
             try {
@@ -402,9 +510,18 @@ class PackHostApiImpl(
                         // step with the panel. A free pack is unlocked too, which
                         // is why the sku test is separate and comes first: this
                         // claims what was PAID for, not the whole catalogue.
+                        // ─── AVAILABLE, NOT MERELY PAID FOR ─────────────────
+                        //
+                        // `p.sku in owned` claimed only purchases. `isAvailable`
+                        // adds inclusion: the pack that comes free with the
+                        // distro currently applied.
+                        //
+                        // The `p.sku != null` guard stays, and it is doing real
+                        // work: without it this would claim every free pack in
+                        // the catalogue on every theme change, which is not a
+                        // background fetch, it is the whole storefront.
                         p.sku != null &&
-                            p.sku in owned &&
-                            index.isUnlocked(p.packId, owned) &&
+                            index.isAvailable(p.packId, owned, activeThemeId) &&
                             loader.installedVersion(p.packId) < p.version
                     }
                     .map { it.packId }
@@ -503,6 +620,73 @@ class PackHostApiImpl(
                         "/g-launcher/" + remote.path + "/" + PREVIEW_NAME
                 }
             }
+        }
+
+    // ── coverage ─────────────────────────────────────────────────────────────
+
+    /**
+     * A resolver of its OWN, not the icon pipeline's.
+     *
+     * `IconCache` holds a `BrandIconResolver` whose loaded pack is whatever the
+     * drawer is currently drawing. Counting a pack means loading it, and
+     * loading it on the shared instance would repaint every icon in the app
+     * with a pack the user has not chosen, for the sake of a caption. A second
+     * instance costs one glyph map, which is roughly the 450 KB the class doc
+     * quantifies, and only after something asks.
+     */
+    private val coverageResolver by lazy { BrandIconResolver(appContext) }
+
+    /**
+     * Its own [AppRepository] for the same reason, and refreshed rather than
+     * read: this instance has never been refreshed, so `cached()` is empty and
+     * would report every pack as covering zero apps out of zero.
+     */
+    private val coverageApps by lazy { AppRepository(appContext) }
+
+    /**
+     * Keyed by pack AND by app count, so installing or removing an app misses
+     * the memo without anything having to invalidate it.
+     *
+     * Not cleared on pack change: a pack whose CONTENT changed also changes
+     * version, and the storefront re-reads on install anyway. The stale window
+     * is one screen, and the number it holds was true when it was computed.
+     */
+    private val coverageMemo = ConcurrentHashMap<String, PackCoverage>()
+
+    override fun packCoverage(packId: String, callback: (Result<PackCoverage?>) -> Unit) =
+        onIo(callback) {
+            // Launchable, from LauncherApps, which is the same list the drawer
+            // shows. DISTINCT PACKAGES, not activities: a brand glyph
+            // identifies a package, and the two apps that ship a second
+            // launcher activity would otherwise be counted twice in the
+            // denominator and once in the numerator.
+            val launchable = coverageApps.refresh()
+                .mapTo(HashSet()) { it.packageName }
+
+            if (launchable.isEmpty()) return@onIo null
+
+            val key = "$packId@${launchable.size}"
+            coverageMemo[key]?.let { return@onIo it }
+
+            // Nothing to count for a pack that is not on disk. Reported as null
+            // rather than zero: "not installed" and "covers none of your apps"
+            // are different facts and only one of them is worth a caption.
+            if (loader.installedVersion(packId) <= 0 &&
+                packId !in PackPaths.bundledPackIds
+            ) {
+                return@onIo null
+            }
+
+            coverageResolver.load(packId)
+            val drawn = coverageResolver.coveredPackages()
+            if (drawn.isEmpty()) return@onIo null
+
+            val covered = launchable.count { it in drawn }
+            PackCoverage(
+                packId = packId,
+                covered = covered.toLong(),
+                total = launchable.size.toLong(),
+            ).also { coverageMemo[key] = it }
         }
 
     fun shutdown() {

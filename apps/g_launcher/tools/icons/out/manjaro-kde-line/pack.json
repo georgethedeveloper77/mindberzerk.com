@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "manjaro-kde-line",
+  "name": "Manjaro Icons",
+  "extends": "arcticons-line",
+  "tint": "#35bf5c",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

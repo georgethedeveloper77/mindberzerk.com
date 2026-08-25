@@ -1,0 +1,153 @@
+{
+  "id": "manjaro-kde-theme",
+  "name": "Manjaro",
+  "version": "1",
+  "shell": "plasma",
+  "tier": "free",
+  "chromeFamily": "breeze",
+  "palette": {
+    "bgTop": "#16362A",
+    "bgBottom": "#0B1F17",
+    "bar": "#102A20",
+    "dock": "#CC102A20",
+    "accent": "#35BF5C",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "spacer"
+        ],
+        "height": 44
+      }
+    ],
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1,
+    "kickoffRail": "tabs"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.22,
+    "foregroundScale": 1,
+    "brandPack": "manjaro-kde-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_185335645.png",
+    "image_2026-08-23_185345348.png",
+    "image_2026-08-23_185404979.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.6.30-2-MANJARO ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Manjaro Settings Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SDDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

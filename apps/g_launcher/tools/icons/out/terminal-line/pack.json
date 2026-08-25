@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "terminal-line",
+  "name": "Terminal Icons",
+  "extends": "arcticons-line",
+  "tint": "#33ff33",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

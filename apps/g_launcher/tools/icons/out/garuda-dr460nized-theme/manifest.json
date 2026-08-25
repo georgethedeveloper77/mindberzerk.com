@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "garuda-dr460nized-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_184519388.png", "size": 1120900, "sha256": "37d15c04163b1c0fe7c382603b3eed78d7106f0975cab3a2112588d1da8fde45"},
+    {"path": "image_2026-08-23_184537225.png", "size": 85429, "sha256": "319369b7b7017d889fdf6ff470d9d5f93b85ee703fba2182862e3e8e4e81b49a"},
+    {"path": "image_2026-08-23_184548479.png", "size": 119527, "sha256": "b685e2f03bd17e90c30c2f073a925d5d3fe199a4d2bd4acf08241a9545f025d3"},
+    {"path": "image_2026-08-23_184600139.png", "size": 379595, "sha256": "bcdd75afc175feb720f312dbedf585d53110e809dfa5ceae7f91c60302dddcf4"},
+    {"path": "logo_dark.png", "size": 437351, "sha256": "333a30332e22316362ff0e0105e627679352559646ba08477042ed71c39e2810"},
+    {"path": "logo_light.png", "size": 437351, "sha256": "333a30332e22316362ff0e0105e627679352559646ba08477042ed71c39e2810"},
+    {"path": "theme.json", "size": 3242, "sha256": "4351b7d587f4f788743ee61e007abd7ca90366cdb8aa679236b6f0f06bdfda45"}
+  ]
+}

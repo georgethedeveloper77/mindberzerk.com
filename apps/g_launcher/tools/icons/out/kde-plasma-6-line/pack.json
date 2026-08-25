@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "kde-plasma-6-line",
+  "name": "KDE Plasma Icons",
+  "extends": "arcticons-line",
+  "tint": "#3daee9",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

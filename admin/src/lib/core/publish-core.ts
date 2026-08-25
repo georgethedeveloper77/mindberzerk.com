@@ -13,6 +13,7 @@ import {
   signIndex,
   signPack,
   type IndexEntitlement,
+  type IndexFeature,
   type IndexPack,
   type IndexPreview,
   type PackFile,
@@ -212,6 +213,37 @@ export interface PackUpload {
    * and neither has a palette to preview. The caller knows which it is holding.
    */
   preview?: IndexPreview;
+
+  /**
+   * Pack ids this one cannot function without. Omit when there are none.
+   *
+   * A derived icon pack is 200 bytes naming a colour and pointing at
+   * `arcticons-line`, which carries the drawings all fourteen distros share.
+   * Installed alone it verifies, resolves and draws nothing.
+   *
+   * OMIT rather than passing an empty array: `signIndex` emits the field
+   * whenever it is defined, and its `assertNothingDropped` guard treats `[]`
+   * as present, so an empty array would put `"requires":[]` into the signed
+   * bytes of every pack that has no dependency.
+   */
+  requires?: string[];
+
+  /**
+   * Storefront rows, or omit when this pack names none.
+   *
+   * `IndexPack` has carried this since the feature rows shipped and
+   * `PackUpload` never did, so `distro-publish.ts` passed it and the typecheck
+   * failed at the call site rather than here. Same shape of gap as `preview`
+   * and `requires`: the type at the end of the pipeline grew and the type at
+   * the start did not.
+   *
+   * `[]` and absent mean different things and both are legal. An empty array
+   * says "this pack chose to name nothing", which the device honours by
+   * showing no rows; absent says "published before the field existed", which
+   * falls back to the floor card. `distro-publish.ts` sends `[]` deliberately
+   * for exactly that reason.
+   */
+  features?: IndexFeature[];
   files: PackFile[];
 }
 
@@ -260,6 +292,25 @@ export async function uploadPack(
     // and one with no `preview` key are the same thing to the device, and the
     // spread keeps the index readable for the packs that have no palette.
     ...(upload.preview ? { preview: upload.preview } : {}),
+    // ─── AND `requires`, FOR THE SAME REASON THE LINE ABOVE EXISTS ─────────
+    //
+    // This function rebuilds `IndexPack` field by field, exactly as `signIndex`
+    // does, so a field added to the type reaches here and is dropped unless it
+    // is named. `preview` was lost that way once and six themes published
+    // without one. Named here so a derived pack's dependency survives the trip
+    // from `PackUpload` to the entry `commitIndex` signs.
+    ...(upload.requires ? { requires: upload.requires } : {}),
+    // ─── AND `features`, THE THIRD FIELD THIS REBUILD HAS DROPPED ──────────
+    //
+    // `!= null` rather than truthy, because `[]` is falsy in JavaScript and an
+    // empty array is a MEANINGFUL value here: it says this pack named no rows,
+    // which the device shows as no rows, while absent falls back to the floor
+    // card. A truthy test would silently turn the first into the second.
+    //
+    // `signIndex` uses `!= null` on the same field for the same reason. The two
+    // rebuilds have to agree or a pack's rows would survive one and not the
+    // other.
+    ...(upload.features != null ? { features: upload.features } : {}),
   };
 }
 
@@ -283,6 +334,37 @@ export async function commitIndex(
 ): Promise<number> {
   let packs = live.packs;
   for (const e of entries) packs = upsertPack(packs, e);
+
+  /**
+   * ─── A PUBLISH MAY ADD AND REPLACE. IT MUST NEVER SUBTRACT ────────────────
+   *
+   * `arcticons-line` was published, verified in the live index at seventeen
+   * packs, and was gone an hour later with sixteen remaining and every other
+   * pack intact. I looked for the cause twice and was wrong twice: the read
+   * path has no HTTP cache, and nothing in this file removes a pack.
+   *
+   * So this does not try to name the cause. `upsertPack` replaces by id and
+   * appends otherwise, which means the count after a merge can only ever grow
+   * or hold. If it shrank, something between reading the index and signing it
+   * lost a pack, and signing that result publishes the loss to every device.
+   *
+   * Refusing costs a failed publish that can be retried. Not refusing costs a
+   * pack that silently stops existing, which is a thing that has now happened
+   * once and was noticed by accident.
+   *
+   * The comparison is on IDS rather than length: a merge that dropped one pack
+   * while adding another would keep the count identical and is the same bug.
+   */
+  if (live.exists) {
+    const after = new Set(packs.map((p) => p.packId));
+    const lost = live.packs.map((p) => p.packId).filter((id) => !after.has(id));
+    if (lost.length > 0) {
+      throw new Error(
+        `Refusing to publish: this write would drop ${lost.join(', ')} from the catalogue. ` +
+          'A publish can add and replace, never remove. Use Unpublish for that.',
+      );
+    }
+  }
 
   const generatedAt = nextGeneratedAt(live);
   const { index, signature } = signIndex({

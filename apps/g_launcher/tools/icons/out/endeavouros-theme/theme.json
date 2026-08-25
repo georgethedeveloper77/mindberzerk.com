@@ -1,0 +1,149 @@
+{
+  "id": "endeavouros-theme",
+  "name": "EndeavourOS",
+  "version": "1",
+  "shell": "tiling",
+  "tier": "pro",
+  "chromeFamily": "breeze",
+  "palette": {
+    "bgTop": "#2B1B3D",
+    "bgBottom": "#170D24",
+    "bar": "#1F1230",
+    "dock": "#CC1F1230",
+    "accent": "#8A5FCF",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
+  },
+  "layout": {
+    "dock": "off",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1
+  },
+  "icons": {
+    "treatment": "teardrop",
+    "cornerRadius": 0.3,
+    "foregroundScale": 1,
+    "brandPack": "endeavouros-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_183511038.png",
+    "image_2026-08-23_183520819.png",
+    "image_2026-08-23_183529227.png",
+    "image_2026-08-23_183548139.png",
+    "image_2026-08-23_183556088.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "EndeavourOS Linux"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started EndeavourOS Welcome"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

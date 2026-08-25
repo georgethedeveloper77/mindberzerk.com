@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "zorin-os-17-line",
+  "name": "Zorin OS Icons",
+  "extends": "arcticons-line",
+  "tint": "#0f94d2",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

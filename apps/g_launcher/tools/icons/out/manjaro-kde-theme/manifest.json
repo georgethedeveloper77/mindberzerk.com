@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "manjaro-kde-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_185335645.png", "size": 169284, "sha256": "63dedd2033255ac965eead7063a1f18850d82042eda926b2920c7ae52ef03f2d"},
+    {"path": "image_2026-08-23_185345348.png", "size": 1177032, "sha256": "ebd3481d572ef8a08225ee8ef5efd2ae85f1a5728513a3ec7571424731a27ac8"},
+    {"path": "image_2026-08-23_185404979.png", "size": 201150, "sha256": "6a29dd0c12f530dae8016bc5c214f87a41a74942fe41c2c65f47a37c10aaba70"},
+    {"path": "logo_dark.png", "size": 11356, "sha256": "0ddcb373431f854bb6c862aef4ddfd2744e681ab6694fb85e71faa20886e4e70"},
+    {"path": "logo_light.png", "size": 11356, "sha256": "0ddcb373431f854bb6c862aef4ddfd2744e681ab6694fb85e71faa20886e4e70"},
+    {"path": "theme.json", "size": 2884, "sha256": "a9e9d563039bc37e3a24c8430a2e79692546c0576dafbeaa7d8401f825b14d81"}
+  ]
+}

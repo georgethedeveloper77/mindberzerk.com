@@ -15,8 +15,55 @@ import 'drawer_items.dart';
 /// opens on Favorites every time, exactly like the real thing.
 enum KickoffTab { favorites, frequent, all }
 
-final _tabProvider =
-    StateProvider.autoDispose<KickoffTab>((ref) => KickoffTab.favorites);
+/// One entry in the rail: either one of the three tabs, or a generated
+/// category.
+///
+/// A sealed pair rather than a widened enum, because the categories are not
+/// known at compile time. Which buckets exist depends on what is installed, so
+/// a `KickoffTab.social` arm would be a promise the device cannot always keep.
+class _Slot {
+  const _Slot.tab(KickoffTab this.tab) : category = null;
+  const _Slot.category(String this.category) : tab = null;
+
+  final KickoffTab? tab;
+  final String? category;
+
+  /// Stable across rebuilds, which is what the provider stores. Holding a
+  /// [_Slot] directly would need value equality; holding the id needs nothing.
+  String get id => tab != null ? 'tab:${tab!.name}' : 'cat:$category';
+
+  String get label => switch (tab) {
+        KickoffTab.favorites => 'Favorites',
+        KickoffTab.frequent => 'Frequent',
+        KickoffTab.all => 'All',
+        null => category!,
+      };
+
+  IconData get icon => switch (tab) {
+        KickoffTab.favorites => Icons.star_outline,
+        KickoffTab.frequent => Icons.history,
+        KickoffTab.all => Icons.apps_outlined,
+        null => switch (category!) {
+            'Social' => Icons.people_outline,
+            'Media' => Icons.play_circle_outline,
+            'Productivity' => Icons.work_outline,
+            'Games' => Icons.sports_esports_outlined,
+            'News' => Icons.article_outlined,
+            'Travel' => Icons.flight_outlined,
+            'Utilities' => Icons.build_outlined,
+            // 'Other', and anything a newer build adds to kCategoryOrder that
+            // this switch has not been taught yet. A glyph, never a crash.
+            _ => Icons.more_horiz,
+          },
+      };
+}
+
+/// Session state, not a preference: Kickoff opens on Favorites every time,
+/// exactly like the real thing. Stored as [_Slot.id] so a category that stops
+/// existing (its last app uninstalled) simply fails to match and the rail falls
+/// back to Favorites, rather than holding a dangling reference.
+final _slotProvider =
+    StateProvider.autoDispose<String>((ref) => 'tab:${KickoffTab.favorites.name}');
 
 /// KDE Plasma's Kickoff menu.
 ///
@@ -53,7 +100,7 @@ class KickoffDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(drawerItemsProvider(theme));
-    final tab = ref.watch(_tabProvider);
+    final slotId = ref.watch(_slotProvider);
 
     // Apps and folders go in the list; the two launcher-owned entries go in the
     // footer. The switch is exhaustive so a new DrawerItem variant has to
@@ -73,7 +120,25 @@ class KickoffDrawer extends ConsumerWidget {
           i,
     ];
 
-    final shown = _forTab(ref, tab, listable);
+    // Categories only in the categories rail, so a KDE-rail distro does no
+    // bucketing work at all and its drawer is byte-identical to before.
+    final buckets = theme.kickoffRail == 'categories'
+        ? _bucket(listable)
+        : const <String, List<DrawerItem>>{};
+
+    final slots = <_Slot>[
+      for (final t in KickoffTab.values) _Slot.tab(t),
+      for (final name in kCategoryOrder)
+        if (buckets[name] != null) _Slot.category(name),
+    ];
+
+    // A category can stop existing between builds (its last app uninstalled),
+    // so a stored id that no longer matches falls back rather than showing an
+    // empty rail with nothing selected.
+    final active =
+        slots.firstWhere((s) => s.id == slotId, orElse: () => slots.first);
+
+    final shown = _forSlot(ref, active, listable, buckets);
 
     final searchAtBottom =
         (theme.prefs.drawerSearchPosition ?? 'bottom') != 'top';
@@ -109,10 +174,20 @@ class KickoffDrawer extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Rail(theme: theme, active: tab),
+                  _Rail(theme: theme, slots: slots, active: active),
                   Expanded(
-                    child: shown.isEmpty
-                        ? _Empty(theme: theme, tab: tab)
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // The categories rail is icon-only, so the label has to
+                        // land somewhere or the user cannot tell Travel from
+                        // Utilities. Heading the list is where Cinnamon puts it
+                        // and it costs no rail width.
+                        if (theme.kickoffRail == 'categories')
+                          _ListHeading(theme: theme, slot: active),
+                        Expanded(
+                          child: shown.isEmpty
+                        ? _Empty(theme: theme, slot: active)
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             itemCount: shown.length,
@@ -125,6 +200,9 @@ class KickoffDrawer extends ConsumerWidget {
                               item: shown[i],
                             ),
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -146,12 +224,53 @@ class KickoffDrawer extends ConsumerWidget {
         TerminalDrawerItem() => 'terminal',
       };
 
-  /// The rail's three views over the one list.
+  /// Category buckets, built the SAME way the library drawer builds them.
+  ///
+  /// Deliberately a copy of the shape in `drawer_items.dart` rather than a call
+  /// into it: that function returns FOLDERS, and Kickoff wants flat lists of
+  /// rows. What must not diverge is the RULE, so both apply
+  /// [categoryFolderName], both sweep sub-threshold buckets into Other, and
+  /// both walk [kCategoryOrder]. Those three now live in one place and are
+  /// imported here.
+  ///
+  /// Sweeping matters more here than it looks. Without it a lone Social app
+  /// would be reachable from no rail slot at all, because the rail only lists
+  /// buckets that survived the threshold. It would be in the list, in the
+  /// drawer, and findable only through All.
+  Map<String, List<DrawerItem>> _bucket(List<DrawerItem> all) {
+    final buckets = <String, List<DrawerItem>>{};
+    for (final item in all) {
+      if (item is! AppDrawerItem) continue;
+      final name = categoryFolderName(item.entry);
+      if (name == null) continue;
+      (buckets[name] ??= []).add(item);
+    }
+
+    final strays = <DrawerItem>[];
+    buckets.removeWhere((name, v) {
+      if (name == 'Other' || v.length >= kMinCategoryMembers) return false;
+      strays.addAll(v);
+      return true;
+    });
+    if (strays.isNotEmpty) (buckets['Other'] ??= []).addAll(strays);
+
+    return buckets;
+  }
+
+  /// The rail's views over the one list.
   ///
   /// Favorites and Frequent are ORDERED by their source (pin order, frecency
-  /// rank) rather than alphabetically — that ordering is the whole point of
-  /// those tabs. All keeps the provider's A-to-Z.
-  List<DrawerItem> _forTab(WidgetRef ref, KickoffTab tab, List<DrawerItem> all) {
+  /// rank) rather than alphabetically, and that ordering is the whole point of
+  /// those tabs. All and the categories keep the provider's A-to-Z.
+  List<DrawerItem> _forSlot(
+    WidgetRef ref,
+    _Slot slot,
+    List<DrawerItem> all,
+    Map<String, List<DrawerItem>> buckets,
+  ) {
+    if (slot.category != null) return buckets[slot.category] ?? const [];
+
+    final tab = slot.tab!;
     if (tab == KickoffTab.all) return all;
 
     final byKey = <String, DrawerItem>{
@@ -182,36 +301,89 @@ class KickoffDrawer extends ConsumerWidget {
   }
 }
 
-/// The category rail. Active tab takes the accent, KDE-style: a filled left
-/// border and a tinted background.
+/// The rail. Active slot takes the accent, KDE-style: a filled left border and
+/// a tinted background.
+///
+/// ─── TWO WIDTHS, AND THAT IS THE WHOLE DIFFERENTIATION ──────────────────────
+///
+/// Tabs mode is 74dp with a label under every glyph, which is KDE's Kickoff and
+/// what every plasma distro drew before this field existed.
+///
+/// Categories mode is 56dp and icon-only, because three labelled entries fit a
+/// phone and eleven do not: "Productivity" does not render at 74dp, and a rail
+/// wide enough for it eats the list. Icon-only also means the two rails read as
+/// two menus at a glance rather than as one menu with more rows, which is the
+/// point of the field. The active label heads the list instead.
+///
+/// Scrollable in both modes. Eleven slots at 40dp clears a phone, but a short
+/// screen with a large text scale is exactly the device this launcher targets,
+/// and a rail that clips its last category is a category the user cannot reach.
 class _Rail extends ConsumerWidget {
-  const _Rail({required this.theme, required this.active});
+  const _Rail({
+    required this.theme,
+    required this.slots,
+    required this.active,
+  });
 
   final EffectiveTheme theme;
-  final KickoffTab active;
+  final List<_Slot> slots;
+  final _Slot active;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final onDark = theme.palette.onDark;
+    final compact = theme.kickoffRail == 'categories';
 
     return Container(
-      width: 74,
+      width: compact ? 56 : 74,
       decoration: BoxDecoration(
         border: Border(
           right: BorderSide(color: onDark.withValues(alpha: 0.10)),
         ),
       ),
-      child: Column(
-        children: [
-          const SizedBox(height: 6),
-          for (final t in KickoffTab.values)
-            _RailItem(
-              theme: theme,
-              tab: t,
-              selected: t == active,
-              onTap: () => ref.read(_tabProvider.notifier).state = t,
-            ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 6),
+            for (final s in slots)
+              _RailItem(
+                theme: theme,
+                slot: s,
+                compact: compact,
+                selected: s.id == active.id,
+                onTap: () => ref.read(_slotProvider.notifier).state = s.id,
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The active category's name, above the list, in the categories rail only.
+///
+/// Not a section header inside the ListView: it must not scroll away, because
+/// it is the only thing naming what an icon-only rail selected.
+class _ListHeading extends StatelessWidget {
+  const _ListHeading({required this.theme, required this.slot});
+
+  final EffectiveTheme theme;
+  final _Slot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+      child: Text(
+        slot.label,
+        style: TextStyle(
+          fontSize: 11.5 * theme.textScale,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+          color: theme.palette.accent,
+          fontFamily: theme.typography.display,
+        ),
       ),
     );
   }
@@ -220,13 +392,17 @@ class _Rail extends ConsumerWidget {
 class _RailItem extends StatelessWidget {
   const _RailItem({
     required this.theme,
-    required this.tab,
+    required this.slot,
+    required this.compact,
     required this.selected,
     required this.onTap,
   });
 
   final EffectiveTheme theme;
-  final KickoffTab tab;
+  final _Slot slot;
+
+  /// Icon-only, 56dp rail. See [_Rail]'s note.
+  final bool compact;
   final bool selected;
   final VoidCallback onTap;
 
@@ -236,17 +412,13 @@ class _RailItem extends StatelessWidget {
     final onDark = theme.palette.onDark;
     final ink = selected ? accent : onDark.withValues(alpha: 0.65);
 
-    final (icon, label) = switch (tab) {
-      KickoffTab.favorites => (Icons.star_outline, 'Favorites'),
-      KickoffTab.frequent => (Icons.history, 'Frequent'),
-      KickoffTab.all => (Icons.apps_outlined, 'All'),
-    };
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        // Tighter when icon-only: the label is what needed the vertical room,
+        // and eleven slots at the labelled spacing would not clear a phone.
+        padding: EdgeInsets.symmetric(vertical: compact ? 11 : 10),
         decoration: BoxDecoration(
           color: selected ? accent.withValues(alpha: 0.14) : null,
           border: Border(
@@ -258,16 +430,24 @@ class _RailItem extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 19, color: ink),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11 * theme.textScale,
-                color: ink,
-                fontFamily: theme.typography.display,
-              ),
+            // Semantics, not decoration. An icon-only rail is unreadable to a
+            // screen reader without it, and this is the one mode where the
+            // visible label is gone.
+            Semantics(
+              label: compact ? slot.label : null,
+              child: Icon(slot.icon, size: compact ? 20 : 19, color: ink),
             ),
+            if (!compact) ...[
+              const SizedBox(height: 3),
+              Text(
+                slot.label,
+                style: TextStyle(
+                  fontSize: 11 * theme.textScale,
+                  color: ink,
+                  fontFamily: theme.typography.display,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -545,18 +725,22 @@ class _FooterButton extends StatelessWidget {
 /// An honest empty tab. Favorites starts empty for everyone, and saying how to
 /// fill it beats an unexplained blank panel.
 class _Empty extends StatelessWidget {
-  const _Empty({required this.theme, required this.tab});
+  const _Empty({required this.theme, required this.slot});
 
   final EffectiveTheme theme;
-  final KickoffTab tab;
+  final _Slot slot;
 
   @override
   Widget build(BuildContext context) {
-    final text = switch (tab) {
+    final text = switch (slot.tab) {
       KickoffTab.favorites =>
         'Pin an app to the dock and it shows up here.\nHold any app, then Pin to dock.',
       KickoffTab.frequent => 'The apps you use most will collect here.',
       KickoffTab.all => 'No apps.',
+      // A category slot only exists because it had members when the rail was
+      // built, so this is the frame between an uninstall and the rebuild. It
+      // needs words rather than a blank panel, but it never sits there.
+      null => 'Nothing in this category.',
     };
 
     return Center(

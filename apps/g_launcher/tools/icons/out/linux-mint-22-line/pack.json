@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "linux-mint-22-line",
+  "name": "Linux Mint Icons",
+  "extends": "arcticons-line",
+  "tint": "#87cf3e",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

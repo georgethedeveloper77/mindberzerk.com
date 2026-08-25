@@ -7,7 +7,7 @@ import { AppSlab, KVRow, SlabButton, SoftButton } from '@/components/studio/ui';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { DuplicateDistro } from '@/components/theme-list/DuplicateDistro';
 import { BulkBar, BulkProvider, RowCheck } from '@/components/studio/bulk';
-import { bulkDeleteDistrosAction } from './actions';
+import { bulkDeleteDistrosAction, republishDistroAction } from './actions';
 import { ListToggle } from '@/components/theme-list/ListToggle';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
@@ -234,6 +234,8 @@ export default async function DistrosPage({
         verb="Delete"
         app={appId}
         action={bulkDeleteDistrosAction}
+        runVerb="Republish"
+        runEach={republishDistroAction}
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">

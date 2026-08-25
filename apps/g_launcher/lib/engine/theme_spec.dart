@@ -719,6 +719,7 @@ class ThemeLayout {
     this.iconScale = 1.0,
     this.drawerScrollStyle,
     this.drawerGrouping,
+    this.kickoffRail,
   });
 
   final DockSide dock;
@@ -847,6 +848,32 @@ class ThemeLayout {
   /// the resolved scroll style is the list.
   final String? drawerGrouping;
 
+  /// What the Plasma menu's left rail is made of: 'tabs' | 'categories', or
+  /// null for the engine default ('tabs').
+  ///
+  /// ─── WHY THIS IS NOT drawerGrouping ─────────────────────────────────────
+  ///
+  /// [drawerGrouping] and [drawerScrollStyle] describe [AppDrawer], and
+  /// `shell_drawer.dart` sends plasma to [KickoffDrawer], which reads neither.
+  /// Authoring 'library' on a plasma distro therefore writes a valid value that
+  /// nothing consumes, which is the silent-drop failure this codebase keeps
+  /// meeting. A separate field says plainly that this is the KICKOFF rail and
+  /// only the Kickoff rail.
+  ///
+  /// A CAPABILITY, not a preference, and so it takes no user override: which
+  /// menu a distro has is what makes Mint not KDE, in the same way
+  /// [desktopIcons] decides whether a desktop grid exists at all.
+  ///
+  ///  - **tabs**: Favorites / Frequent / All, labelled, at 74dp. KDE's own
+  ///    Kickoff and what every plasma distro drew before this field.
+  ///  - **categories**: the same two tabs plus the generated category buckets,
+  ///    icon-only at 56dp with the active label heading the list. Cinnamon's
+  ///    menu, and what Linux Mint needs to stop reading as a green KDE.
+  ///
+  /// Unknown values from a newer catalogue parse to null and fall through, the
+  /// same drop-not-fatal contract as `PanelModule.parse`.
+  final String? kickoffRail;
+
   /// Panels, authored or synthesised from the legacy trio.
   ///
   /// The synthesis is the compatibility layer and it is deliberately literal:
@@ -926,6 +953,11 @@ class ThemeLayout {
         // is folders in whatever motion the distro already uses, which is a
         // coherent thing to want rather than a broken half.
         'library' => 'library',
+        _ => null,
+      },
+      kickoffRail: switch (j['kickoffRail'] as String?) {
+        'tabs' => 'tabs',
+        'categories' => 'categories',
         _ => null,
       },
     );

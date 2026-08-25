@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "fedora-40-line",
+  "name": "Fedora Icons",
+  "extends": "arcticons-line",
+  "tint": "#3c6eb4",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

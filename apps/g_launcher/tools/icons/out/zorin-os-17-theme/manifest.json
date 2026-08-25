@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "zorin-os-17-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_190402725.png", "size": 2343143, "sha256": "8b22fc56e2a5406dbe7bf1fcfc56374d2adf0ef623f906b6848a5e1bfa012e14"},
+    {"path": "image_2026-08-23_190429365.png", "size": 520692, "sha256": "c3a39c6b9e490608e119e8e6b1fa216a25b3bdb73da4d4206b0a4e5c7b4d6bff"},
+    {"path": "image_2026-08-23_190538991.png", "size": 144964, "sha256": "128e590c3971ff0b45148a45ff294ee332430f3f5fb944fe2bb8aad5a8e1e48b"},
+    {"path": "logo_dark.png", "size": 65684, "sha256": "df61ea1afedee06608977ed86b68328dedc3beb82ff49e717a33bdb32858be27"},
+    {"path": "logo_light.png", "size": 65684, "sha256": "df61ea1afedee06608977ed86b68328dedc3beb82ff49e717a33bdb32858be27"},
+    {"path": "theme.json", "size": 2775, "sha256": "284cb02c64404b86919a78688a9ba453265f691e3ca17601d897c3665afb75ba"}
+  ]
+}

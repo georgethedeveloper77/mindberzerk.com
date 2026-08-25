@@ -169,6 +169,48 @@ export async function copyDraftAssets(
 }
 
 /**
+ * One draft's assets, WITH THEIR BYTES.
+ *
+ * [readDraftAssets] returns names because that is all the workspace needs: it
+ * rehydrates by public URL. A republish running on the SERVER has no browser to
+ * fetch through and must hand real buffers to `publishDistro`, so it reads the
+ * objects here instead.
+ *
+ * Deliberately the same read loop `copyDraftAssets` already uses, extracted
+ * rather than rewritten, because two ways of reading the same directory is how
+ * they drift.
+ *
+ * ─── ONE UNREADABLE ASSET IS NOT A FAILED PUBLISH ────────────────────────────
+ *
+ * A missing object is skipped, matching `copyDraftAssets`. The caller compares
+ * what it asked for against what came back and decides: a distro whose
+ * wallpaper is gone should not publish a pack the device will fail to render,
+ * and only the caller knows whether the missing file mattered.
+ */
+export async function readDraftAssetBytes(
+  app: AppId,
+  draftId: string,
+): Promise<{ assets: DraftAsset[]; missing: string[] }> {
+  const names = await readDraftAssets(app, draftId);
+  const dir = ASSET_DIR(app, draftId);
+  const assets: DraftAsset[] = [];
+  const missing: string[] = [];
+  for (const name of names) {
+    try {
+      const bytes = await getObject(`${dir}/${name}`);
+      if (!bytes) {
+        missing.push(name);
+        continue;
+      }
+      assets.push({ name, bytes, contentType: 'application/octet-stream' });
+    } catch {
+      missing.push(name);
+    }
+  }
+  return { assets, missing };
+}
+
+/**
  * Drop a draft's assets.
  *
  * Called when the DRAFT is deleted, never when it is published: publishing

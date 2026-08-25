@@ -182,7 +182,7 @@ bool isCategoryFolder(String folderId) =>
 /// A folder holding most of the drawer is not organisation, and its 2x2 preview
 /// would show four arbitrary icons out of two hundred. Loose is the honest
 /// rendering: the library degrades into the grid that already works.
-String? _categoryFolderName(AppEntry a) {
+String? categoryFolderName(AppEntry a) {
   // GAMES FIRST, and it is not just the category. `isGame` also catches apps
   // that predate the category and only set the legacy flag, which is a lot of
   // what is actually installed on a budget phone.
@@ -225,7 +225,7 @@ String? _categoryFolderName(AppEntry a) {
 /// themselves as you install things is a drawer you cannot build muscle memory
 /// against, and size-ordering means the biggest folder moves to the front the
 /// first time you install two of something.
-const _categoryOrder = [
+const kCategoryOrder = [
   'Social',
   'Media',
   'Productivity',
@@ -244,7 +244,7 @@ const _categoryOrder = [
 /// A folder holding one app is strictly worse than that app sitting loose: same
 /// tap count to launch it becomes two, and its 2x2 preview is three quarters
 /// empty. Two is the smallest number where a folder saves any space at all.
-const _minCategoryMembers = 2;
+const kMinCategoryMembers = 2;
 
 final drawerItemsProvider =
     Provider.family<List<DrawerItem>, EffectiveTheme>((ref, theme) {
@@ -363,7 +363,7 @@ final drawerItemsProvider =
     final buckets = <String, List<AppEntry>>{};
     for (final item in loose) {
       final entry = (item as AppDrawerItem).entry;
-      final name = _categoryFolderName(entry);
+      final name = categoryFolderName(entry);
       if (name == null) continue;
       (buckets[name] ??= []).add(entry);
     }
@@ -373,7 +373,7 @@ final drawerItemsProvider =
     // run, because with Other existing there is no loose run left to go to.
     final strays = <AppEntry>[];
     buckets.removeWhere((name, v) {
-      if (name == 'Other' || v.length >= _minCategoryMembers) return false;
+      if (name == 'Other' || v.length >= kMinCategoryMembers) return false;
       strays.addAll(v);
       return true;
     });
@@ -406,7 +406,7 @@ final drawerItemsProvider =
     };
 
     final categoryFolders = <DrawerItem>[
-      for (final name in _categoryOrder)
+      for (final name in kCategoryOrder)
         if (buckets[name] != null)
           FolderDrawerItem(
             AppFolder(

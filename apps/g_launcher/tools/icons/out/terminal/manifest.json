@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "terminal",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "logo_dark.png", "size": 13845, "sha256": "81ef62daeddd0806919e896f5403745437f8d326e72cb190d1695f2bb1aaeaff"},
+    {"path": "logo_light.png", "size": 13845, "sha256": "81ef62daeddd0806919e896f5403745437f8d326e72cb190d1695f2bb1aaeaff"},
+    {"path": "theme.json", "size": 2518, "sha256": "f5d82e9db305ad7f8b710dd5f3bd3d9c1dd517049ffeb0aa91f220f6a6e22545"}
+  ]
+}

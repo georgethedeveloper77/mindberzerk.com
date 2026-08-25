@@ -1,3 +1,17 @@
+// ─── ONLY pigeon.dart MAY BE IMPORTED HERE ──────────────────────────────────
+//
+// This file is a SCHEMA, parsed by Pigeon rather than compiled, and Pigeon
+// refuses any other import outright:
+//
+//     Unsupported import 'dart:typed_data', only imports of
+//     'package:pigeon/pigeon.dart' are supported.
+//
+// I added `dart:typed_data` for `Uint8List`, which is unnecessary twice over:
+// `pigeon.dart` re-exports it, and the analyzer had already said so as an
+// `unnecessary_import` info. The cost was not a warning: generation ABORTED,
+// wrote a zero-length `pack_api.g.dart`, and the next `flutter analyze` reported
+// forty errors about `PackInfo` not being a type. Nothing was wrong with the
+// schema; the generator never ran.
 import 'package:pigeon/pigeon.dart';
 
 /// PHASE C — the pack and storefront bridge.
@@ -69,6 +83,12 @@ class PackInfo {
     this.previewBar,
     this.previewDock,
     this.previewAccent,
+    // AFTER the preview six, for the same reason they sit after `sku`: append
+    // only. Inserting mid-class shifts every field below it in the codec and
+    // the wire format silently reinterprets one type as another.
+    this.features,
+    // LAST here too, matching the field order above.
+    this.tint,
   });
 
   final String packId;
@@ -111,6 +131,7 @@ class PackInfo {
   /// null = free. PRESENTATION ONLY: it tells the card which price to draw.
   /// Ownership is Play's answer and is already folded into [unlocked].
   final String? sku;
+
 
   // ─── THE PREVIEW BLOCK ────────────────────────────────────────────────────
   //
@@ -158,6 +179,54 @@ class PackInfo {
   final String? previewBar;
   final String? previewDock;
   final String? previewAccent;
+
+  /// The rows the storefront card names, in AUTHORED ORDER.
+  ///
+  /// ─── A CLASS, NOT NINE FLAT FIELDS ────────────────────────────────────────
+  ///
+  /// The preview above is six flat scalars because it is exactly six things and
+  /// always will be. A feature list is not: the card shows the first two
+  /// exclusive rows and the detail page shows the rest, so flattening would
+  /// have meant picking a cap and baking it into the wire format. Three rows is
+  /// the current editorial habit, not a limit anyone chose.
+  ///
+  /// [PackFeature] is declared LAST in this file, so Pigeon assigns it codec id
+  /// 133 and the four existing classes keep 129 through 132. Nothing renumbers,
+  /// which is the same constraint that keeps `brandTreatment` a String in the
+  /// other schema.
+  ///
+  /// Null on every entry published before this field existed, which is every
+  /// entry today. The card falls back to whatever its floor card authored, so
+  /// the three bundled distros keep their rows and nothing must be republished
+  /// to stay correct.
+  final List<PackFeature?>? features;
+
+  /// The pack's colour, as `#rrggbb`, or null for a pack that has none.
+  ///
+  /// ─── LAST, AND THAT IS NOT A STYLE CHOICE ─────────────────────────────────
+  ///
+  /// Field order IS the decode index. This first went in after `sku`, which
+  /// renumbered the six preview fields and `features` beneath it, and every
+  /// device on an older build would have read `previewShell` where `tint` now
+  /// sits: no crash, no parse error, just a colour interpreted as a shell name
+  /// and six fields shifted by one.
+  ///
+  /// The same rule the preview block above states about itself, and the same
+  /// one `AppEntry.category` follows in the other schema.
+  ///
+  /// ─── WHY THE CATALOGUE CARRIES IT AT ALL ──────────────────────────────────
+  ///
+  /// The fourteen official packs share one geometry and differ in exactly this,
+  /// so the colour IS the product and the thing listing products has to know it.
+  ///
+  /// Practically it lets the storefront preview a pack on the user's real apps
+  /// WITHOUT installing it: a derived pack is 207 bytes of hex and the geometry
+  /// it points at is already on the device, free and required. Without this,
+  /// showing someone what they would buy would mean downloading it first.
+  ///
+  /// Null for hero packs, third-party packs and Simple Icons, all of which
+  /// carry their colours inside the art.
+  final String? tint;
 }
 
 /// A purchasable bundle, as advertised by the signed index.
@@ -223,7 +292,14 @@ class PackResult {
   final String packId;
 
   /// "installed" | "upToDate" | "notOffered" | "appTooOld" | "noSpace" |
-  /// "cancelled" | "rejected" | "notEntitled" | "failed"
+  /// "cancelled" | "rejected" | "notEntitled" | "missingDependency" | "failed"
+  ///
+  /// THIS LIST IS THE CONTRACT, and it is the thing to update first. Dart
+  /// switches on these strings with a `default` arm that says "try again", so a
+  /// status native starts sending and this list never learned about is not a
+  /// compile error: it is a specific, already-diagnosed failure quietly
+  /// rendered as a generic one. `missingDependency` did exactly that on its
+  /// first run.
   final String status;
 
   /// Human-readable, for logs and for the rare case worth showing. Never the
@@ -231,6 +307,72 @@ class PackResult {
   final String detail;
 
   final int installedVersion;
+}
+
+/// One row on a storefront card.
+///
+/// DECLARED LAST ON PURPOSE. Pigeon assigns codec ids in declaration order and
+/// the four classes above hold 129 to 132; appending here takes 133 and leaves
+/// them alone. Moving this above [PackInfo] would renumber all four and every
+/// message already in flight would decode as the wrong type.
+class PackFeature {
+  PackFeature({
+    required this.title,
+    required this.body,
+    required this.exclusive,
+  });
+
+  /// Two or three words. The bold half of the row.
+  final String title;
+
+  /// One short sentence, set beside the title on a phone card. A second
+  /// sentence is a second line nobody reads.
+  final String body;
+
+  /// Whether the all-access settings can reproduce this.
+  ///
+  /// The whole price argument lives in this bool. A paid distro whose rows are
+  /// all false is selling a palette, and the card should not be asking for
+  /// money. Non-null because a missing answer here reads as `true` by accident,
+  /// which is the flattering direction and therefore the wrong default; the
+  /// panel decides and states it.
+  final bool exclusive;
+}
+
+/// How much of THIS DEVICE'S app list a pack actually draws.
+///
+/// ─── APPENDED LAST, AFTER [PackFeature] ─────────────────────────────────────
+///
+/// Codec ids are positional and the five classes above hold 129 to 133. This
+/// takes 134 and moves nothing. Declaring it anywhere earlier renumbers every
+/// class below it, which compiles cleanly and misdecodes at runtime.
+///
+/// ─── WHY THIS IS MEASURED AND NOT ADVERTISED ────────────────────────────────
+///
+/// The catalogue can say "13,622 icons" and it is true of the pack and useless
+/// to the person holding the phone: what they want to know is how many of THEIR
+/// apps get a drawing. Those are different numbers by two orders of magnitude,
+/// and the second one is the only one the wearing card can honestly show.
+///
+/// So both halves come from the device. [covered] is the intersection of the
+/// pack's glyph map with the launchable app list; [total] is that list's size.
+/// Neither is a figure from the index.
+class PackCoverage {
+  PackCoverage({
+    required this.packId,
+    required this.covered,
+    required this.total,
+  });
+
+  final String packId;
+
+  /// Launchable packages this pack has a drawing for.
+  final int covered;
+
+  /// Launchable packages on this device. The denominator, never zero when the
+  /// call succeeds, because a device with no launchable apps cannot be running
+  /// a launcher.
+  final int total;
 }
 
 @HostApi()
@@ -281,6 +423,34 @@ abstract class PackHostApi {
   /// it. A restart re-asks Play, which is the only source that can be trusted.
   @async
   void setOwnedSkus(List<String> skus);
+
+  /// Tell native which distro theme is applied right now.
+  ///
+  /// ─── INCLUSION IS NOT OWNERSHIP ───────────────────────────────────────────
+  ///
+  /// Every distro ships an icon pack in its own colour, free with that distro,
+  /// and priced for anyone running a different one. Both are true at once, and
+  /// which applies depends on the theme currently applied.
+  ///
+  /// `isUnlocked` cannot answer that and must not learn to: its inputs are a
+  /// pack id and Play's record, and one function answering two questions is one
+  /// that eventually gives a pack away and charges twice for it. `isAvailable`
+  /// ORs `isUnlocked` with `isIncludedWith`, and this is the second fact it
+  /// needs.
+  ///
+  /// PUSHED FROM DART for the same reason [setOwnedSkus] is: Dart owns the
+  /// theme selection, native has no way to read it, and the install path
+  /// re-checks entitlement immediately before transferring. Without this, that
+  /// check refuses a pack the user is entitled to and the message is "needs to
+  /// be purchased first" on the icons that came free with the distro underneath
+  /// it.
+  ///
+  /// Empty string clears it. Never persisted: the applied theme is Dart's
+  /// state, and a stale copy surviving a restart would grant a pack for a distro
+  /// no longer in use.
+  @async
+  void setActiveTheme(String themeId);
+
 
   /// The resolved CDN base URL, written where the headless sync worker can read
   /// it. Called once after Remote Config resolves.
@@ -340,6 +510,21 @@ abstract class PackHostApi {
   /// safe position, and it is a method so not even the codec moves.
   @async
   String? packPreviewUrl(String packId);
+
+  /// How many of this device's apps the pack draws, or null when it cannot say.
+  ///
+  /// Null rather than a zeroed [PackCoverage] for the cases that are not an
+  /// answer: the pack is not on disk, it is a theme rather than an icon set, or
+  /// its json failed to parse. The card renders no row at all for null, which
+  /// is the convention nullable stats follow everywhere in this app; a
+  /// `0 of 46` would read as a pack that covers nothing.
+  ///
+  /// SLOW ON FIRST CALL for a line pack, because answering means parsing the
+  /// geometry the pack points at. Memoised natively per pack and per app-list
+  /// size, and called from a FutureProvider that renders the row when it
+  /// arrives, so nothing waits on it.
+  @async
+  PackCoverage? packCoverage(String packId);
 }
 
 @FlutterApi()

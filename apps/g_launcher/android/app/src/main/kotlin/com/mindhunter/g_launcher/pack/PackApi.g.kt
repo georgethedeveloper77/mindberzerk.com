@@ -267,7 +267,57 @@ data class PackInfo (
   val previewBgBottom: String? = null,
   val previewBar: String? = null,
   val previewDock: String? = null,
-  val previewAccent: String? = null
+  val previewAccent: String? = null,
+  /**
+   * The rows the storefront card names, in AUTHORED ORDER.
+   *
+   * ─── A CLASS, NOT NINE FLAT FIELDS ────────────────────────────────────────
+   *
+   * The preview above is six flat scalars because it is exactly six things and
+   * always will be. A feature list is not: the card shows the first two
+   * exclusive rows and the detail page shows the rest, so flattening would
+   * have meant picking a cap and baking it into the wire format. Three rows is
+   * the current editorial habit, not a limit anyone chose.
+   *
+   * [PackFeature] is declared LAST in this file, so Pigeon assigns it codec id
+   * 133 and the four existing classes keep 129 through 132. Nothing renumbers,
+   * which is the same constraint that keeps `brandTreatment` a String in the
+   * other schema.
+   *
+   * Null on every entry published before this field existed, which is every
+   * entry today. The card falls back to whatever its floor card authored, so
+   * the three bundled distros keep their rows and nothing must be republished
+   * to stay correct.
+   */
+  val features: List<PackFeature?>? = null,
+  /**
+   * The pack's colour, as `#rrggbb`, or null for a pack that has none.
+   *
+   * ─── LAST, AND THAT IS NOT A STYLE CHOICE ─────────────────────────────────
+   *
+   * Field order IS the decode index. This first went in after `sku`, which
+   * renumbered the six preview fields and `features` beneath it, and every
+   * device on an older build would have read `previewShell` where `tint` now
+   * sits: no crash, no parse error, just a colour interpreted as a shell name
+   * and six fields shifted by one.
+   *
+   * The same rule the preview block above states about itself, and the same
+   * one `AppEntry.category` follows in the other schema.
+   *
+   * ─── WHY THE CATALOGUE CARRIES IT AT ALL ──────────────────────────────────
+   *
+   * The fourteen official packs share one geometry and differ in exactly this,
+   * so the colour IS the product and the thing listing products has to know it.
+   *
+   * Practically it lets the storefront preview a pack on the user's real apps
+   * WITHOUT installing it: a derived pack is 207 bytes of hex and the geometry
+   * it points at is already on the device, free and required. Without this,
+   * showing someone what they would buy would mean downloading it first.
+   *
+   * Null for hero packs, third-party packs and Simple Icons, all of which
+   * carry their colours inside the art.
+   */
+  val tint: String? = null
 )
  {
   companion object {
@@ -288,7 +338,9 @@ data class PackInfo (
       val previewBar = pigeonVar_list[13] as String?
       val previewDock = pigeonVar_list[14] as String?
       val previewAccent = pigeonVar_list[15] as String?
-      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku, previewShell, previewBgTop, previewBgBottom, previewBar, previewDock, previewAccent)
+      val features = pigeonVar_list[16] as List<PackFeature?>?
+      val tint = pigeonVar_list[17] as String?
+      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku, previewShell, previewBgTop, previewBgBottom, previewBar, previewDock, previewAccent, features, tint)
     }
   }
   fun toList(): List<Any?> {
@@ -309,6 +361,8 @@ data class PackInfo (
       previewBar,
       previewDock,
       previewAccent,
+      features,
+      tint,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -319,7 +373,7 @@ data class PackInfo (
       return true
     }
     val other = other as PackInfo
-    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku) && PackApiPigeonUtils.deepEquals(this.previewShell, other.previewShell) && PackApiPigeonUtils.deepEquals(this.previewBgTop, other.previewBgTop) && PackApiPigeonUtils.deepEquals(this.previewBgBottom, other.previewBgBottom) && PackApiPigeonUtils.deepEquals(this.previewBar, other.previewBar) && PackApiPigeonUtils.deepEquals(this.previewDock, other.previewDock) && PackApiPigeonUtils.deepEquals(this.previewAccent, other.previewAccent)
+    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku) && PackApiPigeonUtils.deepEquals(this.previewShell, other.previewShell) && PackApiPigeonUtils.deepEquals(this.previewBgTop, other.previewBgTop) && PackApiPigeonUtils.deepEquals(this.previewBgBottom, other.previewBgBottom) && PackApiPigeonUtils.deepEquals(this.previewBar, other.previewBar) && PackApiPigeonUtils.deepEquals(this.previewDock, other.previewDock) && PackApiPigeonUtils.deepEquals(this.previewAccent, other.previewAccent) && PackApiPigeonUtils.deepEquals(this.features, other.features) && PackApiPigeonUtils.deepEquals(this.tint, other.tint)
   }
 
   override fun hashCode(): Int {
@@ -340,10 +394,12 @@ data class PackInfo (
     result = 31 * result + PackApiPigeonUtils.deepHash(this.previewBar)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.previewDock)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.previewAccent)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.features)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.tint)
     return result
   }
   override fun toString(): String {
-    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku, previewShell=$previewShell, previewBgTop=$previewBgTop, previewBgBottom=$previewBgBottom, previewBar=$previewBar, previewDock=$previewDock, previewAccent=$previewAccent)"
+    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku, previewShell=$previewShell, previewBgTop=$previewBgTop, previewBgBottom=$previewBgBottom, previewBar=$previewBar, previewDock=$previewDock, previewAccent=$previewAccent, features=$features, tint=$tint)"
   }
 }
 
@@ -487,7 +543,14 @@ data class PackResult (
   val packId: String,
   /**
    * "installed" | "upToDate" | "notOffered" | "appTooOld" | "noSpace" |
-   * "cancelled" | "rejected" | "notEntitled" | "failed"
+   * "cancelled" | "rejected" | "notEntitled" | "missingDependency" | "failed"
+   *
+   * THIS LIST IS THE CONTRACT, and it is the thing to update first. Dart
+   * switches on these strings with a `default` arm that says "try again", so a
+   * status native starts sending and this list never learned about is not a
+   * compile error: it is a specific, already-diagnosed failure quietly
+   * rendered as a generic one. `missingDependency` did exactly that on its
+   * first run.
    */
   val status: String,
   /**
@@ -538,6 +601,146 @@ data class PackResult (
     return "PackResult(packId=$packId, status=$status, detail=$detail, installedVersion=$installedVersion)"
   }
 }
+
+/**
+ * One row on a storefront card.
+ *
+ * DECLARED LAST ON PURPOSE. Pigeon assigns codec ids in declaration order and
+ * the four classes above hold 129 to 132; appending here takes 133 and leaves
+ * them alone. Moving this above [PackInfo] would renumber all four and every
+ * message already in flight would decode as the wrong type.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PackFeature (
+  /** Two or three words. The bold half of the row. */
+  val title: String,
+  /**
+   * One short sentence, set beside the title on a phone card. A second
+   * sentence is a second line nobody reads.
+   */
+  val body: String,
+  /**
+   * Whether the all-access settings can reproduce this.
+   *
+   * The whole price argument lives in this bool. A paid distro whose rows are
+   * all false is selling a palette, and the card should not be asking for
+   * money. Non-null because a missing answer here reads as `true` by accident,
+   * which is the flattering direction and therefore the wrong default; the
+   * panel decides and states it.
+   */
+  val exclusive: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PackFeature {
+      val title = pigeonVar_list[0] as String
+      val body = pigeonVar_list[1] as String
+      val exclusive = pigeonVar_list[2] as Boolean
+      return PackFeature(title, body, exclusive)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      title,
+      body,
+      exclusive,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PackFeature
+    return PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.body, other.body) && PackApiPigeonUtils.deepEquals(this.exclusive, other.exclusive)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.title)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.body)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.exclusive)
+    return result
+  }
+  override fun toString(): String {
+    return "PackFeature(title=$title, body=$body, exclusive=$exclusive)"
+  }
+}
+
+/**
+ * How much of THIS DEVICE'S app list a pack actually draws.
+ *
+ * ─── APPENDED LAST, AFTER [PackFeature] ─────────────────────────────────────
+ *
+ * Codec ids are positional and the five classes above hold 129 to 133. This
+ * takes 134 and moves nothing. Declaring it anywhere earlier renumbers every
+ * class below it, which compiles cleanly and misdecodes at runtime.
+ *
+ * ─── WHY THIS IS MEASURED AND NOT ADVERTISED ────────────────────────────────
+ *
+ * The catalogue can say "13,622 icons" and it is true of the pack and useless
+ * to the person holding the phone: what they want to know is how many of THEIR
+ * apps get a drawing. Those are different numbers by two orders of magnitude,
+ * and the second one is the only one the wearing card can honestly show.
+ *
+ * So both halves come from the device. [covered] is the intersection of the
+ * pack's glyph map with the launchable app list; [total] is that list's size.
+ * Neither is a figure from the index.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PackCoverage (
+  val packId: String,
+  /** Launchable packages this pack has a drawing for. */
+  val covered: Long,
+  /**
+   * Launchable packages on this device. The denominator, never zero when the
+   * call succeeds, because a device with no launchable apps cannot be running
+   * a launcher.
+   */
+  val total: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PackCoverage {
+      val packId = pigeonVar_list[0] as String
+      val covered = pigeonVar_list[1] as Long
+      val total = pigeonVar_list[2] as Long
+      return PackCoverage(packId, covered, total)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      packId,
+      covered,
+      total,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PackCoverage
+    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.covered, other.covered) && PackApiPigeonUtils.deepEquals(this.total, other.total)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.packId)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.covered)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.total)
+    return result
+  }
+  override fun toString(): String {
+    return "PackCoverage(packId=$packId, covered=$covered, total=$total)"
+  }
+}
 private open class PackApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -561,6 +764,16 @@ private open class PackApiPigeonCodec : StandardMessageCodec() {
           PackResult.fromList(it)
         }
       }
+      133.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PackFeature.fromList(it)
+        }
+      }
+      134.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PackCoverage.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -580,6 +793,14 @@ private open class PackApiPigeonCodec : StandardMessageCodec() {
       }
       is PackResult -> {
         stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is PackFeature -> {
+        stream.write(133)
+        writeValue(stream, value.toList())
+      }
+      is PackCoverage -> {
+        stream.write(134)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -634,6 +855,33 @@ interface PackHostApi {
    */
   fun setOwnedSkus(skus: List<String>, callback: (Result<Unit>) -> Unit)
   /**
+   * Tell native which distro theme is applied right now.
+   *
+   * ─── INCLUSION IS NOT OWNERSHIP ───────────────────────────────────────────
+   *
+   * Every distro ships an icon pack in its own colour, free with that distro,
+   * and priced for anyone running a different one. Both are true at once, and
+   * which applies depends on the theme currently applied.
+   *
+   * `isUnlocked` cannot answer that and must not learn to: its inputs are a
+   * pack id and Play's record, and one function answering two questions is one
+   * that eventually gives a pack away and charges twice for it. `isAvailable`
+   * ORs `isUnlocked` with `isIncludedWith`, and this is the second fact it
+   * needs.
+   *
+   * PUSHED FROM DART for the same reason [setOwnedSkus] is: Dart owns the
+   * theme selection, native has no way to read it, and the install path
+   * re-checks entitlement immediately before transferring. Without this, that
+   * check refuses a pack the user is entitled to and the message is "needs to
+   * be purchased first" on the icons that came free with the distro underneath
+   * it.
+   *
+   * Empty string clears it. Never persisted: the applied theme is Dart's
+   * state, and a stale copy surviving a restart would grant a pack for a distro
+   * no longer in use.
+   */
+  fun setActiveTheme(themeId: String, callback: (Result<Unit>) -> Unit)
+  /**
    * The resolved CDN base URL, written where the headless sync worker can read
    * it. Called once after Remote Config resolves.
    */
@@ -679,6 +927,21 @@ interface PackHostApi {
    * safe position, and it is a method so not even the codec moves.
    */
   fun packPreviewUrl(packId: String, callback: (Result<String?>) -> Unit)
+  /**
+   * How many of this device's apps the pack draws, or null when it cannot say.
+   *
+   * Null rather than a zeroed [PackCoverage] for the cases that are not an
+   * answer: the pack is not on disk, it is a theme rather than an icon set, or
+   * its json failed to parse. The card renders no row at all for null, which
+   * is the convention nullable stats follow everywhere in this app; a
+   * `0 of 46` would read as a pack that covers nothing.
+   *
+   * SLOW ON FIRST CALL for a line pack, because answering means parsing the
+   * geometry the pack points at. Memoised natively per pack and per app-list
+   * size, and called from a FutureProvider that renders the row when it
+   * arrives, so nothing waits on it.
+   */
+  fun packCoverage(packId: String, callback: (Result<PackCoverage?>) -> Unit)
 
   companion object {
     /** The codec used by PackHostApi. */
@@ -822,6 +1085,25 @@ interface PackHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.setActiveTheme$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val themeIdArg = args[0] as String
+            api.setActiveTheme(themeIdArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PackApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(PackApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.setCdnBaseUrl$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -887,6 +1169,26 @@ interface PackHostApi {
             val args = message as List<Any?>
             val packIdArg = args[0] as String
             api.packPreviewUrl(packIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PackApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(PackApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.packCoverage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packIdArg = args[0] as String
+            api.packCoverage(packIdArg) { result: Result<PackCoverage?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(PackApiPigeonUtils.wrapError(error))

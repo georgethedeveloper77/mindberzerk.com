@@ -238,6 +238,20 @@ export interface ThemeSpecJson {
    * defaults it cannot decode by falling back to its own.
    */
   gestures?: Record<string, string>;
+  /**
+   * The rows the storefront card names, in AUTHORED ORDER.
+   *
+   * ─── IN theme.json, NOT BESIDE IT ─────────────────────────────────────────
+   *
+   * `title` and `summary` are ThemeDraft fields, kept panel-side, and elementary
+   * once shipped with Kali's summary because of it. A feature row is a claim
+   * about what the theme DOES, so it travels with the theme and cannot end up
+   * describing a different one.
+   *
+   * NEVER SORTED. The card shows the first two `exclusive` rows, so the order
+   * they are written in is the order they sell in.
+   */
+  features?: ThemeFeatureJson[];
   /** Editor hint only, never emitted to the payload. */
   seededFromPreview?: boolean;
 }
@@ -267,8 +281,22 @@ export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
   'id', 'name', 'version', 'shell', 'tier', 'chromeFamily',
   'palette', 'paletteLight', 'typography', 'layout', 'icons', 'logo',
   'wallpapers', 'wallpaper', 'fonts', 'minAppVersion',
-  'boot', 'splash', 'desklets', 'gestures', 'seededFromPreview',
+  'boot', 'splash', 'desklets', 'gestures', 'features', 'seededFromPreview',
 ]);
+
+/** One row on a storefront card. See [ThemeSpecJson.features]. */
+export interface ThemeFeatureJson {
+  title: string;
+  body: string;
+  /**
+   * Whether the all-access settings can reproduce this.
+   *
+   * REQUIRED. A missing answer reads as `true`, which is the flattering
+   * direction, and this bool is the entire price argument: a paid distro whose
+   * rows are all `false` is selling a palette.
+   */
+  exclusive: boolean;
+}
 
 export interface ThemeDraft {
   id: string;
@@ -429,6 +457,26 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
   if (spec.boot != null) out.boot = spec.boot;
   if (spec.splash != null) out.splash = spec.splash;
   if (spec.desklets != null) out.desklets = spec.desklets;
+
+  // ORDER PRESERVED, unlike the gestures below. Rows are sorted nowhere in this
+  // pipeline: the first two exclusive ones are what the card sells, so sorting
+  // would take that decision away from whoever wrote them. Determinism still
+  // holds, because an array's order is its own and does not depend on the
+  // editor's insertion order the way an object's keys do.
+  //
+  // Rows with an empty title are dropped rather than published, matching the
+  // native parser, which skips them too. A row with no title renders as a bare
+  // sentence with a gap where the bold half should be.
+  if (spec.features?.length) {
+    const rows = spec.features
+      .filter((f) => f.title.trim())
+      .map((f) => ({
+        title: f.title.trim(),
+        body: f.body.trim(),
+        exclusive: f.exclusive === true,
+      }));
+    if (rows.length) out.features = rows;
+  }
 
   // Sorted and emitted only when non-empty, for the same reason the hero pack
   // sorts its icon keys: identical content has to sign to identical bytes, and
@@ -892,6 +940,32 @@ export function importTheme(
   if (j.boot != null) spec.boot = j.boot;
   if (j.splash != null) spec.splash = j.splash;
   if (j.desklets != null) spec.desklets = j.desklets;
+
+  // MODELLED, not straight through, unlike the four above. Those are `unknown`
+  // so a block this build cannot parse survives a round trip; rows are a typed
+  // array the editor renders as fields, so they have to arrive as real objects.
+  //
+  // A malformed element is skipped rather than fatal, matching `features()` in
+  // CdnIndex.kt: editorial copy must not be able to fail an import.
+  const featureRaw = j.features;
+  if (Array.isArray(featureRaw)) {
+    const rows: ThemeFeatureJson[] = [];
+    for (const raw of featureRaw) {
+      const f = obj(raw);
+      if (!f) continue;
+      const title = str(f.title)?.trim();
+      if (!title) continue;
+      rows.push({
+        title,
+        body: str(f.body)?.trim() ?? '',
+        // Absent reads as `true`, matching the device's ThemeFeature default
+        // and the native parser. The panel always writes it, so this only
+        // fires for hand-edited JSON.
+        exclusive: f.exclusive !== false,
+      });
+    }
+    if (rows.length) spec.features = rows;
+  }
 
   // String pairs only. An action id this build does not know is KEPT, not
   // dropped: the catalogue outlives any one panel build, and the device

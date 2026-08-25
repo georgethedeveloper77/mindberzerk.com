@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "linux-mint-22-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "4hlFhFr-linux-mint-wallpaper.webp", "size": 332654, "sha256": "90dda43de597a440d78fb24e1345098998100ca8eea80a10d6adff34b3ba4fcc"},
+    {"path": "SlF16Av-mint-linux-wallpaper.webp", "size": 24152, "sha256": "f16308f72e94426ad1a5976d44969184daa9d68a3bcdf59f70c9b9157a6a4481"},
+    {"path": "logo_dark.webp", "size": 11326, "sha256": "347f137d7e3ebaa215c5935b80f0dcfd06db6fa034c259e932bf86b3519517f8"},
+    {"path": "logo_light.webp", "size": 11326, "sha256": "347f137d7e3ebaa215c5935b80f0dcfd06db6fa034c259e932bf86b3519517f8"},
+    {"path": "theme.json", "size": 3467, "sha256": "5d2c23836dc724ff32284a35b41da8f11ee2d91f32595157faeb9eee30597e6b"},
+    {"path": "xN5x1zY-mint-linux-wallpaper.webp", "size": 108356, "sha256": "53018c13b5f2cf37094202d8659de948e9e09816855e67b116e4a8b112bc53de"},
+    {"path": "yD6aeJH-mint-linux-wallpaper.webp", "size": 130898, "sha256": "b8c6401de92a55077fff2875282edd769cb06739721dcc1711a79430830b011d"}
+  ]
+}

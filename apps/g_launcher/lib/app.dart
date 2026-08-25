@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/crash_context.dart';
 import 'data/prefs/setup_state.dart';
 import 'data/billing/entitlements.dart';
 import 'design/theme.dart';
@@ -119,6 +120,19 @@ class _Root extends ConsumerWidget {
     // surviving one also carries the purchase-completed listener, which was in
     // the half that never ran. See the merge note in `cdn/pack_repository.dart`.
     ref.watch(packBridgeProvider);
+
+    // ── CRASHLYTICS CUSTOM KEYS ──────────────────────────────────────────
+    //
+    // Watched for its side effect, exactly like the line above, and mounted
+    // here for exactly the same reason: `Crash.setContext` was written, correct
+    // and called from nowhere, so every report so far has arrived with no idea
+    // which of fourteen distros produced it. A provider nothing watches never
+    // runs, which is the bug this line exists to not repeat.
+    //
+    // `_Root` rather than a shell, because a shell is torn down and rebuilt on
+    // every theme switch and the keys must survive that. See
+    // `core/crash_context.dart`.
+    ref.watch(crashContextProvider);
 
     final done = ref.watch(setupCompletedProvider);
 

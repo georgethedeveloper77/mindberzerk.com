@@ -142,6 +142,8 @@ export function BulkBar({
   verb,
   app,
   action,
+  runVerb,
+  runEach,
 }: {
   /** Singular noun for the count, e.g. "icon pack". */
   noun: string;
@@ -160,6 +162,46 @@ export function BulkBar({
    * argument moves to its own prop and this stays a plain reference.
    */
   action: (app: string, ids: string[]) => Promise<BulkOutcome[]>;
+
+  /**
+   * AN OPTIONAL SECOND VERB, RUN ONE AT A TIME FROM THE CLIENT.
+   *
+   * ─── WHY NOT JUST ANOTHER BATCH ACTION ──────────────────────────────────
+   *
+   * Delete returns in about a second, so `action` waiting for the whole list
+   * and reporting at the end is fine. Republish signs a pack and re-signs the
+   * index per distro; fourteen of those is a minute or more of a page that
+   * looks hung, and a failure at the second one stays invisible until the
+   * fourteenth finishes.
+   *
+   * So this prop is a SINGLE-item action the loop below awaits in order. Same
+   * sequential guarantee `action` has, for the same reason (concurrent writers
+   * would race the index), but each row lands as it happens.
+   *
+   * ─── AND IT STOPS ON THE FIRST FAILURE ──────────────────────────────────
+   *
+   * Not because stopping undoes anything: by then the earlier items are
+   * already live. It stops so the remaining ones are not published on top of a
+   * state you have not looked at yet, and so the decision to continue is one
+   * you make rather than one the loop makes for you.
+   *
+   * NO ARMING. Arming exists to catch an accidental irreversible click, and a
+   * republish is neither. A confirm here would only train the reflex that
+   * makes the delete confirm useless.
+   */
+  /** Imperative, e.g. "Republish". Omit along with `runEach` to hide the verb. */
+  runVerb?: string;
+
+  /**
+   * FLAT, NOT NESTED IN AN OBJECT WITH `runVerb`.
+   *
+   * Same reason `app` is its own prop rather than a closure: what may cross the
+   * server/client boundary is a `'use server'` reference, and the note above
+   * records what happens when something less careful is tried. An action
+   * reference inside an object literal is very probably fine, and this file has
+   * already paid once for "very probably fine".
+   */
+  runEach?: (app: string, id: string) => Promise<BulkOutcome>;
 }) {
   const router = useRouter();
   const { selected, clear } = useBulk();
@@ -167,8 +209,48 @@ export function BulkBar({
   const [results, setResults] = useState<BulkOutcome[] | null>(null);
   const [pending, start] = useTransition();
 
+  // ── per-item run state ────────────────────────────────────────────────────
+  //
+  // `done` accumulates outcomes as they land and doubles as the cursor: the
+  // next id to process is always `queue[done.length]`. One source of truth, so
+  // "skip and continue" is just a resume from that index with the failed one
+  // already recorded.
+  const [queue, setQueue] = useState<string[] | null>(null);
+  const [done, setDone] = useState<BulkOutcome[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [halted, setHalted] = useState(false);
+
   const ids = [...selected];
-  if (ids.length === 0 && !results) return null;
+  if (ids.length === 0 && !results && !queue) return null;
+
+  /** Walks the queue from `from`, stopping at the first failure. */
+  async function walk(list: string[], from: number, acc: BulkOutcome[]) {
+    for (let i = from; i < list.length; i++) {
+      const id = list[i];
+      setBusy(id);
+      let out: BulkOutcome;
+      try {
+        out = await runEach!(app, id);
+      } catch (e) {
+        // A thrown action is a failed row, never a dead loop. The server
+        // action already returns its refusals; this catches the transport.
+        out = { id, ok: false, detail: (e as Error).message || 'the request failed' };
+      }
+      acc = [...acc, out];
+      setDone(acc);
+      if (!out.ok) {
+        setBusy(null);
+        setHalted(true);
+        return;
+      }
+    }
+    setBusy(null);
+    setHalted(false);
+    setQueue(null);
+    setResults(acc);
+    clear();
+    router.refresh();
+  }
 
   return (
     <div className="rounded-[14px] border border-site-line bg-site-card px-4 py-3 shadow-site-soft">
@@ -217,6 +299,23 @@ export function BulkBar({
             </>
           )}
 
+          {runVerb && runEach && !armed ? (
+            <button
+              type="button"
+              disabled={pending || !!queue}
+              onClick={() => {
+                setResults(null);
+                setDone([]);
+                setHalted(false);
+                setQueue(ids);
+                void walk(ids, 0, []);
+              }}
+              className="rounded-lg border border-site-line px-3 py-1.5 text-[12.5px] font-semibold text-site-ink disabled:opacity-60"
+            >
+              {runVerb} {ids.length}
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={clear}
@@ -226,6 +325,75 @@ export function BulkBar({
           </button>
         </div>
       )}
+
+      {queue ? (
+        <div className="mt-3 border-t border-site-line pt-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[12.5px] text-site-ink-2">
+              {halted
+                ? `${done.filter((d) => d.ok).length} done, stopped at a failure`
+                : `${done.length} of ${queue.length}`}
+            </span>
+            {halted ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHalted(false);
+                    void walk(queue, done.length, done);
+                  }}
+                  className="rounded-lg bg-site-plan px-3 py-1.5 text-[12.5px] font-semibold text-white"
+                >
+                  Skip and continue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Keeps what already landed as the result list. The run is
+                    // abandoned, not undone; pretending otherwise by clearing
+                    // would hide which distros are already live at a new
+                    // version.
+                    setResults(done);
+                    setQueue(null);
+                    setHalted(false);
+                    clear();
+                    router.refresh();
+                  }}
+                  className="text-[12.5px] text-site-ink-3 hover:text-site-ink"
+                >
+                  Stop here
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          <div className="mt-1 h-[4px] overflow-hidden rounded-full bg-site-bg">
+            <div
+              className="h-full bg-site-plan transition-all"
+              style={{ width: `${(done.length / queue.length) * 100}%` }}
+            />
+          </div>
+
+          <ul className="mt-2 space-y-1">
+            {done.map((r) => (
+              <li key={r.id} className="flex gap-2 text-[11.5px] leading-relaxed">
+                <span className={`font-mono ${r.ok ? 'text-site-ok' : 'text-site-plan'}`}>
+                  {r.ok ? 'done' : 'fail'}
+                </span>
+                <span className="font-mono text-site-ink-2">{r.id}</span>
+                <span className="text-site-ink-3">{r.detail}</span>
+              </li>
+            ))}
+            {busy ? (
+              <li className="flex gap-2 text-[11.5px] leading-relaxed">
+                <span className="font-mono text-site-ink-3">busy</span>
+                <span className="font-mono text-site-ink-2">{busy}</span>
+                <span className="text-site-ink-3">signing the pack, writing the index</span>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
 
       {results && (
         <ul className="mt-2 space-y-1 border-t border-site-line pt-2">

@@ -8,6 +8,7 @@ import { publishDistro, type DistroPublishResult } from '@/lib/g-launcher/distro
 import type { ThemeDraft, ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
 import {
   copyDraftAssets,
+  readDraftAssetBytes,
   writeDraftAssets,
   type DraftAsset,
 } from '@/lib/g-launcher/distro-draft-assets';
@@ -15,7 +16,7 @@ import {
   writeIconDraft,
   type DraftAsset as IconDraftAsset,
 } from '@/lib/g-launcher/icon-drafts';
-import { deleteDraft, distroIconPackIds, readAllDrafts, writeDraft } from '@/lib/g-launcher/themes';
+import { deleteDraft, distroIconPackIds, readAllDrafts, readDraft, writeDraft } from '@/lib/g-launcher/themes';
 import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
 
 interface DistroMeta {
@@ -444,6 +445,108 @@ export async function deleteDistroAction(
   }
 
   return { ok: true, pulled, kept, removedSkus, unpublished: published };
+}
+
+/**
+ * REPUBLISH ONE DISTRO FROM ITS SAVED DRAFT.
+ *
+ * ─── WHY THIS EXISTS AT ALL ──────────────────────────────────────────────────
+ *
+ * The catalogue can drift out from under the drafts. It did: fourteen entries
+ * went live carrying empty summaries, no preview and a version that was really
+ * a timestamp, while every draft on disk held the correct spec the whole time.
+ * The only way back was opening fourteen workspaces and pressing publish in
+ * each, which is fourteen chances to miss one and no record of which.
+ *
+ * ─── THE THEME HALF ONLY, AND THAT IS NOT A SHORTCUT ─────────────────────────
+ *
+ * `publishDistroAction` takes FormData because the workspace COMPOSITES the
+ * icon entries in the browser: each glyph is rendered, recoloured and trimmed
+ * client-side, and those bytes exist nowhere else. A server action cannot
+ * reconstruct them without reimplementing the compositor, which would be a
+ * second icon pipeline and the first one to go stale.
+ *
+ * So this passes `icons: null`, which `publishDistro` reads as "leave them
+ * alone" rather than "remove them": `commitIndex` merges over a live read, so
+ * an existing icon entry survives untouched. Icon packs have their own bulk
+ * path in `publishDerivedIconPacks`, which does all fourteen in one call.
+ *
+ * ─── MISSING ART REFUSES ─────────────────────────────────────────────────────
+ *
+ * A draft naming a wallpaper whose object is gone publishes a pack that
+ * installs and then cannot render, which is worse than not publishing: the
+ * device caches it and stops asking. So a missing asset fails the row and says
+ * which file, rather than shipping a pack with a hole in it.
+ */
+export async function republishDistroAction(
+  app: string,
+  id: string,
+): Promise<{ id: string; ok: boolean; detail: string }> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { id, ok: false, detail: 'Not authorised' };
+    throw e;
+  }
+
+  if (!APPS.includes(app as AppId)) return { id, ok: false, detail: `Unknown app '${app}'` };
+  const appId = app as AppId;
+
+  const draft = await readDraft(appId, id);
+  if (!draft) return { id, ok: false, detail: 'No draft on disk; nothing to republish from' };
+
+  const { assets, missing } = await readDraftAssetBytes(appId, id);
+  if (missing.length) {
+    return { id, ok: false, detail: `asset missing from the bucket: ${missing.join(', ')}` };
+  }
+
+  const published = await publishDistro({
+    app: appId,
+    theme: {
+      // `ThemeDraft.id` IS the pack id. There is no separate `packId` field,
+      // and `theme.json`'s own `id` must equal it or the pack inherits the
+      // bundled theme's prefs bucket and its wallpaper silently never applies.
+      packId: draft.id,
+      minAppVersion: draft.spec.minAppVersion ?? 0,
+      sku: draft.sku,
+      title: draft.title,
+      summary: draft.summary,
+      spec: draft.spec,
+      assets: assets.map((a) => ({ file: a.name, bytes: a.bytes })),
+    },
+    icons: null,
+    // ─── NULL, AND PASSING draft.sku HERE WOULD BE A REAL BUG ───────────────
+    //
+    // A non-null `distroSku` makes `publishDistro` REBUILD the entitlement, and
+    // it builds `grants` from what this call published: theme entry, icon
+    // entry, hero packs. `icons` is null here, so `iconEntry` is null, so the
+    // rebuilt grants would omit the icon pack and every owner of a paid distro
+    // would lose access to the icons they had bought.
+    //
+    // Null skips that block entirely. `entitlements` starts from the live read,
+    // so the existing grant survives exactly as published. A repair must not
+    // rewrite entitlements it has only half the inputs for.
+    distroSku: null,
+    distroTitle: draft.title,
+    distroSummary: draft.summary,
+  });
+
+  if (!published.ok) return { id, ok: false, detail: published.error };
+
+  revalidatePath(`/apps/${app}/distros`);
+  const rows = draft.spec.features?.length ?? 0;
+  return {
+    id,
+    ok: true,
+    // The summary and the row count are IN the success line, not just in the
+    // failure one. A republish that succeeds while carrying an empty summary is
+    // exactly what put fourteen bare cards in the store, and it looked like a
+    // clean run at the time.
+    detail:
+      `v${published.themeVersion}, ${assets.length} ${assets.length === 1 ? 'asset' : 'assets'}` +
+      `${draft.summary ? '' : ', NO SUMMARY on the draft'}` +
+      `${rows ? `, ${rows} feature ${rows === 1 ? 'row' : 'rows'}` : ', no feature rows'}`,
+  };
 }
 
 /**

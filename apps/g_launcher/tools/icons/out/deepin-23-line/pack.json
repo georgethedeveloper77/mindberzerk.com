@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "deepin-23-line",
+  "name": "Deepin Icons",
+  "extends": "arcticons-line",
+  "tint": "#0081ff",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

@@ -1,9 +1,13 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import java.util.Properties
 
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
+    // AFTER google-services, which is not stylistic: the Crashlytics plugin
+    // reads the app id that google-services resolves from google-services.json.
+    id("com.google.firebase.crashlytics")
     // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -83,8 +87,38 @@ android {
             // Standard ProGuard rules for Flutter
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
+                // A SEPARATE FILE rather than appended to proguard-rules.pro,
+                // so what these rules defend against stays documented next to
+                // the rules themselves and survives an edit to the other file.
+                "proguard-crashlytics.pro"
             )
+
+            // ─── WITHOUT THIS BLOCK THE PLUGIN IS DECORATIVE ───────────────
+            //
+            // Applying the plugin is not what uploads the mapping file; this
+            // is. R8 is on for release, so every class and method name in a
+            // Kotlin stack trace is a single letter until the deobfuscation
+            // map reaches the console.
+            //
+            // v3 of the plugin REMOVED the extension from `defaultConfig` and
+            // requires it per variant, which is why it is here and not up in
+            // the android block. The `mappingFile` field is gone as well; the
+            // merged map is provided automatically now.
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+
+                // NATIVE SYMBOLS ARE DELIBERATELY LEFT OFF for now. Turning
+                // `nativeSymbolUploadEnabled` on also requires
+                // `unstrippedNativeLibsDir` pointing at unstripped
+                // libflutter.so and libapp.so, plus the
+                // firebase-crashlytics-ndk dependency. Half of that
+                // arrangement uploads nothing and adds minutes to every
+                // release build. It is worth doing on its own, once the
+                // memory work has settled, because the Impeller and gralloc
+                // failures WidgetStage documents are exactly the class of
+                // crash it would catch.
+            }
         }
     }
 }

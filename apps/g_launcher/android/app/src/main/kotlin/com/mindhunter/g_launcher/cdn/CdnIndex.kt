@@ -65,6 +65,37 @@ data class CdnIndex(
      * local "owned" flag. Entitlement is Play's record; anything cached in
      * prefs is a claim the device makes about itself.
      */
+    /**
+     * Does this pack come FREE with the distro currently applied?
+     *
+     * ─── DERIVED, NOT DECLARED ────────────────────────────────────────────────
+     *
+     * Every distro ships an icon pack in its own colour: `kali-2024-theme` and
+     * `kali-2024-line`. Rather than an inclusion list in the index, which is a
+     * second thing to keep in step with the catalogue, the relationship is read
+     * off the ids: strip `-theme`, append `-line`.
+     *
+     * That also covers the three BUNDLED distros, `ubuntu-24-04`, `terminal`
+     * and `kde-plasma-6`, whose ids carry no `-theme` suffix and which have no
+     * entitlement at all because they are free.
+     */
+    fun isIncludedWith(packId: String, activeThemeId: String?): Boolean {
+        val theme = activeThemeId ?: return false
+        val base = theme.removeSuffix("-theme")
+        return packId == "$base-line"
+    }
+
+    /**
+     * May this device install it: OWNED or INCLUDED.
+     *
+     * Two different facts from two different owners. Play answers the first;
+     * the applied theme answers the second. Keeping them in one function that
+     * takes both is what stops them drifting apart, which is how a pack ends up
+     * given away by one path and charged for twice by another.
+     */
+    fun isAvailable(packId: String, ownedSkus: Set<String>, activeThemeId: String?): Boolean =
+        isUnlocked(packId, ownedSkus) || isIncludedWith(packId, activeThemeId)
+
     fun isUnlocked(packId: String, ownedSkus: Set<String>): Boolean {
         val pack = pack(packId) ?: return false
         if (pack.sku == null) return true
@@ -231,6 +262,11 @@ data class CdnIndex(
                         previewBar = previewStr(o, "bar"),
                         previewDock = previewStr(o, "dock"),
                         previewAccent = previewStr(o, "accent"),
+                        // Same optString-then-ifEmpty shape as `sku`: a missing
+                        // field and an empty string mean the same thing.
+                        tint = o.optString("tint", "").ifEmpty { null },
+                        requires = stringList(o.optJSONArray("requires")),
+                        features = featureList(o.optJSONArray("features")),
                     ),
                 )
             }
@@ -311,6 +347,37 @@ data class EntitlementSet(
 }
 
 /**
+ * A JSON array of strings, leniently.
+ *
+ * One malformed entry costs its own row, never the catalogue. An index is
+ * read on a phone that cannot ask anyone for a corrected copy, so the
+ * failure mode has to be "less", not "none".
+ */
+private fun stringList(arr: org.json.JSONArray?): List<String> {
+    if (arr == null) return emptyList()
+    val out = ArrayList<String>(arr.length())
+    for (i in 0 until arr.length()) {
+        val v = arr.optString(i, "")
+        if (v.isNotEmpty()) out.add(v)
+    }
+    return out
+}
+
+/** Storefront rows, same leniency as [stringList]. */
+private fun featureList(arr: org.json.JSONArray?): List<CdnFeature> {
+    if (arr == null) return emptyList()
+    val out = ArrayList<CdnFeature>(arr.length())
+    for (i in 0 until arr.length()) {
+        val o = arr.optJSONObject(i) ?: continue
+        val title = o.optString("title", "")
+        val body = o.optString("body", "")
+        if (title.isEmpty()) continue
+        out.add(CdnFeature(title, body, o.optBoolean("exclusive", true)))
+    }
+    return out
+}
+
+/**
  * One field out of an entry's optional `preview` object.
  *
  * A nested object in the JSON, six flat fields on the far side of the bridge.
@@ -326,6 +393,8 @@ private fun previewStr(o: org.json.JSONObject, key: String): String? {
     val p = o.optJSONObject("preview") ?: return null
     return p.optString(key, "").ifEmpty { null }
 }
+
+
 
 /** One downloadable pack, as advertised by the index. */
 data class CdnPack(
@@ -358,4 +427,42 @@ data class CdnPack(
     val previewBar: String? = null,
     val previewDock: String? = null,
     val previewAccent: String? = null,
+
+    /**
+     * Rows the storefront card names, in AUTHORED ORDER. Empty for every pack
+     * published before this existed. Presentation only.
+     */
+    val features: List<CdnFeature> = emptyList(),
+
+    /**
+     * Pack ids this one cannot work without.
+     *
+     * An official icon pack is about 200 bytes naming a colour and extending
+     * `arcticons-line`, which carries the 13,622 drawings. This is what tells
+     * the downloader to fetch that one first; without it the pointer installs,
+     * verifies, and renders nothing.
+     */
+    val requires: List<String> = emptyList(),
+
+    /**
+     * The pack's colour, as `#rrggbb`, or null.
+     *
+     * The fourteen official packs share one geometry and differ in exactly
+     * this, so the colour IS the product and the catalogue has to carry it. It
+     * also lets the storefront preview a pack on the user's real apps WITHOUT
+     * installing it: the geometry is already on the device, free and required,
+     * so a preview is this hex and nothing else.
+     *
+     * Never validated here. A malformed colour costs one pack its preview;
+     * refusing the whole index over it would take the catalogue down for a typo.
+     */
+    val tint: String? = null,
+)
+
+/** One row a storefront card can name. */
+data class CdnFeature(
+    val title: String,
+    val body: String,
+    /** The all-access settings cannot reproduce it. The price argument. */
+    val exclusive: Boolean,
 )

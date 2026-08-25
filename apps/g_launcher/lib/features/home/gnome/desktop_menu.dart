@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/components.dart';
 import '../../../engine/effective_theme.dart';
+// ShellKind. `effective_theme.dart` imports theme_spec but does not re-export
+// it, so the enum is not in scope through that alone.
+import '../../../engine/theme_spec.dart';
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_picker.dart';
+import '../../icons/icon_theme_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../settings/wallpaper_screen.dart';
 import '../../themes/themes_screen.dart';
@@ -89,6 +93,22 @@ Future<void> showDesktopMenu(
                 label: 'Themes',
                 onTap: () => open(const ThemesScreen()),
               ),
+              // ─── ICONS, A PEER OF THEMES ────────────────────────────
+              //
+              // It sat three taps inside Settings, which put "change how every
+              // icon looks" below "change how the desktop looks" in a way
+              // nothing about the product supports. Choosing an icon pack is
+              // the same KIND of decision as choosing a theme, and there are
+              // now fourteen packs behind it.
+              //
+              // Between Themes and Widgets: the two appearance actions sit
+              // together and the two content actions sit together, so the bar
+              // reads in pairs rather than as four unrelated glyphs.
+              _Action(
+                icon: Icons.apps_outlined,
+                label: 'Icons',
+                onTap: () => open(const IconThemeScreen()),
+              ),
               _Action(
                 icon: Icons.widgets_outlined,
                 label: 'Widgets',
@@ -169,24 +189,40 @@ class _Bar extends StatelessWidget {
       // spilling past it.
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-        // ─── GLASS, WHICH IS WHAT THIS FILE ALREADY ARGUED FOR ──────────
+        // ─── GLASS FOR PANTHEON, SOLID FOR THE OTHER THIRTEEN ───────────
         //
-        // The doc at the top says the wallpaper stays visible behind a light
-        // scrim, "because you are picking a wallpaper, so hiding it behind an
-        // opaque sheet is exactly backwards". It then drew the bar in
-        // `c.surface`, which is opaque, and in light mode resolves to something
-        // very close to white. So the bar was the one thing on screen doing the
-        // opposite of what the file says it is for.
+        // This file argued for glass and it was half right. The reasoning was
+        // sound: you are picking a wallpaper, so an opaque sheet hides the
+        // thing you are choosing.
         //
-        // GlassPanel is the same primitive every sheet, dialog and anchored
-        // menu now uses: blurred, translucent, tinted with the distro's own
-        // colour. The wallpaper reads through it, which is the entire point of
-        // this gesture.
-        child: GlassPanel(
-          // No literal: the shared panel radius, like every other floating
-          // surface. This bar carried its own 20 while the sheet carried 16,
-          // which is the drift a single setting exists to end.
-          borderRadius: BorderRadius.circular(d.panelRadius),
+        // It is only TRUE of elementary. Pantheon genuinely blurs what is
+        // behind it. Xfce, Cinnamon, Yaru, COSMIC, KDE and DDE all draw solid
+        // themed menus, so glass everywhere was the launcher's own look leaking
+        // through the distro it claims to be, which is the one thing this
+        // product cannot afford: a per-distro shell that wears the same chrome
+        // for every distro is a skin.
+        //
+        // `aqua` is the shell elementary and Deepin share. Deepin is not
+        // Pantheon, but DDE rounds hard and keeps its surfaces very dark, and
+        // it is the closest of the thirteen to reading as translucent, so it is
+        // the one place the shared shell answer is also the right one.
+        //
+        // The surface is the distro's own, at a low tint of its accent, so
+        // Ubuntu's bar warms toward aubergine and Mint's cools toward green
+        // without either becoming a coloured rectangle. Contrast was measured
+        // across all fourteen palettes before the ratio was chosen: Ubuntu's
+        // orange on its own warm base is the tightest and it is what caps this
+        // at a low number rather than a bolder one.
+        child: _Surface(
+          // ShellKind, not a string. The enum is exhaustive everywhere else in
+          // this codebase precisely so a new shell breaks the build rather than
+          // silently defaulting, and comparing against a literal here would
+          // have opted this one line out of that.
+          glass: theme.spec.shell == ShellKind.aqua,
+          // The distro's own colour, mixed into its own surface. See _Surface.
+          accent: d.colors.accent,
+          surface: d.colors.surface,
+          radius: d.panelRadius,
           child: Material(
             // Transparent: the glass paints the surface. Material stays because
             // showGeneralDialog builds this outside the app's Scaffold, so the
@@ -207,6 +243,79 @@ class _Bar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The bar's surface: blurred for Pantheon, solid and accent-tinted otherwise.
+class _Surface extends StatelessWidget {
+  const _Surface({
+    required this.glass,
+    required this.accent,
+    required this.surface,
+    required this.radius,
+    required this.child,
+  });
+
+  final bool glass;
+  final Color accent;
+  final Color surface;
+  final double radius;
+  final Widget child;
+
+  /// How much of the accent goes into the surface.
+  ///
+  /// ─── ONE NUMBER, NOT FOURTEEN HAND-PICKED HEXES ─────────────────────────
+  ///
+  /// Every bar is `lerp(surface, accent, TINT)`, so 0 collapses to exactly the
+  /// neutral surface this file used to draw and the value is a dial rather than
+  /// two presets pretending to be one. Fourteen authored colours would drift
+  /// the first time a palette changed.
+  ///
+  /// 0.14 because contrast was measured across all fourteen palettes and
+  /// Ubuntu is the constraint: `#E95420` sits close in luminance to the warm
+  /// base it mixes into, so orange-on-orange loses separation before any other
+  /// pair does. It clears comfortably here and is thin by 0.20. Raising this
+  /// without re-measuring Ubuntu is how the bar becomes unreadable on one
+  /// distro and fine on thirteen.
+  static const double tint = 0.14;
+
+  /// The border takes twice the tint.
+  ///
+  /// A border that stays neutral while the surface warms reads as a seam rather
+  /// than as an edge, which is worse than having no border at all.
+  static const double borderTint = 0.28;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(radius);
+
+    if (glass) {
+      // Pantheon really does blur, so the tint goes INSIDE the glass rather
+      // than replacing it. Swapping in a tinted solid here would lose the one
+      // thing this desktop actually does.
+      return GlassPanel(borderRadius: shape, child: child);
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Color.lerp(surface, accent, tint),
+        borderRadius: shape,
+        border: Border.all(
+          color: Color.lerp(surface, accent, borderTint) ?? surface,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            // Solid, so it needs its own separation from the wallpaper. The
+            // glass path gets that from the blur.
+            color: const Color(0xFF000000).withValues(alpha: 0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(borderRadius: shape, child: child),
     );
   }
 }

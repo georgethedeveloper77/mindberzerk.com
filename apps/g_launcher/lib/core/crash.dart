@@ -177,16 +177,50 @@ abstract final class Crash {
   /// Named rather than free-form for the reason `analytics.dart` gives about
   /// event names: a key spelled `shell` in one place and `shellId` in another
   /// splits the same field into two columns and neither is complete.
+  /// ─── APPEND ONLY, AND THE FOUR ORIGINALS KEEP THEIR NAMES ─────────────
+  ///
+  /// New parameters go at the END and every one is optional, so no existing
+  /// call site needs an edit. Same discipline as the Pigeon schemas, for a
+  /// weaker but real version of the same reason: a key RENAMED here does not
+  /// fail to compile, it silently starts a second column in the console and
+  /// splits one field's history across both. `shell` stays `shell`.
+  ///
+  /// The four below the line were added once there were fourteen live distros
+  /// shipping as CDN data. `theme_id` alone stopped being enough the moment a
+  /// distro could be republished without an app update.
   static void setContext({
     String? shell,
     String? themeId,
     int? appCount,
     int? drawerPage,
+    // ── added with the CDN distro catalogue ──────────────────────────────
+    /// Adwaita, Breeze, Aqua or generic. Orthogonal to [shell] and decides
+    /// Settings, dialogs, sheets and folder popovers, so a report naming only
+    /// the shell is naming roughly a third of what was on screen.
+    String? chromeFamily,
+    /// The user's third-party icon pack, or '-' for none. NOT part of the
+    /// theme: it names an APK that happens to be installed on one device, and
+    /// it is the layer that sits above hero, brand and generator alike.
+    String? iconPackId,
+    /// The installed version of the active distro's pack. NOTHING SETS THIS
+    /// YET, and the parameter is kept because the key is worth having: a distro
+    /// can be republished over the CDN without an app update, so two devices on
+    /// the same `theme_id` can be running different artwork. See the note at
+    /// the foot of `crash_context.dart` for the source that must NOT be used to
+    /// fill it.
+    int? packVersion,
+    /// Which palette is live. A theme with no light block is always dark, so
+    /// this is not simply the system setting read back.
+    bool? dark,
   }) {
     if (shell != null) setKey('shell', shell);
     if (themeId != null) setKey('theme_id', themeId);
     if (appCount != null) setKey('app_count', appCount);
     if (drawerPage != null) setKey('drawer_page', drawerPage);
+    if (chromeFamily != null) setKey('chrome_family', chromeFamily);
+    if (iconPackId != null) setKey('icon_pack_id', iconPackId);
+    if (packVersion != null) setKey('pack_version', packVersion);
+    if (dark != null) setKey('dark', dark);
   }
 
   // ---- internals ---------------------------------------------------------

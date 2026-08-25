@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "ubuntu-24-04-line",
+  "name": "Ubuntu Icons",
+  "extends": "arcticons-line",
+  "tint": "#e95420",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

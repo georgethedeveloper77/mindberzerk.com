@@ -1,0 +1,161 @@
+{
+  "id": "deepin-23-theme",
+  "name": "Deepin",
+  "version": "23",
+  "shell": "aqua",
+  "tier": "pro",
+  "palette": {
+    "bgTop": "#0E4E9E",
+    "bgBottom": "#08213F",
+    "bar": "#0B2E5C",
+    "dock": "#26FFFFFF",
+    "accent": "#0081FF",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Noto Sans",
+    "mono": "JetBrains Mono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "drawerScrollStyle": "pages",
+    "drawerGrouping": "none"
+  },
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.26,
+    "foregroundScale": 1,
+    "backgroundColor": "#0F3A66",
+    "brandPack": "deepin-23-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "3508449.webp",
+    "3508450.webp",
+    "3508451.webp",
+    "3508801.webp",
+    "3508804.webp",
+    "3508809.webp"
+  ],
+  "minAppVersion": 6,
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.6 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Deepin Session Manager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Deepin Display Manager ...",
+        "delayMs": 450
+      },
+      {
+        "kind": "ok",
+        "text": "Started Deepin Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1100
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  }
+}

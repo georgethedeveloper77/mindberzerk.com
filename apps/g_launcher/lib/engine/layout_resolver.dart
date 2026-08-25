@@ -35,6 +35,7 @@ class ResolvedLayout {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.kickoffRail,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -92,6 +93,15 @@ class ResolvedLayout {
   /// from a newer build fall through the chain rather than reaching a shell.
   final String drawerScrollStyle;
   final String drawerGrouping;
+
+  /// What the Kickoff rail is made of, RESOLVED: 'tabs' | 'categories'. Never
+  /// null, so [KickoffDrawer] carries no fallback of its own.
+  ///
+  /// No user override merges in. Unlike the two above, this is not a way of
+  /// moving through the list, it is WHICH MENU the distro has, and a Mint user
+  /// switching it to tabs would be asking for KDE's menu on Mint. Same
+  /// direction [desktopIcons] argues for and for the same reason.
+  final String kickoffRail;
   /// The user's EXPLICIT icon-size override, in dp, or the legacy default.
   ///
   /// Being phased out. It is a flat number that knows nothing about the screen,
@@ -129,13 +139,22 @@ class ResolvedLayout {
           other.drawerCols == drawerCols &&
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
+          other.kickoffRail == kickoffRail &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
           other.textScale == textScale &&
           other.iconScale == iconScale;
 
+  /// ─── hashAll, NOT hash ──────────────────────────────────────────────────
+  ///
+  /// `Object.hash` takes at most 20 positional arguments and this list was at
+  /// 19 before [kickoffRail]. Adding it lands exactly on the ceiling, so the
+  /// NEXT field here would have been a compile error at best and a silently
+  /// dropped term at worst. `EffectiveTheme` already hit this and moved; this
+  /// moves before it has to, since a hash missing a field compares unequal but
+  /// hashes the same, which is the quiet kind of wrong.
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         dock,
         topBar,
         topBarSide,
@@ -151,11 +170,12 @@ class ResolvedLayout {
         drawerCols,
         drawerScrollStyle,
         drawerGrouping,
+        kickoffRail,
         iconSizeDp,
         labelLines,
         textScale,
         iconScale,
-      );
+      ]);
 }
 
 /// Resolves [ThemeSpec] defaults against [LauncherPrefs] overrides. A null
@@ -189,6 +209,10 @@ abstract final class LayoutResolver {
   /// disagreement cannot recur.
   static const defaultDrawerScrollStyle = 'pages';
   static const defaultDrawerGrouping = 'none';
+
+  /// KDE's own menu, and what every plasma distro drew before the field
+  /// existed. A theme that says nothing keeps exactly the rail it had.
+  static const defaultKickoffRail = 'tabs';
 
   /// First KNOWN value wins: the user's, else the theme's, else [fallback].
   ///
@@ -352,6 +376,13 @@ abstract final class LayoutResolver {
         spec.layout.drawerGrouping,
         const {'none', 'az', 'library'},
         defaultDrawerGrouping,
+      ),
+      // No prefs argument: a capability, not a preference. See the field doc.
+      kickoffRail: _pick(
+        null,
+        spec.layout.kickoffRail,
+        const {'tabs', 'categories'},
+        defaultKickoffRail,
       ),
       iconSizeDp: prefs.iconSizeDp ?? defaultIconSizeDp,
       labelLines: prefs.labelLines ?? defaultLabelLines,

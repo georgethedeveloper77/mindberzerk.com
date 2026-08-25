@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "fedora-40-theme",
+  "version": 1787590303,
+  "minAppVersion": 0,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "image_2026-08-23_184036531.png", "size": 289100, "sha256": "1a725e94126710336ccfeb21729a528fb2ce2bbe6b9a61e53c43ccd2841d5cab"},
+    {"path": "image_2026-08-23_184050658.png", "size": 2544172, "sha256": "2125e80980515987e73b0690926098e4cd34f3d5e672ad7c9cad61a4a9036b5b"},
+    {"path": "logo_dark.png", "size": 18715, "sha256": "6dda757ceb01cc876c288eee69a29b106462cbce40bb595694abaf517a071b61"},
+    {"path": "logo_light.png", "size": 18715, "sha256": "6dda757ceb01cc876c288eee69a29b106462cbce40bb595694abaf517a071b61"},
+    {"path": "theme.json", "size": 2731, "sha256": "813852d2c7fb3060ea80981c01284d9ad072d8e99e1d76d1e9e9ec397af8708d"}
+  ]
+}

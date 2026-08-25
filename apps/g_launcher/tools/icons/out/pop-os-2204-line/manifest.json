@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "pop-os-2204-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 204, "sha256": "b8fc6f2e05eacb990fa4c4fd0a26c4aa0aefe60203764c63316de507c53de549"}
+  ]
+}

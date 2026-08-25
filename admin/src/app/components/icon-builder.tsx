@@ -22,13 +22,14 @@ import { normaliseHex, recolourBytes, isRecolourable } from '@/lib/g-launcher/sv
 import {
   CORE_ROLES,
   expandRoleEntries,
+  roleById,
   buildHeroPackJson,
   fileNameFor,
   guessPackage,
   isPackageName,
 } from '@/lib/g-launcher/icon-pack';
 import { renderHeroIcon } from '@/lib/core/image-trim';
-import { composeIcon, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
+import { composeIcon, ICON_SIZE, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
 import type { GlyphLite } from '@/lib/g-launcher/glyph-blob';
 import { glyphToBlob } from '@/lib/g-launcher/glyph-blob';
 import { GlyphPicker, IconStyleBar } from '@/app/components/icon-compose-bar';
@@ -37,6 +38,11 @@ import { SKU_PREFIX, iconsSkuFor, skuProblems } from '@/lib/core/skus';
 import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
 import type { RehydratedPack } from '@/lib/core/cdn';
 import { ICON_TREATMENTS } from '@/lib/g-launcher/theme-spec';
+import { setCharacter, type SetCharacter } from '@/lib/g-launcher/svg-stroke';
+import { IconSetHealth } from '@/app/components/icon-set-health';
+import { IconContactSheet } from '@/app/components/icon-contact-sheet';
+import { DistroStrip } from '@/app/components/distro-strip';
+import { IconGaps } from '@/app/components/icon-gaps';
 
 /**
  * RESTYLED ONTO THE SOFT REGISTER. This file was the one builder that did NOT
@@ -387,6 +393,55 @@ export function IconBuilder({
   // they should not be buried under forty that guessed fine.
   const [unmappedFirst, setUnmappedFirst] = useState(false);
 
+  // An outlier tapped in the health panel. Display only: it tints a row so the
+  // author can find it, and nothing about the pack changes.
+  const [highlight, setHighlight] = useState<string | null>(null);
+
+  /**
+   * What `IconSetHealth` measures.
+   *
+   * ─── `file`, NEVER `blob` ─────────────────────────────────────────────────
+   *
+   * The same rule `render` follows. `blob` is the composed output and carries
+   * the plate, and a plate is opaque across the whole tile, so every row would
+   * measure 100% coverage and the histogram would be a single bar. `file` is
+   * the source art, whose alpha channel IS the ink.
+   *
+   * Keyed on name plus size rather than `entry.id`, so the measurement cache
+   * survives a row being removed and re-added, and two rows holding the same
+   * drawing are measured once.
+   */
+  /**
+   * What the contact sheet draws.
+   *
+   * `blob` is the COMPOSED output, because that is what ships and what the
+   * device will scale. `source` is the original art, because the ink
+   * measurement needs an alpha channel that is not covered by a plate. Both,
+   * on every tile, is the only way one component can show what will be seen
+   * and measure what it is made of.
+   */
+  const sheetTiles = useMemo(
+    () =>
+      entries.map((e) => ({
+        id: e.id,
+        blob: e.blob,
+        source: e.file as Blob,
+        label: roleById(e.pkg)?.label ?? e.pkg ?? e.file.name,
+        slot: e.pkg,
+      })),
+    [entries],
+  );
+
+  const healthRows = useMemo(
+    () =>
+      entries.map((e) => ({
+        key: `${e.file.name}:${e.file.size}`,
+        label: roleById(e.pkg)?.label ?? e.pkg ?? e.file.name,
+        art: e.file as Blob,
+      })),
+    [entries],
+  );
+
   // Advisory, never blocking: a shape Play would refuse is worth saying loudly,
   // but this builder does not get to decide what a valid product ID is. The
   // signing route's `isSafeSku` is the gate, and Play is the final word.
@@ -694,6 +749,77 @@ export function IconBuilder({
       !busy,
     [entries, duplicates, packId, licenceIssue, busy, slotMapped],
   );
+
+  /**
+   * The FIRST reason publishing is held, as one line.
+   *
+   * ─── A DISABLED BUTTON WITH ITS REASON OFF SCREEN ────────────────────────
+   *
+   * The full explanations below are better than this and must stay. But the
+   * action row is now roughly eight hundred pixels below the contact sheet,
+   * and a sticky bar carrying a greyed-out Publish and nothing else recreates
+   * this file's most-repeated bug at a new scroll position. So the bar carries
+   * the first blocker and the block below carries all of them.
+   *
+   * Ordered by what the author can act on soonest rather than by severity:
+   * a malformed pack id is two keystrokes, a missing license attestation is
+   * one click, and duplicate mappings are a hunt.
+   */
+  const blockReason = useMemo(() => {
+    if (busy) return null;
+    if (entries.length === 0) return 'Add at least one icon.';
+    if (!/^[a-z0-9._-]+$/.test(packId)) return 'The pack id needs lowercase letters, digits, dots, dashes or underscores.';
+    if (licenceIssue) return licenceIssue;
+    if (duplicates.size > 0) {
+      return `${duplicates.size} ${duplicates.size === 1 ? 'app has' : 'apps have'} two icons.`;
+    }
+    const unmapped = entries.filter((e) => !slotMapped(e.pkg)).length;
+    if (unmapped > 0) return `${unmapped} ${unmapped === 1 ? 'icon has' : 'icons have'} no app assigned.`;
+    const unrendered = entries.filter((e) => !e.blob).length;
+    if (unrendered > 0) return `${unrendered} ${unrendered === 1 ? 'icon' : 'icons'} did not render.`;
+    return null;
+  }, [entries, packId, licenceIssue, duplicates, busy, slotMapped]);
+
+  /**
+   * Outlines or solids, read from the sources that can answer.
+   *
+   * Only SVG rows vote. A PNG has no strokes to read, and inferring from its
+   * pixels would be a different and much weaker measurement wearing the same
+   * name. A pack rebuilt entirely from rasterised drafts therefore reports
+   * `unknown`, which correctly suppresses the mismatch warning rather than
+   * guessing at it.
+   *
+   * Async because reading a Blob is, and held in state rather than derived:
+   * `useMemo` cannot await, and a promise thrown into render is a suspense
+   * boundary this screen does not have.
+   */
+  const [character, setCharacterState] = useState<SetCharacter>('unknown');
+  useEffect(() => {
+    let cancelled = false;
+    const svgs = entries.filter((e) => e.file.type === 'image/svg+xml');
+    if (svgs.length === 0) {
+      setCharacterState('unknown');
+      return;
+    }
+    void Promise.all(svgs.map((e) => e.file.text())).then((texts) => {
+      if (!cancelled) setCharacterState(setCharacter(texts));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entries]);
+
+  /**
+   * Art from a glyph source becomes an ordinary intake file.
+   *
+   * Named after the ROLE rather than after the drawing, because the row it
+   * creates is already mapped and a slug filename would invite `guessPackage`
+   * to have an opinion about a slot that is already decided.
+   */
+  async function addSvgForRole(roleId: string, svg: string, name: string) {
+    const file = new File([svg], name, { type: 'image/svg+xml' });
+    await addForPackage(roleId, file);
+  }
 
   const covered = new Set(entries.map((e) => e.pkg));
   const missing = CORE_ROLES.filter((r) => !covered.has(r.id));
@@ -1335,6 +1461,53 @@ export function IconBuilder({
           />
         </div>
 
+        {/* ── SET HEALTH ────────────────────────────────────────────────────
+            Under the style bar because it reports on what the style bar just
+            did. Two questions the builder could not answer before: whether the
+            strokes survive a budget panel, and whether the icons read as one
+            set. It measures SOURCE art, never `entry.blob`, because a composed
+            icon carries a plate and a plate saturates the alpha channel to
+            100% on every row, which measures nothing. */}
+        {entries.length > 0 ? (
+          <div className="mt-3 flex flex-col gap-3">
+            {/* The sheet first: it answers "does this look right" and the
+                health panel answers "why does it not". Reading order should
+                match that, and the numbers mean little before the picture. */}
+            {/* ── THE STRIP GOES FIRST ──────────────────────────────────
+                It answers "which product is this", and the sheet and the health
+                panel answer "is this product any good". Reading order should
+                match, because judging a set before knowing which distro it is
+                for is judging it against the wrong wallpaper. */}
+            <DistroStrip
+              packId={packId}
+              sample={entries[0]?.file ?? null}
+              style={style}
+              busy={restyling || busy}
+              onRetarget={(compose, nextId) => {
+                // The pack id moves with the recipe, but only on a NEW pack.
+                // Renaming an existing one would fork it: the old id stays
+                // published and this becomes a second pack that nobody asked
+                // for, which is the same rule the Belongs to picker follows.
+                if (!initial) setPackId(nextId);
+                void restyle(compose);
+              }}
+            />
+            <IconContactSheet
+              tiles={sheetTiles}
+              inset={style?.inset ?? 0}
+              strokeWidth={style?.strokeWidth ?? null}
+              onSelect={setHighlight}
+            />
+            <IconSetHealth
+              rows={healthRows}
+              inset={style?.inset ?? 0}
+              strokeWidth={style?.strokeWidth ?? null}
+              plateNone={!style || style.plate.kind === 'none'}
+              onSelect={setHighlight}
+            />
+          </div>
+        ) : null}
+
         <div className="mt-3">
           <GlyphPicker
             open={pickingGlyph}
@@ -1344,10 +1517,10 @@ export function IconBuilder({
         </div>
         <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
           SVG, PNG, WEBP, or JPEG, loose, in a folder, or in a zip. Each drawing
-          is fitted to a 192 square at its own proportions and written as PNG.
-          No trimming or rescaling: what you drew is what ships. Packages are
-          guessed from filenames and reviewed below; nothing uploads until you
-          publish.
+          is fitted to a {ICON_SIZE} square at its own proportions and written
+          as PNG. No trimming or rescaling: what you drew is what ships.
+          Packages are guessed from filenames and reviewed below; nothing
+          uploads until you publish.
         </p>
         {/* ── LINE COLOUR ──────────────────────────────────────────────────
             Shown only when the intake found monotone SVG art, because that is
@@ -1575,60 +1748,36 @@ export function IconBuilder({
       />
 
       {/* ── coverage ─────────────────────────────────────────────────────────
-          ALWAYS RENDERED, not only once files exist. Hidden behind
-          `entries.length > 0` this doubled as the builder's app list and was
-          invisible on a new pack, so the screen opened with no package ids
-          anywhere and every mapping started from a filename guess. Now it is
-          the starting point: tap an app, pick its art, and the row arrives
-          already mapped to the right id. */}
-      {missing.length > 0 && (
-        <section className="rounded-[18px] border border-site-line bg-site-card shadow-site-soft p-3 sm:p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-[13px] font-medium">Core set</h2>
-            <span className="text-[11.5px] text-site-ink-3">
-              {CORE_ROLES.length - missing.length} of {CORE_ROLES.length} covered
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {missing.map((c) => (
-              <label
-                key={c.id}
-                // Every package the role covers, so the tile can be checked
-                // against a real device without opening this file.
-                title={c.packages.join('\n')}
-                className="cursor-pointer rounded-md border border-dashed border-site-line px-2 py-1 font-mono text-[11.5px] text-site-ink-3 transition hover:border-site-ink-3 hover:text-site-ink"
-              >
-                + {c.label}
-                {c.packages.length > 1 ? (
-                  <span className="ml-1 opacity-60">x{c.packages.length}</span>
-                ) : null}
-                <input
-                  type="file"
-                  accept="image/png,image/webp,image/jpeg,image/svg+xml"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void addForPackage(c.id, f);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-            ))}
-          </div>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-site-ink-3">
-            Tap an app to add its icon with the package id already set; hover
-            shows the id. The dock and first drawer page are the only icons a
-            user sees. Ranked by what the install base runs, not by what a
-            desktop theme ships. A real ranking arrives with the analytics
-            export.
-          </p>
-        </section>
-      )}
+          ALWAYS RENDERED, not only once files exist, and the guard that used
+          to wrap this said the opposite of the comment above it: it hid the
+          panel the moment every role was covered, which is exactly when the
+          author wants to read "every app in the core set has art" rather than
+          find an empty space where a list used to be. `IconGaps` renders that
+          sentence itself, so the guard was both wrong and unnecessary.
+
+          It is the starting point for a new pack: tap an app, pick its art,
+          and the row arrives already mapped to the right id rather than
+          starting from a filename guess. */}
+      <IconGaps
+        missing={missing}
+        character={character}
+        covered={CORE_ROLES.length - missing.length}
+        takenSlots={covered}
+        onAddFile={(roleId, file) => void addForPackage(roleId, file)}
+        onAddSvg={(roleId, svg, name) => void addSvgForRole(roleId, svg, name)}
+      />
 
       <Notices error={error} result={result} draftNote={draftNote} />
       <BusyRail busy={busy || draftBusy} />
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] flex flex-col gap-2.5 md:static md:flex-row md:items-center">
+      {/* ── STICKY ON DESKTOP TOO ─────────────────────────────────────────
+          This was `md:static`, which was correct when the page ended a screen
+          below the review list. The contact sheet and the health panel added
+          roughly eight hundred pixels above it, so on a desktop the only two
+          buttons that do anything now scroll off and stay off while the author
+          works through the grid. Sticky at every width, with a surface behind
+          it so it reads as a bar rather than as content that failed to move. */}
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 -mx-3 flex flex-col gap-2.5 border-t border-site-line bg-site-card/95 px-3 py-2.5 backdrop-blur md:bottom-0 md:-mx-4 md:flex-row md:flex-wrap md:items-center md:px-4">
         <button
           onClick={publish}
           disabled={!ready}
@@ -1664,9 +1813,19 @@ export function IconBuilder({
           </button>
         )}
 
-        <span className="text-[11.5px] leading-relaxed text-site-ink-3 md:max-w-[34ch]">
-          A draft is stored for you alone. It publishes nothing, bumps no version and reaches no
-          device.
+        {/* The blocker, or the draft note when nothing is blocking. One line
+            either way, because a bar that grows to three lines stops being a
+            bar and starts eating the grid it is meant to sit beside. */}
+        <span
+          className="text-[11.5px] leading-relaxed md:max-w-[38ch]"
+          style={{
+            color: blockReason
+              ? 'var(--color-site-plan)'
+              : 'var(--color-site-ink-3)',
+          }}
+        >
+          {blockReason ??
+            'A draft is stored for you alone. It publishes nothing, bumps no version and reaches no device.'}
         </span>
         {shrink > 0 && (
           <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11.5px] leading-relaxed text-site-plan">

@@ -43,6 +43,7 @@ class EffectiveTheme {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.kickoffRail,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -104,6 +105,23 @@ class EffectiveTheme {
   /// half the answer now that a distro can carry a default.
   final String drawerScrollStyle;
   final String drawerGrouping;
+
+  /// What the Kickoff rail is made of: 'tabs' or 'categories'.
+  ///
+  /// ─── RESOLVED, AND CARRIED ACROSS FOR THE SAME REASON AS EVERY SCALAR ────
+  ///
+  /// [LayoutResolver] already produced this. It was not carried onto
+  /// EffectiveTheme, so `KickoffDrawer` read `theme.kickoffRail` against a
+  /// getter that did not exist and three call sites failed to compile.
+  ///
+  /// A shell must read the RESOLVED value, never `spec.layout`, or a distro's
+  /// authored default silently stops applying in one widget and keeps working
+  /// in another. That is the rule this whole class exists to enforce.
+  ///
+  /// No user override merges in, unlike the two above. This is not a way of
+  /// moving through the list, it is WHICH MENU the distro has, and a Mint user
+  /// switching it to tabs would be asking for KDE's menu on Mint.
+  final String kickoffRail;
 
   final double iconSizeDp;
 
@@ -202,6 +220,7 @@ class EffectiveTheme {
   /// exists.
   ThemePalette get palette =>
       dark ? spec.palette : (spec.paletteLight ?? spec.palette);
+
   /// The families actually on screen: the distro's, unless the user said
   /// otherwise.
   ///
@@ -221,6 +240,7 @@ class EffectiveTheme {
   /// Nothing downstream changes. `terminal_view.dart` still reads
   /// `typography.mono` and every label still reads `typography.display`; they
   /// simply start getting a different answer.
+  ///
   /// ─── NOT IN ==, AND THAT IS SOUND RATHER THAN AN OVERSIGHT ──────────────
   ///
   /// These two families are computed from `prefs`, `spec` and a static map that
@@ -362,6 +382,7 @@ class EffectiveTheme {
       drawerCols: layout.drawerCols,
       drawerScrollStyle: layout.drawerScrollStyle,
       drawerGrouping: layout.drawerGrouping,
+      kickoffRail: layout.kickoffRail,
       iconSizeDp: layout.iconSizeDp,
       labelLines: layout.labelLines,
       textScale: layout.textScale,
@@ -399,7 +420,51 @@ class EffectiveTheme {
         // own look for no gain.
         backgroundGradientEnd: themeIcons.backgroundGradientEnd,
         gradientAngle: themeIcons.gradientAngle,
-        brandPack: themeIcons.brandPack,
+        // ─── THE FALLBACK THAT MAKES A DISTRO WEAR ITS OWN ICONS ──────────
+        //
+        // Every distro ships an icon pack named after it: `kali-2024-theme`
+        // and `kali-2024-line`. Fourteen of them, sharing one geometry and
+        // differing only in colour.
+        //
+        // Authoring `brandPack` in each theme.json covers the CDN distros and
+        // CANNOT cover the three BUNDLED ones: their theme.json lives inside
+        // the APK, so republishing them over the CDN changes nothing on a
+        // device that loads them from assets. Ubuntu, Terminal and KDE Plasma
+        // each resolved null and fell through to the generator while the pack
+        // they are entitled to sat unused on the CDN.
+        //
+        // Derived HERE rather than in the storefront, because this value is
+        // what native receives on `IconStyle.brandPack`. Computing it anywhere
+        // else would let the card and the drawer name different packs.
+        //
+        // Already in `iconCacheId` below, so no extra cache line is needed for
+        // the same reason `heroPack` needs none: the VALUE changes, and the key
+        // reads the value.
+        //
+        // ─── AND THE USER'S CHOSEN COLOUR BEATS BOTH ──────────────────────
+        //
+        // [LauncherPrefs.iconBrandPackId] leads, for exactly the reason
+        // `prefs.iconPackId` leads on `heroPack` twenty lines up, and it was
+        // missing for the whole life of the colour strip.
+        //
+        // What happened without it: choosing any of the thirteen other colours
+        // wrote `prefs.iconPackId`, which routes to the HERO tier. A derived
+        // line pack is `{v, id, name, extends, tint, license, attribution}`
+        // and nothing else, so `HeroIconResolver.readPack` found no `icons`
+        // map and returned null, the hero tier drew nothing, and this line
+        // handed the brand tier the distro's own pack as though nobody had
+        // chosen anything. Apply completed, the card updated, the toast
+        // appeared, and the drawer stayed the colour it already was.
+        //
+        // TWO FIELDS RATHER THAN ONE FIELD PLUS A KIND FLAG, because they are
+        // two different choices and a phone can hold both: `iconPackId` is the
+        // hand-drawn set on top, this is the outline set underneath, and the
+        // generator catches whatever neither covers. That is the layering this
+        // file already describes, and a single field with a tier tag would
+        // make choosing one silently discard the other.
+        brandPack: prefs.iconBrandPackId ??
+            themeIcons.brandPack ??
+            defaultLinePackFor(spec.id),
         brandTreatment: themeIcons.brandTreatment,
       ),
     );
@@ -456,6 +521,11 @@ class EffectiveTheme {
   ///    the object they already hold), and `spec.id` moves with them anyway.
   ///  - the layout scalars — derived from `(spec, prefs)`, kept for defence
   ///    against a same-id spec whose content changed under it.
+  ///
+  /// [kickoffRail] is NOT here, and that is deliberate rather than an omission
+  /// to fix later. It comes from `spec.layout` with no prefs input, so it cannot
+  /// change without `spec.id` changing, which is already compared. Adding it
+  /// would be harmless and would imply the two can move independently.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -533,6 +603,30 @@ class EffectiveTheme {
         iconCacheId,
       ]);
 }
+
+/// The line pack a distro ships with, derived from its theme id.
+///
+/// ─── A NAMING RULE, NOT A TABLE ─────────────────────────────────────────────
+///
+/// `kali-2024-theme` -> `kali-2024-line`. The `-theme` suffix is stripped when
+/// present, which is what makes the three BUNDLED distros work: their ids are
+/// `ubuntu-24-04`, `terminal` and `kde-plasma-6`, with no suffix at all.
+///
+/// A table would be a second list to keep in step with the catalogue, and the
+/// symptom of it drifting is a distro quietly wearing generated icons.
+/// `CdnIndex.isIncludedWith` applies the same prefix rule to decide whether that
+/// pack is FREE; the two have to agree, and a shared rule is the cheapest way to
+/// guarantee it.
+///
+/// Returns a name for every theme, including ones whose pack was never
+/// published. That is harmless: `BrandIconResolver` finds nothing installed
+/// under that id and the generator draws, exactly as it did before.
+///
+/// TOP LEVEL rather than a static on [EffectiveTheme], because two callers need
+/// it: `resolve` above for the icon style, and the icons storefront to decide
+/// whether a pack came free with the distro in use.
+String defaultLinePackFor(String themeId) =>
+    '${themeId.endsWith('-theme') ? themeId.substring(0, themeId.length - 6) : themeId}-line';
 
 /// The one provider the shells watch.
 ///
@@ -625,6 +719,7 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // it re-runs the whole thing. The old branch did precisely that and paid a
   // rebuild for it on every first run. Nobody watches this key, so applying a
   // wallpaper now costs one write and no rebuild.
+  //
   // ─── THE TOKEN CARRIES THE MODE NOW ────────────────────────────────────
   //
   // It used to be the theme id alone, which was right until light mode existed
@@ -763,6 +858,7 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   //
   // Removing every desklet is a legitimate arrangement, which is why the flag
   // exists at all rather than testing `prefs.desklets.isEmpty`.
+  //
   // PHASE D-grid — clear placements and let the starter reseed, ONCE per theme.
   //
   // BEFORE the starter branch, and it depends on that order: the reset clears
@@ -808,7 +904,6 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
 
   return effective;
 });
-
 
 /// Is the PHONE in dark mode right now?
 ///

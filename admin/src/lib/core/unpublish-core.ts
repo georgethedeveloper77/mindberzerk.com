@@ -141,6 +141,45 @@ export async function unpublishPacks(
     };
   }
 
+  // ─── NOTHING MAY BE PULLED OUT FROM UNDER A PACK THAT NEEDS IT ────────────
+  //
+  // A derived icon pack is 200 bytes naming a colour and pointing at
+  // `arcticons-line`, which carries the 13,622 drawings all fourteen distros
+  // share. Pulling the base leaves fourteen paid packs that still verify, still
+  // install and draw nothing, and the only symptom is every icon quietly
+  // falling through to the generator.
+  //
+  // Read from the LIVE index rather than from a constant, because the set of
+  // dependencies is data: publish a second base tomorrow and this protects it
+  // without an edit here. Same reasoning as `shelfOwnerBase` deriving from
+  // published themes rather than a hardcoded list.
+  //
+  // Only packs that SURVIVE the operation count as dependents. Unpublishing a
+  // base together with everything that requires it is coherent, and refusing it
+  // would make a clean teardown impossible.
+  const pulling = new Set(packIds);
+  const stranded = new Map<string, string[]>();
+  for (const p of live.packs) {
+    if (pulling.has(p.packId)) continue;
+    for (const need of p.requires ?? []) {
+      if (pulling.has(need)) {
+        stranded.set(need, [...(stranded.get(need) ?? []), p.packId]);
+      }
+    }
+  }
+  if (stranded.size > 0) {
+    const detail = [...stranded.entries()]
+      .map(([base, deps]) => `${base} is required by ${deps.join(', ')}`)
+      .join('; ');
+    return {
+      ok: false,
+      status: 409,
+      error:
+        `${detail}. Those packs would install and draw nothing, with no error ` +
+        'anywhere. Unpublish them in the same operation, or leave the base in place.',
+    };
+  }
+
   const packs = live.packs.filter((p) => !targets.has(p.packId));
   if (packs.length === 0) {
     return {

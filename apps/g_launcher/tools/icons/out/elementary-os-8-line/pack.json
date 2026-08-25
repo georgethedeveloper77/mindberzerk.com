@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "elementary-os-8-line",
+  "name": "elementary OS Icons",
+  "extends": "arcticons-line",
+  "tint": "#3689e6",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

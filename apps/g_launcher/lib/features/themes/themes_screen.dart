@@ -574,18 +574,30 @@ class _ThemeCard extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          card.version,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          // Mono, from the chrome's value ramp — the version
-                          // line reads like a package string on any distro.
-                          style: d.text.value.copyWith(
-                            fontSize: 11,
-                            color: c.textMuted,
+                        // ─── NOTHING, WHEN THERE IS NOTHING TO SAY ───────
+                        //
+                        // This used to print the pack version whenever the
+                        // summary was empty, and the catalogue currently ships
+                        // fourteen empty summaries, so every card in the store
+                        // read `v1787590303`. A build number is a developer
+                        // lever and the storefront is not the place for it.
+                        //
+                        // The gap is deliberate: a name alone is plain, a name
+                        // over a timestamp is broken.
+                        if (card.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            card.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            // Mono, from the chrome's value ramp, so the meta
+                            // line reads like a package string on any distro.
+                            style: d.text.value.copyWith(
+                              fontSize: 11,
+                              color: c.textMuted,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -764,7 +776,11 @@ class _Trailing extends ConsumerWidget {
     // A paid card reaching HERE is one that is not locked — owned, installed, or
     // bundled. It has nothing left to sell, so it reads as its desktop tag like
     // every other card rather than wearing a price it has already been paid.
-    return _Tag(card.tag);
+    // Null when the index does not say which shell this is, and then the slot
+    // stays empty. Every CDN card read `Distro` before, which is the one word
+    // all fourteen share and therefore the one word worth least here.
+    final tag = card.tag;
+    return tag == null ? const SizedBox.shrink() : _Tag(tag);
   }
 }
 

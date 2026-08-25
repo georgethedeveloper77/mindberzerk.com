@@ -8,6 +8,21 @@ import { fileNameFor, isValidPackage } from '@/lib/g-launcher/hero-pack';
 import { guessPackage } from '@/lib/g-launcher/icon-pack';
 import { renderHeroIcon } from '@/lib/core/image-trim';
 
+/**
+ * A transparency checkerboard, as a pure CSS gradient.
+ *
+ * Two greys rather than the usual white and light grey: this console is dark,
+ * and a white checkerboard behind a 60px tile is the brightest thing on the
+ * screen, which makes the grid read as a row of lightboxes rather than icons.
+ * These two sit either side of mid, so dark art and light art both hold.
+ */
+const CHECKER =
+  'linear-gradient(45deg, #2A2F38 25%, transparent 25%), ' +
+  'linear-gradient(-45deg, #2A2F38 25%, transparent 25%), ' +
+  'linear-gradient(45deg, transparent 75%, #2A2F38 75%), ' +
+  'linear-gradient(-45deg, transparent 75%, #2A2F38 75%), ' +
+  'linear-gradient(#1B1F26, #1B1F26)';
+
 export interface Assignment {
   file: string;
   blob: Blob;
@@ -146,7 +161,22 @@ function AppTile(props: {
           height: 60,
           borderRadius: props.masked ? 15 : 10,
           border: has ? 'none' : `1px dashed ${C.line}`,
-          background: has ? '#000' : C.bg,
+          // ─── A CHECKERBOARD, NOT BLACK ────────────────────────────────────
+          //
+          // This was a flat `#000` behind every assigned tile, which works for
+          // exactly one kind of art: light drawings on transparency. The Kali
+          // set is DARK line art on transparency, so all fifty-four tiles
+          // rendered as plain black squares and the grid looked broken while
+          // every file in it was fine.
+          //
+          // No single colour is right, because the art can be any colour and it
+          // is the TRANSPARENCY that has to be legible. A checkerboard is what
+          // the icon builder's own review list already uses, and it is the one
+          // background that never hides a drawing: whatever the art's value,
+          // half the squares behind it contrast.
+          background: has ? CHECKER : C.bg,
+          backgroundSize: has ? '12px 12px' : undefined,
+          backgroundPosition: has ? '0 0, 0 6px, 6px -6px, -6px 0px' : undefined,
           overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',

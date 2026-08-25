@@ -1,0 +1,174 @@
+{
+  "id": "kde-plasma-6",
+  "name": "KDE Plasma",
+  "version": "6",
+  "shell": "plasma",
+  "tier": "free",
+  "palette": {
+    "bgTop": "#1B2733",
+    "bgBottom": "#151A1F",
+    "bar": "#31363B",
+    "dock": "#CC2A2E32",
+    "accent": "#3DAEE9",
+    "onDark": "#FCFCFC"
+  },
+  "typography": {
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": false,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.28,
+    "foregroundScale": 1,
+    "backgroundColor": "#31363B",
+    "brandPack": "kde-plasma-6-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "image_2026-08-16_225625334.webp",
+    "image_2026-08-16_225521753.webp",
+    "image_2026-08-16_230838332.webp"
+  ],
+  "minAppVersion": 6,
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Bluetooth Service"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Simple Desktop Display Manager ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started Simple Desktop Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery",
+      "free",
+      "df",
+      "uptime"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  }
+}

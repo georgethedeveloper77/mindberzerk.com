@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "packType": "theme",
+  "packId": "elementary-os-8-theme",
+  "version": 1787590303,
+  "minAppVersion": 6,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "logo_dark.webp", "size": 12396, "sha256": "af46f8198e924cd6d798a53192021f3581de2ef0b190451df477a8508f1ec3da"},
+    {"path": "logo_light.webp", "size": 12396, "sha256": "af46f8198e924cd6d798a53192021f3581de2ef0b190451df477a8508f1ec3da"},
+    {"path": "theme.json", "size": 3150, "sha256": "5799f3bf12a865430fbac3b2f25f3d471135f2f15dc1a15ccc50f69aaf91aa61"},
+    {"path": "wp2030141-elementary-wallpapers.webp", "size": 207874, "sha256": "9892b5f0161947b1aa0107b96efbee03f5ca2f24b1be7e3da069146b61b7e50c"},
+    {"path": "wp7764699-elementary-os-wallpapers.webp", "size": 192526, "sha256": "2e11307793ce43e3d61b59de69797902734866c4db1ae19aa3f8899a2a28a259"},
+    {"path": "wp7764704-elementary-os-wallpapers.webp", "size": 312468, "sha256": "9961bb8cbe7064f466d795f045ff3342f357ad08d4e5b48667111015cfbb25c3"},
+    {"path": "wp7764706-elementary-os-wallpapers.webp", "size": 48740, "sha256": "2479038d28bce494f6ecc88f0bb026fe9c0c907baf76bf1dca2e45a775b165d9"},
+    {"path": "wp7764716-elementary-os-wallpapers.webp", "size": 43244, "sha256": "bc6485eaca084f555a230b41fae5654a867127bda44d2ad8dd6990877924a6aa"},
+    {"path": "wp7764724-elementary-os-wallpapers.webp", "size": 45592, "sha256": "4a66fb05e69eb600cce92454b84d2f0b56d4f405d58a09b20dff8f9567659dd5"},
+    {"path": "wp7764741-elementary-os-wallpapers.webp", "size": 108950, "sha256": "e56cab3c154bee4b599a4041b29d9c148f63441d5cdae78949022d9eda36705e"}
+  ]
+}

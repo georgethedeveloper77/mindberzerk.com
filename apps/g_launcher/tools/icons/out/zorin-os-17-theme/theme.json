@@ -1,0 +1,145 @@
+{
+  "id": "zorin-os-17-theme",
+  "name": "Zorin OS",
+  "version": "1",
+  "shell": "gnome",
+  "tier": "pro",
+  "chromeFamily": "adwaita",
+  "palette": {
+    "bgTop": "#15334D",
+    "bgBottom": "#0A1F30",
+    "bar": "#0E2438",
+    "dock": "#CC0E2438",
+    "accent": "#0F94D2",
+    "onDark": "#FFFFFF"
+  },
+  "typography": {
+    "display": "Inter",
+    "mono": "Roboto Mono"
+  },
+  "layout": {
+    "dock": "bottom",
+    "topBar": true,
+    "workspaceAxis": "horizontal",
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    },
+    "iconScale": 1,
+    "drawerGrouping": "library"
+  },
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.28,
+    "foregroundScale": 1,
+    "brandPack": "zorin-os-17-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_190402725.png",
+    "image_2026-08-23_190429365.png",
+    "image_2026-08-23_190538991.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.5.0-zorin ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Zorin Appearance Service"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 0,
+        "spanX": 2,
+        "spanY": 2
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  }
+}

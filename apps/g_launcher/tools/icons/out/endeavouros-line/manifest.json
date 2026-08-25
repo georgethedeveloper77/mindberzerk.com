@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "endeavouros-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 208, "sha256": "a479ddba15c7529e0a63e1c56d5793c31fea3ba5f3d3f9f94b557b6d396e2459"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "id": "arch-linux-line",
+  "name": "Arch Linux Icons",
+  "extends": "arcticons-line",
+  "tint": "#1793d1",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Arcticons by Donnnno, CC BY-SA 4.0"
+}

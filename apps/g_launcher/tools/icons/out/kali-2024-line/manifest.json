@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "packType": "brand",
+  "packId": "kali-2024-line",
+  "version": 1787608616,
+  "minAppVersion": 7,
+  "keyId": "mh-2026-07",
+  "files": [
+    {"path": "pack.json", "size": 205, "sha256": "2cbcc876e8d27bb2ea9f3f6ef8d100460b6359f43a7f5656bf23aeb60e71d6a6"}
+  ]
+}

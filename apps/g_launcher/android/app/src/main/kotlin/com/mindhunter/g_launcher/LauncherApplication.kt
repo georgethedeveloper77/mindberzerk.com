@@ -7,6 +7,9 @@ import com.mindhunter.g_launcher.cdn.PackSyncWorker
 import com.mindhunter.g_launcher.pack.PackFlutterApi
 import com.mindhunter.g_launcher.pack.PackHostApi
 import com.mindhunter.g_launcher.system.BadgeBridge
+import com.mindhunter.g_launcher.system.ExitInfoBridge
+import com.mindhunter.g_launcher.system.ForegroundTracker
+import com.mindhunter.g_launcher.system.MemoryTrimmer
 import com.mindhunter.g_launcher.widgets.WidgetHostController
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -33,6 +36,25 @@ import io.flutter.embedding.engine.dart.DartExecutor
  * PackChangeNotifier in its own init block, because the cache is the thing that
  * knows it must invalidate, and a registration line in this file is a line a
  * later refactor deletes with nothing failing to notice.
+ *
+ * ─── AND THE COUNTERWEIGHT THE WARM ENGINE ALWAYS NEEDED ────────────────────
+ *
+ * Everything above buys a fast home press by keeping the engine, the isolate
+ * and the whole widget tree resident forever. That half was right. The half
+ * that was missing is that nothing ever gave any of it back: no `onTrimMemory`
+ * override existed anywhere in this app, so Android asked this process to
+ * release memory, repeatedly, into a method nobody had written.
+ *
+ * `dumpsys activity exit-info` on the test device: six `reason=3 (LOW_MEMORY)`
+ * exits in fourteen hours, at RSS up to 778MB, plus one
+ * `reason=9 (EXCESSIVE_RESOURCE_USAGE)` for burning 4.7% of a core over five
+ * minutes with `state=empty`. A killed launcher means the next home press is a
+ * cold start, and a cold start behind a stalled SystemUI window is what prints
+ * "isn't optimized for the latest version of Android" on One UI.
+ *
+ * So this file now owns three small things that only the Application can own:
+ * whether any Activity is started, what to drop when memory is asked for, and
+ * why the previous process died.
  */
 class LauncherApplication : Application() {
 
@@ -57,6 +79,35 @@ class LauncherApplication : Application() {
 
     private lateinit var packApi: PackHostApiImpl
 
+    /**
+     * Constructed as a FIELD rather than a local in onCreate, because
+     * [onTrimMemory] is a callback on this object and needs to reach it long
+     * afterwards.
+     *
+     * `::engine` is passed as a lambda and not as a value: `engine` is `lateinit`
+     * and this is built before it is assigned, so reading it eagerly here would
+     * throw on the line that constructs it. It is also genuinely nullable in
+     * practice, since a trim can arrive during onCreate on a device already
+     * under pressure, which is exactly the device this exists for.
+     */
+    private val memory = MemoryTrimmer(
+        engine = { if (::engine.isInitialized) engine else null },
+        trimIcons = { full ->
+            if (::hostApi.isInitialized) hostApi.trimMemory(full)
+        },
+    )
+
+    /**
+     * Started-activity count. Read by the app-change watcher to decide whether
+     * a package event is worth a 250-app enumeration.
+     *
+     * Installed AFTER hostApi is built, further down, because its callback
+     * reaches into it.
+     */
+    private val foreground = ForegroundTracker(
+        onEnterForeground = { if (::hostApi.isInitialized) hostApi.onForeground() },
+    )
+
     override fun onCreate() {
         super.onCreate()
 
@@ -74,8 +125,24 @@ class LauncherApplication : Application() {
         // to this one instance.
         widgetHost = WidgetHostController(this)
 
-        hostApi = LauncherHostApiImpl(this, LauncherFlutterApi(messenger), widgetHost)
+        hostApi = LauncherHostApiImpl(
+            this,
+            LauncherFlutterApi(messenger),
+            widgetHost,
+            isForeground = { foreground.isForeground },
+        )
         LauncherHostApi.setUp(messenger, hostApi)
+
+        // REGISTERED BEFORE start(), so the very first onActivityStarted cannot
+        // land before the tracker is listening. On a home press that callback
+        // is milliseconds away from this line.
+        foreground.install(this)
+
+        // The initial prime is DELIBERATELY NOT GATED on foreground, unlike
+        // every later refresh. The process is usually being created because the
+        // user just pressed home, and the whole reason the app list is primed
+        // here is so it is already in memory when Dart asks. Gating it would
+        // trade the exact latency this file exists to buy.
         hostApi.start()
 
         // NO PLATFORMVIEW FACTORY ANY MORE, AND THAT IS THE POINT.
@@ -116,6 +183,15 @@ class LauncherApplication : Application() {
         // never bound, nothing publishes, and the channel sits idle.
         BadgeBridge.setUp(this, messenger)
 
+        // WHY THE PREVIOUS PROCESS DIED. A plain MethodChannel for the same
+        // reason BadgeBridge is one: a diagnostic must not be able to renumber
+        // the codec ids of the app it is diagnosing.
+        //
+        // Registered here rather than lazily, because Dart calls `drain`
+        // immediately after Crashlytics comes up and a channel registered later
+        // would answer MissingPluginException to the one call that matters.
+        ExitInfoBridge.setUp(this, messenger)
+
         FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
 
         // PHASE C — enqueue, do not run. This returns immediately; WorkManager
@@ -126,6 +202,27 @@ class LauncherApplication : Application() {
         // not reset the interval. REPLACE would, and a launcher cold-starts
         // many times a day, so the job would effectively never run.
         PackSyncWorker.schedule(this)
+    }
+
+    /**
+     * The level is NOT ordered by severity. See [MemoryTrimmer.onTrim]; the
+     * dispatch lives there rather than here so this file stays a wiring file.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        memory.onTrim(level)
+    }
+
+    /**
+     * Deprecated on ComponentCallbacks since API 34 and still delivered on
+     * every device this launcher targets, which is Infinix, Tecno and Redmi
+     * well below that. Kept for exactly those devices, which are also the ones
+     * with the least memory to spare.
+     */
+    @Deprecated("Superseded by onTrimMemory on API 34+, still delivered below it.")
+    override fun onLowMemory() {
+        super.onLowMemory()
+        memory.onLow()
     }
 
     override fun onTerminate() {
