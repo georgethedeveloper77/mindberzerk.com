@@ -397,6 +397,29 @@ export interface IndexPreview {
   bar: string;
   dock: string;
   accent: string;
+
+  /**
+   * What the card should DRAW, computed at publish from the whole theme.json.
+   *
+   * ─── `shell` WAS NEVER ENOUGH, AND IT WAS THE ONLY SIGNAL ─────────────────
+   *
+   * The device picked its miniature from `shell` alone, because these six
+   * fields are all the index carried: gnome drew a left dock, plasma a bottom
+   * one, aqua a magnifying one. That was true when a shell decided everything
+   * and wrong for TWELVE of fifteen distros once `dock`, `dockStyle`,
+   * `dockReveal` and `homeLayout` became real. KDE and Mint were drawn with
+   * docks they do not have; Kali and Manjaro with the dock on the wrong edge;
+   * elementary and Pocket magnifying when neither swells.
+   *
+   * Shipping the four source fields instead would put the same switch on the
+   * device as well, where the two copies would drift. This side holds the whole
+   * spec and the device holds only the index, so the decision belongs here.
+   *
+   * OPTIONAL, so a pack published before the field still parses and falls back
+   * to the shell guess on the device: exactly as wrong as it always was, which
+   * is the right amount of wrong for an old pack.
+   */
+  layout?: string;
 }
 
 export interface IndexEntitlement {
@@ -513,6 +536,25 @@ export function signIndex(opts: {
     const lost = Object.keys(source).filter(
       (k) => asRecord[k] !== undefined && !(k in built),
     );
+
+    // ─── AND ONE LEVEL INTO `preview` ─────────────────────────────────
+    //
+    // The check above compares TOP-LEVEL keys, and `preview` is spread whole,
+    // so a field added inside it is invisible here: the object arrives, the
+    // key is present, and whatever went missing inside it went missing
+    // quietly. That is the same blindness that let six themes publish with no
+    // preview at all before this guard existed, one level down.
+    //
+    // Only `preview`, and only one level. A general deep walk would need a
+    // rule for every nested shape in the file and would fire on `features`,
+    // where an empty array is a meaningful value rather than a loss.
+    if (source.preview && built.preview) {
+      const src = source.preview as unknown as Record<string, unknown>;
+      const out = built.preview as unknown as Record<string, unknown>;
+      for (const k of Object.keys(src)) {
+        if (src[k] !== undefined && !(k in out)) lost.push(`preview.${k}`);
+      }
+    }
 
     if (lost.length > 0) {
       throw new Error(

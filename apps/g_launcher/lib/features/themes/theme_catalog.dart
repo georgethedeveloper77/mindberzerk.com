@@ -66,6 +66,27 @@ enum PreviewLayout {
   /// drawn larger. The magnification IS the recognisable thing about this
   /// desktop, so the preview shows it rather than a plain bottom strip.
   dockMagnified,
+
+  /// A bottom dock sitting flat ON the edge, square where it meets. Ubuntu's
+  /// left rail and elementary's Plank; distinct from [dockBottom], which
+  /// floats clear of it.
+  dockFlat,
+
+  /// No dock at all, top bar only. Four distros, and every one of them used to
+  /// be drawn with a dock they do not have.
+  noDock,
+
+  /// The bar is along the BOTTOM and there is no dock. Plasma's panel, Mint's
+  /// and Zorin's taskbar. No preview drew this: they all painted a bar at the
+  /// top whatever the distro did.
+  barBottom,
+
+  /// A dashed outline where the dock would be: it exists only inside the
+  /// overview. Fedora, and the only way to draw a thing by its absence.
+  dash,
+
+  /// The desktop is filled edge to edge with tiles. Arch and Pop.
+  tiled,
 }
 
 /// Where a card actually is, from the device's point of view.
@@ -472,6 +493,28 @@ Color? _previewColor(String? hex) {
 /// The gate is `previewShell` plus the two background stops, because those
 /// three are what the renderer cannot draw anything without. `bar`, `dock` and
 /// `accent` each degrade on their own.
+/// The published layout, or null when the pack predates the field.
+///
+/// Null rather than [PreviewLayout.unknown] for a value this build does not
+/// recognise, so a NEWER publisher's string falls through to the shell guess
+/// rather than drawing the grey placeholder. A slightly wrong picture beats a
+/// blank one, and this is the same degrade-never-throw contract every other
+/// parsed enum in this file follows.
+PreviewLayout? _layoutFrom(String? raw) => switch (raw) {
+      'dockLeft' => PreviewLayout.dockLeft,
+      'dockBottom' => PreviewLayout.dockBottom,
+      'dockFlat' => PreviewLayout.dockFlat,
+      'dockMagnified' => PreviewLayout.dockMagnified,
+      'noDock' => PreviewLayout.noDock,
+      'barBottom' => PreviewLayout.barBottom,
+      'dash' => PreviewLayout.dash,
+      'tiled' => PreviewLayout.tiled,
+      'iconsCentered' => PreviewLayout.iconsCentered,
+      'iconsLeft' => PreviewLayout.iconsLeft,
+      'terminal' => PreviewLayout.terminal,
+      _ => null,
+    };
+
 ThemePreviewSpec _previewFromPack(PackInfo p) {
   const fallback = ThemePreviewSpec(
     bg: [Color(0xFF14141A), Color(0xFF0A0A0E)],
@@ -490,6 +533,17 @@ ThemePreviewSpec _previewFromPack(PackInfo p) {
   return ThemePreviewSpec(
     bg: [top, bottom],
     bar: bar,
+    // ─── THE PUBLISHER DECIDES THIS NOW ───────────────────────────────
+    //
+    // `previewLayout` is computed at publish from `dock`, `dockStyle`,
+    // `dockReveal`, `homeLayout` and `panels`, because the panel holds the
+    // whole theme.json and this side holds only the index.
+    //
+    // The shell switch below is the FALLBACK, not the rule. It stays for packs
+    // published before the field existed, and it is exactly as wrong for them
+    // as it always was; there is nothing better to guess with. A pack that
+    // carries the field never reaches it.
+    //
     // ─── SHELLS MAP ONTO LAYOUTS, THEY ARE NOT THE SAME LIST ───────────
     //
     // `PreviewLayout` is named for what it DRAWS, not for the shell that wants
@@ -505,14 +559,15 @@ ThemePreviewSpec _previewFromPack(PackInfo p) {
     //
     // Unknown for a shell string from a newer build, the same contract every
     // other parsed enum here follows: degrade, never throw.
-    layout: switch (shell) {
-      'gnome' => PreviewLayout.dockLeft,
-      'plasma' => PreviewLayout.dockBottom,
-      'aqua' => PreviewLayout.dockMagnified,
-      'tiling' => PreviewLayout.iconsLeft,
-      'tui' => PreviewLayout.terminal,
-      _ => PreviewLayout.unknown,
-    },
+    layout: _layoutFrom(p.previewLayout) ??
+        switch (shell) {
+          'gnome' => PreviewLayout.dockLeft,
+          'plasma' => PreviewLayout.dockBottom,
+          'aqua' => PreviewLayout.dockMagnified,
+          'tiling' => PreviewLayout.iconsLeft,
+          'tui' => PreviewLayout.terminal,
+          _ => PreviewLayout.unknown,
+        },
     accent: accent,
     dockBg: _previewColor(p.previewDock),
     // Three tiles, the same count the floor cards use, tinted off the accent so
@@ -529,28 +584,7 @@ ThemePreviewSpec _previewFromPack(PackInfo p) {
   );
 }
 
-/// The index's shell name, as a chip label.
-///
-/// Returns null for an unknown or absent shell, and the card then draws no chip
-/// rather than a placeholder. `previewShell` is absent on every entry published
-/// before the preview block existed, so null is the common case today, not an
-/// error.
-///
-/// The labels are the DESKTOP's name, not the engine's: a user reading a card
-/// knows what GNOME is and has never heard of `aqua`, which is our word for the
-/// metaphor rather than anyone's product. `tui` becomes TUI because that is
-/// what the Terminal floor card has always said.
-String? _shellTag(String? shell) => switch (shell) {
-      'gnome' => 'GNOME',
-      'plasma' => 'Plasma',
-      'aqua' => 'Desktop',
-      'tiling' => 'Tiling',
-      'tui' => 'TUI',
-      // Includes null, and any shell a newer catalogue names that this build
-      // does not know. Degrades to no chip, never to a guess.
-      _ => null,
-    };
-
+/// A catalogue entry as the storefront card sees it.
 ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       id: p.packId,
       name: p.title,
@@ -562,7 +596,21 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       // nothing. Derived rather than stored because `PackInfo` has no shell of
       // its own: `previewShell` is the only place the index says what kind of
       // desktop this is.
-      tag: _shellTag(p.previewShell),
+      // ─── NO TAG ───────────────────────────────────────────────────
+      //
+      // This was `_shellTag(p.previewShell)`, printing GNOME, Plasma, Tiling,
+      // TUI or Desktop, and it is the last thing on this card still deciding
+      // from the shell. It says GNOME on Kali while that distro's chrome, menu
+      // and panels are all Xfce, and EndeavourOS read KDE Plasma for weeks.
+      //
+      // The summary already carries this and carries it correctly: `2024.3 ·
+      // Xfce`. Two labels for one fact, one derived and wrong, is worse than
+      // one that is authored and right.
+      //
+      // `_shellTag` is left in place, unused: it is also what `ThemeCard.tag`
+      // documents itself against, and deleting it in the same pass that stops
+      // calling it would make this diff about two things.
+      tag: null,
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
       preview: _previewFromPack(p),
       specId: p.packId,

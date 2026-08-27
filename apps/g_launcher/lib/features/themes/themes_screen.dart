@@ -9,6 +9,7 @@ import '../../design/tokens/typography.dart';
 import '../../engine/effective_theme.dart';
 import '../../data/billing/entitlements.dart';
 import '../../data/billing/pending_apply.dart';
+import '../../data/cdn/pack_auto_update.dart';
 import '../../data/cdn/pack_repository.dart';
 import 'theme_catalog.dart';
 
@@ -258,7 +259,21 @@ class ThemesScreen extends ConsumerWidget {
       body: RefreshIndicator(
         color: ChromeScope.of(context).colors.accent,
         backgroundColor: ChromeScope.of(context).colors.line,
-        onRefresh: () => ref.read(packActionsProvider).refresh(),
+        // ─── A PULL UPDATES TOO ───────────────────────────────────────
+        //
+        // This called `refresh()` alone, which fetched the index and left any
+        // pack that had just gone stale sitting there saying Update.
+        //
+        // I originally exempted a manual pull on the reasoning that it is
+        // someone asking to SEE the catalogue rather than to download fifteen
+        // packs. That is the wrong reading: a pull is a person saying "check
+        // for changes", and finding one and then not acting on it is the
+        // launcher deciding for them. Every route to a fetch now has the same
+        // consequence, which is also one fewer rule to remember.
+        onRefresh: () => refreshAndAutoUpdate(
+              ref.read(packActionsProvider),
+              ref.read(packAutoUpdaterProvider),
+            ),
         child: ListView(
         padding: EdgeInsets.only(
           top: MediaQuery.viewPaddingOf(context).top,
@@ -837,6 +852,13 @@ class _Tag extends StatelessWidget {
 // The mini-desktop preview. Pure decoration driven by ThemePreviewSpec.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Where a preview's bar sits, if it has one.
+///
+/// Three values because there are three truths: seven of fifteen distros were
+/// drawn with a top bar they do not have, and four of those have one along the
+/// bottom instead.
+enum _Bar { top, bottom, none }
+
 class _ThemePreview extends StatelessWidget {
   const _ThemePreview(this.spec);
 
@@ -862,27 +884,166 @@ class _ThemePreview extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Top bar — every layout has one.
-          Positioned(
-            left: 9,
-            right: 9,
-            top: 9,
-            child: Container(
-              height: 7,
-              decoration: BoxDecoration(
-                color: spec.bar,
-                borderRadius: BorderRadius.circular(2),
+          // ─── THE BAR IS NOT UNCONDITIONAL ANY MORE ────────────────────
+          //
+          // This said "every layout has one" and painted it at the top. Four
+          // distros have their bar along the BOTTOM and three have none at
+          // all, so for seven of fifteen the first thing the card drew was
+          // wrong.
+          if (_bar != _Bar.none)
+            Positioned(
+              left: 9,
+              right: 9,
+              top: _bar == _Bar.top ? 9 : null,
+              bottom: _bar == _Bar.bottom ? 9 : null,
+              child: Container(
+                height: 7,
+                decoration: BoxDecoration(
+                  color: spec.bar,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
           ..._layout(),
         ],
       ),
     );
   }
 
+  /// Where this layout puts its bar. See the Stack above.
+  _Bar get _bar => switch (spec.layout) {
+        PreviewLayout.barBottom => _Bar.bottom,
+        // A phone has Android's status bar, not the launcher's, and a terminal
+        // has none either. Drawing one would be the only untrue thing on those
+        // two cards.
+        PreviewLayout.terminal => _Bar.none,
+        _ => _Bar.top,
+      };
+
   List<Widget> _layout() {
     switch (spec.layout) {
+      // ─── THE FIVE ADDED WHEN THE LAYOUT STOPPED BEING THE SHELL ───────
+      //
+      // Each is a variation on a shape this widget already drew, which is why
+      // the fix was a derivation change rather than a new preview system.
+      case PreviewLayout.dockFlat:
+        return [
+          Positioned(
+            left: 9,
+            right: 9,
+            top: 26,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _tiles(18),
+            ),
+          ),
+          // ON the edge, square where it meets. `dockBottom` floats clear of
+          // it; that gap is the whole difference between Plank and a Latte
+          // dock and it is visible at this size.
+          Positioned(
+            left: 34,
+            right: 34,
+            bottom: 0,
+            child: Container(
+              height: 12,
+              decoration: BoxDecoration(
+                color: spec.dockBg ?? _white55,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ];
+
+      case PreviewLayout.noDock:
+        // Tiles and a bar, and nothing else. The absence IS the picture.
+        return [
+          Positioned(
+            left: 9,
+            right: 9,
+            top: 30,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _tiles(18),
+            ),
+          ),
+        ];
+
+      case PreviewLayout.barBottom:
+        // The bar moved in the Stack above, so this only has to leave room at
+        // the foot instead of at the head.
+        return [
+          Positioned(
+            left: 9,
+            right: 9,
+            top: 14,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _tiles(18),
+            ),
+          ),
+        ];
+
+      case PreviewLayout.dash:
+        return [
+          Positioned(
+            left: 9,
+            right: 9,
+            top: 26,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _tiles(18),
+            ),
+          ),
+          // DASHED, because it is not there until you ask. A solid strip would
+          // say the opposite of what this distro is selling.
+          Positioned(
+            left: 40,
+            right: 40,
+            bottom: 11,
+            child: Container(
+              height: 10,
+              decoration: BoxDecoration(
+                color: (spec.accent ?? _white55).withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: _white55, width: 0.8),
+              ),
+            ),
+          ),
+        ];
+
+      case PreviewLayout.tiled:
+        return [
+          // Edge to edge with hairline gaps, which is what a tiling desktop
+          // looks like from across a room and the one thing no other card here
+          // shows.
+          Positioned(
+            left: 9,
+            right: 9,
+            top: 24,
+            bottom: 11,
+            child: GridView.count(
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              children: [
+                for (var i = 0; i < 4; i++)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: (spec.icons.isNotEmpty
+                              ? spec.icons[i % spec.icons.length]
+                              : _white55)
+                          .withValues(alpha: 0.5),
+                      border: Border.all(color: _white55, width: 0.7),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ];
+
       case PreviewLayout.dockLeft:
         return [
           // Left dock strip with three dots; the first is the accent launcher.

@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../design/theme_mark.dart';
 import '../../../engine/theme_source.dart';
-import '../../../engine/theme_spec.dart' show ThemePalette;
+import '../../../engine/theme_spec.dart' show PanelModule, ThemePalette;
+import 'aqua_bar_modules.dart';
 
 /// The macOS menu bar, phone-adapted.
 ///
@@ -45,7 +46,22 @@ class AquaMenuBar extends StatelessWidget {
     this.logo,
     this.displayFontFamily,
     this.opacity = 1.0,
+    this.modules,
   });
+
+  /// The distro's own bar, or null for the arrangement below.
+  ///
+  /// ─── THE SAME TREATMENT THE WAYBAR GOT ──────────────────────────────────
+  ///
+  /// This strip was a fixed Row: mark, title, Spacer, Spotlight. Both aqua
+  /// distros therefore had the identical bar, and elementary's wingpanel, which
+  /// puts the clock in the MIDDLE and indicators on the right, could not be
+  /// expressed at all. `PanelModule`'s vocabulary reached gnome and plasma and
+  /// not this shell, exactly as it did not reach tiling before Arch's pass.
+  ///
+  /// Null keeps the Mac arrangement byte for byte, so a distro that authors no
+  /// top panel does not move.
+  final List<PanelModule>? modules;
 
   final ThemePalette palette;
 
@@ -105,14 +121,37 @@ class AquaMenuBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _MarkAndTitle(
-                logo: logo,
-                title: title,
-                onDark: onDark,
-                displayFontFamily: displayFontFamily,
-                onTap: onLaunchpad,
-              ),
-              const Spacer(),
+              if (modules == null) ...[
+                _MarkAndTitle(
+                  logo: logo,
+                  title: title,
+                  onDark: onDark,
+                  displayFontFamily: displayFontFamily,
+                  onTap: onLaunchpad,
+                ),
+                const Spacer(),
+              ] else
+                ...aquaBarModules(
+                  modules!,
+                  palette: palette,
+                  displayFontFamily: displayFontFamily,
+                  logo: logo,
+                  title: title,
+                  onActivities: onLaunchpad,
+                ),
+
+              // ─── SPOTLIGHT IS PINNED, NOT A MODULE ────────────────────
+              //
+              // The waybar's distro name is fallback-only, because a label in
+              // the middle of a bar is decoration and a distro that did not
+              // ask for it should not get it. This is the opposite case: search
+              // is a FUNCTION, there is no `PanelModule` for it, and an
+              // authored bar that silently lost it would be a bar with a
+              // feature removed rather than a feature not chosen.
+              //
+              // Adding a module for it would mean a new arm in three exhaustive
+              // switches for one button. Pinning it costs nothing and is
+              // honest about which of the two kinds of thing it is.
               Semantics(
                 button: true,
                 label: 'Spotlight',

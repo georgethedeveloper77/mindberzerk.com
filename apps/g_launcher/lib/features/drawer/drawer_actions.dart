@@ -16,6 +16,8 @@ import '../../platform/launcher_api.g.dart';
 import '../settings/settings_screen.dart';
 import '../terminal/terminal_screen.dart';
 import 'app_icon.dart';
+import 'app_menu_words.dart';
+import '../home/workspaces/workspace_controller.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
 import 'folder_overlay.dart';
@@ -214,6 +216,15 @@ Future<void> showDrawerAppMenu(
   /// same reason. The three positions stay put, so muscle memory survives
   /// moving between the drawer and the desktop.
   VoidCallback? onRemoveFromHome,
+
+  /// The i18n key labelling [onRemoveFromHome].
+  ///
+  /// The default names the home screen, which is where this callback was born
+  /// and is still where most callers use it. The tool drawer's shelves are the
+  /// other case: the verb is identical and the noun is not, and a rail slot
+  /// offering "Remove from home" on a distro whose desktop is a separate
+  /// surface would be describing the wrong thing entirely.
+  String removeLabelKey = 'drawer.removeFromHome',
 }) {
   HapticFeedback.mediumImpact();
   final notifier = ref.read(appListProvider.notifier);
@@ -245,6 +256,10 @@ Future<void> showDrawerAppMenu(
     panelTint: theme.panelTint,
     panelRadius: theme.panelRadius,
   );
+
+  // What THIS desktop calls these actions. The write is identical on all four
+  // families; only the word changes. See [AppMenuWords].
+  final words = AppMenuWords.forTheme(theme);
 
   // ── THE THREE YOU CAME FOR, AND THE REST UNDERNEATH ─────────────────
   //
@@ -293,13 +308,13 @@ Future<void> showDrawerAppMenu(
       if (onRemoveFromHome != null)
         MenuAction(
           icon: Icons.remove_circle_outline,
-          label: context.t('drawer.removeFromHome'),
+          label: context.t(removeLabelKey),
           onTap: onRemoveFromHome,
         )
       else if (theme.desktopIcons)
         MenuAction(
           icon: Icons.add_to_home_screen,
-          label: context.t('shell.addToHome'),
+          label: context.t(words.addToHome),
           onTap: () {
             final before = theme.prefs;
             final after = HomeLayout.addToHome(
@@ -335,14 +350,14 @@ Future<void> showDrawerAppMenu(
       if (isPinned)
         MenuAction(
           icon: Icons.push_pin_outlined,
-          label: context.t('shell.unpinFromDock'),
+          label: context.t(words.unpin),
           onTap: () =>
               prefs.edit((p) => HomeLayout.unpinFromDock(p, entry.componentKey)),
         )
       else
         MenuAction(
           icon: Icons.push_pin,
-          label: context.t('shell.pinToDock'),
+          label: context.t(words.pin),
           onTap: () {
             // Pin against the ceiling; the dock displays what fits its current
             // side. Pinning #11 on a bottom dock isn't lost — it appears when
@@ -499,7 +514,10 @@ void locateApp(
   // route simply has nothing to pop and this is a no-op.
   if (Navigator.canPop(context)) Navigator.pop(context);
 
-  ref.read(activitiesOpenProvider.notifier).state = true;
+  // Whichever kind of app list this distro has. On a workspace-surface distro
+  // Locate has to PAGE to the apps rather than open an overlay that does not
+  // exist, or the ring would be aimed at a screen nobody is looking at.
+  openApps(ref);
 
   // ─── AND THAT IS ALL THIS DOES ────────────────────────────────────────────
   //

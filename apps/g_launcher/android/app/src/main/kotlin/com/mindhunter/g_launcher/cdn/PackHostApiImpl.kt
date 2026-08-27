@@ -217,6 +217,13 @@ class PackHostApiImpl(
                 previewBar = p.previewBar,
                 previewDock = p.previewDock,
                 previewAccent = p.previewAccent,
+                // WHAT to draw, beside the colours that say what it looks
+                // like. Straight through for the same reason as the six
+                // above: this layer moves values and `theme_catalog` decides
+                // what they mean, so a layout string this build has never
+                // heard of still reaches the one place that knows how to
+                // degrade it.
+                previewLayout = p.previewLayout,
                 // The storefront rows, mapped straight across.
                 //
                 // NULL when the entry named none, not an empty list. The two

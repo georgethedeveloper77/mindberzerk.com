@@ -13,7 +13,7 @@ import '../../design/components/press_pop.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../search/search_page.dart';
+import '../search/search_sheet.dart';
 import 'drawer_actions.dart';
 import 'drawer_pager.dart';
 import 'drawer_state.dart';
@@ -29,11 +29,14 @@ import 'folder_overlay.dart';
 /// Painted from EffectiveTheme, not Material — columns, icon size, label lines
 /// and text scale are all user-settable, and this is where they show up.
 ///
-/// Search lives on its OWN page now (the One UI-style [SearchPage]): the drawer
-/// shows the full app grid, and a search bar — positioned top or bottom per the
-/// per-theme `drawerSearchPosition` pref — opens that page. This replaces the old
-/// inline filter; typing, suggestions, and recent searches all belong to the
-/// page, so the drawer stays a clean browsing grid.
+/// Search is a SHEET, not a page. The drawer shows the full app grid, and the
+/// search bar, positioned top or bottom per the `drawerSearchPosition` pref,
+/// drops `showSearchSheet` from the top edge over everything.
+///
+/// It was a full route to a One UI-style page, and that was the wrong shape:
+/// searching here narrows what is already in front of you rather than going
+/// somewhere, and the grid vanishing while you type said otherwise. All seven
+/// drawers moved together, so no two of them open search differently.
 ///
 /// ## Performance rules, non-negotiable
 ///
@@ -492,7 +495,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // already emits folders then the rest under `library` grouping, and
         // LibraryView cuts its sections out of that rather than asking for a
         // second, differently ordered provider.
-        if (theme.drawerGrouping == 'library') {
+        if (theme.libraryGrouped) {
           body = Expanded(
             child: LibraryView(theme: theme, items: items),
           );
@@ -753,9 +756,7 @@ class _DrawerSearchBar extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 520),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => SearchPage(theme: theme)),
-            ),
+            onTap: () => showSearchSheet(context, theme),
             child: Container(
               height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 16),

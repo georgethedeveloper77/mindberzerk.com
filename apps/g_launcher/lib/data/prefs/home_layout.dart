@@ -232,6 +232,200 @@ class HomeLayout {
     );
   }
 
+  /// Every app currently inside some HOME folder.
+  ///
+  /// The mirror of `DrawerLayout.foldedKeys`, and needed for the same reason:
+  /// the Add-to-folder chooser must not offer an app that is already filed,
+  /// because [addToFolder] declines to move one between folders and offering a
+  /// choice that will be refused is worse than not offering it.
+  ///
+  /// Note what it does NOT exclude: an app sitting in a desktop slot is a fair
+  /// candidate. Adding it frees that slot, which is what dragging it onto the
+  /// folder would have done.
+  static Set<String> foldedKeys(LauncherPrefs p) => {
+        for (final f in p.folders) ...f.members,
+      };
+
+  /// The home folder holding [componentKey], or null when it is not in one.
+  static AppFolder? folderOf(LauncherPrefs p, String componentKey) {
+    for (final f in p.folders) {
+      if (f.members.contains(componentKey)) return f;
+    }
+    return null;
+  }
+
+  /// File a loose app into an existing home folder.
+  ///
+  /// The chooser's half of [mergeOrSwap]: same outcome, reached by picking from
+  /// a list rather than by dragging. It frees the app's desktop slot for the
+  /// same reason that one does, since an app cannot be in a folder AND on the
+  /// grid at once without the folder becoming a second copy of it.
+  ///
+  /// Refuses (returns [p] unchanged, so a caller can compare by identity) when
+  /// the folder is gone, when the app is already in it, or when it is in
+  /// another folder. That last refusal matches `DrawerLayout.addToFolder`: a
+  /// move between folders is two decisions and the user should make both.
+  static LauncherPrefs addToFolder(
+    LauncherPrefs p,
+    String folderId,
+    String componentKey,
+  ) {
+    final f = folder(p, folderId);
+    if (f == null) return p;
+    if (f.members.contains(componentKey)) return p;
+    if (folderOf(p, componentKey) != null) return p;
+
+    return p.copyWith(
+      folders: [
+        for (final x in p.folders)
+          if (x.id == folderId)
+            x.copyWith(members: [...x.members, componentKey])
+          else
+            x,
+      ],
+      // The app leaves the grid; it lives in the folder now.
+      homeItems:
+          p.homeItems.where((i) => i.componentKey != componentKey).toList(),
+    );
+  }
+
+  /// Move [sourceKey] to sit before or after [targetKey] inside a folder.
+  ///
+  /// The member order is what the folder's pages are built from, so this is the
+  /// only thing that decides which apps share page one. Slot geometry does not
+  /// enter into it: a folder is a list, even on a surface made of slots.
+  static LauncherPrefs reorderMembers(
+    LauncherPrefs p,
+    String folderId,
+    String sourceKey,
+    String targetKey, {
+    required bool after,
+  }) {
+    if (sourceKey == targetKey) return p;
+    final f = folder(p, folderId);
+    if (f == null) return p;
+    if (!f.members.contains(sourceKey)) return p;
+    if (!f.members.contains(targetKey)) return p;
+
+    final next = [...f.members]..remove(sourceKey);
+    var at = next.indexOf(targetKey);
+    if (at < 0) return p;
+    if (after) at += 1;
+    next.insert(at, sourceKey);
+
+    return p.copyWith(
+      folders: [
+        for (final x in p.folders)
+          if (x.id == folderId) x.copyWith(members: next) else x,
+      ],
+    );
+  }
+
+  /// How many slots [folderId] could return members to right now.
+  ///
+  /// Split out from [dissolve] so a caller can ASK before it acts. The folder
+  /// overlay pops its route before writing, to get the exit animation rather
+  /// than a blink, and a dissolve that then refused would leave the user
+  /// looking at a folder they had just been told was ungrouped.
+  ///
+  /// The folder's own slot counts as free, because ungrouping frees it.
+  static int dissolveRoom(
+    LauncherPrefs p,
+    String folderId, {
+    required int capacity,
+  }) {
+    final f = folder(p, folderId);
+    if (f == null) return 0;
+
+    var page = 0;
+    for (final i in p.homeItems) {
+      if (i.folderId == folderId) {
+        page = i.page;
+        break;
+      }
+    }
+
+    final taken = {
+      for (final i in p.homeItems)
+        if (i.page == page && i.folderId != folderId) i.index,
+    };
+    var free = 0;
+    for (var i = 0; i < capacity; i++) {
+      if (!taken.contains(i)) free++;
+    }
+    return free;
+  }
+
+  /// Ungroup: the folder goes, its members return to the desktop.
+  ///
+  /// ─── ALL OF THEM OR NONE OF THEM ────────────────────────────────────────
+  ///
+  /// The obvious implementation places what fits and drops the rest, on the
+  /// reasoning that a dropped app is still installed and still in the drawer.
+  /// That is exactly the shape of "I ungrouped a folder and lost three apps",
+  /// which is the bug class this whole file is pure in order to rule out. The
+  /// user cannot see the page's capacity and did not ask to make a choice
+  /// about it.
+  ///
+  /// So a dissolve that would not fit is REFUSED WHOLE, returning [p] unchanged
+  /// so the caller can compare by identity and say why. [dissolveRoom] lets it
+  /// ask first.
+  ///
+  /// Placement starts at the folder's OWN slot and walks forward into whatever
+  /// is free on that page, so the apps appear where the folder was rather than
+  /// scattered to the end of the grid.
+  static LauncherPrefs dissolve(
+    LauncherPrefs p,
+    String folderId, {
+    required int capacity,
+  }) {
+    final f = folder(p, folderId);
+    if (f == null) return p;
+    if (f.members.length > dissolveRoom(p, folderId, capacity: capacity)) {
+      return p;
+    }
+
+    var page = 0;
+    var start = 0;
+    for (final i in p.homeItems) {
+      if (i.folderId == folderId) {
+        page = i.page;
+        start = i.index;
+        break;
+      }
+    }
+
+    // The folder's own tile goes first, so its slot is free for the members.
+    final kept = [
+      for (final i in p.homeItems)
+        if (i.folderId != folderId) i,
+    ];
+
+    final taken = {
+      for (final i in kept)
+        if (i.page == page) i.index,
+    };
+
+    final placed = <HomeItem>[];
+    var slot = start;
+    for (final m in f.members) {
+      while (slot < capacity && taken.contains(slot)) {
+        slot++;
+      }
+      // Unreachable given the room check above. A break rather than an assert,
+      // because if the count is ever wrong, placing fewer beats crashing on a
+      // desktop the user is looking at.
+      if (slot >= capacity) break;
+      taken.add(slot);
+      placed.add(HomeItem(page: page, index: slot, componentKey: m));
+    }
+
+    return p.copyWith(
+      folders: p.folders.where((x) => x.id != folderId).toList(),
+      homeItems: [...kept, ...placed],
+    );
+  }
+
   /// Apps that vanished (uninstalled) must not linger as dead slots or ghost
   /// folder members. Call this whenever the app list changes.
   static LauncherPrefs prune(LauncherPrefs p, Set<String> liveKeys) {

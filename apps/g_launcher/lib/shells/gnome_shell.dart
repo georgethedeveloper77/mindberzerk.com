@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+// HapticFeedback, for the panel-edit hold. This shell had never needed one:
+// every other gesture in it either navigates or is claimed by a child that
+// buzzes on its own.
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
@@ -24,6 +28,7 @@ import '../features/drawer/drawer_state.dart';
 import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
 import '../features/home/desktop_hold.dart';
+import '../features/home/home_grid.dart';
 import '../features/home/gnome/gnome_dock.dart';
 import '../features/home/gnome/gnome_top_bar.dart';
 import '../features/home/workspaces/workspace_controller.dart';
@@ -69,7 +74,11 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
   }
 
   void _openActivities() =>
-      ref.read(activitiesOpenProvider.notifier).state = true;
+      // Through [openApps] rather than the flag, so every entry point to the
+      // app list goes through one decision. GNOME is clamped to the overlay in
+      // `LayoutResolver` because it inlines its own pager, so this resolves to
+      // the same write it always made.
+      openApps(ref);
 
   Future<void> _launch(AppEntry app) async {
     await ref.read(appListProvider.notifier).launch(app);
@@ -274,11 +283,37 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                 // into the freed space for one frame, and that reflow is
                 // visible through the Activities wash.
                 opacity: activitiesOpen ? 0 : 1,
-                child: GnomeTopBar(
-                  palette: theme.palette,
-                  onActivities: _openActivities,
-                  displayFontFamily: theme.typography.display,
-                  panel: p,
+                // ─── HOLD THE BAR TO REARRANGE IT ───────────────────────
+                //
+                // `panelEdit` was read by `plasma_shell` and nothing else, so
+                // it was a field a gnome-family distro could author and never
+                // see. This shell draws panels now, and one it cannot edit is
+                // a bar with a setting that lies about it.
+                //
+                // The callback is NULL rather than the branch returning an
+                // unwrapped child, exactly as plasma_shell argues: the tree
+                // keeps its shape and no recognizer is registered when there
+                // is nothing to enter. Null again while editing, where a
+                // second hold has nothing to do.
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  // `editing`, the value this build already WATCHED at the
+                  // top, not a second `ref.read` here. Two reads of one
+                  // provider inside a single build can answer differently, and
+                  // the watched one is the value the rest of this tree was
+                  // laid out against.
+                  onLongPress: (!theme.panelEdit || editing)
+                      ? null
+                      : () {
+                          HapticFeedback.mediumImpact();
+                          ref.read(deskletEditProvider.notifier).enterPanel();
+                        },
+                  child: GnomeTopBar(
+                    palette: theme.palette,
+                    onActivities: _openActivities,
+                    displayFontFamily: theme.typography.display,
+                    panel: p,
+                  ),
                 ),
               ),
         ];
@@ -403,12 +438,31 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         ),
                     ];
 
-                    // `&& !activitiesOpen`: the dock is the loudest thing
-                    // that was ghosting through the drawer. Positioned, so
-                    // not building it reflows nothing.
-                    final showDock =
-                        (side != DockSide.off || dockRevealed) &&
-                            !activitiesOpen;
+                    // ─── WHEN THE DOCK EXISTS AT ALL ──────────────────
+                    //
+                    // `always` is the arrangement this shell has drawn since it
+                    // shipped: the dock is part of the desktop and hides while
+                    // Activities is open, because it was the loudest thing
+                    // ghosting through the drawer.
+                    //
+                    // `apps` is the exact INVERSE, and that is the point.
+                    // Upstream GNOME has no dock on the desktop at all; a dash
+                    // appears inside the overview and leaves with it. So the
+                    // condition is not relaxed, it is flipped, and the
+                    // ghosting the original was avoiding is on this distro the
+                    // thing you came to see.
+                    //
+                    // The edge-reveal gesture is dropped on `apps` too. It
+                    // exists so a `dock: off` distro can summon one, and a
+                    // distro whose dock has exactly one home should not have a
+                    // second way in.
+                    //
+                    // Positioned either way, so not building it reflows
+                    // nothing.
+                    final showDock = theme.dockReveal == 'apps'
+                        ? (side != DockSide.off && activitiesOpen)
+                        : ((side != DockSide.off || dockRevealed) &&
+                            !activitiesOpen);
 
                     return Stack(
                       children: [
@@ -468,8 +522,41 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                             // page as nothing at all unless edit mode is on, so
                             // a desktop with no desklets looks exactly as it
                             // did before this line changed.
-                            itemBuilder: (_, page) =>
-                                DeskletSurfaceView(theme: theme, page: page),
+                            // ─── ICONS UNDER, DESKLETS OVER ──────────
+                            //
+                            // This built DeskletSurfaceView alone, which is
+                            // why `desktopIcons` was inert on every gnome
+                            // distro: `WorkspaceCanvas` is the only thing that
+                            // mounted `HomeGrid`, and this shell inlines its
+                            // own pager instead of using it. So the settings
+                            // row, the resolver's one-way rule and the
+                            // theme.json field were all correct and nothing
+                            // downstream drew anything.
+                            //
+                            // Same order the shared canvas uses and for the
+                            // same reasons: a widget floats above the icon
+                            // grid, never beneath it, and an empty
+                            // DeskletSurfaceView does not absorb a hit test so
+                            // the grid stays reachable between tiles.
+                            //
+                            // Gated on the DISTRO. GNOME 40 shows a bare
+                            // desktop and its theme says false, so Ubuntu,
+                            // Fedora, Pop and Zorin are untouched. Kali says
+                            // true, because Xfce's desktop is a file manager.
+                            itemBuilder: (_, page) => Stack(
+                              children: [
+                                if (theme.desktopIcons)
+                                  Positioned.fill(
+                                    child: HomeGrid(theme: theme, page: page),
+                                  ),
+                                Positioned.fill(
+                                  child: DeskletSurfaceView(
+                                    theme: theme,
+                                    page: page,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
 
@@ -535,6 +622,8 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                   bottom: 0,
                                   child: Center(
                                     child: GnomeDock(
+                                      style: GnomeDockStyle.parse(
+                                          theme.dockStyle),
                                       entries: entries,
                                       // Passed through rather than pinned to
                                       // left: the dock draws its running bars
@@ -567,9 +656,22 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                               : Positioned(
                                   left: 0,
                                   right: 0,
-                                  bottom: insets.bottom + 9,
+                                  // FLAT MEETS THE EDGE. The 9dp gap was the
+                                  // only arrangement this shell knew, so every
+                                  // gnome-family distro hovered its dock. See
+                                  // [GnomeDockStyle].
+                                  //
+                                  // `insets.bottom` stays in both: on a
+                                  // gesture-navigation phone that is the home
+                                  // indicator, and a dock underneath it cannot
+                                  // be tapped.
+                                  bottom: theme.dockStyle == 'flat'
+                                      ? insets.bottom
+                                      : insets.bottom + 9,
                                   child: Center(
                                     child: GnomeDock(
+                                      style: GnomeDockStyle.parse(
+                                          theme.dockStyle),
                                       entries: entries,
                                       side: DockSide.bottom,
                                       gridButton: gridButton,

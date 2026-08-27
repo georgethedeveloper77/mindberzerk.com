@@ -265,6 +265,10 @@ data class CdnIndex(
                         // Same optString-then-ifEmpty shape as `sku`: a missing
                         // field and an empty string mean the same thing.
                         tint = o.optString("tint", "").ifEmpty { null },
+                        // Inside the `preview` object, beside `shell`, not at
+                        // the top level: it describes the picture, and the six
+                        // colours it sits with are the rest of that picture.
+                        previewLayout = previewStr(o, "layout"),
                         requires = stringList(o.optJSONArray("requires")),
                         features = featureList(o.optJSONArray("features")),
                     ),
@@ -457,6 +461,7 @@ data class CdnPack(
      * refusing the whole index over it would take the catalogue down for a typo.
      */
     val tint: String? = null,
+    val previewLayout: String? = null,
 )
 
 /** One row a storefront card can name. */

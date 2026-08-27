@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../engine/effective_theme.dart';
+import '../../../engine/theme_spec.dart';
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_surface.dart';
+import '../../drawer/shell_drawer.dart';
 import '../home_grid.dart';
 import 'workspace_controller.dart';
 
@@ -43,11 +45,35 @@ class WorkspaceCanvas extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ─── THE APPS PAGE, WHEN THE DISTRO HAS ONE ─────────────────────────
+    //
+    // Null on every distro that shows its app list as an overlay, which is all
+    // of them by default and two shells by clamp, so every line below reads
+    // exactly as it did before on those. See [appsPageProvider].
+    final appsPage = ref.watch(appsPageProvider);
+    final pages = appsPage == null ? count : count + 1;
+
     return Stack(
       children: [
         PageView.builder(
           controller: controller,
-          scrollDirection: Axis.vertical,
+          // ─── THE DISTRO'S AXIS, WHICH THIS CANVAS WAS IGNORING ────────
+          //
+          // Hardcoded to vertical. `ThemeLayout.workspaceAxis` says at length
+          // that a phone imitating macOS and swiping DOWN to change space is
+          // wrong in a way anyone notices immediately, and then only
+          // `gnome_shell` ever read it: GNOME inlines its own pager, and the
+          // three shells that mount THIS canvas (Plasma, tiling, Aqua) got
+          // vertical whatever their theme said. Aqua is the one that field was
+          // written for.
+          //
+          // It matters twice over now. A vertically paging desktop whose last
+          // page is a vertically scrolling app list puts two vertical drag
+          // recognisers in the same arena, and the pager wins often enough to
+          // make the drawer feel broken.
+          scrollDirection: theme.workspaceAxis == WorkspaceAxis.horizontal
+              ? Axis.horizontal
+              : Axis.vertical,
           // PHASE D4 — workspace swiping is OFF while the desktop is edited.
           //
           // A move drag inside a vertical PageView is contested by the
@@ -61,7 +87,7 @@ class WorkspaceCanvas extends ConsumerWidget {
           physics: ref.watch(deskletEditProvider).active
               ? const NeverScrollableScrollPhysics()
               : null,
-          itemCount: count,
+          itemCount: pages,
           onPageChanged: (page) =>
               ref.read(activeWorkspaceProvider.notifier).goTo(page),
           // THE ONE INSERTION POINT FOR THE WHOLE PHASE. These pages were
@@ -76,7 +102,19 @@ class WorkspaceCanvas extends ConsumerWidget {
           // looks like. The difference is that it is now a decision that
           // surface makes, rather than a null check up here that no desklet
           // could ever get past.
-          itemBuilder: (_, page) => Stack(
+          itemBuilder: (_, page) {
+            // The app list IS this page. Mounted full-bleed and given no chrome
+            // of its own, which is what `AppDrawer` documents that it wants:
+            // it paints its own wash over the wallpaper and expects the shell
+            // to add nothing. Through [ShellDrawer], so a workspace-surface
+            // distro still gets whichever drawer its shell family uses rather
+            // than the GNOME grid by assumption.
+            //
+            // No scrim, no open state, no back contract. There is nothing to
+            // dismiss: swiping away IS leaving.
+            if (page == appsPage) return ShellDrawer(theme: theme);
+
+            return Stack(
             children: [
               // ─── ICONS UNDER, DESKLETS OVER ─────────────────────────────
               //
@@ -100,10 +138,14 @@ class WorkspaceCanvas extends ConsumerWidget {
                 child: DeskletSurfaceView(theme: theme, page: page),
               ),
             ],
-          ),
+            );
+          },
         ),
         Positioned.fill(
-          child: _Parallax(controller: controller, pageCount: count),
+          // `pages`, so the parallax runs across the whole travel rather than
+          // finishing a page early and then sitting still while the apps slide
+          // in.
+          child: _Parallax(controller: controller, pageCount: pages),
         ),
       ],
     );

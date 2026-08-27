@@ -20,7 +20,7 @@ import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
 import '../desklets/widget_stage.dart';
-import '../drawer/drawer_state.dart';
+import 'workspaces/workspace_controller.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -303,8 +303,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // drawer first and leaves edit mode on the second press.
                     onPopInvokedWithResult: (didPop, _) {
                       if (didPop) return;
-                      if (ref.read(activitiesOpenProvider)) {
-                        ref.read(activitiesOpenProvider.notifier).state = false;
+                      // ─── "IS THE APP LIST UP" HAS TWO ANSWERS NOW ─────
+                      //
+                      // This read `activitiesOpenProvider` directly, which is
+                      // the right question on a distro whose app list is an
+                      // overlay and meaningless on one whose app list is a
+                      // page: there is no flag to be true, so back would have
+                      // fallen through to edit mode while the user was staring
+                      // at their apps.
+                      //
+                      // [appsShowing] and [closeApps] answer for both, so this
+                      // scope keeps owning back for every shell without
+                      // learning which kind of launcher it is looking at.
+                      if (appsShowing(ref)) {
+                        closeApps(ref);
                       } else if (ref.read(deskletEditProvider).active) {
                         ref.read(deskletEditProvider.notifier).exit();
                       }

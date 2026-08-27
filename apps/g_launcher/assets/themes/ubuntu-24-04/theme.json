@@ -4,7 +4,6 @@
   "version": "24.04",
   "shell": "gnome",
   "tier": "free",
-  "minAppVersion": 6,
   "palette": {
     "bgTop": "#622A4C",
     "bgBottom": "#220817",
@@ -13,21 +12,9 @@
     "accent": "#E95420",
     "onDark": "#FFFFFF"
   },
-  "paletteLight": {
-    "bgTop": "#D6B9CA",
-    "bgBottom": "#EBDCE5",
-    "bar": "#DFC8D6",
-    "dock": "#C2DFC8D6",
-    "accent": "#E95420",
-    "onDark": "#2C2A2B"
-  },
   "typography": {
     "display": "Ubuntu",
     "mono": "UbuntuMono"
-  },
-  "logo": {
-    "light": "assets/themes/ubuntu-24-04/logo_light.webp",
-    "dark": "assets/themes/ubuntu-24-04/logo_dark.webp"
   },
   "layout": {
     "dock": "left",
@@ -40,53 +27,25 @@
   "icons": {
     "treatment": "roundedSquare",
     "cornerRadius": 0.22,
-    "foregroundScale": 1.0,
+    "foregroundScale": 1,
     "backgroundColor": null,
     "monochromeTint": null,
-    "heroPack": "yaru"
+    "heroPack": "papirus-icon-theme"
+  },
+  "logo": {
+    "light": "logo_light.svg",
+    "dark": "logo_dark.svg"
   },
   "wallpapers": [
-    "assets/themes/ubuntu-24-04/wallpapers/numbat_color.webp",
-    "assets/themes/ubuntu-24-04/wallpapers/numbat_dark.webp",
-    "assets/themes/ubuntu-24-04/wallpapers/noble_light.webp"
+    "numbat_color.webp",
+    "noble_light.webp",
+    "numbat_dark.webp",
+    "linux_ubuntu.webp",
+    "Ubuntu_24.10_Oracular_Oriole.webp",
+    "ubuntu_logo.webp",
+    "ubuntu.webp"
   ],
-  "wallpapersLight": [
-    "assets/themes/ubuntu-24-04/wallpapers/noble_light.webp"
-  ],
-  "splash": {
-    "style": "dots",
-    "durationMs": 1100
-  },
-  "desklets": {
-    "offers": [
-      "glance",
-      "clock",
-      "monitor",
-      "fastfetch",
-      "network",
-      "storage",
-      "battery",
-      "notes",
-      "search"
-    ],
-    "starter": [
-      {
-        "kind": "glance",
-        "page": 0,
-        "col": 4,
-        "row": 0,
-        "spanX": 4,
-        "spanY": 3
-      }
-    ],
-    "skins": {
-      "monitor": {
-        "surface": "bare",
-        "font": "mono",
-        "showTitle": true
-      }
-    }
-  },
+  "minAppVersion": 6,
   "boot": {
     "tailMs": 700,
     "lines": [
@@ -161,5 +120,46 @@
         "text": "Reached target Graphical Interface"
       }
     ]
+  },
+  "splash": {
+    "style": "dots",
+    "durationMs": 1100
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "fastfetch",
+      "network",
+      "storage",
+      "battery",
+      "notes",
+      "search"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 3,
+        "spanY": 1
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 2,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "showTitle": true
+      }
+    }
   }
 }

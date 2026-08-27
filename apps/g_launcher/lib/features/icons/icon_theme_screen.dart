@@ -2033,7 +2033,23 @@ class _PackCard extends ConsumerWidget {
 
     return _Card(
       title: pack.title,
-      subtitle: pack.summary.isEmpty ? 'v${pack.version}' : pack.summary,
+      // ─── NO VERSION FALLBACK ──────────────────────────────────────────
+      //
+      // This printed `v${pack.version}` when the summary was empty, and every
+      // brand pack in the live index has an empty summary, so fourteen of the
+      // fifteen cards on this screen read as `v1787608616`. Only
+      // `papirus-icon-theme` says anything, because it is the one pack whose
+      // summary was ever written.
+      //
+      // The theme store had the identical line and it is why all fourteen
+      // distro cards showed a timestamp: the field was NAMED `version` there,
+      // which made the fallback look reasonable to whoever wrote it.
+      //
+      // An empty summary now draws nothing. A card with a title, a preview and
+      // a price is a card; the same card with a build number under the title is
+      // a card that looks broken, and a number nobody can act on is worse than
+      // white space.
+      subtitle: pack.summary,
       active: active,
       progress: progress,
       preview: _PackPreview(theme: theme, packId: pack.packId),

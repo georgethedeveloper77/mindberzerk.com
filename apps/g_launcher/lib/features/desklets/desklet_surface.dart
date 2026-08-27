@@ -16,6 +16,7 @@ import 'kinds/clock_desklet.dart';
 import 'kinds/appwidget_desklet.dart';
 import 'kinds/control_desklets.dart';
 import 'kinds/glance_desklet.dart';
+import 'kinds/welcome_desklet.dart';
 import 'kinds/pane_desklets.dart';
 import 'kinds/stack_desklet.dart';
 import 'kinds/stat_desklets.dart';
@@ -46,6 +47,7 @@ Widget? buildDesklet(
         build: buildDesklet,
       ),
     'glance' => GlanceDesklet(theme: theme, desklet: desklet, skin: skin),
+    'welcome' => WelcomeDesklet(theme: theme, desklet: desklet, skin: skin),
     'appwidget' =>
       AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
     'clock' => ClockDesklet(theme: theme, desklet: desklet, skin: skin),

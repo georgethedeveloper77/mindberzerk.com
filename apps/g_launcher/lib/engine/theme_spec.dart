@@ -37,6 +37,8 @@ class ThemeSpec {
     this.terminal,
     this.desklets = const DeskletThemeBlock(),
     this.gestures = const {},
+    this.categories = const [],
+    this.categoryFallback,
     this.source = const ThemeSource.bundled(),
   }) : _chromeFamily = chromeFamily;
 
@@ -220,6 +222,19 @@ class ThemeSpec {
   /// compiles and behaves exactly as before.
   final ThemeSource source;
 
+  /// This distro's own category vocabulary, in display order. Empty means the
+  /// built-in set (Social, Media, Productivity, Games, News, Travel, Utilities,
+  /// Other), which is what every distro shipping today gets. See
+  /// [ThemeCategory].
+  final List<ThemeCategory> categories;
+
+  /// Where an app lands when nothing in [categories] claims it.
+  ///
+  /// Null takes the built-in 'Other'. Kali names it 'Usual Applications',
+  /// which is the bucket real Kali puts ordinary software in, and which is why
+  /// its thirteen tool groups can honestly start empty.
+  final String? categoryFallback;
+
   /// Same theme, told where it came from. Used by the loader immediately after
   /// [fromJson], which cannot know.
   ThemeSpec withSource(ThemeSource source) => ThemeSpec(
@@ -248,6 +263,13 @@ class ThemeSpec {
         splash: splash,
         desklets: desklets,
         gestures: gestures,
+        // CARRIED. `withSource` reconstructs the whole spec, so a field added
+        // to the constructor and forgotten here is silently dropped the moment
+        // the loader stamps a pack's source onto it, which is every CDN distro
+        // and none of the bundled ones. That asymmetry is why the omission
+        // would survive testing on the emulator.
+        categories: categories,
+        categoryFallback: categoryFallback,
         source: source,
       );
 
@@ -358,6 +380,14 @@ class ThemeSpec {
       // from a newer CDN theme) lets the ThemeSpec.chromeFamily getter fall
       // back to the shell default, so the bundled themes need no JSON change.
       chromeFamily: ChromeFamily.parse(json['chromeFamily'] as String?),
+      // A malformed entry is DROPPED, not fatal, matching every other list in
+      // this file. A category with no name is a rail slot nobody can read.
+      categories: ((json['categories'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ThemeCategory.fromJson(e.cast<String, dynamic>()))
+          .whereType<ThemeCategory>()
+          .toList(),
+      categoryFallback: (json['categoryFallback'] as String?)?.trim(),
     );
   }
 
@@ -404,6 +434,53 @@ class ThemeSpec {
 /// `dark` = "use on a dark background". Assign the files accordingly in
 /// theme.json. When a theme ships only one, both point at it, so a single-asset
 /// theme still renders (just without mode-matching).
+/// One bucket in a distro's own category vocabulary.
+///
+/// ─── THE VOCABULARY IS THE DISTRO, THE FILING RULE IS NOT ───────────────────
+///
+/// `builtInBucket` in drawer_items reads `ApplicationInfo.category`, which
+/// the app declares about itself, and its doc is emphatic that nothing may be
+/// inferred from a package name: a drawer that groups less but never lies is
+/// worth more than one that groups everything and is sometimes absurd.
+///
+/// A distro authoring categories does not get to break that. It supplies the
+/// NAMES and the ORDER, and [feeds] says which of the built-in buckets pour
+/// into each one. Anything unmapped lands in [ThemeSpec.categoryFallback].
+///
+/// For Kali that means [feeds] is EMPTY on all thirteen tool groups, because no
+/// Android category honestly maps to "01 Information Gathering" and pretending
+/// Chrome is a reconnaissance tool is the absurdity that rule exists to
+/// prevent. Real Kali does the same thing: ordinary applications live under
+/// Usual Applications and 01 through 13 hold tools. On a phone those thirteen
+/// start empty and the user fills them, which is what makes the CRUD the
+/// feature rather than a consolation.
+class ThemeCategory {
+  const ThemeCategory({
+    required this.name,
+    this.feeds = const [],
+  });
+
+  /// The label, and the folder id. Shown in the rail and on the folder tile.
+  final String name;
+
+  /// Built-in bucket names ('Social', 'Media', 'Games', 'News', 'Travel',
+  /// 'Productivity', 'Utilities') that file into this category. Empty means
+  /// nothing arrives automatically.
+  final List<String> feeds;
+
+  static ThemeCategory? fromJson(Map<String, dynamic> j) {
+    final name = (j['name'] as String?)?.trim();
+    if (name == null || name.isEmpty) return null;
+    return ThemeCategory(
+      name: name,
+      feeds: [
+        for (final f in (j['feeds'] as List?) ?? const [])
+          if ('$f'.trim().isNotEmpty) '$f'.trim(),
+      ],
+    );
+  }
+}
+
 class ThemeLogo {
   const ThemeLogo({required this.light, required this.dark});
 
@@ -476,7 +553,63 @@ enum ShellKind {
 enum ChromeFamily {
   adwaita,
   breeze,
+
+  /// Xfce, and the reason it is not [generic].
+  ///
+  /// ─── FIVE DISTROS WERE SHARING THE FALLBACK ─────────────────────────────
+  ///
+  /// Kali, Manjaro, Arch, EndeavourOS and Terminal all resolved to [generic],
+  /// which is the bucket everything unclaimed falls into rather than a design
+  /// language anyone ships. So the five most distinct desktops in the catalogue
+  /// had the identical menu and the identical settings page.
+  ///
+  /// Xfce is a real answer with real conventions and two of them are visible on
+  /// a phone: its menus are dense lists WITH icons and no separators, and its
+  /// Settings is a GRID of icons rather than a list of rows. Nothing else in
+  /// the catalogue looks like the Settings Manager.
+  ///
+  /// APPENDED, and every switch over this enum is exhaustive with no default
+  /// arm, so adding it here deliberately breaks the build at each site that
+  /// decides something on family until that site chooses. That is the same
+  /// treatment [ShellKind.aqua] got, and it is what stops a fifth family
+  /// shipping as a fourth one wearing a different name.
+  xfce,
+
+  /// A tiling window manager: i3, Hyprland, sway.
+  ///
+  /// The SIXTH, and it exists because [xfce] took half of what [generic] used
+  /// to hold and the other half is not the same desktop. Kali and Manjaro are
+  /// Xfce; Arch, EndeavourOS and the terminal are window managers, and the two
+  /// differ on the axis that carries most: an Xfce menu is a dense list WITH
+  /// icons, and a WM's menus are text. That is the same reason its launcher is
+  /// dmenu rather than a card, so the family and [ThemeLayout.tilingLauncher]
+  /// are saying one thing in two places rather than two things.
+  ///
+  /// Nothing rounds. `generic` is still the fallback and still rounds by 12,
+  /// which is a sane neutral and is exactly wrong for a desktop whose entire
+  /// visual argument is corners.
+  wm,
+
   aqua,
+
+  /// A phone's home screen. The seventh, and the only one not named after a
+  /// desktop, because the product it belongs to is not one.
+  ///
+  /// ─── AND NOT NAMED AFTER THE PHONE EITHER ───────────────────────────────
+  ///
+  /// Named for the product. A family name reaches the source, the panel's
+  /// dropdown and every theme.json that ever uses it, which is the one place a
+  /// careless name is permanent and the one place a trademark would sit
+  /// forever.
+  ///
+  /// ─── WHAT IT DECIDES ────────────────────────────────────────────────────
+  ///
+  /// [aqua] draws a plain separated list at the screen centre, which is a Mac's
+  /// menu and correct for elementary and Deepin. A phone's app menu lifts the
+  /// icon you held, dims the rest, and opens a rounded card beneath it, with
+  /// hairlines between the rows and a trailing glyph on each. Same information,
+  /// a different object.
+  pocket,
   generic;
 
   /// Parse a theme.json `chromeFamily` value. Unknown or absent yields null so
@@ -486,7 +619,10 @@ enum ChromeFamily {
   static ChromeFamily? parse(String? raw) => switch (raw) {
         'adwaita' => ChromeFamily.adwaita,
         'breeze' => ChromeFamily.breeze,
+        'xfce' => ChromeFamily.xfce,
+        'wm' => ChromeFamily.wm,
         'aqua' => ChromeFamily.aqua,
+        'pocket' => ChromeFamily.pocket,
         'generic' => ChromeFamily.generic,
         _ => null,
       };
@@ -498,6 +634,12 @@ enum ChromeFamily {
   ///   plasma -> breeze    (KDE)
   ///   tiling -> generic   (Arch)
   ///   tui    -> generic   (terminal)
+  ///
+  /// [ChromeFamily.xfce] is NOT a default for any shell, deliberately. No shell
+  /// implies Xfce: Kali runs it on what this app calls the gnome shell (a bar
+  /// plus a dock), and a distro that wants it says so. Making it the default
+  /// for anything would hand it to distros that never asked, which is how
+  /// `generic` ended up covering five desktops.
   /// Exhaustive over [ShellKind] with no default arm, so adding a shell (Aqua)
   /// is a compile error here until its family is chosen deliberately.
   static ChromeFamily defaultForShell(ShellKind shell) => switch (shell) {
@@ -675,6 +817,51 @@ class PanelSpec {
 /// One enum rather than a per-shell constant, because the axis belongs to the
 /// distro rather than to the shell implementation: Plasma is configurable and
 /// a distro shipping either answer is authentic.
+/// WHERE the app list lives, which is a different question from what it looks
+/// like.
+///
+/// ─── THE THIRD AXIS OF A DESKTOP, AND THE ONE NOBODY COULD AUTHOR ───────────
+///
+/// [ShellKind] decides the desktop, `ChromeFamily` decides the dialogs, and the
+/// drawer fields decide how the app list is grouped and how it moves. None of
+/// them can express the question a phone actually asks first: do I swipe to my
+/// apps, or do they cover the screen when I ask for them?
+///
+/// Every distro shipping today answers the same way by default, because the app
+/// list has only ever been an overlay: something that appears over the desktop
+/// and goes away. That is GNOME's Activities and it is KDE's Kickoff, so it was
+/// the right and only answer for a long time.
+///
+/// It is not Deepin's. Deepin's launcher is the screen, and its fashion mode is
+/// openly modelled on a phone: the apps are simply THERE, one swipe over, with
+/// the dock unchanged underneath. There is no open and no close.
+///
+///  - **overlay**: the app list appears over the desktop and is dismissed. The
+///    default, and what all fourteen distros do today.
+///  - **workspace**: the app list IS a page of the desktop, appended after the
+///    last workspace. Nothing opens it and nothing closes it; you swipe. The
+///    dock stays mounted across every page, because it never had anything to
+///    hide behind.
+///
+/// A CAPABILITY, not a preference, so it takes no user override. This is the
+/// same argument [desktopIcons] makes: a Deepin user switching it to overlay
+/// would be asking for a launcher Deepin does not have. `LayoutResolver` also
+/// clamps it per shell, because two of the five do not implement it and a
+/// silently-ignored field is the failure this codebase keeps meeting.
+///
+/// Unknown values from a newer catalogue parse to null and fall through, the
+/// same drop-not-fatal contract as [PanelModule.parse].
+enum AppsSurface {
+  overlay,
+  workspace;
+
+  static AppsSurface? parse(String? raw) => switch (raw) {
+        'overlay' => AppsSurface.overlay,
+        'workspace' => AppsSurface.workspace,
+        _ => null,
+      };
+}
+
 enum WorkspaceAxis {
   vertical,
   horizontal;
@@ -713,6 +900,7 @@ class ThemeLayout {
     this.panels = const [],
     this.panelsAuthored = false,
     this.workspaceAxis = WorkspaceAxis.vertical,
+    this.appsSurface = AppsSurface.overlay,
     this.desktopIcons = false,
     this.panelEdit = false,
     required this.rows,
@@ -721,6 +909,12 @@ class ThemeLayout {
     this.drawerScrollStyle,
     this.drawerGrouping,
     this.kickoffRail,
+    this.tilingLauncher,
+    this.appDrawer,
+    this.homeLayout,
+    this.dockStyle,
+    this.dockReveal,
+    this.workspaces,
   });
 
   final DockSide dock;
@@ -805,6 +999,13 @@ class ThemeLayout {
   /// Which way workspaces page. Defaults to vertical, which is what this shell
   /// has always done and what GNOME does.
   final WorkspaceAxis workspaceAxis;
+
+  /// Where this distro's app list lives. See [AppsSurface].
+  ///
+  /// Defaults to [AppsSurface.overlay], which is not a cautious default but the
+  /// correct one: it is what every distro shipping at the time of writing does,
+  /// so nothing moves until a theme.json says otherwise.
+  final AppsSurface appsSurface;
 
   /// Does this distro's desktop carry app icons?
   ///
@@ -909,6 +1110,196 @@ class ThemeLayout {
   /// same drop-not-fatal contract as `PanelModule.parse`.
   final String? kickoffRail;
 
+  /// Which launcher a TILING distro opens: 'rofi' | 'dmenu', or null for the
+  /// engine default ('rofi').
+  ///
+  /// ─── NAMED FOR ITS WIDGET, FOR THE REASON [kickoffRail] IS ──────────────
+  ///
+  /// `shell_drawer.dart` sends tiling to [TilingLauncher] and nothing else
+  /// reads this, so a plasma distro authoring 'dmenu' writes a valid value that
+  /// nothing consumes. That is the silent-drop failure this file keeps meeting,
+  /// and the answer here is the one [kickoffRail] already established: name the
+  /// field after the widget it configures, so the theme.json says plainly which
+  /// drawer it is talking to. No shell clamp, unlike `appsSurface`, because
+  /// there the field describes a PLACE that two shells cannot provide, whereas
+  /// this one describes a widget only one shell mounts at all.
+  ///
+  /// A CAPABILITY, not a preference, so no user override merges in. Arch's
+  /// launcher being a bare strip IS Arch, in the same way Mint's menu is what
+  /// makes Mint not KDE.
+  ///
+  ///  - **rofi**: a centred floating card with an accent border, app icons, a
+  ///    ranked list and a footer hint. What every tiling distro drew before
+  ///    this field, and what EndeavourOS wants: its community edition ships
+  ///    rofi in drun mode and its whole look is soft and purple.
+  ///  - **dmenu**: one line across the top edge. Prompt, input, then the
+  ///    matches running horizontally beside it with the top hit inverted. No
+  ///    icons, no card, no border, no scrim, no footer. The most austere thing
+  ///    in the catalogue, which is exactly what Arch is.
+  ///
+  /// The two share the matcher, the item list and the long-press menu. Only the
+  /// shape differs, which is the point: two distros that both launch from a
+  /// keybind should not therefore look identical.
+  ///
+  /// Unknown values from a newer catalogue parse to null and fall through, the
+  /// same drop-not-fatal contract as [PanelModule.parse].
+  final String? tilingLauncher;
+
+  /// Which drawer this distro opens, when its shell offers a choice:
+  /// 'grid' | 'tools', or null for the engine default ('grid').
+  ///
+  /// ─── THE FIRST FIELD THAT OVERRIDES shell_drawer ────────────────────────
+  ///
+  /// Every other drawer field so far configures the drawer the SHELL picked.
+  /// This one picks a different drawer. `shell_drawer.dart` mapped five shells
+  /// onto three widgets, which is why eight of fourteen distros shared one, and
+  /// no amount of configuring a shared widget separates Kali from Ubuntu when
+  /// both are handed the same grid.
+  ///
+  ///  - **grid**: whatever the shell would have chosen. Every distro today.
+  ///  - **tools**: the numbered category menu. Kali's Applications menu, where
+  ///    the rail is Kali's own thirteen tool categories rather than a letter or
+  ///    a tab.
+  ///  - **card**: Slingshot. A card that drops from the Applications button and
+  ///    covers about half the screen, with the wallpaper and the dock still
+  ///    visible around it. The only drawer here that does NOT take the display,
+  ///    which is the whole of what elementary is selling.
+  ///  - **whisker**: Xfce's menu. A narrow column standing on the bottom-left
+  ///    corner, search on top, a short run of apps, and a strip of category
+  ///    buttons along its foot. It grows UP from the panel button, which is
+  ///    where every one of its proportions comes from.
+  ///  - **cinnamon**: Mint's menu. Three columns side by side, a favourites
+  ///    strip, the categories and the apps, with search across the foot. The
+  ///    only three-column menu here, and the reason Mint is not a green KDE.
+  ///  - **library**: the App Library. Category bubbles, three apps and a
+  ///    cluster to a bubble, rendered by `library_view`.
+  ///
+  ///    ─── AND YES, `drawerGrouping: "library"` REACHES THE SAME WIDGET ────
+  ///
+  ///    It does, and that is the wrong route for a product selling it.
+  ///    `drawerGrouping` has a prefs arm, so any buyer can set it on any distro
+  ///    in four taps and an App Library reached that way cannot be an exclusive
+  ///    row. As an [appDrawer] value it takes no user override.
+  ///
+  ///    elementary and Zorin keep the grouping route, which is right for them:
+  ///    on those it is a default the user may change, not a thing being sold.
+  ///  - **query**: Pop's launcher. A line at the top of the screen with ranked
+  ///    results under it, and nothing else. The only one that does not arrange
+  ///    apps at all: it assumes you know what you want and gets out of the way
+  ///    while you say it.
+  ///  - **zorin**: the Start menu's shape. A grid of pinned apps ABOVE a rule,
+  ///    everything else as a list below it, search over both. The only stacked
+  ///    one: the columned menus make favourites a peer of the rest, and a tier
+  ///    above a rule makes them the answer and the rest the fallback.
+  /// A CAPABILITY, not a preference, so it takes no user override: which menu a
+  /// distro has is what makes Kali not Ubuntu, the same argument [desktopIcons]
+  /// and [kickoffRail] make.
+  ///
+  /// Unknown values parse to null and fall through, the same drop-not-fatal
+  /// contract as [PanelModule.parse].
+  final String? appDrawer;
+
+  /// How the desktop arranges its icons: 'grid' | 'tiled', or null for the
+  /// engine default ('grid').
+  ///
+  /// ─── A GEOMETRY, NOT A SECOND SURFACE ───────────────────────────────────
+  ///
+  /// Both modes render the same slots from the same [HomeLayout] storage, so
+  /// dragging, merging into folders, the long-press menu and the per-workspace
+  /// page all behave identically. Only where a slot LANDS differs.
+  ///
+  ///  - **grid**: an evenly spaced run of `rows` by `cols` cells with a gutter
+  ///    around them. Every distro that has a desktop today.
+  ///  - **tiled**: the slots fill the workspace edge to edge with no gap
+  ///    between them, each taking a share of what is left after the ones before
+  ///    it, alternating the split axis. A tiling window manager's screen is
+  ///    full of windows, and a spaced grid of rounded icons is the most
+  ///    phone-looking thing this launcher can draw, which is the wrong thing to
+  ///    draw on the distro whose whole argument is that it is not a phone.
+  ///
+  /// A CAPABILITY, not a preference. Nothing in Settings offers it, because a
+  /// tiled Ubuntu is not a preference anyone holds, it is a different distro.
+  ///
+  /// Capacity is still `rows * cols`, so a tiled distro controls how many tiles
+  /// a workspace holds through the grid it already authors. Arch wants a small
+  /// number: six tiles read as windows, twenty read as a mosaic.
+  final String? homeLayout;
+
+  /// How the dock SITS: 'flat' | 'floating' | 'magnified', or null for the
+  /// shell's own.
+  ///
+  /// ─── THREE, BECAUSE TWO WOULD ORPHAN A BUILT FEATURE ────────────────────
+  ///
+  /// The obvious pair is flat against the edge versus floating off it, which is
+  /// the difference between Pantheon's Plank and Deepin's fashion dock. Adding
+  /// only those two would leave `AquaDockMetrics` and the parabolic swell it
+  /// computes with no distro using them, because both of the aqua distros want
+  /// a dock that does NOT magnify. A feature this app already has, that nothing
+  /// asks for, is the thing every pass in this run has been finding.
+  ///
+  ///  - **flat**: on the edge, square-topped, running dots under the icons.
+  ///    Plank. What elementary wants.
+  ///  - **floating**: off the edge with a margin, rounded, translucent, no
+  ///    swell. Deepin's fashion mode.
+  ///  - **magnified**: floating AND swelling under the finger. The showpiece,
+  ///    and Garuda is where it belongs.
+  ///
+  /// A CAPABILITY, not a preference: which dock a desktop has is what makes it
+  /// that desktop. `dockSide` stays the preference, and on aqua it is already
+  /// refused for a separate and older reason.
+  final String? dockStyle;
+
+  /// When the dock EXISTS: 'always' | 'apps', or null for always.
+  ///
+  /// ─── THE FIELD THAT TELLS FEDORA FROM UBUNTU ────────────────────────────
+  ///
+  /// Both are GNOME, both have a top bar, both use the paged grid, and both
+  /// authored `dock: left`. On a real screen the one difference is that
+  /// Ubuntu's dock is part of the desktop and upstream GNOME's is not: there is
+  /// no dock until you open Activities, where a dash appears at the bottom and
+  /// leaves again with the overview.
+  ///
+  /// That is a REVEAL rather than an absence, which matters because absence
+  /// cannot be sold and a reveal can be seen the moment the phone unlocks.
+  ///
+  ///  - **always**: the dock is part of the desktop. What every distro draws
+  ///    today, so a theme that says nothing does not move.
+  ///  - **apps**: it exists only while the apps surface is open. A DASH, and
+  ///    the desktop underneath has nothing on it at all.
+  ///
+  /// `gnome_shell` already computes `dockRevealed` for its own edge gesture, so
+  /// the machinery was built and wired to one caller. That is the third time
+  /// this run has found the same shape, after [dockStyle] reaching only aqua
+  /// and [panelEdit] only plasma.
+  ///
+  /// A CAPABILITY: nothing in Settings offers it, and Dock position and Dock
+  /// opacity grey out on a distro with no permanent dock to position or fade.
+  final String? dockReveal;
+
+  /// How many workspaces this distro STARTS with, or null for the engine's
+  /// three.
+  ///
+  /// ─── A DEFAULT, NOT A CEILING ───────────────────────────────────────────
+  ///
+  /// `WorkspaceCount` reads `prefs.workspaceCount ?? fallback`, and `fallback`
+  /// was a hardcoded 3 with a comment saying the mockup showed three dots.
+  /// Nothing in that chain ever asked the theme, so every distro started with
+  /// three whatever its desktop is actually like.
+  ///
+  /// It costs most on a distro whose apps are a workspace PAGE. Deepin's app
+  /// list sits after the last desktop, so three workspaces means two empty
+  /// swipes before you reach it, and the fastest way to your apps on the distro
+  /// built around reaching apps quickly is four gestures.
+  ///
+  /// This is the DEFAULT and the user still owns the number: the stepper is
+  /// live, `set` writes prefs, and prefs win. So it is not an exclusive row and
+  /// is not meant to be. It is the answer to "how many should this distro have
+  /// before anyone touches it", which nothing could answer.
+  ///
+  /// Clamped to the same 1 to 5 the stepper uses. A theme asking for eight gets
+  /// five rather than a screen of dots nobody can count.
+  final int? workspaces;
+
   /// Panels, authored or synthesised from the legacy trio.
   ///
   /// The synthesis is the compatibility layer and it is deliberately literal:
@@ -971,6 +1362,11 @@ class ThemeLayout {
       // whole problem this flag exists to fix.
       panelsAuthored: j['panels'] is List,
       workspaceAxis: WorkspaceAxis.parse(j['workspaceAxis'] as String?),
+      // Absent, or a value from a newer catalogue: the overlay every distro
+      // already uses. Same forward-compatibility contract as the drawer fields
+      // directly below.
+      appsSurface:
+          AppsSurface.parse(j['appsSurface'] as String?) ?? AppsSurface.overlay,
       desktopIcons: j['desktopIcons'] as bool? ?? false,
       panelEdit: j['panelEdit'] as bool? ?? false,
       rows: (grid['rows'] as num?)?.toInt() ?? 5,
@@ -991,12 +1387,44 @@ class ThemeLayout {
         // `drawerScrollStyle: 'vertical'` it is the whole look; on its own it
         // is folders in whatever motion the distro already uses, which is a
         // coherent thing to want rather than a broken half.
-        'library' => 'library',
         _ => null,
       },
       kickoffRail: switch (j['kickoffRail'] as String?) {
         'tabs' => 'tabs',
         'categories' => 'categories',
+        _ => null,
+      },
+      tilingLauncher: switch (j['tilingLauncher'] as String?) {
+        'rofi' => 'rofi',
+        'dmenu' => 'dmenu',
+        _ => null,
+      },
+      appDrawer: switch (j['appDrawer'] as String?) {
+        'grid' => 'grid',
+        'tools' => 'tools',
+        'card' => 'card',
+        'whisker' => 'whisker',
+        'cinnamon' => 'cinnamon',
+        'zorin' => 'zorin',
+        'library' => 'library',
+        'query' => 'query',
+        _ => null,
+      },
+      homeLayout: switch (j['homeLayout'] as String?) {
+        'grid' => 'grid',
+        'tiled' => 'tiled',
+        _ => null,
+      },
+      workspaces: (j['workspaces'] as num?)?.toInt(),
+      dockReveal: switch (j['dockReveal'] as String?) {
+        'always' => 'always',
+        'apps' => 'apps',
+        _ => null,
+      },
+      dockStyle: switch (j['dockStyle'] as String?) {
+        'flat' => 'flat',
+        'floating' => 'floating',
+        'magnified' => 'magnified',
         _ => null,
       },
     );

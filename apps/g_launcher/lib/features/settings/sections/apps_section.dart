@@ -16,6 +16,7 @@ import '../../../design/branded_message.dart';
 import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
+import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../system/notification_badges.dart';
 import '../folders_screen.dart';
@@ -94,10 +95,19 @@ List<Widget> applicationsSection(
             // group of one exists to carry a heading nobody needed. Three or
             // four rows in the whole app need this and none of them is worth a
             // heading of its own.
-            subtitle: theme.drawerGrouping == 'library'
-                ? 'The library is two columns'
-                : 'This distro',
-            subtitleTint: theme.drawerGrouping == 'library'
+            // ── AND THE OTHER REASON IT CAN BE INERT ───────────────────
+            //
+            // Library was the only cause this row knew about, because it was
+            // the only one anything computed. A Kickoff list, a dmenu line and
+            // the tool menu all have exactly one column too, and on those the
+            // row was live and did nothing. See [ThemeCapabilities].
+            subtitle: !theme.canChooseDrawerColumns.available
+                ? context.t(theme.canChooseDrawerColumns.why!)
+                : theme.drawerGrouping == 'library'
+                    ? 'The library is two columns'
+                    : 'This distro',
+            subtitleTint: (!theme.canChooseDrawerColumns.available ||
+                    theme.drawerGrouping == 'library')
                 ? SettingsSkin.of(context).warn
                 : null,
             trailing: ChipValue(
@@ -118,7 +128,8 @@ List<Widget> applicationsSection(
             // A null `onTap` is how `SettingsRow` says inert; it has no
             // `enabled` flag. The tinted subtitle carries the reason, the same
             // way `_GestureRow` tints its workspace-scrolling warning.
-            onTap: theme.drawerGrouping == 'library'
+            onTap: (theme.drawerGrouping == 'library' ||
+                    !theme.canChooseDrawerColumns.available)
                 ? null
                 : () => showStepperSheet(
                       context,
@@ -152,10 +163,13 @@ List<Widget> applicationsSection(
             // motions for a grid of app icons and there is no sensible way to
             // page a two-column folder list, so the choice has one answer
             // there and the row says so rather than offering three.
-            subtitle: theme.drawerGrouping == 'library'
-                ? 'The library is always one list'
-                : context.t('settings.oneLongListOr'),
-            enabled: theme.drawerGrouping != 'library',
+            subtitle: !theme.canChooseDrawerMotion.available
+                ? context.t(theme.canChooseDrawerMotion.why!)
+                : theme.drawerGrouping == 'library'
+                    ? 'The library is always one list'
+                    : context.t('settings.oneLongListOr'),
+            enabled: theme.drawerGrouping != 'library' &&
+                theme.canChooseDrawerMotion.available,
             // Shown as List regardless of what the pref holds, because that is
             // what the drawer is actually doing. Leaving the stored value
             // selected would put the ring on Cube while the screen renders a
@@ -223,14 +237,19 @@ List<Widget> applicationsSection(
           SettingsRow(
             icon: Icons.sort_by_alpha,
             title: context.t('settings.groupAToZ'),
-            subtitle: switch (theme.drawerGrouping) {
-              'library' => 'Apps filed into category folders',
-              'az' => theme.drawerScrollStyle == 'vertical'
-                  ? 'Letter headings down the list'
-                  : 'Headings need the list layout',
-              _ => 'One flat run of apps',
-            },
+            subtitle: !theme.canChooseDrawerGrouping.available &&
+                    theme.drawerGrouping != 'library'
+                ? context.t(theme.canChooseDrawerGrouping.why!)
+                : switch (theme.drawerGrouping) {
+                    'library' => 'Apps filed into category folders',
+                    'az' => theme.drawerScrollStyle == 'vertical'
+                        ? 'Letter headings down the list'
+                        : 'Headings need the list layout',
+                    _ => 'One flat run of apps',
+                  },
             trailing: Seg(
+              enabled: theme.canChooseDrawerGrouping.available ||
+                  theme.drawerGrouping == 'library',
               value: theme.drawerGrouping,
               options: const {
                 'none': 'Off',
@@ -254,8 +273,11 @@ List<Widget> applicationsSection(
             icon: Icons.search,
             accent: true,
             title: context.t('settings.searchBar'),
-            subtitle: context.t('settings.whereDrawerSearch'),
+            subtitle: theme.canMoveSearchBar.available
+                ? context.t('settings.whereDrawerSearch')
+                : context.t(theme.canMoveSearchBar.why!),
             trailing: Seg(
+              enabled: theme.canMoveSearchBar.available,
               value: theme.prefs.drawerSearchPosition ?? 'bottom',
               options: const {
                 'top': 'Top',

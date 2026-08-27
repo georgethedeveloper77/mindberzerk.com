@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
+import '../search/search_sheet.dart';
 import '../../i18n/i18n.dart';
 import '../../platform/launcher_api.g.dart';
 import 'app_icon.dart';
@@ -173,25 +174,68 @@ class _LibraryViewState extends ConsumerState<LibraryView>
         // labelled folders is already self-describing.
         return Stack(
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.deferToChild,
-              // Hold the background to edit, tap it to leave. The grid's own
-              // tiles handle their taps first, so this only fires on the gaps
-              // between them, which is exactly where "nothing in particular"
-              // means "get me out of here".
-              onLongPress: _enterEdit,
-              onTap: _editing ? _exitEdit : null,
-              child: CustomScrollView(
-                // Frozen while editing. A jiggling grid that also scrolls makes
-                // the X a moving target, and iOS freezes for the same reason.
-                physics: _editing ? const NeverScrollableScrollPhysics() : null,
-                slivers: [
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  if (folders.isNotEmpty) _grid(context, folders, cell),
-                  if (rest.isNotEmpty) _grid(context, rest, cell),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                ],
-              ),
+            Column(
+              children: [
+                // ─── PINNED, ABOVE THE SCROLL ─────────────────────────────
+                //
+                // This was a sliver and it scrolled away, which put it
+                // half off the top edge the moment you moved: the one control
+                // on the screen, and the first thing to go.
+                //
+                // Outside the CustomScrollView entirely rather than a pinned
+                // SliverPersistentHeader, because a pinned header still floats
+                // OVER the content and the bubbles would slide under it. A
+                // Column takes its height out of the scroll's box instead, so
+                // nothing ever passes beneath it.
+                //
+                // Hidden while editing: the X badges are the subject then, and
+                // a sheet over a jiggling grid would be two edit modes at once.
+                if (!_editing)
+                  SafeArea(
+                    bottom: false,
+                    child: _SearchPill(theme: widget.theme),
+                  ),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    // Hold the background to edit, tap it to leave. The grid's
+                    // own tiles handle their taps first, so this only fires on
+                    // the gaps between them, which is exactly where "nothing in
+                    // particular" means "get me out of here".
+                    onLongPress: _enterEdit,
+                    onTap: _editing ? _exitEdit : null,
+                    child: CustomScrollView(
+                      // Frozen while editing. A jiggling grid that also scrolls
+                      // makes the X a moving target, and iOS freezes for the
+                      // same reason.
+                      physics: _editing
+                          ? const NeverScrollableScrollPhysics()
+                          : null,
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 4)),
+                        if (folders.isNotEmpty) _grid(context, folders, cell),
+                        if (rest.isNotEmpty) _grid(context, rest, cell),
+                        // ─── ROOM FOR THE DOCK ────────────────────────────
+                        //
+                        // Twelve, and the dock is a floating slab about ninety
+                        // tall sitting over this. The last row was underneath
+                        // it with its label hidden, which on a screen whose
+                        // whole job is finding things is the row you were
+                        // scrolling to reach.
+                        //
+                        // Measured from the inset rather than fixed, so a
+                        // gesture-navigation phone and a three-button one both
+                        // clear it.
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: 96 + MediaQuery.viewPaddingOf(context).bottom,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (_editing)
               Positioned(
@@ -394,6 +438,57 @@ class _Cell extends ConsumerWidget {
         );
       },
       child: content,
+    );
+  }
+}
+
+/// The search pill at the top of the Library.
+///
+/// Opens [showSearchSheet], which is the same sheet every drawer opens, so a
+/// search started here ranks identically to one started from Kickoff or the
+/// tool menu. Wide and soft, because it is the one control on a screen made
+/// entirely of rounded tiles and a square field would be the only hard edge.
+class _SearchPill extends StatelessWidget {
+  const _SearchPill({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_side, 2, _side, 12),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => showSearchSheet(context, theme),
+        child: Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: palette.onDark.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 17,
+                color: palette.onDark.withValues(alpha: 0.55),
+              ),
+              const SizedBox(width: 9),
+              Text(
+                context.t('drawer.appLibrary'),
+                style: TextStyle(
+                  fontFamily: theme.typography.display,
+                  fontSize: 13 * theme.textScale,
+                  color: palette.onDark.withValues(alpha: 0.55),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

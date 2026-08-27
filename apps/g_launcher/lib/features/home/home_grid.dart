@@ -15,13 +15,36 @@ import '../../design/icon_sizing.dart';
 import '../../design/components/press_pop.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
+import 'package:g_launcher/i18n/i18n.dart';
+import '../drawer/folder_overlay.dart';
+// deskletEditProvider and EditMode.apps: the jiggle state lives here rather
+// than in a local bool, because the pager, the desktop hold and back all read
+// it. See DeskletEditState.
+import '../desklets/desklet_edit.dart';
 
 /// The home workspace: apps, folders, drag-and-drop.
 ///
 /// All the state logic lives in HomeLayout (pure, tested). This file does
 /// gestures and paint, nothing more — which is why "I dragged an app into a
 /// folder and lost it" is a class of bug we can actually rule out.
-class HomeGrid extends ConsumerWidget {
+/// The desktop grid, and the ticker that jiggles it.
+///
+/// ─── ONE TICKER, NOT ONE PER ICON ───────────────────────────────────────────
+///
+/// `library_view` learned this first and wrote it down: with a screen full of
+/// apps, a controller per tile is a ticker per tile, and on a budget phone that
+/// is the difference between a jiggle and a stutter. One animation drives every
+/// icon here too, and the phase that stops them moving in lockstep comes from
+/// each tile's own INDEX rather than its own clock, so it is stable across
+/// rebuilds. A random phase would resettle every icon on every frame that
+/// rebuilt the grid.
+///
+/// Stateful rather than a provider because a ticker needs a vsync and a
+/// dispose, neither of which belongs in Riverpod. What IS in a provider is
+/// whether edit mode is on, and that is [EditMode.apps] rather than a local
+/// bool for the reason its own doc gives: the pager, the desktop hold and back
+/// all have to know, and they already read `active`.
+class HomeGrid extends ConsumerStatefulWidget {
   const HomeGrid({super.key, required this.theme, required this.page});
 
   final EffectiveTheme theme;
@@ -37,7 +60,42 @@ class HomeGrid extends ConsumerWidget {
   final int page;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeGrid> createState() => _HomeGridState();
+}
+
+class _HomeGridState extends ConsumerState<HomeGrid>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _jiggle = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
+  );
+
+  @override
+  void dispose() {
+    _jiggle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final page = widget.page;
+
+    // ─── THE TICKER FOLLOWS THE PROVIDER, NOT THE CALL SITES ─────────────
+    //
+    // Started and stopped from the watched state rather than from the places
+    // that enter and exit, because there are more than two of those: the
+    // desktop menu enters, back exits, and anything that ever calls `exit()`
+    // would also have to remember to stop this. Following the state means the
+    // animation cannot be left running by a path nobody thought of.
+    final editing = ref.watch(deskletEditProvider).editingApps;
+    if (editing && !_jiggle.isAnimating) {
+      _jiggle.repeat(reverse: true);
+    } else if (!editing && _jiggle.isAnimating) {
+      _jiggle.stop();
+      _jiggle.value = 0;
+    }
+
     final apps = ref.watch(shellAppsProvider(theme));
     final byKey = {for (final a in apps) a.componentKey: a};
     final prefs = theme.prefs;
@@ -94,7 +152,48 @@ class HomeGrid extends ConsumerWidget {
         // label in the first place.
         final textScaler = MediaQuery.textScalerOf(context).scale(1.0);
 
-        return GridView.builder(
+        // ─── TILED IS A GEOMETRY OVER THE SAME SLOTS ──────────────────
+        //
+        // Every cell below is a [_Slot], which owns the drag target, the
+        // merge-into-folder drop, the long-press menu and the (page, index)
+        // write. Tiled changes WHERE a slot lands and nothing else, so all of
+        // that behaviour is inherited rather than reimplemented. A second
+        // surface would have needed its own copy of the lot, and the copy
+        // would have drifted the way `_FolderView` did.
+        if (theme.homeLayout == 'tiled') {
+          final rects = _tile(
+            Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+            capacity,
+          );
+          return Stack(
+            children: [
+              for (var i = 0; i < rects.length; i++)
+                Positioned.fromRect(
+                  rect: rects[i],
+                  child: _Slot(
+                    theme: theme,
+                    page: page,
+                    index: i,
+                    item: HomeLayout.itemAt(prefs, page, i),
+                    byKey: byKey,
+                    editing: editing,
+                    jiggle: _jiggle,
+                    // Sized from the TILE, not from the grid cell computed
+                    // above: tiles are all different shapes, and an icon
+                    // measured against a 4-wide cell would be identical in
+                    // every one of them, which is the look this mode exists to
+                    // avoid.
+                    iconSize: IconSizing.inCell(
+                      rects[i].shortestSide,
+                      scale: theme.iconScale,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }
+
+        final grid = GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(pad),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -118,11 +217,126 @@ class HomeGrid extends ConsumerWidget {
               index: index,
               item: item,
               byKey: byKey,
+              editing: editing,
+              jiggle: _jiggle,
               iconSize: iconSize,
             );
           },
         );
+
+        if (!editing) return grid;
+
+        // ─── SAY HOW TO LEAVE ────────────────────────────────────────────
+        //
+        // Tapping bare wallpaper exits, and on a full desktop there is no bare
+        // wallpaper to tap. A chip is the only thing between that and a user
+        // who is stuck, and it is what the App Library already does.
+        //
+        // Above the grid in a Stack rather than beside it in a Column, so the
+        // cells keep the geometry `GridMetrics` measured for them.
+        return Stack(
+          children: [
+            grid,
+            Positioned(
+              top: 4,
+              right: 10,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => ref.read(deskletEditProvider.notifier).exit(),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: theme.palette.onDark.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    context.t('shell.done'),
+                    style: TextStyle(
+                      fontFamily: theme.typography.display,
+                      fontSize: 13 * theme.textScale,
+                      fontWeight: FontWeight.w600,
+                      color: theme.palette.accent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
       },
+    );
+  }
+}
+
+/// An X badge over whatever is being arranged.
+///
+/// ─── DELIBERATELY NOT A COPY OF library_view's ──────────────────────────────
+///
+/// That one uninstalls, because in the App Library there is nowhere else for an
+/// app to go: removing it from the Library means removing it from the phone.
+/// Here the badge takes a tile off the DESKTOP, and the app is still in the
+/// drawer, so the two carry the same glyph and mean different things. The
+/// callback is therefore supplied by the slot rather than assumed by the badge,
+/// which is also what lets a folder's X ungroup instead.
+///
+/// The geometry and the colour reasoning ARE that file's, unchanged: bounded so
+/// the target stays comfortable, and themed rather than iOS grey because a
+/// badge sitting on top of an icon has to read as a control against whatever
+/// the distro's icons look like.
+class _Removable extends StatelessWidget {
+  const _Removable({
+    required this.theme,
+    required this.size,
+    required this.editing,
+    required this.onRemove,
+    required this.child,
+  });
+
+  final EffectiveTheme theme;
+  final double size;
+  final bool editing;
+  final VoidCallback onRemove;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!editing) return child;
+
+    final badge = (size * 0.34).clamp(16.0, 24.0);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          // Top LEFT, matching the Library. The label sits under the icon and a
+          // badge on the right would overlap the neighbouring tile's icon on a
+          // four-column grid, where the Library's cells are wider.
+          top: -badge * 0.20,
+          left: -badge * 0.20,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onRemove();
+            },
+            child: Container(
+              width: badge,
+              height: badge,
+              decoration: BoxDecoration(
+                color: theme.palette.onDark,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.close,
+                size: badge * 0.62,
+                color: theme.palette.bar,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -130,6 +344,72 @@ class HomeGrid extends ConsumerWidget {
 /// The label's point size. One place, because the cell arithmetic and the
 /// TextStyle have to be the same number or the measurement is fiction.
 double _labelFontSize(EffectiveTheme theme) => 11 * theme.textScale;
+
+/// Split [box] into [count] tiles the way a tiling window manager does.
+///
+/// ─── THE SPIRAL, BECAUSE IT IS WHAT A TILING SCREEN LOOKS LIKE ──────────────
+///
+/// Each tile takes half of what is left and the remainder recurses into the
+/// other half, splitting along whichever axis is currently longer. That is
+/// i3 with automatic orientation, and dwm's fibonacci layout, and it is the
+/// arrangement anyone who has seen a tiling desktop recognises instantly: one
+/// large region, then progressively smaller ones winding into a corner.
+///
+/// The alternatives are both wrong here. Equal columns is i3's literal default
+/// with `splith`, and at six tiles on a phone it is six vertical slivers.
+/// Master-and-stack is dwm's default and reads as a phone widget over a list.
+/// The spiral is the only one that stays legible from one tile to eight.
+///
+/// ─── GAPLESS, AND THAT IS THE POINT ─────────────────────────────────────────
+///
+/// No padding, no gutter, no rounding here. The distro that wants this is the
+/// one whose entire visual argument is that nothing is spaced and nothing is
+/// rounded, and a gap would make it a grid with delusions. i3-gaps exists and
+/// is popular; it is also the configuration Arch's own defaults do not ship.
+///
+/// ─── AND IT HAS A CEILING THE AUTHOR HAS TO RESPECT ────────────────────────
+///
+/// Halving compounds. On a 360 by 640 workspace the smallest tile is about 85dp
+/// square at six, 42dp at eight, and nothing at all by twenty: the spiral winds
+/// into a corner and the last few tiles are slivers no thumb can hit.
+///
+/// There is no clamp here, deliberately. Dropping slots would lose apps the
+/// user placed, and falling back to a grid past some count would make the
+/// desktop change shape as it filled. Capacity is `rows * cols` and a tiled
+/// distro is expected to author a small grid; Arch uses three by two. A distro
+/// that authors five by four and turns this on gets a mosaic, and it will be
+/// obvious on the first screenshot.
+///
+/// Returns exactly [count] rects, in slot order, so index 0 is the largest.
+/// A caller asking for zero gets an empty list rather than a division by zero.
+List<Rect> _tile(Rect box, int count) {
+  if (count <= 0) return const [];
+
+  final out = <Rect>[];
+  var left = box;
+
+  for (var i = 0; i < count; i++) {
+    // The last one takes everything remaining, which is what keeps the tiles
+    // covering the box exactly rather than leaving a sliver of wallpaper down
+    // one edge from accumulated halving.
+    if (i == count - 1) {
+      out.add(left);
+      break;
+    }
+
+    if (left.width >= left.height) {
+      final w = left.width / 2;
+      out.add(Rect.fromLTWH(left.left, left.top, w, left.height));
+      left = Rect.fromLTWH(left.left + w, left.top, left.width - w, left.height);
+    } else {
+      final h = left.height / 2;
+      out.add(Rect.fromLTWH(left.left, left.top, left.width, h));
+      left = Rect.fromLTWH(left.left, left.top + h, left.width, left.height - h);
+    }
+  }
+
+  return out;
+}
 
 /// An empty or filled slot. Empty slots are still DragTargets — that is what
 /// makes "drag an icon into the gap" work.
@@ -140,6 +420,8 @@ class _Slot extends ConsumerWidget {
     required this.index,
     required this.item,
     required this.byKey,
+    required this.editing,
+    required this.jiggle,
     required this.iconSize,
   });
 
@@ -150,6 +432,16 @@ class _Slot extends ConsumerWidget {
   final int index;
   final HomeItem? item;
   final Map<String, AppEntry> byKey;
+
+  /// Is the grid in [EditMode.apps]? Passed down rather than watched here so
+  /// the whole page answers from one read, and so an EMPTY slot knows too: in
+  /// edit mode a tap on bare wallpaper is how you leave, and a slot that still
+  /// offered to add something would swallow it.
+  final bool editing;
+
+  /// The shared wobble. See [HomeGrid]: one ticker for the whole grid, with the
+  /// phase taken from [index] so it is stable across rebuilds.
+  final Animation<double> jiggle;
 
   /// Measured from the cell by the grid above, so every tile in a row is the
   /// same size by construction rather than by each one recomputing it.
@@ -173,9 +465,47 @@ class _Slot extends ConsumerWidget {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: _content(context, ref),
+          // ─── AN EMPTY SLOT IS HOW YOU LEAVE ────────────────────────
+          //
+          // Tapping bare wallpaper exits, which is what every phone does and
+          // what nobody has to be told. `DesktopHold` cannot do it: it is a
+          // LONG press, and it already returns early while edit mode is
+          // active. So the tap lives on the empty slots, which are the only
+          // things in the grid with nothing else to do with one.
+          child: (editing && item == null)
+              ? GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => ref.read(deskletEditProvider.notifier).exit(),
+                  child: _content(context, ref),
+                )
+              : _content(context, ref),
         );
       },
+    );
+  }
+
+  /// The wobble, applied once around whatever this slot holds.
+  ///
+  /// Around the OUTSIDE rather than inside `_AppCell`, so a folder tile
+  /// wobbles too. Filing apps into a folder is the other half of arranging a
+  /// home screen, and a grid where half the tiles were still would read as
+  /// half of it being locked.
+  ///
+  /// The angle is the same curve `library_view` uses: a triangle rather than a
+  /// sine, because a sine spends most of its time near the extremes and turns
+  /// a full grid into something unpleasant to look at for more than a second.
+  Widget _wobble(Widget child) {
+    if (!editing) return child;
+    return AnimatedBuilder(
+      animation: jiggle,
+      builder: (context, c) {
+        final t = (jiggle.value + (index.isEven ? 0.0 : 0.5)) % 1.0;
+        return Transform.rotate(
+          angle: (t < 0.5 ? t * 2 - 0.5 : 1.5 - t * 2) * 0.024,
+          child: c,
+        );
+      },
+      child: child,
     );
   }
 
@@ -186,13 +516,31 @@ class _Slot extends ConsumerWidget {
     if (it.isFolder) {
       final folder = HomeLayout.folder(theme.prefs, it.folderId!);
       if (folder == null) return const SizedBox.expand();
-      return _Draggable(
-        index: index,
-        child: _FolderCell(
+      return _wobble(
+        _Removable(
           theme: theme,
-          folder: folder,
-          byKey: byKey,
-          iconSize: iconSize,
+          size: iconSize,
+          editing: editing,
+          // A folder's X UNGROUPS it rather than uninstalling anything. The
+          // apps inside are not being deleted, and an X that removed six apps
+          // because it sat on the tile holding them would be the worst button
+          // in the launcher.
+          onRemove: () => ref
+              .read(prefsProvider(theme.spec.id).notifier)
+              .edit((p) => HomeLayout.dissolve(
+                    p,
+                    it.folderId!,
+                    capacity: theme.rows * theme.cols,
+                  )),
+          child: _Draggable(
+            index: index,
+            child: _FolderCell(
+              theme: theme,
+              folder: folder,
+              byKey: byKey,
+              iconSize: iconSize,
+            ),
+          ),
         ),
       );
     }
@@ -203,12 +551,29 @@ class _Slot extends ConsumerWidget {
     // NOT wrapped in [_Draggable], unlike the folder above. See [_AppCell]:
     // it owns its own draggable because the hold-versus-drag split has to
     // happen inside the widget that knows what a hold MEANS.
-    return _AppCell(
-      theme: theme,
-      entry: entry,
-      page: page,
-      slot: index,
-      iconSize: iconSize,
+    return _wobble(
+      _Removable(
+        theme: theme,
+        size: iconSize,
+        editing: editing,
+        // TAKES IT OFF THE DESKTOP, and does not uninstall.
+        //
+        // iOS asks which you meant. This does not, because the two are not
+        // equally reachable here: Uninstall is already in the long-press menu
+        // with Android's own confirmation behind it, and a badge that could
+        // delete an app on one tap with no dialog is a badge nobody should
+        // trust. Removing from home is instantly undoable by dragging it back.
+        onRemove: () => ref
+            .read(prefsProvider(theme.spec.id).notifier)
+            .edit((p) => HomeLayout.removeFromHome(p, page, index)),
+        child: _AppCell(
+          theme: theme,
+          entry: entry,
+          page: page,
+          slot: index,
+          iconSize: iconSize,
+        ),
+      ),
     );
   }
 
@@ -496,10 +861,19 @@ class _FolderCell extends ConsumerWidget {
         folder.members.map((k) => byKey[k]).whereType<AppEntry>().toList();
 
     return GestureDetector(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => _FolderView(theme: theme, folder: folder),
-      ),
+      // ─── THE SAME OVERLAY THE DRAWER OPENS ──────────────────────────
+      //
+      // This pushed `_FolderView`, a bare `Dialog` holding a `TextField` and a
+      // four-column grid, with raw `TextStyle`, raw palette colours, no
+      // [ChromeScope], no paging, and a long press that removed a member
+      // outright with no menu and no undo. `folder_overlay.dart` has had the
+      // full-screen panel, in-place rename, the multi-select add dialog, drag
+      // reordering with edge page-flip, and a context menu at the pointer for
+      // some time; the desktop simply never got pointed at it.
+      //
+      // [FolderStore] is what makes one screen serve both without merging two
+      // storage models that are correctly separate. See its library doc.
+      onTap: () => showHomeFolderOverlay(context, ref, theme, folder.id),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -532,94 +906,6 @@ class _FolderCell extends ConsumerWidget {
           const SizedBox(height: GridMetrics.labelGap),
           _Label(theme: theme, text: folder.name),
         ],
-      ),
-    );
-  }
-}
-
-class _FolderView extends ConsumerStatefulWidget {
-  const _FolderView({required this.theme, required this.folder});
-  final EffectiveTheme theme;
-  final AppFolder folder;
-
-  @override
-  ConsumerState<_FolderView> createState() => _FolderViewState();
-}
-
-class _FolderViewState extends ConsumerState<_FolderView> {
-  late final TextEditingController _name =
-      TextEditingController(text: widget.folder.name);
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = widget.theme;
-    final apps = ref.watch(shellAppsProvider(theme));
-    final byKey = {for (final a in apps) a.componentKey: a};
-
-    // Read the folder LIVE from prefs. Using widget.folder would show stale
-    // members after a removal, and the dialog would lie until you closed it.
-    final folder = HomeLayout.folder(theme.prefs, widget.folder.id);
-    if (folder == null) return const SizedBox.shrink();
-
-    final members =
-        folder.members.map((k) => byKey[k]).whereType<AppEntry>().toList();
-
-    return Dialog(
-      backgroundColor: theme.palette.bar,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _name,
-              style: TextStyle(color: theme.palette.onDark, fontSize: 18),
-              decoration: const InputDecoration(border: InputBorder.none),
-              onSubmitted: (v) => ref
-                  .read(prefsProvider(theme.spec.id).notifier)
-                  .edit((p) => HomeLayout.renameFolder(p, folder.id, v)),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 4,
-              mainAxisSpacing: 12,
-              children: [
-                for (final m in members)
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(appListProvider.notifier).launch(m);
-                    },
-                    onLongPress: () => ref
-                        .read(prefsProvider(theme.spec.id).notifier)
-                        .edit(
-                          (p) => HomeLayout.removeFromFolder(
-                            p,
-                            folder.id,
-                            m.componentKey,
-                            capacity: theme.rows * theme.cols,
-                          ),
-                        ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppIcon(entry: m, size: theme.iconSizeDp),
-                        const SizedBox(height: 4),
-                        _Label(theme: theme, text: m.label),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

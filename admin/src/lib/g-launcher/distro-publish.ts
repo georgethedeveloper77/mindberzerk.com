@@ -11,6 +11,7 @@ import {
   uploadPack, shelfOwnerBase } from '@/lib/core/publish-core';
 import type { IndexEntitlement, IndexPack, PackFile } from '@/lib/core/sign';
 import { canonicalThemeJson, type ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import { previewLayoutFor } from '@/lib/g-launcher/preview-layout';
 
 export interface DistroPublishInput {
   app: AppId;
@@ -168,6 +169,13 @@ export async function publishDistro(
           bar: input.theme.spec.palette.bar,
           dock: input.theme.spec.palette.dock,
           accent: input.theme.spec.palette.accent,
+          // ── AND WHAT TO DRAW, NOT JUST WHAT COLOUR ────────────────────
+          //
+          // `shell` above picks the miniature on any device that predates this
+          // field, and it is wrong for twelve of the fifteen. See
+          // [IndexPreview.layout]: the whole spec is in hand here and only the
+          // index reaches the device, so the switch runs once, on this side.
+          layout: previewLayoutFor(input.theme.spec),
         },
         // ── THE STOREFRONT ROWS ─────────────────────────────────────────
         //
@@ -265,7 +273,19 @@ export async function publishDistro(
        * that names nothing would put an unbuyable string in a signed index
        * forever.
        */
-      const named = input.theme.spec.icons?.heroPack ?? null;
+      // ─── BOTH FIELDS, BECAUSE A LINE PACK IS NAMED IN THE OTHER ONE ──
+      //
+      // This read `heroPack` alone. Every distro in the catalogue names its
+      // pack in `brandPack` instead, so `named` was null for all fourteen and
+      // the grant was never added.
+      //
+      // `heroPack` first: it is the more specific of the two, and Ubuntu is the
+      // one distro that names a real hero set. A distro naming both gets the
+      // hero, which is the same precedence the icon resolver uses.
+      const named =
+        input.theme.spec.icons?.heroPack ??
+        input.theme.spec.icons?.brandPack ??
+        null;
       const namedIsPublished =
         !!named &&
         named !== iconEntry?.packId &&
@@ -283,10 +303,15 @@ export async function publishDistro(
       const base = themeEntry.packId.endsWith('-theme')
         ? themeEntry.packId.slice(0, -'-theme'.length)
         : themeEntry.packId;
+      // `hero` OR `brand`. The sweep tested `hero` only, and `papirus` is the
+      // single hero pack in the catalogue, so this branch has never once
+      // matched a real distro's icons. Eleven entitlements shipped granting the
+      // theme and nothing else, and every buyer of a paid distro owned half of
+      // what they paid for.
       const shelfGrants = live.packs
         .filter(
           (p) =>
-            p.packType === 'hero' &&
+            (p.packType === 'hero' || p.packType === 'brand') &&
             p.sku &&
             p.packId !== iconEntry?.packId &&
             shelfOwnerBase(p.packId, live) === base,

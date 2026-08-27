@@ -155,6 +155,19 @@ String terminalLabelFor(EffectiveTheme theme) =>
 /// id alone.
 const kCategoryFolderPrefix = 'cat:';
 
+/// How many apps the Suggestions bucket holds.
+///
+/// Six, because the tile draws three large and the rest as a cluster, and a
+/// cluster of one is a cluster that should have been a fourth large icon.
+const _kSuggestions = 6;
+
+/// Below this many, the bucket does not appear at all.
+///
+/// Four, not one. A Suggestions folder holding two apps is a heading that has
+/// learned almost nothing about you and takes a whole tile to say so; the
+/// categories underneath are more useful until it has more.
+const _kMinSuggestions = 4;
+
 /// True for a folder this file generated rather than one the user made.
 bool isCategoryFolder(String folderId) =>
     folderId.startsWith(kCategoryFolderPrefix);
@@ -182,7 +195,7 @@ bool isCategoryFolder(String folderId) =>
 /// A folder holding most of the drawer is not organisation, and its 2x2 preview
 /// would show four arbitrary icons out of two hundred. Loose is the honest
 /// rendering: the library degrades into the grid that already works.
-String? categoryFolderName(AppEntry a) {
+String? builtInBucket(AppEntry a) {
   // GAMES FIRST, and it is not just the category. `isGame` also catches apps
   // that predate the category and only set the legacy flag, which is a lot of
   // what is actually installed on a budget phone.
@@ -245,6 +258,109 @@ const kCategoryOrder = [
 /// tap count to launch it becomes two, and its 2x2 preview is three quarters
 /// empty. Two is the smallest number where a folder saves any space at all.
 const kMinCategoryMembers = 2;
+
+/// The category vocabulary in force: which buckets exist, in what order, and
+/// what an app that matches none of them is called.
+///
+/// ─── ONE OBJECT BECAUSE TWO PLACES WERE HARDCODING THE SAME THREE THINGS ────
+///
+/// The library branch below and `KickoffDrawer._bucket` both walked
+/// [kCategoryOrder], both called [builtInBucket], and both wrote the string
+/// `'Other'` inline as the bucket that is never swept. Three constants, two
+/// copies, and the copies could not both be right once a distro was allowed to
+/// name its own categories. Kickoff's own doc already says what must not
+/// diverge is the RULE; this is the rule with a type.
+///
+/// ─── AND A DISTRO CANNOT USE IT TO LIE ──────────────────────────────────────
+///
+/// [ThemeCategory] supplies names and order. It does NOT supply a filing rule:
+/// [nameFor] still asks [builtInBucket], which reads what the app declares
+/// about itself, and a distro can only say which built-in bucket pours into
+/// which of its own names. So Kali gets thirteen tool groups in the rail and
+/// none of them can claim Chrome, because no Android category honestly maps to
+/// "01 Information Gathering".
+class CategorySet {
+  const CategorySet({
+    required this.order,
+    required this.feeds,
+    required this.fallback,
+  });
+
+  /// Display order. [fallback] is last, always: it is the remainder, and on a
+  /// device where few apps declare a category it is also the biggest.
+  final List<String> order;
+
+  /// Built-in bucket name to this distro's name. Empty means the built-in
+  /// names ARE the distro's names, which is every distro shipping today.
+  final Map<String, String> feeds;
+
+  /// Where an unclaimed app goes. Never swept below [kMinCategoryMembers],
+  /// because there is nowhere left for its members to go.
+  final String fallback;
+
+  /// The set every distro gets unless its theme.json says otherwise. Byte for
+  /// byte the behaviour that was inline before this type existed.
+  static const builtIn = CategorySet(
+    order: kCategoryOrder,
+    feeds: {},
+    fallback: 'Other',
+  );
+
+  /// This distro's set, or [builtIn] when it authors none.
+  static CategorySet forTheme(EffectiveTheme theme) {
+    final authored = theme.spec.categories;
+    if (authored.isEmpty) return builtIn;
+
+    final fallback = theme.spec.categoryFallback?.trim();
+    final name = (fallback == null || fallback.isEmpty) ? 'Other' : fallback;
+
+    return CategorySet(
+      // The fallback is APPENDED rather than assumed to be in the list. A
+      // distro naming thirteen tool groups has no reason to remember to add a
+      // fourteenth for the apps that are not tools, and if it does name it the
+      // order below still puts it exactly once and exactly last.
+      order: [
+        for (final c in authored)
+          if (c.name != name) c.name,
+        name,
+      ],
+      feeds: {
+        for (final c in authored)
+          for (final f in c.feeds) f: c.name,
+      },
+      fallback: name,
+    );
+  }
+
+  /// What this app's folder is called, or null to leave it loose.
+  String? nameFor(AppEntry a) {
+    final bucket = builtInBucket(a);
+    if (bucket == null) return null;
+    final mapped = feeds[bucket];
+    if (mapped != null) return mapped;
+    // An unmapped bucket keeps its own name only if this vocabulary has one.
+    // On an authored set it does not, so it falls to the remainder, which is
+    // what puts Chrome under Usual Applications rather than inventing a
+    // Social folder inside Kali's tool menu.
+    return order.contains(bucket) ? bucket : fallback;
+  }
+
+  /// Sweep sub-threshold buckets into [fallback], the way both call sites did
+  /// by hand. Returns the members that moved.
+  ///
+  /// Generic over the element so the library branch can sweep `AppEntry` and
+  /// Kickoff can sweep `DrawerItem` without a second copy.
+  List<T> sweep<T>(Map<String, List<T>> buckets) {
+    final strays = <T>[];
+    buckets.removeWhere((name, v) {
+      if (name == fallback || v.length >= kMinCategoryMembers) return false;
+      strays.addAll(v);
+      return true;
+    });
+    if (strays.isNotEmpty) (buckets[fallback] ??= []).addAll(strays);
+    return strays;
+  }
+}
 
 final drawerItemsProvider =
     Provider.family<List<DrawerItem>, EffectiveTheme>((ref, theme) {
@@ -354,30 +470,28 @@ final drawerItemsProvider =
   // usually a default nobody chose; Library is a switch somebody deliberately
   // moved. Switching back restores the slot grid untouched, because this reads
   // the arrangement and never writes it.
-  if (theme.drawerGrouping == 'library') {
+  if (theme.libraryGrouped) {
     final loose = <DrawerItem>[
       for (final a in apps)
         if (!folded.contains(a.componentKey)) AppDrawerItem(a),
     ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
+    // THE DISTRO'S vocabulary, not the built-in one. Identical for every theme
+    // that authors no `categories`, which is all of them but Kali.
+    final cats = CategorySet.forTheme(theme);
+
     final buckets = <String, List<AppEntry>>{};
     for (final item in loose) {
       final entry = (item as AppDrawerItem).entry;
-      final name = categoryFolderName(entry);
+      final name = cats.nameFor(entry);
       if (name == null) continue;
       (buckets[name] ??= []).add(entry);
     }
 
     // A folder of one is worse than that app sitting loose: two taps to launch
-    // instead of one. Its members go to Other rather than back to the loose
-    // run, because with Other existing there is no loose run left to go to.
-    final strays = <AppEntry>[];
-    buckets.removeWhere((name, v) {
-      if (name == 'Other' || v.length >= kMinCategoryMembers) return false;
-      strays.addAll(v);
-      return true;
-    });
-    if (strays.isNotEmpty) (buckets['Other'] ??= []).addAll(strays);
+    // instead of one. Its members go to the fallback rather than back to the
+    // loose run, because with a fallback existing there is no loose run left.
+    cats.sweep(buckets);
 
     // ─── MOST USED FIRST, INSIDE EVERY FOLDER ─────────────────────────────
     //
@@ -406,7 +520,7 @@ final drawerItemsProvider =
     };
 
     final categoryFolders = <DrawerItem>[
-      for (final name in kCategoryOrder)
+      for (final name in cats.order)
         if (buckets[name] != null)
           FolderDrawerItem(
             AppFolder(
@@ -418,9 +532,58 @@ final drawerItemsProvider =
           ),
     ];
 
+    // ─── SUGGESTIONS, AND WHY IT IS NOT A CATEGORY ────────────────────────
+    //
+    // Every folder above answers "what KIND of app is this", from the manifest
+    // or from the distro's own vocabulary. This one answers "what do you
+    // actually open", which is a different question and the reason it leads:
+    // a phone's App Library opens on the apps you use, not on the letter A.
+    //
+    // ─── IT DELIBERATELY DOUBLE-COUNTS ────────────────────────────────────
+    //
+    // Its members are NOT added to `filed`, so an app in Suggestions still
+    // appears in Social or Productivity underneath. That is not an oversight:
+    // a bucket of your six most-used apps that emptied their real categories
+    // would make those categories lie about what is in them, and the app you
+    // use most would be the one you could no longer find where you expect it.
+    //
+    // ─── AND IT IS SILENT ON A FRESH INSTALL ──────────────────────────────
+    //
+    // `frequentAppsProvider` is empty until something has been launched, so
+    // this bucket does not exist on day one rather than showing six arbitrary
+    // apps under a heading claiming they are your favourites. The section
+    // appears the moment it has something true to say.
+    //
+    // Built AFTER `filed` for exactly the reason above, and given the same
+    // `cat:` prefix as the derived folders because that is what it is: a
+    // read-only bucket the user cannot file into, and every screen that already
+    // knows not to write into a category folder knows not to write into this.
+    final suggestions = <AppEntry>[
+      for (final k in freq.take(_kSuggestions))
+        if (byKey[k] != null) byKey[k]!,
+    ];
+
     return [
-      // The user's own folders still come first. Something you built outranks
-      // something that was derived for you.
+      // ─── SUGGESTIONS LEADS, AHEAD OF THE USER'S OWN ───────────────────
+      //
+      // It sat after the user's folders on the reasoning that something you
+      // built outranks something derived for you. On screen that put a folder
+      // called Games in the top-left and Suggestions beside it, and the tile
+      // you actually open every time was the second thing your eye reached.
+      //
+      // The rule was right about ownership and wrong about position. This one
+      // is not a category competing with yours; it is the shortcut past all of
+      // them, and a shortcut below the things it shortcuts is not one.
+      if (suggestions.length >= _kMinSuggestions)
+        FolderDrawerItem(
+          AppFolder(
+            id: '${kCategoryFolderPrefix}Suggestions',
+            name: 'Suggestions',
+            members: [for (final a in suggestions) a.componentKey],
+          ),
+          suggestions,
+        ),
+      // Then the user's own, which still outrank the derived categories below.
       ...folders,
       ...categoryFolders,
       ...launcherEntries,

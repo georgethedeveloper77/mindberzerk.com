@@ -15,6 +15,7 @@ import '../../../data/prefs/prefs_repository.dart';
 import '../../../data/repositories/app_repository.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
+import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../engine/font_catalogue.dart';
 import '../../icons/icon_theme_screen.dart';
@@ -75,7 +76,10 @@ List<Widget> appearanceSection(
   final monoFonts = catalogue?.monospace ?? const <FontEntry>[];
 
   final mode = theme.prefs.themeMode ?? 'system';
-  final hasLight = theme.spec.paletteLight != null;
+  // THROUGH THE CAPABILITY, not a second `paletteLight != null`. Identical
+  // today, and the point of `capabilities.dart` is that one file answers this
+  // for every row rather than each computing its own.
+  final hasLight = theme.hasLightMode.available;
 
   return [
     // ── WHAT THE PAGE IS ABOUT, AT THE TOP OF IT ───────────────────
@@ -241,6 +245,16 @@ List<Widget> appearanceSection(
         FilterRow(
           const ['light', 'dark', 'theme mode', 'appearance', 'night'],
           PreviewChoice<String>(
+            // ── THE NOTE EXPLAINED IT AND THE CONTROL STILL LIED ────────
+            //
+            // A dark-only distro already got the info row below saying so, and
+            // the chooser above it stayed live: you could pick Light, the ring
+            // moved, and nothing changed, because both tiles paint from
+            // `paletteLight ?? palette` and there is no light palette. An
+            // explanation under a control that still accepts the choice is
+            // worse than no explanation, because the control is the thing
+            // people believe.
+            enabled: hasLight,
             value: mode,
             onSelect: (v) => notifier.edit((p) => p.copyWith(themeMode: v)),
             options: [

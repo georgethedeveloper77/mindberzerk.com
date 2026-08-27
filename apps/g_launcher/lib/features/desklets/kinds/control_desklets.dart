@@ -8,7 +8,7 @@ import '../../../design/components/components.dart';
 import '../../../engine/desklet_skin.dart';
 import '../../../engine/desklet_spec.dart';
 import '../../../engine/effective_theme.dart';
-import '../../drawer/drawer_state.dart';
+import '../../home/workspaces/workspace_controller.dart';
 import '../desklet_frame.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
@@ -173,7 +173,7 @@ class SearchDesklet extends ConsumerWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => ref.read(activitiesOpenProvider.notifier).state = true,
+      onTap: () => openApps(ref),
       child: DeskletFrame(
         theme: theme,
         skin: skin,

@@ -13,6 +13,7 @@ import '../../../data/repositories/app_repository.dart';
 import '../../../design/device_preview.dart';
 import '../../../engine/theme_spec.dart' show DockSide;
 import '../../../design/setting_previews.dart';
+import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../home/workspaces/workspace_controller.dart';
 import '../settings_rows.dart';
@@ -63,6 +64,16 @@ List<Widget> desktopSection(
           const ['dock', 'position', 'left', 'bottom', 'off', 'side'],
           PreviewChoice<String>(
             title: context.t('settings.dockPosition'),
+            // ── AND WHETHER THIS DESKTOP HAS ONE TO POSITION ───────────
+            //
+            // Four tiles, live, on a tiling WM that draws no dock and on the
+            // terminal that draws nothing. Aqua answers differently again: it
+            // HAS a dock and refuses to move it, which is a different sentence
+            // and gets its own reason. See [ThemeCapabilities.canPositionDock].
+            enabled: theme.canPositionDock.available,
+            subtitle: theme.canPositionDock.available
+                ? null
+                : context.t(theme.canPositionDock.why!),
             // theme.dock is already the effective value (pref or default).
             value: theme.dock.name,
             onSelect: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
@@ -102,7 +113,14 @@ List<Widget> desktopSection(
           const ['opacity', 'dock', 'transparency', 'panel'],
           OpacityRow(
             label: context.t('settings.dockOpacity'),
-            sub: context.t('settings.dockOpacitySub'),
+            // A dash that lives in the overview has no surface on the desktop
+            // to fade, and a `dock: off` distro has none at all. Separate from
+            // `canPositionDock` because aqua answers the two differently: it
+            // has a dock and refuses to MOVE it.
+            enabled: theme.canFadeDock.available,
+            sub: theme.canFadeDock.available
+                ? context.t('settings.dockOpacitySub')
+                : context.t(theme.canFadeDock.why!),
             value: theme.dockOpacity,
             following: theme.prefs.dockOpacity == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(dockOpacity: v)),
@@ -116,8 +134,14 @@ List<Widget> desktopSection(
             icon: Icons.apps_outlined,
             accent: true,
             title: context.t('settings.activitiesButton'),
-            subtitle: context.t('settings.whereTheAppGrid'),
+            // Nothing OPENS the apps on a workspace-surface distro, so a
+            // control for where the button lives is a control for a button
+            // that is not there.
+            subtitle: theme.hasActivitiesButton.available
+                ? context.t('settings.whereTheAppGrid')
+                : context.t(theme.hasActivitiesButton.why!),
             trailing: Seg(
+              enabled: theme.hasActivitiesButton.available,
               value: theme.prefs.dockGridButton ?? 'end', // Ubuntu default
               options: const {
                 'start': 'Start',
@@ -184,7 +208,14 @@ List<Widget> desktopSection(
             icon: Icons.grid_view_outlined,
             accent: true,
             title: context.t('settings.desktopGrid'),
-            subtitle: context.t('settings.rowsColumns'),
+            // Follows the icons. Shaping a grid nothing draws is arithmetic
+            // with no picture at the end of it.
+            subtitle: theme.hasDesktopGrid.available
+                ? context.t('settings.rowsColumns')
+                : context.t(
+                    theme.hasDesktopGrid.why!,
+                    {'name': theme.spec.name},
+                  ),
             trailing: ChipValue(
               label: '${theme.rows} × ${theme.cols}',
               preview: DevicePreview(
@@ -194,7 +225,9 @@ List<Widget> desktopSection(
                 gridButton: theme.prefs.dockGridButton ?? 'end',
               ),
             ),
-            onTap: () => showGridSheet(context, notifier, theme),
+            onTap: theme.hasDesktopGrid.available
+                ? () => showGridSheet(context, notifier, theme)
+                : null,
           ),
         ),
         FilterRow(
@@ -203,9 +236,13 @@ List<Widget> desktopSection(
             icon: Icons.dashboard_customize_outlined,
             accent: true,
             title: context.t('settings.workspaces'),
-            subtitle: context.t('settings.verticalDesktopsYouSwipe'),
+            subtitle: theme.hasWorkspaces.available
+                ? context.t('settings.verticalDesktopsYouSwipe')
+                : context.t(theme.hasWorkspaces.why!),
             trailing: ValueLabel('$workspaces'),
-            onTap: () => showStepperSheet(
+            onTap: !theme.hasWorkspaces.available
+                ? null
+                : () => showStepperSheet(
               context,
               title: context.t('settings.workspaces'),
               value: workspaces,
@@ -237,6 +274,9 @@ List<Widget> desktopSection(
             icon: Icons.web_asset_outlined,
             accent: true,
             title: context.t('settings.topBar'),
+            // NOT gated on hasTopBar: this switch is what CREATES one, so
+            // greying it where there is none would be the row disabling
+            // itself. The rows that consume a bar are the ones that follow it.
             value: theme.topBar,
             onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
           ),
@@ -247,7 +287,13 @@ List<Widget> desktopSection(
           const ['opacity', 'bar', 'panel', 'transparency', 'top'],
           OpacityRow(
             label: context.t('settings.barOpacity'),
-            sub: context.t('settings.barOpacitySub'),
+            // A slider that moves and changes nothing, on every distro without
+            // a bar. `hasTopBar` asks `panels` rather than the shell, so a
+            // distro that turns its bar off greys this by saying one thing.
+            enabled: theme.hasTopBar.available,
+            sub: theme.hasTopBar.available
+                ? context.t('settings.barOpacitySub')
+                : context.t(theme.hasTopBar.why!),
             subWhenInert: true,
             value: theme.barOpacity,
             following: theme.prefs.barOpacity == null,

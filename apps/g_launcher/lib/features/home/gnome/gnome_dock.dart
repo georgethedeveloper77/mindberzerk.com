@@ -70,6 +70,29 @@ class DockEntry {
 /// Capacity is the CALLER's problem (`DockMetrics.capacityFor` from the real
 /// inset-adjusted length); this widget renders exactly what it's given and
 /// never scrolls. A dock you have to scroll has lost the argument.
+/// How this dock sits. The gnome-family answer to [AquaDockStyle].
+///
+/// ─── THE SAME THREE, AND DELIBERATELY NOT THE SAME ENUM ─────────────────────
+///
+/// `aqua_dock` has its own because it also owns the parabolic swell, and that
+/// swell is a Mac thing this dock has never had. Sharing one enum would give
+/// `GnomeDock` a `magnified` arm it cannot honour, which is a value a distro
+/// could author and never see: the failure this whole run keeps removing.
+///
+/// So `magnified` is absent here and `dockStyle: "magnified"` on a gnome distro
+/// resolves to [floating], which is what this dock has always drawn. That is a
+/// real limitation and it is better than a lie.
+enum GnomeDockStyle {
+  /// On the edge, square across the meeting side. Xfce's bottom panel-as-dock.
+  flat,
+
+  /// Off the edge, rounded on all four corners. Ubuntu's, and the default.
+  floating;
+
+  static GnomeDockStyle parse(String raw) =>
+      raw == 'flat' ? GnomeDockStyle.flat : GnomeDockStyle.floating;
+}
+
 class GnomeDock extends StatelessWidget {
   const GnomeDock({
     super.key,
@@ -79,6 +102,7 @@ class GnomeDock extends StatelessWidget {
     required this.slotSize,
     required this.palette,
     required this.onActivities,
+    this.style = GnomeDockStyle.floating,
     this.opacity = 1.0,
     this.activitiesIconBuilder,
     this.onReorder,
@@ -112,6 +136,11 @@ class GnomeDock extends StatelessWidget {
   final double opacity;
 
   final VoidCallback onActivities;
+
+  /// How this dock sits. Defaults to [GnomeDockStyle.floating], which is what
+  /// this widget has always drawn, so a distro that authors nothing does not
+  /// move. See [GnomeDockStyle].
+  final GnomeDockStyle style;
 
   /// Drag-reorder, or null to leave the dock exactly as it was.
   ///
@@ -247,8 +276,29 @@ class GnomeDock extends StatelessWidget {
         ? Column(mainAxisSize: MainAxisSize.min, children: children)
         : Row(mainAxisSize: MainAxisSize.min, children: children);
 
+    // ONE radius, used by the clip AND the decoration below. They were two
+    // literals that had to agree, and a second style is exactly the point at
+    // which two literals stop agreeing.
+    //
+    // A flat dock is square only on the side it MEETS. Rounding the edge it is
+    // sitting on would draw a gap that is not there; rounding the other three
+    // is what still makes it a dock rather than a bar.
+    final radius = switch (style) {
+      GnomeDockStyle.floating => BorderRadius.circular(18),
+      GnomeDockStyle.flat => switch (side) {
+          DockSide.bottom || DockSide.off =>
+            const BorderRadius.vertical(top: Radius.circular(14)),
+          DockSide.left => const BorderRadius.horizontal(
+              right: Radius.circular(14),
+            ),
+          DockSide.right => const BorderRadius.horizontal(
+              left: Radius.circular(14),
+            ),
+        },
+    };
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: radius,
       child: BackdropFilter(
         // The blur earns its keep — the dock sits on an arbitrary photograph —
         // but it is also the single most expensive thing on the desktop. If the
@@ -274,7 +324,7 @@ class GnomeDock extends StatelessWidget {
             // the palette now, so a light-chrome distro gets a hairline that is
             // actually visible against it instead of Ubuntu's.
             border: Border.all(color: palette.onDark.withValues(alpha: 0.10)),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: radius,
           ),
           child: flow,
         ),

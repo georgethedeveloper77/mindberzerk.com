@@ -12,6 +12,8 @@ import '../data/usage/usage_repository.dart';
 import '../design/branded_message.dart';
 import '../design/components/components.dart';
 import '../engine/effective_theme.dart';
+// TopBarSide: the menu bar now asks whether this distro has a top panel at all.
+import '../engine/theme_spec.dart';
 import '../features/dock/aqua_dock_metrics.dart';
 import '../features/drawer/app_icon.dart';
 import '../features/drawer/drawer_state.dart';
@@ -66,8 +68,12 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     super.dispose();
   }
 
-  void _openLaunchpad() =>
-      ref.read(activitiesOpenProvider.notifier).state = true;
+  /// Show the apps, however THIS distro shows them.
+  ///
+  /// Was `activitiesOpenProvider = true`, which is only one of the two answers
+  /// now: a Deepin-style distro puts its app list on a page and has no overlay
+  /// to open. See [openApps].
+  void _openLaunchpad() => openApps(ref);
 
   Future<void> _launch(AppEntry app) async {
     await ref.read(appListProvider.notifier).launch(app);
@@ -181,6 +187,20 @@ class _AquaShellState extends ConsumerState<AquaShell> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
+
+    // Looked up ONCE, from `widget.theme` rather than from a provider: the
+    // theme is already in hand, and reading it twice from two sources is how
+    // two answers to one question start disagreeing.
+    //
+    // It answers two, a few lines apart: whether there is a bar at all, and
+    // what is on it.
+    PanelSpec? topPanel;
+    for (final p in theme.panels) {
+      if (p.side == TopBarSide.top) {
+        topPanel = p;
+        break;
+      }
+    }
     final count = ref.watch(workspaceCountProvider);
     final activitiesOpen = ref.watch(activitiesOpenProvider);
     final insets = MediaQuery.viewPaddingOf(context);
@@ -263,21 +283,39 @@ class _AquaShellState extends ConsumerState<AquaShell> {
             // dirt rather than as translucency. Opacity rather than an `if`
             // because this is a Column child and dropping it would reflow the
             // canvas for a frame, visibly, through that same wash.
-            Opacity(
-              opacity: activitiesOpen ? 0 : 1,
-              child: AquaMenuBar(
-                palette: theme.palette,
-                opacity: theme.barOpacity,
-                title: theme.spec.name,
-                // RESOLVED here, so an installed Aqua pack's bare
-                // filename becomes a file rather than a bundle miss. The bar is
-                // frosted chrome, hence the dark-surface variant.
-                logo: theme.spec.logoAsset(onDarkSurface: true),
-                displayFontFamily: theme.typography.display,
-                onLaunchpad: _openLaunchpad,
-                onSpotlight: _openLaunchpad,
+            // ─── ONLY IF THE DISTRO HAS A TOP BAR AT ALL ────────────────
+            //
+            // Unconditional until now, which put a MENU BAR on Deepin: an
+            // apple-shaped logo slot and a Spotlight glyph on a desktop that
+            // has never had a bar across the top. The class doc above says as
+            // much without noticing it applies to only one of the two aqua
+            // distros: "The macOS desktop. Menu bar across the top." That is
+            // Pantheon. DDE is fashion mode, and fashion mode is a dock on a
+            // wallpaper and nothing else.
+            //
+            // The test is the same one `gnome_shell.panelsOn` uses, and it
+            // covers both spellings for free: `ThemeSpec._panels` SYNTHESISES a
+            // top panel for any theme with the legacy `topBar: true`, and
+            // returns `const []` for `topBar: false`. So elementary keeps its
+            // wingpanel without authoring anything, and Deepin loses the bar by
+            // saying `topBar: false`, which is simply true of it.
+            if (topPanel != null)
+              Opacity(
+                opacity: activitiesOpen ? 0 : 1,
+                child: AquaMenuBar(
+                  modules: topPanel.modules,
+                  palette: theme.palette,
+                  opacity: theme.barOpacity,
+                  title: theme.spec.name,
+                  // RESOLVED here, so an installed Aqua pack's bare
+                  // filename becomes a file rather than a bundle miss. The bar is
+                  // frosted chrome, hence the dark-surface variant.
+                  logo: theme.spec.logoAsset(onDarkSurface: true),
+                  displayFontFamily: theme.typography.display,
+                  onLaunchpad: _openLaunchpad,
+                  onSpotlight: _openLaunchpad,
+                ),
               ),
-            ),
             Expanded(
               child: GestureLayer(
                 theme: theme,
@@ -312,10 +350,20 @@ class _AquaShellState extends ConsumerState<AquaShell> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: insets.bottom + 8,
+            // FLAT MEETS THE EDGE. Plank sits on the bottom of the screen;
+            // a fashion dock floats above it. The 8dp gap was the only
+            // arrangement this shell knew, which is why both aqua distros drew
+            // a dock hovering over the wallpaper.
+            //
+            // `insets.bottom` stays in both: on a gesture-navigation phone that
+            // is the home indicator, and a dock underneath it is a dock you
+            // cannot tap.
+            bottom:
+                theme.dockStyle == 'flat' ? insets.bottom : insets.bottom + 8,
             child: AquaDock(
               entries: entries,
               palette: theme.palette,
+              style: AquaDockStyle.parse(theme.dockStyle),
               opacity: theme.dockOpacity,
               onLaunchpad: _openLaunchpad,
             ),

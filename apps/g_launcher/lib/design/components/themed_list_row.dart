@@ -48,6 +48,20 @@ class ThemedListRow extends StatelessWidget {
     final d = ChromeScope.of(context);
     final c = d.colors;
 
+    // ─── A MENU ROW MAY BE TEXT ONLY ────────────────────────────────────
+    //
+    // GNOME menus and macOS menus carry no icons; Breeze and Xfce menus do.
+    // [ChromeMenu.rowIcons] is the family's answer and it is applied HERE
+    // rather than by passing a null icon at each call site, because rows in a
+    // menu are built in six places and three of them are callers handing in
+    // their own list.
+    //
+    // Gated on [ChromeData.inMenu], which only [AnchoredMenu] sets. A settings
+    // list is not a menu: an Adwaita settings page genuinely does carry icons,
+    // and stripping them would be the right convention applied to the wrong
+    // surface.
+    final showIcon = icon != null && (!d.inMenu || d.menu.rowIcons);
+
     final titleColor = !enabled
         ? c.textFaint
         : danger
@@ -72,7 +86,7 @@ class ThemedListRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (icon != null) ...[
+              if (showIcon) ...[
                 Icon(icon, size: 22, color: iconColor),
                 const SizedBox(width: GSpace.lg),
               ],

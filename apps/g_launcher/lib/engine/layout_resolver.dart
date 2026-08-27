@@ -27,6 +27,7 @@ class ResolvedLayout {
     required this.panels,
     required this.panelsAuthored,
     required this.workspaceAxis,
+    required this.appsSurface,
     required this.desktopIcons,
     required this.panelEdit,
     required this.panelHeight,
@@ -37,6 +38,11 @@ class ResolvedLayout {
     required this.drawerScrollStyle,
     required this.drawerGrouping,
     required this.kickoffRail,
+    required this.tilingLauncher,
+    required this.appDrawer,
+    required this.homeLayout,
+    required this.dockStyle,
+    required this.dockReveal,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -74,6 +80,13 @@ class ResolvedLayout {
   /// Which way workspaces page. Theme-authored; not a user override, because a
   /// distro that pages the wrong way is not that distro.
   final WorkspaceAxis workspaceAxis;
+
+  /// Where the app list lives, RESOLVED and CLAMPED. See [AppsSurface] and
+  /// [LayoutResolver._appsSurface].
+  ///
+  /// No user override merges in, for the reason [desktopIcons] gives: which
+  /// launcher a distro has is what makes Deepin not Ubuntu.
+  final AppsSurface appsSurface;
 
   /// Does the desktop carry app icons? Resolved ONE WAY ONLY: the distro sets
   /// the ceiling and the user may lower it. See [LayoutResolver.resolve].
@@ -115,6 +128,33 @@ class ResolvedLayout {
   /// switching it to tabs would be asking for KDE's menu on Mint. Same
   /// direction [desktopIcons] argues for and for the same reason.
   final String kickoffRail;
+
+  /// Which launcher a tiling distro opens, RESOLVED: 'rofi' | 'dmenu'. Never
+  /// null, so [TilingLauncher] carries no fallback of its own.
+  ///
+  /// No user override, and no shell clamp either. See
+  /// [ThemeLayout.tilingLauncher] for why this one is named after its widget
+  /// rather than clamped like `appsSurface`.
+  final String tilingLauncher;
+
+  /// Which drawer this distro opens, RESOLVED: 'grid' | 'tools'. Never null,
+  /// so `ShellDrawer` carries no fallback of its own. No user override; see
+  /// [ThemeLayout.appDrawer].
+  final String appDrawer;
+
+  /// How the desktop arranges its icons, RESOLVED: 'grid' | 'tiled'. Never
+  /// null, so `HomeGrid` carries no fallback of its own. No prefs arm; see
+  /// [ThemeLayout.homeLayout].
+  final String homeLayout;
+
+  /// How the dock sits, RESOLVED: 'flat' | 'floating' | 'magnified'. Never
+  /// null. No prefs arm; see [ThemeLayout.dockStyle].
+  final String dockStyle;
+
+  /// When the dock exists, RESOLVED: 'always' | 'apps'. Never null. No prefs
+  /// arm; see [ThemeLayout.dockReveal].
+  final String dockReveal;
+
   /// The user's EXPLICIT icon-size override, in dp, or the legacy default.
   ///
   /// Being phased out. It is a flat number that knows nothing about the screen,
@@ -144,6 +184,7 @@ class ResolvedLayout {
           other.panels.length == panels.length &&
           other.panelsAuthored == panelsAuthored &&
           other.workspaceAxis == workspaceAxis &&
+          other.appsSurface == appsSurface &&
           other.desktopIcons == desktopIcons &&
           other.panelEdit == panelEdit &&
           other.panelHeight == panelHeight &&
@@ -154,6 +195,11 @@ class ResolvedLayout {
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
           other.kickoffRail == kickoffRail &&
+          other.tilingLauncher == tilingLauncher &&
+          other.appDrawer == appDrawer &&
+          other.homeLayout == homeLayout &&
+          other.dockStyle == dockStyle &&
+          other.dockReveal == dockReveal &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
           other.textScale == textScale &&
@@ -176,6 +222,7 @@ class ResolvedLayout {
         panels.length,
         panelsAuthored,
         workspaceAxis,
+        appsSurface,
         desktopIcons,
         panelEdit,
         panelHeight,
@@ -186,6 +233,11 @@ class ResolvedLayout {
         drawerScrollStyle,
         drawerGrouping,
         kickoffRail,
+        tilingLauncher,
+        appDrawer,
+        homeLayout,
+        dockStyle,
+        dockReveal,
         iconSizeDp,
         labelLines,
         textScale,
@@ -228,6 +280,27 @@ abstract final class LayoutResolver {
   /// KDE's own menu, and what every plasma distro drew before the field
   /// existed. A theme that says nothing keeps exactly the rail it had.
   static const defaultKickoffRail = 'tabs';
+
+  /// The centred card, which is what every tiling distro drew before the field
+  /// existed. Same contract: a theme that says nothing does not move.
+  static const defaultTilingLauncher = 'rofi';
+
+  /// The evenly spaced grid every desktop distro has drawn. A theme that says
+  /// nothing does not move.
+  static const defaultHomeLayout = 'grid';
+
+  /// MAGNIFIED, because that is what the aqua dock has always drawn and a
+  /// theme that says nothing must not move. The two distros that want
+  /// something else now say so.
+  static const defaultDockStyle = 'magnified';
+
+  /// Part of the desktop, which is what every distro has drawn.
+  static const defaultDockReveal = 'always';
+
+  /// Whatever the SHELL would have chosen, which is what every distro got
+  /// before a theme could name a drawer. 'grid' is not the name of a widget
+  /// here, it is the name of the absence of an override.
+  static const defaultAppDrawer = 'grid';
 
   /// First KNOWN value wins: the user's, else the theme's, else [fallback].
   ///
@@ -284,6 +357,38 @@ abstract final class LayoutResolver {
         'right' => TopBarSide.right,
         // Null, or a value from a newer build. Same contract as `dockSide`.
         _ => TopBarSide.bottom,
+      };
+
+  /// Where the app list lives, clamped to what the distro's SHELL can render.
+  ///
+  /// ─── A CLAMP RATHER THAN A SILENT NO-OP ─────────────────────────────────
+  ///
+  /// [AppsSurface.workspace] is implemented by `WorkspaceCanvas`, which the
+  /// Plasma, tiling and Aqua shells all mount. Two shells never reach it:
+  ///
+  ///   * GNOME inlines its own pager rather than using the shared canvas, so
+  ///     the extra page would simply not exist. That inline copy is the same
+  ///     divergence that made `workspaceAxis` a GNOME-only field for a while.
+  ///   * TUI has no workspaces at all. The terminal IS its own app list: you
+  ///     type two letters and press enter, and there is no page to swipe to.
+  ///
+  /// Without this, a GNOME distro authoring `appsSurface: workspace` would
+  /// write a valid value that nothing consumes, which is exactly the failure
+  /// mode `kickoffRail`'s doc describes and exactly what happened to
+  /// `drawerGrouping` on plasma. Answering `overlay` here means the resolved
+  /// value is always the value that will actually be rendered, so a reader
+  /// downstream can trust it without asking which shell it is on.
+  ///
+  /// The right fix for GNOME is to stop inlining its pager. That is a change to
+  /// `gnome_shell.dart` and not a line here, and this clamp is what keeps the
+  /// gap honest until then.
+  static AppsSurface _appsSurface(ThemeSpec spec) =>
+      switch (spec.shell) {
+        ShellKind.plasma ||
+        ShellKind.tiling ||
+        ShellKind.aqua =>
+          spec.layout.appsSurface,
+        ShellKind.gnome || ShellKind.tui => AppsSurface.overlay,
       };
 
   /// The height the theme put on its bottom panel, if it authored one.
@@ -383,6 +488,7 @@ abstract final class LayoutResolver {
               : spec.layout.panels,
       panelsAuthored: spec.layout.panelsAuthored,
       workspaceAxis: spec.layout.workspaceAxis,
+      appsSurface: _appsSurface(spec),
       // ─── AND ONLY DOWNWARDS ───────────────────────────────────────────────
       //
       // Every other override on this page is symmetric: a null inherits the
@@ -429,6 +535,63 @@ abstract final class LayoutResolver {
         spec.layout.kickoffRail,
         const {'tabs', 'categories'},
         defaultKickoffRail,
+      ),
+      // Null prefs arm for the same reason. Which launcher a tiling distro has
+      // is not a setting someone forgot to expose.
+      tilingLauncher: _pick(
+        null,
+        spec.layout.tilingLauncher,
+        const {'rofi', 'dmenu'},
+        defaultTilingLauncher,
+      ),
+      // No prefs arm. Which menu a distro has is not a setting.
+      homeLayout: _pick(
+        null,
+        spec.layout.homeLayout,
+        const {'grid', 'tiled'},
+        defaultHomeLayout,
+      ),
+      dockStyle: _pick(
+        null,
+        spec.layout.dockStyle,
+        const {'flat', 'floating', 'magnified'},
+        defaultDockStyle,
+      ),
+      dockReveal: _pick(
+        null,
+        spec.layout.dockReveal,
+        const {'always', 'apps'},
+        defaultDockReveal,
+      ),
+      appDrawer: _pick(
+        null,
+        spec.layout.appDrawer,
+        // ─── EVERY VALUE, AND THIS SET IS WHY SIX PASSES DID NOTHING ────
+        //
+        // This read `{'grid', 'tools'}` and was never widened. `ThemeSpec`
+        // parsed `card`, `whisker`, `cinnamon`, `zorin`, `query` and `library`
+        // correctly, and then `_pick` rejected each one and returned `grid`.
+        //
+        // It is the worst kind of silent failure this codebase has: the
+        // fallback is a WORKING DRAWER, so nothing crashed, nothing logged, and
+        // every distro looked plausible while Slingshot, Whisker, Cinnamon's
+        // three columns, Zorin's two tiers and Pop's query line had never once
+        // been on screen.
+        //
+        // Adding a drawer therefore touches TWO lists, not one: the parse in
+        // `ThemeSpec.fromJson` and this set. A value in the first and not the
+        // second is a value that resolves to the default forever.
+        const {
+          'grid',
+          'tools',
+          'card',
+          'whisker',
+          'cinnamon',
+          'zorin',
+          'query',
+          'library',
+        },
+        defaultAppDrawer,
       ),
       iconSizeDp: prefs.iconSizeDp ?? defaultIconSizeDp,
       labelLines: prefs.labelLines ?? defaultLabelLines,

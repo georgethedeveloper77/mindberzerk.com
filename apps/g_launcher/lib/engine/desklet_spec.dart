@@ -158,6 +158,57 @@ class DeskletKinds {
     defaultSpanY: 3,
   );
 
+  /// The distro's own first-run card: a title and a short list of links.
+  ///
+  /// ─── IT IS DISMISSIBLE, AND THAT IS WHY IT IS WORTH SHIPPING ────────────
+  ///
+  /// A greeting stops being useful the moment you know which distro you are
+  /// on, which is roughly day two. The obvious conclusion is not to build one.
+  /// The distro that this is for reached the opposite one: EndeavourOS's
+  /// Welcome app has a "do not show on startup" checkbox and stays in the menu
+  /// forever after you tick it.
+  ///
+  /// That is exactly the shape here. It ships on workspace one via `starter`,
+  /// its long press removes it like any other desklet, and it stays in the
+  /// picker so it can come back. What the distro is selling is that it GREETS
+  /// you, not that you are stuck with it.
+  ///
+  /// ─── AND THE ROWS ARE AUTHORED, NOT HARDCODED ───────────────────────────
+  ///
+  /// `config['rows']` is a list of `{label, url}` maps, read from the starter
+  /// placement in theme.json, so Manjaro and Garuda can ship their own without
+  /// a line of Dart. The defaults below are neutral rather than EndeavourOS's,
+  /// because a kind that ships one distro's copy as its floor is a kind the
+  /// next distro has to fight.
+  ///
+  /// A row with no `url` draws and does nothing, which is deliberate: a distro
+  /// listing a step it cannot link to would otherwise have to omit the step.
+  static const welcome = DeskletKind(
+    id: 'welcome',
+    label: 'Welcome',
+    minSpanX: 3,
+    minSpanY: 2,
+    maxSpanX: 8,
+    maxSpanY: 8,
+    // SIX BY FOUR when picked from the menu, not four by three.
+    //
+    // These are FINE-GRID units: `EffectiveTheme.deskletCols` is the icon
+    // grid times `DeskletLayout.colFactor`, so on a four-column desktop the
+    // desklet grid is eight wide. Four by three is therefore HALF the width
+    // and a fifth of the height, and a card holding a title plus four link
+    // rows at that size is a card whose rows are one word each.
+    //
+    // A kind carrying text has to default larger than a kind carrying a
+    // number. The clock gets away with four by two because its content scales;
+    // rows do not.
+    defaultSpanX: 6,
+    defaultSpanY: 4,
+    defaults: {
+      'title': '',
+      'rows': <Object?>[],
+    },
+  );
+
   /// Big, and the proof of the skin layer: it looks radically different on all
   /// five shells, which is what makes it the right first kind to build.
   static const clock = DeskletKind(
@@ -328,6 +379,7 @@ class DeskletKinds {
     glance,
     appWidget,
     stack,
+    welcome,
     clock,
     monitor,
     fastfetch,

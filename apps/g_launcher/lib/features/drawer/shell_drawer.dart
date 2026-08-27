@@ -1,9 +1,18 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart';
 import 'app_drawer.dart';
 import 'kickoff_drawer.dart';
+import 'card_drawer.dart';
+import 'cinnamon_drawer.dart';
+import 'drawer_items.dart';
+import 'library_view.dart';
+import 'query_drawer.dart';
+import 'tool_drawer.dart';
+import 'whisker_drawer.dart';
+import 'zorin_drawer.dart';
 import 'tiling_launcher.dart';
 
 /// Which drawer a shell gets.
@@ -31,7 +40,35 @@ class ShellDrawer extends StatelessWidget {
   final EffectiveTheme theme;
 
   @override
-  Widget build(BuildContext context) => switch (theme.shell) {
+  Widget build(BuildContext context) {
+    // ─── THE DISTRO GETS THE FIRST WORD ──────────────────────────────────
+    //
+    // Checked BEFORE the shell switch, and that ordering is the whole point of
+    // `appDrawer`. The class doc above says presentation is per SHELL and that
+    // adding a Breeze-family distro is still a data change, which was true and
+    // was also the ceiling: five shells map onto three widgets, so eight of
+    // fourteen distros shared one drawer and no theme.json could say otherwise.
+    // Kali and Ubuntu were handed the identical grid.
+    //
+    // The switch below stays exhaustive and stays the default. This is an
+    // override a distro opts into, not a replacement for the shell rule, which
+    // is why an unknown value parses to 'grid' and lands there rather than
+    // failing to open.
+    if (theme.appDrawer == 'tools') return ToolDrawer(theme: theme);
+    if (theme.appDrawer == 'card') return CardDrawer(theme: theme);
+    if (theme.appDrawer == 'whisker') return WhiskerDrawer(theme: theme);
+    if (theme.appDrawer == 'cinnamon') return CinnamonDrawer(theme: theme);
+    if (theme.appDrawer == 'zorin') return ZorinDrawer(theme: theme);
+    if (theme.appDrawer == 'query') return QueryDrawer(theme: theme);
+    // ─── THE SAME WIDGET `drawerGrouping: "library"` REACHES ──────────────
+    //
+    // `LibraryView` already existed and already draws the bubbles; this value
+    // exists so a product can reach it WITHOUT a preference. See
+    // [ThemeLayout.appDrawer]: grouping has a prefs arm and cannot carry an
+    // exclusive row.
+    if (theme.appDrawer == 'library') return _Library(theme: theme);
+
+    return switch (theme.shell) {
         // GNOME's Activities: full-screen grid, search bar wherever the user
         // put it. The original drawer, now one presentation among several.
         ShellKind.gnome => AppDrawer(theme: theme),
@@ -61,4 +98,25 @@ class ShellDrawer extends StatelessWidget {
         // safe answer if some future surface does ask a TUI theme for a drawer.
         ShellKind.tui => AppDrawer(theme: theme),
       };
+  }
+}
+
+/// `LibraryView` needs the resolved item list, and `ShellDrawer` is a
+/// StatelessWidget.
+///
+/// A four-line Consumer rather than converting the class: every other arm above
+/// hands its widget the theme and nothing else, and making the whole router a
+/// ConsumerWidget so that ONE of seven can read a provider would rebuild the
+/// router whenever the app list changed, for six drawers that do not care.
+///
+/// `libraryGrouped` is what makes the list arrive folders-first; see
+/// [EffectiveTheme.libraryGrouped].
+class _Library extends ConsumerWidget {
+  const _Library({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      LibraryView(theme: theme, items: ref.watch(drawerItemsProvider(theme)));
 }

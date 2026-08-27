@@ -39,17 +39,51 @@ import '../gnome/gnome_dock.dart' show DockEntry;
 /// The shell additionally places this dock OUTSIDE its GestureLayer, so a scrub
 /// along the dock cannot register as a desktop swipe at all.
 /// ─────────────────────────────────────────────────────────────────────────────
+/// How this dock sits. See [ThemeLayout.dockStyle].
+enum AquaDockStyle {
+  /// Plank: on the bottom edge, square-topped, no swell. elementary.
+  flat,
+
+  /// Deepin's fashion dock: off the edge, fully rounded, translucent, no swell.
+  floating,
+
+  /// The Mac: off the edge AND swelling under the finger. What this dock has
+  /// always drawn, and therefore the engine default.
+  magnified;
+
+  /// Unknown values answer [magnified], the same drop-not-fatal contract every
+  /// other parse in the engine keeps. `LayoutResolver` has already narrowed
+  /// this to the three, so a stranger here means a build older than the theme.
+  static AquaDockStyle parse(String raw) => switch (raw) {
+        'flat' => AquaDockStyle.flat,
+        'floating' => AquaDockStyle.floating,
+        _ => AquaDockStyle.magnified,
+      };
+
+  /// Does the pointer change the LAYOUT, not just the paint?
+  ///
+  /// The two quiet styles do not merely look different, they stop listening.
+  /// Without this the handlers would still run and the slots would still
+  /// resize, so a flat plank would shuffle its icons under a finger that was
+  /// trying to drag one, and nothing on screen would explain why.
+  bool get swells => this == AquaDockStyle.magnified;
+}
+
 class AquaDock extends StatefulWidget {
   const AquaDock({
     super.key,
     required this.entries,
     required this.palette,
+    required this.style,
     required this.onLaunchpad,
     this.opacity = 1.0,
   });
 
   final List<DockEntry> entries;
   final ThemePalette palette;
+
+  /// How this dock sits. See [AquaDockStyle].
+  final AquaDockStyle style;
 
   /// How solid the dock is, from `EffectiveTheme.dockOpacity`.
   ///
@@ -99,6 +133,7 @@ class _AquaDockState extends State<AquaDock> {
   Widget build(BuildContext context) {
     final palette = widget.palette;
     final onDark = palette.onDark;
+    final style = widget.style;
 
     // The Launchpad slot rides along in the same run, so magnification treats it
     // exactly like an app. A slot that refuses to swell with its neighbours is
@@ -116,7 +151,11 @@ class _AquaDockState extends State<AquaDock> {
         final slots = AquaDockMetrics.layout(
           count: slotCount,
           available: available,
-          focus: _focus,
+          // NULL for the two styles that do not swell, so every slot comes
+          // back at its resting size. `layout` already takes a nullable focus
+          // for the at-rest case, so this is one word rather than a second
+          // layout path that would have to stay in step with this one.
+          focus: style.swells ? _focus : null,
         );
         if (slots.isEmpty) return const SizedBox.shrink();
 
@@ -126,17 +165,36 @@ class _AquaDockState extends State<AquaDock> {
             .map((s) => s.size)
             .reduce((a, b) => a > b ? a : b);
 
+        // ONE radius, used by the clip AND the decoration below. They were two
+        // literals and had to agree; three styles is exactly the number at
+        // which two literals stop agreeing.
+        final radius = switch (style) {
+          // Plank meets the bottom edge, so its lower corners are not corners
+          // at all. Rounding them would draw a gap that is not there.
+          AquaDockStyle.flat => BorderRadius.vertical(
+              top: Radius.circular(tallest * 0.22),
+            ),
+          // Deepin's is rounder than a Mac's: fashion mode is a pill on the
+          // wallpaper, and that extra radius is most of what tells the two
+          // apart at a glance.
+          AquaDockStyle.floating => BorderRadius.circular(tallest * 0.42),
+          AquaDockStyle.magnified => BorderRadius.circular(tallest * 0.28),
+        };
+
         return Center(
           child: Listener(
             behavior: HitTestBehavior.opaque,
-            onPointerDown: (e) => _setFocusFrom(e.position),
-            onPointerMove: (e) => _setFocusFrom(e.position),
-            onPointerUp: (_) => _clearFocus(),
-            onPointerCancel: (_) => _clearFocus(),
+            // Silent unless this dock swells. A flat plank that still tracked
+            // the pointer would resize its slots invisibly and fight every
+            // drag that started on it.
+            onPointerDown:
+                style.swells ? (e) => _setFocusFrom(e.position) : null,
+            onPointerMove:
+                style.swells ? (e) => _setFocusFrom(e.position) : null,
+            onPointerUp: style.swells ? (_) => _clearFocus() : null,
+            onPointerCancel: style.swells ? (_) => _clearFocus() : null,
             child: ClipRRect(
-              // A Mac's dock is a tall rounded rectangle, not a pill. The radius
-              // scales with the panel so it stays proportional as icons swell.
-              borderRadius: BorderRadius.circular(tallest * 0.28),
+              borderRadius: radius,
               child: BackdropFilter(
                 // The single most expensive thing on this desktop, and the one
                 // that makes it read as Aqua. Same warning as the GNOME dock: if
@@ -151,7 +209,7 @@ class _AquaDockState extends State<AquaDock> {
                       alpha: palette.dock.a * widget.opacity,
                     ),
                     border: Border.all(color: onDark.withValues(alpha: 0.14)),
-                    borderRadius: BorderRadius.circular(tallest * 0.28),
+                    borderRadius: radius,
                   ),
                   child: SizedBox(
                     height: tallest,

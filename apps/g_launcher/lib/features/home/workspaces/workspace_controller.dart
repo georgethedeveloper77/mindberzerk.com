@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/prefs/prefs_repository.dart';
+import '../../../engine/effective_theme.dart';
 import '../../../engine/theme_engine.dart';
+import '../../../engine/theme_spec.dart';
+import '../../drawer/drawer_state.dart';
 
 /// Active workspace + how many there are.
 ///
@@ -43,7 +46,14 @@ final workspaceCountProvider =
 class WorkspaceCount extends Notifier<int> {
   static const min = 1;
   static const max = 5;
-  static const fallback = 3; // The mockup shows three dots.
+  /// The engine's answer when neither the user nor the distro has one.
+  ///
+  /// Was the only answer, with a comment reading "the mockup shows three
+  /// dots". Every distro therefore started with three, including the ones whose
+  /// apps live on the page AFTER the last workspace, where two of those three
+  /// are empty swipes standing between you and your app list. See
+  /// [ThemeLayout.workspaces].
+  static const fallback = 3;
 
   /// Derived from the ACTIVE theme's per-theme prefs. Watching (not reading) is
   /// correct here: this notifier IS the count, so when the stored count changes
@@ -56,7 +66,11 @@ class WorkspaceCount extends Notifier<int> {
     final specId = ref.watch(activeThemeSpecProvider).value?.id;
     if (specId == null) return fallback; // theme still loading — 3 for now
     final prefs = ref.watch(prefsProvider(specId)).value;
-    return (prefs?.workspaceCount ?? fallback).clamp(min, max);
+    // PREFS, then the distro, then the engine. The user's number wins because
+    // the stepper is live and a setting that silently loses to a theme is worse
+    // than no setting; the distro's is what a fresh install starts from.
+    final theme = ref.watch(activeThemeSpecProvider).value?.layout.workspaces;
+    return (prefs?.workspaceCount ?? theme ?? fallback).clamp(min, max);
   }
 
   /// Persists to the active theme's prefs; state follows by rebuild once the
@@ -88,7 +102,11 @@ class ActiveWorkspace extends Notifier<int> {
     // workspace 5 and the index dangles. The PageView then animates to a page
     // that no longer exists and you get a blank desktop that only a restart
     // fixes. Cheap guard, unpleasant bug.
-    ref.listen<int>(workspaceCountProvider, (_, count) {
+    // pagerCount, NOT workspaceCount. On a distro whose apps are a page, the
+    // last valid index is one further along, and clamping to the desktop count
+    // would evict the user from the apps page every time anything rebuilt the
+    // count.
+    ref.listen<int>(pagerCountProvider, (_, count) {
       final last = count - 1;
       if (state > last) {
         state = last < 0 ? 0 : last;
@@ -101,7 +119,9 @@ class ActiveWorkspace extends Notifier<int> {
   }
 
   void goTo(int page) {
-    final count = ref.read(workspaceCountProvider);
+    // Same reason as the listen above: this is the clamp that decides whether
+    // the apps page is reachable at all.
+    final count = ref.read(pagerCountProvider);
     final clamped = page.clamp(0, count - 1);
     if (clamped != state) state = clamped;
   }
@@ -113,4 +133,97 @@ class ActiveWorkspace extends Notifier<int> {
   /// `g_launcher/home_press` channel — that handler should close the drawer,
   /// dismiss the palette, and land here: workspace 1.
   void reset() => goTo(0);
+}
+
+/// The index of the APP LIST page, or null when the app list is an overlay.
+///
+/// ─── WHY THE APPS PAGE IS NOT A WORKSPACE ───────────────────────────────────
+///
+/// It would have been cheaper to add one to [workspaceCountProvider] and be
+/// done. That number is a USER PREFERENCE with a stepper in Settings, so adding
+/// to it would make the stepper read four while the user has three, and every
+/// caller that means "how many desktops" would silently start meaning something
+/// else.
+///
+/// So the count stays the count, and the pager is one longer than it on a distro
+/// whose apps live on a page. The apps page is the LAST one, which is what makes
+/// the swipe read as "further along" rather than as "before the beginning".
+///
+/// Null on every distro shipping today, since [AppsSurface.overlay] is the
+/// default and two shells are clamped to it regardless. A null here is what
+/// keeps every behaviour below unchanged for them.
+final appsPageProvider = Provider<int?>((ref) {
+  // `.value`, so a theme still resolving answers null rather than throwing. The
+  // desktop paints black on that frame anyway; see `home_screen.dart`.
+  final theme = ref.watch(effectiveThemeProvider).value;
+  if (theme == null) return null;
+  if (theme.appsSurface != AppsSurface.workspace) return null;
+  return ref.watch(workspaceCountProvider);
+});
+
+/// How many pages the pager actually has: the workspaces, plus the app list
+/// when it is one of them.
+///
+/// [ActiveWorkspace] clamps against THIS rather than against
+/// [workspaceCountProvider], which is the difference between the apps page
+/// being reachable and `goTo` quietly rounding it back down to the last
+/// desktop. That clamp is not decoration: it is what stops a shrunken count
+/// from stranding the pager on a page that no longer exists.
+final pagerCountProvider = Provider<int>((ref) {
+  final desktops = ref.watch(workspaceCountProvider);
+  return ref.watch(appsPageProvider) == null ? desktops : desktops + 1;
+});
+
+/// Show the app list, however THIS distro shows one.
+///
+/// ─── ONE DECISION, SIX CALL SITES ───────────────────────────────────────────
+///
+/// Six places asked for the app list and all six did it by writing
+/// `activitiesOpenProvider = true`: four shells, the drawer's own Locate helper,
+/// and the launcher desklet. That was correct while an overlay was the only
+/// kind of app list there was.
+///
+/// With two kinds, a raw write at each site would mean six copies of the same
+/// branch, and the one that got missed would open an overlay on a distro that
+/// has no overlay to close, over a page that is already showing the apps. So
+/// the branch lives here and the call sites ask for the OUTCOME.
+///
+/// Nothing here closes anything. On an overlay distro that is the existing
+/// behaviour; on a workspace distro there is nothing to close, which is the
+/// whole idea.
+void openApps(WidgetRef ref) {
+  final page = ref.read(appsPageProvider);
+  if (page == null) {
+    ref.read(activitiesOpenProvider.notifier).state = true;
+    return;
+  }
+  // Through the controller, not the PageController: every shell already listens
+  // to this and animates its own pager, so a dock button, a desklet and a
+  // gesture all arrive the same way.
+  ref.read(activeWorkspaceProvider.notifier).goTo(page);
+}
+
+/// Is the app list on screen right now, on either kind of distro?
+///
+/// Read by the one PopScope in `home_screen.dart`, which has to know what back
+/// should leave. An overlay distro answers from the flag; a workspace distro
+/// answers from the page, because the apps page is not open in any sense that
+/// a flag could record.
+bool appsShowing(WidgetRef ref) {
+  final page = ref.read(appsPageProvider);
+  if (page == null) return ref.read(activitiesOpenProvider);
+  return ref.read(activeWorkspaceProvider) == page;
+}
+
+/// Leave the app list, however this distro leaves one.
+void closeApps(WidgetRef ref) {
+  final page = ref.read(appsPageProvider);
+  if (page == null) {
+    ref.read(activitiesOpenProvider.notifier).state = false;
+    return;
+  }
+  // Back off the apps page goes to workspace one rather than to the page before
+  // it. That matches what HOME does, and on a three-workspace distro "back" from
+  // the apps meaning "workspace three" would be a place the user never chose.
+  ref.read(activeWorkspaceProvider.notifier).reset();
 }

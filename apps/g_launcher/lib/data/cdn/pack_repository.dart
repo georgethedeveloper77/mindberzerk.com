@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../engine/theme_engine.dart';
 import '../../platform/pack_api.g.dart';
 import '../prefs/prefs_repository.dart';
+import 'pack_auto_update.dart';
 
 /// PHASE C — the Dart side of the store.
 ///
@@ -464,5 +465,24 @@ final catalogueRefreshProvider = FutureProvider<bool>((ref) async {
   if (last != null && DateTime.now().difference(last) < _refreshInterval) {
     return false;
   }
-  return ref.read(packActionsProvider).refresh();
+  // ─── AND INSTALL WHAT WENT STALE ────────────────────────────────────────
+  //
+  // `refreshAndAutoUpdate` is `refresh()` plus its consequence: a catalogue
+  // that MOVED is exactly the moment a pack on disk can have become stale, and
+  // the only moment worth walking the list.
+  //
+  // Here rather than at each screen, because this provider is already the one
+  // throttled entry point: it holds `_lastCatalogueFetch` and refuses inside
+  // the interval. Wiring the updater into the callers instead would give every
+  // storefront its own copy of that decision, and one of them would eventually
+  // forget the throttle.
+  //
+  // Pull-to-refresh does not come through this provider (it bypasses the
+  // throttle by design), but it calls the same `refreshAndAutoUpdate`, so every
+  // route to a fetch has the same consequence. That is the point: a rule that
+  // holds on one path and not another is a rule someone has to remember.
+  return refreshAndAutoUpdate(
+    ref.read(packActionsProvider),
+    ref.read(packAutoUpdaterProvider),
+  );
 });

@@ -33,6 +33,21 @@ enum EditMode {
 
   /// The panel shows remove badges on its modules, and an edit bar sits above.
   panel,
+
+  /// The home grid jiggles: every app wobbles and carries an X.
+  ///
+  /// ─── A THIRD ARM RATHER THAN A SECOND PROVIDER ──────────────────────────
+  ///
+  /// `library_view` runs its own jiggle as LOCAL state, and its doc gives the
+  /// right reason: nothing outside that view needs to know, and a drawer that
+  /// reopened still jiggling would read as a bug. The home grid is the opposite
+  /// case on both counts. Three things outside the grid have to know, and they
+  /// are the same three this enum already exists for: the workspace pager must
+  /// freeze, the desktop long press must not fire, and back must exit.
+  ///
+  /// So this arm buys all three for nothing. [active] is already read at nine
+  /// sites and answers true here, which is correct at every one of them.
+  apps,
 }
 
 class DeskletEditState {
@@ -62,6 +77,11 @@ class DeskletEditState {
   bool get editingDesklets => mode == EditMode.desklets;
   bool get editingPanel => mode == EditMode.panel;
 
+  /// Read by `home_grid`, and by nothing else. The same narrowing
+  /// `editingDesklets` exists for: without it, entering panel edit would set
+  /// every app on the desktop wobbling.
+  bool get editingApps => mode == EditMode.apps;
+
   DeskletEditState copyWith({
     EditMode? mode,
     String? selected,
@@ -89,6 +109,10 @@ class DeskletEdit extends Notifier<DeskletEditState> {
   /// one. That is the point of the enum, and it is why neither of these has to
   /// check what the other was doing first.
   void enterPanel() => state = const DeskletEditState(mode: EditMode.panel);
+
+  /// Jiggle the apps. Nothing is [DeskletEditState.selected] in this mode: the
+  /// X is on every icon at once, so there is no single thing being picked.
+  void enterApps() => state = const DeskletEditState(mode: EditMode.apps);
 
   void exit() => state = const DeskletEditState();
 

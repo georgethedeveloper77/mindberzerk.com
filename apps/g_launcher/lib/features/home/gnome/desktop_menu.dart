@@ -135,6 +135,25 @@ Future<void> showDesktopMenu(
                   );
                 },
               ),
+              // ── ONLY WHERE THERE ARE APPS TO ARRANGE ──────────────────
+              //
+              // A distro with no desktop grid has nothing to jiggle, and an
+              // Arrange glyph on a bare Pantheon desktop would open an edit
+              // mode over an empty screen. The same `desktopIcons` gate the
+              // grid itself uses, asked in the one other place that offers to
+              // edit it.
+              if (theme.desktopIcons)
+                _Action(
+                  icon: Icons.dashboard_customize_outlined,
+                  label: 'Arrange',
+                  // Pop FIRST, for the reason Widgets gives above: the menu's
+                  // own route is dead by the time anything downstream runs, and
+                  // entering edit mode rebuilds the desktop underneath it.
+                  onTap: () {
+                    Navigator.pop(routeContext);
+                    ref.read(deskletEditProvider.notifier).enterApps();
+                  },
+                ),
               _Action(
                 icon: Icons.settings_outlined,
                 label: 'Settings',

@@ -5,17 +5,24 @@ import { C } from './console';
 import { IconStylePreview } from './IconStylePreview';
 import { Field, TextInput, NumberInput, SelectInput, Segmented, Toggle, ColorField } from './primitives';
 import {
+  APPS_SURFACES,
   CHROMES,
   DOCKS,
   DRAWER_GROUPINGS,
   DRAWER_SCROLLS,
   ICON_TREATMENTS,
+  KICKOFF_RAILS,
   SHELLS,
+  TILING_LAUNCHERS,
+  WORKSPACE_AXES,
   isHexColor,
   luminance,
   TOP_BAR_SIDES,
+  type AppsSurfaceName,
   type ChromeName,
+  type DockName,
   type IconStyleJson,
+  type KickoffRailName,
   type ShellName,
   type ThemeDraft,
   type ThemeLayoutJson,
@@ -23,7 +30,9 @@ import {
   type DrawerGroupingName,
   type DrawerScrollName,
   type ThemeSpecJson,
+  type TilingLauncherName,
   type TopBarSideName,
+  type WorkspaceAxisName,
 } from '@/lib/g-launcher/theme-spec';
 
 const shellLabels: Record<ShellName, string> = {
@@ -290,16 +299,75 @@ export function PaletteEditor(props: {
   );
 }
 
+/**
+ * Which shells actually READ each shell-specific layout field.
+ *
+ * ─── DERIVED BY GREPPING THE DEVICE, NOT BY REASONING FROM NAMES ────────────
+ *
+ * Every entry here was read off the widget that consumes the field, because the
+ * names are misleading in both directions. `desktopIcons` sounds universal and
+ * is not: `WorkspaceCanvas` is the only thing that mounts `HomeGrid`, and GNOME
+ * inlines its own pager rather than mounting the canvas, so a GNOME distro with
+ * `desktopIcons: true` shows nothing. `panelEdit` sounds like it belongs to any
+ * distro with a panel and is read only by `plasma_shell`.
+ *
+ * A control that changes nothing is how a builder teaches its own user that
+ * settings are unreliable, which is the argument the `topBar` gate below
+ * already makes. Same rule, applied to the fields that needed it more.
+ */
+const SHELL_READS: Record<string, readonly ShellName[]> = {
+  // WorkspaceCanvas mounts HomeGrid. Plasma, tiling and Aqua mount the canvas.
+  desktopIcons: ['plasma', 'tiling', 'aqua'],
+  // plasma_shell's panel long-press, and nothing else.
+  panelEdit: ['plasma'],
+  // WorkspaceCanvas again, and the device clamps gnome and tui to overlay.
+  appsSurface: ['plasma', 'tiling', 'aqua'],
+  // KickoffDrawer, which shell_drawer sends only plasma to.
+  kickoffRail: ['plasma'],
+  // TilingLauncher, likewise.
+  tilingLauncher: ['tiling'],
+  // The shared canvas honours it now; gnome_shell's inline pager always did.
+  workspaceAxis: ['gnome', 'plasma', 'tiling', 'aqua'],
+  // AppDrawer only. Kickoff and the tiling prompt read neither.
+  drawerScrollStyle: ['gnome', 'aqua', 'tui'],
+  drawerGrouping: ['gnome', 'aqua', 'tui'],
+};
+
+const shellList = (names: readonly ShellName[]) =>
+  names.map((n) => shellLabels[n]).join(', ');
+
 export function LayoutEditor(props: {
   layout: ThemeLayoutJson;
   setLayout: (p: Partial<ThemeLayoutJson>) => void;
+
+  /**
+   * The distro's shell, so a field only one shell reads is only offered there.
+   *
+   * OPTIONAL, and undefined means show everything with the reading shells named
+   * in the hint instead. The caller lives in the distro workspace and this
+   * editor is also mounted from the standalone theme builder; making it
+   * required would have broken whichever of those had not been updated, and a
+   * builder that silently offers a dead control is the failure this prop
+   * exists to fix, not one worth introducing at a second call site to fix it at
+   * the first.
+   */
+  shell?: ShellName;
 }) {
-  const { layout, setLayout } = props;
+  const { layout, setLayout, shell } = props;
   const grid = layout.grid ?? { rows: 5, cols: 4 };
+
+  /** Does this distro's shell read [key]? True when the shell is unknown. */
+  const reads = (key: string) =>
+    !shell || (SHELL_READS[key]?.includes(shell) ?? true);
+
+  /** The hint suffix naming who reads a field, shown only when gating is off. */
+  const readBy = (key: string) =>
+    shell ? '' : ` (read by ${shellList(SHELL_READS[key] ?? [])})`;
+
   return (
     <>
       <Field label="dock">
-        <Segmented<'left' | 'bottom' | 'off'>
+        <Segmented<DockName>
           value={layout.dock}
           options={DOCKS}
           onChange={(v) => setLayout({ dock: v })}
@@ -368,15 +436,116 @@ export function LayoutEditor(props: {
         </Field>
       </div>
 
+      {/* ─── THE DESKTOP ITSELF ─────────────────────────────────────────
+          Two capabilities the panel had no vocabulary for until now, so every
+          distro published through here has shipped both as false. Folder View
+          is Plasma's DEFAULT containment and panel editing is what Plasma is
+          sold on, which made the two things a paid plasma distro most obviously
+          owes its buyer the two things it could not have. */}
+      {reads('desktopIcons') ? (
+        <div style={{ marginBottom: 12 }}>
+          <Toggle
+            value={layout.desktopIcons ?? false}
+            label={`Icons on the desktop${readBy('desktopIcons')}`}
+            onChange={(v) => setLayout({ desktopIcons: v || undefined })}
+          />
+        </div>
+      ) : null}
+      {reads('panelEdit') ? (
+        <div style={{ marginBottom: 12 }}>
+          <Toggle
+            value={layout.panelEdit ?? false}
+            label={`Let the user rearrange the panel${readBy('panelEdit')}`}
+            onChange={(v) => setLayout({ panelEdit: v || undefined })}
+          />
+        </div>
+      ) : null}
+
+      {reads('workspaceAxis') ? (
+        <Field
+          label="workspace axis"
+          hint={`which way the desktop pages${readBy('workspaceAxis')}`}
+        >
+          <Segmented<WorkspaceAxisName>
+            value={layout.workspaceAxis ?? 'vertical'}
+            options={WORKSPACE_AXES}
+            onChange={(v) =>
+              // Vertical is the device default and emits nothing, matching the
+              // serializer. Same reason 'inherit' does below.
+              setLayout({ workspaceAxis: v === 'vertical' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
+
+      {/* ─── WHERE THE APP LIST LIVES ────────────────────────────────────
+          Not how it looks: whether it is a thing that opens over the desktop
+          or a page OF the desktop, one swipe past the last workspace with the
+          dock unchanged underneath. Nothing opens or closes a page, so a distro
+          on `workspace` has no drawer gesture and no drawer scrim.
+
+          The device clamps GNOME and TUI to overlay regardless, because GNOME
+          inlines its own pager and TUI has no workspaces. That clamp is not
+          repeated here: two copies of a rule drift, and the device's is the
+          one that decides what renders. */}
+      {reads('appsSurface') ? (
+        <Field
+          label="apps surface"
+          hint={`overlay opens over the desktop, workspace IS a page of it${readBy('appsSurface')}`}
+        >
+          <Segmented<AppsSurfaceName>
+            value={layout.appsSurface ?? 'overlay'}
+            options={APPS_SURFACES}
+            onChange={(v) =>
+              setLayout({ appsSurface: v === 'overlay' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
+
+      {reads('kickoffRail') ? (
+        <Field
+          label="menu rail"
+          hint={`tabs is KDE's Kickoff, categories is Cinnamon's menu${readBy('kickoffRail')}`}
+        >
+          <Segmented<KickoffRailName>
+            value={layout.kickoffRail ?? 'tabs'}
+            options={KICKOFF_RAILS}
+            onChange={(v) =>
+              // 'tabs' is the engine default and emits nothing. A distro that
+              // wants Kickoff's own rail says nothing at all, which is also
+              // what every plasma distro published so far has said.
+              setLayout({ kickoffRail: v === 'tabs' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
+
+      {reads('tilingLauncher') ? (
+        <Field
+          label="launcher"
+          hint={`rofi is a centred card, dmenu is one line across the top${readBy('tilingLauncher')}`}
+        >
+          <Segmented<TilingLauncherName>
+            value={layout.tilingLauncher ?? 'rofi'}
+            options={TILING_LAUNCHERS}
+            onChange={(v) =>
+              setLayout({ tilingLauncher: v === 'rofi' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
+
       {/* A DEFAULT, NOT AN OVERRIDE, and the labels have to say so. Both of
           these are promoted to global prefs on the device, so they apply only
           to a user who has never touched the setting; anyone who has chosen
           keeps their choice through a distro switch. An author who reads this
           as "my distro forces a list drawer" will file the resulting bug
           against the device. */}
+      {reads('drawerScrollStyle') ? (
       <Field
         label="drawer motion"
-        hint="the distro's default for someone who has not chosen"
+        hint={`the distro's default for someone who has not chosen${readBy('drawerScrollStyle')}`}
       >
         <Segmented<DrawerScrollName | 'inherit'>
           value={layout.drawerScrollStyle ?? 'inherit'}
@@ -391,9 +560,11 @@ export function LayoutEditor(props: {
           }
         />
       </Field>
+      ) : null}
+      {reads('drawerGrouping') ? (
       <Field
         label="drawer grouping"
-        hint="only applies where the drawer is a list"
+        hint={`only applies where the drawer is a list${readBy('drawerGrouping')}`}
       >
         <Segmented<DrawerGroupingName | 'inherit'>
           value={layout.drawerGrouping ?? 'inherit'}
@@ -403,6 +574,7 @@ export function LayoutEditor(props: {
           }
         />
       </Field>
+      ) : null}
     </>
   );
 }

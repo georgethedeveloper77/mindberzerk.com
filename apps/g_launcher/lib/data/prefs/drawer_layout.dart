@@ -140,20 +140,70 @@ class DrawerLayout {
     );
   }
 
-  /// Take an app back out. Dropping to one member dissolves the folder, and both
-  /// apps return to the alphabetical list.
+  /// File an app into the folder CALLED [name], creating it if there is none.
+  ///
+  /// ─── BY NAME, BECAUSE A SHELF EXISTS BEFORE ANYTHING IS ON IT ───────────
+  ///
+  /// Every other write here takes a folder id, which presumes the folder is
+  /// already there. A distro's authored categories are not: Kali's thirteen
+  /// tool groups are named in its theme.json and hold nothing until the user
+  /// puts something in one, so the first drop has no id to address.
+  ///
+  /// Creating it here rather than making the caller do it keeps the two halves
+  /// of "is there a folder called this" in one place. A caller that looked the
+  /// name up, found nothing, and called [materialise] itself would race a
+  /// second drop landing in the same frame and write the folder twice.
+  ///
+  /// ─── AND IT MAY HOLD ONE ────────────────────────────────────────────────
+  ///
+  /// The two-or-more invariant this file states everywhere is a property of the
+  /// folder GRID, not of the folder: a tile holding one app costs a second tap
+  /// and shows a preview that is three quarters empty. A rail slot costs
+  /// nothing extra and is visible whether it holds one thing or forty, so the
+  /// invariant does not apply to it. [removeFromFolder] takes [dissolveBelow]
+  /// for the same reason.
+  static LauncherPrefs fileInto(
+    LauncherPrefs p,
+    String name,
+    String componentKey, {
+    required String Function() newFolderId,
+  }) {
+    for (final f in p.drawerFolders) {
+      if (f.name == name) return addToFolder(p, f.id, componentKey);
+    }
+    // Already in some OTHER folder: refused, same as addToFolder. Moving an app
+    // between folders silently is a surprise, and the caller can compare by
+    // identity and say so.
+    if (folderOf(p, componentKey) != null) return p;
+
+    return p.copyWith(
+      drawerFolders: [
+        ...p.drawerFolders,
+        AppFolder(id: newFolderId(), name: name, members: [componentKey]),
+      ],
+    );
+  }
+
+  /// Take an app back out. Dropping below [dissolveBelow] members dissolves the
+  /// folder, and its survivors return to the alphabetical list.
+  ///
+  /// [dissolveBelow] is 2 by default, which is every caller that existed before
+  /// the tool menu: on a grid, a folder of one is strictly worse than that app
+  /// sitting loose. A rail passes 1, because a named shelf is worth having with
+  /// one thing on it and the user put it there on purpose. See [fileInto].
   static LauncherPrefs removeFromFolder(
     LauncherPrefs p,
     String folderId,
-    String componentKey,
-  ) {
+    String componentKey, {
+    int dissolveBelow = 2,
+  }) {
     final f = folder(p, folderId);
     if (f == null) return p;
     if (!f.members.contains(componentKey)) return p;
 
     final members = f.members.where((m) => m != componentKey).toList();
 
-    if (members.length >= 2) {
+    if (members.isNotEmpty && members.length >= dissolveBelow) {
       return p.copyWith(
         drawerFolders: [
           for (final x in p.drawerFolders)

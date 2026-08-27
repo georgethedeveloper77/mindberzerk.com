@@ -17,6 +17,7 @@ import { IconSetHealth } from '@/app/components/icon-set-health';
 import { renderHeroIcon } from '@/lib/core/image-trim';
 import { publishDistroAction, saveDistroDraftAction } from '@/app/apps/[app]/distros/actions';
 import { PREVIEW_NAME, composePreviewPng } from '@/lib/g-launcher/pack-preview';
+import { importDiff, replacedBlocks } from '@/lib/g-launcher/import-diff';
 import {
   blankDraft,
   importTheme,
@@ -471,6 +472,14 @@ export function DistroWorkspace({
       return { error: `${imported.error} Nothing was changed.` };
     }
 
+    // ─── BEFORE `setSpec`, WHICH IS THE ONLY MOMENT BOTH EXIST ────────────
+    //
+    // `spec` here is the draft about to be discarded. One line later it is gone,
+    // and with it any block this file omits: `setSpec` replaces, it does not
+    // merge. Arch lost its boot log, splash and desklet skins to a layout-only
+    // import and nobody noticed until three textareas were visibly empty.
+    const lost = replacedBlocks(spec, imported.spec);
+
     setSpec(imported.spec);
 
     // The one pricing field the file actually speaks about. Seeded ONLY when
@@ -504,7 +513,38 @@ export function DistroWorkspace({
     if (referencesLogo(imported.spec)) setHadLogo(true);
 
     toast.success('Imported.');
-    return { notes: imported.notes };
+
+    // ─── AND WHAT THE CANONICALISER THREW AWAY ────────────────────────────
+    //
+    // `importTheme` already returns notes for what it KNOWS it rejected, which
+    // is how `Chrome family 'pocket' is unknown and was dropped` reaches the
+    // panel below. It says nothing about values removed by the allow-lists
+    // further in, and three shipped that way:
+    //
+    //   * Arch published with `pager` and `clock` gone from its bar, because
+    //     `PANEL_MODULES` was five entries at the time.
+    //   * Pocket imported with no `appDrawer`, because `APP_DRAWERS` did not
+    //     yet know `library`, and drew the shared grid for days.
+    //   * Garuda published a four-module panel as `["spacer"]`.
+    //
+    // Each was found by someone noticing a screen looked wrong. This function
+    // held both sides the whole time: the file that came in and the spec that
+    // came out, on the two lines above it.
+    //
+    // AFTER the importer's own notes rather than merged into them. Those are a
+    // deliberate rejection with a reason; these are a silent loss, and reading
+    // them as one list would make the second look as considered as the first.
+    // `lost` LAST. The importer's own notes are a rejection with a reason, the
+    // diff is a silent removal on the way in, and this is a whole block the
+    // file never mentioned. Increasing order of "and you probably meant to keep
+    // that", which is the order a reader should hit them in.
+    return {
+      notes: [
+        ...imported.notes,
+        ...importDiff(parsed, imported.spec),
+        ...lost,
+      ],
+    };
   }
 
   const setS = (p: Partial<ThemeSpecJson>) => setSpec((s) => ({ ...s, ...p }));

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
+import { RepairGrants } from '@/components/repair-grants';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SoftPanel } from '@/components/studio/ui';
 import { commerceReport, worstTone, type SkuRow } from '@/lib/core/commerce';
@@ -211,6 +212,12 @@ export default async function CommercePage({
           </span>
         </div>
       </AppSlab>
+
+      {/* ─── THE REPAIR, DIRECTLY UNDER THE COUNTS ─────────────────────────
+          Above the filter chips, because it acts on the whole catalogue rather
+          than on whatever the chips have narrowed to, and a whole-catalogue
+          action sitting below a filter reads as if it applies to the filter. */}
+      <RepairGrants app={app} />
 
       <div className="flex flex-wrap gap-2">
         {[

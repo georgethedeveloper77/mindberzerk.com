@@ -133,6 +133,7 @@ class PackInfo {
     this.previewAccent,
     this.features,
     this.tint,
+    this.previewLayout,
   });
 
   String packId;
@@ -249,6 +250,35 @@ class PackInfo {
   /// carry their colours inside the art.
   String? tint;
 
+  /// What the storefront card should DRAW, decided at publish time.
+  ///
+  /// ─── WHY THIS IS ONE STRING AND NOT FIVE FIELDS ─────────────────────────
+  ///
+  /// The card used to pick its picture from `previewShell` alone, because that
+  /// was the only layout signal the index carried. It was right when a shell
+  /// decided everything and wrong for ten of fifteen distros once `dock`,
+  /// `dockStyle`, `dockReveal` and `homeLayout` became real: KDE and Mint were
+  /// drawn with docks they do not have, Kali and Manjaro with the dock on the
+  /// wrong edge, elementary and Pocket magnifying when neither swells.
+  ///
+  /// Carrying the five source fields instead would put the derivation on the
+  /// device, in a second place, where it would drift from the panel's. The
+  /// panel holds the whole theme.json and the device holds only the index, so
+  /// the decision belongs at the only point that has the source.
+  ///
+  /// ─── AND IT ENCODES THE BAR TOO ─────────────────────────────────────────
+  ///
+  /// A bottom DOCK and a bottom PANEL are different pictures, and no preview
+  /// has ever drawn the bar from data: every card painted one at the top
+  /// whether the distro had it at the bottom or had none at all. Four have a
+  /// bottom panel and three have no bar.
+  ///
+  /// Values: `dockLeft`, `dockBottom`, `dockFlat`, `dockMagnified`, `noDock`,
+  /// `barBottom`, `dash`, `tiled`, `terminal`. A STRING, not an enum, for the
+  /// reason `packType` gives: a value a older client does not recognise must
+  /// degrade to a neutral picture rather than fail to parse.
+  String? previewLayout;
+
   List<Object?> _toList() {
     return <Object?>[
       packId,
@@ -269,6 +299,7 @@ class PackInfo {
       previewAccent,
       features,
       tint,
+      previewLayout,
     ];
   }
 
@@ -296,6 +327,7 @@ class PackInfo {
       previewAccent: result[15] as String?,
       features: (result[16] as List<Object?>?)?.cast<PackFeature?>(),
       tint: result[17] as String?,
+      previewLayout: result[18] as String?,
     );
   }
 
@@ -308,7 +340,7 @@ class PackInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent) && _deepEquals(features, other.features) && _deepEquals(tint, other.tint);
+    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent) && _deepEquals(features, other.features) && _deepEquals(tint, other.tint) && _deepEquals(previewLayout, other.previewLayout);
   }
 
   @override
@@ -317,7 +349,7 @@ class PackInfo {
 
   @override
   String toString() {
-    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku, previewShell: $previewShell, previewBgTop: $previewBgTop, previewBgBottom: $previewBgBottom, previewBar: $previewBar, previewDock: $previewDock, previewAccent: $previewAccent, features: $features, tint: $tint)';
+    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku, previewShell: $previewShell, previewBgTop: $previewBgTop, previewBgBottom: $previewBgBottom, previewBar: $previewBar, previewDock: $previewDock, previewAccent: $previewAccent, features: $features, tint: $tint, previewLayout: $previewLayout)';
   }
 }
 

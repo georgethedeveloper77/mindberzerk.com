@@ -3,6 +3,7 @@
   "name": "KDE Plasma",
   "version": "6",
   "shell": "plasma",
+  "chromeFamily": "breeze",
   "tier": "free",
   "minAppVersion": 6,
   "palette": {
@@ -26,8 +27,23 @@
     "mono": "UbuntuMono"
   },
   "layout": {
-    "dock": "bottom",
+    "dock": "off",
     "topBar": false,
+    "panels": [
+      {
+        "side": "bottom",
+        "height": 44,
+        "modules": [
+          "kickoff",
+          "tasks",
+          "spacer",
+          "tray",
+          "clock"
+        ]
+      }
+    ],
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4

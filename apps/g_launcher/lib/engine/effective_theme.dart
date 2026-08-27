@@ -35,6 +35,7 @@ class EffectiveTheme {
     required this.panels,
     required this.panelsAuthored,
     required this.workspaceAxis,
+    required this.appsSurface,
     required this.desktopIcons,
     required this.panelEdit,
     required this.panelHeight,
@@ -45,6 +46,11 @@ class EffectiveTheme {
     required this.drawerScrollStyle,
     required this.drawerGrouping,
     required this.kickoffRail,
+    required this.tilingLauncher,
+    required this.appDrawer,
+    required this.homeLayout,
+    required this.dockStyle,
+    required this.dockReveal,
     required this.iconSizeDp,
     required this.labelLines,
     required this.textScale,
@@ -90,6 +96,11 @@ class EffectiveTheme {
   /// Which way workspaces page. See [WorkspaceAxis].
   final WorkspaceAxis workspaceAxis;
 
+  /// Where the app list lives: an overlay over the desktop, or a page of it.
+  /// Resolved and shell-clamped in [LayoutResolver]; read by `WorkspaceCanvas`
+  /// and by `openApps`, and never taken off the spec. See [AppsSurface].
+  final AppsSurface appsSurface;
+
   /// Does the desktop carry app icons? The distro's answer, lowered by the
   /// user's if they have turned it off. Read by `WorkspaceCanvas`, which is the
   /// only thing that mounts the grid.
@@ -134,6 +145,45 @@ class EffectiveTheme {
   /// moving through the list, it is WHICH MENU the distro has, and a Mint user
   /// switching it to tabs would be asking for KDE's menu on Mint.
   final String kickoffRail;
+
+  /// Which launcher a tiling distro opens: 'rofi' | 'dmenu'. Resolved in
+  /// [LayoutResolver]; read by `TilingLauncher` and nothing else. See
+  /// [ThemeLayout.tilingLauncher].
+  final String tilingLauncher;
+
+  /// Which drawer this distro opens: 'grid' | 'tools'. Read by `ShellDrawer`,
+  /// which consults it BEFORE the shell. See [ThemeLayout.appDrawer].
+  final String appDrawer;
+
+  /// Does the drawer file apps into category folders?
+  ///
+  /// ─── TWO ROUTES TO ONE SHAPE, AND THEY HAD TO AGREE ─────────────────────
+  ///
+  /// `drawerItemsProvider` emits folders first and the rest after when the
+  /// grouping is `library`, and `LibraryView` cuts its sections out of that
+  /// order rather than asking for a second, differently sorted provider.
+  ///
+  /// `appDrawer: "library"` reaches the same widget without a preference, which
+  /// is the whole point of the value. On its own it would hand that widget an
+  /// UNGROUPED list, and the sections would come out wrong with nothing saying
+  /// so: the exact silent-failure shape this codebase keeps finding.
+  ///
+  /// So the drawer implies the grouping. One getter, read by the provider, and
+  /// the two cannot drift.
+  bool get libraryGrouped =>
+      appDrawer == 'library' || drawerGrouping == 'library';
+
+  /// How the desktop arranges its icons: 'grid' | 'tiled'. Read by `HomeGrid`
+  /// and nothing else. See [ThemeLayout.homeLayout].
+  final String homeLayout;
+
+  /// How the dock sits: 'flat' | 'floating' | 'magnified'. Read by `AquaDock`
+  /// and by the shell that positions it. See [ThemeLayout.dockStyle].
+  final String dockStyle;
+
+  /// When the dock exists: 'always' | 'apps'. Read by `gnome_shell` and by
+  /// `capabilities.dart`. See [ThemeLayout.dockReveal].
+  final String dockReveal;
 
   final double iconSizeDp;
 
@@ -386,6 +436,7 @@ class EffectiveTheme {
       panels: layout.panels,
       panelsAuthored: layout.panelsAuthored,
       workspaceAxis: layout.workspaceAxis,
+      appsSurface: layout.appsSurface,
       desktopIcons: layout.desktopIcons,
       panelEdit: layout.panelEdit,
       panelHeight: layout.panelHeight,
@@ -396,6 +447,11 @@ class EffectiveTheme {
       drawerScrollStyle: layout.drawerScrollStyle,
       drawerGrouping: layout.drawerGrouping,
       kickoffRail: layout.kickoffRail,
+      tilingLauncher: layout.tilingLauncher,
+      appDrawer: layout.appDrawer,
+      homeLayout: layout.homeLayout,
+      dockStyle: layout.dockStyle,
+      dockReveal: layout.dockReveal,
       iconSizeDp: layout.iconSizeDp,
       labelLines: layout.labelLines,
       textScale: layout.textScale,
@@ -544,6 +600,10 @@ class EffectiveTheme {
   /// test: it is derived from the raw theme.json at parse and takes no prefs
   /// input, so it moves only when `spec.id` moves. The test to apply to any
   /// future field here is that one, not "is it new".
+  ///
+  /// [appsSurface] passes the same test and is absent for the same reason: it
+  /// resolves from `spec.layout` and `spec.shell`, both of which move only with
+  /// `spec.id`. So do [tilingLauncher], [appDrawer] and [homeLayout].
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

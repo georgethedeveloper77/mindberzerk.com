@@ -17,6 +17,12 @@ import '../../../design/components/components.dart';
 import '../../../features/desklets/desklet_edit.dart';
 import '../../../features/dock/dock_metrics.dart';
 import '../../../features/drawer/shell_drawer.dart';
+import '../../../features/dock/aqua_dock_metrics.dart';
+import '../../../features/drawer/drawer_actions.dart';
+import '../../../features/home/aqua/aqua_dock.dart';
+// `DockEntry` is declared in gnome_dock, not aqua_dock: the entry is the shared
+// shape and only the SHELL of a dock differs, which is why both docks take it.
+import '../../../features/home/gnome/gnome_dock.dart' show DockEntry;
 import '../../../features/drawer/app_icon.dart';
 import '../../../features/drawer/drawer_state.dart';
 import '../../../features/gestures/gesture_layer.dart';
@@ -158,8 +164,143 @@ class _PlasmaShellState extends ConsumerState<PlasmaShell> {
         // else". home_screen owns back for every shell now, so the wrapper
         // had nothing left to do. Kickoff's presentation was never here
         // anyway; ShellDrawer resolves this shell to it.
+        // ─── THE LATTE DOCK ───────────────────────────────────────────
+        //
+        // This shell drew a panel and NO dock, which is why Garuda's could not
+        // exist: Dr460nized's whole look is a floating, magnifying dock over a
+        // Plasma panel, and half of that was unreachable.
+        //
+        // `AquaDock` rather than `GnomeDock`, and that is not a shortcut.
+        // Magnification lives in `AquaDockMetrics` and `GnomeDockStyle`
+        // deliberately has no `magnified` arm, so teaching the GNOME dock to
+        // swell would be a second parabola. Latte was modelled on the Mac dock
+        // in the first place, so reusing the widget that owns the swell is the
+        // accurate reading rather than the convenient one.
+        //
+        // Hidden while Kickoff is open, for the reason gnome_shell writes out:
+        // the drawer paints a wash and anything still mounted below it bleeds
+        // through and reads as dirt.
+        // ─── THROUGH `parse`, NOT `theme.dock` ────────────────────────
+        //
+        // TWO `DockSide` enums exist, one in `theme_spec` and one in
+        // `dock_metrics`, and `dock_metrics.dart` says so at its own
+        // declaration: EDIT THESE TWO TOGETHER. This file sees both, so
+        // `theme.dock != DockSide.off` compared a value of one type against a
+        // constant of the other and the analyser called it what it is.
+        //
+        // `gnome_shell` solved this first and its import block explains how:
+        // parse the pref through the dock's own enum, which is the one the dock
+        // widgets speak. Copying that rather than inventing a third answer.
+        if (DockSide.parse(theme.prefs.dockSide) != DockSide.off &&
+            !activitiesOpen)
+          Positioned(
+            left: 0,
+            right: 0,
+            // ─── ABOVE THE PANEL, NOT ON TOP OF IT ────────────────────
+            //
+            // The dock is a `Positioned` in the full-screen Stack and the
+            // panel is a Column sibling that takes its own space out of the
+            // bottom. So a bottom panel and a dock at `insets.bottom` land in
+            // the same place and the dock sits over the clock.
+            //
+            // Authentic Dr460nized puts its panel on TOP and its Latte dock at
+            // the foot, so this arrangement should be rare. It is handled
+            // anyway because nothing stops a distro authoring both, and a
+            // launcher that overlaps two of its own bars when asked to is worse
+            // than one that stacks them.
+            bottom: insets.bottom +
+                10 +
+                (side == TopBarSide.bottom
+                    ? (theme.panelHeight ?? _plasmaPanelHeight)
+                    : 0),
+            child: _Dock(theme: theme),
+          ),
         if (activitiesOpen) Positioned.fill(child: ShellDrawer(theme: theme)),
       ],
+    );
+  }
+}
+
+/// Plasma's dock, for the distros that put one over the panel.
+///
+/// ─── THE ENTRY BUILD IS SHORT, AND THE MENU IS THE SHARED ONE ───────────────
+///
+/// `aqua_shell` builds its entries the same way and then hands the long press to
+/// a sixty-line private method with hardcoded English in it. That method is not
+/// copied here, and not extracted either: this uses `showDrawerAppMenu`, which
+/// every drawer in the app already uses, which speaks through `AppMenuWords` and
+/// therefore says the right word on a distro whose favourites live in Kickoff
+/// rather than on a dock.
+///
+/// What IS shared is the part that matters: `HomeLayout.dockKeys` decides which
+/// apps are here, so a pin made anywhere shows up here and the two shells cannot
+/// disagree about what the dock holds.
+class _Dock extends ConsumerWidget {
+  const _Dock({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final apps = ref.watch(shellAppsProvider(theme));
+    final frequent = ref.watch(frequentAppsProvider);
+
+    final capacity = AquaDockMetrics.capacityFor(
+      MediaQuery.sizeOf(context).width * 0.92,
+    );
+
+    // Kept apps, then most-used, then the alphabetical head on a fresh install.
+    // A dock that can be empty is a dock that looks broken on day one.
+    var keys = HomeLayout.dockKeys(
+      theme.prefs,
+      frequent: frequent,
+      capacity: capacity,
+      defaultLimit: AquaDockMetrics.minCapacity + 1,
+    );
+    if (keys.isEmpty) {
+      keys = [
+        for (final a in apps.take(AquaDockMetrics.minCapacity + 1))
+          a.componentKey,
+      ];
+    }
+
+    final byKey = {for (final a in apps) a.componentKey: a};
+    final pinned = theme.prefs.favourites.toSet();
+
+    final entries = <DockEntry>[
+      for (final key in keys)
+        if (byKey[key] != null)
+          DockEntry(
+            id: key,
+            label: byKey[key]!.label,
+            isPinned: pinned.contains(key),
+            // Built at the PEAK size and scaled down by the dock's FittedBox.
+            // Building at rest and scaling up blurs every icon the moment it
+            // magnifies, which is the one thing a dock this showy cannot
+            // afford. `aqua_dock` states the same rule.
+            icon: AppIcon(entry: byKey[key]!, size: AquaDockMetrics.peakSlot),
+            onTap: () => launchDrawerApp(ref, byKey[key]!),
+            onLongPress: (anchor) => showDrawerAppMenu(
+              context,
+              ref,
+              theme,
+              byKey[key]!,
+              anchor: anchor,
+            ),
+          ),
+    ];
+
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return AquaDock(
+      entries: entries,
+      palette: theme.palette,
+      style: AquaDockStyle.parse(theme.dockStyle),
+      opacity: theme.dockOpacity,
+      // Kickoff is the launcher on this shell and it opens from the panel, so
+      // a second way in from the dock would be a button that duplicates the one
+      // three centimetres below it.
+      onLaunchpad: () => openApps(ref),
     );
   }
 }
@@ -756,9 +897,7 @@ class _PlasmaPanel extends ConsumerWidget {
                   child: switch (m) {
                   PanelModule.kickoff => _KickoffButton(
                       accent: theme.palette.accent,
-                      onTap: () => ref
-                          .read(activitiesOpenProvider.notifier)
-                          .state = true,
+                      onTap: () => openApps(ref),
                     ),
 
                   // EXPANDED, and that is why this panel needs no spacer. The

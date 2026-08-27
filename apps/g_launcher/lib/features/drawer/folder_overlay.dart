@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +10,6 @@ import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/home_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
-import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/components/press_pop.dart';
@@ -19,9 +17,11 @@ import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../dock/dock_metrics.dart';
 import 'app_icon.dart';
+import 'app_menu_words.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
+import 'folder_store.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 /// An open drawer folder, full screen, over a blurred desktop.
@@ -80,6 +80,36 @@ Future<void> showFolderOverlay(
   WidgetRef ref,
   EffectiveTheme theme,
   FolderDrawerItem item,
+) =>
+    _showFolder(context, theme, item.folder.id, const DrawerFolderStore());
+
+/// The same screen, over a HOME folder.
+///
+/// ─── IT REPLACED A BARE Dialog, AND THAT IS THE WHOLE POINT OF THE SEAM ─────
+///
+/// The desktop's folders opened into a `Dialog` holding a `TextField` and a
+/// `GridView.count(crossAxisCount: 4)`, with raw `TextStyle`, raw palette
+/// colours, no [ChromeScope], and a long press that removed a member outright
+/// with no menu and no undo. It could not rename properly, could not add,
+/// could not reorder, could not pin, could not uninstall, and did not page.
+///
+/// None of that was a decision about desktop folders. It is simply where the
+/// code stopped when `folder_overlay.dart` was written for the drawer and
+/// nobody went back. [FolderStore] is what lets one screen answer both without
+/// merging two storage models that are correctly separate.
+Future<void> showHomeFolderOverlay(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  String folderId,
+) =>
+    _showFolder(context, theme, folderId, const HomeFolderStore());
+
+Future<void> _showFolder(
+  BuildContext context,
+  EffectiveTheme theme,
+  String folderId,
+  FolderStore store,
 ) {
   return Navigator.of(context).push(
     PageRouteBuilder<void>(
@@ -93,7 +123,8 @@ Future<void> showFolderOverlay(
       reverseTransitionDuration: const Duration(milliseconds: 160),
       pageBuilder: (_, __, ___) => _FolderOverlay(
         theme: theme,
-        folderId: item.folder.id,
+        folderId: folderId,
+        store: store,
       ),
       transitionsBuilder: (_, animation, __, child) {
         final curved = CurvedAnimation(
@@ -118,10 +149,19 @@ Future<void> showFolderOverlay(
 }
 
 class _FolderOverlay extends ConsumerStatefulWidget {
-  const _FolderOverlay({required this.theme, required this.folderId});
+  const _FolderOverlay({
+    required this.theme,
+    required this.folderId,
+    required this.store,
+  });
 
   final EffectiveTheme theme;
   final String folderId;
+
+  /// Where this folder lives. See [FolderStore]: the screen is one, the models
+  /// are two, and everything below goes through here rather than naming
+  /// `DrawerLayout` directly.
+  final FolderStore store;
 
   @override
   ConsumerState<_FolderOverlay> createState() => _FolderOverlayState();
@@ -195,9 +235,6 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
   /// now only the STARTING value and must not be read anywhere else.
   late String _id = widget.folderId;
 
-  /// A generated category folder, which owns nothing until it is edited.
-  bool get _generated => isCategoryFolder(_id);
-
   /// ─── MATERIALISE ON FIRST EDIT ──────────────────────────────────────────
   ///
   /// This was `_readOnly`, and every gesture here was gated on it: rename
@@ -219,25 +256,34 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
   /// Returns the id to edit AGAINST. Callers must use the return value rather
   /// than `widget.folderId`, which after a conversion still names a generated
   /// folder that no longer describes anything.
-  Future<String> _editable(FolderDrawerItem live) async {
-    if (!_generated) return _id;
+  /// True while a conversion is in flight. See [_editable].
+  bool _converting = false;
 
-    final id = newDrawerFolderId();
-    await ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
-          (p) => DrawerLayout.materialise(
-            p,
-            live.folder.name,
-            [for (final m in live.members) m.componentKey],
-            newFolderId: () => id,
-          ),
-        );
-
-    // BEFORE returning, so the rebuild that this write triggers already looks
-    // the folder up under its new id. Setting it after would leave one frame
-    // where the overlay searches for a folder that no longer exists, which is
-    // all the "dissolved while open" branch needs to pop the screen.
-    if (mounted) setState(() => _id = id);
-    return id;
+  Future<String> _editable(FolderSnapshot live) async {
+    // ─── THE FLAG, BECAUSE THE COMMENT BELOW WAS NOT ACHIEVABLE ──────────
+    //
+    // This used to say the id is swapped BEFORE returning, so the rebuild the
+    // write triggers already looks the folder up under its new id. It cannot
+    // be: the write happens INSIDE the await, Riverpod notifies while that
+    // future is still pending, and the `setState` only runs after it resolves.
+    //
+    // So exactly one frame rebuilt with the old `cat:` id, `watch` returned
+    // null, and the dissolved-while-open branch popped the folder. On screen
+    // that is: hold an app inside a derived folder, the folder shuts, and the
+    // folder reappears first in the Library because converting made it a user
+    // folder and those sort ahead of the categories. One cause, both symptoms,
+    // and it is the elementary long-press report from six passes back.
+    //
+    // The flag closes the window rather than trying to win a race with the
+    // notifier. The null branch checks it and waits instead of popping.
+    if (mounted) setState(() => _converting = true);
+    try {
+      final id = await widget.store.editable(ref, widget.theme, _id, live);
+      if (mounted && id != _id) setState(() => _id = id);
+      return id;
+    } finally {
+      if (mounted) setState(() => _converting = false);
+    }
   }
 
   void _commitRename() {
@@ -265,9 +311,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
 
     () async {
       final id = await _editable(live);
-      await ref
-          .read(prefsProvider(widget.theme.spec.id).notifier)
-          .edit((p) => DrawerLayout.rename(p, id, name));
+      await widget.store.rename(ref, widget.theme, id, name);
     }();
   }
 
@@ -275,13 +319,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
   ///
   /// Read from the provider rather than captured, because `_commitRename` runs
   /// from a focus listener that can fire after the members have changed.
-  FolderDrawerItem? _live() {
-    final items = ref.read(drawerItemsProvider(widget.theme));
-    for (final i in items) {
-      if (i is FolderDrawerItem && i.folder.id == _id) return i;
-    }
-    return null;
-  }
+  FolderSnapshot? _live() => widget.store.read(ref, widget.theme, _id);
 
   @override
   Widget build(BuildContext context) {
@@ -297,16 +335,20 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     final theme =
         themeAsync.hasValue ? themeAsync.requireValue : widget.theme;
 
-    final live = ref
-        .watch(drawerItemsProvider(theme))
-        .whereType<FolderDrawerItem>()
-        .where((f) => f.folder.id == _id)
-        .firstOrNull;
+    // WATCH, not read: this is build, and the panel has to repaint when a
+    // member is added, removed or reordered. See [FolderStore] for why the two
+    // are named apart.
+    final live = widget.store.watch(ref, theme, _id);
 
     // Dissolved while open — the last-but-one member was pulled out, or the
     // Ungroup button was hit. Close rather than sit here rendering a folder
     // that no longer exists.
     if (live == null) {
+      // MID-CONVERSION, not dissolved. The folder is being rewritten under a
+      // new id and this frame is looking under the old one; the next frame has
+      // the right id and finds it. Popping here is what shut the folder every
+      // time someone held an app inside a category.
+      if (_converting) return const SizedBox.shrink();
       if (!_closing) {
         _closing = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -334,7 +376,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     // The unnamed folder reads as a placeholder, exactly like an empty text
     // field: the name is still "Folder" in storage, but showing it in full ink
     // implies someone chose it. Muted ink says "this is waiting for you".
-    final unnamed = live.folder.name.trim() == defaultFolderName;
+    final unnamed = live.name.trim() == defaultFolderName;
 
     // Derived exactly as ThemedScaffold derives it, so a dialog opened from
     // here is indistinguishable from one opened out of Settings.
@@ -388,11 +430,11 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
 
                   _Title(
                     theme: theme,
-                    name: live.folder.name,
+                    name: live.name,
                     unnamed: unnamed,
                     controller: _renaming,
                     focus: _renameFocus,
-                    onStartRename: () => _startRename(live.folder.name),
+                    onStartRename: () => _startRename(live.name),
                     onCommit: _commitRename,
                   ),
 
@@ -405,26 +447,30 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
                     theme: theme,
                     onAdd: () => _addApps(theme, live),
                     onUngroup: () {
-                      // ─── NO CONVERSION HERE ────────────────────────────
+                      // ─── ASK BEFORE PROMISING ──────────────────────────
                       //
-                      // The one action that does not need it. `dissolve`
-                      // against a `cat:` id is a no-op, and a no-op is the
-                      // CORRECT result: a generated folder that is ungrouped
-                      // simply gets rebuilt by the categories, which is what
-                      // ungrouping it should do. Materialising it first, only
-                      // to delete it, would be two writes to reach the state
-                      // it was already in.
+                      // Pop FIRST is what gives this the exit animation rather
+                      // than the panel blinking out a frame early, and it is
+                      // only safe while the write cannot refuse. On the desktop
+                      // it can: `HomeLayout.dissolve` turns down a folder of
+                      // six with four free slots, whole, rather than dropping
+                      // two apps. So the store is asked first and the refusal
+                      // is spoken instead.
                       //
-                      // Pop FIRST. Dissolving rebuilds this widget with no
-                      // folder to show; the auto-close above would handle it,
-                      // but popping here runs the exit animation instead of
-                      // blinking the panel out a frame early.
+                      // The drawer has no such limit and always answers true,
+                      // so nothing about its behaviour moves.
+                      if (!widget.store.canDissolve(ref, theme, _id)) {
+                        context.showMessage(
+                          context.t(widget.store.dissolveRefusalKey),
+                        );
+                        return;
+                      }
                       Navigator.pop(context);
-                      ref
-                          .read(prefsProvider(theme.spec.id).notifier)
-                          .edit(
-                            (p) => DrawerLayout.dissolve(p, live.folder.id),
-                          );
+                      // No conversion first. `dissolve` against a generated id
+                      // is a no-op, and a no-op is the CORRECT result: an
+                      // ungrouped category folder is simply rebuilt by the
+                      // categories. See [DrawerFolderStore.dissolve].
+                      widget.store.dissolve(ref, theme, _id);
                     },
                   ),
 
@@ -432,8 +478,9 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
 
                   _Panel(
                     theme: theme,
+                    store: widget.store,
                     members: live.members,
-                    folderId: live.folder.id,
+                    folderId: _id,
                     // Closed over `live` HERE, where it is in scope. The panel
                     // and the tiles hold plain data and no ref, so the
                     // conversion decision is made by the only widget that can
@@ -487,19 +534,17 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
   /// at all rather than shown and refused: [DrawerLayout.addToFolder] declines
   /// to move an app between folders on purpose, and offering a choice that will
   /// be rejected is worse than not offering it.
-  void _addApps(EffectiveTheme theme, FolderDrawerItem folder) {
-    final apps = ref.read(shellAppsProvider(theme));
-    final folded = DrawerLayout.foldedKeys(theme.prefs);
-    final loose = [
-      for (final a in apps)
-        if (!folded.contains(a.componentKey)) a,
-    ];
+  void _addApps(EffectiveTheme theme, FolderSnapshot folder) {
+    // Asked of the store. Both answer "everything not already in a folder",
+    // but they read different sets, and the desktop's includes apps that are
+    // merely sitting in a slot, since filing one frees it.
+    final loose = widget.store.candidates(ref, theme);
 
     final chosen = <String>{};
 
     ThemedDialog.show<void>(
       context,
-      title: loose.isEmpty ? 'Nothing to add' : 'Add to ${folder.folder.name}',
+      title: loose.isEmpty ? 'Nothing to add' : 'Add to ${folder.name}',
       content: loose.isEmpty
           ? const Text('Every app is already in a folder.')
           : SizedBox(
@@ -576,17 +621,10 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
               // sheet would close having added nothing.
               () async {
                 final id = await _editable(folder);
-
-                // ONE edit, not one per app. Each `edit` is a write and a
-                // rebuild; folding the whole selection into a single transform
-                // means the drawer animates once.
-                await ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
-                  var next = p;
-                  for (final k in chosen) {
-                    next = DrawerLayout.addToFolder(next, id, k);
-                  }
-                  return next;
-                });
+                // ONE edit for the whole selection, not one per app. Both
+                // stores fold it into a single transform; see
+                // [FolderStore.addMembers].
+                await widget.store.addMembers(ref, theme, id, chosen);
               }();
             },
           ),
@@ -767,6 +805,131 @@ class _GlyphButton extends StatelessWidget {
   }
 }
 
+/// Move a member into another folder, or into one that does not exist yet.
+///
+/// ─── ONE EDIT, NOT TWO ──────────────────────────────────────────────────────
+///
+/// The remove and the file happen in a single `edit`, so a move is atomic. Done
+/// as two writes, a folder that emptied to below its dissolve floor would
+/// vanish between them and the second write would land in a folder the first
+/// one deleted, which is exactly the shape of bug that leaves an app filed
+/// nowhere.
+///
+/// ─── AND NEW FOLDER IS AN OPTION IN THE SAME LIST ───────────────────────────
+///
+/// Not a separate verb on the sheet above. "Move to a new folder" and "move to
+/// an existing one" are the same intent with a different destination, and
+/// splitting them would put two rows on a menu for one decision. It sits at the
+/// top because on a fresh install it is the only destination there is.
+Future<void> _moveTo(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  String fromId,
+  AppEntry entry,
+) async {
+  final prefs = ref.read(prefsProvider(theme.spec.id)).value;
+  if (prefs == null) return;
+
+  final targets = [
+    for (final f in DrawerLayout.orderedFolders(prefs))
+      if (f.id != fromId) f,
+  ];
+
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      final d = ChromeScope.of(ctx);
+      return SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: d.colors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ThemedListRow(
+                icon: Icons.create_new_folder_outlined,
+                title: ctx.t('drawer.newFolder'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _commitMove(ref, theme, fromId, entry, null);
+                },
+              ),
+              // Capped and scrollable. Someone with twenty folders should not
+              // get a sheet taller than the screen with the first ones off the
+              // top edge.
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final f in targets)
+                      ThemedListRow(
+                        icon: Icons.folder_outlined,
+                        title: f.name,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _commitMove(ref, theme, fromId, entry, f.name);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// [toName] null means a new folder, numbered so two of them are tellable apart.
+void _commitMove(
+  WidgetRef ref,
+  EffectiveTheme theme,
+  String fromId,
+  AppEntry entry,
+  String? toName,
+) {
+  final prefs = ref.read(prefsProvider(theme.spec.id)).value;
+  if (prefs == null) return;
+
+  var name = toName;
+  if (name == null) {
+    final taken = {
+      for (final f in DrawerLayout.orderedFolders(prefs)) f.name,
+    };
+    name = 'New folder';
+    var n = 2;
+    while (taken.contains(name)) {
+      name = 'New folder $n';
+      n++;
+    }
+  }
+
+  HapticFeedback.mediumImpact();
+  ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
+    // Remove FIRST, so the source's dissolve check runs against the state
+    // after this app has left. `dissolveBelow: 1` for the tool menu's reason:
+    // a folder holding one app is a legitimate thing to have made.
+    final without = DrawerLayout.removeFromFolder(
+      p,
+      fromId,
+      entry.componentKey,
+      dissolveBelow: 1,
+    );
+    return DrawerLayout.fileInto(
+      without,
+      name!,
+      entry.componentKey,
+      newFolderId: newDrawerFolderId,
+    );
+  });
+}
+
 /// The rounded panel holding the grid, paged when the members do not fit.
 ///
 /// ─── STATEFUL ONLY BECAUSE OF THE EDGE FLIP ─────────────────────────────────
@@ -783,6 +946,7 @@ class _GlyphButton extends StatelessWidget {
 class _Panel extends StatefulWidget {
   const _Panel({
     required this.theme,
+    required this.store,
     required this.members,
     required this.folderId,
     required this.editable,
@@ -795,6 +959,11 @@ class _Panel extends StatefulWidget {
   });
 
   final EffectiveTheme theme;
+
+  /// Where this folder lives. Passed through to the member tiles, which are
+  /// what actually write; see [FolderStore].
+  final FolderStore store;
+
   final List<AppEntry> members;
   final String folderId;
 
@@ -1021,6 +1190,7 @@ class _PanelState extends State<_Panel> {
                 itemCount: count,
                 itemBuilder: (_, i) => _MemberTile(
                   editable: widget.editable,
+                  store: widget.store,
                   theme: theme,
                   entry: members[start + i],
                   folderId: folderId,
@@ -1045,6 +1215,7 @@ class _PanelState extends State<_Panel> {
 class _MemberTile extends ConsumerStatefulWidget {
   const _MemberTile({
     required this.theme,
+    required this.store,
     required this.entry,
     required this.folderId,
     required this.editable,
@@ -1053,6 +1224,11 @@ class _MemberTile extends ConsumerStatefulWidget {
   });
 
   final EffectiveTheme theme;
+
+  /// Where this folder lives. The tile is what writes a reorder and what opens
+  /// the member menu, so it is the leaf the seam has to reach.
+  final FolderStore store;
+
   final AppEntry entry;
   final String folderId;
 
@@ -1137,6 +1313,7 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
         at: _down,
         folderId: id,
         entry: widget.entry,
+        store: widget.store,
       );
       if (mounted) setState(() => _held = false);
     }();
@@ -1155,19 +1332,18 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
     final id = await widget.editable();
     if (!mounted) return;
 
-    await ref.read(prefsProvider(widget.theme.spec.id).notifier).edit(
-          (p) => DrawerLayout.reorderMembers(
-            p,
-            // `id`, NOT `widget.folderId`. After a conversion the widget still
-            // names the generated folder, which no longer exists, and
-            // `reorderMembers` would find nothing and return prefs unchanged:
-            // exactly the silent no-op this whole change was undoing.
-            id,
-            sourceKey,
-            widget.entry.componentKey,
-            after: after,
-          ),
-        );
+    // `id`, NOT `widget.folderId`. After a conversion the widget still names
+    // the generated folder, which no longer exists, and the reorder would find
+    // nothing and return prefs unchanged: exactly the silent no-op this was
+    // written to undo.
+    await widget.store.reorder(
+      ref,
+      widget.theme,
+      id,
+      sourceKey,
+      widget.entry.componentKey,
+      after: after,
+    );
   }
 
   @override
@@ -1393,6 +1569,14 @@ EffectiveTheme theme, {
 required Offset at,
 required String folderId,
 required AppEntry entry,
+
+/// Where this folder lives.
+///
+/// Only ONE row here needs it: Remove from folder. Pin, App info and Uninstall
+/// are about the APP and are identical whichever surface holds the folder,
+/// which is why this menu was already almost store-agnostic and why the seam
+/// costs one parameter rather than a rewrite. See [FolderStore].
+required FolderStore store,
 }) {
 HapticFeedback.mediumImpact();
 
@@ -1471,10 +1655,13 @@ return AnchoredMenu.show(
           icon: isPinned
               ? Icons.push_pin_outlined
               : Icons.push_pin,
+          // The FAMILY's word, matching showDrawerAppMenu. Two menus that
+          // perform the same write on the same app must not call it two
+          // different things depending on which surface opened them.
           title: ctx.t(
             isPinned
-                ? 'shell.unpinFromDock'
-                : 'shell.pinToDock',
+                ? AppMenuWords.forTheme(theme).unpin
+                : AppMenuWords.forTheme(theme).pin,
             ),
             onTap: () {
               Navigator.pop(ctx);
@@ -1519,13 +1706,25 @@ return AnchoredMenu.show(
           title: ctx.t('drawer.removeFromFolder'),
           onTap: () {
             Navigator.pop(ctx);
-            prefs.edit(
-              (p) => DrawerLayout.removeFromFolder(
-                p,
-                folderId,
-                entry.componentKey,
-              ),
-            );
+            store.removeMember(ref, theme, folderId, entry.componentKey);
+          },
+        ),
+        // ─── MOVE, WHICH IS THE ONE VERB THE SHEET WAS MISSING ────────
+        //
+        // Remove takes an app OUT and leaves it loose. There was no way to say
+        // "this belongs in the other one", so moving meant remove, close the
+        // folder, find the app, open the target, add it. Five steps to express
+        // one intent.
+        //
+        // Placed after Remove because they are the same family of action and
+        // this is the gentler of the two: Move keeps the app filed somewhere,
+        // Remove does not.
+        ThemedListRow(
+          icon: Icons.drive_file_move_outline,
+          title: ctx.t('drawer.moveTo'),
+          onTap: () async {
+            Navigator.pop(ctx);
+            await _moveTo(context, ref, theme, folderId, entry);
           },
         ),
         ThemedListRow(

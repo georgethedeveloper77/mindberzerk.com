@@ -3,6 +3,7 @@
   "name": "Terminal",
   "version": "type-to-launch",
   "shell": "tui",
+  "chromeFamily": "wm",
   "tier": "free",
   "palette": {
     "bgTop": "#080D08",
@@ -13,12 +14,21 @@
     "onDark": "#C8D8C8"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "JetBrains Mono",
+    "mono": "JetBrains Mono"
   },
   "layout": {
     "dock": "off",
-    "topBar": false
+    "topBar": false,
+    "workspaces": 1,
+    "grid": {
+      "rows": 5,
+      "cols": 4
+    }
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
   },
   "boot": {
     "tailMs": 500,
@@ -61,45 +71,66 @@
       }
     ]
   },
-  "terminal": {
-    "appLabel": "Terminal",
-    "prompt": "~ ❯ ",
-    "scrollbackLines": 5000,
-    "palette": {
-      "bg": "#080D08",
-      "fg": "#52F088",
-      "cursor": "#52F088",
-      "selection": "#2152F088",
-      "ansi": [
-        "#0A140A",
-        "#E85C5C",
-        "#52F088",
-        "#E8B84B",
-        "#5C9CE8",
-        "#A98CE8",
-        "#4BD6C0",
-        "#C8D8C8",
-        "#2E7A48",
-        "#FF7A7A",
-        "#7DF5A8",
-        "#FFD166",
-        "#82B8F5",
-        "#C6AEF5",
-        "#7FE8DC",
-        "#EAF5EA"
-      ]
-    },
-    "aliases": [
+  "splash": {
+    "style": "text",
+    "durationMs": 700
+  },
+  "desklets": {
+    "offers": [
+      "fastfetch",
+      "monitor",
+      "uptime",
+      "free",
+      "df",
+      "battery",
+      "network"
+    ],
+    "starter": [
       {
-        "name": "wipe",
-        "action": "terminal.clear",
-        "summary": "Clear the pane"
-      },
-      {
-        "name": "tweak",
-        "action": "launcher.openSettings",
-        "summary": "G Launcher Settings"
+        "kind": "fastfetch",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 4,
+        "spanY": 3
       }
-    ]
+    ],
+    "skins": {
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": true
+      }
+    }
   }
 }

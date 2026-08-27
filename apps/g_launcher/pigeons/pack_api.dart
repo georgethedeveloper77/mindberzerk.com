@@ -89,6 +89,10 @@ class PackInfo {
     this.features,
     // LAST here too, matching the field order above.
     this.tint,
+    // AND NOW THIS ONE IS LAST. Appended after `tint` for the reason stated
+    // three lines up: inserting mid-class shifts every field below it in the
+    // codec and the wire silently reinterprets one type as another.
+    this.previewLayout,
   });
 
   final String packId;
@@ -227,6 +231,35 @@ class PackInfo {
   /// Null for hero packs, third-party packs and Simple Icons, all of which
   /// carry their colours inside the art.
   final String? tint;
+
+  /// What the storefront card should DRAW, decided at publish time.
+  ///
+  /// ─── WHY THIS IS ONE STRING AND NOT FIVE FIELDS ─────────────────────────
+  ///
+  /// The card used to pick its picture from `previewShell` alone, because that
+  /// was the only layout signal the index carried. It was right when a shell
+  /// decided everything and wrong for ten of fifteen distros once `dock`,
+  /// `dockStyle`, `dockReveal` and `homeLayout` became real: KDE and Mint were
+  /// drawn with docks they do not have, Kali and Manjaro with the dock on the
+  /// wrong edge, elementary and Pocket magnifying when neither swells.
+  ///
+  /// Carrying the five source fields instead would put the derivation on the
+  /// device, in a second place, where it would drift from the panel's. The
+  /// panel holds the whole theme.json and the device holds only the index, so
+  /// the decision belongs at the only point that has the source.
+  ///
+  /// ─── AND IT ENCODES THE BAR TOO ─────────────────────────────────────────
+  ///
+  /// A bottom DOCK and a bottom PANEL are different pictures, and no preview
+  /// has ever drawn the bar from data: every card painted one at the top
+  /// whether the distro had it at the bottom or had none at all. Four have a
+  /// bottom panel and three have no bar.
+  ///
+  /// Values: `dockLeft`, `dockBottom`, `dockFlat`, `dockMagnified`, `noDock`,
+  /// `barBottom`, `dash`, `tiled`, `terminal`. A STRING, not an enum, for the
+  /// reason `packType` gives: a value a older client does not recognise must
+  /// degrade to a neutral picture rather than fail to parse.
+  final String? previewLayout;
 }
 
 /// A purchasable bundle, as advertised by the signed index.

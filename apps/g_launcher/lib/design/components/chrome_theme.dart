@@ -395,6 +395,123 @@ class ChromeText {
   );
 }
 
+/// How a context menu is laid out.
+///
+/// [glyphs] is the three-across chip strip with the rest underneath; [list] is
+/// a plain vertical menu with every action as a row.
+enum MenuShape { glyphs, list }
+
+/// What a [ChromeFamily] decides about a context menu.
+///
+/// ─── WHY THIS EXISTS AT ALL ─────────────────────────────────────────────────
+///
+/// [ChromeFamily]'s own doc says it decides Settings, dialogs, bottom sheets and
+/// folder popovers, and it did not. There was ONE read of it in the whole app:
+/// `final asList = chrome.family == ChromeFamily.aqua;` in `anchored_menu.dart`.
+/// Adwaita, Breeze and Generic were byte-identical everywhere, so authoring
+/// `chromeFamily: "breeze"` on a distro changed nothing, which made the axis a
+/// field the panel could write and the phone could not show.
+///
+/// A descriptor rather than more comparisons, because that one comparison IS
+/// how the axis ended up meaning nothing: the next surface that wants to fork
+/// reads this object instead of growing a second `== ChromeFamily.aqua`, and a
+/// fifth family is one arm here rather than a hunt through the widgets.
+///
+/// ─── THE HEADER IS NOT ONE OF THESE, AND THAT IS DELIBERATE ────────────────
+///
+/// A macOS context menu has no title, so an authenticity argument says Aqua
+/// should lose the header. It does not, because this app's header is not a
+/// title: it carries the app's OWN icon and the (i) button, and
+/// `AnchoredMenu.show` argues at length that a panel naming and picturing its
+/// subject is why the folder menu was given one too. Dropping it would move App
+/// info into a row and make one family's menu identify its subject less well
+/// than the other three, which is a worse trade than a missing convention.
+@immutable
+class ChromeMenu {
+  const ChromeMenu({
+    required this.shape,
+    required this.rowIcons,
+    required this.separators,
+  });
+
+  final MenuShape shape;
+
+  /// Do menu ROWS carry their icon?
+  ///
+  /// THE AXIS THAT CARRIES THE MOST, because on a phone the glyph is the widest
+  /// thing in a row and the eye reads the shape of the list before any word in
+  /// it. GNOME menus and macOS menus are text only; Breeze and Xfce menus have
+  /// icons. That single bool is most of the difference between a Kali menu and
+  /// a Deepin menu at a glance.
+  ///
+  /// Applied through [ChromeData.inMenu] rather than by passing null icons at
+  /// every call site, so a row a CALLER built is treated the same as one the
+  /// menu built. Settings rows are untouched: they are not in a menu.
+  final bool rowIcons;
+
+  /// A hairline between the action block and the rows beneath it.
+  final bool separators;
+
+  /// The family's answer. Exhaustive with no default arm, so a fifth family
+  /// stops compiling here until someone chooses.
+  static ChromeMenu forFamily(ChromeFamily family) => switch (family) {
+        // GNOME: a terse popover of plain text items. No icons in menus at all.
+        ChromeFamily.adwaita => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: false,
+            separators: false,
+          ),
+        // Breeze: the glyph strip, icons everywhere, separated groups. The one
+        // family that keeps the chip row, which is what makes a Plasma menu the
+        // odd one out at a glance.
+        ChromeFamily.breeze => const ChromeMenu(
+            shape: MenuShape.glyphs,
+            rowIcons: true,
+            separators: true,
+          ),
+        // Xfce: a dense list WITH icons and no rules. Same body as generic,
+        // and a separate arm rather than a shared one, because generic is the
+        // FALLBACK and xfce is a choice. Collapsing them would mean the next
+        // edit to the fallback silently edits Kali too.
+        ChromeFamily.xfce => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: true,
+            separators: false,
+          ),
+        // A tiling WM: text only and nothing between the rows. The same
+        // statement dmenu makes, made by the menus.
+        //
+        // Separators are what separates it from [aqua], which is also a
+        // text-only list: a Mac groups its menu with rules and a WM does not
+        // group at all.
+        ChromeFamily.wm => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: false,
+            separators: false,
+          ),
+        // A phone: rows divided by hairlines, each with a trailing glyph. The
+        // glyph is what separates it from [aqua], which is the same list
+        // without one, and it is the thing a thumb reads before the word.
+        ChromeFamily.pocket => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: true,
+            separators: true,
+          ),
+        // macOS and Pantheon: a plain menu, text only, grouped by a rule.
+        ChromeFamily.aqua => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: false,
+            separators: true,
+          ),
+        // Xfce and the tiling desktops: a dense list WITH icons and no rules.
+        ChromeFamily.generic => const ChromeMenu(
+            shape: MenuShape.list,
+            rowIcons: true,
+            separators: false,
+          ),
+      };
+}
+
 /// The aggregate a primitive reads: colours + type. One object so a widget
 /// grabs `ChromeScope.of(context)` once and has everything.
 @immutable
@@ -407,6 +524,7 @@ class ChromeData {
     this.panelRadius = 16,
     required this.text,
     this.family = ChromeFamily.generic,
+    this.inMenu = false,
   });
 
   final ChromeColors colors;
@@ -446,6 +564,33 @@ class ChromeData {
   /// chrome — read it from here rather than reaching into the spec. Bootstrap is
   /// [ChromeFamily.generic]: a neutral frame until the real theme lands.
   final ChromeFamily family;
+
+  /// Is this scope INSIDE a context menu?
+  ///
+  /// False everywhere except below [AnchoredMenu], which re-provides itself
+  /// with it set. It exists so [ChromeMenu.rowIcons] can reach a row without
+  /// every call site having to remember to pass a null icon, and so the same
+  /// rule cannot leak into Settings, where an Adwaita list genuinely does carry
+  /// icons and stripping them would be the wrong convention applied to the
+  /// wrong surface.
+  final bool inMenu;
+
+  /// What this family decides about a context menu. Derived rather than stored,
+  /// so nothing has to remember to pass it and nothing can pass a value that
+  /// disagrees with [family].
+  ChromeMenu get menu => ChromeMenu.forFamily(family);
+
+  /// The same chrome, marked as being inside a menu. See [inMenu].
+  ChromeData asMenu() => ChromeData(
+        colors: colors,
+        opacity: opacity,
+        panelBlur: panelBlur,
+        panelTint: panelTint,
+        panelRadius: panelRadius,
+        text: text,
+        family: family,
+        inMenu: true,
+      );
 
   /// House-chrome floor. See [ChromeColors.bootstrap].
   static const bootstrap = ChromeData(

@@ -38,6 +38,21 @@ class SettingsFraming {
             cardRadius: 16, cardInset: 16, headerUpper: false),
         ChromeFamily.breeze => const SettingsFraming(
             cardRadius: 6, cardInset: 12, headerUpper: true),
+        // Xfce: the squarest of the five and the tightest. Its own frame
+        // rather than generic's, so the fallback can change without moving
+        // Kali. The GRID landing is a separate axis and lands with the
+        // settings shape work; this is the framing only.
+        ChromeFamily.xfce => const SettingsFraming(
+            cardRadius: 3, cardInset: 10, headerUpper: true),
+        // A WM: nothing rounds, nothing is inset, and headings are quiet.
+        // The squarest of the six by a clear margin, which is the point.
+        ChromeFamily.wm => const SettingsFraming(
+            cardRadius: 0, cardInset: 8, headerUpper: false),
+        // The roundest of the seven. A phone's settings are large soft cards
+        // with generous air between them, which is the opposite end of the
+        // range from `wm`'s radius 0.
+        ChromeFamily.pocket => const SettingsFraming(
+            cardRadius: 16, cardInset: 16, headerUpper: false),
         ChromeFamily.aqua => const SettingsFraming(
             cardRadius: 12, cardInset: 16, headerUpper: false),
         ChromeFamily.generic => const SettingsFraming(
@@ -566,22 +581,30 @@ class ChipValue extends StatelessWidget {
 }
 
 /// A pill track with one active segment (accent fill, ink text).
+/// A segmented choice.
+///
+/// [enabled] false makes every segment inert AND fades the whole control, the
+/// same both-halves rule [SettingsToggleRow.enabled] states: killing only the
+/// tap leaves a control that looks live and refuses, which is worse than
+/// either on its own.
 class Seg extends StatelessWidget {
   const Seg({
     super.key,
     required this.value,
     required this.options,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String value;
   final Map<String, String> options;
   final ValueChanged<String> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final s = SettingsSkin.of(context);
-    return Container(
+    final control = Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: s.card2,
@@ -592,7 +615,7 @@ class Seg extends StatelessWidget {
         children: [
           for (final e in options.entries)
             GestureDetector(
-              onTap: () => onChanged(e.key),
+              onTap: enabled ? () => onChanged(e.key) : null,
               behavior: HitTestBehavior.opaque,
               child: Container(
                 padding:
@@ -617,6 +640,11 @@ class Seg extends StatelessWidget {
         ],
       ),
     );
+
+    // One Opacity over the whole control, matching SettingsToggleRow: fading
+    // only the inactive segments would read as a rendering glitch rather than
+    // as a disabled setting.
+    return enabled ? control : Opacity(opacity: 0.45, child: control);
   }
 }
 
@@ -763,6 +791,7 @@ class OpacityRow extends StatelessWidget {
     this.label,
     this.sub,
     this.subWhenInert = false,
+    this.enabled = true,
     this.following = false,
     this.onFollow,
   });
@@ -781,6 +810,15 @@ class OpacityRow extends StatelessWidget {
   /// vanishes per distro is worse than one that says why it is idle.
   final bool subWhenInert;
 
+  /// DIMMED AND INERT, NOT ABSENT. Same rule [SettingsToggleRow.enabled]
+  /// states, and same reason: bar opacity on a distro with no bar is a slider
+  /// that moves and changes nothing.
+  ///
+  /// Distinct from [subWhenInert], which is about whether the SUBTITLE shows
+  /// while the value is following the theme. A row can be inert in that sense
+  /// and still perfectly live in this one.
+  final bool enabled;
+
   /// True while this section has no value of its own and is tracking the main
   /// slider. The Follow action only appears once it has stopped.
   final bool following;
@@ -795,7 +833,7 @@ class OpacityRow extends StatelessWidget {
     final d = ChromeScope.of(context);
     final c = d.colors;
 
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,7 +870,7 @@ class OpacityRow extends StatelessWidget {
             max: 1.0,
             divisions: 8,
             label: '${(value * 100).round()}%',
-            onChanged: onChanged,
+            onChanged: enabled ? onChanged : null,
           ),
           Padding(
             padding: const EdgeInsets.only(left: 34, bottom: 4),
@@ -846,5 +884,11 @@ class OpacityRow extends StatelessWidget {
         ],
       ),
     );
+
+    // The label, the icon and the percentage fade with the slider. Material
+    // greys a disabled Slider on its own, so without this the track would dim
+    // and the words above it would not, which reads as a rendering fault
+    // rather than as a setting that does not apply here.
+    return enabled ? row : Opacity(opacity: 0.45, child: row);
   }
 }

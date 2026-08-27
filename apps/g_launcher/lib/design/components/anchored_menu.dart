@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../engine/theme_spec.dart' show ChromeFamily;
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
 import 'themed_list_row.dart';
@@ -111,12 +110,26 @@ class AnchoredMenu {
   /// pointer position as a zero-size rect instead, which is what
   /// [Rect.fromCenter] with a width and height of one gives.
   ///
-  /// Null when the box is not laid out, which the callers below treat the same
-  /// way a missing anchor is treated: centred.
+  /// Null when the context has no laid-out BOX, which the callers below treat
+  /// the same way a missing anchor is treated: centred.
+  ///
+  /// ─── `is`, NOT `as RenderBox?` ──────────────────────────────────────────
+  ///
+  /// The cast reads as null-safe and is not: it only tolerates a NULL render
+  /// object, and throws on a non-null one of the wrong type. The wrong type is
+  /// not exotic. Every `ListView.builder` hands its `itemBuilder` a context
+  /// whose nearest render object is the `RenderSliverList`, so any row that
+  /// captured that context and asked for an anchor threw
+  /// `RenderSliverList is not a subtype of RenderBox?` on long press, and every
+  /// list in this app builds its rows that way.
+  ///
+  /// A type test answers null instead, so a caller that cannot be measured gets
+  /// a centred menu rather than a crash. Call sites should still pass a ROW's
+  /// own context where they can; this is the floor, not the fix.
   static Rect? anchorOf(BuildContext context) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+    final object = context.findRenderObject();
+    if (object is! RenderBox || !object.hasSize) return null;
+    return object.localToGlobal(Offset.zero) & object.size;
   }
 
   /// Open the menu.
@@ -195,10 +208,22 @@ class AnchoredMenu {
         // and calling it twice to ask "are there any" would run every closure
         // and every provider read in it a second time.
         final rowWidgets = rows(menuContext);
-        final asList = chrome.family == ChromeFamily.aqua;
+        // ─── THE FAMILY'S ANSWER, NOT A COMPARISON ─────────────────────
+        //
+        // This was `chrome.family == ChromeFamily.aqua`, and that single line
+        // was the ENTIRE extent of what ChromeFamily decided in this app:
+        // adwaita, breeze and generic were byte-identical, so three of the four
+        // families the panel could author were the same family in practice.
+        // See [ChromeMenu] for what each one now decides and why.
+        final style = chrome.menu;
+        final asList = style.shape == MenuShape.list;
 
         return ChromeScope(
-          data: chrome,
+          // MARKED, so a row knows it is in a menu. [ChromeMenu.rowIcons] has
+          // to reach rows the CALLER built, not only the ones assembled below,
+          // and the alternative was every call site remembering to pass a null
+          // icon on three families out of four.
+          data: chrome.asMenu(),
           child: CustomSingleChildLayout(
             delegate: _AnchorDelegate(
               anchor: anchor ??
@@ -246,32 +271,44 @@ class AnchoredMenu {
                     // would be the single least Mac-like thing on that shell.
                     // The actions are not lost: they fall into the rows below
                     // in the same order.
-                    if (actions.isNotEmpty && !asList) ...[
+                    if (actions.isNotEmpty && !asList)
                       _Actions(
                         actions: actions,
                         chrome: chrome,
                         menuContext: menuContext,
                       ),
-                      if (rowWidgets.isNotEmpty)
-                        Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: chrome.colors.line,
-                        ),
-                    ],
                     if (actions.isNotEmpty && asList)
                       for (final a in actions)
                         ThemedListRow(
+                          // Passed ALWAYS. Whether it draws is the row's own
+                          // decision, taken from the scope above, so a caller's
+                          // row and this one answer the family the same way.
                           icon: a.icon,
                           title: a.label,
                           danger: a.danger,
-                          // Popped here too, so the Aqua list and the glyph row
-                          // give an action the same contract.
+                          // Popped here too, so the list and the glyph row give
+                          // an action the same contract.
                           onTap: () {
                             Navigator.pop(menuContext);
                             a.onTap();
                           },
                         ),
+                    // ─── THE RULE, ON BOTH SHAPES NOW ──────────────────
+                    //
+                    // The divider was inside the glyph-strip branch, so it was
+                    // a property of the SHAPE rather than of the family: the
+                    // one family that took the list could never have one, and
+                    // the three that took the strip always did. It is its own
+                    // axis now, which is what lets Aqua group its menu and
+                    // Generic run its rows together the way Xfce does.
+                    if (actions.isNotEmpty &&
+                        rowWidgets.isNotEmpty &&
+                        style.separators)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: chrome.colors.line,
+                      ),
                     ...rowWidgets,
                     const SizedBox(height: 6),
                   ],
