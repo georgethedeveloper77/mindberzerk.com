@@ -547,6 +547,16 @@ class _Search extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        // ─── THE SHEET, NOT THE PAGE ─────────────────────────────────────
+        //
+        // Slingshot is a CARD over the wallpaper with the dock still
+        // visible around it, which is the whole of what elementary sells.
+        // Navigating to a full screen throws that away to show a list.
+        //
+        // One of two callers; the other is Pocket's App Library. The six
+        // distros whose drawer has no field of its own keep the page,
+        // which carries suggested apps, settings topics, folders and
+        // recent searches that a card has no room for.
         onTap: () => showSearchSheet(context, theme),
         child: Container(
           height: 30,

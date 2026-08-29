@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
@@ -16,6 +17,8 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Sets the REAL system wallpaper, rather than the launcher painting its own.
@@ -54,8 +57,21 @@ class WallpaperController(context: Context) {
         applyToLock: Boolean,
         fit: String = "cover",
         letterboxColor: Long = 0xFF000000L,
+        focalX: Float = 0.5f,
+        focalY: Float = 0.5f,
+        zoom: Float = 1f,
     ): Boolean {
-        val decoded = decodeSampled(source) ?: return false
+        // Clamped HERE rather than trusted from the caller. These arrive over a
+        // Pigeon channel from stored prefs, and prefs outlive the code that
+        // wrote them: a value authored by a future build, or a hand-edited
+        // theme.json, must degrade to something sane rather than produce a
+        // degenerate crop rect that the system silently ignores. A zoom below 1
+        // would ask for a region larger than the bitmap.
+        val fx = focalX.coerceIn(0f, 1f)
+        val fy = focalY.coerceIn(0f, 1f)
+        val z = zoom.coerceIn(1f, 4f)
+
+        val decoded = decodeSampled(source, fit) ?: return false
 
         // "cover" (and anything unrecognised, per the degrade rule the schema
         // documents) is the LEGACY PATH, untouched: the sampled bitmap goes to
@@ -64,19 +80,41 @@ class WallpaperController(context: Context) {
         // "compose against MY screen" pay for a composite.
         val bitmap = when (fit) {
             "contain", "fill", "center" ->
-                composite(decoded, fit, letterboxColor.toInt()).also {
+                composite(decoded, fit, letterboxColor.toInt(), fx, fy, z).also {
                     if (it !== decoded) decoded.recycle()
                 }
             else -> decoded
         }
 
+        // ─── WHY THE CROP HINT IS NOW COMPUTED AND NOT NULL ─────────────────
+        //
+        // The composite fits have already drawn against this exact screen, so
+        // the bitmap IS the frame and there is nothing left to hint: null is
+        // correct for them.
+        //
+        // "cover" is the one that was wrong, and it was wrong for everybody
+        // because it is the default. It handed the sampled bitmap over with a
+        // null hint, and null means "display the full image if possible given
+        // the image's and the device's aspect ratios", so the SYSTEM decided
+        // which part of a 1200x2400 dragon survived being fitted to a surface
+        // roughly twice the screen's width. That decision is not documented,
+        // varies by OEM, and depends on the source aspect, which is exactly why
+        // some wallpapers looked centred and others looked shoved sideways with
+        // no pattern anyone could name.
+        //
+        // A hint of the surface's own aspect, positioned on the focal point,
+        // replaces that guess with arithmetic and STILL SCROLLS: the hint is
+        // the visible window, the rest of the bitmap remains available to pan
+        // into. That is the whole reason this is a hint rather than a crop.
+        val hint = if (bitmap === decoded) cropHint(bitmap, fx, fy, z) else null
+
         return try {
             // The flag-based overload is API 24 and minSdk is 26, so there is no
             // legacy branch here. The single-argument setBitmap() it replaced
             // could not target home and lock separately.
-            manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
+            manager.setBitmap(bitmap, hint, true, WallpaperManager.FLAG_SYSTEM)
             if (applyToLock) {
-                manager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
+                manager.setBitmap(bitmap, hint, true, WallpaperManager.FLAG_LOCK)
             }
             true
         } catch (e: Exception) {
@@ -191,7 +229,14 @@ class WallpaperController(context: Context) {
      * property. Overflow (center on a large photo) clips at the canvas edge,
      * which IS the crop the mode promises.
      */
-    private fun composite(src: Bitmap, fit: String, color: Int): Bitmap {
+    private fun composite(
+        src: Bitmap,
+        fit: String,
+        color: Int,
+        focalX: Float,
+        focalY: Float,
+        zoom: Float,
+    ): Bitmap {
         val metrics = appContext.resources.displayMetrics
         val w = metrics.widthPixels
         val h = metrics.heightPixels
@@ -203,6 +248,14 @@ class WallpaperController(context: Context) {
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 
         val dst = when (fit) {
+            // FOCAL IS IGNORED for these two, deliberately, and that is not an
+            // oversight to fix later. "fill" maps the whole image onto the
+            // whole screen and "contain" shows the whole image inside it, so in
+            // both cases every pixel of the source is already on screen. There
+            // is nothing to choose between, and honouring a focal point here
+            // would mean cropping an image whose entire promise is that it is
+            // not cropped. The UI hides the framing drag on these fits for the
+            // same reason.
             "fill" -> RectF(0f, 0f, w.toFloat(), h.toFloat())
             "contain" -> centred(
                 src,
@@ -210,10 +263,13 @@ class WallpaperController(context: Context) {
                 w,
                 h,
             )
-            // "center": as decoded, unscaled. decodeSampled has already
-            // brought a huge photo near screen resolution, which is what
-            // actual-size means once the alternative is an OOM.
-            else -> centred(src, 1f, w, h)
+            // "center": actual size, scaled by the user's zoom. This is the one
+            // composite fit where framing means something, because the image
+            // can be larger than the screen and something has to decide which
+            // part of it you keep. decodeSampled has already brought a huge
+            // photo near screen resolution, which is what actual-size means
+            // once the alternative is an OOM.
+            else -> focused(src, zoom, w, h, focalX, focalY)
         }
         canvas.drawBitmap(src, null, dst, paint)
         return out
@@ -228,14 +284,119 @@ class WallpaperController(context: Context) {
     }
 
     /**
+     * Like [centred], but the point [fx], [fy] of the source is pulled to the
+     * middle of the screen where there is room to move it.
+     *
+     * THE CLAMP IS THE POINT. Sliding an oversized image around is what framing
+     * means, but sliding an UNDERSIZED one only opens a letterbox gap on the
+     * far side, which is a worse picture than the centred version the user
+     * would otherwise have got. So each axis is clamped independently: pan the
+     * axis that overflows, centre the axis that does not. A tall dragon on a
+     * tall screen is therefore free vertically and pinned horizontally, which
+     * is the behaviour you want and not a special case anyone has to author.
+     */
+    private fun focused(
+        src: Bitmap,
+        zoom: Float,
+        w: Int,
+        h: Int,
+        fx: Float,
+        fy: Float,
+    ): RectF {
+        val dw = src.width * zoom
+        val dh = src.height * zoom
+
+        val left = if (dw > w) {
+            (w / 2f - fx * dw).coerceIn(w - dw, 0f)
+        } else {
+            (w - dw) / 2f
+        }
+        val top = if (dh > h) {
+            (h / 2f - fy * dh).coerceIn(h - dh, 0f)
+        } else {
+            (h - dh) / 2f
+        }
+        return RectF(left, top, left + dw, top + dh)
+    }
+
+    /**
+     * The sub-rectangle of [src] the system should treat as the visible window,
+     * shaped like the wallpaper surface and centred on the focal point.
+     *
+     * SHAPED LIKE THE SURFACE, NOT THE SCREEN. `desiredMinimumWidth` is what
+     * the platform actually holds, which on a scrolling launcher is roughly
+     * twice the screen width. Handing it a screen-shaped hint would make it
+     * stretch that region across the whole scroll span, and the wallpaper would
+     * come out zoomed in with the pan doing nothing. Asking the manager rather
+     * than hardcoding 2x also means an OEM that does not scroll gets a
+     * screen-shaped hint for free.
+     *
+     * Returns null rather than a degenerate rect when the arithmetic cannot
+     * produce a usable region, because null is the documented "you decide" and
+     * a zero-area Rect is undefined behaviour.
+     */
+    private fun cropHint(src: Bitmap, fx: Float, fy: Float, zoom: Float): Rect? {
+        val metrics = appContext.resources.displayMetrics
+        val screenW = metrics.widthPixels
+        val screenH = metrics.heightPixels
+        if (screenW <= 0 || screenH <= 0) return null
+
+        val surfaceW = manager.desiredMinimumWidth.takeIf { it > 0 } ?: (screenW * 2)
+        val surfaceH = manager.desiredMinimumHeight.takeIf { it > 0 } ?: screenH
+        if (surfaceH <= 0) return null
+
+        val aspect = surfaceW.toFloat() / surfaceH.toFloat()
+        val bw = src.width.toFloat()
+        val bh = src.height.toFloat()
+        if (bw <= 0f || bh <= 0f) return null
+
+        // Largest rect of the surface's aspect that fits inside the bitmap,
+        // then divided by the zoom, which is what zooming in means: keep less.
+        var cw = min(bw, bh * aspect)
+        var ch = cw / aspect
+        if (ch > bh) {
+            ch = bh
+            cw = ch * aspect
+        }
+        cw /= zoom
+        ch /= zoom
+        if (cw < 1f || ch < 1f) return null
+
+        val left = (fx * bw - cw / 2f).coerceIn(0f, bw - cw)
+        val top = (fy * bh - ch / 2f).coerceIn(0f, bh - ch)
+
+        val rect = Rect(
+            left.roundToInt(),
+            top.roundToInt(),
+            (left + cw).roundToInt(),
+            (top + ch).roundToInt(),
+        )
+        // Rounding can collapse a one-pixel edge case. A null hint is the old
+        // behaviour, which is worse but never broken.
+        return if (rect.width() > 0 && rect.height() > 0) rect else null
+    }
+
+    /**
      * Decoding a full-res wallpaper straight into memory is a reliable OOM on a
      * 4GB Tecno — a 4000x3000 JPEG is ~48MB as ARGB_8888. Sample it down to the
      * screen first.
      */
-    private fun decodeSampled(source: String): Bitmap? {
+    private fun decodeSampled(source: String, fit: String): Bitmap? {
         val metrics = appContext.resources.displayMetrics
-        // Wallpapers scroll horizontally, so the system wants roughly 2x width.
-        val targetW = metrics.widthPixels * 2
+        // ─── THE TARGET DEPENDS ON THE FIT, AND IT DID NOT USED TO ──────────
+        //
+        // "cover" hands the bitmap to the system, which spreads it across a
+        // surface roughly twice the screen's width, so it genuinely needs the
+        // extra resolution. The composite fits draw onto a canvas that is
+        // exactly one screen, so asking for double was buying a bitmap twice
+        // the size and throwing half of it away. On a 4GB Tecno that is not a
+        // rounding error, it is the difference between one sample step and two.
+        val wide = fit != "contain" && fit != "fill" && fit != "center"
+        val targetW = if (wide) {
+            manager.desiredMinimumWidth.takeIf { it > 0 } ?: (metrics.widthPixels * 2)
+        } else {
+            metrics.widthPixels
+        }
         val targetH = metrics.heightPixels
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

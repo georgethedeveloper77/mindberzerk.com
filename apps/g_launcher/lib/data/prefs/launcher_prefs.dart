@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 
+import '../../engine/wallpaper_framing.dart';
 import '../../platform/launcher_api.g.dart' as api;
 
 /// User overrides for ONE theme.
@@ -79,8 +80,11 @@ class LauncherPrefs {
     this.wallpaperRotationMinutes,
     this.wallpaperRotationSource,
     this.wallpaperFit,
+    this.wallpaperFraming = const {},
+    this.wallpaperOrder = const [],
     this.wallpaperInitialized = false,
     this.deskletsInitialized = false,
+    this.homeInitialized = false,
   });
 
   /// Bumped when the JSON shape changes incompatibly. Read it before parsing;
@@ -748,6 +752,48 @@ class LauncherPrefs {
   /// failing.
   final String? wallpaperFit;
 
+  /// Per-wallpaper framing the user has set, keyed by the SAME source string
+  /// stored in [wallpaperCurrent] and listed in [wallpapers].
+  ///
+  /// ─── WHY THIS DID NOT REPLACE [wallpaperFit] ────────────────────────────
+  ///
+  /// [wallpaperFit] is the older per-theme setting and it is still read, as the
+  /// arm below this one in `resolveWallpaperFraming`. Deleting it would
+  /// silently reset everyone who ever chose Fit for a letterboxed screenshot,
+  /// and migrating it is not possible: it would have to guess WHICH wallpaper
+  /// the user meant it for, and the setting never named one. So the old
+  /// preference keeps working everywhere until a wallpaper gets framing of its
+  /// own, at which point that wallpaper stops asking.
+  ///
+  /// ─── ENTRIES THAT SAY NOTHING ARE NOT STORED ────────────────────────────
+  ///
+  /// The writer drops any [WallpaperFraming] whose `isDefault` is true. This
+  /// map is per theme and a distro's wallpaper list plus the user's own photos
+  /// can run long, so an entry per wallpaper the user merely opened is a prefs
+  /// blob that only ever grows. A key that is absent and a key holding all
+  /// defaults mean the same thing, and only one of them costs bytes on every
+  /// read.
+  final Map<String, WallpaperFraming> wallpaperFraming;
+
+  /// The user's own order for THIS DISTRO'S PRESETS, by name.
+  ///
+  /// ─── WHY THE PRESETS NEED A LIST AND THE USER'S PHOTOS DO NOT ───────────
+  ///
+  /// `wallpapers` IS the user's own list, so reordering it is the edit. The
+  /// presets come from `spec.wallpapers`, which the pack owns and a republish
+  /// rewrites, so there is nothing there to reorder in place and the override
+  /// has to live somewhere the pack cannot overwrite.
+  ///
+  /// ─── WHY A REPUBLISH DOES NOT DESTROY IT ────────────────────────────────
+  ///
+  /// Names here that the pack no longer ships are IGNORED rather than pruned,
+  /// and names the pack ships that are absent here sort to the END. So a pack
+  /// that adds two wallpapers shows them after the ordered ones instead of
+  /// silently discarding an order the user set, and a pack that renames one
+  /// loses only that entry's position. Empty means the pack's own order, which
+  /// is what every install starts with and what the author intended.
+  final List<String> wallpaperOrder;
+
   /// Has this theme's default wallpaper been applied yet?
   ///
   /// Per-theme, and ONCE. Ubuntu applies Numbat the first time you use it; if
@@ -764,6 +810,17 @@ class LauncherPrefs {
   /// every desklet is a legitimate arrangement, so "the list is empty" cannot
   /// stand in for this flag.
   final bool deskletsInitialized;
+
+  /// Has this theme's authored HOME grid been laid out yet?
+  ///
+  /// [deskletsInitialized]'s sibling and separate from it on purpose. The two
+  /// seeds can arrive in different builds and a distro can gain a `home` block
+  /// long after its desklets: one flag for both would mean a theme already
+  /// marked done never picks up the icons it was later given.
+  ///
+  /// Same ONCE rule and the same reason. An empty desktop is a legitimate
+  /// arrangement, so "there are no home items" cannot stand in for this.
+  final bool homeInitialized;
 
   LauncherPrefs copyWith({
     String? dockSide,
@@ -830,8 +887,11 @@ class LauncherPrefs {
     int? wallpaperRotationMinutes,
     String? wallpaperRotationSource,
     String? wallpaperFit,
+    Map<String, WallpaperFraming>? wallpaperFraming,
+    List<String>? wallpaperOrder,
     bool? wallpaperInitialized,
     bool? deskletsInitialized,
+    bool? homeInitialized,
   }) {
     return LauncherPrefs(
       dockSide: dockSide ?? this.dockSide,
@@ -900,9 +960,12 @@ class LauncherPrefs {
       wallpaperRotationSource:
           wallpaperRotationSource ?? this.wallpaperRotationSource,
       wallpaperFit: wallpaperFit ?? this.wallpaperFit,
+      wallpaperFraming: wallpaperFraming ?? this.wallpaperFraming,
+      wallpaperOrder: wallpaperOrder ?? this.wallpaperOrder,
       desklets: desklets ?? this.desklets,
       wallpaperInitialized: wallpaperInitialized ?? this.wallpaperInitialized,
       deskletsInitialized: deskletsInitialized ?? this.deskletsInitialized,
+      homeInitialized: homeInitialized ?? this.homeInitialized,
     );
   }
 
@@ -947,6 +1010,8 @@ class LauncherPrefs {
     bool wallpaperRotationMinutes = false,
     bool wallpaperRotationSource = false,
     bool wallpaperFit = false,
+    bool wallpaperFraming = false,
+    bool wallpaperOrder = false,
     bool folderCols = false,
     bool folderRows = false,
     bool folderShape = false,
@@ -1067,8 +1132,16 @@ class LauncherPrefs {
       wallpaperRotationSource:
           wallpaperRotationSource ? null : this.wallpaperRotationSource,
       wallpaperFit: wallpaperFit ? null : this.wallpaperFit,
+      // Cleared to EMPTY, not null: the field is non-nullable because "no
+      // framing anywhere" and "framing I have not loaded" are the same state
+      // for a map, unlike every nullable field above where null means inherit.
+      wallpaperFraming: wallpaperFraming ? const {} : this.wallpaperFraming,
+      // Empty, not null, for the same reason the map above is: a list has no
+      // null state and clearing it means "back to the pack's order".
+      wallpaperOrder: wallpaperOrder ? const [] : this.wallpaperOrder,
       wallpaperInitialized: wallpaperInitialized,
       deskletsInitialized: deskletsInitialized,
+      homeInitialized: homeInitialized,
     );
   }
 
@@ -1143,8 +1216,18 @@ class LauncherPrefs {
         if (wallpaperRotationSource != null)
           'wallpaperRotationSource': wallpaperRotationSource,
         if (wallpaperFit != null) 'wallpaperFit': wallpaperFit,
+        // Empty entries are dropped on the way out as well as on the way in,
+        // so a framing reset actually shrinks the blob instead of leaving a
+        // row of defaults behind it.
+        if (wallpaperOrder.isNotEmpty) 'wallpaperOrder': wallpaperOrder,
+        if (wallpaperFraming.isNotEmpty)
+          'wallpaperFraming': {
+            for (final e in wallpaperFraming.entries)
+              if (!e.value.isDefault) e.key: e.value.toJson(),
+          },
         'wallpaperInitialized': wallpaperInitialized,
         'deskletsInitialized': deskletsInitialized,
+        'homeInitialized': homeInitialized,
       };
 
   static LauncherPrefs fromJson(Map<String, dynamic> j) {
@@ -1248,8 +1331,19 @@ class LauncherPrefs {
           (j['wallpaperRotationMinutes'] as num?)?.toInt(),
       wallpaperRotationSource: j['wallpaperRotationSource'] as String?,
       wallpaperFit: j['wallpaperFit'] as String?,
+      wallpaperOrder: ((j['wallpaperOrder'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(),
+      wallpaperFraming: {
+        for (final e in ((j['wallpaperFraming'] as Map?) ?? const {}).entries)
+          if (e.key is String && e.value is Map)
+            e.key as String: WallpaperFraming.fromJson(
+              (e.value as Map).cast<String, dynamic>(),
+            ),
+      },
       wallpaperInitialized: j['wallpaperInitialized'] as bool? ?? false,
       deskletsInitialized: j['deskletsInitialized'] as bool? ?? false,
+      homeInitialized: j['homeInitialized'] as bool? ?? false,
     );
   }
 
@@ -1360,8 +1454,13 @@ class LauncherPrefs {
         other.wallpaperRotationMinutes == wallpaperRotationMinutes &&
         other.wallpaperRotationSource == wallpaperRotationSource &&
         other.wallpaperFit == wallpaperFit &&
+        const MapEquality<String, WallpaperFraming>()
+            .equals(other.wallpaperFraming, wallpaperFraming) &&
+        const ListEquality<String>()
+            .equals(other.wallpaperOrder, wallpaperOrder) &&
         other.wallpaperInitialized == wallpaperInitialized &&
-        other.deskletsInitialized == deskletsInitialized;
+        other.deskletsInitialized == deskletsInitialized &&
+        other.homeInitialized == homeInitialized;
   }
 
   @override
@@ -1433,8 +1532,14 @@ class LauncherPrefs {
         wallpaperRotationMinutes,
         wallpaperRotationSource,
         wallpaperFit,
+        // In BOTH == and hashCode. The D2 note a few lines up is about exactly
+        // this omission on folderOrderCustom, and a map is the field where it
+        // bites hardest: prefs go into providers keyed by value.
+        const MapEquality<String, WallpaperFraming>().hash(wallpaperFraming),
+        const ListEquality<String>().hash(wallpaperOrder),
         wallpaperInitialized,
         deskletsInitialized,
+        homeInitialized,
       ]);
 }
 

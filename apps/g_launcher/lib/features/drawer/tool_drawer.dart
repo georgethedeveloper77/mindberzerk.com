@@ -9,7 +9,7 @@ import '../../design/components/anchored_menu.dart';
 import '../../design/components/press_pop.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../search/search_sheet.dart';
+import '../search/search_page.dart';
 // `openTerminal` lives here, not in drawer_actions. That file CALLS it, and
 // Dart imports are not transitive, so importing drawer_actions does not bring
 // it along.
@@ -665,7 +665,11 @@ class _Search extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => showSearchSheet(context, theme),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => SearchPage(theme: theme),
+          ),
+        ),
         child: Container(
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 12),

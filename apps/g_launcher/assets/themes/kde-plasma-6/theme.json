@@ -3,9 +3,7 @@
   "name": "KDE Plasma",
   "version": "6",
   "shell": "plasma",
-  "chromeFamily": "breeze",
   "tier": "free",
-  "minAppVersion": 6,
   "palette": {
     "bgTop": "#1B2733",
     "bgBottom": "#151A1F",
@@ -14,36 +12,13 @@
     "accent": "#3DAEE9",
     "onDark": "#FCFCFC"
   },
-  "paletteLight": {
-    "bgTop": "#BFD4E8",
-    "bgBottom": "#E1EAF3",
-    "bar": "#CEDDEB",
-    "dock": "#C2CEDDEB",
-    "accent": "#3DAEE9",
-    "onDark": "#232629"
-  },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
   },
   "layout": {
-    "dock": "off",
+    "dock": "bottom",
     "topBar": false,
-    "panels": [
-      {
-        "side": "bottom",
-        "height": 44,
-        "modules": [
-          "kickoff",
-          "tasks",
-          "spacer",
-          "tray",
-          "clock"
-        ]
-      }
-    ],
-    "desktopIcons": true,
-    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
@@ -52,12 +27,20 @@
   "icons": {
     "treatment": "squircle",
     "cornerRadius": 0.28,
-    "foregroundScale": 1.0,
+    "foregroundScale": 1,
     "backgroundColor": "#31363B"
   },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
   "wallpapers": [
-    "assets/themes/kde-plasma-6/wallpapers/kde_breeze.webp"
+    "1.webp",
+    "2.webp",
+    "3.webp",
+    "4.webp"
   ],
+  "minAppVersion": 6,
   "boot": {
     "tailMs": 600,
     "lines": [
@@ -111,5 +94,73 @@
         "text": "Reached target Graphical Interface"
       }
     ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery",
+      "free",
+      "df",
+      "uptime"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0
+      },
+      {
+        "kind": "monitor",
+        "page": 0
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      }
+    }
   }
 }

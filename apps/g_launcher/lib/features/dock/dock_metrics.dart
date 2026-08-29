@@ -99,6 +99,49 @@ abstract final class DockMetrics {
   /// The hairline separator before the grid button, plus its gap.
   static const separator = 1.0 + gap;
 
+  // ─── HOW MUCH DESKTOP A VISIBLE DOCK OCCUPIES ───────────────────────────
+  //
+  // Everything above sizes the dock along its RUN. These three size it across,
+  // and they exist because the desklet grid had no way to ask.
+  //
+  // `DeskletSurfaceView` is `Positioned.fill` inside the workspace and the dock
+  // is `Positioned` inside the same box, so the grid runs underneath it. The
+  // surface's own `margin` doc already notes that the dock lives in its box and
+  // correctly refuses to pay for it with a uniform inset on all four edges; it
+  // simply never replaced that with a per-side one. The result was a desklet at
+  // column 0 sitting behind the dock on every distro with a vertical dock.
+  //
+  // Derived rather than written down as 89. `GnomeDock` pads its cross axis by
+  // 7 either way (`EdgeInsets.symmetric(horizontal: 7, vertical: 9)` on a
+  // vertical dock, the reverse on a horizontal one) and draws a 1dp border, and
+  // the shell positions it 9 from the edge. Four numbers that already exist,
+  // and a literal here is four chances for this to stop matching the dock.
+
+  /// The dock's cross-axis padding. 7 on whichever axis is not the run.
+  static const crossPadding = 7.0;
+
+  /// `Border.all` on the dock's own container.
+  static const borderWidth = 1.0;
+
+  /// How far the shell positions the dock from the workspace edge. See the
+  /// `Positioned` in `gnome_shell.dart`: `left: 9` for a vertical dock,
+  /// `insets.bottom + 9` for a horizontal one.
+  static const edgeOffset = 9.0;
+
+  /// The band a dock occupies on its own edge, measured at [maxSlot].
+  ///
+  /// AT THE MAXIMUM, NOT THE LIVE SLOT SIZE, and that is a decision. The live
+  /// size depends on the app count, which this surface does not know and should
+  /// not have to watch: a grid that re-derived every time somebody pinned a
+  /// dock app would reflow the whole desktop for it. A four-app dock lands at
+  /// [maxSlot] anyway, which is the out-of-box case, and the worst error is a
+  /// packed dock leaving an 18dp strip of unused desktop beside it.
+  ///
+  /// Erring toward over-reserving is the right direction. Too much leaves a
+  /// gap; too little puts a desklet back under the dock, which is the bug.
+  static const reserve = maxSlot + crossPadding * 2 + borderWidth * 2 +
+      edgeOffset;
+
   /// The out-of-box dock: four apps, auto-filled from frequency. Also where the
   /// count-taper starts biting — apps past this pull the slot size down.
   static const defaultCount = 4;

@@ -359,6 +359,85 @@ export interface IndexPack {
    * a pack carries rows only once it has been republished.
    */
   features?: IndexFeature[];
+
+  /**
+   * What is in the box: wallpapers, icon set and typeface.
+   *
+   * ─── THE FLOOR UNDER `features` ───────────────────────────────────────────
+   *
+   * [features] is EDITORIAL. Someone has to have something true to write, and
+   * for four distros nobody does: Manjaro, Fedora, Zorin and Deepin have no
+   * honest exclusive row between them, two of them are paid, and their
+   * storefront cards are a name over a rectangle with a price beside it.
+   *
+   * This is MECHANICAL. Every value is counted from the theme.json being
+   * published rather than written by hand, so it cannot be blank on a pack that
+   * has contents and cannot flatter one that does not. A card ends up with a
+   * reason to buy or, failing that, a bill of materials.
+   *
+   * ─── AND IT IS NOT DERIVABLE ON THE DEVICE ────────────────────────────────
+   *
+   * The phone holds the index and, for a distro nobody has bought, nothing
+   * else: `packCoverage` needs the pack on disk, `readInstalledTheme` needs it
+   * installed. The only alternative would be guessing from `preview.shell`,
+   * which is the mistake the storefront has just finished backing out of after
+   * its DE tag printed GNOME on a distro that is Xfce throughout.
+   *
+   * Same republish caveat as [preview] and [features]: the index is signed over
+   * its bytes, so a pack carries this only once republished, and its absence
+   * means "nobody has counted yet" rather than "there is nothing".
+   */
+  contents?: IndexContents;
+}
+
+/**
+ * The bill of materials for one theme pack.
+ *
+ * Nested rather than three flat siblings, for the reason [IndexPreview] gives
+ * about itself: an index entry is hand-read often enough that one named block
+ * beats three prefixed keys. The bridge flattens it on the far side, where a
+ * nested Pigeon class would have cost a codec id.
+ */
+export interface IndexContents {
+  /**
+   * How many wallpapers the pack ships.
+   *
+   * ALWAYS PRESENT, INCLUDING ZERO, and that is the one field in this block
+   * that is not spread-when-present. Terminal ships none by design, so a
+   * counted zero is an answer and has to be distinguishable from a pack that
+   * was never counted. The block's own absence carries the second meaning; a
+   * missing key inside a block that exists would carry neither.
+   */
+  wallpapers: number;
+
+  /**
+   * The icon set's title, "Breeze icons". A NAME, NEVER A COUNT.
+   *
+   * A pack-side icon total is true of the pack and useless to the person
+   * holding the phone, who wants to know how many of THEIR apps get a drawing.
+   * That number needs the device and is what `PackCoverage` measures there.
+   *
+   * Omitted for a distro that names no icon pack, or that names one which is
+   * not in the catalogue: the bundled sets ship inside the APK and have no
+   * entry to take a title from.
+   */
+  iconPack?: string;
+
+  /**
+   * The typeface the distro actually renders in.
+   *
+   * ─── GATED ON THE FONT FILES, NOT TAKEN FROM `typography` ─────────────────
+   *
+   * `typography.display` only NAMES a face; `fonts[]` is what ships it, and a
+   * family named without files falls back to the platform default silently.
+   * Four packs in the catalogue are in exactly that state today.
+   *
+   * So this is published only when the named family matches an entry in
+   * `fonts[]` that has files. The card therefore never advertises a typeface
+   * the device will not render, and which packs are missing font files becomes
+   * visible as which cards lack the chip.
+   */
+  font?: string;
 }
 
 /** One row on a storefront card. */
@@ -537,22 +616,28 @@ export function signIndex(opts: {
       (k) => asRecord[k] !== undefined && !(k in built),
     );
 
-    // ─── AND ONE LEVEL INTO `preview` ─────────────────────────────────
+    // ─── AND ONE LEVEL INTO THE NESTED BLOCKS ─────────────────────────
     //
-    // The check above compares TOP-LEVEL keys, and `preview` is spread whole,
-    // so a field added inside it is invisible here: the object arrives, the
-    // key is present, and whatever went missing inside it went missing
-    // quietly. That is the same blindness that let six themes publish with no
-    // preview at all before this guard existed, one level down.
+    // The check above compares TOP-LEVEL keys, and `preview` and `contents` are
+    // each spread whole, so a field added inside one is invisible here: the
+    // object arrives, the key is present, and whatever went missing inside it
+    // went missing quietly. That is the same blindness that let six themes
+    // publish with no preview at all before this guard existed, one level down.
     //
-    // Only `preview`, and only one level. A general deep walk would need a
-    // rule for every nested shape in the file and would fire on `features`,
-    // where an empty array is a meaningful value rather than a loss.
-    if (source.preview && built.preview) {
-      const src = source.preview as unknown as Record<string, unknown>;
-      const out = built.preview as unknown as Record<string, unknown>;
+    // A LIST rather than a general deep walk. Every block named here is a flat
+    // record of scalars that is copied whole, which is what makes the shallow
+    // comparison correct for it. A recursive version would need a rule for
+    // every nested shape in the file and would fire on `features`, where an
+    // empty array is a meaningful value rather than a loss.
+    for (const block of ['preview', 'contents'] as const) {
+      const srcBlock = source[block];
+      const outBlock = built[block];
+      if (!srcBlock || !outBlock) continue;
+
+      const src = srcBlock as unknown as Record<string, unknown>;
+      const out = outBlock as unknown as Record<string, unknown>;
       for (const k of Object.keys(src)) {
-        if (src[k] !== undefined && !(k in out)) lost.push(`preview.${k}`);
+        if (src[k] !== undefined && !(k in out)) lost.push(`${block}.${k}`);
       }
     }
 
@@ -608,6 +693,15 @@ export function signIndex(opts: {
       // as "predates the field" and the device would fall back to floor-card
       // rows the author had removed on purpose.
       ...(p.features != null ? { features: p.features } : {}),
+      // NAMED HERE TOO. `contents` is the second field added since `preview`
+      // was dropped, and the note above is the reason this line exists rather
+      // than being an oversight waiting to be found by hand.
+      //
+      // Truthy rather than `!= null`, unlike `features` directly above. The two
+      // differ because an empty ARRAY is a meaningful value and an absent
+      // OBJECT is not: a counted zero lives inside the block as
+      // `contents.wallpapers`, so there is no state this needs `{}` to express.
+      ...(p.contents ? { contents: p.contents } : {}),
     })).map(assertNothingDropped),
     // ALWAYS PRESENT, even when empty. Every index publish-index.sh ever wrote
     // carried this field, so the on-device parser has only ever been exercised

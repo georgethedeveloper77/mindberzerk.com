@@ -7,7 +7,7 @@ import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../home/workspaces/workspace_controller.dart';
-import '../search/search_sheet.dart';
+import '../palette/palette_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
@@ -41,6 +41,12 @@ import 'package:g_launcher/i18n/i18n.dart';
 /// fixed, which is why Mint greys that row: the field is part of the foot
 /// rather than a bar above the content.
 final _categoryProvider = StateProvider<String?>((ref) => null);
+
+/// What is typed in the foot.
+///
+/// Local and `autoDispose`, for Kickoff's reason: a field inside a menu that
+/// stays open must not leave a word in the provider rofi and the TUI share.
+final _queryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 class CinnamonDrawer extends ConsumerWidget {
   const CinnamonDrawer({super.key, required this.theme});
@@ -90,7 +96,22 @@ class CinnamonDrawer extends ConsumerWidget {
     // favourites: those have their own column and are visible whatever the
     // category column has selected.
     final active = (open != null && named.contains(open)) ? open : null;
-    final listed = active == null ? apps : (buckets[active] ?? const []);
+
+    // ─── TYPING NARROWS THE THIRD COLUMN, NOTHING ELSE MOVES ──────────────
+    //
+    // The favourites strip and the category column stay where they are. That is
+    // the whole reason Cinnamon searches in place rather than on a page: the
+    // menu is three columns and only one of them is a result list.
+    //
+    // A query searches EVERYTHING rather than the selected category, for
+    // Kickoff's reason: filtering within Office and being told a name you can
+    // see under All does not exist reads as the search being broken.
+    final query = ref.watch(_queryProvider).trim();
+    final listed = query.isNotEmpty
+        ? [for (final r in ref.watch(paletteResultsProvider(theme))) r.item]
+        : active == null
+            ? apps
+            : (buckets[active] ?? const <AppEntry>[]);
 
     final byKey = {for (final a in apps) a.componentKey: a};
     final favourites = <AppEntry>[
@@ -415,34 +436,54 @@ class _Foot extends ConsumerWidget {
 
     return Row(
       children: [
+        // ── THE FIELD, IN PLACE ──────────────────────────────────────
+        //
+        // This opened the shared page, which navigated away from a
+        // three-column menu to show a one-column list. `capabilities.dart`
+        // already greys Mint's search-position row because Cinnamon's field
+        // cannot move; this makes the field behave like the setting describes.
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => showSearchSheet(context, theme),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(9, 8, 6, 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.search,
-                    size: 14,
-                    color: palette.onDark.withValues(alpha: 0.45),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      context.t('drawer.searchApps'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(9, 4, 6, 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  size: 14,
+                  color: palette.onDark.withValues(alpha: 0.45),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: TextField(
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    onChanged: (v) {
+                      ref.read(_queryProvider.notifier).state = v;
+                      // AND the shared one, which is what
+                      // `paletteResultsProvider` reads. The local copy is what
+                      // this menu forgets on close.
+                      ref.read(paletteQueryProvider.notifier).state = v;
+                    },
+                    style: TextStyle(
+                      fontFamily: theme.typography.display,
+                      fontSize: 10.5 * theme.textScale,
+                      color: palette.onDark,
+                    ),
+                    cursorColor: palette.accent,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintText: context.t('drawer.searchApps'),
+                      hintStyle: TextStyle(
                         fontFamily: theme.typography.display,
                         fontSize: 10.5 * theme.textScale,
                         color: palette.onDark.withValues(alpha: 0.45),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

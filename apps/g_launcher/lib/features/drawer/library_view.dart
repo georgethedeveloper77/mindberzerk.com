@@ -444,10 +444,20 @@ class _Cell extends ConsumerWidget {
 
 /// The search pill at the top of the Library.
 ///
-/// Opens [showSearchSheet], which is the same sheet every drawer opens, so a
-/// search started here ranks identically to one started from Kickoff or the
-/// tool menu. Wide and soft, because it is the one control on a screen made
-/// entirely of rounded tiles and a square field would be the only hard edge.
+/// Opens [showSearchSheet]. Wide and soft, because it is the one control on a
+/// screen made entirely of rounded tiles and a square field would be the only
+/// hard edge.
+///
+/// ─── AND THIS IS NOW THE SHEET'S ONLY CALLER ────────────────────────────────
+///
+/// It briefly opened from all seven drawers. That was wrong: `SearchPage`
+/// carries suggested apps, settings topics, folders, recent searches and a
+/// voice button, and the sheet carries a field and eight rows, so making it
+/// universal deleted five features from six distros.
+///
+/// The sheet is right HERE, on a phone home screen where a card over the
+/// wallpaper is what the desktop actually does. Everywhere else opens the page
+/// again. Ranking is shared either way: both read `paletteResultsProvider`.
 class _SearchPill extends StatelessWidget {
   const _SearchPill({required this.theme});
 

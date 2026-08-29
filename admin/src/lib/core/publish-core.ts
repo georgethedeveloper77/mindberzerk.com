@@ -12,6 +12,7 @@ import {
   INDEX_SIGNATURE_NAME,
   signIndex,
   signPack,
+  type IndexContents,
   type IndexEntitlement,
   type IndexFeature,
   type IndexPack,
@@ -244,6 +245,15 @@ export interface PackUpload {
    * for exactly that reason.
    */
   features?: IndexFeature[];
+
+  /**
+   * What the pack contains, or omit for a pack that is not a theme.
+   *
+   * Optional here for the same reason [preview] is: an icon pack and a hero
+   * pack go through this function too and neither has wallpapers, a typeface or
+   * an icon set of its own to name. The caller knows which it is holding.
+   */
+  contents?: IndexContents;
   files: PackFile[];
 }
 
@@ -287,7 +297,14 @@ export async function uploadPack(
     sizeBytes: upload.files.reduce((n, f) => n + f.bytes.length, 0),
     title: upload.title,
     summary: upload.summary,
-    sku: upload.sku,
+    // SPREAD, not written as null. `signIndex` rebuilds this entry with
+    // `...(p.sku ? { sku } : {})` and drops a null, and `assertNothingDropped`
+    // counts null as present, so every FREE distro threw:
+    // `buildIndex dropped sku from 'kde-plasma-6'`.
+    //
+    // Every other optional in this rebuild is spread-when-present. `sku` was
+    // the one field breaking its own file's rule.
+    ...(upload.sku ? { sku: upload.sku } : {}),
     // OMITTED when absent, not written as null. An entry with `preview: null`
     // and one with no `preview` key are the same thing to the device, and the
     // spread keeps the index readable for the packs that have no palette.
@@ -311,6 +328,18 @@ export async function uploadPack(
     // rebuilds have to agree or a pack's rows would survive one and not the
     // other.
     ...(upload.features != null ? { features: upload.features } : {}),
+    // ─── AND `contents`, THE FOURTH ──────────────────────────────────────
+    //
+    // Named here for the reason the three lines above were each added after
+    // the fact: this function rebuilds `IndexPack` field by field, so anything
+    // new on the type reaches it and is dropped in silence unless it is
+    // written down.
+    //
+    // Truthy, not `!= null`. `features` needs `!= null` because `[]` is falsy
+    // and means "named no rows deliberately"; there is no equivalent empty
+    // object here, because a counted zero lives inside the block as
+    // `contents.wallpapers` rather than as the block's absence.
+    ...(upload.contents ? { contents: upload.contents } : {}),
   };
 }
 

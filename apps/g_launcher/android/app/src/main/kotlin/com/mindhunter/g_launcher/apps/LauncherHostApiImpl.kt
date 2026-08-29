@@ -515,13 +515,28 @@ class LauncherHostApiImpl(
         applyToLock: Boolean,
         fit: String,
         letterboxColor: Long,
+        focalX: Double,
+        focalY: Double,
+        zoom: Double,
         callback: (Result<Boolean>) -> Unit,
     ) {
         // Decoding + pushing a full wallpaper takes hundreds of ms. Never on the
         // main thread — this would be a visible freeze on the home screen.
         io.execute {
             val ok = runCatching {
-                wallpaper.setWallpaper(source, applyToLock, fit, letterboxColor)
+                wallpaper.setWallpaper(
+                    source,
+                    applyToLock,
+                    fit,
+                    letterboxColor,
+                    // Pigeon has no float, so these cross as doubles and narrow
+                    // here. The controller clamps them; this layer does not, so
+                    // there is exactly one place that decides what a bad focal
+                    // point means.
+                    focalX.toFloat(),
+                    focalY.toFloat(),
+                    zoom.toFloat(),
+                )
             }.getOrDefault(false)
             main.post { callback(Result.success(ok)) }
         }
@@ -533,9 +548,16 @@ class LauncherHostApiImpl(
         applyToLock: Boolean,
         fit: String,
         letterboxColor: Long,
+        framingJson: String,
     ) {
         WallpaperWorker.schedule(
-            appContext, minutes, sources, applyToLock, fit, letterboxColor,
+            appContext,
+            minutes,
+            sources,
+            applyToLock,
+            fit,
+            letterboxColor,
+            framingJson,
         )
     }
 

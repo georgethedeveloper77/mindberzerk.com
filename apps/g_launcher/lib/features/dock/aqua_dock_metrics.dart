@@ -86,6 +86,30 @@ abstract final class AquaDockMetrics {
   /// Below this it stops being a dock.
   static const minCapacity = 3;
 
+  // ─── HOW MUCH DESKTOP THIS DOCK OCCUPIES ────────────────────────────────
+  //
+  // The counterpart to [DockMetrics.reserve], and separate for the same reason
+  // this whole file is separate: the two docks do not share a geometry. See
+  // that constant for why the desklet grid needs to ask at all.
+
+  /// `AquaDock`'s own `EdgeInsets.all(_padding)` around the slot run.
+  static const panelPadding = 8.0;
+
+  /// How far the shell holds the dock off the bottom edge.
+  ///
+  /// Carried over from `gnome_shell`'s 9 rather than read from `aqua_shell`,
+  /// which I have not confirmed. Being a few dp generous costs a sliver of
+  /// desktop; being short puts a desklet back under the dock.
+  static const edgeOffset = 9.0;
+
+  /// The band this dock occupies, measured AT REST rather than magnified.
+  ///
+  /// The swell is transient and reaches [peakSlot], so reserving for it would
+  /// permanently surrender 32dp of desktop to a state that exists only while a
+  /// finger is down. A magnified icon growing over a desklet for the length of
+  /// a scrub is the correct trade: it is what a Mac does.
+  static const reserve = baseSlot + panelPadding * 2 + edgeOffset;
+
   /// The most apps this dock will hold in [available] logical pixels, measured
   /// at [minSlot] — the smallest a slot is allowed to rest at, hence the true
   /// ceiling.

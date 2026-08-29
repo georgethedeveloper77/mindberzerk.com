@@ -142,19 +142,11 @@
     "starter": [
       {
         "kind": "monitor",
-        "page": 0,
-        "col": 0,
-        "row": 0,
-        "spanX": 2,
-        "spanY": 2
+        "page": 0
       },
       {
         "kind": "uptime",
-        "page": 0,
-        "col": 0,
-        "row": 2,
-        "spanX": 2,
-        "spanY": 1
+        "page": 0
       }
     ],
     "skins": {

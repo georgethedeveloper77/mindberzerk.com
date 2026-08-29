@@ -134,6 +134,9 @@ class PackInfo {
     this.features,
     this.tint,
     this.previewLayout,
+    this.wallpaperCount,
+    this.iconPackTitle,
+    this.fontName,
   });
 
   String packId;
@@ -279,6 +282,30 @@ class PackInfo {
   /// degrade to a neutral picture rather than fail to parse.
   String? previewLayout;
 
+  /// How many wallpapers the pack ships.
+  ///
+  /// ZERO IS AN ANSWER, not an absence. Terminal ships none by design, so a
+  /// published `0` must draw no chip while a published `4` draws one, and both
+  /// differ from a pack that never said. Three states, one nullable int.
+  int? wallpaperCount;
+
+  /// The icon set's NAME, "Breeze icons", never a count.
+  ///
+  /// [PackCoverage] already argues this: a pack-side icon total is true of the
+  /// pack and useless to the person holding the phone, who wants to know how
+  /// many of THEIR apps get a drawing. That number needs the device and this
+  /// one does not, so this stays a name and the count stays where it can be
+  /// measured.
+  String? iconPackTitle;
+
+  /// The typeface the distro sets, by family name.
+  ///
+  /// Worth its own field because it is the one contents line a user can check
+  /// against the picture above it, and because four packs currently name a face
+  /// they ship no font files for. A card that says Hack and renders fallback is
+  /// a visible, reportable bug rather than a silent one.
+  String? fontName;
+
   List<Object?> _toList() {
     return <Object?>[
       packId,
@@ -300,6 +327,9 @@ class PackInfo {
       features,
       tint,
       previewLayout,
+      wallpaperCount,
+      iconPackTitle,
+      fontName,
     ];
   }
 
@@ -328,6 +358,9 @@ class PackInfo {
       features: (result[16] as List<Object?>?)?.cast<PackFeature?>(),
       tint: result[17] as String?,
       previewLayout: result[18] as String?,
+      wallpaperCount: result[19] as int?,
+      iconPackTitle: result[20] as String?,
+      fontName: result[21] as String?,
     );
   }
 
@@ -340,7 +373,7 @@ class PackInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent) && _deepEquals(features, other.features) && _deepEquals(tint, other.tint) && _deepEquals(previewLayout, other.previewLayout);
+    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent) && _deepEquals(features, other.features) && _deepEquals(tint, other.tint) && _deepEquals(previewLayout, other.previewLayout) && _deepEquals(wallpaperCount, other.wallpaperCount) && _deepEquals(iconPackTitle, other.iconPackTitle) && _deepEquals(fontName, other.fontName);
   }
 
   @override
@@ -349,7 +382,7 @@ class PackInfo {
 
   @override
   String toString() {
-    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku, previewShell: $previewShell, previewBgTop: $previewBgTop, previewBgBottom: $previewBgBottom, previewBar: $previewBar, previewDock: $previewDock, previewAccent: $previewAccent, features: $features, tint: $tint, previewLayout: $previewLayout)';
+    return 'PackInfo(packId: $packId, packType: $packType, title: $title, summary: $summary, version: $version, installedVersion: $installedVersion, sizeBytes: $sizeBytes, state: $state, unlocked: $unlocked, sku: $sku, previewShell: $previewShell, previewBgTop: $previewBgTop, previewBgBottom: $previewBgBottom, previewBar: $previewBar, previewDock: $previewDock, previewAccent: $previewAccent, features: $features, tint: $tint, previewLayout: $previewLayout, wallpaperCount: $wallpaperCount, iconPackTitle: $iconPackTitle, fontName: $fontName)';
   }
 }
 

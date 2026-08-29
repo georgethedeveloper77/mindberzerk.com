@@ -180,19 +180,24 @@ class _PlasmaShellState extends ConsumerState<PlasmaShell> {
         // Hidden while Kickoff is open, for the reason gnome_shell writes out:
         // the drawer paints a wash and anything still mounted below it bleeds
         // through and reads as dirt.
-        // ─── THROUGH `parse`, NOT `theme.dock` ────────────────────────
+        // ─── THE RESOLVED VALUE, BY NAME ──────────────────────────────
         //
-        // TWO `DockSide` enums exist, one in `theme_spec` and one in
-        // `dock_metrics`, and `dock_metrics.dart` says so at its own
-        // declaration: EDIT THESE TWO TOGETHER. This file sees both, so
-        // `theme.dock != DockSide.off` compared a value of one type against a
-        // constant of the other and the analyser called it what it is.
+        // This read `DockSide.parse(theme.prefs.dockSide)`, which is the RAW
+        // PREFERENCE. Null on any distro the user has not touched, and `parse`
+        // falls back to bottom, so every plasma distro drew a dock and
+        // `dock: "off"` in the theme was never consulted. Mint and KDE both
+        // author `off` and both had one.
         //
-        // `gnome_shell` solved this first and its import block explains how:
-        // parse the pref through the dock's own enum, which is the one the dock
-        // widgets speak. Copying that rather than inventing a third answer.
-        if (DockSide.parse(theme.prefs.dockSide) != DockSide.off &&
-            !activitiesOpen)
+        // `theme.dock` is the resolved answer: prefs first, then the theme,
+        // computed once in `LayoutResolver`. It is the only value that should
+        // ever be asked.
+        //
+        // Compared by NAME because two `DockSide` enums exist, one in
+        // `theme_spec` and one in `dock_metrics`, and this file imports
+        // `theme_spec` with a `show` list that excludes it. Adding it would put
+        // two identically named enums in one scope, which is the collision the
+        // restricted import exists to prevent. `.name` needs neither.
+        if (theme.dock.name != 'off' && !activitiesOpen)
           Positioned(
             left: 0,
             right: 0,

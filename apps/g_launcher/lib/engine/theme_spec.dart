@@ -7,6 +7,7 @@ import 'desklet_skin.dart';
 import 'splash_spec.dart';
 import 'terminal_spec.dart';
 import 'theme_source.dart';
+import 'wallpaper_framing.dart';
 
 /// A distro, as data.
 ///
@@ -28,6 +29,7 @@ class ThemeSpec {
     required this.icons,
     required this.wallpapers,
     this.wallpapersLight = const [],
+    this.wallpaperMeta = const {},
     this.fonts = const [],
     required this.minAppVersion,
     ChromeFamily? chromeFamily,
@@ -36,6 +38,7 @@ class ThemeSpec {
     this.splash,
     this.terminal,
     this.desklets = const DeskletThemeBlock(),
+    this.home = const HomeBlock(),
     this.gestures = const {},
     this.categories = const [],
     this.categoryFallback,
@@ -108,6 +111,36 @@ class ThemeSpec {
   /// `noble_light.webp` in its wallpapers list the whole time and nothing ever
   /// chose it.
   final List<String> wallpapersLight;
+
+  /// How each of this theme's own wallpapers should meet the screen, keyed by
+  /// the SAME string that appears in [wallpapers] or [wallpapersLight].
+  ///
+  /// ─── WHY THIS IS A SIDECAR MAP AND NOT A RICHER `wallpapers` ENTRY ───────
+  ///
+  /// The obvious shape is to promote each entry from a string to an object with
+  /// a path and a framing block. It is wrong twice over. `wallpapers` is a
+  /// published wire format: every pack in the bucket and every theme.json on
+  /// someone's phone holds an array of strings, and `_wallpapers` already
+  /// carries a legacy branch for the single `wallpaper.asset` form, so this
+  /// would be the THIRD shape that parser has to tell apart. And the string is
+  /// an identity elsewhere: `prefs.wallpaperCurrent` stores it, the rotation
+  /// worker stores a list of them, `wallpaperContentStamp` digests them. A map
+  /// keyed by that same string leaves all of those untouched.
+  ///
+  /// ─── WHY A THEME GETS A SAY AT ALL ──────────────────────────────────────
+  ///
+  /// Framing is per wallpaper and the user owns it, so this is only ever the
+  /// STARTING POINT: prefs win the moment anyone drags. But without it every
+  /// pack asset arrives centred with the default fit, and a distro whose art
+  /// has its subject two thirds down the frame ships looking wrong until the
+  /// user notices they can fix it. The author knows where the dragon is. This
+  /// is how they say so.
+  ///
+  /// UNKNOWN KEYS ARE HARMLESS. A map entry naming a wallpaper this theme does
+  /// not ship is simply never looked up, which is the tolerant-parser rule the
+  /// rest of this file follows: a stale key from an older pack must not be
+  /// fatal.
+  final Map<String, WallpaperFraming> wallpaperMeta;
 
   /// Font families this theme ships, to be registered at runtime.
   ///
@@ -186,6 +219,17 @@ class ThemeSpec {
   /// promise `boot` and `splash` make with their `defaultForShell`.
   final DeskletThemeBlock desklets;
 
+  /// The desktop ICON grid this distro starts with. [DeskletThemeBlock]'s
+  /// sibling, and deliberately a separate block: a desklet is a widget the app
+  /// owns by `kind`, an icon is somebody's installed app, and the two cannot
+  /// share a starter list because a theme author cannot know what is installed.
+  ///
+  /// See [HomeBlock.fill] for why this is a COUNT and not a list of apps.
+  ///
+  /// Never null, for the same reason [desklets] is not: a theme with no block
+  /// gets a fill of zero, which is the empty desktop every distro has today.
+  final HomeBlock home;
+
   /// The distro's DEFAULT gesture bindings, gestureId to binding string, in
   /// the same encoding `LauncherPrefs.gestures` uses (a GestureAction id, or
   /// "app:<componentKey>").
@@ -250,6 +294,7 @@ class ThemeSpec {
         icons: icons,
         wallpapers: wallpapers,
         wallpapersLight: wallpapersLight,
+        wallpaperMeta: wallpaperMeta,
         fonts: fonts,
         minAppVersion: minAppVersion,
         // The PRIVATE override, not the resolved getter. Passing
@@ -262,6 +307,7 @@ class ThemeSpec {
         boot: boot,
         splash: splash,
         desklets: desklets,
+        home: home,
         gestures: gestures,
         // CARRIED. `withSource` reconstructs the whole spec, so a field added
         // to the constructor and forgotten here is silently dropped the moment
@@ -349,6 +395,7 @@ class ThemeSpec {
       wallpapersLight: ((json['wallpapersLight'] as List?) ?? const [])
           .map((e) => e.toString())
           .toList(),
+      wallpaperMeta: _wallpaperMeta(json),
       fonts: ((json['fonts'] as List?) ?? const [])
           .whereType<Map>()
           .map((e) => ThemeFont.fromJson(e.cast<String, dynamic>()))
@@ -367,6 +414,9 @@ class ThemeSpec {
       ),
       desklets: DeskletThemeBlock.fromJson(
         (json['desklets'] as Map?)?.cast<String, dynamic>(),
+      ),
+      home: HomeBlock.fromJson(
+        (json['home'] as Map?)?.cast<String, dynamic>(),
       ),
       // String entries only; anything else is dropped rather than fatal. The
       // action ids are NOT validated here (see the field doc): bindingFor
@@ -400,6 +450,27 @@ class ThemeSpec {
 
     final legacy = (json['wallpaper'] as Map?)?['asset'] as String?;
     return legacy == null ? const [] : [legacy];
+  }
+
+  /// Reads the optional `wallpaperMeta` block.
+  ///
+  /// A malformed entry is DROPPED rather than fatal, matching every other map
+  /// and list in this file. The failure mode of a bad framing block is a
+  /// wallpaper that sits where it always used to sit, which is survivable; the
+  /// failure mode of throwing is a theme that will not load.
+  static Map<String, WallpaperFraming> _wallpaperMeta(
+    Map<String, dynamic> json,
+  ) {
+    final raw = json['wallpaperMeta'] as Map?;
+    if (raw == null || raw.isEmpty) return const {};
+    return {
+      for (final e in raw.entries)
+        if (e.key is String && e.value is Map)
+          e.key as String:
+              WallpaperFraming.fromJson(
+            (e.value as Map).cast<String, dynamic>(),
+          ),
+    };
   }
 
   static api.IconTreatment _treatment(String? raw) {
@@ -719,6 +790,7 @@ class ThemeTypography {
 // No @immutable: nothing else in this file is annotated and it imports neither
 // meta nor foundation. The class is const-constructible with final fields,
 // which is the property that matters.
+
 class ThemeFont {
   const ThemeFont({required this.family, required this.files});
 
@@ -1078,10 +1150,15 @@ class ThemeLayout {
   /// same drop-not-fatal contract as `PanelModule.parse`.
   final String? drawerScrollStyle;
 
-  /// The distro's DEFAULT grouping: 'none' | 'az', or null for the engine
-  /// default ('none'). Same default-never-override contract as
+  /// The distro's DEFAULT grouping: 'none' | 'az' | 'library', or null for the
+  /// engine default ('none'). Same default-never-override contract as
   /// [drawerScrollStyle], and like the user pref it only means anything when
   /// the resolved scroll style is the list.
+  ///
+  /// 'library' was missing from BOTH this doc and the parse arm while
+  /// `LayoutResolver` and `EffectiveTheme.libraryGrouped` both accepted it. The
+  /// doc mattering is not incidental: it is what a reader checks before adding
+  /// a value, so a stale list here is how the next one goes missing too.
   final String? drawerGrouping;
 
   /// What the Plasma menu's left rail is made of: 'tabs' | 'categories', or
@@ -1387,6 +1464,26 @@ class ThemeLayout {
         // `drawerScrollStyle: 'vertical'` it is the whole look; on its own it
         // is folders in whatever motion the distro already uses, which is a
         // coherent thing to want rather than a broken half.
+        //
+        // ─── THIS ARM WAS MISSING, AND THE COMMENT ABOVE DESCRIBED IT ───────
+        //
+        // The doc for this value sat here without the case that admits it, so
+        // 'library' fell to `_ => null` one layer ABOVE the layer that wants
+        // it: `LayoutResolver` accepts `{'none', 'az', 'library'}` and
+        // `EffectiveTheme.libraryGrouped` reads `drawerGrouping == 'library'`
+        // directly. The panel had already been corrected: `DRAWER_GROUPINGS`
+        // in `theme-spec.ts` lists all three and its own comment calls that
+        // constant the bug's headstone. So the value was authored, validated,
+        // signed, published and dropped on arrival.
+        //
+        // Two shipping distros were affected and neither reported anything,
+        // because the ungrouped list is a completely plausible fallback:
+        // elementary authors `drawerGrouping: "library"` and `CardDrawer`
+        // opens flat instead of on categories, and Zorin authors it and gets
+        // nothing. Same failure shape as the `LayoutResolver` allow-lists: a
+        // value parsed correctly, dropped by a list downstream, hidden by a
+        // fallback that looks deliberate.
+        'library' => 'library',
         _ => null,
       },
       kickoffRail: switch (j['kickoffRail'] as String?) {
@@ -1553,4 +1650,65 @@ Color? parseColor(String? hex) {
   if (s.length != 8) return null;
   final v = int.tryParse(s, radix: 16);
   return v == null ? null : Color(v);
+}
+
+/// The desktop icon grid a distro starts with.
+///
+/// ─── WHY THIS IS A COUNT AND NOT A LIST OF APPS ─────────────────────────────
+///
+/// [StarterDesklet] names a `kind`, which is a closed vocabulary this app owns,
+/// so a theme can author it exactly. A [HomeItem] names a `componentKey`, which
+/// is an Android component on somebody else's phone. A theme author in one
+/// country cannot know what is installed in another, so a list of apps would be
+/// a list of things that mostly are not there.
+///
+/// A count is the honest shape. It says how full this distro's desktop should
+/// look and lets the device decide with what, which is also the only answer
+/// that is right for Pocket: an iOS home screen shows YOUR apps, so a rule is
+/// more correct there than any list would have been.
+///
+/// ─── WHAT THIS DOES NOT DO, AND WHY THAT IS DELIBERATE ──────────────────────
+///
+/// It cannot say "put Files in the top left". Kali's Xfce desktop genuinely
+/// wants that and does not get it here. Adding it means resolving a ROLE
+/// ('files', 'browser', 'terminal') to a package, which is either an intent
+/// query through native or a package-name allowlist in Dart, and an allowlist
+/// is wrong on exactly the OEM skins this app targets and cannot be tested
+/// without those devices.
+///
+/// A `role` key can be added to this block later without disturbing `fill`,
+/// which is why this is a block rather than a bare integer on `layout`.
+class HomeBlock {
+  const HomeBlock({this.fill = 0});
+
+  /// How many app icons to lay onto the desktop the first time this theme is
+  /// used. Zero, the default, is the empty desktop every distro has today.
+  ///
+  /// CLAMPED AT PARSE rather than trusted, the same contract
+  /// `SplashSpec.durationMs` and `IconSizing.parseScale` keep: this arrives
+  /// over the CDN, and a pack asking for 400 icons on a 20-slot grid should be
+  /// corrected rather than left to `addToHome` to refuse 380 times.
+  ///
+  /// The real ceiling is the grid's own capacity and is applied at seed time by
+  /// the caller, which knows `rows * cols`. This bound is only here to keep an
+  /// absurd number out of the loop.
+  final int fill;
+
+  static const int maxFill = 60;
+
+  /// Forward-compatible: a missing block, a malformed one, or a `fill` of the
+  /// wrong type all yield a fill of zero rather than throwing. A desktop must
+  /// not fail to draw because a newer pack authored something this build has
+  /// not heard of.
+  static HomeBlock fromJson(Map<String, dynamic>? j) {
+    if (j == null) return const HomeBlock();
+    final raw = (j['fill'] as num?)?.toInt() ?? 0;
+    return HomeBlock(fill: raw < 0 ? 0 : (raw > maxFill ? maxFill : raw));
+  }
+
+  @override
+  bool operator ==(Object other) => other is HomeBlock && other.fill == fill;
+
+  @override
+  int get hashCode => fill.hashCode;
 }

@@ -231,7 +231,20 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     final dockRevealed = ref.watch(dockRevealedProvider);
     final editing = ref.watch(deskletEditProvider).active;
 
-    final side = DockSide.parse(theme.prefs.dockSide);
+    // ─── THE RESOLVED VALUE, NOT THE RAW PREF ─────────────────────────────
+    //
+    // This parsed `theme.prefs.dockSide`, which is null on any distro the user
+    // has not touched, and `parse` falls back to bottom. So a gnome distro
+    // authoring `dock: "off"` drew one anyway and the theme was never asked.
+    // `plasma_shell` had the identical line and Mint and KDE both showed docks
+    // they do not author.
+    //
+    // `theme.dock` is the resolved answer, computed once in `LayoutResolver`:
+    // prefs first, then the theme. Parsed through `.name` because this file's
+    // `DockSide` is `dock_metrics`' and `theme.dock` is `theme_spec`'s; the two
+    // enums carry the same names and neither import can be widened without
+    // colliding.
+    final side = DockSide.parse(theme.dock.name);
     final gridButton = GridButtonPosition.parse(theme.prefs.dockGridButton);
 
     // Source of truth is the controller; the PageController follows. A HOME

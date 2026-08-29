@@ -5,7 +5,7 @@ import {
   commitIndex,
   guardIndex,
   shelfOwnerBase,
-} from '@/lib/publish-core';
+} from '@/lib/core/publish-core';
 import type { IndexEntitlement } from '@/lib/core/sign';
 
 /**

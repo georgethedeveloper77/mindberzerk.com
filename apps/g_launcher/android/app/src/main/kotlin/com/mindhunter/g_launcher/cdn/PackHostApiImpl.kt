@@ -243,6 +243,17 @@ class PackHostApiImpl(
                         )
                     }
                 },
+                // What is in the box, straight through like the preview six.
+                //
+                // This layer moves values and does not interpret them: it does
+                // not know that a null font means the pack names a face it
+                // ships no files for, or that a zero wallpaper count is a real
+                // answer. `theme_catalog` composes the chips and decides what
+                // absence draws, which keeps the one place that renders the
+                // strip as the one place that decides how.
+                wallpaperCount = p.wallpaperCount,
+                iconPackTitle = p.iconPackTitle,
+                fontName = p.fontName,
             )
         }
     }

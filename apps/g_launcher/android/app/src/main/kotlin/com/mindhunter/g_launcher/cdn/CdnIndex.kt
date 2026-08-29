@@ -271,6 +271,12 @@ data class CdnIndex(
                         previewLayout = previewStr(o, "layout"),
                         requires = stringList(o.optJSONArray("requires")),
                         features = featureList(o.optJSONArray("features")),
+                        // The contents block, read the same way as `preview`:
+                        // nested here, flat across the bridge, and absent
+                        // wherever the publisher has not counted yet.
+                        wallpaperCount = contentsInt(o, "wallpapers"),
+                        iconPackTitle = contentsStr(o, "iconPack"),
+                        fontName = contentsStr(o, "font"),
                     ),
                 )
             }
@@ -398,6 +404,46 @@ private fun previewStr(o: org.json.JSONObject, key: String): String? {
     return p.optString(key, "").ifEmpty { null }
 }
 
+/**
+ * One string out of an entry's optional `contents` object.
+ *
+ * The same nested-in-JSON, flat-across-the-bridge shape [previewStr] documents,
+ * and for the same two reasons: a block reads as one thing in a hand-authored
+ * index, and a nested Pigeon class would take a codec id and renumber every
+ * existing one.
+ */
+private fun contentsStr(o: org.json.JSONObject, key: String): String? {
+    val c = o.optJSONObject("contents") ?: return null
+    return c.optString(key, "").ifEmpty { null }
+}
+
+/**
+ * The wallpaper count out of an entry's optional `contents` object.
+ *
+ * ─── `has` RATHER THAN `optInt` WITH A DEFAULT ──────────────────────────────
+ *
+ * ZERO IS AN ANSWER here and it is the reason this is not one line. Terminal
+ * ships no wallpapers by design, so a published `0` means "counted, there are
+ * none" while an absent key means "nobody has counted", and the card draws
+ * nothing for the first and nothing for the second only because the chip would
+ * read "0 wallpapers" either way. Collapsing them would still be wrong: the
+ * distinction is what lets a later card say something different about the two,
+ * and it costs one `has` check to keep.
+ *
+ * `optInt` returns 0 for a key that is absent AND for one holding a string, so
+ * a default here would silently manufacture that answer.
+ */
+private fun contentsInt(o: org.json.JSONObject, key: String): Long? {
+    val c = o.optJSONObject("contents") ?: return null
+    if (!c.has(key)) return null
+    val v = c.optInt(key, -1)
+    // Negative means either a genuinely negative count or a value that is not a
+    // number at all. Neither is publishable, and treating it as absent costs
+    // one chip rather than refusing the whole index over a typo, which is the
+    // rule `tint` states directly above.
+    return if (v < 0) null else v.toLong()
+}
+
 
 
 /** One downloadable pack, as advertised by the index. */
@@ -462,6 +508,24 @@ data class CdnPack(
      */
     val tint: String? = null,
     val previewLayout: String? = null,
+
+    /**
+     * What the pack contains: wallpapers, icon set, typeface.
+     *
+     * ALL NULLABLE and all optional in the JSON, exactly like the preview
+     * block. A pack published before `contents` existed parses as it always
+     * did, and the card simply draws fewer chips.
+     *
+     * [wallpaperCount] is nullable rather than defaulted to 0 because a
+     * published zero and an uncounted pack are different answers. See
+     * [contentsInt].
+     *
+     * Presentation only. Nothing here is ever consulted to decide whether a
+     * pack may be installed.
+     */
+    val wallpaperCount: Long? = null,
+    val iconPackTitle: String? = null,
+    val fontName: String? = null,
 )
 
 /** One row a storefront card can name. */

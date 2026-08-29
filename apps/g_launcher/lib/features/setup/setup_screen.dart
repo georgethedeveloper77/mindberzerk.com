@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:collection/collection.dart';
+
 import '../../core/analytics.dart';
+import '../../data/cdn/pack_repository.dart';
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
@@ -514,10 +517,80 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       debugPrint('setup: seeding first desktop failed: $e\n$s');
     }
 
+    // Same best-effort contract as the line above, and for the same reason: a
+    // desktop that comes up with generated icons is recoverable, a setup that
+    // never finishes because a download timed out is not.
+    try {
+      await _installDistroIcons();
+    } catch (e, s) {
+      debugPrint('setup: installing distro icons failed: $e\n$s');
+    }
+
     // Hand-off flag first, then the completion that swaps this screen out: the
     // desktop mounts fresh and reads the flag on that very build.
     ref.read(firstRunBootPendingProvider.notifier).state = true;
     await ref.read(setupCompletedProvider.notifier).complete();
+  }
+
+  /// Download the icon pack the chosen distro is about to ask for.
+  ///
+  /// ─── THE THEME NAMED IT AND NOTHING FETCHED IT ──────────────────────────
+  ///
+  /// `EffectiveTheme` resolves `brandPack` to the distro's own line pack, and
+  /// for the three bundled distros it does so without the theme.json naming
+  /// one, through `defaultLinePackFor`. That resolution was always correct.
+  ///
+  /// What never happened is the download. The resolver asked for
+  /// `ubuntu-24-04-line`, found nothing installed, and the generator drew
+  /// instead: every fresh install wore masked app icons rather than the set the
+  /// distro ships with, and there was nothing on screen to say why.
+  ///
+  /// ─── FREE OR OWNED ONLY ─────────────────────────────────────────────────
+  ///
+  /// NOT "install whatever the theme names". Eleven of the fifteen line packs
+  /// carry a Play SKU, and setup must not attempt a download the user has not
+  /// paid for; `install` would refuse with `notEntitled` and the wizard would
+  /// swallow it, which is a silent failure dressed as a feature.
+  ///
+  /// The three distros offered at setup are the free ones, so in practice this
+  /// installs their packs and nothing else. The check is written against the
+  /// catalogue rather than against that assumption, because the free three are
+  /// a product decision that has already changed once.
+  ///
+  /// ─── AND THE HERO PACK TOO, WHEN THERE IS ONE ───────────────────────────
+  ///
+  /// Ubuntu names `papirus-icon-theme`, forty-four hand-drawn icons that sit
+  /// ABOVE the line set in the three-tier resolve. Installing only the brand
+  /// pack would give a correct-looking desktop missing the one layer that is
+  /// hand-made.
+  Future<void> _installDistroIcons() async {
+    final theme = ref.read(effectiveThemeProvider).asData?.value;
+    if (theme == null) return;
+
+    final wanted = <String>{
+      if (theme.icons.heroPack != null) theme.icons.heroPack!,
+      if (theme.icons.brandPack != null) theme.icons.brandPack!,
+    };
+    if (wanted.isEmpty) return;
+
+    final packs = await ref.read(catalogueProvider.future);
+    final actions = ref.read(packActionsProvider);
+
+    for (final id in wanted) {
+      final p = packs.where((x) => x.packId == id).firstOrNull;
+      // Not in the catalogue at all: a pack id the theme names and the CDN does
+      // not carry. The generator covers it, which is what happens today.
+      if (p == null) continue;
+      // Already on disk, or bundled into the APK.
+      if (p.state == 'installed' || p.state == 'bundled') continue;
+      // PAID and not owned. Leaving it is correct: the icons screen will offer
+      // it, and a purchase installs it there.
+      if (p.sku != null && !p.unlocked) continue;
+
+      // Sequential, on a phone that has just been set up and may be on mobile
+      // data. Two packs at most.
+      await actions.install(id);
+    }
   }
 
   /// Apply the chosen distro's authored starter desklets, once, at the end of

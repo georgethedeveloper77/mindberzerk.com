@@ -347,7 +347,34 @@ data class PackInfo (
    * reason `packType` gives: a value a older client does not recognise must
    * degrade to a neutral picture rather than fail to parse.
    */
-  val previewLayout: String? = null
+  val previewLayout: String? = null,
+  /**
+   * How many wallpapers the pack ships.
+   *
+   * ZERO IS AN ANSWER, not an absence. Terminal ships none by design, so a
+   * published `0` must draw no chip while a published `4` draws one, and both
+   * differ from a pack that never said. Three states, one nullable int.
+   */
+  val wallpaperCount: Long? = null,
+  /**
+   * The icon set's NAME, "Breeze icons", never a count.
+   *
+   * [PackCoverage] already argues this: a pack-side icon total is true of the
+   * pack and useless to the person holding the phone, who wants to know how
+   * many of THEIR apps get a drawing. That number needs the device and this
+   * one does not, so this stays a name and the count stays where it can be
+   * measured.
+   */
+  val iconPackTitle: String? = null,
+  /**
+   * The typeface the distro sets, by family name.
+   *
+   * Worth its own field because it is the one contents line a user can check
+   * against the picture above it, and because four packs currently name a face
+   * they ship no font files for. A card that says Hack and renders fallback is
+   * a visible, reportable bug rather than a silent one.
+   */
+  val fontName: String? = null
 )
  {
   companion object {
@@ -371,7 +398,10 @@ data class PackInfo (
       val features = pigeonVar_list[16] as List<PackFeature?>?
       val tint = pigeonVar_list[17] as String?
       val previewLayout = pigeonVar_list[18] as String?
-      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku, previewShell, previewBgTop, previewBgBottom, previewBar, previewDock, previewAccent, features, tint, previewLayout)
+      val wallpaperCount = pigeonVar_list[19] as Long?
+      val iconPackTitle = pigeonVar_list[20] as String?
+      val fontName = pigeonVar_list[21] as String?
+      return PackInfo(packId, packType, title, summary, version, installedVersion, sizeBytes, state, unlocked, sku, previewShell, previewBgTop, previewBgBottom, previewBar, previewDock, previewAccent, features, tint, previewLayout, wallpaperCount, iconPackTitle, fontName)
     }
   }
   fun toList(): List<Any?> {
@@ -395,6 +425,9 @@ data class PackInfo (
       features,
       tint,
       previewLayout,
+      wallpaperCount,
+      iconPackTitle,
+      fontName,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -405,7 +438,7 @@ data class PackInfo (
       return true
     }
     val other = other as PackInfo
-    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku) && PackApiPigeonUtils.deepEquals(this.previewShell, other.previewShell) && PackApiPigeonUtils.deepEquals(this.previewBgTop, other.previewBgTop) && PackApiPigeonUtils.deepEquals(this.previewBgBottom, other.previewBgBottom) && PackApiPigeonUtils.deepEquals(this.previewBar, other.previewBar) && PackApiPigeonUtils.deepEquals(this.previewDock, other.previewDock) && PackApiPigeonUtils.deepEquals(this.previewAccent, other.previewAccent) && PackApiPigeonUtils.deepEquals(this.features, other.features) && PackApiPigeonUtils.deepEquals(this.tint, other.tint) && PackApiPigeonUtils.deepEquals(this.previewLayout, other.previewLayout)
+    return PackApiPigeonUtils.deepEquals(this.packId, other.packId) && PackApiPigeonUtils.deepEquals(this.packType, other.packType) && PackApiPigeonUtils.deepEquals(this.title, other.title) && PackApiPigeonUtils.deepEquals(this.summary, other.summary) && PackApiPigeonUtils.deepEquals(this.version, other.version) && PackApiPigeonUtils.deepEquals(this.installedVersion, other.installedVersion) && PackApiPigeonUtils.deepEquals(this.sizeBytes, other.sizeBytes) && PackApiPigeonUtils.deepEquals(this.state, other.state) && PackApiPigeonUtils.deepEquals(this.unlocked, other.unlocked) && PackApiPigeonUtils.deepEquals(this.sku, other.sku) && PackApiPigeonUtils.deepEquals(this.previewShell, other.previewShell) && PackApiPigeonUtils.deepEquals(this.previewBgTop, other.previewBgTop) && PackApiPigeonUtils.deepEquals(this.previewBgBottom, other.previewBgBottom) && PackApiPigeonUtils.deepEquals(this.previewBar, other.previewBar) && PackApiPigeonUtils.deepEquals(this.previewDock, other.previewDock) && PackApiPigeonUtils.deepEquals(this.previewAccent, other.previewAccent) && PackApiPigeonUtils.deepEquals(this.features, other.features) && PackApiPigeonUtils.deepEquals(this.tint, other.tint) && PackApiPigeonUtils.deepEquals(this.previewLayout, other.previewLayout) && PackApiPigeonUtils.deepEquals(this.wallpaperCount, other.wallpaperCount) && PackApiPigeonUtils.deepEquals(this.iconPackTitle, other.iconPackTitle) && PackApiPigeonUtils.deepEquals(this.fontName, other.fontName)
   }
 
   override fun hashCode(): Int {
@@ -429,10 +462,13 @@ data class PackInfo (
     result = 31 * result + PackApiPigeonUtils.deepHash(this.features)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.tint)
     result = 31 * result + PackApiPigeonUtils.deepHash(this.previewLayout)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.wallpaperCount)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.iconPackTitle)
+    result = 31 * result + PackApiPigeonUtils.deepHash(this.fontName)
     return result
   }
   override fun toString(): String {
-    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku, previewShell=$previewShell, previewBgTop=$previewBgTop, previewBgBottom=$previewBgBottom, previewBar=$previewBar, previewDock=$previewDock, previewAccent=$previewAccent, features=$features, tint=$tint, previewLayout=$previewLayout)"
+    return "PackInfo(packId=$packId, packType=$packType, title=$title, summary=$summary, version=$version, installedVersion=$installedVersion, sizeBytes=$sizeBytes, state=$state, unlocked=$unlocked, sku=$sku, previewShell=$previewShell, previewBgTop=$previewBgTop, previewBgBottom=$previewBgBottom, previewBar=$previewBar, previewDock=$previewDock, previewAccent=$previewAccent, features=$features, tint=$tint, previewLayout=$previewLayout, wallpaperCount=$wallpaperCount, iconPackTitle=$iconPackTitle, fontName=$fontName)"
   }
 }
 

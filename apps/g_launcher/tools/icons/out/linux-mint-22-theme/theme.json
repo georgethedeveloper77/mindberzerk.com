@@ -123,27 +123,15 @@
     "starter": [
       {
         "kind": "clock",
-        "page": 0,
-        "col": 0,
-        "row": 0,
-        "spanX": 2,
-        "spanY": 1
+        "page": 0
       },
       {
         "kind": "monitor",
-        "page": 0,
-        "col": 0,
-        "row": 1,
-        "spanX": 2,
-        "spanY": 2
+        "page": 0
       },
       {
         "kind": "storage",
-        "page": 0,
-        "col": 2,
-        "row": 1,
-        "spanX": 2,
-        "spanY": 1
+        "page": 0
       }
     ],
     "skins": {

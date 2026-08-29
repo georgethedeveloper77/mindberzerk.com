@@ -11,7 +11,7 @@ import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
-import '../search/search_sheet.dart';
+import '../palette/palette_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_drag.dart';
@@ -107,6 +107,20 @@ class _Slot {
 /// the rail that grows are siblings, and the alternative is threading a
 /// callback through both.
 final _draggingProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+/// What is typed in Kickoff's own field.
+///
+/// ─── NOT `paletteQueryProvider` ─────────────────────────────────────────────
+///
+/// That one is shared with rofi, dmenu, the TUI and Pop's line, and it is
+/// deliberately global so those four agree. This field is INSIDE a menu that
+/// stays open: leaving a word in a shared provider would mean opening Kickoff
+/// on one distro and finding a query typed on another, and clearing it on open
+/// would stamp on whoever else was mid-search.
+///
+/// `autoDispose` so closing the menu forgets it, which is what a field inside a
+/// menu should do.
+final _kickoffQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 final _slotProvider =
     StateProvider.autoDispose<String>((ref) => 'tab:${KickoffTab.favorites.name}');
@@ -218,7 +232,29 @@ class KickoffDrawer extends ConsumerWidget {
       orElse: () => slots.first,
     );
 
-    final shown = _forSlot(ref, active, listable, buckets);
+    // ─── TYPING OVERRIDES THE SLOT ────────────────────────────────────
+    //
+    // A query searches EVERYTHING, not the tab you happen to be on. Filtering
+    // within Favourites would mean typing a name you can see in All and being
+    // told there are no matches, which reads as the search being broken rather
+    // than the tab being narrow.
+    //
+    // The rail stays visible and stays selectable: leaving it there is what
+    // makes this a menu that is filtering rather than a different screen. Tap a
+    // slot and the query clears, because choosing a category IS the decision to
+    // stop searching.
+    final query = ref.watch(_kickoffQueryProvider).trim();
+    final shown = query.isEmpty
+        ? _forSlot(ref, active, listable, buckets)
+        : [
+            // `paletteResultsProvider`, so Kickoff ranks identically to rofi,
+            // the TUI, Pop's line and the page. Wrapped back into
+            // `AppDrawerItem` because this list is DrawerItems and folders are
+            // not searchable: a folder is a place, and searching for one when
+            // its members are what you want is the wrong hit.
+            for (final r in ref.watch(paletteResultsProvider(theme)))
+              AppDrawerItem(r.item),
+          ];
 
     final searchAtBottom =
         (theme.prefs.drawerSearchPosition ?? 'bottom') != 'top';
@@ -466,7 +502,15 @@ class _Rail extends ConsumerWidget {
                     ? () => context.showMessage(
                           context.t('drawer.dragAppsHere'),
                         )
-                    : () => ref.read(_slotProvider.notifier).state = s.id,
+                    : () {
+                        ref.read(_slotProvider.notifier).state = s.id;
+                        // Choosing a category is the decision to stop
+                        // searching. Leaving the query would show the same
+                        // results under a new heading, which is a tab that
+                        // appears not to work.
+                        ref.read(_kickoffQueryProvider.notifier).state = '';
+                        ref.read(paletteQueryProvider.notifier).state = '';
+                      },
                 // ─── DROP AN APP ON FAVOURITES TO PIN IT ──────────────
                 //
                 // Only the Favourites tab takes a drop. Frequent is computed
@@ -945,23 +989,45 @@ class _FolderGlyph extends StatelessWidget {
   }
 }
 
-/// Kickoff's search field. Tapping opens the shared search page, same as the
-/// GNOME drawer — one search experience, whichever desktop you are wearing.
-class _KickoffSearch extends StatelessWidget {
+/// Kickoff's search field, which FILTERS IN PLACE.
+///
+/// ─── PLASMA DOES NOT LEAVE ITS OWN MENU TO SEARCH ───────────────────────────
+///
+/// This opened the shared page, on the reasoning that one search experience is
+/// better whichever desktop you are wearing. That is true of the RANKING and
+/// false of the surface: Kickoff is a menu that is already open, with a rail
+/// beside a list, and typing narrows the list where it stands. Navigating to a
+/// full screen closes the thing you were reading.
+///
+/// The four distros whose launcher IS a search keep theirs, the six with no
+/// field of their own keep the page, and this is one of the three that owns a
+/// field and should use it.
+class _KickoffSearch extends ConsumerStatefulWidget {
   const _KickoffSearch({required this.theme});
 
   final EffectiveTheme theme;
 
   @override
+  ConsumerState<_KickoffSearch> createState() => _KickoffSearchState();
+}
+
+class _KickoffSearchState extends ConsumerState<_KickoffSearch> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = widget.theme;
     final onDark = theme.palette.onDark;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => showSearchSheet(context, theme),
-        child: Container(
+      child: Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
@@ -974,18 +1040,65 @@ class _KickoffSearch extends StatelessWidget {
             children: [
               Icon(Icons.search, size: 18, color: onDark.withValues(alpha: 0.6)),
               const SizedBox(width: 8),
-              Text(
-                'Search apps',
-                style: TextStyle(
-                  color: onDark.withValues(alpha: 0.6),
-                  fontFamily: theme.typography.display,
-                  fontSize: 13,
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  // NOT autofocused. Kickoff opens on Favourites and most opens
+                  // are a tap on a tile, so raising the keyboard every time
+                  // would cover the list you came to look at. The GNOME page
+                  // focuses because arriving there IS the decision to type.
+                  onChanged: (v) {
+                    ref.read(_kickoffQueryProvider.notifier).state = v;
+                    // AND the shared one, because `paletteResultsProvider`
+                    // reads that. Two providers for one word looks redundant
+                    // and is not: the local one is what this menu clears on
+                    // close, and the shared one is what every ranker in the app
+                    // agrees on.
+                    ref.read(paletteQueryProvider.notifier).state = v;
+                  },
+                  style: TextStyle(
+                    color: onDark,
+                    fontFamily: theme.typography.display,
+                    fontSize: 13 * theme.textScale,
+                  ),
+                  cursorColor: theme.palette.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: context.t('drawer.searchApps'),
+                    hintStyle: TextStyle(
+                      color: onDark.withValues(alpha: 0.6),
+                      fontFamily: theme.typography.display,
+                      fontSize: 13 * theme.textScale,
+                    ),
+                  ),
                 ),
               ),
+              // Only while there is something to clear. A permanent X on an
+              // empty field is a control that does nothing four times out of
+              // five, which is the rule the stat rows follow.
+              if (ref.watch(_kickoffQueryProvider).isNotEmpty)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _controller.clear();
+                    ref.read(_kickoffQueryProvider.notifier).state = '';
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Icon(
+                      Icons.close,
+                      size: 16,
+                      color: onDark.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      ),
     );
   }
 }

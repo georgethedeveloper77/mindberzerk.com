@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -12,6 +14,7 @@ import '../../data/billing/pending_apply.dart';
 import '../../data/cdn/pack_auto_update.dart';
 import '../../data/cdn/pack_repository.dart';
 import 'theme_catalog.dart';
+import 'theme_detail_screen.dart';
 
 /// The theme storefront. A header, a 2-col grid of mini-desktop preview cards,
 /// and a "more" list of themes that arrive over the CDN.
@@ -247,6 +250,59 @@ class ThemesScreen extends ConsumerWidget {
       }
     }
 
+    /// What a tap on the card BODY does.
+    ///
+    /// ─── ROUTED BY STATUS, NOT UNIFORMLY ──────────────────────────────────
+    ///
+    /// Anything already on the device applies on one tap, as it always has.
+    /// Switching distros is the frequent action on this screen, and the detail
+    /// page has nothing to tell an owner that Settings cannot, so growing it a
+    /// tap would be the wrong trade for the common case.
+    ///
+    /// `locked` and `available` open the page instead. Those are the two states
+    /// where a tap COMMITS: one opens Play's payment sheet, the other starts a
+    /// download measured in megabytes, and until now both did it with no screen
+    /// in between saying what the distro is or what is in it.
+    ///
+    /// `requiresAppUpdate` deliberately stays on the storefront. Its message is
+    /// one line and there is no action behind it, so a page whose only button
+    /// is disabled would be a longer way to say the same thing.
+    ///
+    /// DECLARED AFTER `tapCard` because it calls it. A local function cannot be
+    /// referenced above its own declaration in the same block.
+    ///
+    /// A consequence worth knowing while testing: on a device where every
+    /// distro is already installed, nothing routes to the detail page at all.
+    void onCardTap(ThemeCard c) {
+      final opensDetail = !isActive(c) &&
+          (c.status == CardStatus.locked ||
+              c.status == CardStatus.available);
+
+      if (!opensDetail) {
+        // Deliberately not awaited: this is a tap handler, and `tapCard`
+        // already reports everything it does.
+        unawaited(tapCard(c));
+        return;
+      }
+
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ThemeDetailScreen(
+            // packIdOrSpec, never `id`: they differ on the bundled distros and
+            // the pack pipeline knows only the second.
+            packId: c.packIdOrSpec,
+            // THE ACTION STAYS HERE. `tapCard` records a purchase intent before
+            // Play opens, branches on six install statuses and reports each one
+            // differently. A second copy of that on the detail page would be a
+            // second thing to keep correct, and the one that drifts is always
+            // the copy. The page pops itself before calling this, so the
+            // messages land on a screen the user can see.
+            onAction: tapCard,
+          ),
+        ),
+      );
+    }
+
     return ThemedScaffold(
       // Pull to refresh. The automatic fetch above runs once per app run, which
       // is right for the common case and useless in the one that matters: you
@@ -351,7 +407,7 @@ class ThemesScreen extends ConsumerWidget {
                     // the normal case; the card only grows a bar while it is
                     // downloading.
                     progress: progress[shown[i].packIdOrSpec],
-                    onTap: () => tapCard(shown[i]),
+                    onTap: () => onCardTap(shown[i]),
                   ),
                 ],
               ],
@@ -544,7 +600,7 @@ class _ThemeCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _ThemePreview(card.preview),
+                  ThemePreview(card.preview),
                   // Over the preview, not under the title: the preview is the
                   // part of the card the eye is already on, and a bar tucked
                   // into the meta row competes with the tag for two-thirds of
@@ -634,10 +690,73 @@ class _ThemeCard extends StatelessWidget {
             // until the signed index carries a features block. An empty gap is
             // honest; invented rows on a paid product are not.
             ..._featureRows(context),
+
+            // ─── AND WHAT IS IN THE BOX ─────────────────────────────────
+            //
+            // The rows above are EDITORIAL: someone has to have something true
+            // to write, and for four distros nobody does. Manjaro, Fedora,
+            // Zorin and Deepin have no honest exclusive claim, two of them are
+            // paid, and until now their cards were a name over a rectangle
+            // with a price beside it.
+            //
+            // This strip is MECHANICAL and counted at publish, so it cannot be
+            // blank on a pack that has contents and cannot flatter one that
+            // does not. It sits BELOW the features on purpose: a reason to buy
+            // outranks a bill of materials, and the card should read in that
+            // order even on the distros that have both.
+            //
+            // Renders nothing at all until the index carries the fields, which
+            // is every pack today. See [ThemeCard.contentsChips].
+            ..._contentsStrip(context),
           ],
         ),
       ),
     );
+  }
+
+  /// The contents chips, or nothing.
+  ///
+  /// Reads the scope from context for the same reason [_featureRows] does: the
+  /// type of `d.colors` is not named anywhere in this file, and inventing a
+  /// signature for it here would be guessing at an API for one call site.
+  List<Widget> _contentsStrip(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    final chips = card.contentsChips;
+    if (chips.isEmpty) return const [];
+
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 11),
+        child: Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            for (final chip in chips)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: c.line,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  chip,
+                  // Mono, from the chrome's value ramp, the same face the
+                  // subtitle uses. These are quantities and package names, and
+                  // they should read as the meta line's continuation rather
+                  // than as more prose competing with the feature rows.
+                  style: d.text.value.copyWith(
+                    fontSize: 10.5,
+                    height: 1.1,
+                    color: c.textMuted,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 
   /// Takes the context and re-reads the scope rather than accepting the colours
@@ -788,14 +907,29 @@ class _Trailing extends ConsumerWidget {
         child: Icon(Icons.check, size: 11, color: c.onAccent),
       );
     }
-    // A paid card reaching HERE is one that is not locked — owned, installed, or
-    // bundled. It has nothing left to sell, so it reads as its desktop tag like
-    // every other card rather than wearing a price it has already been paid.
-    // Null when the index does not say which shell this is, and then the slot
-    // stays empty. Every CDN card read `Distro` before, which is the one word
-    // all fourteen share and therefore the one word worth least here.
-    final tag = card.tag;
-    return tag == null ? const SizedBox.shrink() : _Tag(tag);
+    // ─── EVERYTHING LEFT IS ON THE DEVICE AND NOT WORN ────────────────────
+    //
+    // Bundled or installed, not active, nothing to buy and nothing to fetch.
+    // The only thing a tap can do here is apply it, so the slot says so.
+    //
+    // ─── THIS SLOT USED TO DRAW THE DE TAG, AND MOSTLY DREW NOTHING ───────
+    //
+    // It read `card.tag`, which `_cardFromPack` sets to null on every CDN
+    // entry, so eleven of fourteen installed cards rendered an empty corner:
+    // no price, no action, no chip. A card with a picture, a name and a blank
+    // third element reads as one that failed to load rather than one that is
+    // simply ready.
+    //
+    // The three cards that DID have a tag lost nothing worth keeping. Ubuntu's
+    // said GNOME directly above a subtitle reading `24.04 · GNOME`, which is
+    // the same duplication `_cardFromPack` removed the tag for in the first
+    // place. `ThemeCard.tag` is now read by nothing; it is left on the class
+    // rather than deleted in a pass about something else.
+    //
+    // Word, not an icon, for the reason [_MiniLabel] gives: Apply, Get and
+    // Update are three different promises and a single glyph would collapse
+    // them into the ambiguity this whole state machine exists to remove.
+    return _MiniLabel('Apply', c.accent);
   }
 }
 
@@ -822,31 +956,6 @@ class _MiniLabel extends StatelessWidget {
       );
 }
 
-class _Tag extends StatelessWidget {
-  const _Tag(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: c.line,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w600,
-          color: c.textMuted,
-        ),
-      ),
-    );
-  }
-}
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The mini-desktop preview. Pure decoration driven by ThemePreviewSpec.
@@ -859,8 +968,8 @@ class _Tag extends StatelessWidget {
 /// bottom instead.
 enum _Bar { top, bottom, none }
 
-class _ThemePreview extends StatelessWidget {
-  const _ThemePreview(this.spec);
+class ThemePreview extends StatelessWidget {
+  const ThemePreview(this.spec, {super.key});
 
   final ThemePreviewSpec spec;
 

@@ -91,6 +91,12 @@
       "$comment": "The FIRST entry is applied once, on first use of the theme, and never again (LauncherPrefs.wallpaperInitialized). Order matters for that reason alone."
     },
 
+    "wallpaperMeta": {
+      "type": "object",
+      "$comment": "How each wallpaper meets the screen, KEYED BY THE SAME STRING that appears in `wallpapers` or `wallpapersLight`. A sidecar map rather than richer `wallpapers` entries because that array is a published wire format and the string is an identity elsewhere: prefs.wallpaperCurrent stores it, the rotation worker stores a list of them, wallpaperContentStamp digests them. Every key is OPTIONAL and so is the whole block; a wallpaper with no entry is centred with the app default fit, which is exactly what every pack did before this existed. A key naming a wallpaper this theme does not ship is never looked up rather than an error, matching the runtime parser.",
+      "additionalProperties": { "$ref": "#/$defs/wallpaperMeta" }
+    },
+
     "wallpaper": {
       "type": "object",
       "$comment": "LEGACY single-wallpaper form. Still parsed so a theme already on someone's phone keeps working. Do not author new themes with it.",
@@ -100,6 +106,36 @@
   },
 
   "$defs": {
+    "wallpaperMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Framing for ONE wallpaper. The user owns framing and overrides all of this the moment they drag, so this is a STARTING POINT, not a lock: it exists because the author knows where the subject is and the app does not. An empty object is legal and means the same as omitting the key.",
+      "properties": {
+        "fit": {
+          "enum": ["cover", "contain", "fill", "center"],
+          "$comment": "OMIT to take the app default rather than writing 'cover'. Null and 'cover' are not the same fact: null means this pack expressed no opinion and should follow the default if it ever changes, 'cover' means this pack chose it. Unknown values degrade natively to 'cover' at runtime, but this schema runs against our own themes in CI where a typo should fail rather than degrade."
+        },
+        "focalX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "$comment": "A FRACTION OF THE SOURCE IMAGE, not pixels and not screen coordinates. Pixels break the moment decodeSampled picks a different sample size, which it does on every different screen. 0.5 is the centre and is the default."
+        },
+        "focalY": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "$comment": "As focalX, down the image. This is the one that usually matters: distro art tends to be horizontally centred already and vertically off, which is why a tall logo render lands behind the dock."
+        },
+        "zoom": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 4,
+          "$comment": "1 is the whole frame; above 1 keeps less of the picture. NEVER BELOW 1, which would ask for a region larger than the image and produce either a degenerate crop rect or bars the fit did not ask for."
+        }
+      }
+    },
+
     "color": {
       "type": "string",
       "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",

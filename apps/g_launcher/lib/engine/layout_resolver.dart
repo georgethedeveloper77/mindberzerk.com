@@ -350,14 +350,44 @@ abstract final class LayoutResolver {
   ///
   /// Until then: bottom, which is what Plasma does and what this shell has
   /// always drawn.
-  static TopBarSide _panelSide(LauncherPrefs prefs) => switch (prefs.panelSide) {
-        'top' => TopBarSide.top,
-        'bottom' => TopBarSide.bottom,
-        'left' => TopBarSide.left,
-        'right' => TopBarSide.right,
-        // Null, or a value from a newer build. Same contract as `dockSide`.
-        _ => TopBarSide.bottom,
-      };
+  /// Which edge the shell's own panel sits on.
+  ///
+  /// ─── THE THEME WAS NEVER ASKED ──────────────────────────────────────────
+  ///
+  /// This read `prefs.panelSide` alone and fell through to bottom, so an
+  /// authored `panels: [{ side: "top" }]` moved nothing. Garuda authored a top
+  /// panel and drew it at the bottom, which is why it and KDE Plasma were
+  /// indistinguishable on the device: same edge, same dock, same shell.
+  ///
+  /// The audit could not see it either. `panels` has a prefs arm so it is
+  /// reported rather than fingerprinted, and the report reads the theme.json,
+  /// which said `top` all along. Every measurement agreed with the intent and
+  /// the device disagreed with both.
+  ///
+  /// PREFS FIRST, then the theme's first authored panel, then bottom. Same
+  /// three-step shape as every other resolved field, and the one it was
+  /// missing.
+  static TopBarSide _panelSide(LauncherPrefs prefs, ThemeSpec spec) {
+    // The PREF wins, and it is a string because that is what a settings row
+    // writes. An unrecognised value falls through to the authored side rather
+    // than to bottom, so a pref from a newer build degrades to the theme's
+    // intent instead of to the default.
+    switch (prefs.panelSide) {
+      case 'top':
+        return TopBarSide.top;
+      case 'bottom':
+        return TopBarSide.bottom;
+      case 'left':
+        return TopBarSide.left;
+      case 'right':
+        return TopBarSide.right;
+    }
+    // `panels` is non-nullable and `side` is already a TopBarSide, so the
+    // theme's own answer needs no parsing. First panel only: the shell draws
+    // exactly one and `plasma_shell` places it by this value.
+    final panels = spec.layout.panels;
+    return panels.isEmpty ? TopBarSide.bottom : panels.first.side;
+  }
 
   /// Where the app list lives, clamped to what the distro's SHELL can render.
   ///
@@ -449,7 +479,14 @@ abstract final class LayoutResolver {
       panels: prefs.panelModules != null
           ? [
               PanelSpec(
-                side: _panelSide(prefs),
+                // ── THE THEME'S EDGE, EVEN HERE ─────────────────────────
+          //
+          // This branch fires when the user has rearranged the panel in edit
+          // mode, and it rebuilds the panel from THEIR modules. The edge is
+          // still a separate decision: reordering the clock should not also
+          // move the bar to the bottom, which is what passing prefs alone did
+          // once `_panelSide` learned to read the theme.
+          side: _panelSide(prefs, spec),
                 modules: prefs.panelModules!
                     .map(PanelModule.parse)
                     .whereType<PanelModule>()
@@ -510,7 +547,7 @@ abstract final class LayoutResolver {
       // The user's, else whatever the distro authored on the panel this shell
       // draws, else null and the shell uses its own default.
       panelHeight: prefs.panelHeight ?? _authoredHeight(spec),
-      panelSide: _panelSide(prefs),
+      panelSide: _panelSide(prefs, spec),
       rows: prefs.rows ?? spec.layout.rows,
       cols: prefs.cols ?? spec.layout.cols,
       // Drawer defaults to the SAME width as home (a clean 4-wide), not home+1.

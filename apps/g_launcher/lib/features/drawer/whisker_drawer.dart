@@ -7,7 +7,7 @@ import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../home/workspaces/workspace_controller.dart';
-import '../search/search_sheet.dart';
+import '../search/search_page.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
@@ -365,7 +365,11 @@ class _Search extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => showSearchSheet(context, theme),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SearchPage(theme: theme),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: Row(

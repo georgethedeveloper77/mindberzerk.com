@@ -30,6 +30,10 @@ import {
   type ThemeSpecJson,
   CHROMES,
   SHELLS,
+  WALLPAPER_FITS,
+  canonWallpaperMeta,
+  type WallpaperFit,
+  type WallpaperMetaJson,
 } from '@/lib/g-launcher/theme-spec';
 import { COMMON_APPS, isBareFilename, validateHeroPack, type HeroIconEntry, expandRoleEntries, roleForPackage } from '@/lib/g-launcher/hero-pack';
 import { playSkuNote, type PlayLite } from '@/lib/core/play-lite';
@@ -376,6 +380,16 @@ export function DistroWorkspace({
       .filter((a) => a.file !== initialLogoNames.light && a.file !== initialLogoNames.dark)
       .map((a) => assetFromDataUrl(a.file, a.dataUrl)),
   );
+  // Framing lives BESIDE the assets, keyed by filename, exactly as it ships.
+  // Hanging it off the Asset objects would look tidier and would lose it on
+  // every re-upload, because `upsertAsset` replaces the object holding a name
+  // and the framing is a fact about the SLOT rather than about the bytes
+  // currently in it: re-uploading a corrected export of the same wallpaper
+  // should keep the focal point somebody already set for it.
+  const [wallpaperMeta, setWallpaperMeta] = React.useState<Record<string, WallpaperMetaJson>>(
+    () => ({ ...(initial?.spec?.wallpaperMeta ?? {}) }),
+  );
+
   const [logoLight, setLogoLight] = React.useState<Asset | null>(() => {
     const hit = initialLogoNames.light
       ? initialAssets.find((a) => a.file === initialLogoNames.light)
@@ -696,13 +710,22 @@ export function DistroWorkspace({
       ...spec,
       id: themePackId,
       wallpapers: wallpapers.map((w) => w.name),
+      // Narrowed to what is actually shipping. A wallpaper the author framed
+      // and then removed would otherwise leave a key the device looks up and
+      // never finds, and the importer would flag it as an orphan on the next
+      // round trip through this workspace.
+      wallpaperMeta: Object.fromEntries(
+        wallpapers
+          .map((w) => [w.name, wallpaperMeta[w.name]] as const)
+          .filter((e): e is readonly [string, WallpaperMetaJson] => e[1] != null),
+      ),
       logo,
       // `?? undefined` rather than null: `pruneIcons` in theme-spec drops absent
       // keys, and a distro with no hero pack should ship no key at all rather
       // than an explicit null that reads as a deliberate empty.
       icons: { ...spec.icons, heroPack: heroPackId ?? undefined },
     };
-  }, [spec, themePackId, wallpapers, logoLight, logoDark, heroPackId]);
+  }, [spec, themePackId, wallpapers, wallpaperMeta, logoLight, logoDark, heroPackId]);
 
   const themeDraft: ThemeDraft = {
     id: themePackId,
@@ -1267,8 +1290,36 @@ export function DistroWorkspace({
                   <AssetList
                     label="wallpapers"
                     assets={wallpapers}
+                    meta={wallpaperMeta}
+                    onFrame={(name, m) =>
+                      setWallpaperMeta((prev) => {
+                        const next = { ...prev };
+                        const trimmed = m ? canonWallpaperMeta(m) : null;
+                        // A block that says nothing is REMOVED, not stored as
+                        // defaults. That is what makes Reset actually reset,
+                        // and it keeps the published theme.json free of rows
+                        // for wallpapers nobody framed.
+                        if (trimmed) next[name] = trimmed;
+                        else delete next[name];
+                        return next;
+                      })
+                    }
                     onAdd={(files) => addWallpapers(files)}
                     onRemove={(name) => setWallpapers((w) => w.filter((x) => x.name !== name))}
+                    onReorder={(from, to) =>
+                      setWallpapers((w) => {
+                        // Rebuilt, not mutated. `wallpapers` feeds
+                        // `effectiveSpec` through a useMemo keyed on the array
+                        // identity, so splicing in place would leave the
+                        // generated theme.json showing the old order until some
+                        // unrelated edit happened to change the reference.
+                        const next = [...w];
+                        const [moved] = next.splice(from, 1);
+                        if (!moved) return w;
+                        next.splice(to, 0, moved);
+                        return next;
+                      })
+                    }
                   />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
                     <AssetSlot label="logo (light bg)" asset={logoLight} onPick={(file) => pickAsset(file, `logo_light.${extFor(file)}`, setLogoLight)} onClear={() => setLogoLight(null)} />
@@ -1552,24 +1603,138 @@ function Unlock({ label, by }: { label: string; by: string[] }) {
     </div>
   );
 }
-function AssetList(props: { label: string; assets: Asset[]; onAdd: (files: File[]) => void; onRemove: (name: string) => void }) {
+/**
+ * The uploaded wallpapers, as a reorderable row.
+ *
+ * ─── WHY ORDER IS A FEATURE HERE AND NOT A TIDINESS ──────────────────────────
+ *
+ * `effectiveSpec` writes `wallpapers` straight from this array, and the device
+ * treats the FIRST entry as the one to seed: `LauncherPrefs.wallpaperInitialized`
+ * applies it once, on first use of the theme, and never again. So position zero
+ * is the distro's opening impression on every phone that installs it, and until
+ * now it was whichever file the author happened to pick first out of the system
+ * file dialog. That is a real authoring decision being made by the sort order of
+ * a folder.
+ *
+ * ─── WHY NATIVE DRAG EVENTS AND NOT A LIBRARY ────────────────────────────────
+ *
+ * Seven 64px tiles in one row. A drag-and-drop library is a dependency, a
+ * bundle, and a set of behaviours the rest of this panel has no other examples
+ * of, in exchange for touch support the console does not need and keyboard
+ * support the arrows below already provide better than a drag ever would.
+ *
+ * The arrows are not a fallback. A precise one-step move is the edit an author
+ * actually wants most of the time (promote this one to first), and doing that by
+ * dragging a 64px square two positions left is worse at it than a button.
+ */
+function AssetList(props: {
+  label: string;
+  assets: Asset[];
+  onAdd: (files: File[]) => void;
+  onRemove: (name: string) => void;
+  /** Omit on a list whose order carries no meaning. */
+  onReorder?: (from: number, to: number) => void;
+  /** Authored framing per filename. Omit on a list that ships no framing. */
+  meta?: Record<string, WallpaperMetaJson>;
+  /** Null clears the entry rather than storing a block of defaults. */
+  onFrame?: (name: string, meta: WallpaperMetaJson | null) => void;
+}) {
   const ref = React.useRef<HTMLInputElement>(null);
+  const [dragFrom, setDragFrom] = React.useState<number | null>(null);
+  const [dragOver, setDragOver] = React.useState<number | null>(null);
+  const [framing, setFraming] = React.useState<string | null>(null);
+  const reorder = props.onReorder;
+  const onFrame = props.onFrame;
+  const meta = props.meta ?? {};
+
+  const move = (from: number, to: number) => {
+    if (!reorder) return;
+    if (to < 0 || to >= props.assets.length || to === from) return;
+    reorder(from, to);
+  };
+
   return (
-    <Field label={props.label} hint="webp or png; keeps its filename, which theme.json will reference; re-uploading a name replaces it">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-        {props.assets.map((a) => (
-          <div key={a.name} style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.line}` }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={a.url} alt="" width={64} height={64} style={{ objectFit: 'cover' }} />
-            <button
-              type="button"
-              className="tb-btn"
-              onClick={() => props.onRemove(a.name)}
-              style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, lineHeight: '18px', padding: 0 }}
-              aria-label="remove"
+    <Field label={props.label} hint={reorder ? 'webp or png; keeps its filename, which theme.json will reference; drag to reorder, first one is what a new install gets' : 'webp or png; keeps its filename, which theme.json will reference; re-uploading a name replaces it'}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-start' }}>
+        {props.assets.map((a, i) => (
+          <div key={a.name} style={{ width: 64 }}>
+            <div
+              draggable={reorder ? true : undefined}
+              onDragStart={reorder ? () => setDragFrom(i) : undefined}
+              onDragEnd={reorder ? () => { setDragFrom(null); setDragOver(null); } : undefined}
+              // preventDefault on dragover is what MAKES an element a drop
+              // target. Without it the browser refuses the drop and the row
+              // looks like it simply does not reorder.
+              onDragOver={reorder ? (e) => { e.preventDefault(); if (dragOver !== i) setDragOver(i); } : undefined}
+              onDrop={reorder ? (e) => { e.preventDefault(); if (dragFrom !== null) move(dragFrom, i); setDragFrom(null); setDragOver(null); } : undefined}
+              style={{
+                position: 'relative',
+                width: 64,
+                height: 64,
+                borderRadius: 8,
+                overflow: 'hidden',
+                border: `1px solid ${dragOver === i && dragFrom !== null && dragFrom !== i ? C.amber : C.line}`,
+                opacity: dragFrom === i ? 0.4 : 1,
+                cursor: reorder ? 'grab' : 'default',
+              }}
             >
-              ×
-            </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={a.url} alt="" width={64} height={64} style={{ objectFit: 'cover' }} draggable={false} />
+              <button
+                type="button"
+                className="tb-btn"
+                draggable={false}
+                onClick={() => props.onRemove(a.name)}
+                style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, lineHeight: '18px', padding: 0 }}
+                aria-label="remove"
+              >
+                ×
+              </button>
+              {reorder && i === 0 ? (
+                // Named, not numbered. "1" invites reading the rest as a
+                // ranking, which they are not: every entry after the first is
+                // just available, and only this one is applied on install.
+                <span
+                  style={{ position: 'absolute', left: 0, right: 0, bottom: 0, background: C.amber, color: C.onAccent, fontFamily: C.mono, fontSize: 8, letterSpacing: '0.06em', textAlign: 'center', padding: '2px 0' }}
+                >
+                  ON INSTALL
+                </span>
+              ) : null}
+            </div>
+            {onFrame ? (
+              <button
+                type="button"
+                className="tb-btn"
+                onClick={() => setFraming(framing === a.name ? null : a.name)}
+                style={{ width: '100%', marginTop: 3, background: framing === a.name ? C.chip : 'transparent', border: `1px solid ${meta[a.name] ? C.amber : C.line}`, borderRadius: 5, color: meta[a.name] ? C.inkStrong : C.dim, fontFamily: C.mono, fontSize: 9, lineHeight: '15px', padding: 0 }}
+              >
+                {meta[a.name] ? 'framed' : 'frame'}
+              </button>
+            ) : null}
+            {reorder ? (
+              <div style={{ display: 'flex', gap: 2, marginTop: 3 }}>
+                <button
+                  type="button"
+                  className="tb-btn"
+                  disabled={i === 0}
+                  onClick={() => move(i, i - 1)}
+                  aria-label={`move ${a.name} earlier`}
+                  style={{ flex: 1, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 5, color: i === 0 ? C.faint : C.dim, fontFamily: C.mono, fontSize: 10, lineHeight: '14px', padding: 0 }}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className="tb-btn"
+                  disabled={i === props.assets.length - 1}
+                  onClick={() => move(i, i + 1)}
+                  aria-label={`move ${a.name} later`}
+                  style={{ flex: 1, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 5, color: i === props.assets.length - 1 ? C.faint : C.dim, fontFamily: C.mono, fontSize: 10, lineHeight: '14px', padding: 0 }}
+                >
+                  ›
+                </button>
+              </div>
+            ) : null}
           </div>
         ))}
         <button
@@ -1586,7 +1751,152 @@ function AssetList(props: { label: string; assets: Asset[]; onAdd: (files: File[
             picked one by one: same-name replaces, new names append. */}
         <input ref={ref} type="file" multiple accept="image/webp,image/png,image/jpeg" style={{ display: 'none' }} onChange={(e) => { const picked = Array.from(e.target.files ?? []); if (picked.length) props.onAdd(picked); e.target.value = ''; }} />
       </div>
+      {onFrame && framing
+        ? (() => {
+            const asset = props.assets.find((x) => x.name === framing);
+            if (!asset) return null;
+            return (
+              <WallpaperFramer
+                asset={asset}
+                meta={meta[framing] ?? {}}
+                onChange={(m) => onFrame(framing, m)}
+                onClose={() => setFraming(null)}
+              />
+            );
+          })()
+        : null}
     </Field>
+  );
+}
+
+/**
+ * Set the fit and the focal point for one wallpaper.
+ *
+ * ─── WHY THE PREVIEW IS PHONE-SHAPED AND NOT THE IMAGE ───────────────────────
+ *
+ * The question this answers is not "where is the dragon in this picture", which
+ * the thumbnail already shows. It is "what survives being cropped to a phone",
+ * and those differ exactly when the source is not phone-shaped, which is the
+ * only case where framing does anything. So the box is 9:19.5 and the image
+ * moves inside it, the same arrangement the device's own framing screen uses,
+ * because an author checking their work against a differently shaped preview is
+ * checking it against a phone nobody owns.
+ *
+ * ─── THE DRAG IS ON THE FITS THAT CAN USE IT ─────────────────────────────────
+ *
+ * `fill` and `contain` put every pixel of the source on screen, so there is
+ * nothing to choose between and the device ignores the focal point for them.
+ * Offering a drag that does nothing would be a control lying about its effect,
+ * so the preview stops accepting one and says which fits do.
+ */
+function WallpaperFramer(props: {
+  asset: Asset;
+  meta: WallpaperMetaJson;
+  onChange: (meta: WallpaperMetaJson | null) => void;
+  onClose: () => void;
+}) {
+  const fit = (props.meta.fit ?? 'fill') as WallpaperFit;
+  const focalX = props.meta.focalX ?? 0.5;
+  const focalY = props.meta.focalY ?? 0.5;
+  const zoom = props.meta.zoom ?? 1;
+  const framable = fit === 'cover' || fit === 'center';
+  const box = React.useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+
+  const patch = (p: Partial<WallpaperMetaJson>) =>
+    props.onChange({ fit, focalX, focalY, zoom, ...p });
+
+  const onMove = (e: React.PointerEvent) => {
+    if (!dragging || !framable) return;
+    const r = box.current?.getBoundingClientRect();
+    if (!r || !r.width || !r.height) return;
+    // Inverted, and scaled by 0.8, matching the device screen exactly: dragging
+    // the picture left moves the window right, and a full sweep crosses most of
+    // the image rather than all of it so the ends stay reachable.
+    patch({
+      focalX: Math.min(1, Math.max(0, focalX - (e.movementX / r.width) * 0.8)),
+      focalY: Math.min(1, Math.max(0, focalY - (e.movementY / r.height) * 0.8)),
+    });
+  };
+
+  const objectFit: React.CSSProperties['objectFit'] =
+    fit === 'contain' ? 'contain' : fit === 'fill' ? 'fill' : fit === 'center' ? 'none' : 'cover';
+
+  return (
+    <div style={{ marginTop: 14, padding: 14, border: `1px solid ${C.line}`, borderRadius: 10, background: C.bg, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div
+        ref={box}
+        onPointerDown={(e) => { if (framable) { setDragging(true); e.currentTarget.setPointerCapture(e.pointerId); } }}
+        onPointerMove={onMove}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        style={{ width: 108, height: 234, flex: '0 0 auto', borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}`, background: '#000', cursor: framable ? (dragging ? 'grabbing' : 'grab') : 'default', touchAction: 'none' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={props.asset.url}
+          alt=""
+          draggable={false}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit,
+            objectPosition: `${focalX * 100}% ${focalY * 100}%`,
+            transform: `scale(${zoom})`,
+            transformOrigin: `${focalX * 100}% ${focalY * 100}%`,
+          }}
+        />
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.ink, marginBottom: 10, wordBreak: 'break-all' }}>{props.asset.name}</div>
+
+        <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+          {WALLPAPER_FITS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              className="tb-btn"
+              onClick={() => patch({ fit: f })}
+              style={{ background: f === fit ? C.amber : 'transparent', color: f === fit ? C.onAccent : C.dim, border: `1px solid ${f === fit ? C.amber : C.line}`, borderRadius: 6, fontFamily: C.mono, fontSize: 10.5, padding: '5px 9px' }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: C.mono, fontSize: 10.5, color: C.faint, lineHeight: 1.6, marginBottom: 10 }}>
+          {framable
+            ? `drag the preview · focal ${Math.round(focalX * 100)}% ${Math.round(focalY * 100)}%`
+            : 'this fit shows the whole image, so there is nothing to reposition'}
+        </div>
+
+        {framable ? (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: C.mono, fontSize: 10.5, color: C.dim, marginBottom: 12 }}>
+            zoom
+            <input
+              type="range"
+              min={1}
+              max={4}
+              step={0.05}
+              value={zoom}
+              onChange={(e) => patch({ zoom: Number(e.target.value) })}
+              style={{ flex: 1 }}
+            />
+            {zoom.toFixed(2)}
+          </label>
+        ) : null}
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="tb-btn" onClick={() => props.onChange(null)} style={{ background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 6, color: C.dim, fontFamily: C.mono, fontSize: 10.5, padding: '5px 11px' }}>
+            reset
+          </button>
+          <button type="button" className="tb-btn" onClick={props.onClose} style={{ background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 6, color: C.dim, fontFamily: C.mono, fontSize: 10.5, padding: '5px 11px' }}>
+            done
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

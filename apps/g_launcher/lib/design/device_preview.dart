@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../engine/theme_spec.dart';
+import '../engine/wallpaper_framing.dart';
+import 'wallpaper_paint.dart';
 
 /// A small live phone showing what a layout setting actually does.
 ///
@@ -45,6 +47,7 @@ class DevicePreview extends StatelessWidget {
     this.tileRadiusFraction = 0.22,
     this.framed = true,
     this.background,
+    this.backgroundFraming = const WallpaperFraming(),
     this.clockLabel,
     this.dateLabel,
     this.tiles = const <Widget>[],
@@ -80,6 +83,22 @@ class DevicePreview extends StatelessWidget {
   /// Null keeps the gradient, which is right for every caller that is
   /// previewing a LAYOUT rather than a picture.
   final ImageProvider? background;
+
+  /// How [background] meets the preview, matching how it meets the phone.
+  ///
+  /// ─── WHY A PREVIEW HAS TO CARE ──────────────────────────────────────────
+  ///
+  /// This drew every wallpaper `BoxFit.cover`, centred, which was correct for
+  /// exactly as long as that was the only thing the app could do. Once framing
+  /// became per wallpaper the preview at the top of the wallpaper page started
+  /// claiming a centred crop for an image the user had deliberately pushed off
+  /// centre, and it is the ONE picture on that page whose whole job is to say
+  /// what the phone looks like.
+  ///
+  /// The default is the default everywhere else, so every existing caller draws
+  /// exactly what it drew before: a layout preview is previewing a LAYOUT and
+  /// has no business knowing about focal points.
+  final WallpaperFraming backgroundFraming;
 
   /// Clock face for [DevicePreviewMode.lock], and the date under it.
   ///
@@ -147,13 +166,29 @@ class DevicePreview extends StatelessWidget {
         end: Alignment.bottomCenter,
         colors: [palette.bgTop, palette.bgBottom],
       ),
-      image: background == null
-          ? null
-          : DecorationImage(image: background!, fit: BoxFit.cover),
     );
 
+    // A STACK, where this used to be `DecorationImage`. The decoration could
+    // take a fit and an alignment but had nowhere to put the zoom, so honouring
+    // framing through it would have silently dropped a quarter of the setting.
+    // [WallpaperPaint] is the same code the framing screen draws with, which is
+    // the only way the two can be guaranteed to agree.
+    Widget layered(Widget child) => background == null
+        ? child
+        : Stack(
+            fit: StackFit.expand,
+            children: [
+              WallpaperPaint(
+                image: background,
+                palette: palette,
+                framing: backgroundFraming,
+              ),
+              child,
+            ],
+          );
+
     if (!framed) {
-      return DecoratedBox(decoration: fill, child: body);
+      return DecoratedBox(decoration: fill, child: layered(body));
     }
 
     return AspectRatio(
@@ -164,7 +199,7 @@ class DevicePreview extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: palette.onDark.withValues(alpha: 0.16)),
         ),
-        child: body,
+        child: layered(body),
       ),
     );
   }

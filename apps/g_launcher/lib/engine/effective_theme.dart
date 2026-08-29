@@ -7,7 +7,18 @@ import '../data/prefs/desklet_layout.dart';
 import '../data/prefs/launcher_prefs.dart';
 import '../data/prefs/prefs_repository.dart';
 import '../data/prefs/starter_desktop.dart';
+import '../data/prefs/starter_home.dart';
 import '../data/repositories/app_repository.dart';
+// `show DockMetrics` IS MANDATORY, not tidiness. `dock_metrics.dart` declares
+// its own `DockSide` and its doc says so at length: this file already has
+// theme_spec's, and importing the other unrestricted is an ambiguous-import
+// error that reads as if NEITHER declaration exists. `terminal_matches.dart`
+// carries the same note about `show ThemePalette` for the same reason.
+//
+// Only `DockMetrics.defaultCount` is wanted here: the seed skips whatever the
+// dock is showing, and that count is the dock's own answer rather than a
+// second copy of it. Pure Dart, no Flutter imports, no cycle.
+import '../features/dock/dock_metrics.dart' show DockMetrics;
 import '../platform/launcher_api.g.dart' as api;
 import '../system/wallpaper_source.dart';
 import 'font_catalogue.dart';
@@ -15,6 +26,7 @@ import 'layout_resolver.dart';
 import 'theme_engine.dart';
 import 'font_registry.dart';
 import 'theme_spec.dart';
+import 'wallpaper_framing.dart';
 
 /// What the shell actually renders.
 ///
@@ -903,16 +915,32 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
       // this whole branch is gated on that key, the theme then never tried
       // again. A failure that marks itself done is worse than a failure.
       if (asset == null || asset.existsSync) {
+        // The SEED is the one apply that has no user in front of it, so it is
+        // also the one where the pack author's framing matters most: this is
+        // the first time anybody sees this wallpaper, and a dragon sitting
+        // behind the dock on first launch is the impression the distro makes.
+        // `user` is the real map rather than const {} so that re-seeding after
+        // a pack update still respects framing the user has already set.
+        final framing = resolveWallpaperFraming(
+          user: prefs.wallpaperFraming,
+          authored: spec.wallpaperMeta,
+          source: source,
+          // The user's per-theme fit applies to a seeded preset exactly as it
+          // does to a manual pick.
+          legacyFit: prefs.wallpaperFit,
+        );
         final applied = await api_.setWallpaper(
           encodeWallpaperSource(asset?.path ?? source),
           prefs.wallpaperLock ?? false,
-          // The user's per-theme fit applies to a seeded preset exactly as it
-          // does to a manual pick; letterbox bars wear the palette this apply
-          // is FOR, not whichever the getter would resolve later.
-          prefs.wallpaperFit ?? 'cover',
+          framing.resolvedFit,
+          // Letterbox bars wear the palette this apply is FOR, not whichever
+          // the getter would resolve later.
           (effective.dark ? spec.palette : (spec.paletteLight ?? spec.palette))
               .bgTop
               .toARGB32(),
+          framing.focalX,
+          framing.focalY,
+          framing.zoom,
         );
         if (applied) await store.write(wallpaperAppliedForKey, appliedToken);
       }
@@ -978,6 +1006,60 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
         // revert on the next cold start, re-laying the starter desktop over the
         // user's arrangement on every launch.
         .edit((p) => seeded.copyWith(deskletsInitialized: true));
+  }
+
+  // ─── AND THE ICON GRID, WHICH HAD NO SEED AT ALL ──────────────────────
+  //
+  // Nine distros author `desktopIcons: true` and every one of them draws an
+  // empty grid, because nothing has ever placed anything on it. Pocket is the
+  // distro that makes this urgent: its `starter` is empty by design, it is an
+  // iOS home screen, and with no icons it is a wallpaper and a floating dock.
+  //
+  // `read`, NOT `watch`, on the app list, and that is the whole reason this is
+  // safe to put here. Native pushes the full list on every install, uninstall,
+  // update and profile switch; watching it would make the entire theme
+  // re-resolve every time any app changed, which is a palette, a font registry
+  // pass and an icon-cache key rebuilt because somebody updated WhatsApp.
+  // `.future` still awaits the first load, so the seed cannot run against an
+  // empty list and quietly place nothing.
+  if (!prefs.homeInitialized && spec.home.fill > 0) {
+    final apps = await ref.read(appListProvider.future);
+
+    // The same list the desktop itself reads: hidden apps already dropped,
+    // already sorted by label. Re-deriving either here would be a second
+    // opinion about both. See `shellAppsProvider`, which this mirrors rather
+    // than calls, because calling it would key a family on an EffectiveTheme
+    // that is still being built.
+    final hidden = prefs.hiddenApps;
+    final keys = [
+      for (final a in apps)
+        if (!hidden.contains(a.componentKey)) a,
+    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+
+    // WHAT THE DOCK IS ALREADY SHOWING. With nothing pinned and no usage yet,
+    // `dockKeys` yields nothing and the shell falls back to the alphabetical
+    // head, which is the exact same head this seed would take. Without this the
+    // first four apps appear twice on a fresh install, once in the dock and
+    // once on the desktop.
+    final dock = prefs.favourites.isNotEmpty
+        ? prefs.favourites.toSet()
+        : keys.take(DockMetrics.defaultCount).map((a) => a.componentKey).toSet();
+
+    final seeded = StarterHome.apply(
+      prefs,
+      spec.home,
+      componentKeys: [for (final a in keys) a.componentKey],
+      exclude: dock,
+      // The ICON grid, not the fine grid. A home slot is one icon cell, which
+      // is why this is `rows * cols` and the desklet seed above is not.
+      capacity: effective.rows * effective.cols,
+    );
+    await ref
+        .read(prefsProvider(spec.id).notifier)
+        // .edit for the reason the branch above states: `.update` would flip
+        // the flag in memory only, and the seed would re-lay itself over the
+        // user's arrangement on every cold start.
+        .edit((p) => seeded.copyWith(homeInitialized: true));
   }
 
   return effective;

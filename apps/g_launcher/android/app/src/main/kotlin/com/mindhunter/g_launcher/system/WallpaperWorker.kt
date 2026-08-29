@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
@@ -30,6 +31,7 @@ class WallpaperWorker(
         private const val KEY_LOCK = "lock"
         private const val KEY_FIT = "fit"
         private const val KEY_COLOR = "letterboxColor"
+        private const val KEY_FRAMING = "framing"
 
         const val MIN_INTERVAL_MINUTES = 15L
 
@@ -40,6 +42,7 @@ class WallpaperWorker(
             applyToLock: Boolean,
             fit: String = "cover",
             letterboxColor: Long = 0xFF000000L,
+            framingJson: String = "",
         ) {
             if (sources.isEmpty()) {
                 cancel(context)
@@ -59,6 +62,12 @@ class WallpaperWorker(
                 // without a reschedule when only the fit changed.
                 .putString(KEY_FIT, fit)
                 .putLong(KEY_COLOR, letterboxColor)
+                // Stored verbatim and parsed per tick rather than expanded into
+                // keys here. Expanding it would mean one prefs key per wallpaper
+                // per field, and the pool changes far more often than the
+                // schedule does: a rotation whose list is edited must not have
+                // to clean up orphaned keys from wallpapers that left the pool.
+                .putString(KEY_FRAMING, framingJson)
                 .apply()
 
             val interval = maxOf(minutes, MIN_INTERVAL_MINUTES)
@@ -100,12 +109,23 @@ class WallpaperWorker(
         val index = prefs.getInt(KEY_INDEX, -1)
         val next = (index + 1) % sources.size
 
+        val source = sources[next]
+        val framing = framingFor(prefs.getString(KEY_FRAMING, "") ?: "", source)
+
         val ok = WallpaperController(applicationContext)
             .setWallpaper(
-                sources[next],
+                source,
                 prefs.getBoolean(KEY_LOCK, false),
-                prefs.getString(KEY_FIT, "cover") ?: "cover",
+                // The per-wallpaper fit wins, and the schedule's fit is the
+                // fallback. A rotation that rendered differently from a manual
+                // apply of the same image would look like the rotation was
+                // picking a different picture.
+                framing?.optString("fit").takeUnless { it.isNullOrBlank() }
+                    ?: prefs.getString(KEY_FIT, "cover") ?: "cover",
                 prefs.getLong(KEY_COLOR, 0xFF000000L),
+                (framing?.optDouble("focalX", 0.5) ?: 0.5).toFloat(),
+                (framing?.optDouble("focalY", 0.5) ?: 0.5).toFloat(),
+                (framing?.optDouble("zoom", 1.0) ?: 1.0).toFloat(),
             )
 
         // Advance regardless: a source that fails every time (deleted photo)
@@ -113,5 +133,22 @@ class WallpaperWorker(
         prefs.edit().putInt(KEY_INDEX, next).apply()
 
         return if (ok) Result.success() else Result.retry()
+    }
+
+    /**
+     * This source's framing block, or null when it has none.
+     *
+     * SWALLOWS EVERYTHING. A malformed blob here must not wedge the rotation:
+     * the worker's whole contract is that it keeps cycling even when one entry
+     * is broken, which is why [doWork] advances the index whether or not the
+     * apply succeeded. Returning null falls back to the schedule's own fit and
+     * a centred focal point, which is what every rotation did before framing
+     * existed.
+     */
+    private fun framingFor(json: String, source: String): JSONObject? {
+        if (json.isBlank()) return null
+        return runCatching {
+            JSONObject(json).optJSONObject(source)
+        }.getOrNull()
     }
 }

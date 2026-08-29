@@ -13,7 +13,7 @@ import '../../design/components/press_pop.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../search/search_sheet.dart';
+import '../search/search_page.dart';
 import 'drawer_actions.dart';
 import 'drawer_pager.dart';
 import 'drawer_state.dart';
@@ -29,14 +29,23 @@ import 'folder_overlay.dart';
 /// Painted from EffectiveTheme, not Material — columns, icon size, label lines
 /// and text scale are all user-settable, and this is where they show up.
 ///
-/// Search is a SHEET, not a page. The drawer shows the full app grid, and the
-/// search bar, positioned top or bottom per the `drawerSearchPosition` pref,
-/// drops `showSearchSheet` from the top edge over everything.
+/// Search lives on its OWN page (the One UI-style [SearchPage]): the drawer
+/// shows the full app grid, and a search bar, positioned top or bottom per the
+/// per-theme `drawerSearchPosition` pref, opens that page.
 ///
-/// It was a full route to a One UI-style page, and that was the wrong shape:
-/// searching here narrows what is already in front of you rather than going
-/// somewhere, and the grid vanishing while you type said otherwise. All seven
-/// drawers moved together, so no two of them open search differently.
+/// ─── IT WAS BRIEFLY A SHEET, AND THAT WAS A LOSS ────────────────────────────
+///
+/// All seven drawers were moved to a top-edge sheet on the argument that
+/// searching narrows what is in front of you rather than going somewhere. The
+/// argument holds for the SHAPE and ignored the CONTENT: `SearchPage` carries
+/// suggested apps, settings topics, Downloads and Screenshots, recent searches
+/// and a voice button that draws only where the phone can transcribe. The sheet
+/// had a field and eight rows, so the move quietly deleted five features.
+///
+/// The sheet still exists and is right for the two desktops that genuinely
+/// float a card: Pocket's App Library opens it, and elementary should. Choosing
+/// per distro is a separate pass; until then every drawer opens the page, which
+/// is what they all did before.
 ///
 /// ## Performance rules, non-negotiable
 ///
@@ -756,7 +765,11 @@ class _DrawerSearchBar extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 520),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => showSearchSheet(context, theme),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SearchPage(theme: theme),
+              ),
+            ),
             child: Container(
               height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 16),

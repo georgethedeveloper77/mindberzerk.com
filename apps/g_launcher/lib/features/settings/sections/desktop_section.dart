@@ -77,6 +77,16 @@ List<Widget> desktopSection(
             // theme.dock is already the effective value (pref or default).
             value: theme.dock.name,
             onSelect: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
+            // ── AND THE WAY BACK TO THE DISTRO ────────────────────────
+            //
+            // Every tile here writes a pref, so the first tap pinned the dock
+            // on EVERY distro forever. Mint authors `dock: "off"` and showed
+            // one anyway, and so would Arch, EndeavourOS, Pop and Zorin: five
+            // dockless distros wearing a dock because of one tap on a sixth.
+            //
+            // `dockOpacity` two rows down has had this pair since it shipped.
+            following: theme.prefs.dockSide == null,
+            onFollow: () => notifier.edit((p) => p.clearing(dockSide: true)),
             options: [
               // FOUR TILES IN ONE ROW, not a wrap to 2x2. At 360dp that is
               // about 75dp each, which is a legible phone at the 10:15 the

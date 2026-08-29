@@ -93,6 +93,13 @@ class PackInfo {
     // three lines up: inserting mid-class shifts every field below it in the
     // codec and the wire silently reinterprets one type as another.
     this.previewLayout,
+    // THE CONTENTS BLOCK, and these three are now the last fields in the
+    // class. Same rule every append above states: field order is the decode
+    // index, so anything inserted higher renumbers the rest and an older build
+    // reads one field where another now sits.
+    this.wallpaperCount,
+    this.iconPackTitle,
+    this.fontName,
   });
 
   final String packId;
@@ -260,6 +267,60 @@ class PackInfo {
   /// reason `packType` gives: a value a older client does not recognise must
   /// degrade to a neutral picture rather than fail to parse.
   final String? previewLayout;
+
+  // ─── THE CONTENTS BLOCK ───────────────────────────────────────────────────
+  //
+  // ─── WHY THE DEVICE CANNOT WORK THESE OUT ITSELF ──────────────────────────
+  //
+  // The storefront needs a floor: something true on every card, including the
+  // ones with no exclusive feature worth naming. Four distros are in exactly
+  // that position and two of them are paid, so their cards are a name over a
+  // rectangle and the user is asked for money anyway.
+  //
+  // Nothing already on the wire answers it. `packCoverage` needs the pack on
+  // disk and answers about icons only; `readInstalledTheme` needs it installed.
+  // For a distro nobody has bought, the device knows the palette, the layout
+  // and the byte count, and that is all.
+  //
+  // Deriving them from [previewShell] is the mistake `_cardFromPack` has just
+  // finished backing out of: the DE tag was removed because it printed GNOME
+  // on Kali, whose chrome and menus are Xfce throughout. A shell is not a bill
+  // of materials, and guessing one on a card that is charging is worse than an
+  // empty corner.
+  //
+  // So the panel computes them at publish, where the whole theme.json is in
+  // hand, and the index carries the answer. One source, the same argument the
+  // `previewLayout` doc makes about itself.
+  //
+  // ─── ALL THREE NULLABLE, AND THAT IS THE MIGRATION ────────────────────────
+  //
+  // Every pack in the index today has none of them. A card renders the chips
+  // it was given and omits the rest, so nothing has to be republished to stay
+  // correct, and a republished pack simply says more.
+
+  /// How many wallpapers the pack ships.
+  ///
+  /// ZERO IS AN ANSWER, not an absence. Terminal ships none by design, so a
+  /// published `0` must draw no chip while a published `4` draws one, and both
+  /// differ from a pack that never said. Three states, one nullable int.
+  final int? wallpaperCount;
+
+  /// The icon set's NAME, "Breeze icons", never a count.
+  ///
+  /// [PackCoverage] already argues this: a pack-side icon total is true of the
+  /// pack and useless to the person holding the phone, who wants to know how
+  /// many of THEIR apps get a drawing. That number needs the device and this
+  /// one does not, so this stays a name and the count stays where it can be
+  /// measured.
+  final String? iconPackTitle;
+
+  /// The typeface the distro sets, by family name.
+  ///
+  /// Worth its own field because it is the one contents line a user can check
+  /// against the picture above it, and because four packs currently name a face
+  /// they ship no font files for. A card that says Hack and renders fallback is
+  /// a visible, reportable bug rather than a silent one.
+  final String? fontName;
 }
 
 /// A purchasable bundle, as advertised by the signed index.

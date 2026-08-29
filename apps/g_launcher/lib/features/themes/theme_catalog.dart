@@ -243,6 +243,9 @@ class ThemeCard {
     this.remoteVersion = 0,
     this.installedVersion = 0,
     this.features = const [],
+    this.wallpaperCount,
+    this.iconPackTitle,
+    this.fontName,
   });
 
   /// Where this card is right now. Defaults to [CardStatus.bundled] so a floor
@@ -315,6 +318,19 @@ class ThemeCard {
                       exclusive: f.exclusive,
                     ),
               ],
+        // ─── THE SAME "INDEX WINS WHEN IT SPOKE" RULE, WITHOUT THE DANCE ────
+        //
+        // [features] needed three branches because a LIST cannot distinguish
+        // "no block published" from "a block that names nothing": both arrive
+        // as something empty-looking, and collapsing them silently overrides an
+        // editorial decision to say nothing.
+        //
+        // A nullable int and a nullable string already carry that distinction
+        // in the type, so `??` is the whole rule here. A published `0`
+        // wallpapers is not null and correctly beats the floor card's value.
+        wallpaperCount: p.wallpaperCount ?? wallpaperCount,
+        iconPackTitle: p.iconPackTitle ?? iconPackTitle,
+        fontName: p.fontName ?? fontName,
       );
 
   final String id;
@@ -363,6 +379,91 @@ class ThemeCard {
   /// fallback when [specId] doesn't string-match the loaded spec, so the active
   /// ring never simply fails to appear.
   final bool bundled;
+
+  // ─── THE CONTENTS FLOOR ─────────────────────────────────────────────────────
+  //
+  // [features] is the price argument and it is EDITORIAL: someone has to have
+  // something true to write, and for four distros nobody does. Manjaro, Fedora,
+  // Zorin and Deepin have no honest exclusive row, two of them are paid, and
+  // their cards are a name over a rectangle.
+  //
+  // These three are MECHANICAL. They are counted from the theme.json at publish
+  // rather than written, so they cannot be blank on a pack that has them and
+  // cannot be flattering on one that does not. A card ends up with a reason to
+  // buy or, failing that, at least a bill of materials.
+  //
+  // All nullable, all absent on every pack in the index today. See
+  // [contentsChips] for what absence draws, which is nothing.
+
+  /// Wallpapers in the pack. ZERO IS AN ANSWER: Terminal ships none on purpose,
+  /// and a published 0 must read differently from a pack that never said.
+  final int? wallpaperCount;
+
+  /// The icon set's name, "Breeze icons". A NAME, NEVER A COUNT — see the field
+  /// doc in `pigeons/pack_api.dart` for why the count belongs to the device.
+  final String? iconPackTitle;
+
+  /// The typeface family the distro sets.
+  final String? fontName;
+
+  /// The contents strip, in fixed order, omitting everything unpublished.
+  ///
+  /// ─── ORDER IS NOT ALPHABETICAL AND NOT ARBITRARY ──────────────────────────
+  ///
+  /// Icons, wallpapers, typeface, size. The first three are what the person
+  /// gets and the last is what it costs them in bytes, so the strip reads as a
+  /// list of contents with a price in data at the end rather than a spec sheet.
+  ///
+  /// ─── SIZE ONLY WHEN IT IS NOT ALREADY HERE ────────────────────────────────
+  ///
+  /// A download figure on a pack sitting on the device is answering a question
+  /// nobody asked, and it is the one chip that would appear on all fifteen
+  /// cards and therefore tell you nothing about any of them.
+  ///
+  /// Returns an EMPTY LIST for a pack that published none of this, which is
+  /// every pack today. The widget draws no strip at all rather than an empty
+  /// row, which is the same rule nullable stats follow everywhere in this app.
+  List<String> get contentsChips {
+    final out = <String>[];
+
+    final icons = iconPackTitle;
+    if (icons != null && icons.isNotEmpty) out.add(icons);
+
+    final walls = wallpaperCount;
+    // `> 0` rather than `!= null`: a published zero is a true answer and it is
+    // still not a chip. "0 wallpapers" is the placeholder string this codebase
+    // does not print.
+    if (walls != null && walls > 0) {
+      out.add(walls == 1 ? '1 wallpaper' : '$walls wallpapers');
+    }
+
+    final font = fontName;
+    if (font != null && font.isNotEmpty) out.add(font);
+
+    if (!status.onDevice) {
+      final size = _sizeLabel(sizeBytes);
+      if (size.isNotEmpty) out.add(size);
+    }
+
+    return out;
+  }
+}
+
+/// "8.4 MB", "612 KB", or empty for an unknown size.
+///
+/// One decimal at MB and none at KB, because a tenth of a megabyte is a
+/// difference someone on a metered connection can feel and a tenth of a
+/// kilobyte is noise. Binary units, matching what Play itself reports for an
+/// app download, so the two figures do not visibly disagree.
+///
+/// EMPTY, not "0 B", when [sizeBytes] is zero or absent. Zero is what the
+/// catalogue carries when it does not know, and a card claiming a free download
+/// of nothing is worse than a card with one fewer chip.
+String _sizeLabel(int bytes) {
+  if (bytes <= 0) return '';
+  const mb = 1024 * 1024;
+  if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(1)} MB';
+  return '${(bytes / 1024).round()} KB';
 }
 
 /// A row in the "More themes" list — a swatch, a name, and either a Get button
@@ -619,6 +720,13 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       sizeBytes: p.sizeBytes,
       remoteVersion: p.version,
       installedVersion: p.installedVersion,
+      // No floor card to fall back to, so these are whatever the index said and
+      // null otherwise. Every pack published today lands here with all three
+      // null and draws no strip, which is the correct reading of a catalogue
+      // that has not been asked the question yet.
+      wallpaperCount: p.wallpaperCount,
+      iconPackTitle: p.iconPackTitle,
+      fontName: p.fontName,
     );
 
 /// The catalogue floor: what the Themes screen shows before the CDN index has
@@ -636,6 +744,17 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
 /// The rule, so it cannot drift again: a card is `bundled` if and only if its
 /// id is a key in `bundledThemes`. Everything else is `available` and arrives
 /// over the CDN, which is also the free/paid line (bundled implies free).
+///
+/// ─── AND NONE OF THEM AUTHOR THE CONTENTS FIELDS ────────────────────────────
+///
+/// `wallpaperCount`, `iconPackTitle` and `fontName` are left null on all three,
+/// deliberately. They are COUNTED FROM THE THEME.JSON at publish, and a number
+/// typed in here would be a second copy of a fact that has a source, drifting
+/// the first time anyone adds a wallpaper to a pack.
+///
+/// All three bundled distros also exist as CDN entries, so the merge fills
+/// these in the moment those packs are republished, and until then the cards
+/// draw no strip. That is the honest reading: nobody has counted yet.
 const _floorCards = <ThemeCard>[
       ThemeCard(
         id: 'ubuntu',

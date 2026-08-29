@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/wallpaper_collections.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
@@ -15,8 +16,10 @@ import '../../design/device_preview.dart';
 import '../../design/setting_previews.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_source.dart';
+import '../../engine/wallpaper_framing.dart';
 import '../../system/wallpaper_source.dart';
 import 'wallpaper_collection_screen.dart';
+import 'wallpaper_framing_screen.dart';
 
 /// Rotation intervals we are willing to offer.
 ///
@@ -53,6 +56,153 @@ String encodeWallpaperFor(EffectiveTheme theme, String source) {
 /// `wallpaperCurrent` and the theme resolve stamps its preset back over the
 /// choice; a stale token and it does the same the next time the palette mode
 /// flips. See wallpaper_source.dart for both histories.
+/// Ask where a wallpaper should land, once.
+///
+/// ─── WHY THIS IS A PROMPT AND NOT A STEP ON EVERY APPLY ─────────────────────
+///
+/// The finding was that `wallpaperLock` sat as a toggle below Collections, so
+/// nobody found it and the lock screen never got set. The obvious fix is the
+/// one Android's own picker uses: a Choose where to apply screen between
+/// picking and finishing, every single time.
+///
+/// It is the wrong fix HERE, because tapping a thumbnail in this app applies
+/// immediately and that is the whole appeal of the strip: browse a distro's
+/// wallpapers by tapping through them. Putting a wizard in front of that turns
+/// six taps into eighteen to answer a question whose answer does not change.
+///
+/// So it is asked ONCE and remembered. `wallpaperLock` is already nullable and
+/// null already means nobody has chosen, so the state to hang this on exists
+/// and needs no migration: everyone who has already set the toggle is past this
+/// and everyone who has not gets asked the first time it matters.
+///
+/// Returns the choice, or null if they backed out, which must cancel the apply
+/// rather than default: dismissing a question is not answering it.
+Future<bool?> chooseApplyTarget(
+  BuildContext context,
+  EffectiveTheme theme,
+  String source,
+) {
+  var lock = true;
+  var home = true;
+
+  return ThemedSheet.show<bool>(
+    context,
+    title: 'Choose where to apply',
+    builder: (ctx) {
+      final d = ChromeScope.of(ctx);
+      final c = d.colors;
+      final image = wallpaperImageFor(theme, source);
+      final framing = resolveWallpaperFraming(
+        user: theme.prefs.wallpaperFraming,
+        authored: theme.spec.wallpaperMeta,
+        source: source,
+        legacyFit: theme.prefs.wallpaperFit,
+      );
+
+      return StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          Widget pane({
+            required String label,
+            required bool on,
+            required VoidCallback toggle,
+            required Widget preview,
+          }) =>
+              Expanded(
+                child: GestureDetector(
+                  onTap: toggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    children: [
+                      // Dimmed rather than removed when off, so the pair keeps
+                      // its shape and the choice reads as two switches rather
+                      // than a picture appearing and disappearing.
+                      Opacity(opacity: on ? 1 : 0.4, child: preview),
+                      const SizedBox(height: 10),
+                      Text(label, style: d.text.body.copyWith(color: c.text)),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: on ? c.accent : c.surfaceAlt,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: on ? c.accent : c.line),
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          size: 16,
+                          color: on ? c.onAccent : c.textFaint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    pane(
+                      label: context.t('settings.lockScreen'),
+                      on: lock,
+                      toggle: () => setSheetState(() => lock = !lock),
+                      preview: DevicePreview(
+                        palette: theme.palette,
+                        mode: DevicePreviewMode.lock,
+                        background: image,
+                        backgroundFraming: framing,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    pane(
+                      label: 'Home screen',
+                      on: home,
+                      toggle: () => setSheetState(() => home = !home),
+                      preview: DevicePreview(
+                        palette: theme.palette,
+                        mode: DevicePreviewMode.desktop,
+                        dock: theme.dock,
+                        gridButton: theme.prefs.dockGridButton ?? 'end',
+                        background: image,
+                        backgroundFraming: framing,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                child: ThemedButton(
+                  label: 'Next',
+                  expand: true,
+                  // Neither selected is not a third answer, it is a request to
+                  // change nothing, and a button that would do nothing should
+                  // not be pressable.
+                  onPressed:
+                      (lock || home) ? () => Navigator.pop(ctx, lock) : null,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+                child: Text(
+                  'You can change this later under Applies to.',
+                  textAlign: TextAlign.center,
+                  style: d.text.caption.copyWith(color: c.textFaint),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
 Future<bool> applyWallpaper(
   BuildContext context,
   WidgetRef ref,
@@ -60,26 +210,77 @@ Future<bool> applyWallpaper(
   String source, {
   // For the moment a fit is CHOSEN: the edit that stores it has not reloaded
   // [theme] yet, so the sheet passes the new value explicitly rather than
-  // re-applying with the stale pref.
+  // re-applying with the stale pref. Same reason [framing] exists beside it.
   String? fit,
+  WallpaperFraming? framing,
 }) async {
   final api = ref.read(launcherHostApiProvider);
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
+  // ─── ASKED ONCE, BEFORE ANYTHING IS TOUCHED ───────────────────────────────
+  //
+  // Before the stash, deliberately. Backing out of the question has to leave
+  // the device exactly as it was, and stashing first would have already moved
+  // the user's existing wallpaper to make room for one that never arrives.
+  var applyToLock = theme.prefs.wallpaperLock;
+  if (applyToLock == null) {
+    final chosen = await chooseApplyTarget(context, theme, source);
+    // Dismissing a question is not answering it. Defaulting here is how the
+    // old toggle ended up never being set: something decided for them.
+    if (chosen == null) return false;
+    applyToLock = chosen;
+    await notifier.edit((p) => p.copyWith(wallpaperLock: chosen));
+  }
+  if (!context.mounted) return false;
+
   // Idempotent natively: it refuses to overwrite an existing stash.
   await api.stashWallpaper();
 
+  // Explicit argument first, then the resolved three-arm answer. Passing a
+  // bare `fit` still works and now means "this fit, framing otherwise as
+  // resolved", which is what the old fit sheet is actually asking for.
+  final resolved = framing ??
+      resolveWallpaperFraming(
+        user: theme.prefs.wallpaperFraming,
+        authored: theme.spec.wallpaperMeta,
+        source: source,
+        legacyFit: fit ?? theme.prefs.wallpaperFit,
+      );
+
   final ok = await api.setWallpaper(
     encodeWallpaperFor(theme, source),
-    theme.prefs.wallpaperLock ?? false,
-    fit ?? theme.prefs.wallpaperFit ?? 'cover',
+    // The local answer, not the pref. The write above has not round-tripped
+    // through the provider yet, so reading `theme.prefs` here would send the
+    // null it started with and the very first apply would miss the lock screen
+    // the user had just asked for.
+    applyToLock,
+    fit ?? resolved.resolvedFit,
     // The theme's own background fills the bars contain and center leave, so
     // a letterboxed photo still reads as this distro's desktop.
     theme.palette.bgTop.toARGB32(),
+    resolved.focalX,
+    resolved.focalY,
+    resolved.zoom,
   );
 
   if (ok) {
-    await notifier.edit((p) => p.copyWith(wallpaperCurrent: source));
+    await notifier.edit(
+      (p) => p.copyWith(
+        wallpaperCurrent: source,
+        // Written only when this call carried framing, and only when that
+        // framing says something. An apply that merely picked an image must
+        // not stamp a row of defaults into the map for it.
+        // PARENTHESISED. Without the brackets the cascade binds to the whole
+        // conditional rather than to the map literal, so the receiver is the
+        // nullable expression and it does not compile.
+        wallpaperFraming: framing == null
+            ? null
+            : ({
+                ...p.wallpaperFraming,
+                if (!framing.isDefault) source: framing,
+              }..removeWhere((_, v) => v.isDefault)),
+      ),
+    );
     await ref.read(prefsStoreProvider).write(
           wallpaperAppliedForKey,
           // The stamp is composed HERE from the same two lists the resolve
@@ -215,6 +416,61 @@ String? previewWallpaperFor(EffectiveTheme theme) {
   return null;
 }
 
+/// One line describing how [source] is framed right now.
+///
+/// Says the fit, and says whether the position was chosen or inherited, because
+/// those are the two facts the row is standing in for. It deliberately does not
+/// print the focal numbers: "0.5, 0.38" is a coordinate, not an answer, and the
+/// screen behind the row shows the actual thing.
+String framingSummary(EffectiveTheme theme, String source) {
+  final framing = resolveWallpaperFraming(
+    user: theme.prefs.wallpaperFraming,
+    authored: theme.spec.wallpaperMeta,
+    source: source,
+    legacyFit: theme.prefs.wallpaperFit,
+  );
+  final fit = switch (framing.resolvedFit) {
+    'contain' => 'Whole image, bars if needed',
+    'cover' => 'Fills the screen, edges crop',
+    'center' => 'Actual size',
+    // 'fill' is the default, so it is the arm an unnamed fit lands on and the
+    // wording has to be the one that is true by default rather than a
+    // leftover describing whichever fit used to hold that position.
+    _ => 'Whole image, matched to the screen',
+  };
+  return theme.prefs.wallpaperFraming.containsKey(source)
+      ? '$fit, framed by you'
+      : fit;
+}
+
+/// This distro's presets, in the order the user put them.
+///
+/// ─── ABSENT NAMES SORT LAST, THEY DO NOT DISAPPEAR ──────────────────────────
+///
+/// The order is a list of names and the pack is the list of files, and the two
+/// go out of sync the moment a distro is republished. Treating the order as
+/// authoritative would silently drop every wallpaper added since the user last
+/// touched the strip, which is the failure that looks like the CDN update
+/// having gone wrong. So the order filters, the remainder appends, and a name
+/// nobody ships any more simply never matches.
+List<String> orderedPresets(EffectiveTheme theme) {
+  final presets = theme.spec.wallpapers;
+  final order = theme.prefs.wallpaperOrder;
+  if (order.isEmpty) return presets;
+
+  final known = presets.toSet();
+  final ranked = [
+    for (final name in order)
+      if (known.contains(name)) name,
+  ];
+  final seen = ranked.toSet();
+  return [
+    ...ranked,
+    for (final name in presets)
+      if (!seen.contains(name)) name,
+  ];
+}
+
 /// The pool [source] names, for this theme.
 ///
 /// Unknown values and dangling collection ids fall to the DISTRO pool, not to
@@ -226,6 +482,35 @@ String? previewWallpaperFor(EffectiveTheme theme) {
 /// is holding a [theme] that has not reloaded yet, and rescheduling off the
 /// stale one would leave the wallpaper the user just hid still in the worker's
 /// list. Null means read it off [theme], which is what every other caller does.
+/// The `framingJson` blob for a rotation pool.
+///
+/// Keyed by the ENCODED source, not the stored one, because that is the string
+/// the worker hands back to `setWallpaper` and therefore the only key it can
+/// look itself up by. Getting this wrong is silent: every wallpaper in the
+/// rotation renders centred with the schedule's fit, which is exactly what it
+/// did before framing existed, so nothing looks broken and nothing works.
+String rotationFramingJson(
+  EffectiveTheme theme,
+  List<String> pool,
+) {
+  final out = <String, dynamic>{};
+  for (final source in pool) {
+    final framing = resolveWallpaperFraming(
+      user: theme.prefs.wallpaperFraming,
+      authored: theme.spec.wallpaperMeta,
+      source: source,
+      legacyFit: theme.prefs.wallpaperFit,
+    );
+    if (framing.isDefault) continue;
+    out[encodeWallpaperFor(theme, source)] = framing.toJson();
+  }
+  // An empty map serialises to "{}" and the worker treats a blank string as
+  // "nothing to say", so send the blank rather than a JSON object that parses
+  // to nothing. One fewer parse per tick, and the prefs entry stays empty
+  // instead of holding two characters that mean nothing.
+  return out.isEmpty ? '' : jsonEncode(out);
+}
+
 List<String> rotationPoolFor(
   EffectiveTheme theme,
   List<WallpaperCollection> collections,
@@ -291,10 +576,69 @@ Future<void> rescheduleRotation(
         minutes,
         pool.map((p) => encodeWallpaperFor(theme, p)).toList(),
         theme.prefs.wallpaperLock ?? false,
-        fit ?? theme.prefs.wallpaperFit ?? 'cover',
+        // The schedule's own fallback, used by the worker for any source in
+        // the pool that carries no framing. It tracks the app default rather
+        // than naming a fit, so changing the default cannot leave rotation
+        // rendering differently from a manual apply.
+        fit ?? theme.prefs.wallpaperFit ?? WallpaperFraming.defaultFit,
         theme.palette.bgTop.toARGB32(),
+        rotationFramingJson(theme, pool),
       );
 }
+
+/// Keeps the rotation worker pointed at the ACTIVE distro.
+///
+/// ─── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+///
+/// `scheduleWallpaperRotation` was only ever called from the wallpaper screen,
+/// so the worker was only ever corrected while somebody was standing on that
+/// page. Switch distro anywhere else and the job keeps the OLD distro's
+/// encoded sources, its fit, its framing and its lock target, because nothing
+/// told it the theme had changed. Fifteen minutes later Kali's dragon lands on
+/// a Pop desktop, and it keeps happening until the wallpaper screen is opened
+/// for some unrelated reason.
+///
+/// Worse in the direction nobody looks: `wallpaperRotationMinutes` is PER
+/// THEME, so a distro with rotation off inherits a running job from the distro
+/// that had it on. The setting says Off, the wallpaper changes anyway, and the
+/// screen showing Off is telling the truth about a preference that is not the
+/// one driving the worker.
+///
+/// ─── WHY A PROVIDER AND NOT A CALL AT THE SWITCH SITE ───────────────────────
+///
+/// There is more than one way the active theme changes: the theme picker, a
+/// pack auto-update, an entitlement resolving, a restore. Hanging the fix on
+/// the picker fixes the path somebody thought of. Watching the resolved theme
+/// covers all of them, including the ones added later, and the reconcile is
+/// idempotent so running it more often than strictly needed costs one native
+/// call that replaces a job with the same job.
+final wallpaperRotationSyncProvider = FutureProvider<void>((ref) async {
+  final theme = await ref.watch(effectiveThemeProvider.future);
+  final collections = await ref.watch(wallpaperCollectionsProvider.future);
+  final api = ref.read(launcherHostApiProvider);
+
+  final minutes = theme.prefs.wallpaperRotationMinutes;
+  if (minutes == null) {
+    // CANCEL, not leave alone. This is the inherited-job case, and it is the
+    // half of the bug that looks like the launcher ignoring a setting.
+    api.cancelWallpaperRotation();
+    return;
+  }
+
+  final pool = rotationPoolFor(
+    theme,
+    collections,
+    theme.prefs.wallpaperRotationSource,
+  );
+  api.scheduleWallpaperRotation(
+    minutes,
+    pool.map((p) => encodeWallpaperFor(theme, p)).toList(),
+    theme.prefs.wallpaperLock ?? false,
+    theme.prefs.wallpaperFit ?? WallpaperFraming.defaultFit,
+    theme.palette.bgTop.toARGB32(),
+    rotationFramingJson(theme, pool),
+  );
+});
 
 /// Wallpaper picker — Phase B, B2.
 ///
@@ -393,7 +737,7 @@ class WallpaperScreen extends ConsumerWidget {
     // Theme presets first, then whatever the user added: the distro pool.
     // Rotation may draw wider than it (every collection) or narrower (one
     // collection); [rotationPoolFor] is the one place that choice resolves.
-    final presets = theme.spec.wallpapers;
+    final presets = orderedPresets(theme);
     final mine = theme.prefs.wallpapers;
 
     final colsAsync = ref.watch(wallpaperCollectionsProvider);
@@ -454,8 +798,9 @@ class WallpaperScreen extends ConsumerWidget {
                         e.value!,
                         pool.map(encodeFor).toList(),
                         applyToLock,
-                        theme.prefs.wallpaperFit ?? 'cover',
+                        theme.prefs.wallpaperFit ?? WallpaperFraming.defaultFit,
                         theme.palette.bgTop.toARGB32(),
+                        rotationFramingJson(theme, pool),
                       );
                     }
                     Navigator.pop(ctx);
@@ -539,7 +884,10 @@ class WallpaperScreen extends ConsumerWidget {
             ),
 
           if (presets.isNotEmpty) ...[
-            ThemedSectionHeader(context.t('wallpaper.fromThisDistro')),
+            _StripHeader(
+              title: context.t('wallpaper.fromThisDistro'),
+              presets: true,
+            ),
             _Strip(
               sources: presets,
               source: theme.spec.source,
@@ -559,35 +907,29 @@ class WallpaperScreen extends ConsumerWidget {
                 src,
                 hide,
               ),
-            ),
-            // Long press is invisible until someone finds it, and this is the
-            // one screen where the gesture does something they cannot get to
-            // any other way. Two lines, one of which is only ever read once.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: Builder(
-                builder: (context) {
-                  final hiddenHere = [
-                    for (final w in presets)
-                      if (theme.prefs.wallpapersHidden.contains(w)) w,
-                  ].length;
-                  return Text(
-                    hiddenHere == 0
-                        ? 'Hold a wallpaper to hide it from this distro.'
-                        : hiddenHere == 1
-                            ? '1 hidden. Tap the dimmed one to bring it back.'
-                            : '$hiddenHere hidden. Tap a dimmed one to bring '
-                                'it back.',
-                    style: TextStyle(
-                      color: ChromeScope.of(context).colors.textFaint,
-                      fontSize: 12.5,
-                    ),
-                  );
-                },
-              ),
+              // ─── STORED AS A WHOLE LIST, NOT AS A MOVE ─────────────────
+              //
+              // Writing the entire resulting order rather than the pair that
+              // changed is what makes the first reorder work at all: before
+              // one happens `wallpaperOrder` is empty and means "the pack's
+              // order", so there is no existing list for a move to be applied
+              // against. Persisting the result makes the empty case a
+              // starting value rather than a special case anybody has to
+              // remember.
+              onReorder: (oldIndex, newIndex) async {
+                final next = [...presets];
+                next.insert(newIndex, next.removeAt(oldIndex));
+                await notifier.edit((p) => p.copyWith(wallpaperOrder: next));
+                await rescheduleRotation(
+                  ref,
+                  theme,
+                  collections,
+                  source: rotationSource,
+                );
+              },
             ),
           ],
-          ThemedSectionHeader(context.t('wallpaper.yours')),
+          _StripHeader(title: context.t('wallpaper.yours'), presets: false),
           _Strip(
             sources: mine,
             source: theme.spec.source,
@@ -598,6 +940,30 @@ class WallpaperScreen extends ConsumerWidget {
             // sat in the rotation forever. The distro's presets have no remove:
             // they are not yours to delete and they come back with the theme.
             onRemove: (src) => _forget(context, ref, theme, src, apply),
+            // ─── ORDER IS NOT DECORATION HERE ──────────────────────────
+            //
+            // Rotation walks this list in sequence rather than shuffling, so
+            // the order is the order wallpapers actually appear in over a
+            // day. It is also the list `rotationPoolFor` hands the worker, so
+            // a reorder has to reschedule or the running job keeps cycling
+            // the old sequence until something else happens to touch it.
+            onReorder: (oldIndex, newIndex) async {
+              // No off-by-one correction: the strip is on onReorderItem, which
+              // hands back an index already adjusted for the removal.
+              final next = [...mine];
+              next.insert(newIndex, next.removeAt(oldIndex));
+              await notifier.edit((p) => p.copyWith(wallpapers: next));
+              // The pool is this list, and the worker holds its own copy, so
+              // without this the running rotation keeps cycling the old
+              // sequence. `source` is required rather than defaulted because
+              // rescheduling off a stale theme is the bug its doc warns about.
+              await rescheduleRotation(
+                ref,
+                theme,
+                collections,
+                source: rotationSource,
+              );
+            },
           ),
           ThemedListRow(
             icon: Icons.add_photo_alternate_outlined,
@@ -678,95 +1044,61 @@ class WallpaperScreen extends ConsumerWidget {
               },
             ),
           ),
-          ThemedSectionHeader(context.t('settings.lockScreen')),
+          const ThemedSectionHeader('Applies to'),
+          // ─── A ROW, NOT A TOGGLE ────────────────────────────────────────
+          //
+          // The toggle was the buried control this whole change exists to
+          // unbury, and leaving it here beside the prompt would be two places
+          // holding one answer. It is a row now for two reasons: it STATES the
+          // current answer rather than making you read a switch position, and
+          // it reopens the same sheet the first apply showed, so changing your
+          // mind and making up your mind look identical.
+          //
+          // Still deliberately not retroactive. Rewriting the lock screen the
+          // instant an answer changes is the surprise the old comment was
+          // right about; the sheet says so itself.
           ThemedListRow(
             icon: Icons.lock_outline,
-            title: context.t('settings.alsoSetTheLock'),
-            subtitle: context.t('settings.appliesFromTheNext'),
-            trailing: ThemedToggle(
-              value: applyToLock,
-              onChanged: (v) {
-                notifier.edit((p) => p.copyWith(wallpaperLock: v));
-                // Deliberately NOT retroactive: silently rewriting the lock
-                // screen the instant a toggle flips is the surprise this
-                // setting exists to avoid.
-                context.showMessage(
-                  v
-                      ? 'Your next wallpaper will set the lock screen too'
-                      : 'Wallpapers will set the home screen only',
-                );
-              },
-            ),
-          ),
-          ThemedListRow(
-            icon: Icons.fit_screen_outlined,
-            title: 'Fit',
-            subtitle: switch (theme.prefs.wallpaperFit) {
-              'contain' => 'Whole image, bars if needed',
-              'fill' => 'Stretched to the screen',
-              'center' => 'Actual size, centred',
-              _ => 'Fills the screen, edges crop',
-            },
+            title: applyToLock ? 'Lock and home screen' : 'Home screen only',
+            subtitle: theme.prefs.wallpaperLock == null
+                // Never asked. Saying so is more useful than describing a
+                // default, because the next wallpaper is when it gets decided.
+                ? 'You will be asked when you pick a wallpaper'
+                : context.t('settings.appliesFromTheNext'),
             trailing: const Icon(Icons.chevron_right, size: 18),
-            onTap: () {
-              ThemedSheet.show<void>(
-                context,
-                title: 'Fit',
-                builder: (ctx) {
-                  final c = ChromeScope.of(ctx).colors;
-                  final current = theme.prefs.wallpaperFit ?? 'cover';
-                  Widget option(String label, String sub, String value) =>
-                      ThemedListRow(
-                        title: label,
-                        subtitle: sub,
-                        trailing: value == current
-                            ? Icon(Icons.check, size: 20, color: c.accent)
-                            : null,
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          // Explicit always, including cover: choosing the
-                          // value already on screen is still a choice, the
-                          // same touched-marker rule the drawer rows follow.
-                          await notifier.edit(
-                            (p) => p.copyWith(wallpaperFit: value),
-                          );
-                          // The change must be visible NOW, not on the next
-                          // pick: re-apply whatever is up, and re-point an
-                          // active rotation so the next tick agrees. Both take
-                          // the new fit explicitly; [theme] has not reloaded.
-                          final applied = theme.prefs.wallpaperCurrent;
-                          if (applied != null && context.mounted) {
-                            await applyWallpaper(
-                              context,
-                              ref,
-                              theme,
-                              applied,
-                              fit: value,
-                            );
-                          }
-                          await rescheduleRotation(
-                            ref,
-                            theme,
-                            collections,
-                            source: rotationSource,
-                            fit: value,
-                          );
-                        },
-                      );
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      option('Cover', 'Fills the screen, edges crop', 'cover'),
-                      option('Fit', 'Whole image, bars if needed', 'contain'),
-                      option('Stretch', 'Exactly the screen shape', 'fill'),
-                      option('Center', 'Actual size, no scaling', 'center'),
-                      const SizedBox(height: 8),
-                    ],
-                  );
-                },
-              );
+            onTap: () async {
+              if (previewWallpaperFor(theme) case final src?) {
+                final chosen = await chooseApplyTarget(context, theme, src);
+                if (chosen == null) return;
+                await notifier.edit((p) => p.copyWith(wallpaperLock: chosen));
+              }
             },
           ),
+          // ── FRAMING REPLACES THE FIT SHEET ─────────────────────────────
+          //
+          // The sheet it replaces wrote `prefs.wallpaperFit`, one value for the
+          // whole distro, and a distro ships a portrait logo render beside a
+          // 2:1 screenshot: one fit is wrong for at least one of them whatever
+          // it holds. The old pref is NOT deleted and not migrated. It survives
+          // as the lowest arm of `resolveWallpaperFraming`, so anyone who set
+          // it keeps it on every wallpaper they have not framed individually.
+          // It simply stops having a control of its own, because a control that
+          // sets the wrong scope is worse than no control.
+          if (previewWallpaperFor(theme) case final src?)
+            ThemedListRow(
+              icon: Icons.crop_free,
+              title: 'Framing',
+              subtitle: framingSummary(theme, src),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WallpaperFramingScreen(
+                    theme: theme,
+                    source: src,
+                  ),
+                ),
+              ),
+            ),
           _RestoreRow(theme: theme),
           ThemedSectionHeader(context.t('settings.rotation')),
           ThemedListRow(
@@ -958,6 +1290,7 @@ class _Strip extends StatelessWidget {
     this.onRemove,
     this.hidden = const {},
     this.onHide,
+    this.onReorder,
   });
 
   /// Null for the distro's own presets, which are not the user's to delete.
@@ -985,6 +1318,19 @@ class _Strip extends StatelessWidget {
 
   final Future<void> Function(String) onTap;
 
+  /// Null when this strip's order is not the user's to change.
+  ///
+  /// ─── WHY ONLY ONE STRIP GETS THIS ───────────────────────────────────────
+  ///
+  /// The presets strip is the PACK'S order, and the pack means it: the first
+  /// entry is the one seeded on first use of the theme, so the author picked it
+  /// as the distro's opening impression. A user reorder there would need a
+  /// fourth per-theme preference to store an override, and would then have to
+  /// answer what happens to it when the pack republishes with a different list.
+  /// The strip below it is already a stored list of the user's own files, where
+  /// order is theirs by construction and rotation walks it in sequence.
+  final void Function(int oldIndex, int newIndex)? onReorder;
+
   @override
   Widget build(BuildContext context) {
     final c = ChromeScope.of(context).colors;
@@ -996,6 +1342,46 @@ class _Strip extends StatelessWidget {
       );
     }
 
+    final reorder = onReorder;
+    if (reorder != null) {
+      return SizedBox(
+        height: 160,
+        child: ReorderableListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: sources.length,
+          // OFF, because the default handles are built for a vertical list of
+          // rows and draw nothing useful on a 90px thumbnail. The whole tile is
+          // the handle instead, wrapped below.
+          buildDefaultDragHandles: false,
+          // onReorderItem, NOT onReorder. The old callback reports the
+          // destination as an index in the list before the removal, so every
+          // caller has to subtract one when dragging rightwards; the
+          // replacement does that itself. Keeping the manual correction
+          // alongside it would double-count and make a rightward drag land one
+          // slot short, which reads as the drag being imprecise rather than
+          // wrong.
+          onReorderItem: reorder,
+          // The tile lifts and tilts on its own; the default is a Material
+          // elevation shadow that a themed strip has no other examples of.
+          proxyDecorator: (child, index, animation) => Transform.scale(
+            scale: 1.06,
+            child: child,
+          ),
+          itemBuilder: (context, i) => ReorderableDelayedDragStartListener(
+            key: ValueKey(sources[i]),
+            index: i,
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: i == sources.length - 1 ? 0 : 12,
+              ),
+              child: _tile(context, i),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 160,
       child: ListView.separated(
@@ -1003,57 +1389,74 @@ class _Strip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: sources.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final src = sources[i];
-          final remove = onRemove;
-          // Remote first: it is the only case with its own loading state, and
-          // `isThemeAssetRef` would otherwise have to exclude it twice.
-          final isRemote = src.startsWith('http');
-          // A theme reference — bundled OR installed. `source.asset` decides
-          // which, and returns an AssetImage or a FileImage accordingly.
-          final themed =
-              !isRemote && isThemeAssetRef(src) ? source.asset(src) : null;
+        itemBuilder: _tile,
+      ),
+    );
+  }
 
-          final hide = onHide;
-          final isHidden = hidden.contains(src);
+  Widget _tile(BuildContext context, int i) {
+    final c = ChromeScope.of(context).colors;
+    final src = sources[i];
+    final remove = onRemove;
+    // Remote first: it is the only case with its own loading state, and
+    // `isThemeAssetRef` would otherwise have to exclude it twice.
+    final isRemote = src.startsWith('http');
+    // A theme reference, bundled OR installed. `source.asset` decides which,
+    // and returns an AssetImage or a FileImage accordingly.
+    final themed = !isRemote && isThemeAssetRef(src) ? source.asset(src) : null;
 
-          return GestureDetector(
-            // A dimmed tile is not a wallpaper you can pick, it is one you told
-            // us you did not want, so tapping it means "actually, keep it"
-            // rather than "apply the thing I just rejected".
-            onTap: () {
-              if (isHidden && hide != null) {
-                hide(src, false);
-              } else {
-                onTap(src);
-              }
-            },
-            // Hold to remove, which is the gesture this app already uses for
-            // "what else can I do with this" on drawer tiles, folder members
-            // and desklets. A permanent X badge on every thumbnail would put a
-            // destructive target under the thumb of someone browsing.
-            //
-            // On the presets strip the same hold HIDES instead, since nothing
-            // there is the user's to delete. One gesture, one meaning per
-            // strip, which is why the two callbacks are never both passed.
-            onLongPress: hide != null
-                ? () => hide(src, !isHidden)
-                : (remove == null ? null : () => remove(src)),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 90,
-                child: _dim(
-                  isHidden,
-                  c.text,
-                  switch ((themed != null, isRemote)) {
+    final hide = onHide;
+    final isHidden = hidden.contains(src);
+
+    return Stack(
+      children: [
+        GestureDetector(
+          // A dimmed tile is not a wallpaper you can pick, it is one you told
+          // us you did not want, so tapping it means "actually, keep it"
+          // rather than "apply the thing I just rejected".
+          onTap: () {
+            if (isHidden && hide != null) {
+              hide(src, false);
+            } else {
+              onTap(src);
+            }
+          },
+          // ─── WHAT A LONG PRESS MEANS, PER STRIP ────────────────────────
+          //
+          // It used to mean remove here and hide on the presets strip: one
+          // gesture, one meaning per strip, and no badge putting a
+          // destructive target under the thumb of someone browsing.
+          //
+          // Reordering takes the gesture back. Drag to reorder IS a long
+          // press everywhere it exists, including this app's own home grid,
+          // and a second gesture for it would be one nobody finds. So on a
+          // strip that reorders, the hold drags and removal moves to the
+          // badge that comment argued against. The argument was right while
+          // the hold was free; it is not a reason to ship a reorder nobody
+          // can perform.
+          //
+          // The presets strip keeps the old arrangement exactly, because it
+          // does not reorder and its hold is still spare.
+          onLongPress: onReorder != null
+              ? null
+              : (hide != null
+                  ? () => hide(src, !isHidden)
+                  : (remove == null ? null : () => remove(src))),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 90,
+              child: _dim(
+                isHidden,
+                c.text,
+                switch ((themed != null, isRemote)) {
                   (true, _) => Image(
                       image: themed!.image,
                       fit: BoxFit.cover,
-                      // A theme whose wallpaper files are missing must still show
-                      // a usable list, not a red error box. Reachable for an
-                      // installed pack whose files were swept as well as for a
-                      // bundled path that no longer exists.
+                      // A theme whose wallpaper files are missing must still
+                      // show a usable list, not a red error box. Reachable
+                      // for an installed pack whose files were swept as well
+                      // as for a bundled path that no longer exists.
                       errorBuilder: (_, __, ___) => const _Missing(
                         Icons.image_not_supported_outlined,
                       ),
@@ -1079,13 +1482,55 @@ class _Strip extends StatelessWidget {
                       errorBuilder: (_, __, ___) =>
                           const _Missing(Icons.broken_image_outlined),
                     ),
-                  },
+                },
+              ),
+            ),
+          ),
+        ),
+        // ─── WHY A BADGE AND NOT A SECOND HOLD ─────────────────────────
+        //
+        // Hold-then-drag and hold-then-release cannot be told apart at the
+        // moment the hold fires: the drag has already started by then, and
+        // deciding retroactively means either a delay before the tile lifts or
+        // a hide that fires whenever somebody thinks better of a drag. Both
+        // are worse than a target you can see. So on a strip that reorders,
+        // the hold drags and the second action moves to this badge: × on your
+        // own photos, an eye on presets, which are hidden rather than deleted.
+        if (onReorder != null && (remove != null || hide != null))
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: () => remove != null ? remove(src) : hide!(src, !isHidden),
+              // Bigger than it looks. The visible dot is 20px and the padding
+              // around it brings the target up to what a thumb needs, without
+              // a circle that size covering a third of the thumbnail.
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: c.bg.withValues(alpha: 0.72),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Icon(
+                      remove != null
+                          ? Icons.close
+                          : (isHidden
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
+                      size: 14,
+                      color: c.text,
+                    ),
+                  ),
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+      ],
     );
   }
 
@@ -1103,6 +1548,88 @@ class _Strip extends StatelessWidget {
         Opacity(opacity: 0.3, child: child),
         Center(
           child: Icon(Icons.visibility_off_outlined, size: 22, color: ink),
+        ),
+      ],
+    );
+  }
+}
+
+/// A strip's heading, with the gestures behind an info button.
+///
+/// ─── WHY THE INSTRUCTIONS ARE NOT ON THE PAGE ANY MORE ──────────────────────
+///
+/// They used to be a line under the strip, and the argument for it was sound:
+/// a long press is invisible until somebody finds it, and this screen is the
+/// only place that gesture does something you cannot reach another way.
+///
+/// It stopped being true twice over. The gesture now REORDERS rather than
+/// hides, so the sentence was describing behaviour the screen no longer had,
+/// and hiding moved to a badge that is visible on every tile, so the thing the
+/// line existed to reveal reveals itself. What was left was a paragraph of
+/// help text sitting permanently above the content on a page whose whole job
+/// is showing pictures.
+///
+/// A button reads once and then gets ignored, which is the correct lifetime
+/// for this content: nobody needs to be told twice that dragging reorders.
+class _StripHeader extends StatelessWidget {
+  const _StripHeader({required this.title, required this.presets});
+
+  final String title;
+
+  /// The distro's own wallpapers, which are hidden rather than deleted.
+  final bool presets;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return Row(
+      children: [
+        Expanded(child: ThemedSectionHeader(title)),
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: GestureDetector(
+            onTap: () => ThemedSheet.show<void>(
+              context,
+              title: title,
+              builder: (ctx) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const ThemedListRow(
+                    icon: Icons.touch_app_outlined,
+                    title: 'Tap',
+                    subtitle: 'Sets it as your wallpaper',
+                  ),
+                  ThemedListRow(
+                    icon: Icons.drag_indicator,
+                    title: 'Hold and drag',
+                    subtitle: presets
+                        // Said plainly, because the consequence is not
+                        // obvious from the gesture: the first one is the one
+                        // a fresh install of this distro applies by itself.
+                        ? 'Reorders them. The first is what a new install gets'
+                        : 'Reorders them, which is the order rotation follows',
+                  ),
+                  ThemedListRow(
+                    icon: presets ? Icons.visibility_off_outlined : Icons.close,
+                    title: presets ? 'The eye' : 'The cross',
+                    subtitle: presets
+                        ? 'Hides it from this distro. Tap a dimmed one to '
+                            'bring it back'
+                        : 'Removes your photo',
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            // The icon is small and the row it sits in is not, so the target
+            // is the padding rather than the glyph.
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(Icons.info_outline, size: 17, color: c.textFaint),
+            ),
+          ),
         ),
       ],
     );
@@ -1147,6 +1674,16 @@ class _WallpaperPreviewPair extends StatelessWidget {
     final image = wallpaperImageFor(theme, source);
     final onLock = theme.prefs.wallpaperLock ?? false;
 
+    // Resolved here rather than passed in, so the pair updates the moment the
+    // framing screen pops: it reads the same provider the row's summary does,
+    // and there is no second copy to forget to refresh.
+    final framing = resolveWallpaperFraming(
+      user: theme.prefs.wallpaperFraming,
+      authored: theme.spec.wallpaperMeta,
+      source: source,
+      legacyFit: theme.prefs.wallpaperFit,
+    );
+
     // ── FORMATTED HERE, WITHOUT A TICKER ───────────────────────────────
     //
     // MaterialLocalizations rather than a clock provider: the delegates are
@@ -1165,6 +1702,7 @@ class _WallpaperPreviewPair extends StatelessWidget {
             palette: theme.palette,
             mode: DevicePreviewMode.lock,
             background: onLock ? image : null,
+            backgroundFraming: framing,
             clockLabel: clock,
             dateLabel: date,
           ),
@@ -1177,6 +1715,7 @@ class _WallpaperPreviewPair extends StatelessWidget {
             dock: theme.dock,
             gridButton: theme.prefs.dockGridButton ?? 'end',
             background: image,
+            backgroundFraming: framing,
           ),
         ),
       ],

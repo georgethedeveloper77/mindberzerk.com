@@ -462,6 +462,18 @@ export interface ThemeSpecJson {
   icons?: IconStyleJson | null;
   logo?: unknown;
   wallpapers: string[];
+  /** How each wallpaper meets the screen, keyed by its entry in `wallpapers`.
+   *
+   *  A SIDECAR MAP rather than richer `wallpapers` entries, because that array
+   *  is a published wire format: every pack in the bucket holds an array of
+   *  strings, and the device already carries a legacy branch for the older
+   *  single `wallpaper.asset` shape. The string is also an identity on the
+   *  device, where prefs store it and the rotation worker keys off it.
+   *
+   *  The USER always wins over this. It is a starting point, applied until
+   *  somebody frames that wallpaper themselves, and it exists because the
+   *  author knows where the subject is and the app does not. */
+  wallpaperMeta?: Record<string, WallpaperMetaJson>;
   /** Font families the pack ships. A family named in `typography` only resolves
    *  if it is declared in pubspec, which a downloaded pack cannot do, so it
    *  carries its own files and they are registered at runtime. */
@@ -526,10 +538,83 @@ export interface ThemeSpecJson {
  * device's own resolver. `seededFromPreview` is never emitted, but a draft
  * pasted back in should not be scolded for carrying it.
  */
+/**
+ * The four ways a wallpaper can meet the screen, as the device understands
+ * them.
+ *
+ * A STRING UNION, not an enum, matching the Pigeon boundary this feeds: an
+ * unrecognised value from a newer build degrades natively rather than failing
+ * to parse.
+ */
+export const WALLPAPER_FITS = ['cover', 'contain', 'fill', 'center'] as const;
+export type WallpaperFit = (typeof WALLPAPER_FITS)[number];
+
+/**
+ * Framing for ONE wallpaper.
+ *
+ * ─── THE UNITS ARE FRACTIONS OF THE SOURCE, NOT PIXELS ───────────────────────
+ *
+ * `focalX` and `focalY` run 0 to 1 across the image the author uploaded. Pixels
+ * would break the moment the device picks a different sample size for the
+ * decode, which it does on every different screen; screen coordinates would
+ * break on every device that is not the one the author was looking at. A
+ * fraction survives both, and it is the only form somebody can write here
+ * without knowing what phone it lands on.
+ *
+ * Every field is optional and an absent block means centred at the app default,
+ * which is what every pack published before this existed already does.
+ */
+export interface WallpaperMetaJson {
+  fit?: WallpaperFit;
+  focalX?: number;
+  focalY?: number;
+  zoom?: number;
+}
+
+/**
+ * Drop a framing block that says nothing, and clamp one that says too much.
+ *
+ * Returning null for a default-valued block is what keeps `wallpaperMeta` from
+ * accumulating a row per wallpaper the author merely looked at. An absent key
+ * and a key holding all defaults mean the same thing on the device, and only
+ * one of them costs bytes in every pack every phone downloads.
+ *
+ * The clamps are here as well as on the device because this is where a hand
+ * edited theme.json enters the pipeline, and a zoom below 1 asks for a region
+ * larger than the image: the device turns that into a degenerate crop rect and
+ * quietly ignores it, which looks like the framing simply not applying.
+ */
+export function canonWallpaperMeta(m: WallpaperMetaJson): WallpaperMetaJson | null {
+  const clamp = (v: number | undefined, lo: number, hi: number, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+
+  const fit = m.fit && WALLPAPER_FITS.includes(m.fit) ? m.fit : undefined;
+  const focalX = clamp(m.focalX, 0, 1, 0.5);
+  const focalY = clamp(m.focalY, 0, 1, 0.5);
+  const zoom = clamp(m.zoom, 1, 4, 1);
+
+  const out: WallpaperMetaJson = {};
+  if (fit) out.fit = fit;
+  if (focalX !== 0.5) out.focalX = round3(focalX);
+  if (focalY !== 0.5) out.focalY = round3(focalY);
+  if (zoom !== 1) out.zoom = round3(zoom);
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * Three decimals, which is finer than any phone can resolve on a drag and short
+ * enough that a published theme.json stays readable. Without it a focal point
+ * set by dragging serialises as 0.4183673469387755 and every diff of the file
+ * is unreadable noise.
+ */
+function round3(v: number): number {
+  return Math.round(v * 1000) / 1000;
+}
+
 export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
   'id', 'name', 'version', 'shell', 'tier', 'chromeFamily',
   'palette', 'paletteLight', 'typography', 'layout', 'icons', 'logo',
-  'wallpapers', 'wallpaper', 'fonts', 'minAppVersion',
+  'wallpapers', 'wallpaper', 'wallpaperMeta', 'fonts', 'minAppVersion',
   'boot', 'splash', 'desklets', 'gestures', 'features', 'seededFromPreview',
   'categories', 'categoryFallback',
 ]);
@@ -770,6 +855,17 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
   }
   if (spec.logo != null) out.logo = spec.logo;
   if (spec.wallpapers && spec.wallpapers.length) out.wallpapers = spec.wallpapers;
+  // Entries that say nothing are dropped, so a wallpaper the author opened and
+  // left alone adds no bytes to every pack every device downloads, and a reset
+  // genuinely removes the key rather than leaving a row of defaults behind it.
+  if (spec.wallpaperMeta) {
+    const meta: Record<string, WallpaperMetaJson> = {};
+    for (const [name, m] of Object.entries(spec.wallpaperMeta)) {
+      const trimmed = canonWallpaperMeta(m);
+      if (trimmed) meta[name] = trimmed;
+    }
+    if (Object.keys(meta).length) out.wallpaperMeta = meta;
+  }
   if (spec.minAppVersion) out.minAppVersion = spec.minAppVersion;
   if (spec.boot != null) out.boot = spec.boot;
   if (spec.splash != null) out.splash = spec.splash;
@@ -1144,6 +1240,35 @@ export function importTheme(
     }
   }
 
+  const wallpaperMeta: Record<string, WallpaperMetaJson> = {};
+  const metaRaw = obj(j.wallpaperMeta);
+  if (metaRaw) {
+    for (const [name, raw] of Object.entries(metaRaw)) {
+      const m = obj(raw);
+      if (!m) continue;
+      const fit = str(m.fit);
+      if (fit && !WALLPAPER_FITS.includes(fit as WallpaperFit)) {
+        notes.push(`Framing for '${name}' named an unknown fit '${fit}', which was dropped, so the app default applies.`);
+      }
+      const trimmed = canonWallpaperMeta({
+        ...(fit && WALLPAPER_FITS.includes(fit as WallpaperFit)
+          ? { fit: fit as WallpaperFit }
+          : {}),
+        focalX: num(m.focalX) ?? 0.5,
+        focalY: num(m.focalY) ?? 0.5,
+        zoom: num(m.zoom) ?? 1,
+      });
+      if (trimmed) wallpaperMeta[name] = trimmed;
+    }
+    // A key naming a wallpaper this theme does not ship is never looked up on
+    // the device rather than an error, but it IS worth saying: it is almost
+    // always a rename that only got applied on one side.
+    const orphans = Object.keys(wallpaperMeta).filter((k) => !wallpapers.includes(k));
+    if (orphans.length) {
+      notes.push(`Framing was set for ${orphans.length === 1 ? 'a wallpaper' : `${orphans.length} wallpapers`} this theme does not ship (${orphans.join(', ')}). It is kept but never applied.`);
+    }
+  }
+
   const spec: ThemeSpecJson = {
     id: id ?? base.id,
     name: name ?? base.name,
@@ -1313,6 +1438,7 @@ export function importTheme(
         : {}),
     },
     wallpapers,
+    ...(Object.keys(wallpaperMeta).length ? { wallpaperMeta } : {}),
     minAppVersion: Math.trunc(num(j.minAppVersion) ?? 0),
   };
 

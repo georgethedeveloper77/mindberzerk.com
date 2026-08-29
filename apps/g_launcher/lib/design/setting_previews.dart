@@ -154,6 +154,8 @@ class PreviewChoice<T> extends StatelessWidget {
     this.title,
     this.subtitle,
     this.enabled = true,
+    this.following = false,
+    this.onFollow,
   });
 
   /// The setting's name, above the pictures. Optional, because a chooser that
@@ -165,6 +167,24 @@ class PreviewChoice<T> extends StatelessWidget {
   final List<PreviewOption<T>> options;
   final T value;
   final ValueChanged<T> onSelect;
+
+  /// True when no preference is stored and [value] is the DISTRO's answer.
+  ///
+  /// ─── A CHOOSER WITH NO WAY BACK IS A TRAP ───────────────────────────────
+  ///
+  /// Dock position had four tiles and every one of them wrote a pref, so the
+  /// first tap pinned the dock on EVERY distro forever. Mint authors
+  /// `dock: "off"` and showed one anyway; so would Arch, EndeavourOS, Pop and
+  /// Zorin, and nothing on the screen said why or offered a way out.
+  ///
+  /// `OpacityRow` has carried this pair since it shipped and the same two
+  /// arguments do the same job here: a chip that says the value is inherited,
+  /// and a tap that clears the pref and hands the row back to the theme.
+  final bool following;
+
+  /// Clears the pref. Null hides the chip, for a setting with no distro answer
+  /// to fall back to.
+  final VoidCallback? onFollow;
 
   /// False dims the tiles and stops them answering a tap.
   ///
@@ -266,9 +286,37 @@ class PreviewChoice<T> extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title!,
-            style: TextStyle(color: c.text, fontSize: 14.5),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title!,
+                  style: TextStyle(color: c.text, fontSize: 14.5),
+                ),
+              ),
+              // ── THE WAY BACK ──────────────────────────────────────────
+              //
+              // Beside the title rather than a fifth tile: it is not another
+              // value, it is the absence of one, and putting it in the row of
+              // pictures would make "no preference" look like a shape you can
+              // choose. `OpacityRow` puts its chip in the same place.
+              //
+              // Drawn only when a pref IS set, so a row that is already
+              // following says nothing. A chip that is present and inert on
+              // most visits is a control people stop reading.
+              if (onFollow != null && !following)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: enabled ? onFollow : null,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      context.t('settings.follow'),
+                      style: TextStyle(color: c.accent, fontSize: 12.5),
+                    ),
+                  ),
+                ),
+            ],
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),

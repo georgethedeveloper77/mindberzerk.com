@@ -11,6 +11,7 @@ import {
   uploadPack, shelfOwnerBase } from '@/lib/core/publish-core';
 import type { IndexEntitlement, IndexPack, PackFile } from '@/lib/core/sign';
 import { canonicalThemeJson, type ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import { contentsFor } from '@/lib/g-launcher/pack-contents';
 import { previewLayoutFor } from '@/lib/g-launcher/preview-layout';
 
 export interface DistroPublishInput {
@@ -142,6 +143,27 @@ export async function publishDistro(
     const flat = checkThemePackFlat(themeFiles);
     if (!flat.ok) return { ok: false, error: flatRefusal(flat) };
 
+    /**
+     * A pack id to the title the card should print, or null.
+     *
+     * ─── THE IN-FLIGHT PACK WINS OVER THE LIVE ONE ────────────────────────
+     *
+     * A distro usually names the icon pack being published on this same call,
+     * and at this point that pack is not uploaded yet, so `iconEntry` does not
+     * exist to read a title from. `input.icons.name` is the title it is ABOUT
+     * to get, which is the one the index will carry a few lines below. Reading
+     * `live` first would print the previous title on a rename, and only until
+     * the next publish, which is the kind of wrong that is noticed weeks later.
+     *
+     * Null for a pack that is in neither: the bundled icon sets ship inside the
+     * APK and have no index entry, so the card carries one fewer chip rather
+     * than a name nobody can look up.
+     */
+    const resolveIconTitle = (packId: string): string | null => {
+      if (input.icons && input.icons.packId === packId) return input.icons.name;
+      return live.packs.find((p) => p.packId === packId)?.title ?? null;
+    };
+
     const themeEntry = await uploadPack(
       input.app,
       {
@@ -192,6 +214,17 @@ export async function publishDistro(
         // the device falling back to floor-card rows for a distro whose author
         // removed them.
         features: input.theme.spec.features ?? [],
+        // ── AND WHAT IS IN THE BOX ──────────────────────────────────────
+        //
+        // Counted from the same spec, for the third time on this call and for
+        // the same reason as the two above: a fact derived from the pack being
+        // published cannot disagree with it, and there is nothing new for
+        // anyone to fill in.
+        //
+        // This is the FLOOR under `features`. Those rows are editorial and four
+        // distros have no honest one to write, so without this a paid Fedora
+        // card is a name over a rectangle. See [contentsFor].
+        contents: contentsFor(input.theme.spec, resolveIconTitle),
         files: themeFiles,
       },
       keyId,

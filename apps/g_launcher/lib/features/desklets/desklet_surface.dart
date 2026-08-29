@@ -7,6 +7,19 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
+// `DockSide` is declared in BOTH `theme_spec.dart` and `dock_metrics.dart`, a
+// debt `DockMetrics` documents at length and says to edit in step. This file
+// takes the theme_spec one, because `EffectiveTheme.dock` is that type and it
+// is the RESOLVED answer. `show` rather than a bare import so nothing here can
+// accidentally bind the other declaration.
+import '../../engine/theme_spec.dart' show DockSide, ShellKind;
+import '../dock/aqua_dock_metrics.dart';
+// `show DockMetrics` IS MANDATORY. This file already binds theme_spec's
+// `DockSide` above, and `dock_metrics.dart` declares a second one of its
+// own; importing it unrestricted is an ambiguous-import error reported at
+// every USE of the name, never at the import that caused it. Only the
+// reserve constant is wanted here.
+import '../dock/dock_metrics.dart' show DockMetrics;
 import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_settings.dart';
@@ -149,11 +162,51 @@ class DeskletSurfaceView extends ConsumerWidget {
         // Safe-area aware: the top bar and the gesture pill both eat into the
         // usable desktop, and a clock under the status bar is not a desktop.
         final insets = MediaQuery.viewPaddingOf(context);
+
+        // ─── AND DOCK-AWARE, WHICH IT WAS NOT ────────────────────────────
+        //
+        // Panels are siblings of the workspace and shrink it before this
+        // surface is laid out, so they need nothing here. The dock is not: it
+        // is `Positioned` INSIDE the workspace's own box, deliberately, because
+        // a dock floats over the desktop on a real machine. That is right for
+        // the dock and it means this grid runs underneath it.
+        //
+        // The `margin` doc above already observed that the dock lives in this
+        // box, and correctly refused to pay for it with a uniform inset on all
+        // four edges. This is the half that was missing: one side, measured,
+        // and only the side the dock is actually on.
+        //
+        // FROM THE RESOLVED THEME, NEVER FROM LIVE VISIBILITY. `gnome_shell`
+        // computes a `showDock` from `activitiesOpen` and `dockRevealed`, both
+        // of which change while the user is looking at the desktop. Insetting
+        // from those would reflow every tile each time the drawer opened or an
+        // edge-reveal swipe landed, which reads as a rendering bug rather than
+        // as a feature. `dock` and `dockReveal` are constant for the theme.
+        //
+        // `dockReveal == 'apps'` reserves NOTHING, and that is the point of the
+        // value: upstream GNOME has no desktop dock at all, the dash appears
+        // inside the overview and leaves with it, so there is nothing occupying
+        // the desktop to reserve for. The same answer covers `dock: off`, where
+        // the edge-reveal gesture can still summon one temporarily. A summoned
+        // dock covering a column for as long as it is up is correct behaviour.
+        final reserve = theme.dockReveal == 'apps'
+            ? 0.0
+            : (theme.shell == ShellKind.aqua
+                ? AquaDockMetrics.reserve
+                : DockMetrics.reserve);
+        final dockSide = reserve == 0 ? DockSide.off : theme.dock;
+
         final usable = EdgeInsets.only(
-          left: margin.left + insets.left,
-          right: margin.right + insets.right,
+          left: margin.left +
+              insets.left +
+              (dockSide == DockSide.left ? reserve : 0),
+          right: margin.right +
+              insets.right +
+              (dockSide == DockSide.right ? reserve : 0),
           top: margin.top + insets.top,
-          bottom: margin.bottom + insets.bottom,
+          bottom: margin.bottom +
+              insets.bottom +
+              (dockSide == DockSide.bottom ? reserve : 0),
         );
 
         final w = constraints.maxWidth - usable.horizontal;

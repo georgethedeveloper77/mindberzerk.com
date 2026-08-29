@@ -1179,8 +1179,26 @@ interface LauncherHostApi {
    * to parse. 'cover' is byte-for-byte the legacy path, so existing users
    * see no change. [letterboxColor] is the ARGB that fills the bars 'contain'
    * and 'center' leave; the Dart side passes the theme palette's background.
+   *
+   * [focalX] and [focalY] are 0 to 1 across the SOURCE image and say where the
+   * subject is. [zoom] is 1 or more; above 1 keeps less of the picture.
+   *
+   * ─── WHY THESE ARE THREE LOOSE DOUBLES AND NOT A CLASS ──────────────────
+   *
+   * A `WallpaperFraming` data class would read better here and would cost a
+   * codec id in a schema that already carries enums, and appending one is only
+   * safe at the very END of the file where nothing follows it to renumber.
+   * Three scalars on a method signature take no id at all: Pigeon methods are
+   * named channels, so adding arguments to one cannot move another class's
+   * position on the wire. The ugly version is the one that cannot break the
+   * packs already installed on people's phones.
+   *
+   * All three are CLAMPED NATIVELY as well as in Dart. They arrive from stored
+   * prefs, and prefs outlive the build that wrote them: a value from a future
+   * version, or a hand-edited theme.json, must degrade rather than produce a
+   * degenerate crop rect the system quietly ignores.
    */
-  fun setWallpaper(source: String, applyToLock: Boolean, fit: String, letterboxColor: Long, callback: (Result<Boolean>) -> Unit)
+  fun setWallpaper(source: String, applyToLock: Boolean, fit: String, letterboxColor: Long, focalX: Double, focalY: Double, zoom: Double, callback: (Result<Boolean>) -> Unit)
   /**
    * Rotates the wallpaper, desktop-style.
    *
@@ -1190,8 +1208,28 @@ interface LauncherHostApi {
    * [fit] and [letterboxColor] as on [setWallpaper]: the worker stores them
    * beside the source list so every rotation tick renders the same way a
    * manual apply does.
+   *
+   * [framingJson] is a JSON object mapping a source string from [sources] to
+   * its framing: `{"asset:a.webp":{"fit":"cover","focalY":0.38}}`. Sources
+   * absent from it fall back to [fit] and a centred focal point.
+   *
+   * ─── WHY A JSON STRING AND NOT PARALLEL LISTS ───────────────────────────
+   *
+   * The alternative is four more `List<double>` arguments index-matched to
+   * [sources], and index-matched lists across a process boundary is a bug
+   * waiting for the first caller who filters one list and forgets the others:
+   * the failure is silent and it is every wallpaper after the removed one
+   * wearing its neighbour's framing. A map keyed by the source cannot
+   * desynchronise, and an entry for a source that is no longer in the pool is
+   * simply never looked up.
+   *
+   * It is also already the shape on the other side. The worker cannot use
+   * WorkManager's inputData for this (10KB cap, which is why [sources] itself
+   * lives in SharedPreferences), so it stores a string and re-reads it each
+   * tick. Handing it a string it can store verbatim keeps the whole rotation
+   * path free of a second serialisation format.
    */
-  fun scheduleWallpaperRotation(minutes: Long, sources: List<String>, applyToLock: Boolean, fit: String, letterboxColor: Long)
+  fun scheduleWallpaperRotation(minutes: Long, sources: List<String>, applyToLock: Boolean, fit: String, letterboxColor: Long, framingJson: String)
   fun cancelWallpaperRotation()
   /**
    * Is the gesture accessibility service actually enabled?
@@ -1594,7 +1632,10 @@ interface LauncherHostApi {
             val applyToLockArg = args[1] as Boolean
             val fitArg = args[2] as String
             val letterboxColorArg = args[3] as Long
-            api.setWallpaper(sourceArg, applyToLockArg, fitArg, letterboxColorArg) { result: Result<Boolean> ->
+            val focalXArg = args[4] as Double
+            val focalYArg = args[5] as Double
+            val zoomArg = args[6] as Double
+            api.setWallpaper(sourceArg, applyToLockArg, fitArg, letterboxColorArg, focalXArg, focalYArg, zoomArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LauncherApiPigeonUtils.wrapError(error))
@@ -1618,8 +1659,9 @@ interface LauncherHostApi {
             val applyToLockArg = args[2] as Boolean
             val fitArg = args[3] as String
             val letterboxColorArg = args[4] as Long
+            val framingJsonArg = args[5] as String
             val wrapped: List<Any?> = try {
-              api.scheduleWallpaperRotation(minutesArg, sourcesArg, applyToLockArg, fitArg, letterboxColorArg)
+              api.scheduleWallpaperRotation(minutesArg, sourcesArg, applyToLockArg, fitArg, letterboxColorArg, framingJsonArg)
               listOf(null)
             } catch (exception: Throwable) {
               LauncherApiPigeonUtils.wrapError(exception)
