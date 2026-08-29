@@ -374,8 +374,25 @@ private fun stringList(arr: org.json.JSONArray?): List<String> {
 }
 
 /** Storefront rows, same leniency as [stringList]. */
-private fun featureList(arr: org.json.JSONArray?): List<CdnFeature> {
-    if (arr == null) return emptyList()
+/**
+ * The rows an entry names, or NULL when it named no block at all.
+ *
+ * ─── NULLABLE, AND THE DISTINCTION IS THE WHOLE FUNCTION ────────────────────
+ *
+ * `null` means the entry predates the features block. An empty list means the
+ * entry HAS the block and deliberately names nothing, which is what
+ * `arch-linux-theme` published for weeks and what any distro with no honest
+ * exclusive claim publishes.
+ *
+ * This returned a non-null `emptyList()` for both, and `PackHostApiImpl` then
+ * mapped empty back to null, so the two collapsed into one at this step while
+ * the panel, `sign.ts` and `theme_catalog` all took trouble to keep them apart.
+ * Harmless only while the floor cards carried rows to fall back to; those rows
+ * now live in the specs, so the fallback is gone and the honest answer is the
+ * one that has to survive.
+ */
+private fun featureList(arr: org.json.JSONArray?): List<CdnFeature>? {
+    if (arr == null) return null
     val out = ArrayList<CdnFeature>(arr.length())
     for (i in 0 until arr.length()) {
         val o = arr.optJSONObject(i) ?: continue
@@ -482,7 +499,8 @@ data class CdnPack(
      * Rows the storefront card names, in AUTHORED ORDER. Empty for every pack
      * published before this existed. Presentation only.
      */
-    val features: List<CdnFeature> = emptyList(),
+    /** Null when the entry names no `features` block. See [featureList]. */
+    val features: List<CdnFeature>? = null,
 
     /**
      * Pack ids this one cannot work without.

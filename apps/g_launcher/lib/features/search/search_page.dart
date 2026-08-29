@@ -110,15 +110,46 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     _searchFor(heard);
   }
 
+  /// Leave search. The one exit, used by system back, by the bar's own control,
+  /// and by every launch path.
+  ///
+  /// ─── UNFOCUS BEFORE POP ─────────────────────────────────────────────────
+  ///
+  /// The field holds the IME for as long as it holds focus, and on Android the
+  /// first back press is consumed by the keyboard rather than delivered to the
+  /// route. Dropping focus in the same frame as the pop makes one press leave
+  /// instead of two, and stops a focus node outliving the route it belongs to.
+  void _dismiss() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final nav = Navigator.of(context);
+    if (nav.canPop()) nav.pop();
+  }
+
   /// Launch an app. When it came from a typed result, [recordTerm] is the query
   /// that found it, so it lands in recent searches; suggested-app taps pass none.
+  ///
+  /// ─── POP FIRST, THEN LAUNCH ─────────────────────────────────────────────
+  ///
+  /// The rule search_sheet, drawer_actions and the desktop menu already follow,
+  /// and the one this page was missing. Launching leaves the launcher, and
+  /// whatever is still mounted is what the user comes back to: tapping a result
+  /// left search standing, so returning from the app landed on search again,
+  /// with the field focused and the keyboard up, which is the state where back
+  /// only closes the keyboard. Home was never one press away from there.
+  ///
+  /// The notifiers are read BEFORE the pop. The route is still mounted through
+  /// its exit transition, so reading after would work today and break the first
+  /// time the transition is shortened.
   void _launch(AppEntry e, {String? recordTerm}) {
     final term = recordTerm?.trim() ?? '';
+    final apps = ref.read(appListProvider.notifier);
+    final usage = ref.read(usageProvider.notifier);
     if (term.isNotEmpty) {
       ref.read(recentSearchesProvider.notifier).record(term);
     }
-    ref.read(appListProvider.notifier).launch(e);
-    ref.read(usageProvider.notifier).record(e.componentKey);
+    _dismiss();
+    apps.launch(e);
+    usage.record(e.componentKey);
   }
 
   /// Hold a result for the same menu the drawer gives: pin, app info, hide,
@@ -176,38 +207,58 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   /// Enter records the term and opens the top hit, matching the drawer's
   /// enter-launches-top-match contract.
+  ///
+  /// Routed through [_launch] rather than repeating the launch lines, so the
+  /// pop cannot be present on tap and absent on enter. That split is exactly
+  /// how this page ended up with one path that dismissed and one that did not.
   void _submit() {
     final q = _query.trim();
     if (q.isEmpty) return;
     final results =
         ref.read(visibleAppsProvider((query: q, theme: widget.theme)));
-    ref.read(recentSearchesProvider.notifier).record(q);
-    if (results.isNotEmpty) {
-      ref.read(appListProvider.notifier).launch(results.first);
-      ref.read(usageProvider.notifier).record(results.first.componentKey);
+    if (results.isEmpty) {
+      // The term still counts as a search even when it found nothing, and the
+      // page stays put so the user can correct it.
+      ref.read(recentSearchesProvider.notifier).record(q);
+      return;
     }
+    _launch(results.first, recordTerm: q);
   }
 
   @override
   Widget build(BuildContext context) {
-    return ThemedScaffold(
-      // No app bar: the One UI search screen is content plus a bottom bar. Back
-      // is the system gesture, same as the shells' overlays.
-      body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            final d = ChromeScope.of(context);
-            return Column(
-              children: [
-                Expanded(
-                  child: _query.isEmpty
-                      ? _landing(context, d)
-                      : _results(context, d),
-                ),
-                _searchBar(context, d),
-              ],
-            );
-          },
+    return PopScope(
+      // FALSE, then popped by hand in [_dismiss].
+      //
+      // Letting the framework pop leaves the field focused on a route that is
+      // going away, and a focused field is the thing that swallows the back
+      // press in the first place. This way the IME and the route go together,
+      // whichever gesture or button started it.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _dismiss();
+      },
+      child: ThemedScaffold(
+        // No app bar: the One UI search screen is content plus a bottom bar.
+        // The bar carries the back control, because system back is not
+        // guaranteed to reach this route on a home-role activity.
+        body: SafeArea(
+          child: Builder(
+            builder: (context) {
+              final d = ChromeScope.of(context);
+              return Column(
+                children: [
+                  Expanded(
+                    child: _query.isEmpty
+                        ? _landing(context, d)
+                        : _results(context, d),
+                  ),
+                  _searchBar(context, d),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -528,9 +579,24 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: c.line),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.only(left: 4, right: 16),
         child: Row(
           children: [
+            // ─── THE VISIBLE WAY OUT ────────────────────────────────────────
+            //
+            // This page had none. It was pushed over the drawer with no app bar
+            // and no close control, on the reasoning that system back would do
+            // it, and on a home-role activity that reasoning does not hold: the
+            // back press is taken by the keyboard while the field is focused,
+            // and it can be taken again before Flutter sees it. Every other
+            // full screen surface here is reached through chrome that can be
+            // tapped back out of. This one is now too.
+            _BarIcon(
+              icon: Icons.arrow_back,
+              color: c.textMuted,
+              tooltip: 'Close search',
+              onTap: _dismiss,
+            ),
             Expanded(
               child: TextField(
                 controller: _controller,

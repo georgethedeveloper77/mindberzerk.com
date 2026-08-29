@@ -232,16 +232,18 @@ class PackHostApiImpl(
                 // "this pack predates the field". The card treats them
                 // differently, because the second must keep whatever its floor
                 // card authored and the first must not.
-                features = if (p.features.isEmpty()) {
-                    null
-                } else {
-                    p.features.map {
-                        PackFeature(
-                            title = it.title,
-                            body = it.body,
-                            exclusive = it.exclusive,
-                        )
-                    }
+                // STRAIGHT THROUGH, INCLUDING AN EMPTY LIST.
+                //
+                // This used to map empty to null, which threw away the one
+                // thing the shape exists to carry: an entry that names the
+                // block and lists nothing is saying so, and Dart reads null as
+                // "predates the block" instead. See [featureList] in CdnIndex.
+                features = p.features?.map {
+                    PackFeature(
+                        title = it.title,
+                        body = it.body,
+                        exclusive = it.exclusive,
+                    )
                 },
                 // What is in the box, straight through like the preview six.
                 //

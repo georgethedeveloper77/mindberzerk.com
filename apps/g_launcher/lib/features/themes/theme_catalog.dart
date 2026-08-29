@@ -232,7 +232,6 @@ class ThemeCard {
     required this.id,
     required this.name,
     required this.subtitle,
-    this.tag,
     required this.tier,
     required this.preview,
     this.specId,
@@ -276,7 +275,6 @@ class ThemeCard {
         id: id,
         name: name,
         subtitle: subtitle,
-        tag: tag,
         // Recomputed: a floor card authored as `pro` before billing existed
         // must follow the catalogue, not its own stale guess.
         tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
@@ -296,9 +294,10 @@ class ThemeCard {
         //
         // Three states, and collapsing any two of them is a bug:
         //
-        //   null          this entry predates the features block. Keep the
-        //                 floor card's rows, which is how the three bundled
-        //                 distros stay correct without republishing.
+        //   null          this entry predates the features block. Keep whatever
+        //                 the floor card had, which is now nothing: the three
+        //                 bundled distros author their rows in their specs, the
+        //                 same place the other twelve do.
         //   empty list    this entry HAS the block and chose to name nothing.
         //                 An editorial decision, and overriding it with the
         //                 floor card's rows would silently ignore it.
@@ -307,6 +306,11 @@ class ThemeCard {
         // The first cut of this used `p.features ?? features` with an empty
         // list treated as absent, which reads fine and makes "publish a distro
         // with no rows" impossible to express.
+        //
+        // NOW THAT NO FLOOR CARD AUTHORS ROWS, null and empty render the same
+        // thing, and the branch looks like it could collapse. It stays: the
+        // day one of them carries rows again the two answers diverge, and this
+        // is cheaper than rediscovering why.
         features: p.features == null
             ? features
             : [
@@ -352,15 +356,6 @@ class ThemeCard {
   /// meta line is plain; a card with a name and a build number is broken, and
   /// looks it.
   final String subtitle;
-
-  /// The small DE tag shown when the card is neither active nor Pro
-  /// ("Plasma", "GNOME", "TUI").
-  ///
-  /// NULL when unknown, and then no chip is drawn at all. Every CDN card used
-  /// to read `Distro` here, which spent the most valuable corner of the card on
-  /// the one word all fourteen shared. A chip earns its place by telling the
-  /// cards apart, and one that cannot do that is worse than an empty corner.
-  final String? tag;
 
   final ThemeTier tier;
   final ThemePreviewSpec preview;
@@ -693,25 +688,18 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       // nothing, because the alternative was printing the pack version and it
       // did exactly that on all fourteen distros.
       subtitle: p.summary,
-      // The shell, when the entry carries a preview to name it, and otherwise
-      // nothing. Derived rather than stored because `PackInfo` has no shell of
-      // its own: `previewShell` is the only place the index says what kind of
-      // desktop this is.
-      // ─── NO TAG ───────────────────────────────────────────────────
+      // ─── THERE IS NO DE TAG ON THIS CARD, AND THAT IS DELIBERATE ────────
       //
-      // This was `_shellTag(p.previewShell)`, printing GNOME, Plasma, Tiling,
-      // TUI or Desktop, and it is the last thing on this card still deciding
-      // from the shell. It says GNOME on Kali while that distro's chrome, menu
-      // and panels are all Xfce, and EndeavourOS read KDE Plasma for weeks.
+      // `ThemeCard.tag` existed to print GNOME, Plasma, Tiling or TUI, derived
+      // from `previewShell`, and it was the last thing on the card still
+      // deciding anything from the shell. It said GNOME on Kali, whose chrome,
+      // menu and panels are Xfce throughout, and EndeavourOS read KDE Plasma
+      // for weeks.
       //
-      // The summary already carries this and carries it correctly: `2024.3 ·
-      // Xfce`. Two labels for one fact, one derived and wrong, is worse than
-      // one that is authored and right.
-      //
-      // `_shellTag` is left in place, unused: it is also what `ThemeCard.tag`
-      // documents itself against, and deleting it in the same pass that stops
-      // calling it would make this diff about two things.
-      tag: null,
+      // `summary` already carries the fact and carries it correctly, as
+      // `2024.3 · Xfce`. Two labels for one thing, one authored and one
+      // derived, means the derived one is wrong on the distros that matter.
+      // The field is gone; this note is what stops it coming back.
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
       preview: _previewFromPack(p),
       specId: p.packId,
@@ -727,6 +715,33 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       wallpaperCount: p.wallpaperCount,
       iconPackTitle: p.iconPackTitle,
       fontName: p.fontName,
+      // ─── THE ROWS, AND THE BUG THAT HID FOR A MONTH ────────────────────
+      //
+      // This was ABSENT, so every field on the card was listed by name except
+      // this one and `features` fell through to its `const []` default. Eleven
+      // of fourteen distros could not show a row whatever the signed index
+      // carried, and nothing anywhere reported a problem: the cards rendered,
+      // the chips rendered, the index was correct, and the rows were simply
+      // never asked for.
+      //
+      // It stayed invisible because the three distros that DID show rows are
+      // the three with floor cards, and those go through `withPack` rather
+      // than here. So the feature the whole storefront was built around worked
+      // on exactly the distros that did not need it.
+      //
+      // Same shape as the `preview`, `requires` and `contents` drops in
+      // `publish-core.ts`: a constructor that names every field silently omits
+      // the new one, and the default is always something plausible.
+      //
+      // NO THREE-STATE DANCE HERE, unlike `withPack`. That one distinguishes a
+      // null block from an empty one because a floor card's rows are worth
+      // protecting; there is no floor card at this call site, so null and
+      // empty both correctly mean no rows.
+      features: [
+        for (final f in p.features ?? const [])
+          if (f != null)
+            ThemeFeature(title: f.title, body: f.body, exclusive: f.exclusive),
+      ],
     );
 
 /// The catalogue floor: what the Themes screen shows before the CDN index has
@@ -760,7 +775,6 @@ const _floorCards = <ThemeCard>[
         id: 'ubuntu',
         name: 'Ubuntu',
         subtitle: '24.04 · GNOME',
-        tag: 'GNOME',
         tier: ThemeTier.free,
         specId: 'ubuntu-24-04',
         bundled: true,
@@ -773,27 +787,11 @@ const _floorCards = <ThemeCard>[
           accent: _ubuntuOrange,
           icons: [_ubuntuOrange, Color(0xFF3A6EA5)],
         ),
-        features: [
-          ThemeFeature(
-            title: 'Activities overview',
-            body: 'Windows, workspaces and search on one surface.',
-          ),
-          ThemeFeature(
-            title: 'Left vertical dock',
-            body: 'Always visible, show-apps button at the foot.',
-          ),
-          ThemeFeature(
-            title: 'Aubergine and orange',
-            body: 'Ubuntu Sans, Yaru squircles.',
-            exclusive: false,
-          ),
-        ],
       ),
       ThemeCard(
         id: 'terminal',
         name: 'Terminal',
         subtitle: 'type-to-launch',
-        tag: 'TUI',
         tier: ThemeTier.free,
         specId: 'terminal',
         bundled: true,
@@ -802,22 +800,11 @@ const _floorCards = <ThemeCard>[
           bar: Color(0xFF0E1A0E),
           layout: PreviewLayout.terminal,
         ),
-        features: [
-          ThemeFeature(
-            title: 'Everything by command',
-            body: 'Launch, search and read device state from a prompt.',
-          ),
-          ThemeFeature(
-            title: 'Scrollback buffer',
-            body: 'Your session history stays where you left it.',
-          ),
-        ],
       ),
       ThemeCard(
         id: 'kde-plasma-6',
         name: 'KDE Plasma',
         subtitle: '6 · Breeze',
-        tag: 'Plasma',
         tier: ThemeTier.free,
         specId: 'kde-plasma-6',
         bundled: true,
@@ -829,21 +816,6 @@ const _floorCards = <ThemeCard>[
           accent: Color(0xFF3DAEE9), // Breeze blue
           icons: [Color(0xFF3DAEE9), Color(0xFF1D99F3), Color(0xFF27AE60)],
         ),
-        features: [
-          ThemeFeature(
-            title: 'Panel edit mode',
-            body: 'Hold the panel, add or remove modules, move it to any edge.',
-          ),
-          ThemeFeature(
-            title: 'Desktop icons',
-            body: 'Folder View, with apps placed on the workspace itself.',
-          ),
-          ThemeFeature(
-            title: 'Breeze palette',
-            body: 'Noto Sans, squircle icons.',
-            exclusive: false,
-          ),
-        ],
       ),
       // The paid distros (Kali, Garuda, Pop!_OS) live ONLY in themeMoreProvider
       // below, as coming-soon rows, until three things ship together: their

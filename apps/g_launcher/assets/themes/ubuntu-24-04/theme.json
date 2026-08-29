@@ -139,11 +139,19 @@
     "starter": [
       {
         "kind": "clock",
-        "page": 0
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 3,
+        "spanY": 1
       },
       {
         "kind": "monitor",
-        "page": 0
+        "page": 0,
+        "col": 2,
+        "row": 1,
+        "spanX": 2,
+        "spanY": 3
       }
     ],
     "skins": {

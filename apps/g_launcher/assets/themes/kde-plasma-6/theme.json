@@ -4,6 +4,7 @@
   "version": "6",
   "shell": "plasma",
   "tier": "free",
+  "chromeFamily": "breeze",
   "palette": {
     "bgTop": "#1B2733",
     "bgBottom": "#151A1F",
@@ -12,13 +13,36 @@
     "accent": "#3DAEE9",
     "onDark": "#FCFCFC"
   },
+  "paletteLight": {
+    "bgTop": "#BFD4E8",
+    "bgBottom": "#E1EAF3",
+    "bar": "#CEDDEB",
+    "dock": "#C2CEDDEB",
+    "accent": "#3DAEE9",
+    "onDark": "#232629"
+  },
   "typography": {
     "display": "Noto Sans",
     "mono": "Noto Sans Mono"
   },
   "layout": {
-    "dock": "bottom",
-    "topBar": false,
+    "dock": "off",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "kickoff",
+          "tasks",
+          "spacer",
+          "tray",
+          "clock"
+        ],
+        "height": 48
+      }
+    ],
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
@@ -38,7 +62,8 @@
     "1.webp",
     "2.webp",
     "3.webp",
-    "4.webp"
+    "4.webp",
+    "kde_breeze.webp"
   ],
   "minAppVersion": 6,
   "boot": {
@@ -113,11 +138,27 @@
     "starter": [
       {
         "kind": "clock",
-        "page": 0
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 4,
+        "spanY": 2
       },
       {
         "kind": "monitor",
-        "page": 0
+        "page": 0,
+        "col": 4,
+        "row": 0,
+        "spanX": 4,
+        "spanY": 3
+      },
+      {
+        "kind": "df",
+        "page": 0,
+        "col": 0,
+        "row": 2,
+        "spanX": 4,
+        "spanY": 1
       }
     ],
     "skins": {

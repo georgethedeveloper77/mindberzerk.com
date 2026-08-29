@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { C } from '@/components/theme-builder/console';
 import { Section, Field, TextInput } from '@/components/theme-builder/primitives';
-import type { ThemeFeatureJson } from '@/lib/g-launcher/theme-spec';
+import type { ThemeFeatureJson, ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import { suggestFeatures } from '@/lib/g-launcher/suggest-features';
 
 /**
  * THE ROWS A STOREFRONT CARD NAMES.
@@ -33,9 +34,50 @@ export function FeatureRowsEditor(props: {
   setRows: (rows: ThemeFeatureJson[]) => void;
   /** Drives the verdict only. A free distro naming no exclusive row is fine. */
   free: boolean;
+  /** The spec being edited, read only to propose rows. See [suggestFeatures]. */
+  spec: ThemeSpecJson;
 }) {
-  const { rows, setRows, free } = props;
+  const { rows, setRows, free, spec } = props;
   const [dragFrom, setDragFrom] = React.useState<number | null>(null);
+  const [suggestNote, setSuggestNote] = React.useState<string | null>(null);
+
+  /**
+   * Propose rows from the spec and APPEND the ones not already there.
+   *
+   * ─── APPEND, NEVER REPLACE ────────────────────────────────────────────────
+   *
+   * A button that overwrites is a button nobody dares press twice, and the row
+   * most worth keeping is always the one somebody rewrote by hand. Matching is
+   * on the trimmed, case-folded title, so pressing this again after editing a
+   * body adds nothing and pressing it after deleting a row puts that row back.
+   *
+   * Blank rows are dropped in the same pass. Adding four suggestions under an
+   * empty box the author opened and abandoned is how a list becomes a chore.
+   */
+  const suggest = () => {
+    const kept = rows.filter((r) => r.title.trim() || r.body.trim());
+    const have = new Set(kept.map((r) => r.title.trim().toLowerCase()));
+
+    const fresh = suggestFeatures(spec).filter(
+      (r) => !have.has(r.title.trim().toLowerCase()),
+    );
+
+    if (fresh.length === 0) {
+      // SAYS SO RATHER THAN DOING NOTHING. A button that appears inert is one
+      // the author assumes is broken, and "nothing to add" and "nothing this
+      // spec can honestly claim" are the two answers worth telling apart.
+      setSuggestNote(
+        kept.length === rows.length && have.size > 0
+          ? 'Nothing to add. Every suggestion is already a row.'
+          : 'This spec sets nothing the free settings cannot already do.',
+      );
+      setRows(kept);
+      return;
+    }
+
+    setSuggestNote(null);
+    setRows([...kept, ...fresh]);
+  };
 
   // The card's rule, applied here exactly as the device applies it, so what the
   // editor calls "on the card" and what the card draws cannot drift.
@@ -60,27 +102,46 @@ export function FeatureRowsEditor(props: {
       title="feature rows"
       hint="the card shows the first two exclusive rows, in this order"
       right={
-        <button
-          type="button"
-          onClick={() => setRows([...rows, { title: '', body: '', exclusive: true }])}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: C.green,
-            fontFamily: C.mono,
-            fontSize: 11.5,
-            cursor: 'pointer',
-            padding: 0,
-          }}
-        >
-          + add row
-        </button>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={suggest}
+            title="Propose rows from this distro's own spec"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: C.dim,
+              fontFamily: C.mono,
+              fontSize: 11.5,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            suggest
+          </button>
+          <button
+            type="button"
+            onClick={() => setRows([...rows, { title: '', body: '', exclusive: true }])}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: C.green,
+              fontFamily: C.mono,
+              fontSize: 11.5,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            + add row
+          </button>
+        </div>
       }
     >
       {rows.length === 0 ? (
         <div style={{ fontFamily: C.mono, fontSize: 11.5, color: C.faint, lineHeight: 1.6 }}>
           No rows. A bundled distro keeps whatever its floor card authored in Dart; a CDN distro
-          shows a bare card with a name and a price.
+          shows a bare card with a name and a price. Try suggest to read what this spec already
+          claims.
         </div>
       ) : null}
 
@@ -180,6 +241,20 @@ export function FeatureRowsEditor(props: {
           </div>
         </React.Fragment>
       ))}
+
+      {suggestNote ? (
+        <div
+          style={{
+            marginTop: 10,
+            fontFamily: C.mono,
+            fontSize: 11.5,
+            color: C.faint,
+            lineHeight: 1.6,
+          }}
+        >
+          {suggestNote}
+        </div>
+      ) : null}
 
       <Verdict free={free} rows={rows} selling={selling.length} />
     </Section>

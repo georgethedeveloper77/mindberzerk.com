@@ -7,6 +7,7 @@ import 'data/prefs/setup_state.dart';
 import 'data/billing/entitlements.dart';
 import 'design/theme.dart';
 import 'features/desklets/widget_stage.dart';
+import 'features/home/home_intent.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
 import 'i18n/i18n.dart';
@@ -136,12 +137,29 @@ class _Root extends ConsumerWidget {
 
     final done = ref.watch(setupCompletedProvider);
 
-    return done.when(
-      loading: () => const SizedBox.shrink(),
-      // A failed read must not strand the user in a wizard they cannot leave.
-      // Assume set-up and let them reach Settings.
-      error: (_, __) => const HomeScreen(),
-      data: (complete) => complete ? const HomeScreen() : const SetupScreen(),
+    // ── THE HOME PRESS ───────────────────────────────────────────────────
+    //
+    // `LauncherActivity.onNewIntent` has been sending "home" down
+    // `g_launcher/home_press` on every home press, into a Dart tree where
+    // nothing was listening. See `HomeIntent`: the channel name did not appear
+    // anywhere in lib/ except in a comment describing the handler.
+    //
+    // HERE rather than in a shell, for the reason the crash-context line above
+    // gives: a shell is torn down on every theme switch, and the home button is
+    // not allowed to stop working for a frame. Above the gate, so it is also
+    // live during setup, where popping a stray route is the correct response to
+    // a home press too.
+    //
+    // A widget rather than another `ref.watch` line, because it needs a
+    // Navigator and a WidgetRef. That is argued in the file.
+    return HomeIntent(
+      child: done.when(
+        loading: () => const SizedBox.shrink(),
+        // A failed read must not strand the user in a wizard they cannot leave.
+        // Assume set-up and let them reach Settings.
+        error: (_, __) => const HomeScreen(),
+        data: (complete) => complete ? const HomeScreen() : const SetupScreen(),
+      ),
     );
   }
 }

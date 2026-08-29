@@ -6,6 +6,7 @@ import type { AppId, LiveIndex } from '@/lib/core/catalogue';
 import {
   validateDraft,
   type ThemeDraft,
+  type ThemeFeatureJson,
   type ThemeSpecJson,
 } from '@/lib/g-launcher/theme-spec';
 
@@ -149,8 +150,92 @@ export async function writeDraft(app: AppId, draft: ThemeDraft): Promise<void> {
   await writeMap(app, map);
 }
 
-export async function deleteDraft(app: AppId, id: string): Promise<void> {
+/** What [fillFeatureRows] did to one draft. */
+export interface FeatureFillResult {
+  id: string;
+  /** Rows added. Zero means it was skipped or the spec claims nothing. */
+  added: number;
+  /** How many of the added rows are exclusive. Zero on a paid distro is a
+   *  problem the author has to solve in the spec, not in the copy. */
+  exclusive: number;
+  /** Why nothing happened, when nothing happened. */
+  skipped: 'already has rows' | 'spec claims nothing' | null;
+}
+
+/**
+ * Propose feature rows for every draft that has none, in ONE read and ONE
+ * write.
+ *
+ * ─── WHY THIS IS NOT A LOOP OVER `writeDraft` ───────────────────────────────
+ *
+ * `writeDraft` reads the whole map, changes one entry and writes the whole map
+ * back. Fifteen of those is fifteen round trips to R2 and, worse, fifteen
+ * last-write-wins windows: anything saved from an open workspace tab midway
+ * through the run would be picked up by an earlier read and written back over.
+ * A bulk edit of one object should be one read and one write of that object.
+ *
+ * ─── IT FILLS DRAFTS AND PUBLISHES NOTHING ──────────────────────────────────
+ *
+ * Deliberate, and the reason is what these rows are. They go on cards that ask
+ * for money, and machine-written prose has no business reaching a storefront
+ * without someone reading it. What this removes is the blank page, not the
+ * author: after it runs, fifteen forms are filled and every one of them can be
+ * edited, reordered or emptied before publish.
+ *
+ * ─── NEVER OVERWRITES ───────────────────────────────────────────────────────
+ *
+ * A draft with any titled row is left completely alone. Rerunning this is safe
+ * and does nothing twice, which is what makes it usable while the twelve are
+ * being worked through one at a time.
+ *
+ * VALIDATION IS SKIPPED, because [writeDraft] is skipped. Every draft here was
+ * already valid when it was stored and the only field being changed is
+ * `spec.features`, which is appended to rather than reshaped. A draft that is
+ * somehow invalid stays exactly as invalid as it was.
+ */
+export async function fillFeatureRows(
+  app: AppId,
+  suggest: (spec: ThemeDraft['spec']) => ThemeFeatureJson[],
+): Promise<FeatureFillResult[]> {
   const map = await readMap(app);
+  const out: FeatureFillResult[] = [];
+  let touched = false;
+
+  for (const draft of Object.values(map).sort((a, b) => a.id.localeCompare(b.id))) {
+    const existing = draft.spec.features ?? [];
+    if (existing.some((r) => r.title.trim())) {
+      out.push({ id: draft.id, added: 0, exclusive: 0, skipped: 'already has rows' });
+      continue;
+    }
+
+    const rows = suggest(draft.spec);
+    if (rows.length === 0) {
+      out.push({ id: draft.id, added: 0, exclusive: 0, skipped: 'spec claims nothing' });
+      continue;
+    }
+
+    map[draft.id] = {
+      ...draft,
+      spec: { ...draft.spec, features: rows },
+      updatedAt: Math.floor(Date.now() / 1000),
+    };
+    touched = true;
+    out.push({
+      id: draft.id,
+      added: rows.length,
+      exclusive: rows.filter((r) => r.exclusive).length,
+      skipped: null,
+    });
+  }
+
+  // Not written when nothing changed. A rerun that skips everything should not
+  // bump `updatedAt` on the map or spend a write, and it should be free enough
+  // that pressing the button again is never a decision.
+  if (touched) await writeMap(app, map);
+  return out;
+}
+
+export async function deleteDraft(app: AppId, id: string): Promise<void> {  const map = await readMap(app);
   if (!(id in map)) return;
   delete map[id];
   await writeMap(app, map);

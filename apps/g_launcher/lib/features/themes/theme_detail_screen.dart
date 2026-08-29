@@ -59,7 +59,7 @@ class ThemeDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
-    final c = d.colors;
+    d.colors;
 
     // WATCHED, so the page follows the catalogue rather than a snapshot taken
     // when it opened. A purchase completing invalidates `catalogueProvider`,

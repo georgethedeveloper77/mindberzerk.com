@@ -16,7 +16,8 @@ import {
   writeIconDraft,
   type DraftAsset as IconDraftAsset,
 } from '@/lib/g-launcher/icon-drafts';
-import { deleteDraft, distroIconPackIds, readAllDrafts, readDraft, writeDraft } from '@/lib/g-launcher/themes';
+import { deleteDraft, distroIconPackIds, fillFeatureRows, readAllDrafts, readDraft, writeDraft } from '@/lib/g-launcher/themes';
+import { suggestFeatures } from '@/lib/g-launcher/suggest-features';
 import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
 
 interface DistroMeta {
@@ -578,6 +579,63 @@ export async function bulkDeleteDistrosAction(
     );
   }
   return out;
+}
+
+/**
+ * FILL FEATURE ROWS on every draft that has none.
+ *
+ * ─── IT WRITES DRAFTS AND PUBLISHES NOTHING ─────────────────────────────────
+ *
+ * The rows go on cards that ask for money, so they are proposed here and
+ * shipped only when someone has read them. Doing both in one press would put
+ * machine-written prose in the store with no author in the loop, and the four
+ * distros with nothing honest to claim would get a palette row and a price and
+ * look finished.
+ *
+ * The distros still need republishing afterwards, one at a time or through the
+ * existing bulk bar. That separation is the review step.
+ *
+ * ─── AND IT IS SAFE TO PRESS TWICE ──────────────────────────────────────────
+ *
+ * A draft with any titled row is skipped whole. So the working order is: press
+ * this, fix the ones that read badly, press it again after adding a new distro,
+ * and nothing you wrote is ever at risk.
+ *
+ * Returns one line per draft, including the skips, because "twelve filled" and
+ * "twelve filled, four of them with nothing exclusive" are different outcomes
+ * and only the second one tells you where to go next.
+ */
+export async function fillFeatureRowsAction(
+  app: string,
+): Promise<{ id: string; ok: boolean; detail: string }[]> {
+  await requireAdmin();
+
+  const results = await fillFeatureRows(app as AppId, suggestFeatures);
+
+  return results.map((r) => {
+    if (r.skipped === 'already has rows') {
+      return { id: r.id, ok: true, detail: 'skipped, already has rows' };
+    }
+    if (r.skipped === 'spec claims nothing') {
+      // NOT AN ERROR, and it must not read as one. A spec that sets no panel,
+      // no desktop icons, no panel editing and no boot log genuinely has
+      // nothing the free settings cannot do, and saying so plainly is the
+      // useful answer. The fix is in the spec, not here.
+      return {
+        id: r.id,
+        ok: true,
+        detail: 'nothing to suggest, this spec sets nothing exclusive',
+      };
+    }
+    return {
+      id: r.id,
+      ok: true,
+      detail:
+        r.exclusive === 0
+          ? `${r.added} rows, NONE exclusive, this card sells a palette`
+          : `${r.added} rows, ${r.exclusive} exclusive`,
+    };
+  });
 }
 
 /**

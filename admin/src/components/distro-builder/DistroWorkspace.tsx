@@ -1481,6 +1481,7 @@ export function DistroWorkspace({
               play={play}
               features={spec.features ?? []}
               setFeatures={(f) => setSpec((s) => ({ ...s, features: f }))}
+              spec={spec}
             /> : null}
           </div>
 
@@ -1524,6 +1525,8 @@ function PricingTab(props: {
   play: PlayLite;
   features: ThemeFeatureJson[];
   setFeatures: (f: ThemeFeatureJson[]) => void;
+  /** Read only, and only to propose feature rows. See [suggestFeatures]. */
+  spec: ThemeSpecJson;
 }) {
   return (
     <>
@@ -1538,7 +1541,7 @@ function PricingTab(props: {
         </div>
       </Section>
 
-      <FeatureRowsEditor rows={props.features} setRows={props.setFeatures} free={props.free} />
+      <FeatureRowsEditor rows={props.features} setRows={props.setFeatures} free={props.free} spec={props.spec} />
 
       <Section title="pricing" hint="a paid distro is two products: the whole distro, and its icons alone">
         <div style={{ marginBottom: 14 }}>

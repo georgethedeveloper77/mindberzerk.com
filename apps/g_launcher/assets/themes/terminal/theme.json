@@ -3,7 +3,6 @@
   "name": "Terminal",
   "version": "type-to-launch",
   "shell": "tui",
-  "chromeFamily": "wm",
   "tier": "free",
   "palette": {
     "bgTop": "#080D08",
@@ -20,7 +19,6 @@
   "layout": {
     "dock": "off",
     "topBar": false,
-    "workspaces": 1,
     "grid": {
       "rows": 5,
       "cols": 4
@@ -88,7 +86,11 @@
     "starter": [
       {
         "kind": "fastfetch",
-        "page": 0
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 4,
+        "spanY": 3
       }
     ],
     "skins": {
