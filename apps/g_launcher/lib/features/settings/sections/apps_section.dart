@@ -15,6 +15,7 @@ import '../../../data/repositories/shell_apps.dart';
 import '../../../design/branded_message.dart';
 import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
+import '../../../design/drawer_transition.dart';
 import '../../../design/setting_previews.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
@@ -154,8 +155,30 @@ List<Widget> applicationsSection(
         // DevicePreview modes: the difference is motion, so each tile shows
         // the artefact that gives the style away instead.
         FilterRow(
-          const ['drawer', 'scroll', 'pages', 'cube', 'list', 'vertical'],
-          PreviewChoice<String>(
+          const [
+            'drawer',
+            'scroll',
+            'pages',
+            'cube',
+            'cylinder',
+            'sphere',
+            'depth',
+            'stack',
+            'list',
+            'vertical',
+          ],
+          // ── A TAP PLAYS THE STYLE IT PICKS ────────────────────────────
+          //
+          // The tiles rest frozen a third of the way through their turn, which
+          // is where the six look least alike, and a tap runs the tapped one
+          // through. One controller for the whole row rather than one per tile:
+          // six tickers is six wakeups a frame for a page that is meant to sit
+          // still while it is read. See [ScrollStylePlayer].
+          ScrollStylePlayer(
+            // The current style demonstrates itself once when the page opens,
+            // so "what is my drawer doing" is answered without a tap.
+            initial: theme.drawerScrollStyle,
+            builder: (context, phase, playing, play) => PreviewChoice<String>(
             title: context.t('settings.drawerScrolls'),
             // ── DIMMED UNDER LIBRARY ───────────────────────────────
             //
@@ -177,20 +200,58 @@ List<Widget> applicationsSection(
             value: theme.drawerGrouping == 'library'
                 ? 'vertical'
                 : theme.drawerScrollStyle,
-            onSelect: (v) =>
-                notifier.edit((p) => p.copyWith(drawerScrollStyle: v)),
+            onSelect: (v) {
+              notifier.edit((p) => p.copyWith(drawerScrollStyle: v));
+              // PLAYED ON EVERY TAP, including a tap on the style already
+              // selected. Driving this off the selected VALUE instead would
+              // make that tap do nothing, which reads as the control having
+              // stopped working.
+              play(v);
+            },
+            // The third of the three drawer rows, and `PreviewChoice` has
+            // carried this pair since `dockSide` needed it. Mint authors a
+            // list; one tap on Pages ended that everywhere.
+            following: theme.prefs.drawerScrollStyle == null,
+            onFollow: () => notifier.edit(
+              (p) => p.clearing(drawerScrollStyle: true),
+            ),
+            // ── LIST FIRST, THEN THE CATALOGUE ────────────────────────
+            //
+            // `vertical` is prepended rather than living in
+            // [DrawerTransition.catalogue], because it is not a transition:
+            // it selects a different widget and `app_drawer` branches on it
+            // long before the pager is reached. The catalogue is the six
+            // things that ARE transitions, in the order they should read.
+            //
+            // Six names and six blurbs live on the enum, not here. Setup lists
+            // the same six, and two hand-written lists is how one of them ends
+            // up a style short.
             options: [
-              for (final o in const [
-                ('vertical', 'List'),
-                ('pages', 'Pages'),
-                ('cube', 'Cube'),
-              ])
+              PreviewOption(
+                value: 'vertical',
+                label: 'List',
+                child: ScrollStyleTile(
+                  style: 'vertical',
+                  palette: theme.palette,
+                ),
+              ),
+              for (final t in DrawerTransition.catalogue)
                 PreviewOption(
-                  value: o.$1,
-                  label: o.$2,
-                  child: ScrollStyleTile(style: o.$1, palette: theme.palette),
+                  value: t.value,
+                  label: t.copy.$1,
+                  child: ScrollStyleTile(
+                    style: t.value,
+                    palette: theme.palette,
+                    // Only the tile being demonstrated moves. The rest hold
+                    // their frozen pose, which is what makes the moving one
+                    // legible.
+                    phase: playing == t.value
+                        ? phase
+                        : ScrollStyleTile.restPhase,
+                  ),
                 ),
             ],
+            ),
           ),
         ),
 
@@ -251,6 +312,12 @@ List<Widget> applicationsSection(
               enabled: theme.canChooseDrawerGrouping.available ||
                   theme.drawerGrouping == 'library',
               value: theme.drawerGrouping,
+              // elementary authors `library` and Zorin authors it too. One tap
+              // here buried both, on every distro, with nothing saying so.
+              following: theme.prefs.drawerGrouping == null,
+              onFollow: () => notifier.edit(
+                (p) => p.clearing(drawerGrouping: true),
+              ),
               options: const {
                 'none': 'Off',
                 'az': 'A to Z',
@@ -278,7 +345,29 @@ List<Widget> applicationsSection(
                 : context.t(theme.canMoveSearchBar.why!),
             trailing: Seg(
               enabled: theme.canMoveSearchBar.available,
-              value: theme.prefs.drawerSearchPosition ?? 'bottom',
+              // ─── THE RESOLVED VALUE, LIKE EVERY ROW AROUND IT ─────────
+              //
+              // This read `theme.prefs.drawerSearchPosition ?? 'bottom'`: the
+              // raw pref, with the engine default written out as a literal.
+              // The grouping row directly above reads `theme.drawerGrouping`
+              // and the layout row reads `theme.drawerScrollStyle`, both
+              // resolved, and this was the one that did not.
+              //
+              // It could not report a distro's answer, so Deepin authoring
+              // `drawerSearchPosition: "top"` left this segment insisting on
+              // Bottom. The same expression was in `AppDrawer`, which is how
+              // the bar and the row managed to agree while both were wrong.
+              value: theme.drawerSearchPosition,
+              // ─── AND THE WAY BACK TO THE DISTRO ───────────────────────
+              //
+              // Deepin authors `top`. Without this pair, one tap on Bottom
+              // buries that on this device forever, and every distro the user
+              // tries afterwards wears the choice they made on Deepin. Same
+              // pair and same argument as `dockSide` in `desktop_section`.
+              following: theme.prefs.drawerSearchPosition == null,
+              onFollow: () => notifier.edit(
+                (p) => p.clearing(drawerSearchPosition: true),
+              ),
               options: const {
                 'top': 'Top',
                 'bottom': 'Bottom',

@@ -140,25 +140,19 @@
         "kind": "clock",
         "page": 0,
         "col": 0,
-        "row": 0,
-        "spanX": 4,
-        "spanY": 2
+        "row": 0
       },
       {
         "kind": "monitor",
         "page": 0,
         "col": 4,
-        "row": 0,
-        "spanX": 4,
-        "spanY": 3
+        "row": 0
       },
       {
         "kind": "df",
         "page": 0,
         "col": 0,
-        "row": 2,
-        "spanX": 4,
-        "spanY": 1
+        "row": 2
       }
     ],
     "skins": {

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../system/system_stats.dart';
+import '../quick_settings.dart';
 
 import '../../../design/ubuntu_tokens.dart';
 import '../../../engine/theme_spec.dart'
@@ -82,6 +85,7 @@ class GnomeTopBar extends ConsumerWidget {
   /// to the same stream. It is drawn at the position of the FIRST readout in
   /// the list and skipped at the others, so a theme still controls where in the
   /// run they appear.
+
   List<Widget> _modules({required bool stacked}) {
     final stats = panel.modules
         .where((m) =>
@@ -136,12 +140,59 @@ class GnomeTopBar extends ConsumerWidget {
           // task strip on it would be a Windows taskbar, and a kickoff button
           // would be a start menu. A theme listing them here has authored
           // something GNOME is not, so the bar declines rather than obliging.
-          PanelModule.kickoff ||
-          PanelModule.tasks ||
-          PanelModule.pager ||
-          PanelModule.tray ||
-          PanelModule.clock =>
-            const SizedBox.shrink(),
+          // ─── STILL DECLINED, AND FOR THE ORIGINAL REASON ────────────────
+          //
+          // Kickoff is Plasma's start menu and a pager is Plasma's desktop
+          // switcher. Neither belongs on any GNOME-family panel, top edge or
+          // bottom, so these two decline everywhere rather than on an edge
+          // test.
+          PanelModule.kickoff || PanelModule.pager => const SizedBox.shrink(),
+
+          // ─── DECLINED FOR A DIFFERENT REASON: THERE IS NO SOURCE ────────
+          //
+          // A task strip lists what is RUNNING, and nothing in the Pigeon
+          // surface reports that. `AppEntry` is an installed app,
+          // `frequentAppsProvider` is a frecency ranking, and neither answers
+          // the question. Drawing the most-used apps here and calling it Tasks
+          // would be a dock wearing a taskbar's label, and the running
+          // indicator under each tile would be decoration that means nothing.
+          //
+          // So this stays empty until there is something true to draw, which
+          // needs a `UsageStatsManager` reader on the native side. A distro
+          // authoring `tasks` gets a gap rather than a lie.
+          PanelModule.tasks => const SizedBox.shrink(),
+
+          // ─── ON ANY EDGE, AND THE MODULE LIST IS THE OPT-IN ─────────────
+          //
+          // These two were refused outright, then refused on the TOP edge
+          // only, and both rules were wrong for the same reason.
+          //
+          // The original argument was duplication: Android's clock sits four
+          // pixels above a top bar. True, and it was decisive while the tray
+          // was decoration. It stopped being decisive when the tray became the
+          // way into Quick Settings, which is a control Android's own status
+          // bar cannot reach.
+          //
+          // The edge rule that replaced it broke Pop!_OS, whose top bar
+          // authors a centred clock and a tray on the right, which is what
+          // GNOME's top bar actually IS. It drew an Activities button, a gap,
+          // a network readout and a second gap, while the pack's feature row
+          // described the bar it was not getting.
+          //
+          // The rule was in the theme all along: a distro that does not want a
+          // clock on its bar DOES NOT AUTHOR ONE. Refusing it for the distros
+          // that do was this file overriding the author. Ubuntu, KDE and every
+          // other pack that never listed these are untouched, because they
+          // never asked.
+          PanelModule.tray => _Tray(palette: palette, stacked: stacked),
+          PanelModule.clock => _OpensQuickSettings(
+              label: 'Quick settings',
+              child: _Clock(
+                palette: palette,
+                fontFamily: displayFontFamily,
+                stacked: stacked,
+              ),
+            ),
         },
     ];
   }
@@ -357,6 +408,197 @@ class _Modules extends ConsumerWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: style,
+    );
+  }
+}
+
+/// Anything in the panel that opens Quick Settings.
+///
+/// ─── WHY THE CLOCK OPENS IT TOO ─────────────────────────────────────────────
+///
+/// Every desktop this launcher imitates puts the calendar behind the clock and
+/// the indicators behind the tray, and a phone user coming from Android has the
+/// same habit from the status bar. Making only the tray live means the right
+/// half of the panel is half live and half dead, and which half is which is
+/// invisible until you have tapped both.
+///
+/// The whole cluster is 44dp tall either way, so this costs nothing and closes
+/// the gap between them: tray, clock, or the space they sit in.
+class _OpensQuickSettings extends ConsumerWidget {
+  const _OpensQuickSettings({required this.child, required this.label});
+
+  final Widget child;
+  final String label;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => ref.read(quickSettingsProvider.notifier).toggle(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Center(widthFactor: 1, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+/// The tray cluster, and the way into Quick Settings.
+///
+/// ─── IT SHOWS NO STATE, DELIBERATELY ────────────────────────────────────────
+///
+/// The obvious build paints a live Wi-Fi arc, a volume level and a battery
+/// percentage. Two of those Android is already drawing a few pixels away in its
+/// own status bar, which is the argument this file's header makes for the top
+/// bar and which does not stop being true lower down the screen. And a launcher
+/// cannot read Wi-Fi signal strength without location permission, so the arc
+/// would be a picture of a number nobody measured.
+///
+/// So this is a BUTTON that looks like a tray, which is also what Zorin's own
+/// tray is: three glyphs you press to get the panel. The state lives inside the
+/// panel, where every reading in it is one the launcher genuinely owns.
+class _Tray extends ConsumerWidget {
+  const _Tray({required this.palette, required this.stacked});
+
+  final ThemePalette palette;
+  final bool stacked;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(quickSettingsProvider);
+    final ink = open ? palette.bgBottom : palette.onDark.withValues(alpha: 0.85);
+
+    final glyphs = [
+      Icons.wifi,
+      Icons.volume_up_outlined,
+      Icons.battery_std_outlined,
+    ];
+
+    return Semantics(
+      button: true,
+      label: 'Quick settings',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => ref.read(quickSettingsProvider.notifier).toggle(),
+        child: Container(
+          // 44dp on the cross axis, so the cluster is a real target rather than
+          // three 16dp glyphs with dead space between them.
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          padding: EdgeInsets.symmetric(
+            horizontal: stacked ? 4 : 8,
+            vertical: stacked ? 8 : 4,
+          ),
+          decoration: BoxDecoration(
+            color: open ? palette.accent : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Flex(
+            direction: stacked ? Axis.vertical : Axis.horizontal,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < glyphs.length; i++) ...[
+                if (i > 0) SizedBox(width: stacked ? 0 : 7, height: stacked ? 6 : 0),
+                Icon(glyphs[i], size: 16, color: ink),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The panel clock.
+///
+/// ─── AND WHY THIS ONE IS ALLOWED TO DUPLICATE ANDROID'S ─────────────────────
+///
+/// The header argues that a second clock on the top bar is the opposite of
+/// authentic, and it is: Android's own is four pixels above it. A BOTTOM panel
+/// is the other end of the screen, and every desktop that puts its panel down
+/// there puts a clock on it. Reading the time at the bottom right is the single
+/// most practised habit a Windows or Zorin user has, and the status bar being
+/// 700dp away does not serve it.
+///
+/// So the rule is the same one the modules follow: on top it declines, on any
+/// other edge it draws.
+class _Clock extends StatefulWidget {
+  const _Clock({
+    required this.palette,
+    required this.stacked,
+    this.fontFamily,
+  });
+
+  final ThemePalette palette;
+  final bool stacked;
+  final String? fontFamily;
+
+  @override
+  State<_Clock> createState() => _ClockState();
+}
+
+class _ClockState extends State<_Clock> {
+  Timer? _tick;
+  late DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Aligned to the next MINUTE, not a 60s repeat from mount. A repeating
+    // timer started at 9:41:47 flips the display at 47 seconds past every
+    // minute, so the clock is wrong for most of each minute by up to a minute.
+    _schedule();
+  }
+
+  void _schedule() {
+    final now = DateTime.now();
+    final next = DateTime(now.year, now.month, now.day, now.hour, now.minute)
+        .add(const Duration(minutes: 1));
+    _tick = Timer(next.difference(now), () {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      _schedule();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 24-hour or 12-hour follows the DEVICE, via MediaQuery, rather than a
+    // setting of our own. Someone who has set their phone to 24-hour has
+    // already answered this question and should not be asked twice.
+    final t = TimeOfDay.fromDateTime(_now);
+    final label = MediaQuery.alwaysUse24HourFormatOf(context)
+        ? '${t.hour.toString().padLeft(2, '0')}:'
+            '${t.minute.toString().padLeft(2, '0')}'
+        : t.format(context);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.stacked ? 2 : 8,
+        vertical: widget.stacked ? 6 : 0,
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontFamily: widget.fontFamily,
+          // A vertical panel is 40dp wide and "10:35 pm" does not fit, so the
+          // stacked case drops a point the way the readouts above do.
+          fontSize: widget.stacked ? 10 : 13,
+          color: widget.palette.onDark,
+        ),
+      ),
     );
   }
 }

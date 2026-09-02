@@ -88,9 +88,7 @@
         "kind": "fastfetch",
         "page": 0,
         "col": 0,
-        "row": 0,
-        "spanX": 4,
-        "spanY": 3
+        "row": 0
       }
     ],
     "skins": {

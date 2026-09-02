@@ -266,6 +266,38 @@ class IconCache(
         }
     }
 
+    /**
+     * The GENERATOR TIER ON ITS OWN: each app's own artwork, remasked into the
+     * current style's shape, with no pack consulted at any level.
+     *
+     * The twin of [preview], and it exists for the same reason. [get] walks
+     * four tiers and stops at the first that answers, so on a device holding a
+     * brand pack it can never show what no pack would look like. Setup's icon
+     * step has to draw both answers at once and only one style can be applied.
+     *
+     * Same [io] executor and the same "every failure is a null" contract, so a
+     * key that cannot be extracted leaves a hole rather than taking the batch
+     * down. Nothing is written to either cache tier: `cacheKey` is built from
+     * the applied style, and these bitmaps deliberately are not it.
+     */
+    fun previewGenerated(
+        componentKeys: List<String>,
+        sizePx: Int,
+        callback: (List<ByteArray?>) -> Unit,
+    ) {
+        io.execute {
+            val out = componentKeys.map { key ->
+                runCatching {
+                    val bitmap = renderGenerated(key, sizePx) ?: return@runCatching null
+                    val bytes = bitmap.toPngBytes()
+                    bitmap.recycle()
+                    bytes
+                }.getOrNull()
+            }
+            callback(out)
+        }
+    }
+
     private fun renderPreview(componentKey: String, tint: Int, sizePx: Int): ByteArray? {
         val glyph = brands.resolve(componentKey) ?: return null
         val paths = brands.parsePaths(glyph)

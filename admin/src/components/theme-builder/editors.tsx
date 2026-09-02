@@ -24,12 +24,15 @@ import {
   type IconStyleJson,
   type KickoffRailName,
   type ShellName,
+  type ThemeAccentJson,
   type ThemeDraft,
   type ThemeLayoutJson,
+  type ThemeLayoutPresetJson,
   type ThemePaletteJson,
   type DrawerGroupingName,
   type DrawerScrollName,
   type ThemeSpecJson,
+  type ThemeSurfacesJson,
   type TilingLauncherName,
   type TopBarSideName,
   type WorkspaceAxisName,
@@ -835,6 +838,74 @@ export function PassthroughEditor(props: {
         hint="starter desktop widgets"
         value={props.spec.desklets}
         onChange={(v) => props.setSpec({ desklets: v })}
+      />
+      {/* A JSON box rather than a swatch grid, deliberately, and not as a
+          placeholder for one.
+
+          A colour picker with a name field and a stable id per row is a real
+          component, and it would be authored maybe a dozen times across the
+          whole catalogue: most distros ship one accent and want this field
+          absent. The canon path already validates and dedupes what lands here,
+          so a malformed entry is caught at publish rather than on someone's
+          phone, which is the part that actually needed building. */}
+      <JsonArea
+        label="accents"
+        hint="the accent colours this distro offers, or blank for one"
+        value={props.spec.accents}
+        onChange={(v) =>
+          props.setSpec({ accents: v as ThemeAccentJson[] | undefined })
+        }
+      />
+      <JsonArea
+        label="layouts"
+        hint="named layout presets, each a partial merged over layout above"
+        value={props.spec.layouts}
+        onChange={(v) =>
+          props.setSpec({ layouts: v as ThemeLayoutPresetJson[] | undefined })
+        }
+      />
+      {/* ─── WHY THREE OF THESE ARE CAST AND THREE ARE NOT ──────────────────
+          `JsonArea` parses free text and hands back `unknown`, which is exactly
+          right for `boot`, `splash`, `desklets`, `terminal` and `home`, because
+          those are typed `unknown` too. `accents`, `layouts` and
+          `wallpapersLight` are properly typed, so the assignment does not
+          compile without one.
+
+          A cast rather than a validator at the call site, because `canonSpec`
+          is already the validator: it drops entries with no id, dedupes them
+          and trims. Two places checking the same shapes would eventually
+          disagree, and the one that runs at publish is the one that decides
+          what ships. */}
+      {/* The device has always read these three. Until now the panel had no
+          field for any of them, so a theme.json carrying one was reported as a
+          key nothing reads and then deleted on the next publish. */}
+      <JsonArea
+        label="surfaces"
+        hint="opacity, blur, tint, radius. Blank for the app's own"
+        value={props.spec.surfaces}
+        onChange={(v) =>
+          props.setSpec({ surfaces: v as ThemeSurfacesJson | undefined })
+        }
+      />
+      <JsonArea
+        label="wallpapersLight"
+        hint="wallpapers for light mode, or blank to reuse the dark ones"
+        value={props.spec.wallpapersLight}
+        onChange={(v) =>
+          props.setSpec({ wallpapersLight: v as string[] | undefined })
+        }
+      />
+      <JsonArea
+        label="terminal"
+        hint="the sixteen ANSI colours, prompt and drawer label"
+        value={props.spec.terminal}
+        onChange={(v) => props.setSpec({ terminal: v })}
+      />
+      <JsonArea
+        label="home"
+        hint="home screen block"
+        value={props.spec.home}
+        onChange={(v) => props.setSpec({ home: v })}
       />
     </>
   );

@@ -456,6 +456,15 @@ export interface ThemeSpecJson {
   /** This distro's own category vocabulary, in display order. Absent means the
    *  built-in set. See [ThemeCategoryJson]. */
   categories?: ThemeCategoryJson[];
+  /** The accent colours this distro offers. Absent means it offers one: the
+   *  palette's own. See [ThemeAccentJson]. */
+  accents?: ThemeAccentJson[];
+  /** Named layout presets, shallow-merged over `layout` on the device. Absent
+   *  means this distro has one layout. See [ThemeLayoutPresetJson]. */
+  layouts?: ThemeLayoutPresetJson[];
+  /** This distro's glass. Absent means the app's own constants, which is what
+   *  every theme rendered before this existed. See [ThemeSurfacesJson]. */
+  surfaces?: ThemeSurfacesJson;
   /** Where an app lands when nothing in `categories` claims it. Absent means
    *  'Other'. Kali names it 'Usual Applications'. */
   categoryFallback?: string;
@@ -482,6 +491,22 @@ export interface ThemeSpecJson {
   boot?: unknown;
   splash?: unknown;
   desklets?: unknown;
+  /** ─── THREE FIELDS THE DEVICE READ AND THIS FILE HAD NEVER HEARD OF ─────
+   *
+   *  `ThemeSpec` in Dart parses `wallpapersLight`, `terminal` and `home`, and
+   *  none of them had a type here, a canon arm, or a key in THEME_SPEC_KEYS.
+   *  So a theme.json carrying one imported with a note saying nothing reads it,
+   *  and REPUBLISHING THROUGH THE PANEL DELETED IT. Bundled distros kept theirs
+   *  because they never go through here; CDN distros lost theirs on the next
+   *  publish, which is the same asymmetry that hid the `terminal` bug inside
+   *  `ThemeSpec.withSource` for its whole life.
+   *
+   *  Carried opaquely, like `boot` and `splash` above. A typed editor for a
+   *  sixteen-colour ANSI block is worth building the day somebody authors a
+   *  second one; not losing the first one is worth it today. */
+  wallpapersLight?: string[];
+  terminal?: unknown;
+  home?: unknown;
   /**
    * The distro's DEFAULT gesture bindings: gesture id to a GestureAction id, or
    * "app:<componentKey>".
@@ -616,7 +641,8 @@ export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
   'palette', 'paletteLight', 'typography', 'layout', 'icons', 'logo',
   'wallpapers', 'wallpaper', 'wallpaperMeta', 'fonts', 'minAppVersion',
   'boot', 'splash', 'desklets', 'gestures', 'features', 'seededFromPreview',
-  'categories', 'categoryFallback',
+  'categories', 'categoryFallback', 'accents', 'layouts',
+  'wallpapersLight', 'terminal', 'home', 'surfaces',
 ]);
 
 /**
@@ -628,8 +654,85 @@ export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
  * this distro's names. Kali's thirteen tool groups all have an empty `feeds`,
  * because no Android category honestly maps to "01 Information Gathering".
  */
+/**
+ * A distro's own glass: how solid, how blurred, how tinted, how rounded.
+ *
+ * Every field is optional and absent means the app's constant, so authoring
+ * `blur` alone does not silently reset the other three to something nobody
+ * chose.
+ *
+ * `opacity` is the one worth understanding. It is the ROOT of the chain: the
+ * dock, the bar, the drawer and panels each fall back to the main slider, and
+ * the main slider now falls back to this. It also clamps LOWER than a user can
+ * reach, 0.35 against their 0.6, because the 0.6 floor exists to keep a page
+ * readable over a photograph and that assumes no blur. Author below 0.5 only
+ * with real blur behind it.
+ */
+export interface ThemeSurfacesJson {
+  /** 0.35 to 1.0. */
+  opacity?: number;
+  /** 0 to 24 logical pixels. 0 switches the blur off entirely. */
+  blur?: number;
+  /** 0 neutral grey, 1 fully the distro's colour. */
+  tint?: number;
+  /** Logical pixels, capped at 28. */
+  radius?: number;
+}
+
+/**
+ * One named layout a distro offers.
+ *
+ * The `layout` here is a PARTIAL, shallow-merged over the theme's own `layout`
+ * on the device. Shallow means a preset naming `panels` replaces the panel list
+ * whole rather than merging entry by entry, which is what you want: a preset is
+ * a statement about the entire bar, and a deep merge would leave it carrying
+ * modules from the layout it replaced.
+ *
+ * The id is permanent once published, for the same reason an accent id is:
+ * `prefs.layoutPreset` stores it, and renaming one drops every user who chose
+ * it back to the distro's default.
+ */
+export interface ThemeLayoutPresetJson {
+  id: string;
+  name?: string;
+  /** One short line under the card. */
+  summary?: string;
+  /** Reads as selected before the user has chosen. It is NOT applied: a default
+   *  preset must paint what `layout` already produces, or the picker shows a
+   *  selection that does not match the desktop behind it. */
+  default?: boolean;
+  /** The partial. Absent or empty is legal and is how you author the distro's
+   *  own layout as one of the cards. */
+  layout?: Partial<ThemeLayoutJson>;
+}
+
+/**
+ * One accent a distro offers.
+ *
+ * The DEVICE stores the id, not the colour, so an id is permanent once
+ * published: renaming one resets every user who picked it back to the distro
+ * default, and reusing a retired id for a different colour silently repaints
+ * their desktop. Retuning the `value` under a stable id is the supported way to
+ * change your mind, and it moves everyone who chose it.
+ */
+export interface ThemeAccentJson {
+  /** Stable, lowercase, never reused. */
+  id: string;
+  /** Shown under the swatch. Falls back to `id` on the device when blank. */
+  name?: string;
+  /** `#RRGGBB` or `#AARRGGBB`. An unparseable value is DROPPED on the device
+   *  rather than defaulted, because a swatch painting a colour nobody authored
+   *  is worse than one swatch fewer. */
+  value: string;
+}
+
 export interface ThemeCategoryJson {
   name: string;
+  /** The icon this bucket wears, as a `folder_glyphs.dart` catalogue id
+   *  ('globe', 'game', 'tools'). The distro's DEFAULT, not a lock: a user who
+   *  picks their own writes it onto the folder and that wins afterwards. An id
+   *  the app does not know draws a plain folder. */
+  glyph?: string;
   /** Built-in bucket names: Social, Media, Productivity, Games, News, Travel,
    *  Utilities. Absent or empty means nothing arrives automatically. */
   feeds?: string[];
@@ -838,8 +941,70 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
       .map((c) => ({
         name: c.name.trim(),
         ...(c.feeds?.length ? { feeds: [...c.feeds] } : {}),
+        // ─── DROPPED HERE FOR A WHOLE RELEASE ──────────────────────────
+        //
+        // This rebuilt each entry as `{ name, feeds }`, so a `glyph` authored
+        // in theme.json survived import and the editor and was stripped at
+        // PUBLISH. On device the effect was that only the categories whose
+        // names happen to match a BUILT-IN bucket had icons: Games drew its
+        // controller from the built-in map while Office, Internet, Accessories
+        // and Sound and Video all drew plain folders. That reads as four
+        // glyphs failing to render rather than as one field being deleted.
+        //
+        // Every canon arm that REBUILDS an object rather than spreading it has
+        // this waiting. Adding a field to the device parser and not here means
+        // it never arrives.
+        ...(c.glyph?.trim() ? { glyph: c.glyph.trim() } : {}),
       }));
     if (rows.length) out.categories = rows;
+  }
+
+  // Same tolerance as the categories above: an entry with no id or no colour is
+  // dropped here rather than shipped for the device to drop, so what the panel
+  // previews is what the phone renders.
+  if (spec.accents?.length) {
+    const seen = new Set<string>();
+    const rows = spec.accents
+      .filter((a) => a.id?.trim() && a.value?.trim())
+      // DEDUPED BY ID. Two entries sharing an id is not a cosmetic problem:
+      // the device stops at the first match, so the second swatch is a control
+      // that selects the first one's colour and can never appear chosen.
+      .filter((a) => {
+        const id = a.id.trim().toLowerCase();
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((a) => ({
+        id: a.id.trim().toLowerCase(),
+        ...(a.name?.trim() ? { name: a.name.trim() } : {}),
+        value: a.value.trim(),
+      }));
+    if (rows.length) out.accents = rows;
+  }
+
+  // Deduped by id for the same reason accents are: the device stops at the
+  // first match, so a repeated id is a card that can never appear chosen.
+  if (spec.layouts?.length) {
+    const seen = new Set<string>();
+    const rows = spec.layouts
+      .filter((l) => l.id?.trim())
+      .filter((l) => {
+        const id = l.id.trim().toLowerCase();
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((l) => ({
+        id: l.id.trim().toLowerCase(),
+        ...(l.name?.trim() ? { name: l.name.trim() } : {}),
+        ...(l.summary?.trim() ? { summary: l.summary.trim() } : {}),
+        ...(l.default ? { default: true } : {}),
+        ...(l.layout && Object.keys(l.layout).length
+          ? { layout: l.layout }
+          : {}),
+      }));
+    if (rows.length) out.layouts = rows;
   }
   if (spec.categoryFallback?.trim()) {
     out.categoryFallback = spec.categoryFallback.trim();
@@ -870,6 +1035,22 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
   if (spec.boot != null) out.boot = spec.boot;
   if (spec.splash != null) out.splash = spec.splash;
   if (spec.desklets != null) out.desklets = spec.desklets;
+  if (spec.surfaces) {
+    const sf = spec.surfaces;
+    const keep: ThemeSurfacesJson = {};
+    // Each field independently, because absent and zero are different answers
+    // and `blur: 0` is a real one: it is how a distro asks for flat chrome.
+    if (typeof sf.opacity === 'number') keep.opacity = sf.opacity;
+    if (typeof sf.blur === 'number') keep.blur = sf.blur;
+    if (typeof sf.tint === 'number') keep.tint = sf.tint;
+    if (typeof sf.radius === 'number') keep.radius = sf.radius;
+    if (Object.keys(keep).length) out.surfaces = keep;
+  }
+  if (spec.terminal != null) out.terminal = spec.terminal;
+  if (spec.home != null) out.home = spec.home;
+  if (spec.wallpapersLight?.length) {
+    out.wallpapersLight = spec.wallpapersLight.filter((w) => w.trim());
+  }
 
   // ORDER PRESERVED, unlike the gestures below. Rows are sorted nowhere in this
   // pipeline: the first two exclusive ones are what the card sells, so sorting
@@ -1460,6 +1641,21 @@ export function importTheme(
   if (j.boot != null) spec.boot = j.boot;
   if (j.splash != null) spec.splash = j.splash;
   if (j.desklets != null) spec.desklets = j.desklets;
+  const sfRaw = obj(j.surfaces);
+  if (sfRaw) {
+    const keep: ThemeSurfacesJson = {};
+    for (const k of ['opacity', 'blur', 'tint', 'radius'] as const) {
+      const v = sfRaw[k];
+      if (typeof v === 'number' && Number.isFinite(v)) keep[k] = v;
+    }
+    if (Object.keys(keep).length) spec.surfaces = keep;
+  }
+  if (j.terminal != null) spec.terminal = j.terminal;
+  if (j.home != null) spec.home = j.home;
+  if (Array.isArray(j.wallpapersLight)) {
+    const rows = j.wallpapersLight.map(String).map((w) => w.trim()).filter(Boolean);
+    if (rows.length) spec.wallpapersLight = rows;
+  }
 
   // MODELLED, not straight through, unlike the four above. Those are `unknown`
   // so a block this build cannot parse survives a round trip; rows are a typed
@@ -1484,10 +1680,52 @@ export function importTheme(
       const feeds = Array.isArray(c.feeds)
         ? c.feeds.map(String).map((f) => f.trim()).filter(Boolean)
         : [];
-      rows.push({ name, ...(feeds.length ? { feeds } : {}) });
+      const glyph = str(c.glyph)?.trim();
+      rows.push({
+        name,
+        ...(feeds.length ? { feeds } : {}),
+        ...(glyph ? { glyph } : {}),
+      });
     }
     if (rows.length) spec.categories = rows;
   }
+  const accentRaw = j.accents;
+  if (Array.isArray(accentRaw)) {
+    const rows: ThemeAccentJson[] = [];
+    for (const raw of accentRaw) {
+      const a = obj(raw);
+      if (!a) continue;
+      const id = str(a.id)?.trim();
+      const value = str(a.value)?.trim();
+      if (!id || !value) continue;
+      const name = str(a.name)?.trim();
+      rows.push({ id, value, ...(name ? { name } : {}) });
+    }
+    if (rows.length) spec.accents = rows;
+  }
+
+  const presetRaw = j.layouts;
+  if (Array.isArray(presetRaw)) {
+    const rows: ThemeLayoutPresetJson[] = [];
+    for (const raw of presetRaw) {
+      const l = obj(raw);
+      if (!l) continue;
+      const id = str(l.id)?.trim();
+      if (!id) continue;
+      const name = str(l.name)?.trim();
+      const summary = str(l.summary)?.trim();
+      const over = obj(l.layout);
+      rows.push({
+        id,
+        ...(name ? { name } : {}),
+        ...(summary ? { summary } : {}),
+        ...(l.default === true ? { default: true } : {}),
+        ...(over ? { layout: over as Partial<ThemeLayoutJson> } : {}),
+      });
+    }
+    if (rows.length) spec.layouts = rows;
+  }
+
   const catFallback = str(j.categoryFallback)?.trim();
   if (catFallback) spec.categoryFallback = catFallback;
 

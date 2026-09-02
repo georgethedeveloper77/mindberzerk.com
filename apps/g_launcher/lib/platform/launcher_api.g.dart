@@ -1168,6 +1168,63 @@ class LauncherHostApi {
     return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
   }
 
+  /// PNG bytes for several icons with NO PACK: each app's own artwork, remasked
+  /// into the current theme's shape. The generator tier, on its own.
+  ///
+  /// ─── WHY THIS IS NOT [getIcon] ────────────────────────────────────────────
+  ///
+  /// `getIcon` renders the APPLIED style, which walks four tiers and stops at
+  /// the first that answers: the user's pack, then hero, then brand, then this.
+  /// So on a device holding `arcticons-line` it returns the distro's outline
+  /// set, which is the right answer to "what does this app look like now" and
+  /// the wrong one to "what would it look like with no pack".
+  ///
+  /// Setup's icon step asks the second question, about both options, at once.
+  /// It cannot ask by writing prefs and reading back: exactly one style can be
+  /// applied at a time and `IconCache` keys every bitmap by it, so showing the
+  /// two side by side needs one of them rendered off to the side. This is the
+  /// twin of [previewIcons], which already does that for the brand tier.
+  ///
+  /// Without it the step drew both options through the applied style, so on a
+  /// device that happened to hold the pack, App icons rendered the distro's
+  /// icons and the two cards were identical.
+  ///
+  /// ─── IT TAKES NO TINT, AND THAT IS THE DIFFERENCE ─────────────────────────
+  ///
+  /// A brand preview is one shared geometry plus a colour, so a hex is the
+  /// whole request. Generated art has no colour to substitute: it IS the app's
+  /// own drawing. Shape, corner radius and scale still come from the applied
+  /// style, because those belong to the distro and are not what is being
+  /// chosen here.
+  ///
+  /// Overloading [previewIcons] with an empty tint would have saved a method
+  /// and given one parameter two unrelated meanings. Pigeon keys methods by
+  /// channel name rather than by index, so adding one renumbers nothing: only
+  /// new CLASSES and ENUMS shift the codec ids.
+  ///
+  /// NOT CACHED, for the reason [previewIcons] is not: `IconCache` keys by the
+  /// applied style, and these bitmaps deliberately are not it.
+  ///
+  /// One entry per key, in order, null where nothing could be drawn.
+  Future<List<Uint8List?>> previewGeneratedIcons(List<String> componentKeys, int sizePx) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewGeneratedIcons$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKeys, sizePx]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
+  }
+
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   Future<void> clearIconCache() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.clearIconCache$pigeonVar_messageChannelSuffix';
@@ -1841,6 +1898,71 @@ class LauncherHostApi {
     )
     ;
     return pigeonVar_replyValue as String?;
+  }
+
+  /// This build's own version name, for the About row and nothing else.
+  ///
+  /// ─── TWO METHODS AND NO CLASS, DELIBERATELY ───────────────────────────────
+  ///
+  /// A `VersionInfo { name, code }` is the obvious shape and would cost a codec
+  /// id. It happens to be safe today, because it would land after
+  /// `WidgetProviderInfo` at the end of the class group, and it stops being safe
+  /// the first time someone appends a type without reading the header at the top
+  /// of this file. Two built-in returns cannot renumber anything, which is the
+  /// whole argument.
+  ///
+  /// NOT `@async`. The async methods here are the ones that hit the package
+  /// manager COLD or touch disk; this reads the caller's own already-resident
+  /// `PackageInfo`, which is the same class of call as `isDefaultLauncher`.
+  ///
+  /// Formatted in Dart, not in Kotlin. "6.0.0 (21)" is UI copy and belongs on
+  /// the side of the bridge that has the i18n system.
+  Future<String> getVersionName() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionName$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// The `versionCode`, as a number.
+  ///
+  /// Carried separately from the name because the two have different readers:
+  /// Play speaks in codes (`AppUpdateInfo.availableVersionCode`) and people read
+  /// names. `update_repository.dart` compares this against a PERSISTED available
+  /// code, which is what stops a stale "update available" record from surviving
+  /// the update it was describing.
+  ///
+  /// Note `AppEntry.iconVersion` a few hundred lines up, which says at length
+  /// that it is NOT a version code. This one is.
+  Future<int> getVersionCode() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionCode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
   }
 }
 

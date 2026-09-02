@@ -397,7 +397,28 @@ class PackSyncWorker(context: Context, params: WorkerParameters) : Worker(contex
                         .setRequiresBatteryNotLow(true)
                         .build(),
                 )
-                .setInitialDelay(2, TimeUnit.HOURS)
+                // ── FIFTEEN MINUTES, AND IT USED TO BE TWO HOURS ──────────
+                //
+                // The delay was written to keep a launcher's cold start off the
+                // network, which it does, and two hours was fine while nothing
+                // else fetched an index. It is the wrong number for a FRESH
+                // INSTALL: `PackHostApiImpl.catalogue` answers from
+                // `downloader.cachedIndex()`, which is null until something
+                // fetches, so for those two hours the app believed the whole
+                // catalogue was the five bundled ids and every pack lookup
+                // silently answered "not carried".
+                //
+                // Setup now refreshes for itself (see `DistroPacks`), so this
+                // is no longer the only door. It is still the door for someone
+                // who backs out of the wizard, or whose first run had no
+                // network, and two hours of a store that says nothing exists is
+                // too long a punishment for either.
+                //
+                // The cost of the change is one conditional index request,
+                // fifteen minutes after install, behind the same CONNECTED and
+                // battery-not-low constraints and the same per-pack metered
+                // size cap in `doWork`.
+                .setInitialDelay(15, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

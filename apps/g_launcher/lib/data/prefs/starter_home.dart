@@ -69,11 +69,17 @@ class StarterHome {
       if (placed >= want) break;
       if (exclude.contains(key)) continue;
 
-      // `addToHome` refuses a duplicate and refuses a full page, returning the
-      // prefs unchanged either way. Counting the RESULT rather than the
-      // attempt is what makes both refusals mean the same thing here: a slot
-      // that was not taken is a slot the next app can have.
-      final next = HomeLayout.addToHome(
+      // `seedToHome`, not `addToHome`. The two differ only in which free slot
+      // they take: a pin goes to the bottom row, where the thumb is, and a seed
+      // starts top-left, where every desktop this imitates starts and where an
+      // alphabetical walk has to start to read as one. See the note on
+      // [HomeLayout.seedToHome].
+      //
+      // Both refuse a duplicate and a full page by returning the prefs
+      // unchanged. Counting the RESULT rather than the attempt is what makes
+      // both refusals mean the same thing here: a slot that was not taken is a
+      // slot the next app can have.
+      final next = HomeLayout.seedToHome(
         out,
         key,
         page: page,

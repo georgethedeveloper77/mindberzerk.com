@@ -1,47 +1,41 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import 'app_icon.dart';
+import 'folder_glyphs.dart';
 
-/// A real folder, with its contents sitting in it.
+/// A folder, with its contents sitting in it.
 ///
-/// ─── WHY THIS IS ARTWORK AND NOT A 2x2 GRID OF TILES ────────────────────────
+/// ─── WHY THIS IS NOT A 2x2 GRID OF TILES ────────────────────────────────────
 ///
-/// The 2x2 preview in `home_grid.dart` and the drawer is the phone convention,
-/// and its comment is right that it is the one everyone already knows. It is
-/// also the reason the folders screen reads as a phone launcher: iOS invented
-/// that square, Android copied it, and no desktop has ever drawn a folder that
-/// way. A Linux file manager draws a FOLDER, and this whole product is the bet
-/// that the desktop metaphor is worth the effort.
+/// The 2x2 preview in `home_grid.dart` is the phone convention, and its comment
+/// is right that it is the one everyone already knows. It is also the reason
+/// the folders screen reads as a phone launcher: iOS invented that square,
+/// Android copied it, and no desktop has ever drawn a folder that way. So this
+/// draws a folder with the first few app icons overlapping its front edge, the
+/// way documents sit in a real one.
 ///
-/// So: `assets/svg/folder.svg` behind, and the first few app icons overlapping
-/// its front edge the way documents sit in a real one.
+/// ─── THE FOLDER IS A GLYPH, NOT ARTWORK, AND THAT IS A RETREAT ──────────────
 ///
-/// ─── THE ARTWORK IS RENDERED AS AUTHORED ────────────────────────────────────
+/// This drew `assets/svg/folder.svg`: full-colour art with its own shading,
+/// which is a better picture than an outline and was never once on screen. A
+/// missing pubspec asset declaration does not throw. `flutter_svg` logs and
+/// draws nothing, so every folder in the app rendered as its members floating
+/// over empty space, and it took a screenshot of the Zorin rail to notice.
 ///
-/// No colour filter by default. The bundled glyph is full-colour art with its
-/// own shading, and tinting it to the accent would flatten it to a silhouette,
-/// which is exactly the folder-shaped rectangle this replaces. [tint] exists
-/// for a distro that ships a monochrome glyph and wants it wearing the palette,
-/// and for that case only.
+/// A code point in a font Flutter already ships cannot fail that way, needs no
+/// asset declaration, and is the same shape [showFolderGlyphPicker] offers, so
+/// a folder with no glyph and a folder wearing the default now draw identically
+/// instead of being two unrelated pictures. If the artwork is ever wired up
+/// properly it belongs here again, behind the same [glyph] check.
 ///
 /// ─── WHY IT LIVES BESIDE app_icon AND NOT IN design/ ────────────────────────
 ///
 /// It draws app icons, and `AppIcon` lives here. Putting this in `design/`
 /// would make the design layer import a feature, which nothing in `design/`
 /// does today and which is backwards: chrome primitives are meant to know
-/// nothing about the app list. `app_icon.dart` is already the shared icon
-/// widget that home, settings and setup all import from, so this sits next to
-/// it and follows the same rule.
-///
-/// ─── DECLARING THE ASSET ────────────────────────────────────────────────────
-///
-/// `assets/svg/` has to be in pubspec.yaml's asset list. A missing declaration
-/// does not throw: flutter_svg logs and draws nothing, so the folders read as
-/// captions floating over empty space, which looks like a layout bug rather
-/// than a packaging one.
+/// nothing about the app list.
 class FolderGlyph extends StatelessWidget {
   const FolderGlyph({
     super.key,
@@ -49,6 +43,7 @@ class FolderGlyph extends StatelessWidget {
     required this.size,
     this.members = const [],
     this.tint,
+    this.glyph,
   });
 
   final EffectiveTheme theme;
@@ -64,11 +59,53 @@ class FolderGlyph extends StatelessWidget {
   /// Only for a monochrome glyph. See the class doc.
   final Color? tint;
 
+  /// A `folder_glyphs.dart` catalogue id, which REPLACES the artwork.
+  ///
+  /// ─── REPLACES RATHER THAN DECORATES ─────────────────────────────────────
+  ///
+  /// The alternative was to keep the folder and stamp the chosen icon on its
+  /// face. That reads as a folder with a sticker on it at tile size and as
+  /// unresolvable mush anywhere smaller, and it makes the user's choice the
+  /// least visible thing in the picture. A folder wearing a controller says
+  /// Games; a folder with a two-millimetre controller on it says folder.
+  ///
+  /// The members are NOT drawn when a glyph is set, for the same reason: the
+  /// contents preview and a chosen symbol are two different answers to "what is
+  /// in here", and showing both means neither lands.
+  ///
+  /// An id this build does not know draws the fallback rather than nothing.
+  final String? glyph;
+
   /// How many icons read as "contents" rather than as clutter at this size.
   static const _maxShown = 3;
 
+  /// One resolution of the glyph's colour, read by both branches.
+  ///
+  /// [tint] was documented as being only for a distro shipping a monochrome
+  /// glyph, because the bundled artwork was full colour and tinting it would
+  /// flatten it to a silhouette. Every glyph is monochrome now, so tint is
+  /// simply the colour, and the default is the palette's own ink rather than
+  /// nothing.
+  Color get _ink => tint ?? theme.palette.onDark;
+
   @override
   Widget build(BuildContext context) {
+    final chosen = folderGlyphFor(glyph);
+
+    // ─── A CHOSEN GLYPH STANDS ALONE ────────────────────────────────────
+    //
+    // No member preview under it. The contents preview and a chosen symbol are
+    // two different answers to "what is in here", and drawing both means
+    // neither lands. Somebody who picked a controller wants to see a
+    // controller.
+    if (chosen != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Icon(chosen, size: size * 0.78, color: _ink),
+      );
+    }
+
     final shown = members.take(_maxShown).toList();
 
     // The icons sit low and centre, over the folder's front face. Sized as a
@@ -82,13 +119,25 @@ class FolderGlyph extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // ─── A MATERIAL GLYPH, NOT `assets/svg/folder.svg` ──────────────
+          //
+          // The artwork was the better picture and it was not on screen. A
+          // missing pubspec asset declaration does not throw: `flutter_svg`
+          // logs and draws nothing, so every folder rendered as its member
+          // icons floating over empty space. In the Zorin rail that looked
+          // like squashed strips of app icons; on the folders screen it looked
+          // like captions over a gap.
+          //
+          // A code point in a font Flutter already ships cannot fail that way,
+          // it needs no asset declaration, and it is the same shape the picker
+          // offers, so an unglyphed folder and a folder wearing the default now
+          // draw identically instead of being two different pictures.
+          //
+          // THE MEMBERS STAY. The overlap below is what makes a folder look
+          // full rather than empty, and it is the only thing on this tile that
+          // says which folder it is before you read the label.
           Positioned.fill(
-            child: SvgPicture.asset(
-              'assets/svg/folder.svg',
-              fit: BoxFit.contain,
-              colorFilter:
-                  tint == null ? null : ColorFilter.mode(tint!, BlendMode.srcIn),
-            ),
+            child: Icon(kFolderGlyphFallback, size: size * 0.78, color: _ink),
           ),
           if (shown.isNotEmpty)
             Positioned(
@@ -139,6 +188,7 @@ class FolderTile extends StatelessWidget {
     required this.size,
     this.members = const [],
     this.labelColor,
+    this.glyph,
   });
 
   final EffectiveTheme theme;
@@ -147,12 +197,20 @@ class FolderTile extends StatelessWidget {
   final List<AppEntry> members;
   final Color? labelColor;
 
+  /// Passed straight to [FolderGlyph]. See that field.
+  final String? glyph;
+
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FolderGlyph(theme: theme, size: size, members: members),
+        FolderGlyph(
+          theme: theme,
+          size: size,
+          members: members,
+          glyph: glyph,
+        ),
         const SizedBox(height: 4),
         Text(
           name,

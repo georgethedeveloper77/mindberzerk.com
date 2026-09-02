@@ -152,6 +152,17 @@ class PackHostApiImpl(
          * another language and another repository.
          */
         const val THEME_FILE = "theme.json"
+
+        /**
+         * The ceiling for a peeked `theme.json`.
+         *
+         * Checked against the size in the SIGNED manifest before any transfer
+         * starts, so a manifest promising a 40MB theme is refused rather than
+         * discovered. The largest distro theme in the catalogue is a few tens of
+         * KB; half a megabyte is generous by an order of magnitude and still far
+         * below anything that could hurt a phone.
+         */
+        const val MAX_THEME_BYTES = 512L * 1024
     }
 
     /** packId -> cancel flag for an in-flight download. */
@@ -618,6 +629,58 @@ class PackHostApiImpl(
     override fun installedPackDir(packId: String, callback: (Result<String?>) -> Unit) =
         onIo(callback) {
             PackPaths.installedDir(appContext, packId)?.absolutePath
+        }
+
+    /**
+     * The pack's own `theme.json`, for a pack that is NOT on disk.
+     *
+     * ─── THE STOREFRONT'S REASON FOR ASKING ──────────────────────────────────
+     *
+     * [readInstalledTheme] answers this for a pack the user already has, and
+     * that is the wrong half of the catalogue: the cards that most need a real
+     * picture are the ones nobody owns yet. The signed index carries five
+     * colours and a layout enum, so every paid distro drew as a coloured
+     * rectangle, and the thing being charged for was the emptiest card on the
+     * screen.
+     *
+     * ─── INSTALLED WINS, AND IT COSTS NOTHING TO CHECK ───────────────────────
+     *
+     * A pack on disk has already been through the full verification gate and
+     * its theme.json is a local file read. Going to the network for something
+     * sitting in app-private storage would be slower, would fail offline, and
+     * could disagree with what the device is actually rendering the moment the
+     * catalogue moves ahead of what is installed. Same precedence
+     * [packPreviewUrl] uses, for the same reasons.
+     *
+     * ─── AND THE REMOTE PATH IS A FEW KB ─────────────────────────────────────
+     *
+     * [PackDownloader.peekFile] runs the front half of a sync and stops: signed
+     * manifest, verified, one file taken from the trusted list, hash checked,
+     * scratch deleted. No wallpapers, no fonts, no icons, nothing written into
+     * the packs root, and `installedVersion` does not move. The cap is
+     * [MAX_THEME_BYTES], checked against the SIGNED size before a socket opens.
+     *
+     * ON [io], like every other disk and network touch in this class. The call
+     * is a network round trip in the uninstalled case, so it must never be near
+     * the main thread; Dart calls it from a FutureProvider that renders the
+     * card's fallback picture until this arrives.
+     *
+     * Null on every failure. The card draws the index preview, which is exactly
+     * what it drew before this method existed.
+     */
+    override fun peekTheme(packId: String, callback: (Result<String?>) -> Unit) =
+        onIo(callback) {
+            val installed = PackPaths.installedFile(appContext, packId, THEME_FILE)
+                ?.let { runCatching { it.readText() }.getOrNull() }
+            if (installed != null) return@onIo installed
+
+            val index = downloader.cachedIndex() ?: return@onIo null
+            downloader.peekFile(
+                packId = packId,
+                filename = THEME_FILE,
+                index = index,
+                maxBytes = MAX_THEME_BYTES,
+            )?.toString(Charsets.UTF_8)
         }
 
     override fun packPreviewUrl(packId: String, callback: (Result<String?>) -> Unit) =

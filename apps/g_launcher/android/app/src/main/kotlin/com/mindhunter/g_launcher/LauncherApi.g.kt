@@ -1154,6 +1154,47 @@ interface LauncherHostApi {
    * grid can be laid out without matching lengths.
    */
   fun previewIcons(componentKeys: List<String>, tintHex: String, sizePx: Long, callback: (Result<List<ByteArray?>>) -> Unit)
+  /**
+   * PNG bytes for several icons with NO PACK: each app's own artwork, remasked
+   * into the current theme's shape. The generator tier, on its own.
+   *
+   * ─── WHY THIS IS NOT [getIcon] ────────────────────────────────────────────
+   *
+   * `getIcon` renders the APPLIED style, which walks four tiers and stops at
+   * the first that answers: the user's pack, then hero, then brand, then this.
+   * So on a device holding `arcticons-line` it returns the distro's outline
+   * set, which is the right answer to "what does this app look like now" and
+   * the wrong one to "what would it look like with no pack".
+   *
+   * Setup's icon step asks the second question, about both options, at once.
+   * It cannot ask by writing prefs and reading back: exactly one style can be
+   * applied at a time and `IconCache` keys every bitmap by it, so showing the
+   * two side by side needs one of them rendered off to the side. This is the
+   * twin of [previewIcons], which already does that for the brand tier.
+   *
+   * Without it the step drew both options through the applied style, so on a
+   * device that happened to hold the pack, App icons rendered the distro's
+   * icons and the two cards were identical.
+   *
+   * ─── IT TAKES NO TINT, AND THAT IS THE DIFFERENCE ─────────────────────────
+   *
+   * A brand preview is one shared geometry plus a colour, so a hex is the
+   * whole request. Generated art has no colour to substitute: it IS the app's
+   * own drawing. Shape, corner radius and scale still come from the applied
+   * style, because those belong to the distro and are not what is being
+   * chosen here.
+   *
+   * Overloading [previewIcons] with an empty tint would have saved a method
+   * and given one parameter two unrelated meanings. Pigeon keys methods by
+   * channel name rather than by index, so adding one renumbers nothing: only
+   * new CLASSES and ENUMS shift the codec ids.
+   *
+   * NOT CACHED, for the reason [previewIcons] is not: `IconCache` keys by the
+   * applied style, and these bitmaps deliberately are not it.
+   *
+   * One entry per key, in order, null where nothing could be drawn.
+   */
+  fun previewGeneratedIcons(componentKeys: List<String>, sizePx: Long, callback: (Result<List<ByteArray?>>) -> Unit)
   /** Nukes memory + disk. For a "rebuild icon cache" button in Settings. */
   fun clearIconCache(callback: (Result<Unit>) -> Unit)
   /** Are we the home app right now? Drives the "Set as default" banner. */
@@ -1428,6 +1469,39 @@ interface LauncherHostApi {
    * [prompt] is the line the recogniser shows above its microphone.
    */
   fun recognizeSpeech(prompt: String?, callback: (Result<String?>) -> Unit)
+  /**
+   * This build's own version name, for the About row and nothing else.
+   *
+   * ─── TWO METHODS AND NO CLASS, DELIBERATELY ───────────────────────────────
+   *
+   * A `VersionInfo { name, code }` is the obvious shape and would cost a codec
+   * id. It happens to be safe today, because it would land after
+   * `WidgetProviderInfo` at the end of the class group, and it stops being safe
+   * the first time someone appends a type without reading the header at the top
+   * of this file. Two built-in returns cannot renumber anything, which is the
+   * whole argument.
+   *
+   * NOT `@async`. The async methods here are the ones that hit the package
+   * manager COLD or touch disk; this reads the caller's own already-resident
+   * `PackageInfo`, which is the same class of call as `isDefaultLauncher`.
+   *
+   * Formatted in Dart, not in Kotlin. "6.0.0 (21)" is UI copy and belongs on
+   * the side of the bridge that has the i18n system.
+   */
+  fun getVersionName(): String
+  /**
+   * The `versionCode`, as a number.
+   *
+   * Carried separately from the name because the two have different readers:
+   * Play speaks in codes (`AppUpdateInfo.availableVersionCode`) and people read
+   * names. `update_repository.dart` compares this against a PERSISTED available
+   * code, which is what stops a stale "update available" record from surviving
+   * the update it was describing.
+   *
+   * Note `AppEntry.iconVersion` a few hundred lines up, which says at length
+   * that it is NOT a version code. This one is.
+   */
+  fun getVersionCode(): Long
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -1562,6 +1636,27 @@ interface LauncherHostApi {
             val tintHexArg = args[1] as String
             val sizePxArg = args[2] as Long
             api.previewIcons(componentKeysArg, tintHexArg, sizePxArg) { result: Result<List<ByteArray?>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.previewGeneratedIcons$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val componentKeysArg = args[0] as List<String>
+            val sizePxArg = args[1] as Long
+            api.previewGeneratedIcons(componentKeysArg, sizePxArg) { result: Result<List<ByteArray?>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LauncherApiPigeonUtils.wrapError(error))
@@ -2033,6 +2128,36 @@ interface LauncherHostApi {
                 reply.reply(LauncherApiPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionName$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getVersionName())
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionCode$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getVersionCode())
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

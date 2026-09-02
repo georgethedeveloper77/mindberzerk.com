@@ -7,6 +7,7 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../engine/effective_theme.dart';
+import '../dock/dock_insets.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../design/components/components.dart';
@@ -195,7 +196,23 @@ class _HomeGridState extends ConsumerState<HomeGrid>
 
         final grid = GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(pad),
+          // ─── THE DOCK LIVES IN THIS BOX TOO ─────────────────────────
+          //
+          // `HomeGrid` fills the workspace and the shell positions its dock
+          // inside the same box, so the grid ran underneath it: the whole
+          // bottom row on a bottom-dock distro, column zero on the four with a
+          // vertical dock. Cells that are drawn, counted in `capacity`, and
+          // handed out by `addToHome` while being invisible and untappable.
+          //
+          // Fourth site of the same missing subtraction, after the desklet
+          // surface, the drawer and the search bar. `dockInsets` is where the
+          // band is derived now, from the constants the docks themselves use.
+          //
+          // `desktopDockInsets`, not `dockInsets`: a distro with
+          // `dockReveal: "apps"` has no dock on the desktop at all, and
+          // reserving a band for one would cost Fedora 89dp of a desktop whose
+          // argument is that it is empty.
+          padding: const EdgeInsets.all(pad) + desktopDockInsets(theme),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
             crossAxisSpacing: crossGap,

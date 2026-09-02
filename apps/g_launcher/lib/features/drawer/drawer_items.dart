@@ -11,6 +11,7 @@ import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/terminal_spec.dart';
 import '../../platform/launcher_api.g.dart';
+import 'folder_glyphs.dart';
 
 /// What the Activities drawer shows: real apps, plus a small number of
 /// launcher-owned entries that aren't packages.
@@ -284,6 +285,7 @@ class CategorySet {
     required this.order,
     required this.feeds,
     required this.fallback,
+    this.glyphs = const {},
   });
 
   /// Display order. [fallback] is last, always: it is the remainder, and on a
@@ -298,12 +300,21 @@ class CategorySet {
   /// because there is nowhere left for its members to go.
   final String fallback;
 
+  /// This distro's name to the icon it authored, as a `folder_glyphs.dart` id.
+  ///
+  /// Keyed by NAME rather than by index, because [order] appends the fallback
+  /// and sweeps can drop a bucket, so a positional key would drift the first
+  /// time a category emptied. Empty for every theme that authors no glyphs,
+  /// which is the same shape [feeds] uses and for the same reason.
+  final Map<String, String> glyphs;
+
   /// The set every distro gets unless its theme.json says otherwise. Byte for
   /// byte the behaviour that was inline before this type existed.
   static const builtIn = CategorySet(
     order: kCategoryOrder,
     feeds: {},
     fallback: 'Other',
+    glyphs: kBuiltInCategoryGlyphs,
   );
 
   /// This distro's set, or [builtIn] when it authors none.
@@ -327,6 +338,15 @@ class CategorySet {
       feeds: {
         for (final c in authored)
           for (final f in c.feeds) f: c.name,
+      },
+      // The distro's own, with the built-in map BEHIND it rather than
+      // replaced. A theme that names Games and authors no glyph for it should
+      // still get a controller: authoring one category's icon must not blank
+      // the other twelve.
+      glyphs: {
+        ...kBuiltInCategoryGlyphs,
+        for (final c in authored)
+          if (c.glyph != null) c.name: c.glyph!,
       },
       fallback: name,
     );
@@ -527,6 +547,7 @@ final drawerItemsProvider =
               id: '$kCategoryFolderPrefix$name',
               name: name,
               members: [for (final a in buckets[name]!) a.componentKey],
+              glyph: cats.glyphs[name],
             ),
             buckets[name]!,
           ),
@@ -580,6 +601,9 @@ final drawerItemsProvider =
             id: '${kCategoryFolderPrefix}Suggestions',
             name: 'Suggestions',
             members: [for (final a in suggestions) a.componentKey],
+            // See the note on 'sparkle' in `folder_glyphs.dart`: a star is
+            // what the USER pinned, sparkles are what the launcher guessed.
+            glyph: 'sparkle',
           ),
           suggestions,
         ),

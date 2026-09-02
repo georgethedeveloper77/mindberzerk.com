@@ -19,6 +19,7 @@ import '../engine/effective_theme.dart';
 import '../engine/theme_spec.dart' show ThemePalette;
 import 'components/components.dart';
 import 'device_preview.dart';
+import 'drawer_transition.dart';
 
 /// A page-level preview: one picture at the top of a settings section, showing
 /// what the settings below it do.
@@ -156,6 +157,7 @@ class PreviewChoice<T> extends StatelessWidget {
     this.enabled = true,
     this.following = false,
     this.onFollow,
+    this.perRow = 4,
   });
 
   /// The setting's name, above the pictures. Optional, because a chooser that
@@ -186,6 +188,30 @@ class PreviewChoice<T> extends StatelessWidget {
   /// to fall back to.
   final VoidCallback? onFollow;
 
+  /// How many tiles fit on one line before this wraps.
+  ///
+  /// ─── FOUR, BECAUSE SEVEN DID NOT FIT AND SAID SO WITH AN ELLIPSIS ─────────
+  ///
+  /// This was one `Row` of `Expanded` children, which is correct for the four
+  /// options every caller had. The drawer motion row now has seven, so each got
+  /// about 50dp on a phone, "Cylinder" needs about 55, and the labels rendered
+  /// as `Cyli` and `Sph` with an ellipsis.
+  ///
+  /// `TextOverflow.ellipsis` is allowed here and elsewhere: it is runtime
+  /// truncation, the thing that saves a long app name from overflowing. But a
+  /// label that truncates EVERY time on EVERY device is not a long name, it is
+  /// a layout that does not fit, and hiding it behind a character is the
+  /// version of this that ships.
+  ///
+  /// Wrapped rather than scrolled horizontally: a scroller would put three of
+  /// the seven off screen, and an option nobody scrolls to is an option nobody
+  /// knows exists. Four across also makes each tile nearly twice as wide, which
+  /// matters more here than in any other picker, because these tiles are
+  /// demonstrating a MOTION and a 50dp one is a smudge.
+  ///
+  /// Callers with four or fewer are laid out exactly as before.
+  final int perRow;
+
   /// False dims the tiles and stops them answering a tap.
   ///
   /// ─── THE SAME RULE SettingsToggleRow ALREADY STATES ───────────────────────
@@ -208,15 +234,11 @@ class PreviewChoice<T> extends StatelessWidget {
     // 0.4 is the alpha `SettingsToggleRow` dims its title by (settings_rows,
     // `enabled ? s.tx : s.mut.withValues(alpha: 0.4)`), so a greyed picture row
     // and a greyed switch row sit at the same weight in one list.
-    final row = Opacity(
-      opacity: enabled ? 1 : 0.4,
-      child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < options.length; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
+    // How many go on a line. Never more than there are, so a picker with two
+    // options does not lay itself out as if it had four.
+    final across = options.length < perRow ? options.length : perRow;
+
+    Widget tile(int i) => GestureDetector(
               // Opaque, so the gap under the label is part of the target.
               // The picture is the affordance but the whole column is the
               // tap, which is what makes this usable with a thumb.
@@ -267,10 +289,46 @@ class PreviewChoice<T> extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ),
+            );
+
+    final lines = <Widget>[];
+    for (var start = 0; start < options.length; start += across) {
+      final end = (start + across) < options.length
+          ? (start + across)
+          : options.length;
+      lines.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = start; i < end; i++) ...[
+              if (i > start) const SizedBox(width: 12),
+              Expanded(child: tile(i)),
+            ],
+            // ── THE LAST LINE IS PADDED, AND IT HAS TO BE ──────────────────
+            //
+            // `Expanded` divides whatever the Row has, so a final line of three
+            // would draw three tiles a third wider than the four above them.
+            // The empty slots keep every tile the same size, which is the whole
+            // reason these read as a set rather than as two unrelated groups.
+            for (var pad = end - start; pad < across; pad++) ...[
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox.shrink()),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final row = Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < lines.length; i++) ...[
+            if (i > 0) const SizedBox(height: 14),
+            lines[i],
+          ],
         ],
-      ],
       ),
     );
 
@@ -376,20 +434,76 @@ class SplitTile extends StatelessWidget {
 /// from a still grid of tiles. So each tile shows the artefact that gives the
 /// style away instead: a list that runs off the bottom edge, a page with dots
 /// under it, two faces meeting at an angle.
+/// A drawer transition, PLAYING, at the size of a settings tile.
+///
+/// ─── IT USED TO BE A STILL, AND A STILL CANNOT SHOW THIS ────────────────────
+///
+/// The old version hand-drew each of three styles: a grid running off the
+/// bottom for the list, two skewed halves for the cube, a grid over page dots
+/// for pages. Each was chosen as the artefact that gives that style away in one
+/// frame, and for three styles it worked.
+///
+/// It stops working at six. Cube, cylinder and sphere are all one rotation with
+/// different numbers, so a still frame of any of them is the same picture, and
+/// a picker whose job is "try these against each other" would be offering three
+/// identical thumbnails.
+///
+/// So the tile animates, and it animates from [drawerTransformFor], which is
+/// the same function the real pager applies. A tile cannot claim a motion the
+/// drawer does not have, and a style added later gets a working tile without
+/// anyone drawing one.
+///
+/// ─── ONE CONTROLLER FOR THE WHOLE ROW ───────────────────────────────────────
+///
+/// Six tiles each running their own [AnimationController] is six tickers, six
+/// wakeups per frame, and six loops drifting out of phase so the row reads as
+/// noise. [phase] is driven by the chooser above them instead, so all six
+/// demonstrate the same swipe at the same moment and the row reads as a
+/// comparison rather than a fidget.
+///
+/// The `vertical` style is drawn the way it always was, as a grid running past
+/// the bottom edge. It is not a transition and there is no motion to play; what
+/// it does that a page does not is exactly that it keeps going.
 class ScrollStyleTile extends StatelessWidget {
   const ScrollStyleTile({
     super.key,
     required this.style,
     required this.palette,
+    this.phase = 0,
   });
 
-  /// 'vertical' | 'pages' | 'cube'.
+  /// A `drawerScrollStyle` value: `vertical`, or anything
+  /// [DrawerTransition.parse] recognises.
   final String style;
   final ThemePalette palette;
+
+  /// Where in the swipe this tile is, 0 to 1.
+  ///
+  /// 0 and 1 are both settled pages; 0.5 is mid-turn. Supplied rather than
+  /// generated, so one player drives the whole row. See [ScrollStylePlayer].
+  final double phase;
+
+  /// What a tile shows when it is not playing.
+  ///
+  /// ─── MID-TURN, NOT SETTLED ────────────────────────────────────────────────
+  ///
+  /// A settled page is a plain grid, identical for all six styles, so a row of
+  /// resting tiles would be six copies of the same picture and the picker would
+  /// be back to naming things instead of showing them.
+  ///
+  /// A third of the way through the turn is where the styles are furthest
+  /// apart: the cube is folding, the cylinder is curving, the sphere is
+  /// pinching, depth is shrinking, stack is holding still. Frozen there, each
+  /// one is recognisable without moving, and tapping it plays the rest.
+  ///
+  /// Not 0.5, which is the symmetric point and where the outgoing and incoming
+  /// pages are the same size. The asymmetry is what reads as direction.
+  static const double restPhase = 0.34;
 
   @override
   Widget build(BuildContext context) {
     final ink = palette.onDark;
+
     Widget tile() => DecoratedBox(
           decoration: BoxDecoration(
             color: ink.withValues(alpha: 0.34),
@@ -415,6 +529,23 @@ class ScrollStyleTile extends StatelessWidget {
           ],
         );
 
+    final body = style == 'vertical'
+        // Runs past the bottom edge, which is the whole of what a list does
+        // that a page does not.
+        ? ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              maxHeight: 200,
+              child: SizedBox(height: 120, child: grid(6)),
+            ),
+          )
+        : _Turning(
+            transition: DrawerTransition.parse(style),
+            phase: phase,
+            palette: palette,
+            page: grid(3),
+          );
+
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -423,69 +554,175 @@ class ScrollStyleTile extends StatelessWidget {
           colors: [palette.bgTop, palette.bgBottom],
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: switch (style) {
-          // Runs past the bottom edge, which is the whole of what a list does
-          // that a page does not.
-          'vertical' => ClipRect(
-              child: OverflowBox(
-                alignment: Alignment.topCenter,
-                maxHeight: 200,
-                child: SizedBox(height: 120, child: grid(6)),
+      child: Padding(padding: const EdgeInsets.all(6), child: body),
+    );
+  }
+}
+
+/// Two pages mid-swipe, transformed exactly as the drawer would transform them.
+///
+/// ─── TWO, NOT SIX ───────────────────────────────────────────────────────────
+///
+/// A real pager keeps three live pages and clamps the offset to one either
+/// side, so at any moment at most two are on screen. Drawing more here would be
+/// drawing pages the transform has already sent past ninety degrees, which is a
+/// face pointing away from the viewer.
+class _Turning extends StatelessWidget {
+  const _Turning({
+    required this.transition,
+    required this.phase,
+    required this.palette,
+    required this.page,
+  });
+
+  final DrawerTransition transition;
+  final double phase;
+  final ThemePalette palette;
+  final Widget page;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final w = c.maxWidth;
+
+        // The two live pages, at their `PageView` positions. The outgoing one
+        // is `phase` of a width to the left, the incoming one that much to its
+        // right, which is exactly the arrangement `drawerTransformFor` expects
+        // its delta to describe.
+        Widget at(double delta) {
+          final spec = drawerTransformFor(transition, delta, w);
+          return Positioned(
+            left: delta * w,
+            top: 0,
+            bottom: 0,
+            width: w,
+            child: Opacity(
+              opacity: spec.opacity,
+              child: Transform(
+                alignment: spec.alignment,
+                transform: spec.matrix,
+                child: page,
               ),
             ),
-          'cube' => Row(
-              children: [
-                Expanded(
-                  child: Transform(
-                    alignment: Alignment.centerRight,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.004)
-                      ..rotateY(0.5),
-                    child: grid(3),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Expanded(
-                  child: Transform(
-                    alignment: Alignment.centerLeft,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.004)
-                      ..rotateY(-0.5),
-                    child: grid(3),
-                  ),
-                ),
-              ],
-            ),
-          _ => Column(
-              children: [
-                Expanded(child: grid(3)),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var d = 0; d < 3; d++) ...[
-                      if (d > 0) const SizedBox(width: 4),
-                      SizedBox(
-                        width: 4,
-                        height: 4,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: d == 0
-                                ? palette.accent
-                                : ink.withValues(alpha: 0.34),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-        },
-      ),
+          );
+        }
+
+        return ClipRect(
+          child: Stack(
+            // The arriving page is drawn LAST so it lands on top, which is what
+            // makes `stack` and `depth` read correctly: both of them depend on
+            // one page passing over the other rather than under it.
+            children: [at(-phase), at(1 - phase)],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Plays one transition, once, when the user asks for it.
+///
+/// ─── IT USED TO LOOP ALL SIX, FOREVER ───────────────────────────────────────
+///
+/// The first version ran a single controller in `repeat(reverse: true)` and
+/// handed its phase to every tile, so the whole row turned continuously. That
+/// solved the real problem, which is that a still cannot tell a cube from a
+/// cylinder, and created two others: six thumbnails moving at once is a settings
+/// page that will not sit still to be read, and a ticker running for as long as
+/// the screen is open is a ticker running for as long as the screen is open.
+///
+/// So the row rests, and a tap plays. Resting is not a still of a settled page,
+/// which would be six identical grids; it is [ScrollStyleTile.restPhase], a
+/// freeze a third of the way through the turn where the six look least alike.
+/// Tapping a style selects it and runs it through, which is the question a
+/// picker is actually being asked: show me that one.
+///
+/// ─── THE TAP IS THE TRIGGER, NOT THE VALUE ──────────────────────────────────
+///
+/// [play] is handed to the builder rather than the player watching a selected
+/// value, because tapping the style that is ALREADY selected has to replay it.
+/// Watching the value would make that tap a no-op, which reads as the control
+/// having stopped working.
+///
+/// The currently selected style plays once on mount, so opening the page
+/// answers "what is my drawer doing" without a tap at all.
+class ScrollStylePlayer extends StatefulWidget {
+  const ScrollStylePlayer({super.key, this.initial, required this.builder});
+
+  /// Played once when this mounts. Null plays nothing.
+  final String? initial;
+
+  /// Given the phase, which style is playing, and how to start one.
+  final Widget Function(
+    BuildContext context,
+    double phase,
+    String? playing,
+    void Function(String style) play,
+  ) builder;
+
+  @override
+  State<ScrollStylePlayer> createState() => _ScrollStylePlayerState();
+}
+
+class _ScrollStylePlayerState extends State<ScrollStylePlayer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    // Slower than a real swipe, which is over in about 300ms. This is a
+    // demonstration rather than a simulation, and at swipe speed the difference
+    // between a cube and a cylinder is finished before the eye has arrived.
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  /// Eases at both ends, so the turn starts from a settled page and arrives at
+  /// one rather than snapping out of and into rest.
+  late final Animation<double> _phase =
+      CurvedAnimation(parent: _c, curve: Curves.easeInOutCubic);
+
+  /// Which style is mid-demonstration, or null when the row is at rest.
+  String? _playing;
+
+  @override
+  void initState() {
+    super.initState();
+    // Back to rest when it finishes, so the tile returns to the frozen pose
+    // that says what it is. Leaving it settled would make the SELECTED tile the
+    // one picture in the row that gives nothing away.
+    _c.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted) {
+        setState(() => _playing = null);
+      }
+    });
+
+    final first = widget.initial;
+    if (first != null) {
+      // After the first frame: this widget is built inside a settings list that
+      // is still laying out, and starting a controller during build is the
+      // classic setState-during-build assertion.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _play(first);
+      });
+    }
+  }
+
+  void _play(String style) {
+    setState(() => _playing = style);
+    _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _phase,
+      builder: (context, _) =>
+          widget.builder(context, _phase.value, _playing, _play),
     );
   }
 }
@@ -673,6 +910,8 @@ class PanelSlider extends StatelessWidget {
     required this.divisions,
     required this.format,
     required this.onChanged,
+    this.following = false,
+    this.onFollow,
   });
 
   final IconData icon;
@@ -684,6 +923,25 @@ class PanelSlider extends StatelessWidget {
   final int divisions;
   final String Function(double) format;
   final ValueChanged<double> onChanged;
+
+  /// True while this setting has no value of its own and is showing whatever
+  /// the distro ships. The Follow action only appears once it has stopped.
+  ///
+  /// ─── WHY BLUR NEEDS THIS MORE THAN OPACITY DOES ─────────────────────────
+  ///
+  /// This is the pair [OpacityRow] already carries, and the argument is sharper
+  /// here. Blur is the one setting on the page with a PERFORMANCE reason to
+  /// move it, and `settings.panels.blurSub` says so out loud: turn it down if
+  /// the launcher feels slow. So it is the setting people actually touch.
+  ///
+  /// Every value here is per-user and global, not per distro. Turning blur off
+  /// on a slow phone therefore pinned it off across every distro that person
+  /// would ever install, including one whose entire identity is the glass.
+  /// Without a way back, that is a one-way door dressed as a performance tip.
+  final bool following;
+
+  /// Clears the user's value so the setting shows the distro's again.
+  final VoidCallback? onFollow;
 
   @override
   Widget build(BuildContext context) {
@@ -700,6 +958,22 @@ class PanelSlider extends StatelessWidget {
               Icon(icon, size: 20, color: c.textMuted),
               const SizedBox(width: 14),
               Expanded(child: Text(label, style: d.text.body)),
+              // Placed BEFORE the value and styled as a link, matching
+              // [OpacityRow] exactly. Two rows on one page offering the same
+              // action in two positions is how a settings screen stops looking
+              // like one screen.
+              if (!following && onFollow != null)
+                GestureDetector(
+                  onTap: onFollow,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Text(
+                      context.t('settings.follow'),
+                      style: d.text.caption.copyWith(color: c.accent),
+                    ),
+                  ),
+                ),
               Text(
                 format(value),
                 style: d.text.value.copyWith(color: c.textMuted),

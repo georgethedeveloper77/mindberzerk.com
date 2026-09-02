@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/components.dart';
+import '../../../design/update_dot.dart';
 import '../../../engine/effective_theme.dart';
 // ShellKind. `effective_theme.dart` imports theme_spec but does not re-export
 // it, so the enum is not in scope through that alone.
@@ -154,9 +155,22 @@ Future<void> showDesktopMenu(
                     ref.read(deskletEditProvider.notifier).enterApps();
                   },
                 ),
+              // ── THE ONLY MARKED ACTION IN THIS BAR ────────────────────
+              //
+              // A waiting Play update has nowhere else to be seen: the banner
+              // and the About row are both inside Settings, so someone who
+              // never opens Settings never learns there is one. This is the
+              // quietest surface that fixes that, because a long-press menu is
+              // something you opened on purpose.
+              //
+              // `dot: true` is the ONLY place this flag is passed, and
+              // [UpdateDot] takes no condition of its own, so this cannot
+              // become a general badge mechanism without someone deliberately
+              // widening both.
               _Action(
                 icon: Icons.settings_outlined,
                 label: 'Settings',
+                dot: true,
                 onTap: () => open(SettingsScreen(theme: theme)),
               ),
             ],
@@ -345,11 +359,23 @@ class _Action extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.dot = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// Mark this glyph when a Play update is waiting.
+  ///
+  /// A FLAG RATHER THAN A WIDGET SLOT, deliberately. A `badge:` parameter taking
+  /// any widget would let the next thing that wants attention put itself in this
+  /// bar without anyone having to argue for it. This one is wired to
+  /// [UpdateDot], which is wired to `hasUpdate`, and there is no third option.
+  ///
+  /// Defaults to false, so every other action is untouched and a new action is
+  /// unmarked unless someone types the word.
+  final bool dot;
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +389,11 @@ class _Action extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 24, color: d.colors.text),
+            // Wrapped only when asked. UpdateDot returns its child untouched
+            // when there is no update, so the unmarked case costs nothing.
+            dot
+                ? UpdateDot(child: Icon(icon, size: 24, color: d.colors.text))
+                : Icon(icon, size: 24, color: d.colors.text),
             const SizedBox(height: 7),
             Text(
               label,

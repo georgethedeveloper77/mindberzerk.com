@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../engine/theme_engine.dart';
 import '../../platform/pack_api.g.dart';
 import '../prefs/prefs_repository.dart';
-import 'pack_auto_update.dart';
 
 /// PHASE C — the Dart side of the store.
 ///
@@ -365,6 +364,36 @@ class PackActions {
   /// it with no Firebase dependency of its own.
   Future<void> pushCdnBaseUrl(String url) =>
       _ref.read(packHostApiProvider).setCdnBaseUrl(url);
+
+  /// A pack's own `theme.json`, whether or not it is installed.
+  ///
+  /// ─── THE FOURTH FILE ────────────────────────────────────────────────────
+  ///
+  /// A Pigeon method is only usable once four things exist: the schema entry,
+  /// the generated Dart, the generated Kotlin, and a wrapper here. The first
+  /// three are mechanical and the fourth is the one that gets forgotten, which
+  /// presents as a bridge that was "added" and that no screen can reach.
+  ///
+  /// ─── IT RETURNS A STRING AND NOT A ThemeSpec ────────────────────────────
+  ///
+  /// Parsing belongs a layer up, next to the cache that keys the parsed result
+  /// on `packId + version`. This layer is one bridge call whose result the
+  /// caller decides what to do with, which is what every other method on this
+  /// class is, and returning a domain object from it would put a JSON schema
+  /// dependency in the transport.
+  ///
+  /// ─── AND IT DOES NOT INVALIDATE THE CATALOGUE ───────────────────────────
+  ///
+  /// Every other method here that touches the network ends with an invalidate,
+  /// because it changed what is on disk. This one deliberately changes nothing:
+  /// native fetches into a scratch directory, verifies, reads one file and
+  /// deletes the lot. `installedVersion` does not move, so a card's state does
+  /// not either, and invalidating would rebuild the whole grid for a picture.
+  ///
+  /// Null on any failure, including no network and a bad signature. The caller
+  /// falls back to the index preview.
+  Future<String?> peekTheme(String packId) =>
+      _ref.read(packHostApiProvider).peekTheme(packId);
 }
 
 final packActionsProvider = Provider<PackActions>(PackActions.new);
@@ -465,24 +494,29 @@ final catalogueRefreshProvider = FutureProvider<bool>((ref) async {
   if (last != null && DateTime.now().difference(last) < _refreshInterval) {
     return false;
   }
-  // ─── AND INSTALL WHAT WENT STALE ────────────────────────────────────────
+
+  // ─── IT FETCHES. IT NO LONGER INSTALLS ──────────────────────────────────
   //
-  // `refreshAndAutoUpdate` is `refresh()` plus its consequence: a catalogue
-  // that MOVED is exactly the moment a pack on disk can have become stale, and
-  // the only moment worth walking the list.
+  // This called `refreshAndAutoUpdate`, on the reasoning that a catalogue which
+  // MOVED is the one moment worth walking the list for stale packs. The
+  // reasoning was sound and the placement was wrong, and the result was a
+  // review: opening Distros began downloading and installing every stale pack
+  // while the user watched.
   //
-  // Here rather than at each screen, because this provider is already the one
-  // throttled entry point: it holds `_lastCatalogueFetch` and refuses inside
-  // the interval. Wiring the updater into the callers instead would give every
-  // storefront its own copy of that decision, and one of them would eventually
-  // forget the throttle.
+  // Two things made that visible rather than quiet. `PackActions.install`
+  // invalidates the catalogue after EVERY pack, so a dozen stale packs meant a
+  // dozen grid rebuilds; and the storefront read the catalogue with `asData`,
+  // which discards the value Riverpod retains through a reload, so each of
+  // those rebuilds emptied the screen and refilled it. The cards flashed.
   //
-  // Pull-to-refresh does not come through this provider (it bypasses the
-  // throttle by design), but it calls the same `refreshAndAutoUpdate`, so every
-  // route to a fetch has the same consequence. That is the point: a rule that
-  // holds on one path and not another is a rule someone has to remember.
-  return refreshAndAutoUpdate(
-    ref.read(packActionsProvider),
-    ref.read(packAutoUpdaterProvider),
-  );
+  // The flicker is fixed at the read site, but the downloads still do not
+  // belong here. Updating packs is BACKGROUND work with no user waiting on it,
+  // which is precisely what `PackSyncWorker` exists to do and what it does
+  // whether or not anybody has opened this screen. Opening the storefront
+  // should cost one conditional request and show what the index says.
+  //
+  // The manual pull in `themes_screen` still calls `refreshAndAutoUpdate`, and
+  // that stays: a pull is a person asking to check for changes, so acting on
+  // what is found is the answer to what they asked. Opening a screen is not.
+  return ref.read(packActionsProvider).refresh();
 });

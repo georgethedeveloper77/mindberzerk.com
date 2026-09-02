@@ -39,7 +39,24 @@ import 'drawer_items.dart';
 /// So nothing about elementary's theme.json changes to gain the switch. The
 /// field it already had stops meaning "take over the screen" and starts meaning
 /// what it says.
-final _viewProvider = StateProvider<bool>((ref) => false);
+/// Which view the user has chosen, or null while they have chosen nothing and
+/// the distro's own default stands.
+///
+/// ─── NULLABLE, BECAUSE `false` HAD TO MEAN TWO THINGS ───────────────────────
+///
+/// This was a plain `bool` defaulting to false, and the read site was
+/// `ref.watch(_viewProvider) || theme.drawerGrouping == 'library'`. The comment
+/// there called that the distro's default. An `||` is not a default, it is a
+/// lock: on elementary the right-hand side is always true, so the expression is
+/// always true, and tapping Grid set this to false and changed nothing. The
+/// Grid tab could not be selected on the only distro that mounts this drawer.
+///
+/// With three states the default is consulted only while the user has none of
+/// their own, which is what the original comment described. Same shape as the
+/// `following` pair on the settings rows, and the same fault as
+/// `theme.prefs.drawerSearchPosition ?? 'bottom'`: an intent written as an
+/// expression that could not express it.
+final _viewProvider = StateProvider<bool?>((ref) => null);
 
 /// Which category is open in the Categories view, or null for the list.
 final _categoryProvider = StateProvider<String?>((ref) => null);
@@ -61,15 +78,61 @@ class CardDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(drawerItemsProvider(theme));
-    final apps = <AppEntry>[
-      for (final i in items)
-        if (i is AppDrawerItem) i.entry,
-    ];
+
+    // ─── FOLDERS ARE FLATTENED, AND WITHOUT THIS THE CARD WAS EMPTY ───────
+    //
+    // This took only the loose `AppDrawerItem`s, which is every app on a distro
+    // that is not library grouped and almost none on the one distro that is.
+    //
+    // elementary authors `drawerGrouping: "library"`, and under that grouping
+    // `drawer_items` files each app into a derived `cat:` folder and then emits
+    // the flat run as `if (!filed.contains(...))`. So the apps were all present
+    // and all inside folders, the loose list came back empty, and BOTH of this
+    // card's views drew nothing: the grid had no cells and `_Categories`
+    // bucketed an empty list into no categories. One list, two blank screens,
+    // and nothing logged because an empty list is a perfectly ordinary thing
+    // for a provider to return.
+    //
+    // The card is the only drawer that can hit this. `LibraryView` consumes the
+    // folders and reaches the apps through them, and every other drawer runs on
+    // a distro that is not library grouped.
+    //
+    // ─── POPULATION, NOT GROUPING ────────────────────────────────────────
+    //
+    // Flattening rather than opting out of `library` is the smaller change and
+    // the more honest one. `_Categories` below already buckets `apps` itself,
+    // so what this widget needs from the provider is WHICH APPS EXIST; how they
+    // were grouped on the way here is the other view's business. On a distro
+    // that is not library grouped there are no category folders, so this loop
+    // finds nothing to flatten and the behaviour is exactly what it was.
+    //
+    // Deduplicated by component key, because an app can be in two of these at
+    // once: the derived `Suggestions` bucket holds frequently used apps that
+    // are also filed under their own category, and a user folder can hold an
+    // app a category folder also claims. Without the seen set those arrive
+    // twice and the grid shows the same icon in two cells.
+    //
+    // A LOOP, not a collection literal. Written as one, the `else` binds to the
+    // nearest `if`, which is the `seen.add` guard rather than the type test, so
+    // every folder would be skipped whenever the preceding app was a duplicate.
+    // Dart's dangling-else rule is the same inside a list, and it is much
+    // harder to see there.
+    final seen = <String>{};
+    final apps = <AppEntry>[];
+    for (final i in items) {
+      if (i is AppDrawerItem) {
+        if (seen.add(i.entry.componentKey)) apps.add(i.entry);
+      } else if (i is FolderDrawerItem) {
+        for (final m in i.members) {
+          if (seen.add(m.componentKey)) apps.add(m);
+        }
+      }
+    }
 
     // The distro's own default. `library` opens on categories, anything else on
     // the grid; see the class doc for why this field rather than a new one.
     final showCategories =
-        ref.watch(_viewProvider) || theme.drawerGrouping == 'library';
+        ref.watch(_viewProvider) ?? (theme.drawerGrouping == 'library');
 
     final width = (MediaQuery.sizeOf(context).width * _widthFraction)
         .clamp(0.0, _maxWidth);

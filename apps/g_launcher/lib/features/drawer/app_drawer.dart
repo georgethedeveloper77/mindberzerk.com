@@ -7,12 +7,19 @@ import '../../data/prefs/drawer_slots.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/components/press_pop.dart';
+// `DrawerTransition` lives here rather than in `drawer_pager.dart`, because the
+// Settings picker and the setup wizard animate their tiles from the same
+// matrices and neither should import a widget out of `features/drawer/`.
+import '../../design/drawer_transition.dart';
 import '../../design/grid_metrics.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../dock/dock_insets.dart';
+import '../home/workspaces/workspace_controller.dart';
 import '../search/search_page.dart';
 import 'drawer_actions.dart';
 import 'drawer_pager.dart';
@@ -80,12 +87,134 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   /// from the shared formula).
   int? _pagedRows;
 
+  /// What is typed in the bar, when this distro filters in place.
+  ///
+  /// ─── LOCAL, AND NOT [paletteQueryProvider] ──────────────────────────────
+  ///
+  /// `search_sheet` shares that provider and is right to: it argues for one
+  /// RANKER, so that `wha` cannot give one answer in rofi and another in
+  /// search. The field is a different thing. rofi, dmenu, the TUI prompt and
+  /// Pop's query line all read that one live string, so a drawer writing to it
+  /// would leave its half-typed word sitting in four other surfaces.
+  ///
+  /// One string per surface, one matcher underneath. See [_matches].
+  String _query = '';
+
+  /// Owned here rather than in the bar, because [_DrawerSearchBar] is rebuilt
+  /// on every keystroke and a controller built in `build` loses the cursor.
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+
   /// The locate target this drawer has already acted on.
   ///
   /// Guards the folder push below against firing every rebuild, which on a
   /// drawer that rebuilds constantly would be a folder overlay pushed on top of
   /// itself several times a second.
   String? _locateHandled;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  /// Type into the grid.
+  ///
+  /// ─── SUBSTRING, NOT [Fuzzy] ─────────────────────────────────────────────
+  ///
+  /// This looks like an obvious place to reuse the matcher the palette, rofi,
+  /// dmenu and the TUI already share, and both of those files say in writing
+  /// not to. `fuzzy.dart` calls the drawer's filter "a substring filter, and it
+  /// should stay one"; `palette_controller` says fuzzy results jumping around a
+  /// browsing grid are actively worse.
+  ///
+  /// They are right, and it matters more here than where it was written. Fuzzy
+  /// RANKS, so every keystroke reorders the grid and the tile under your thumb
+  /// becomes a different app between the press and the release. Substring only
+  /// THINS: everything keeps its place and the misses fall away, which is
+  /// exactly what "the grid you are already looking at narrows" has to mean to
+  /// be worth doing at all.
+  ///
+  /// Input order is preserved for the same reason. Whatever the distro's
+  /// grouping put on screen stays in that order while it empties out.
+  List<DrawerItem> _matches(List<DrawerItem> items, String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return items;
+    return [
+      for (final i in items)
+        if (i.label.toLowerCase().contains(q)) i,
+    ];
+  }
+
+  /// One row of most-used apps, spliced in ahead of the alphabetical run.
+  ///
+  /// ─── WHERE IT GOES, WITHOUT A SPECIAL CASE FOR FOLDERS ──────────────────
+  ///
+  /// `drawerItemsProvider` ends with `[...folders, ...launcherEntries,
+  /// ...appItems]`, so the first [AppDrawerItem] in the list is the point
+  /// after the launcher's own entries and after any folders the user has. One
+  /// index finds it, and the row lands after Terminal whether or not folders
+  /// exist. No branch, and nothing to get wrong when a user makes their first
+  /// folder.
+  ///
+  /// ─── A WHOLE ROW OR NOTHING ─────────────────────────────────────────────
+  ///
+  /// Fewer than [columns] known apps and this returns the list untouched. A
+  /// partial row would leave a gap mid-grid that reads as a missing icon, and
+  /// `frequentAppsProvider` is empty until something has been launched, so a
+  /// fresh install would otherwise open on a row of one. Same floor
+  /// `_kMinSuggestions` sets for the Suggestions bucket, for the same reason.
+  ///
+  /// ─── THE SAME APPS APPEAR TWICE, ON PURPOSE ─────────────────────────────
+  ///
+  /// Removing them from the run below would mean the app you open most often
+  /// is missing from the place you look when you are not thinking about it.
+  /// GNOME's Frequent and iOS's Suggestions both leave them in both places.
+  List<DrawerItem> _withFrequent(
+    List<DrawerItem> items,
+    List<String> frequent,
+    int columns,
+  ) {
+    if (columns <= 0 || frequent.isEmpty) return items;
+
+    final byKey = <String, AppEntry>{
+      for (final i in items)
+        if (i is AppDrawerItem) i.entry.componentKey: i.entry,
+    };
+
+    // Built from what is IN the list, so hidden apps and uninstalled ones are
+    // already gone: `drawerItemsProvider` removed them, and a usage record
+    // outlives the app it refers to.
+    final row = <DrawerItem>[];
+    for (final key in frequent) {
+      final entry = byKey[key];
+      if (entry == null) continue;
+      row.add(AppDrawerItem(entry));
+      if (row.length == columns) break;
+    }
+    if (row.length < columns) return items;
+
+    final at = items.indexWhere((i) => i is AppDrawerItem);
+    if (at < 0) return items;
+
+    return [...items.take(at), ...row, ...items.skip(at)];
+  }
+
+  /// Drop the query and the keyboard.
+  ///
+  /// Called when the surface goes away rather than on dispose: on a distro
+  /// whose apps are a page, the drawer is a live `PageView` child and swiping
+  /// off it never unmounts anything. `dispose` would not fire until the shell
+  /// was torn down, so a filter typed on Tuesday would still be there on
+  /// Wednesday, and a page showing four of forty apps with no visible reason
+  /// reads as apps having been lost.
+  void _clearQuery() {
+    if (_query.isEmpty) return;
+    _searchController.clear();
+    _searchFocus.unfocus();
+    setState(() => _query = '');
+  }
 
   /// If Locate is pointing at an app inside a folder, open that folder.
   ///
@@ -181,15 +310,73 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
-    final items = ref.watch(drawerItemsProvider(theme));
+    final all = ref.watch(drawerItemsProvider(theme));
 
-    // Where the search bar sits. null = the theme decides, resolved to bottom
-    // (thumb-reachable, matching the One UI search page); a theme may pin 'top'
-    // for an authentic GNOME feel.
-    // THREE positions now, not two. 'off' hides the bar entirely, for people
-    // who reach search by gesture or by the desktop search desklet.
-    final searchPosition = theme.prefs.drawerSearchPosition ?? 'bottom';
+    // Where the search bar sits, RESOLVED: the user's choice, else the distro's
+    // authored default, else the engine's 'bottom'.
+    //
+    // ─── THIS READ `theme.prefs.drawerSearchPosition ?? 'bottom'` ───────────
+    //
+    // And the comment here said a theme may pin 'top' for an authentic GNOME
+    // feel. No theme could: there was no `drawerSearchPosition` on
+    // `ThemeLayout` and no arm in `LayoutResolver`, so the literal on the right
+    // of that `??` was the distro's only possible answer.
+    //
+    // Deepin is what made it visible. Its app list is a PAGE (`appsSurface:
+    // "workspace"`) with a bottom dock painted over it, so the bar laid out
+    // underneath the dock and the distro read as having no search at all.
+    // Every overlay distro survived the same default because an overlay covers
+    // the dock rather than sitting under it.
+    //
+    // 'off' hides the bar entirely, for people who reach search by gesture or
+    // by the desktop search desklet.
+    final searchPosition = theme.drawerSearchPosition;
     final showSearch = searchPosition != 'off';
+
+    // Filter in place, or push the One UI page. Derived from `appsSurface`;
+    // see [EffectiveTheme.drawerSearchInline].
+    final inline = showSearch && theme.drawerSearchInline;
+
+    // ─── THE QUERY DIES WITH THE SURFACE ────────────────────────────────
+    //
+    // An overlay drawer closing unmounts this State. A workspace-page drawer
+    // never unmounts: it is a live `PageView` child and swiping away only
+    // scrolls past it. So the page leaving is the event, and only the pager
+    // knows it happened. See [_clearQuery].
+    if (inline) {
+      ref.listen<int>(activeWorkspaceProvider, (_, page) {
+        if (page != ref.read(appsPageProvider)) _clearQuery();
+      });
+    }
+
+    // EVERYTHING BELOW READS `items`, and that is the whole integration. The
+    // filter is applied once, here, so the pager, the custom slots, the
+    // library, the A-Z list and Locate all keep working on a list of the shape
+    // they already expect, one that simply has fewer things in it.
+    final filtering = inline && _query.trim().isNotEmpty;
+
+    // `base` and not `items`, because the list the GRID renders is not quite
+    // this one: the most-used row is spliced in inside the LayoutBuilder,
+    // where the column count is known. Everything that cares about the real
+    // arrangement reads that one. This is the honest list of what exists.
+    final base = filtering ? _matches(all, _query) : all;
+
+    // ─── THE DOCK IS NOT THE SYSTEM'S FURNITURE ─────────────────────────
+    //
+    // `SafeArea` below insets the status bar and the gesture pill, and knows
+    // nothing about the launcher's own dock. On a distro whose app list is a
+    // PAGE, the shell stacks its dock over this widget, so the last row of
+    // tiles was drawn underneath it.
+    //
+    // It only became visible when the search bar moved to the top. At the
+    // bottom the bar was what the dock covered, and the 66dp it took off the
+    // grid was doing this subtraction by accident. Moving it handed those
+    // pixels back to the grid and the dock started eating tiles instead.
+    //
+    // Zero on every overlay distro, which mounts over the dock rather than
+    // under it. See `drawerDockInsets`.
+    final dockInset = drawerDockInsets(theme);
+
 
     // 'off' counts as "not at the top", so the empty first row survives when
     // the bar is hidden. The gap exists to clear the status bar, and that is
@@ -219,7 +406,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
     // Acts at most once per target. See the method's note for why the drawer
     // owns this rather than `locateApp`.
-    _openFolderForLocate(items);
+    // `base`, deliberately. Locate wants to know whether the app is inside a
+    // folder, which the most-used row cannot change.
+    _openFolderForLocate(base);
 
     return _clearLocateOnTouch(
       child: LayoutBuilder(
@@ -241,6 +430,33 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // the drawer briefly disagreed with the home grid about row height:
         // GridMetrics said 1 while LayoutResolver said 2, and this was the
         // only surface reading the wrong constant.
+        // ─── THE MOST USED ROW ────────────────────────────────────────
+        //
+        // Spliced HERE rather than in `drawerItemsProvider`, and that is the
+        // whole of why this is safe. That provider is the flat order for
+        // search, the dock and the slot flattening, and the row deliberately
+        // repeats apps that also appear below it. Duplicates in the provider
+        // would mean search returning an app twice, a custom grid placing it
+        // in two slots, and `_locatePage` ringing whichever copy it found
+        // first. Here it is a rendering decision and reaches only the grid.
+        //
+        // Inside the LayoutBuilder because the count is one ROW, and how many
+        // that is depends on `columns`, which is resolved from the measured
+        // width a few lines above.
+        //
+        // Skipped in the four cases where it has nothing to add or something
+        // to break: while filtering, because the results ARE the ranking; in
+        // custom mode, because the user arranged that grid themselves; under
+        // A-Z, because a block above the first letter header belongs to no
+        // letter; and under library grouping, where the apps live in folders
+        // and `Suggestions` is already the same idea drawn as a bubble.
+        final items = (filtering ||
+                mode == 'custom' ||
+                (mode == 'az' && theme.drawerGrouping == 'az') ||
+                theme.libraryGrouped)
+            ? base
+            : _withFrequent(base, ref.watch(frequentAppsProvider), columns);
+
         final labelLines = theme.labelLines;
 
         // ─── THE CELL IS SIZED TO ITS CONTENTS ─────────────────────────
@@ -356,6 +572,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               // not a copied number: two derivations of this drift.
               maxHeight: constraints.maxHeight -
                   (showSearch ? 66 : 0) -
+                  // Same reason the search bar and the dots strip are
+                  // subtracted: none of it is height the pages get. Leaving it
+                  // out seeds the grid provider on a shape one row taller than
+                  // the pager can draw, and the first frame reflows.
+                  dockInset.vertical -
                   DrawerPager.dotsStripFor(withAdd: mode == 'custom'),
               tileHeight: tileH,
               topPadding: topGap,
@@ -504,7 +725,34 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         // already emits folders then the rest under `library` grouping, and
         // LibraryView cuts its sections out of that rather than asking for a
         // second, differently ordered provider.
-        if (theme.libraryGrouped) {
+        if (filtering) {
+          // ─── RESULTS ARE NOT A LAYOUT ──────────────────────────────────
+          //
+          // FIRST, ahead of every mode, and deliberately not routed through
+          // `DrawerPager`. A filtered list has no pages, no slots, no drag, no
+          // merge and no sort order to preserve, and the pager's whole job is
+          // to maintain those. Paging four results across three swipes would
+          // also be its own small absurdity.
+          //
+          // Not mounting it is what makes the page dots disappear while a
+          // query is live, with nothing having to hide them: they belong to
+          // the pager, and the pager is not here.
+          //
+          // `tileAt` already closes over the filtered `items`, so every result
+          // is an ordinary drawer tile with its ordinary long-press menu.
+          body = items.isEmpty
+              ? Expanded(child: _NoMatches(theme: theme))
+              : _plainGrid(
+                  items: items,
+                  columns: columns,
+                  aspect: aspect,
+                  // No empty first row here. That gap exists to clear the
+                  // status bar above a grid that starts at the top of the
+                  // drawer; with the bar at the top, the bar is what clears it.
+                  topGap: 0.0,
+                  tileAt: tileAt,
+                );
+        } else if (theme.libraryGrouped) {
           body = Expanded(
             child: LibraryView(theme: theme, items: items),
           );
@@ -589,7 +837,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               itemCount: grid.cells.length,
               columns: grid.cols,
               aspectRatio: aspect,
-              cube: style == 'cube',
+              // The STYLE, not a boolean derived from it. `cube: style ==
+              // 'cube'` threw away every value it did not recognise, so a
+              // distro authoring `cylinder` rendered a plain slide with
+              // nothing reporting a problem. `parse` degrades in one place.
+              transition: DrawerTransition.parse(style),
               dragPaging: true,
               // Reported after layout, so the grid provider and the pager agree
               // on the row count from the second frame onward.
@@ -629,13 +881,31 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               },
             ),
           );
-        } else if (style == 'pages' || style == 'cube') {
+          // ─── EVERYTHING EXCEPT `vertical` IS PAGED ───────────────────────
+          //
+          // This read `style == 'pages' || style == 'cube'`, which was an
+          // exhaustive list of the paged styles right up until it was not. The
+          // four added alongside it would have fallen through to the vertical
+          // list: the setting would appear to save, the drawer would scroll,
+          // and nothing would say why the animation never arrived.
+          //
+          // Inverted rather than extended, because `vertical` is the value with
+          // the actual meaning here. It is the one style that is a different
+          // WIDGET rather than a different transform, and it is the only thing
+          // this branch is really asking about. A style added later is paged by
+          // default, which is the safe direction: it renders, and it renders as
+          // a slide until `DrawerTransition.parse` learns its name.
+        } else if (style != 'vertical') {
           body = Expanded(
             child: DrawerPager(
               itemCount: items.length,
               columns: columns,
               aspectRatio: aspect,
-              cube: style == 'cube',
+              // The STYLE, not a boolean derived from it. `cube: style ==
+              // 'cube'` threw away every value it did not recognise, so a
+              // distro authoring `cylinder` rendered a plain slide with
+              // nothing reporting a problem. `parse` degrades in one place.
+              transition: DrawerTransition.parse(style),
               topPadding: topGap,
               // Assigned without setState: the ordinary paged branch does not
               // rebuild on it, it is only read when Custom is entered to seed
@@ -706,8 +976,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           );
         }
 
-        final searchBar =
-            _DrawerSearchBar(theme: theme, onOverflow: showOverflow);
+        final searchBar = _DrawerSearchBar(
+          theme: theme,
+          onOverflow: showOverflow,
+          inline: inline,
+          controller: _searchController,
+          focus: _searchFocus,
+          onChanged: (v) => setState(() => _query = v),
+          onClear: _clearQuery,
+        );
 
         // The drawer paints its OWN backdrop. GNOME's Activities is a
         // translucent wash over the wallpaper, not an opaque page — you can see
@@ -720,15 +997,31 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           // The drawer's own setting, scaling the authored 0.92. This wash is
           // what everything else on the shell is hidden behind while the
           // drawer is open, which is exactly why it earns a separate slider.
-          color: theme.palette.bgBottom
-              .withValues(alpha: 0.92 * theme.drawerOpacity),
+          // DEEPER WHILE FILTERING. The wash is what the results are read
+          // against, and at 0.92 a busy wallpaper competes with four tiles the
+          // way it never does with forty. It is also the only feedback that the
+          // grid is showing a subset, now that the dots are gone.
+          color: theme.palette.bgBottom.withValues(
+            alpha: (filtering ? 0.97 : 0.92) * theme.drawerOpacity,
+          ),
           child: SafeArea(
-            child: Column(
-              children: [
-                if (showSearch && !searchAtBottom) searchBar,
-                body,
-                if (showSearch && searchAtBottom) searchBar,
-              ],
+            // INSIDE the ColoredBox and outside the Column, so the wash still
+            // runs edge to edge behind a translucent dock while nothing the
+            // user has to read or tap does. A wash that stopped short of the
+            // dock would draw a seam across the bottom of the screen.
+            //
+            // Around the whole Column rather than the grid alone, so a bar at
+            // the bottom clears the dock too. That is the arrangement this was
+            // in until an hour ago, and it did not work.
+            child: Padding(
+              padding: dockInset,
+              child: Column(
+                children: [
+                  if (showSearch && !searchAtBottom) searchBar,
+                  body,
+                  if (showSearch && searchAtBottom) searchBar,
+                ],
+              ),
             ),
           ),
         );
@@ -742,7 +1035,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 /// launcher-owned entries route in-app or hand off to the OS. Kept in one place
 /// so the tiles can't drift apart.
 class _DrawerSearchBar extends StatelessWidget {
-  const _DrawerSearchBar({required this.theme, required this.onOverflow});
+  const _DrawerSearchBar({
+    required this.theme,
+    required this.onOverflow,
+    required this.inline,
+    required this.controller,
+    required this.focus,
+    required this.onChanged,
+    required this.onClear,
+  });
 
   final EffectiveTheme theme;
 
@@ -751,9 +1052,22 @@ class _DrawerSearchBar extends StatelessWidget {
   /// page untouched.
   final void Function(Offset globalPosition) onOverflow;
 
+  /// Type here and the grid narrows, rather than tapping through to a page.
+  /// See [EffectiveTheme.drawerSearchInline].
+  final bool inline;
+
+  /// Both owned by the drawer's State, because this widget is rebuilt on every
+  /// keystroke.
+  final TextEditingController controller;
+  final FocusNode focus;
+
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
   @override
   Widget build(BuildContext context) {
     final onDark = theme.palette.onDark;
+    final hasQuery = controller.text.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -765,11 +1079,17 @@ class _DrawerSearchBar extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 520),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => SearchPage(theme: theme),
-              ),
-            ),
+            // ─── ONE OF THESE TWO, NEVER BOTH ─────────────────────────────
+            //
+            // Inline, the pill IS the field and a tap lands in the TextField
+            // below, so this handler must not also push a page over it.
+            onTap: inline
+                ? () => focus.requestFocus()
+                : () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SearchPage(theme: theme),
+                      ),
+                    ),
             child: Container(
               height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -787,15 +1107,67 @@ class _DrawerSearchBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      'Search',
-                      style: TextStyle(
-                        color: onDark.withValues(alpha: 0.6),
-                        fontFamily: theme.typography.display,
-                        fontSize: 14,
-                      ),
-                    ),
+                    child: inline
+                        ? TextField(
+                            controller: controller,
+                            focusNode: focus,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            // SEARCH, not `go`. The keyboard's action key
+                            // closes the keyboard and leaves the results where
+                            // they are; there is nothing to submit, because the
+                            // grid has been answering since the first letter.
+                            textInputAction: TextInputAction.search,
+                            onChanged: onChanged,
+                            style: TextStyle(
+                              color: onDark,
+                              fontFamily: theme.typography.display,
+                              fontSize: 14,
+                            ),
+                            cursorColor: theme.palette.accent,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              hintText: 'Search',
+                              hintStyle: TextStyle(
+                                color: onDark.withValues(alpha: 0.6),
+                                fontFamily: theme.typography.display,
+                                fontSize: 14,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            'Search',
+                            style: TextStyle(
+                              color: onDark.withValues(alpha: 0.6),
+                              fontFamily: theme.typography.display,
+                              fontSize: 14,
+                            ),
+                          ),
                   ),
+                  // The clear control REPLACES the overflow dots while a query
+                  // is live, rather than sitting beside them. Two 20dp glyphs
+                  // at the end of a 46dp pill is a row of controls; the one
+                  // that matters mid-search is this one, and the menu is one
+                  // clear away.
+                  if (inline && hasQuery)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onClear,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 12,
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          size: 20,
+                          color: onDark.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    )
+                  else
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapDown: (d) => onOverflow(d.globalPosition),
@@ -814,6 +1186,35 @@ class _DrawerSearchBar extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nothing matched what was typed.
+///
+/// A sentence rather than an illustration. The grid it replaces was full a
+/// keystroke ago and will be full again on backspace, so this is a state the
+/// user passes through on the way to a typo, not a place they arrive.
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Text(
+          context.t('drawer.noMatches'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: theme.typography.display,
+            fontSize: 13 * theme.textScale,
+            color: theme.palette.onDark.withValues(alpha: 0.45),
           ),
         ),
       ),

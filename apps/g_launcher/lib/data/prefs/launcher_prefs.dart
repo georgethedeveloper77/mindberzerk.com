@@ -14,6 +14,43 @@ import '../../platform/launcher_api.g.dart' as api;
 /// non-null with a default of 4, then a theme that ships a 5-column grid would
 /// be silently overridden by a preference the user never set. Nullable is the
 /// whole design.
+/// "No icon pack at all", for [LauncherPrefs.iconPackId] and
+/// [LauncherPrefs.iconBrandPackId].
+///
+/// ─── WHY A SENTINEL AND NOT A THIRD FIELD ───────────────────────────────────
+///
+/// Both fields are nullable and null already MEANS something: "whatever this
+/// distro names". `EffectiveTheme.resolve` reads it that way, and the icons
+/// screen relies on it, writing null rather than the distro's own pack id so a
+/// republished theme naming a different pack is followed rather than pinned to
+/// last month's answer.
+///
+/// So there was no way to say "none". Every resolve ended at
+/// `defaultLinePackFor`, which returns a name for every theme, and the brand
+/// tier could not be switched off. That is the state the setup icon step needs
+/// to offer: each app's own artwork, in the distro's shape, with no pack over
+/// the top.
+///
+/// A third field would mean four edits in this file (constructor, [copyWith],
+/// [clearing], both JSON directions) to express what one reserved string does,
+/// and would let the two disagree. The sentinel costs nothing: it round-trips
+/// through JSON as an ordinary value, `clearing` still resets it, and
+/// `iconCacheId` already reads the RESOLVED pack rather than the pref, so the
+/// native cache re-keys for free.
+///
+/// ─── AND WHY IT CANNOT COLLIDE ──────────────────────────────────────────────
+///
+/// `PackManifest.isSafePackId` rejects it, so no pack can ever carry this id:
+/// it cannot be published, downloaded or installed. A reserved value that the
+/// rest of the system is structurally incapable of producing is the only kind
+/// worth having.
+///
+/// BOTH FIELDS TAKE IT, and they have to. Setting it on the brand tier alone
+/// would leave a hero pack resolving, so "app icons" would mean hand-drawn art
+/// for the handful a hero pack covers and generated icons for everything else,
+/// which is neither of the two things the step offers.
+const kNoIconPack = '__none__';
+
 class LauncherPrefs {
   const LauncherPrefs({
     this.dockSide,
@@ -35,6 +72,8 @@ class LauncherPrefs {
     this.drawerSlotRows,
     this.drawerPageCount,
     this.themeMode,
+    this.accentId,
+    this.layoutPreset,
     this.deskletGridVersion,
     this.topBarSide,
     this.topBarStats,
@@ -264,6 +303,35 @@ class LauncherPrefs {
   /// A theme with no `paletteLight` block ignores this and stays dark. That is
   /// deliberate; see [ThemeSpec.paletteLight].
   final String? themeMode;
+
+  /// The [ThemeAccent] id this user picked, per theme.
+  ///
+  /// ─── AN ID, AND NEVER REWRITTEN BY THE ENGINE ───────────────────────────
+  ///
+  /// `EffectiveTheme.accent` looks it up in the distro's authored list and
+  /// returns null when nothing matches, which leaves the distro's own accent on
+  /// screen. It deliberately does NOT clear this field: a pack update that
+  /// retires an id would otherwise silently discard a choice that becomes valid
+  /// again the moment the colour comes back.
+  ///
+  /// Null means the distro's default, which is every theme today.
+  final String? accentId;
+
+  /// The [ThemeLayoutPreset] id this user picked, per theme.
+  ///
+  /// Null means the distro's own layout, which is every theme today.
+  ///
+  /// ─── SWITCHING ONE CLEARS THE OVERRIDES IT OWNS ─────────────────────────
+  ///
+  /// Not enforced here, because this is storage. It is enforced at the one
+  /// place a preset is chosen, and the reason is that `LayoutResolver` reads
+  /// `prefs.X ?? layout.X` for the dock, the bar, the grid and the panel: a
+  /// user who has ever moved any of those would pick a new preset and watch
+  /// nothing happen, because their old override still wins over the new
+  /// layout. Clearing is the only option that keeps the picker honest without
+  /// scoping every layout pref per preset, which would multiply the stored
+  /// surface by the number of presets for a feature nobody has used yet.
+  final String? layoutPreset;
 
   /// Which coordinate system [desklets] are stored in.
   ///
@@ -842,6 +910,8 @@ class LauncherPrefs {
     int? drawerSlotRows,
     int? drawerPageCount,
     String? themeMode,
+    String? accentId,
+    String? layoutPreset,
     int? deskletGridVersion,
     String? topBarSide,
     bool? topBarStats,
@@ -913,6 +983,8 @@ class LauncherPrefs {
       drawerSlotRows: drawerSlotRows ?? this.drawerSlotRows,
       drawerPageCount: drawerPageCount ?? this.drawerPageCount,
       themeMode: themeMode ?? this.themeMode,
+      accentId: accentId ?? this.accentId,
+      layoutPreset: layoutPreset ?? this.layoutPreset,
       deskletGridVersion: deskletGridVersion ?? this.deskletGridVersion,
       topBarSide: topBarSide ?? this.topBarSide,
       topBarStats: topBarStats ?? this.topBarStats,
@@ -988,6 +1060,8 @@ class LauncherPrefs {
     bool drawerSortMode = false,
     bool drawerPageCount = false,
     bool themeMode = false,
+    bool accentId = false,
+    bool layoutPreset = false,
     bool deskletGridVersion = false,
     bool topBarSide = false,
     bool topBarStats = false,
@@ -1065,6 +1139,8 @@ class LauncherPrefs {
       // drawer to exactly as many pages as it needs.
       drawerPageCount: drawerPageCount ? null : this.drawerPageCount,
       themeMode: themeMode ? null : this.themeMode,
+      accentId: accentId ? null : this.accentId,
+      layoutPreset: layoutPreset ? null : this.layoutPreset,
       deskletGridVersion:
           deskletGridVersion ? null : this.deskletGridVersion,
       topBarSide: topBarSide ? null : this.topBarSide,
@@ -1165,6 +1241,8 @@ class LauncherPrefs {
         if (drawerSlotRows != null) 'drawerSlotRows': drawerSlotRows,
         if (drawerPageCount != null) 'drawerPageCount': drawerPageCount,
         if (themeMode != null) 'themeMode': themeMode,
+        if (accentId != null) 'accentId': accentId,
+        if (layoutPreset != null) 'layoutPreset': layoutPreset,
         if (deskletGridVersion != null)
           'deskletGridVersion': deskletGridVersion,
         if (topBarSide != null) 'topBarSide': topBarSide,
@@ -1261,6 +1339,8 @@ class LauncherPrefs {
       drawerSlotRows: (j['drawerSlotRows'] as num?)?.toInt(),
       drawerPageCount: (j['drawerPageCount'] as num?)?.toInt(),
       themeMode: j['themeMode'] as String?,
+      accentId: j['accentId'] as String?,
+      layoutPreset: j['layoutPreset'] as String?,
       deskletGridVersion: (j['deskletGridVersion'] as num?)?.toInt(),
       topBarSide: j['topBarSide'] as String?,
       topBarStats: j['topBarStats'] as bool?,
@@ -1389,6 +1469,8 @@ class LauncherPrefs {
         other.drawerSlotRows == drawerSlotRows &&
         other.drawerPageCount == drawerPageCount &&
         other.themeMode == themeMode &&
+        other.accentId == accentId &&
+        other.layoutPreset == layoutPreset &&
         other.deskletGridVersion == deskletGridVersion &&
         other.topBarSide == topBarSide &&
         other.topBarStats == topBarStats &&
@@ -1484,6 +1566,8 @@ class LauncherPrefs {
         drawerSlotRows,
         drawerPageCount,
         themeMode,
+        accentId,
+        layoutPreset,
         deskletGridVersion,
         topBarSide,
         topBarStats,
@@ -1641,20 +1725,56 @@ class AppFolder {
     required this.id,
     required this.name,
     this.members = const [],
+    this.glyph,
   });
 
   final String id;
   final String name;
   final List<String> members; // componentKeys
 
-  AppFolder copyWith({String? name, List<String>? members}) => AppFolder(
+  /// This folder's icon, as a catalogue id (see `folder_glyphs.dart`).
+  ///
+  /// ─── WHY AN ID AND NOT AN ASSET PATH OR A CODE POINT ────────────────────
+  ///
+  /// A path ties stored prefs to a file that a later build may rename or drop,
+  /// and a raw Material code point ties them to Flutter's icon font, which is
+  /// tree-shaken: a code point that no widget names literally is removed from
+  /// the shipped font, so a folder restored from a backup would draw a blank
+  /// square. An id resolves through a const map that the tree-shaker can see,
+  /// which is the only spelling where a stored value is guaranteed to still
+  /// render two releases later.
+  ///
+  /// Null means no choice has been made, and the drawing site falls back. It
+  /// is APPENDED to this class rather than inserted, so an older build reading
+  /// a newer prefs blob simply drops the key.
+  final String? glyph;
+
+  /// [glyph] takes a WRAPPED value, unlike the two above it.
+  ///
+  /// Every other field here uses `x ?? this.x`, which cannot express "clear
+  /// it": passing null means inherit. Clearing a glyph back to the fallback is
+  /// a thing the picker has to be able to do, so this one is a one-element
+  /// list where absent means inherit and `[null]` means clear.
+  AppFolder copyWith({
+    String? name,
+    List<String>? members,
+    List<String?>? glyph,
+  }) =>
+      AppFolder(
         id: id,
         name: name ?? this.name,
         members: members ?? this.members,
+        glyph: glyph == null ? this.glyph : glyph.first,
       );
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'members': members};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'members': members,
+        // Omitted when absent, so a folder that has never been given an icon
+        // serialises byte for byte the way it did before this field existed.
+        if (glyph != null) 'glyph': glyph,
+      };
 
   static AppFolder fromJson(Map<String, dynamic> j) => AppFolder(
         id: j['id'] as String,
@@ -1662,6 +1782,9 @@ class AppFolder {
         members: ((j['members'] as List?) ?? const [])
             .map((e) => e as String)
             .toList(),
+        glyph: (j['glyph'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : (j['glyph'] as String).trim(),
       );
 
   @override
@@ -1670,11 +1793,16 @@ class AppFolder {
       other is AppFolder &&
           other.id == id &&
           other.name == name &&
+          other.glyph == glyph &&
           const ListEquality<String>().equals(other.members, members);
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, const ListEquality<String>().hash(members));
+  int get hashCode => Object.hash(
+        id,
+        name,
+        glyph,
+        const ListEquality<String>().hash(members),
+      );
 }
 
 /// One desklet placed on the desktop.

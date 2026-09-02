@@ -313,6 +313,22 @@ class LauncherHostApiImpl(
         }
     }
 
+    override fun previewGeneratedIcons(
+        componentKeys: List<String>,
+        sizePx: Long,
+        callback: (Result<List<ByteArray?>>) -> Unit,
+    ) {
+        // Same cap and the same reason as [previewIcons]: the caller asks for
+        // eight, and a malformed request for all 249 would render 249 bitmaps
+        // off-cache on one thread while the user waits. The cap is on this side
+        // because this is the side that pays for it.
+        val keys = componentKeys.take(MAX_PREVIEW)
+
+        iconCache.previewGenerated(keys, sizePx.toInt()) { bytes ->
+            main.post { callback(Result.success(bytes)) }
+        }
+    }
+
     override fun clearIconCache(callback: (Result<Unit>) -> Unit) {
         iconCache.clear()
         callback(Result.success(Unit))
@@ -407,6 +423,57 @@ class LauncherHostApiImpl(
             false
         }
     }
+
+    // ---- about -----------------------------------------------------------
+
+    /**
+     * This process's own PackageInfo, read once and kept.
+     *
+     * AN APP CANNOT CHANGE ITS OWN VERSION WHILE RUNNING. An update through Play
+     * kills the process, which is precisely what `completeFlexibleUpdate` on the
+     * Dart side does, so the answer here is fixed for the life of this object. A
+     * binder call per read would be paying repeatedly for a fact that cannot
+     * change.
+     *
+     * `appContext`, not the constructor's `context`, which is a plain parameter
+     * rather than a property and is not in scope down here. Every other member
+     * on this class uses `appContext` for the same reason.
+     */
+    private val ownPackage by lazy {
+        appContext.packageManager.getPackageInfo(appContext.packageName, 0)
+    }
+
+    /**
+     * NOT ON [io], unlike everything in the section above.
+     *
+     * `getPackageInfo` against the caller's own package is served from an
+     * in-process cache rather than crossing into the package manager cold, which
+     * puts it in the same class as `isDefaultLauncher` a few lines up. Both
+     * Pigeon methods are declared synchronous to match; see the note on `@async`
+     * at the top of `LauncherHostApi` in the schema.
+     */
+    override fun getVersionName(): String = ownPackage.versionName ?: ""
+
+    /**
+     * `longVersionCode` is API 28.
+     *
+     * Branched on SDK_INT rather than routed through `PackageInfoCompat`,
+     * because [Build] is already imported and already used exactly this way for
+     * the API 31 widget fields below. One more androidx dependency for one
+     * accessor is not worth the surface.
+     *
+     * The deprecated `versionCode` is Int and the modern one is Long, so the
+     * pre-28 arm widens. Read by `update_repository.dart` to compare against a
+     * persisted `availableVersionCode`, which is what stops a stale record
+     * outliving the update it describes.
+     */
+    @Suppress("DEPRECATION")
+    override fun getVersionCode(): Long =
+        if (Build.VERSION.SDK_INT >= 28) {
+            ownPackage.longVersionCode
+        } else {
+            ownPackage.versionCode.toLong()
+        }
 
     // ---- voice -----------------------------------------------------------
 

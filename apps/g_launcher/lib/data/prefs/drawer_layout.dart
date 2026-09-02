@@ -380,6 +380,37 @@ class DrawerLayout {
     );
   }
 
+  /// Give [folderId] an icon, or clear it back to the fallback with a null
+  /// [glyph].
+  ///
+  /// ─── WHY THIS ACCEPTS NULL WHERE [rename] REFUSES AN EMPTY NAME ──────────
+  ///
+  /// A blank name is never what anyone meant: the folder would have no label on
+  /// any surface that draws one, so refusing it is the only honest answer. A
+  /// blank glyph is different. "Use the default" is a choice the picker has to
+  /// offer, and the only way to express it is to store nothing, so null is
+  /// accepted and written rather than treated as a refusal.
+  ///
+  /// A folder id that names nothing returns [p] unchanged, which is what every
+  /// mutation here does and what makes calling this against a generated `cat:`
+  /// id a no-op instead of a crash. Call [DrawerFolderStore.editable] first and
+  /// write against the id it returns.
+  static LauncherPrefs setGlyph(
+    LauncherPrefs p,
+    String folderId,
+    String? glyph,
+  ) {
+    final trimmed = glyph?.trim();
+    final next = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+
+    return p.copyWith(
+      drawerFolders: [
+        for (final x in p.drawerFolders)
+          if (x.id == folderId) x.copyWith(glyph: [next]) else x,
+      ],
+    );
+  }
+
   /// Folders in display order.
   ///
   /// Alphabetical until the user drags one, then their arrangement wins. Sorting

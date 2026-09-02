@@ -29,17 +29,46 @@ class StarterDesktop {
 
   /// Returns [prefs] unchanged when there is nothing to do, so a caller can
   /// compare identity and skip the write entirely.
+  ///
+  /// [skip] names kinds this starter must NOT place, and it exists for two
+  /// reasons that arrive from opposite directions.
+  ///
+  /// ─── THE USER WAS ASKED, SO THE USER WINS ────────────────────────────────
+  ///
+  /// Setup's widgets step asks which desklets you want and writes the answer as
+  /// it advances. This runs afterwards, at the end of the wizard, and it has no
+  /// idea that happened: unticking the conky removed it, and then the authored
+  /// starter put it straight back. The step's own comment claimed to overrule
+  /// the starter, and the ordering quietly defeated it, so the whole step was
+  /// decoration for any kind the distro also ships.
+  ///
+  /// Scoped to what was ASKED rather than to what was chosen, so a starter
+  /// placement the step never mentioned is still honoured. This owns the
+  /// question it was asked and nothing more.
+  ///
+  /// ─── AND A PANE-ONLY KIND ON A GRID IS WORSE THAN NOTHING ────────────────
+  ///
+  /// `DeskletLayout.renderable` drops [DeskletKind.paneOnly] kinds from a
+  /// graphical surface, and `DeskletLayout.fits` does not: it walks every
+  /// stored desklet. So KDE's authored `df` at (0,2) occupied a four-wide band
+  /// that never drew and that nothing else could ever be placed in. Invisible
+  /// and load-bearing, which is the worst pair.
+  ///
+  /// Filtered by the CALLER rather than tested here, because this class is pure
+  /// and knows nothing about shells. See `setup_screen._seedFirstDesktop`.
   static LauncherPrefs apply(
     LauncherPrefs prefs,
     DeskletThemeBlock block, {
     required int cols,
     required int rows,
     required String Function() newId,
+    Set<String> skip = const {},
   }) {
     if (block.starter.isEmpty) return prefs;
 
     var out = prefs;
     for (final s in block.starter) {
+      if (skip.contains(s.kind)) continue;
       out = (s.col != null && s.row != null)
           ? DeskletLayout.placeAt(
               out,

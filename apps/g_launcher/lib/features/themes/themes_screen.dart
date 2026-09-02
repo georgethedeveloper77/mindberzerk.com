@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../data/prefs/prefs_repository.dart';
+import '../../data/billing/entitlements.dart';
+import '../../data/cdn/pack_auto_update.dart';
+import '../../data/cdn/pack_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/tokens/typography.dart';
-import '../../engine/effective_theme.dart';
-import '../../data/billing/entitlements.dart';
-import '../../data/billing/pending_apply.dart';
-import '../../data/cdn/pack_auto_update.dart';
-import '../../data/cdn/pack_repository.dart';
+import 'store_preview.dart';
+import 'theme_actions.dart';
 import 'theme_catalog.dart';
 import 'theme_detail_screen.dart';
 
@@ -92,8 +91,20 @@ class ThemesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeSpec = ref.watch(effectiveThemeProvider).asData?.value.spec;
-    final cards = ref.watch(themeCatalogProvider).asData?.value ?? const <ThemeCard>[];
+    // ─── .value, NOT asData, AND THAT IS THE FLICKER FIX ─────────────────
+    //
+    // `asData` is null for `AsyncLoading`, and Riverpod produces exactly that
+    // state on every refresh, carrying the previous value with it, which
+    // `asData` then discards. `AsyncValue.value` is nullable in Riverpod 3 and
+    // returns that retained value; `valueOrNull` was the 2.x name and is gone. `PackActions.install` invalidates the catalogue
+    // after each pack, so opening the store with a dozen stale packs rendered
+    // an EMPTY grid a dozen times: the cards vanished and came back, over and
+    // over, which is the flashing in the review.
+    //
+    // So a reload is invisible and the grid only changes when its contents
+    // genuinely do.
+    final cards =
+        ref.watch(themeCatalogProvider).value ?? const <ThemeCard>[];
     final more = ref.watch(themeMoreProvider);
     final progress = ref.watch(packProgressProvider);
 
@@ -116,139 +127,10 @@ class ThemesScreen extends ConsumerWidget {
         if (tab.matches(c)) c,
     ];
 
-    final activeId = activeSpec?.id;
-    // If nothing string-matches the loaded spec, the bundled card (Ubuntu) is
-    // the active one — the ring never simply fails to appear over an id typo.
-    final anyMatch = cards.any((c) => c.specId == activeId);
-    bool isActive(ThemeCard c) =>
-        (c.specId != null && c.specId == activeId) || (!anyMatch && c.bundled);
-
-    Future<void> apply(ThemeCard c) async {
-      await ref.read(selectedThemeIdProvider.notifier).select(c.specId!);
-      if (context.mounted) context.showMessage('${c.name} applied');
-    }
-
-    /// Download, then report per STATUS, never per detail string.
-    ///
-    /// Each branch says something different because each needs a different
-    /// action from the user. Folding them into one "Download failed" is the
-    /// message that tells nobody anything, and it is the reason `PackResult`
-    /// carries a status at all.
-    Future<void> download(ThemeCard c, {required bool thenApply}) async {
-      final result = await ref.read(packActionsProvider).install(c.packIdOrSpec);
-      if (!context.mounted) return;
-
-      switch (result.status) {
-        case 'installed':
-          if (thenApply && c.specId != null) {
-            await apply(c);
-          } else {
-            context.showMessage('${c.name} updated');
-          }
-        case 'upToDate':
-          // The common case on a re-tap. Deliberately silent: telling someone
-          // nothing happened is noise.
-          break;
-        case 'notEntitled':
-          context.showMessage('${c.name} needs to be purchased first');
-        case 'appTooOld':
-          context.showMessage('${c.name} needs a newer version of G Launcher');
-        case 'noSpace':
-          context.showMessage('Not enough free space for ${c.name}');
-        case 'cancelled':
-          break;
-        case 'rejected':
-          // A signature or hash check failed. NOT retryable, and worth saying
-          // plainly rather than dressing up as a network blip — retrying a bad
-          // signature produces the same answer and burns someone's data.
-          context.showMessage('${c.name} failed verification and was discarded');
-        default:
-          context.showMessage('Could not download ${c.name}, try again');
-      }
-    }
-
-    Future<void> tapCard(ThemeCard c) async {
-      if (isActive(c)) {
-        // The one useful thing a tap on the ACTIVE card can still do: pull the
-        // newer copy the catalogue is advertising. The early return used to
-        // swallow exactly this case, so the distro someone actually runs was
-        // the only one they could not update from this screen. `thenApply` is
-        // false because it is already applied; the engine resolves installed
-        // over bundled, so the repaint happens the moment the install lands.
-        if (c.status == CardStatus.updateAvailable ||
-            c.status == CardStatus.available) {
-          await download(c, thenApply: false);
-          return;
-        }
-        context.showMessage('${c.name} is your current distro');
-        return;
-      }
-
-      switch (c.status) {
-        // On the device already: apply it. Bundled themes live in the APK, so
-        // the selection flips, activeThemeSpecProvider re-resolves, and the
-        // desktop repaints with no network involved.
-        case CardStatus.bundled:
-        case CardStatus.installed:
-          if (c.specId != null) await apply(c);
-
-        // On the device but stale. Apply FIRST, update after: the user asked to
-        // see this theme, and making them wait on a download to see something
-        // they already have is the wrong trade.
-        case CardStatus.updateAvailable:
-          if (c.specId != null) await apply(c);
-          await download(c, thenApply: false);
-
-        case CardStatus.available:
-          await download(c, thenApply: true);
-
-        case CardStatus.locked:
-          // Play's own sheet. The download is NOT started here: the purchase
-          // stream fires asynchronously, possibly minutes later for the cash
-          // and carrier-billing methods this market actually uses, and
-          // packBridgeProvider is listening for exactly that. Kicking off a
-          // download on the return of buy() would race the entitlement push and
-          // usually lose.
-          // ── RECORD THE INTENT BEFORE OPENING PLAY ──────────────────
-          //
-          // A tap on a locked card is "I want to wear this", not "I would like
-          // to own this". The download happens either way once the entitlement
-          // lands; this is what tells the app to APPLY the distro too, and only
-          // for a purchase that started with a deliberate tap.
-          //
-          // Set BEFORE `buy()` rather than after, because a purchase can
-          // complete before that await returns on a fast payment method, and an
-          // intent recorded afterwards would arrive too late to be read.
-          //
-          // ON DISK, not in memory: the install now runs in a worker that
-          // outlives this process, so an intent that does not is an intent that
-          // is missing exactly when the download took the scenic route. See
-          // [PendingApply] for the expiry that keeps that honest.
-          final store = ref.read(prefsStoreProvider);
-          await PendingApply.set(store, c.sku!);
-
-          final started = await ref.read(buyProvider)(c.sku!);
-          if (!started) {
-            // OUTSIDE the mounted check, deliberately. Play never opened, so
-            // nothing will ever consume the intent, and one left on disk would
-            // apply this distro at the next launch inside the window. Tying
-            // that cleanup to whether this screen is still mounted would leave
-            // it armed in exactly the case where the user navigated away.
-            await PendingApply.clear(store);
-          }
-          if (!started && context.mounted) {
-            // Either Play is unreachable (de-Googled ROM, no Play Services) or
-            // the product does not exist in the console. Both render as a card
-            // with no price, so say something honest rather than nothing.
-            context.showMessage('${c.name} is not available to buy right now');
-          }
-
-        case CardStatus.requiresAppUpdate:
-          context.showMessage(
-            '${c.name} needs a newer version of G Launcher',
-          );
-      }
-    }
+    // Active is decided in `theme_actions.dart` now, because the detail page
+    // has to ask the same question and two copies of an id-fallback rule is one
+    // copy too many.
+    bool isActive(ThemeCard c) => themeCardIsActive(ref, c);
 
     /// What a tap on the card BODY does.
     ///
@@ -268,9 +150,6 @@ class ThemesScreen extends ConsumerWidget {
     /// one line and there is no action behind it, so a page whose only button
     /// is disabled would be a longer way to say the same thing.
     ///
-    /// DECLARED AFTER `tapCard` because it calls it. A local function cannot be
-    /// referenced above its own declaration in the same block.
-    ///
     /// A consequence worth knowing while testing: on a device where every
     /// distro is already installed, nothing routes to the detail page at all.
     void onCardTap(ThemeCard c) {
@@ -279,26 +158,22 @@ class ThemesScreen extends ConsumerWidget {
               c.status == CardStatus.available);
 
       if (!opensDetail) {
-        // Deliberately not awaited: this is a tap handler, and `tapCard`
+        // Deliberately not awaited: this is a tap handler, and the action
         // already reports everything it does.
-        unawaited(tapCard(c));
+        unawaited(runThemeCardAction(context, ref, c));
         return;
       }
 
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => ThemeDetailScreen(
-            // packIdOrSpec, never `id`: they differ on the bundled distros and
-            // the pack pipeline knows only the second.
-            packId: c.packIdOrSpec,
-            // THE ACTION STAYS HERE. `tapCard` records a purchase intent before
-            // Play opens, branches on six install statuses and reports each one
-            // differently. A second copy of that on the detail page would be a
-            // second thing to keep correct, and the one that drifts is always
-            // the copy. The page pops itself before calling this, so the
-            // messages land on a screen the user can see.
-            onAction: tapCard,
-          ),
+          // packIdOrSpec, never `id`: they differ on the bundled distros and
+          // the pack pipeline knows only the second.
+          //
+          // NO `onAction` ANY MORE. The page used to take the flow as a
+          // callback and pop itself before running it, so Play's sheet opened
+          // over this list instead of over the page the user was reading. It
+          // now calls `runThemeCardAction` with its OWN context and stays put.
+          builder: (_) => ThemeDetailScreen(packId: c.packIdOrSpec),
         ),
       );
     }
@@ -330,77 +205,106 @@ class ThemesScreen extends ConsumerWidget {
               ref.read(packActionsProvider),
               ref.read(packAutoUpdaterProvider),
             ),
-        child: ListView(
-        padding: EdgeInsets.only(
-          top: MediaQuery.viewPaddingOf(context).top,
-          bottom: 28,
-        ),
-        children: [
-          // ── Header ──────────────────────────────────────────────────────
-          const _Header(),
+        // ─── SLIVERS, AND IT WAS A ListView OF A Column ────────────────────
+        //
+        // A Column builds every child the moment it is laid out. So all thirty
+        // cards mounted on open, all thirty `_CardPreview`s watched their
+        // provider in the same frame, and thirty peeks went onto native's
+        // single-threaded executor at once. The card at the bottom of the list
+        // waited behind twenty-nine manifest fetches for a picture nobody had
+        // scrolled to, on a connection somebody is paying for by the megabyte.
+        //
+        // The ListView around it did not help: `ListView(children: [...])` is
+        // `SliverChildListDelegate`, which also builds everything. Laziness
+        // needs a BUILDER, and a builder needs the cards to be their own sliver
+        // rather than one widget in a list.
+        //
+        // ─── AND THIS IS WHY THERE IS NO RASTER CACHE ──────────────────────
+        //
+        // The plan said cache each card's picture, keyed on packId, version and
+        // wallpaper. That was aimed at the wrong cost. Painting a DevicePreview
+        // is a handful of DecoratedBoxes; the expensive part was thirty network
+        // round trips, and lazily building means about five previews exist at
+        // any moment. A cache would add a keying rule to keep correct across
+        // republishes for a saving that no longer exists.
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.viewPaddingOf(context).top,
+              ),
+              sliver: const SliverToBoxAdapter(child: _Header()),
+            ),
+            SliverToBoxAdapter(child: _Tabs(cards: cards)),
 
-          // ── Grid ────────────────────────────────────────────────────────
-          _Tabs(cards: cards),
-
-          // A filter can legitimately be empty: Paid before any paid distro is
-          // published, for one. Says so rather than showing a blank page, which
-          // is indistinguishable from a catalogue that failed to load.
-          if (shown.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 28, 16, 28),
-              child: Text(
-                // Literal, like every other string on this screen. Three
-                // `context.t` keys here would be the only localised text in the
-                // file and would need keys that do not exist yet; the screen
-                // localises as a unit or not at all.
-                switch (tab) {
-                  ThemeTab.installed => 'Nothing installed yet.',
-                  ThemeTab.paid => 'No paid distros yet.',
-                  ThemeTab.all => 'No distros to show.',
-                },
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: ChromeScope.of(context).colors.textMuted,
-                  fontSize: 12.5,
+            // A filter can legitimately be empty: Paid before any paid distro
+            // is published, for one. Says so rather than showing a blank page,
+            // which is indistinguishable from a catalogue that failed to load.
+            if (shown.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 28, 16, 28),
+                  child: Text(
+                    // Literal, like every other string on this screen. Three
+                    // `context.t` keys here would be the only localised text in
+                    // the file and would need keys that do not exist yet; the
+                    // screen localises as a unit or not at all.
+                    switch (tab) {
+                      ThemeTab.installed => 'Nothing installed yet.',
+                      ThemeTab.paid => 'No paid distros yet.',
+                      ThemeTab.all => 'No distros to show.',
+                    },
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: ChromeScope.of(context).colors.textMuted,
+                      fontSize: 12.5,
+                    ),
+                  ),
                 ),
               ),
-            ),
 
-          // ─── ONE COLUMN, AND SIZED BY ITS CONTENT ─────────────────────
-          //
-          // This was a two-up grid of 150dp cells, which gives a preview about
-          // 100dp tall and 150 wide. At that size a mini desktop can show a
-          // colour and very little else, so every CDN distro read as a coloured
-          // rectangle with a price beside it, and the distro being charged for
-          // was the emptiest thing on the screen.
-          //
-          // A full-width card gives the preview 152dp of height and the whole
-          // width, which is enough to draw a panel, a dock, windows and icons:
-          // the distro's signature rather than its palette. It also leaves room
-          // under the meta row for what the card is actually for, which is
-          // saying what this distro DOES.
-          //
-          // ─── AND WHY IT IS NOT A GridView ANY MORE ────────────────────────
-          //
-          // It was, with a fixed `mainAxisExtent`, on the reasoning that cards
-          // of differing heights make a list that jumps about as the catalogue
-          // loads. That reasoning was wrong the moment feature rows existed:
-          // the three bundled distros carry two rows and a CDN pack carries
-          // none, so the cards ALWAYS differ. Fixing the height did not make
-          // them uniform, it just forced variable text into a constant box, and
-          // it overflowed by 3dp at the default font size. At a system text
-          // scale of 1.3 it would have overflowed by thirty.
-          //
-          // A Column of self-sizing cards has no such cliff. The preview stays
-          // fixed at 152 so every card shows the same size picture; everything
-          // below it takes the height its text actually needs.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                for (var i = 0; i < shown.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 12),
-                  _ThemeCard(
+            // ─── ONE COLUMN, AND SIZED BY ITS CONTENT ─────────────────────
+            //
+            // This was a two-up grid of 150dp cells, which gives a preview
+            // about 100dp tall and 150 wide. At that size a mini desktop can
+            // show a colour and very little else, so every CDN distro read as a
+            // coloured rectangle with a price beside it, and the distro being
+            // charged for was the emptiest thing on the screen.
+            //
+            // A full-width card gives the preview 152dp of height and the whole
+            // width, which is enough to draw a panel, a dock, windows and
+            // icons: the distro's signature rather than its palette. It also
+            // leaves room under the meta row for what the card is actually for,
+            // which is saying what this distro DOES.
+            //
+            // ─── AND WHY IT IS NOT A GridView, AND NO LONGER A Column ──────
+            //
+            // It was a GridView with a fixed `mainAxisExtent`, on the reasoning
+            // that cards of differing heights make a list that jumps about as
+            // the catalogue loads. That reasoning was wrong the moment feature
+            // rows existed: the three bundled distros carry two rows and a CDN
+            // pack carries none, so the cards ALWAYS differ. Fixing the height
+            // did not make them uniform, it forced variable text into a
+            // constant box, and it overflowed by 3dp at the default font size.
+            // At a system text scale of 1.3 it would have overflowed by thirty.
+            //
+            // A self-sizing card has no such cliff. The preview stays fixed at
+            // 152 so every card shows the same size picture; everything below
+            // takes the height its text actually needs.
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.builder(
+                itemCount: shown.length,
+                // KEYED ON THE PACK, so the sliver's recycling cannot hand a
+                // card's element to a different distro as the list is filtered.
+                // Without it, switching tabs would reuse the element that
+                // already holds a peek subscription for another pack, and the
+                // picture would belong to whichever card previously sat in that
+                // slot.
+                itemBuilder: (context, i) => Padding(
+                  key: ValueKey(shown[i].packIdOrSpec),
+                  padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+                  child: _ThemeCard(
                     card: shown[i],
                     active: isActive(shown[i]),
                     // null when nothing is in flight for this pack, which is
@@ -409,41 +313,44 @@ class ThemesScreen extends ConsumerWidget {
                     progress: progress[shown[i].packIdOrSpec],
                     onTap: () => onCardTap(shown[i]),
                   ),
-                ],
-              ],
-            ),
-          ),
-
-          // ── More ────────────────────────────────────────────────────────
-          //
-          // RENDERS NOTHING WHEN EMPTY, header included. `themeMoreProvider`
-          // returns no entries now that the storefront shows only what is
-          // actually available, and a lone "More themes" heading over blank
-          // space reads as a list that failed to load. The grid above already
-          // carries every theme the signed index advertises, so an empty
-          // section here is the correct and complete state, not a gap.
-          if (more.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _MoreHeader(),
-                  for (final m in more)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
-                      child: _MoreRow(
-                        entry: m,
-                        onGet: () => context.showMessage(
-                          m.pro
-                              ? '${m.name} is a paid distro, coming soon'
-                              : '${m.name} ships in an update, coming soon',
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
+
+            // ── More ──────────────────────────────────────────────────────
+            //
+            // RENDERS NOTHING WHEN EMPTY, header included. `themeMoreProvider`
+            // returns no entries now that the storefront shows only what is
+            // actually available, and a lone "More themes" heading over blank
+            // space reads as a list that failed to load. The grid above already
+            // carries every theme the signed index advertises, so an empty
+            // section here is the correct and complete state, not a gap.
+            if (more.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _MoreHeader(),
+                      for (final m in more)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 9),
+                          child: _MoreRow(
+                            entry: m,
+                            onGet: () => context.showMessage(
+                              m.pro
+                                  ? '${m.name} is a paid distro, coming soon'
+                                  : '${m.name} ships in an update, coming soon',
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
           ],
         ),
       ),
@@ -590,17 +497,38 @@ class _ThemeCard extends StatelessWidget {
           // the card stretches to whatever the page can give it.
           mainAxisSize: MainAxisSize.min,
           children: [
-            // FIXED, not Expanded. The card's height is fixed by the grid, so
-            // an Expanded preview would eat whatever the feature rows did not
-            // use and a distro with no features would get a taller picture than
-            // one with two. Same picture on every card, regardless of how much
-            // it has to say.
+            // FIXED, not Expanded. Nothing above fixes this card's height any
+            // more, so an Expanded preview would eat whatever the feature rows
+            // did not use and a distro with no features would get a taller
+            // picture than one with two. Same picture on every card, regardless
+            // of how much it has to say, which also means the panes are the
+            // same size on every card and the row of them reads as a row.
             SizedBox(
-              height: 152,
+              // ── 176, AND IT WAS 152 ──────────────────────────────────
+              //
+              // The band no longer holds one picture stretched across it, it
+              // holds three phone-shaped panes, and a pane's width is its
+              // height times this device's aspect. `PreviewStrip` gives three
+              // panes 0.86 of the band, so on an S22 this is 151 tall and 70
+              // wide; at the old 152 it was 60, which is under the width the
+              // dock and the panel need before their own clamps take over.
+              //
+              // Three panes plus two 10dp gaps come to 230dp of the 328 a card
+              // has on a 360dp phone, so the band is HEIGHT limited and this
+              // is the one number to raise if the panes read small. 200 gives
+              // 79dp panes and still fits the width. `PreviewStrip` fits on
+              // both axes regardless, so a narrower screen shrinks the panes
+              // rather than overflowing.
+              height: 176,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ThemePreview(card.preview),
+                  // ─── THE REAL DISTRO, WITH THE OLD PICTURE AS THE FLOOR ──
+                  //
+                  // See [_CardPreview]. `ThemePreview` is not deleted and must
+                  // not be: it is what renders offline, before the peek lands,
+                  // and whenever the peek fails.
+                  _CardPreview(card: card),
                   // Over the preview, not under the title: the preview is the
                   // part of the card the eye is already on, and a bar tucked
                   // into the meta row competes with the tag for two-thirds of
@@ -827,6 +755,47 @@ class _ThemeCard extends StatelessWidget {
       ),
     ];
   }
+}
+
+/// The card's picture: the distro, rendered from its own theme.json.
+///
+/// ─── THREE PANES, AND THE CALL SITE DID NOT HAVE TO CHANGE ──────────────────
+///
+/// [StorePreview] defaults to [kStoreCardModes], so a card gets desktop, drawer
+/// and folder without saying so, and the detail hero is the one that overrides
+/// it with the single mode its strip has selected. The default belongs to the
+/// card because the card is the thing that cannot ask.
+///
+/// ─── IT FALLS BACK, AND THE FALLBACK IS THE POINT ───────────────────────────
+///
+/// [StorePreview] answers with the peeked distro when it has one and with
+/// whatever is passed as the fallback when it does not, which happens on every
+/// cold open before the peek returns, offline, and whenever a signature fails.
+///
+/// The fallback is `ThemePreview` from the signed index's preview block, which
+/// is exactly what this card drew before any of this existed. That is why
+/// `ThemePreviewSpec` and its twelve-arm renderer stay: they are the offline
+/// floor, not legacy. A storefront rendering blank rectangles on a plane is a
+/// bug report.
+///
+/// ─── AND IT DOES NOT SPIN ───────────────────────────────────────────────────
+///
+/// No shimmer, no placeholder, no progress. A card showing a loading state and
+/// then a picture would flash on every open for a change the user did not ask
+/// for, and this screen has just finished having its flicker removed. The index
+/// preview is a real picture; it is simply a less specific one, and replacing it
+/// when a better one arrives is invisible in the good case and harmless in the
+/// bad one.
+class _CardPreview extends StatelessWidget {
+  const _CardPreview({required this.card});
+
+  final ThemeCard card;
+
+  @override
+  Widget build(BuildContext context) => StorePreview(
+        card: card,
+        fallback: ThemePreview(card.preview),
+      );
 }
 
 /// The right-hand meta element: the active check, a price, or the DE tag.

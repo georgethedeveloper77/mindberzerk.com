@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,10 +22,14 @@ import '../data/repositories/app_repository.dart';
 import '../features/dock/dock_metrics.dart' show DockMetrics;
 import '../platform/launcher_api.g.dart' as api;
 import '../system/wallpaper_source.dart';
+// `DeskletKinds` for the pane-only test on the starter below. The layout import
+// above carries placements; this one carries the catalogue of what a placement
+// can be.
+import 'desklet_spec.dart';
 import 'font_catalogue.dart';
+import 'font_registry.dart';
 import 'layout_resolver.dart';
 import 'theme_engine.dart';
-import 'font_registry.dart';
 import 'theme_spec.dart';
 import 'wallpaper_framing.dart';
 
@@ -57,6 +62,7 @@ class EffectiveTheme {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
     required this.appDrawer,
@@ -141,6 +147,16 @@ class EffectiveTheme {
   final String drawerScrollStyle;
   final String drawerGrouping;
 
+  /// Where the drawer's search bar sits: 'top' | 'bottom' | 'off'. Resolved in
+  /// [LayoutResolver]: the user's choice, else the distro's authored default,
+  /// else the engine default.
+  ///
+  /// `AppDrawer` reads THIS and never `prefs.drawerSearchPosition`, which was
+  /// only ever half the answer and, until this field existed, all of it. A bar
+  /// defaulted to the bottom on a distro whose app list is a page laid itself
+  /// out under that distro's own dock. See [ThemeLayout.drawerSearchPosition].
+  final String drawerSearchPosition;
+
   /// What the Kickoff rail is made of: 'tabs' or 'categories'.
   ///
   /// ─── RESOLVED, AND CARRIED ACROSS FOR THE SAME REASON AS EVERY SCALAR ────
@@ -184,6 +200,24 @@ class EffectiveTheme {
   /// the two cannot drift.
   bool get libraryGrouped =>
       appDrawer == 'library' || drawerGrouping == 'library';
+
+  /// Does the search bar filter the grid in place, instead of pushing
+  /// `SearchPage` over it?
+  ///
+  /// ─── DERIVED, FOR THE REASON [libraryGrouped] IS ─────────────────────────
+  ///
+  /// It is not a taste. On a distro whose app list is a PAGE, the user arrived
+  /// by swiping and a pushed route means they leave by pressing back: two
+  /// navigation models on one surface, and the wallpaper and dock they swiped
+  /// past disappearing behind a screen that is not going anywhere. There is no
+  /// distro for which that is the right answer, so no theme.json field offers
+  /// it. `appsSurface` already carries the fact that decides it.
+  ///
+  /// It can become an authored field later without breaking anything, if an
+  /// overlay distro turns out to want it. Adding one now would mean a second
+  /// allow-list to keep in step with the parse, which is the trap that left six
+  /// drawers unreachable; see [ThemeLayout.appDrawer].
+  bool get drawerSearchInline => appsSurface == AppsSurface.workspace;
 
   /// How the desktop arranges its icons: 'grid' | 'tiled'. Read by `HomeGrid`
   /// and nothing else. See [ThemeLayout.homeLayout].
@@ -235,8 +269,20 @@ class EffectiveTheme {
   /// screen from a newer build, or hand-edited into a prefs file, cannot make
   /// the app unreadable. The slider's own bounds are a courtesy; this is the
   /// guarantee.
-  double get surfaceOpacity =>
-      (prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+  ///
+  /// ─── THE DISTRO SITS UNDER THE SLIDER, AND UNDER THE FLOOR ──────────────
+  ///
+  /// The fallback was a bare 1.0, so every distro in the catalogue shipped
+  /// fully opaque and nothing was translucent until somebody found the slider.
+  /// Garuda's whole identity is glass and it looked like every other dark
+  /// distro on first run, because of that constant.
+  ///
+  /// The AUTHORED value clamps to 0.35 rather than 0.6. See [ThemeSurfaces] for
+  /// why the two floors differ; briefly, the 0.6 rule assumes no blur, and a
+  /// pack author has seen their own result while a slider-dragger has not.
+  double get surfaceOpacity => prefs.surfaceOpacity != null
+      ? prefs.surfaceOpacity!.clamp(0.6, 1.0)
+      : (spec.surfaces?.opacity ?? 1.0).clamp(0.35, 1.0);
 
   /// The three surfaces that are PERMANENT chrome over the wallpaper, each
   /// resolved as: the section's own setting, else the main slider, else solid.
@@ -249,14 +295,17 @@ class EffectiveTheme {
   /// Same 0.6 floor and the same reason: below it a surface stops being
   /// readable over an arbitrary photograph, and clamping here means a value
   /// from a newer build or a hand-edited prefs file cannot get past it either.
-  double get dockOpacity =>
-      (prefs.dockOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+  double get dockOpacity => prefs.dockOpacity != null
+      ? prefs.dockOpacity!.clamp(0.6, 1.0)
+      : surfaceOpacity;
 
-  double get drawerOpacity =>
-      (prefs.drawerOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+  double get drawerOpacity => prefs.drawerOpacity != null
+      ? prefs.drawerOpacity!.clamp(0.6, 1.0)
+      : surfaceOpacity;
 
-  double get barOpacity =>
-      (prefs.barOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+  double get barOpacity => prefs.barOpacity != null
+      ? prefs.barOpacity!.clamp(0.6, 1.0)
+      : surfaceOpacity;
 
   // ── PANELS ───────────────────────────────────────────────────────────────
   //
@@ -271,19 +320,30 @@ class EffectiveTheme {
 
   /// Falls back to the main slider, so a panel stays in step with the page
   /// behind it until someone deliberately splits it out.
-  double get panelOpacity =>
-      (prefs.panelOpacity ?? prefs.surfaceOpacity ?? 1.0).clamp(0.6, 1.0);
+  /// ─── THROUGH [surfaceOpacity], NOT AROUND IT ───────────────────────────
+  ///
+  /// These four read the RESOLVED main value rather than `prefs.surfaceOpacity`
+  /// again. Reading the raw pref would skip the distro entirely, so a pack
+  /// authoring translucent glass would get it on sheets and nowhere else, which
+  /// is the exact shape of the bug the doc above already warns about one level
+  /// up.
+  double get panelOpacity => prefs.panelOpacity != null
+      ? prefs.panelOpacity!.clamp(0.6, 1.0)
+      : surfaceOpacity;
 
   /// 0 to 24. Zero is a real setting and switches the BackdropFilter off; see
   /// [LauncherPrefs.panelBlur] for why that is exposed at all.
-  double get panelBlur => (prefs.panelBlur ?? 18.0).clamp(0.0, 24.0);
+  double get panelBlur =>
+      (prefs.panelBlur ?? spec.surfaces?.blur ?? 18.0).clamp(0.0, 24.0);
 
   /// 0 is neutral grey, 1 is fully the distro's own colour.
-  double get panelTint => (prefs.panelTint ?? 0.72).clamp(0.0, 1.0);
+  double get panelTint =>
+      (prefs.panelTint ?? spec.surfaces?.tint ?? 0.72).clamp(0.0, 1.0);
 
   /// Logical pixels. Capped at 28 because past roughly that a sheet's top
   /// corners eat into the grab handle and the title beside it.
-  double get panelRadius => (prefs.panelRadius ?? 16.0).clamp(0.0, 28.0);
+  double get panelRadius =>
+      (prefs.panelRadius ?? spec.surfaces?.radius ?? 16.0).clamp(0.0, 28.0);
 
   /// The palette actually on screen.
   ///
@@ -292,8 +352,37 @@ class EffectiveTheme {
   /// no `paletteLight` block resolves [dark] to true, so this getter returns
   /// the same object it always did and nothing downstream can tell light mode
   /// exists.
-  ThemePalette get palette =>
-      dark ? spec.palette : (spec.paletteLight ?? spec.palette);
+  ThemePalette get palette {
+    final base = dark ? spec.palette : (spec.paletteLight ?? spec.palette);
+    final chosen = accent;
+    return chosen == null ? base : base.withAccent(chosen);
+  }
+
+  /// The accent the user picked, or null to leave the palette's own alone.
+  ///
+  /// ─── RESOLVED HERE, SO NO READ SITE HAS TO KNOW ─────────────────────────
+  ///
+  /// Roughly a hundred places read `theme.palette.accent`, and an accent
+  /// override that any of them could miss is an override that works on most
+  /// screens and not on the one the user is looking at. Folding it into
+  /// [palette] means there is nothing to miss: the getter every surface already
+  /// calls returns a palette that has the choice in it.
+  ///
+  /// ─── AND WHY AN UNKNOWN ID INHERITS RATHER THAN CLEARS ──────────────────
+  ///
+  /// `prefs.accentId` is per theme, but a pack UPDATE can retire an id, and a
+  /// user who chose `dragon` on a version that had it must not have their
+  /// stored choice rewritten by a version that does not. Returning null leaves
+  /// the distro's own accent on screen while the id sits untouched in prefs, so
+  /// reinstating the colour later reinstates their choice.
+  Color? get accent {
+    final id = prefs.accentId?.trim();
+    if (id == null || id.isEmpty) return null;
+    for (final a in spec.accents) {
+      if (a.id == id) return a.value;
+    }
+    return null;
+  }
 
   /// The families actually on screen: the distro's, unless the user said
   /// otherwise.
@@ -458,6 +547,7 @@ class EffectiveTheme {
       drawerCols: layout.drawerCols,
       drawerScrollStyle: layout.drawerScrollStyle,
       drawerGrouping: layout.drawerGrouping,
+      drawerSearchPosition: layout.drawerSearchPosition,
       kickoffRail: layout.kickoffRail,
       tilingLauncher: layout.tilingLauncher,
       appDrawer: layout.appDrawer,
@@ -495,7 +585,13 @@ class EffectiveTheme {
         // that string for free. Adding `prefs.iconPackId` to `iconCacheId` as
         // well would be harmless but redundant, and it would imply the two can
         // differ, which is exactly the confusion this comment exists to stop.
-        heroPack: prefs.iconPackId ?? themeIcons.heroPack,
+        // `kNoIconPack` is the user having said "no pack", which is a DIFFERENT
+        // answer from null. Null means "whatever this distro names" and always
+        // resolves to something; the sentinel is the only way to reach the
+        // generator deliberately. See [kNoIconPack].
+        heroPack: prefs.iconPackId == kNoIconPack
+            ? null
+            : prefs.iconPackId ?? themeIcons.heroPack,
         // Distro-authored, no user override. Someone who wants flat icons picks
         // a flat theme; a "disable gradients" toggle would fight the distro's
         // own look for no gain.
@@ -543,9 +639,18 @@ class EffectiveTheme {
         // generator catches whatever neither covers. That is the layering this
         // file already describes, and a single field with a tier tag would
         // make choosing one silently discard the other.
-        brandPack: prefs.iconBrandPackId ??
-            themeIcons.brandPack ??
-            defaultLinePackFor(spec.id),
+        // ─── AND THE ONE VALUE THAT ENDS THE CHAIN ────────────────────────
+        //
+        // Every arm below returns a name. `defaultLinePackFor` returns one for
+        // EVERY theme, including ones whose pack was never published, so this
+        // line could not produce null and the brand tier could not be turned
+        // off. The setup icon step needs exactly that: each app's own artwork
+        // with no pack over it. See [kNoIconPack].
+        brandPack: prefs.iconBrandPackId == kNoIconPack
+            ? null
+            : prefs.iconBrandPackId ??
+                themeIcons.brandPack ??
+                defaultLinePackFor(spec.id),
         brandTreatment: themeIcons.brandTreatment,
       ),
     );
@@ -651,6 +756,7 @@ class EffectiveTheme {
           other.drawerCols == drawerCols &&
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
+          other.drawerSearchPosition == drawerSearchPosition &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
           other.textScale == textScale &&
@@ -686,6 +792,7 @@ class EffectiveTheme {
         drawerCols,
         drawerScrollStyle,
         drawerGrouping,
+        drawerSearchPosition,
         iconSizeDp,
         labelLines,
         textScale,
@@ -765,8 +872,7 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   // the user's thumb rather than on next launch.
   final systemDark = ref.watch(systemDarkProvider);
 
-  final effective =
-      EffectiveTheme.resolve(spec, prefs, systemDark: systemDark);
+  final effective = EffectiveTheme.resolve(spec, prefs, systemDark: systemDark);
 
   final api_ = ref.read(launcherHostApiProvider);
 
@@ -986,9 +1092,31 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   }
 
   if (!prefs.deskletsInitialized) {
+    // ── A PANE-ONLY KIND ON A GRID IS INVISIBLE AND LOAD-BEARING ────────
+    //
+    // `DeskletLayout.renderable` drops [DeskletKind.paneOnly] kinds from a
+    // graphical surface, and `DeskletLayout.fits` does not: it walks every
+    // stored desklet regardless. KDE authors a `df` at (0,2) span 4x3 and its
+    // shell is `plasma`, so that placement has never drawn and has always
+    // occupied a block nothing else could be put into. Confirmed on device:
+    // the stored prefs carry it, the desktop does not show it.
+    //
+    // Skipped here rather than fixed in the theme, because this protects every
+    // CDN pack rather than the one that happens to be wrong today, and a distro
+    // is entitled to author one `desklets` block for a shell family without
+    // knowing which of its kinds a grid can draw.
+    //
+    // The terminal is exempt: `pane: true` is where these kinds are the whole
+    // point, and the tui shell's own starter relies on it.
+    final paneBlocked = {
+      for (final k in DeskletKinds.all)
+        if (k.paneOnly && spec.shell != ShellKind.tui) k.id,
+    };
+
     final seeded = StarterDesktop.apply(
       prefs,
       spec.desklets,
+      skip: paneBlocked,
       // The FINE grid: authored starter coordinates are in desklet cells, not
       // icon cells. A theme.json shipped before this change is one app version
       // old and its starter has not been applied on this device yet, so there
@@ -1043,7 +1171,10 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
     // once on the desktop.
     final dock = prefs.favourites.isNotEmpty
         ? prefs.favourites.toSet()
-        : keys.take(DockMetrics.defaultCount).map((a) => a.componentKey).toSet();
+        : keys
+            .take(DockMetrics.defaultCount)
+            .map((a) => a.componentKey)
+            .toSet();
 
     final seeded = StarterHome.apply(
       prefs,

@@ -12,6 +12,7 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../data/prefs/launcher_prefs.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../platform/pack_api.g.dart';
@@ -1102,9 +1103,31 @@ class _WearingCard extends ConsumerWidget {
                           // while it held a hand-authored hero pack name and
                           // became `elementary-os-8-line` the moment it
                           // resolved a brand pack.
+                          // ─── THREE STATES, NOT TWO ──────────────────
+                          //
+                          // `p == null` used to mean one thing: this distro
+                          // names a pack the catalogue does not carry, so the
+                          // generator runs. It now covers a second, opposite
+                          // case: the user DELIBERATELY turned the pack off, in
+                          // setup or here, so the pref holds `kNoIconPack`
+                          // and `appliedId` matches nothing.
+                          //
+                          // Read off the PREF rather than off `appliedId`,
+                          // which is a local in `_Screen.build` and not in
+                          // scope here. That is the better source anyway: the
+                          // pref is what was chosen, `appliedId` is what it
+                          // resolved to, and this line is about the choice.
+                          //
+                          // Both render generated icons, so the subtitle below
+                          // is right for both. The title is not: "Distro
+                          // default" over a deliberate choice tells the user
+                          // their setting did not take, which is the exact
+                          // report this whole area keeps producing.
                           p != null && p.title.isNotEmpty
                               ? p.title
-                              : 'Distro default',
+                              : theme.prefs.iconBrandPackId == kNoIconPack
+                                  ? 'App icons'
+                                  : 'Distro default',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: d.text.title,

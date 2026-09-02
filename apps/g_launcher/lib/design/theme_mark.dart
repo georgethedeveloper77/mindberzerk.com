@@ -81,6 +81,23 @@ class ThemeMark extends StatelessWidget {
     final a = asset;
     if (a == null) return fallback ?? const SizedBox.shrink();
 
+    // ─── THE SVG BRANCH HAD NO WAY TO FAIL SOFTLY ───────────────────────
+    //
+    // The raster branch below has an `errorBuilder`, so a missing `.webp`
+    // lands on the fallback. `SvgPicture` takes no such callback: a missing
+    // asset key logs once and paints nothing, with the fallback never
+    // considered. Ubuntu's theme.json named `logo_dark.svg` while the file on
+    // disk was `logo_dark.webp`, so the mark on the first screen of setup was
+    // not the Mindhunter fallback, it was a hole.
+    //
+    // The extension is fixed in the theme, but the class of failure is not the
+    // theme's to prevent. `existsSync` is the check that already exists for
+    // this: false for a remote peek and for a swept pack, and true for a
+    // bundled asset, which cannot be probed synchronously and whose absence is
+    // a build-time problem. So this catches everything the errorBuilder caught
+    // and extends it to the branch that had none.
+    if (!a.existsSync) return fallback ?? const SizedBox.shrink();
+
     // Read off the RESOLVED path, which for an installed pack is absolute and
     // for a bundled theme is the authored asset path. Both end in the same
     // filename, so this is the same answer either way.

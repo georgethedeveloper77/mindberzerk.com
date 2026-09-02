@@ -594,12 +594,39 @@ class Seg extends StatelessWidget {
     required this.options,
     required this.onChanged,
     this.enabled = true,
+    this.following = false,
+    this.onFollow,
   });
 
   final String value;
   final Map<String, String> options;
   final ValueChanged<String> onChanged;
   final bool enabled;
+
+  /// True while this setting has no value of its own and is showing whatever
+  /// the distro authored. The Follow action only appears once it has stopped.
+  ///
+  /// ─── WHY A SEGMENTED CONTROL NEEDED THIS AT ALL ─────────────────────────
+  ///
+  /// It did not, while these rows had nothing underneath them: a pref with an
+  /// engine default as its only floor is the same on every distro, so there was
+  /// nothing to go back TO.
+  ///
+  /// `drawerSearchPosition` changed that, and the other two drawer rows were
+  /// already in the same position without anybody noticing. Deepin authors a
+  /// search bar at the top, Mint authors a list, elementary authors Library.
+  /// One tap on any of those three buries the distro's answer on that device
+  /// permanently, and the next distro the user tries wears the choice they made
+  /// on this one.
+  ///
+  /// `PreviewChoice` and [OpacityRow] have carried this pair since they
+  /// shipped, and `dockSide`'s note says exactly what its absence cost: five
+  /// dockless distros wearing a dock because of one tap on a sixth. This is the
+  /// same pair on the same argument, for the control the drawer rows use.
+  final bool following;
+
+  /// Clears the pref so the distro's own answer applies again.
+  final VoidCallback? onFollow;
 
   @override
   Widget build(BuildContext context) {
@@ -641,10 +668,38 @@ class Seg extends StatelessWidget {
       ),
     );
 
+    // BESIDE THE CONTROL, NOT INSIDE IT. A fourth segment reading "Follow"
+    // would sit in the same track as the three values and read as a fourth
+    // position the bar could take. It is an action, so it is a word, the same
+    // word in the same accent [OpacityRow] uses.
+    final withFollow = (following || onFollow == null)
+        ? control
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: onFollow,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    context.t('settings.follow'),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: s.acc,
+                    ),
+                  ),
+                ),
+              ),
+              control,
+            ],
+          );
+
     // One Opacity over the whole control, matching SettingsToggleRow: fading
     // only the inactive segments would read as a rendering glitch rather than
     // as a disabled setting.
-    return enabled ? control : Opacity(opacity: 0.45, child: control);
+    return enabled ? withFollow : Opacity(opacity: 0.45, child: withFollow);
   }
 }
 

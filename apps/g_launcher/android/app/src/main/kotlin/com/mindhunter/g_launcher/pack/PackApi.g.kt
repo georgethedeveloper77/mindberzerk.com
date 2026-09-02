@@ -1011,6 +1011,51 @@ interface PackHostApi {
    * arrives, so nothing waits on it.
    */
   fun packCoverage(packId: String, callback: (Result<PackCoverage?>) -> Unit)
+  /**
+   * The pack's own `theme.json`, for a pack that is NOT installed.
+   *
+   * ─── WHY THE STOREFRONT NEEDS THIS ────────────────────────────────────────
+   *
+   * A card advertising a distro nobody owns has five colours and a layout enum
+   * to draw with, because that is all the signed index carries. So every paid
+   * distro renders as a coloured rectangle, and the thing being charged for is
+   * the emptiest picture on the screen. A real preview needs the real theme:
+   * the palette, the chrome family, the panels, the dock edge and style, the
+   * desktop icons, the desklet skins. All of that is in `theme.json` and
+   * nowhere else.
+   *
+   * Widening the index instead was the alternative and it is worse: the index
+   * would carry a second copy of facts `theme.json` already owns, the two
+   * would be written by different code paths, and the copy is always the one
+   * that drifts.
+   *
+   * ─── IT IS THE FRONT HALF OF A SYNC, AND NOTHING MORE ─────────────────────
+   *
+   * `PackDownloader.syncPack` already fetches `manifest.json` and its
+   * signature and verifies them BEFORE a single payload byte exists, precisely
+   * so the file list and the sizes can be trusted. This reuses that, then
+   * takes exactly one file from the verified list, checks its hash against the
+   * signed entry, and throws the scratch directory away. Nothing is written
+   * into the packs root, no wallpapers, fonts or icons cross the wire, and
+   * [installedVersion] does not move.
+   *
+   * ─── AND IT DOES NOT CHECK ENTITLEMENT ────────────────────────────────────
+   *
+   * Deliberately, matching [PackDownloader.syncPack], whose doc says the same
+   * thing for the same reason: whether a user owns something is Play's answer
+   * and belongs at the call site. It is also simply not a paywall question. A
+   * few KB of layout metadata is what the storefront needs in order to show
+   * somebody what they would be buying, which is the whole point.
+   *
+   * Null on every failure without distinguishing them: no index yet, the pack
+   * is not offered, offline, a signature or hash mismatch, or a pack with no
+   * `theme.json` at all. The card falls back to the index preview it draws
+   * today, which is why that path stays.
+   *
+   * APPENDED LAST. A method does not move any codec id, unlike a class or an
+   * enum, but last is the position that stays safe if this ever becomes one.
+   */
+  fun peekTheme(packId: String, callback: (Result<String?>) -> Unit)
 
   companion object {
     /** The codec used by PackHostApi. */
@@ -1258,6 +1303,26 @@ interface PackHostApi {
             val args = message as List<Any?>
             val packIdArg = args[0] as String
             api.packCoverage(packIdArg) { result: Result<PackCoverage?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(PackApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(PackApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.PackHostApi.peekTheme$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packIdArg = args[0] as String
+            api.peekTheme(packIdArg) { result: Result<String?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(PackApiPigeonUtils.wrapError(error))

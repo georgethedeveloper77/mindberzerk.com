@@ -38,6 +38,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
+import '../../data/update/update_repository.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../system/system_stats.dart';
@@ -50,6 +51,7 @@ import 'sections/desktop_section.dart';
 import 'sections/gestures_section.dart';
 import 'sections/system_section.dart';
 import 'settings_rows.dart';
+import 'settings_sheets.dart';
 
 /// Settings — Phase B, B1.
 ///
@@ -93,6 +95,27 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
+
+  /// The SECOND of the two update checks, the first being at process start.
+  ///
+  /// Throttled by the same stamp, so opening Settings six times in an afternoon
+  /// is six SharedPreferences reads and no Play traffic. What it buys is the
+  /// case the cold-start check cannot cover: a launcher process that has been
+  /// alive for three days, which on this app is the normal case rather than the
+  /// exception.
+  ///
+  /// Deferred to a microtask because `initState` runs inside the build phase and
+  /// `checkIfStale` sets state as its first act on the un-throttled path.
+  /// `mounted` is checked because the frame it fires on is not guaranteed to
+  /// still have this widget in it.
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(appUpdateProvider.notifier).checkIfStale();
+    });
+  }
 
   @override
   void dispose() {
@@ -167,6 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
 
           const _DefaultLauncherBanner(),
+          const _UpdateBanner(),
 
           // ── LANDING, OR A FLAT FILTERED LIST ──────────────────────────
           //
@@ -455,6 +479,116 @@ class _DefaultLauncherBanner extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// An update from Play, offered rather than announced.
+///
+/// ─── ABSENT IN FOUR OF THE SEVEN STATES ─────────────────────────────────────
+///
+/// Nothing renders for unknown, checking, up to date or unavailable. The rule is
+/// the one `_DefaultLauncherBanner` states directly above: a banner that nags
+/// about something already handled teaches people to ignore banners. Checking is
+/// excluded for a second reason, which is that a banner flickering in for the
+/// length of one Play call on every Settings open is worse than no banner.
+///
+/// ─── AND ABSENT FROM THE DESKTOP ENTIRELY ───────────────────────────────────
+///
+/// This is the only surface that announces an update. Not the desktop, not a
+/// boot message, not a badge on the drawer. A launcher that interrupts the home
+/// screen to talk about itself is the behaviour the no-ads rule exists to
+/// prevent, and an update notice is not exempt because it is ours.
+class _UpdateBanner extends ConsumerWidget {
+  const _UpdateBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final update = ref.watch(appUpdateProvider);
+    if (!update.hasUpdate) return const SizedBox.shrink();
+
+    final s = SettingsSkin.of(context);
+    final notifier = ref.read(appUpdateProvider.notifier);
+    final (String title, String subtitle) = switch (update.status) {
+      UpdateStatus.downloading => (
+          context.t('settings.update.downloading'),
+          context.t('settings.update.keepUsing'),
+        ),
+      UpdateStatus.readyToInstall => (
+          context.t('settings.update.ready'),
+          context.t('settings.update.willReloadOnRestart'),
+        ),
+      _ => (
+          context.t('settings.update.available'),
+          context.t('settings.update.fromPlay'),
+        ),
+    };
+
+    return Container(
+      margin:
+          EdgeInsets.fromLTRB(s.framing.cardInset, 0, s.framing.cardInset, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: s.acc.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(s.framing.cardRadius),
+        border: Border.all(color: s.acc.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.system_update_alt, color: s.acc),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: s.tx,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: s.mut, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              if (update.status != UpdateStatus.downloading) ...[
+                const SizedBox(width: 8),
+                ThemedButton(
+                  label: update.status == UpdateStatus.readyToInstall
+                      ? context.t('settings.update.restart')
+                      : context.t('settings.download'),
+                  onPressed: () => update.status == UpdateStatus.readyToInstall
+                      ? confirmUpdateRestart(context, notifier)
+                      : notifier.startDownload(),
+                ),
+              ],
+            ],
+          ),
+          // INDETERMINATE, and that is not laziness. The plugin does not surface
+          // `bytesDownloaded`, so a percentage here would be invented. See the
+          // header of update_repository.dart.
+          if (update.status == UpdateStatus.downloading) ...[
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                backgroundColor: s.card2,
+                valueColor: AlwaysStoppedAnimation<Color>(s.acc),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

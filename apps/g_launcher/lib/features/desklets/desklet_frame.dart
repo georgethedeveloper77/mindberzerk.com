@@ -496,7 +496,26 @@ class _Terminal extends StatelessWidget {
       children: [
         Text.rich(
           TextSpan(
-            style: TextStyle(fontFamily: mono, fontSize: size, height: 1.6),
+            // ─── SHADOWED, LIKE THE CONKY, AND FOR THE SAME REASON ──────
+            //
+            // This surface draws no plate and no border: it is command output
+            // sitting on the wallpaper, which is the whole point of it. That
+            // makes it the bare surface in every respect that matters for
+            // legibility, and `_Bare` carries `_shadows` precisely because
+            // unboxed text over an arbitrary photograph is unreadable at the
+            // wrong moment.
+            //
+            // It went unnoticed because every distro using this surface ships
+            // dark wallpapers. The failure needs a user to pick a light photo,
+            // at which point mono text in `onDark` disappears entirely and the
+            // desklet looks like it failed to load rather than like it needs a
+            // different wallpaper.
+            style: TextStyle(
+              fontFamily: mono,
+              fontSize: size,
+              height: 1.6,
+              shadows: _shadows(theme),
+            ),
             children: [
               TextSpan(
                 text: '~ \u276f ',
@@ -515,7 +534,12 @@ class _Terminal extends StatelessWidget {
         for (final row in body.rows)
           Text.rich(
             TextSpan(
-              style: TextStyle(fontFamily: mono, fontSize: size, height: 1.6),
+              style: TextStyle(
+                fontFamily: mono,
+                fontSize: size,
+                height: 1.6,
+                shadows: _shadows(theme),
+              ),
               children: [
                 TextSpan(
                   text: row.label.padRight(width + 2),
@@ -544,6 +568,11 @@ class _Terminal extends StatelessWidget {
               fontSize: size,
               height: 1.6,
               color: p.onDark.withValues(alpha: 0.45),
+              // The stderr line needs this MOST. It is already the dimmest
+              // text on the surface, so on a light wallpaper it is the first
+              // thing to vanish, and it is the one line that exists to tell
+              // you something has gone wrong.
+              shadows: _shadows(theme),
             ),
           ),
 

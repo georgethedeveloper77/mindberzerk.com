@@ -205,6 +205,40 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     final activitiesOpen = ref.watch(activitiesOpenProvider);
     final insets = MediaQuery.viewPaddingOf(context);
 
+    // ─── IS THE APP LIST ON SCREEN, ON EITHER KIND OF DISTRO ────────────
+    //
+    // `appsShowing` in `workspace_controller` answers exactly this and answers
+    // it with `ref.read`, which is right for the one-shot question a PopScope
+    // asks and wrong here: this decides what to BUILD, so it has to rebuild
+    // when the page changes. Watched rather than read, and spelled out rather
+    // than hidden behind a helper that would silently not rebuild.
+    final appsPage = ref.watch(appsPageProvider);
+    final activeWorkspace = ref.watch(activeWorkspaceProvider);
+    final appsUp =
+        appsPage == null ? activitiesOpen : activeWorkspace == appsPage;
+
+    // ─── WHETHER THE DOCK EXISTS RIGHT NOW ──────────────────────────────
+    //
+    // The guard below was `!activitiesOpen`, which is the OVERLAY flag. On a
+    // distro whose app list is a workspace page that flag is never true, so the
+    // dock never went away and Pocket's App Library wore a dock across its
+    // foot. iOS replaces the dock with the Library's search field; it does not
+    // stack them.
+    //
+    // Per distro, because the two workspace-surface distros want opposite
+    // answers from the identical arrangement. Deepin's app list is a page you
+    // swipe to and the dock staying put is one of its exclusive rows; Pocket's
+    // is a page you swipe to and the dock must leave. Nothing but the theme can
+    // tell those apart, which is what `dockReveal: "desktop"` says.
+    //
+    // 'apps' is deliberately NOT handled here. It is the GNOME dash, it belongs
+    // to a shell that has one, and `gnome_shell` already computes `dockRevealed`
+    // for it. Implementing it in this expression would read as complete while
+    // being untested on a shell no distro authors it for, which is worse than
+    // it plainly not being here.
+    final dockHidden =
+        activitiesOpen || (theme.dockReveal == 'desktop' && appsUp);
+
     // Source of truth is the controller; the PageController follows, so a HOME
     // press or a menu-bar action moves the page too, not just a swipe.
     ref.listen<int>(activeWorkspaceProvider, (_, next) {
@@ -346,7 +380,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         // reflows nothing, and a magnifying dock ghosting through an app grid
         // is the worst-looking version of this bug: the icons are large and
         // unevenly sized, so they read as a second broken grid.
-        if (!activitiesOpen)
+        if (!dockHidden)
           Positioned(
             left: 0,
             right: 0,

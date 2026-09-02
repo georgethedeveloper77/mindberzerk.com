@@ -50,10 +50,25 @@ import 'drawer_items.dart';
 /// hold bare keys and have to be joined against `shellAppsProvider`. Handing
 /// the overlay a common shape is the point of the seam.
 class FolderSnapshot {
-  const FolderSnapshot({required this.name, required this.members});
+  const FolderSnapshot({
+    required this.name,
+    required this.members,
+    this.glyph,
+  });
 
   final String name;
   final List<AppEntry> members;
+
+  /// The folder's icon, as a `folder_glyphs.dart` catalogue id, or null for
+  /// the fallback.
+  ///
+  /// Carried on the SNAPSHOT rather than looked up by the overlay, for the
+  /// same reason `members` is: the two stores hold it in two different prefs
+  /// lists, and a generated `cat:` folder has no prefs entry at all, so its
+  /// glyph arrives already stamped from `drawer_items`. Making the overlay ask
+  /// would mean the overlay knowing which of the three cases it is in, which is
+  /// exactly what this seam exists to stop.
+  final String? glyph;
 }
 
 /// The seam. See the library doc.
@@ -105,6 +120,17 @@ abstract class FolderStore {
   Future<void> rename(
       WidgetRef ref, EffectiveTheme theme, String id, String name);
 
+  /// Set this folder's icon, or clear it with a null [glyph].
+  ///
+  /// Takes the id the caller is ALREADY holding, like every other write here.
+  /// A generated folder must be passed through [editable] first and the result
+  /// written against, or the write lands on a `cat:` id that owns nothing and
+  /// is rebuilt from the categories on the next launch. That failure is silent
+  /// and looks exactly like it worked until the app is relaunched, which is why
+  /// it is said here as well as on [editable].
+  Future<void> setGlyph(
+      WidgetRef ref, EffectiveTheme theme, String id, String? glyph);
+
   Future<void> addMembers(
       WidgetRef ref, EffectiveTheme theme, String id, Iterable<String> keys);
 
@@ -152,7 +178,11 @@ class DrawerFolderStore extends FolderStore {
   FolderSnapshot? _find(List<DrawerItem> items, String id) {
     for (final i in items) {
       if (i is FolderDrawerItem && i.folder.id == id) {
-        return FolderSnapshot(name: i.folder.name, members: i.members);
+        return FolderSnapshot(
+          name: i.folder.name,
+          members: i.members,
+          glyph: i.folder.glyph,
+        );
       }
     }
     return null;
@@ -187,6 +217,22 @@ class DrawerFolderStore extends FolderStore {
             newFolderId: () => next,
           ),
         );
+    // ─── THE GLYPH HAS TO COME ACROSS, AND IT IS A SECOND WRITE ───────────
+    //
+    // `materialise` predates the field and takes a name and a member list, so
+    // the folder it creates has no icon. Without this line, editing a category
+    // for the first time silently drops the distro's authored glyph: the user
+    // renames Internet and it turns into a plain folder, which reads as the
+    // rename having broken the icon.
+    //
+    // Two writes rather than widening `materialise`, because the conversion is
+    // already a one-shot on first edit and the second `edit` coalesces into the
+    // same frame. Nothing observes the folder between them.
+    if (live.glyph != null) {
+      await ref
+          .read(prefsProvider(theme.spec.id).notifier)
+          .edit((p) => DrawerLayout.setGlyph(p, next, live.glyph));
+    }
     return next;
   }
 
@@ -255,6 +301,13 @@ class DrawerFolderStore extends FolderStore {
           );
 
   @override
+  Future<void> setGlyph(
+          WidgetRef ref, EffectiveTheme theme, String id, String? glyph) =>
+      ref
+          .read(prefsProvider(theme.spec.id).notifier)
+          .edit((p) => DrawerLayout.setGlyph(p, id, glyph));
+
+  @override
   Future<void> dissolve(WidgetRef ref, EffectiveTheme theme, String id) =>
       // NO CONVERSION FIRST, deliberately. `dissolve` against a `cat:` id is a
       // no-op, and a no-op is the CORRECT result: a generated folder that is
@@ -295,6 +348,7 @@ class HomeFolderStore extends FolderStore {
     final byKey = {for (final a in apps) a.componentKey: a};
     return FolderSnapshot(
       name: f.name,
+      glyph: f.glyph,
       // whereType drops members whose app has been uninstalled but not yet
       // pruned. The drawer's provider already does this for its own folders, so
       // doing it here keeps a dead key from rendering as a blank tile on one
@@ -378,6 +432,13 @@ class HomeFolderStore extends FolderStore {
               capacity: _capacity(theme),
             ),
           );
+
+  @override
+  Future<void> setGlyph(
+          WidgetRef ref, EffectiveTheme theme, String id, String? glyph) =>
+      ref
+          .read(prefsProvider(theme.spec.id).notifier)
+          .edit((p) => HomeLayout.setFolderGlyph(p, id, glyph));
 
   @override
   bool canDissolve(WidgetRef ref, EffectiveTheme theme, String id) {

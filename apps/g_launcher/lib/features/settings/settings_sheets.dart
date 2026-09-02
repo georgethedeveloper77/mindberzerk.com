@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:g_launcher/data/prefs/prefs_repository.dart';
+import 'package:g_launcher/data/update/update_repository.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/components.dart';
@@ -554,6 +555,34 @@ Future<void> confirmReset(
     cancelLabel: context.t('common.cancel'),
   );
   if (ok == true) notifier.resetEverything();
+}
+
+/// Asked before an update restart, never after.
+///
+/// ─── WHY IT LIVES HERE AND NOT AT EITHER CALL SITE ──────────────────────────
+///
+/// Two surfaces offer the restart: the banner on the Settings landing and the
+/// About row one page deeper. They are never on screen together, which is
+/// exactly the condition under which two copies of a warning drift apart, and a
+/// warning that says something different in two places is worse than one that
+/// says it badly in one. Next to [confirmReset] because it is the same kind of
+/// thing: the sentence said before an irreversible-looking action.
+///
+/// `completeFlexibleUpdate` restarts the process, and this process is drawing
+/// the home screen. Naming that before the tap is the whole difference between
+/// an update and something indistinguishable from a crash.
+Future<void> confirmUpdateRestart(
+  BuildContext context,
+  AppUpdateNotifier notifier,
+) async {
+  final ok = await ThemedDialog.confirm(
+    context,
+    title: context.t('settings.update.restartTitle'),
+    message: context.t('settings.update.restartBody'),
+    confirmLabel: context.t('settings.update.restart'),
+    cancelLabel: context.t('common.cancel'),
+  );
+  if (ok == true) await notifier.completeUpdate();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

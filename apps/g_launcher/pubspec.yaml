@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+18
+version: 6.0.0+21
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -120,6 +120,7 @@ dependencies:
   # identity stops compiling, which is the good failure.
   dartssh2: ^2.22.5
   google_fonts: ^8.2.1
+  in_app_purchase: ^3.3.0
 
 flutter_gen:
   assets:
@@ -131,6 +132,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+
+  # On-device benchmarking, for `integration_test/`. Dev-only, never in the APK.
+  #
+  # It is here rather than as a one-off because the question it answers recurs:
+  # every drawer transition added has to be measured against the cube on the
+  # same swipe, and an argument from construction is not a number.
+  #
+  #   flutter drive \
+  #     --driver=test_driver/integration_test.dart \
+  #     --target=integration_test/drawer_transition_bench_test.dart \
+  #     --profile
+  integration_test:
+    sdk: flutter
 
   # Powers tool/i18n_extract.dart (string extraction for translation).
   # Dev-only: analysis machinery has no business in the app's resolution.
@@ -156,15 +170,24 @@ flutter:
     # as a layout bug rather than a packaging one.
     - assets/svg/
 
+    # ─── ONE LINE PER THEME, BECAUSE THE LAYOUT IS FLAT NOW ─────────────
+    #
+    # Each of these used to be a PAIR, with a second `…/wallpapers/` line under
+    # it. The subdirectory is gone: a pack cannot lay out subdirectories on
+    # device (`PackPaths` refuses separators), so the bundled tree now mirrors
+    # a pack's and `ThemeSource.bundled` joins a bare name straight onto the
+    # theme directory. That is what lets one authored theme.json be correct
+    # both in the APK and over the CDN.
+    #
+    # Still non-recursive, so a theme that grows a subdirectory needs its own
+    # line here. It should not grow one: anything nested is unreachable from a
+    # pack and therefore cannot be named by a theme.json that has to work in
+    # both places.
     - assets/themes/ubuntu-24-04/
-    - assets/themes/ubuntu-24-04/wallpapers/
-
     - assets/themes/kde-plasma-6/
-    - assets/themes/kde-plasma-6/wallpapers/
 
     # Terminal ships a theme.json only: the TUI shell paints a flat canvas, so
-    # a wallpaper would never be visible. The missing wallpapers/ line here is
-    # correct, not an oversight.
+    # a wallpaper would never be visible.
     - assets/themes/terminal/
 
     # Fedora, Arch and Aqua USED TO BE HERE. They are CDN packs now, because

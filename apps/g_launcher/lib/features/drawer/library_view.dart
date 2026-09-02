@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
-import '../search/search_sheet.dart';
 import '../../i18n/i18n.dart';
 import '../../platform/launcher_api.g.dart';
+import '../dock/dock_insets.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
@@ -90,6 +90,29 @@ class _LibraryViewState extends ConsumerState<LibraryView>
   /// drawer still in edit mode, with an X on every icon, reads as a bug.
   bool _editing = false;
 
+  /// Is the field the subject right now?
+  ///
+  /// ─── SEARCH REPLACES THE SHELVES, IT DOES NOT FILTER THEM ───────────────
+  ///
+  /// Deepin's grid narrows in place, and that is right for a flat run of
+  /// icons. Bubbles cannot do it. A shelf holding one match is mostly empty
+  /// rounded rectangle, a shelf holding none has to disappear, and every shelf
+  /// below it reflows on each keystroke. The screen would be busiest at exactly
+  /// the moment the user is trying to read it.
+  ///
+  /// So the field swaps the surface: shelves at rest, one flat list while
+  /// searching. That is what iOS does here, and it is the same reasoning that
+  /// put an in-place filter on Deepin rather than a pushed page.
+  bool _searching = false;
+
+  /// What is typed. Empty is a valid searching state and shows EVERY app, A to
+  /// Z, which is the whole point: the list is reachable before you know what
+  /// you are looking for, and typing only shortens it.
+  String _query = '';
+
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+
   /// One controller for the whole grid, not one per tile.
   ///
   /// With 261 apps a per-tile controller is 261 tickers on a budget phone. One
@@ -104,7 +127,74 @@ class _LibraryViewState extends ConsumerState<LibraryView>
   @override
   void dispose() {
     _jiggle.dispose();
+    _controller.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  void _openSearch() {
+    // Editing and searching are two subjects and cannot share the screen: a
+    // jiggling grid behind a list, with an X on tiles nobody can see, is two
+    // modes claiming the same taps.
+    _exitEdit();
+    setState(() => _searching = true);
+    _focus.requestFocus();
+  }
+
+  void _closeSearch() {
+    _controller.clear();
+    _focus.unfocus();
+    setState(() {
+      _searching = false;
+      _query = '';
+    });
+  }
+
+  /// Every app in the library, once each, A to Z.
+  ///
+  /// ─── FLATTENED, BECAUSE THE SHELVES OWN THEM ────────────────────────────
+  ///
+  /// Under `library` grouping `drawerItemsProvider` files each app into a
+  /// category folder and drops it from the loose run, so reading only the
+  /// `AppDrawerItem`s here would produce a nearly empty list. That is the same
+  /// fault `CardDrawer` had, where it blanked both of that drawer's views.
+  ///
+  /// Deduplicated by component key: the derived Suggestions shelf holds
+  /// frequently used apps that are also filed under their own category, and a
+  /// user folder can hold an app a category folder also claims.
+  ///
+  /// Sorted case-insensitively, so a lowercase app name does not sort into a
+  /// block of its own after Z, which is what a raw `compareTo` on labels does
+  /// to any phone with an app called `f-droid` on it.
+  List<AppEntry> _allApps() {
+    final seen = <String>{};
+    final out = <AppEntry>[];
+    for (final i in widget.items) {
+      if (i is AppDrawerItem) {
+        if (seen.add(i.entry.componentKey)) out.add(i.entry);
+      } else if (i is FolderDrawerItem) {
+        for (final m in i.members) {
+          if (seen.add(m.componentKey)) out.add(m);
+        }
+      }
+    }
+    out.sort(
+      (x, y) => x.label.toLowerCase().compareTo(y.label.toLowerCase()),
+    );
+    return out;
+  }
+
+  /// SUBSTRING, not [Fuzzy]. `fuzzy.dart` and `palette_controller` both say in
+  /// writing that the drawer's filter is a substring one and should stay one,
+  /// and it matters more on a list than on a grid: fuzzy RANKS, so the row
+  /// under a thumb changes between the press and the release.
+  List<AppEntry> _matches(List<AppEntry> apps) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return apps;
+    return [
+      for (final a in apps)
+        if (a.label.toLowerCase().contains(q)) a,
+    ];
   }
 
   void _enterEdit() {
@@ -193,8 +283,25 @@ class _LibraryViewState extends ConsumerState<LibraryView>
                 if (!_editing)
                   SafeArea(
                     bottom: false,
-                    child: _SearchPill(theme: widget.theme),
+                    child: _SearchField(
+                      theme: widget.theme,
+                      controller: _controller,
+                      focus: _focus,
+                      searching: _searching,
+                      onOpen: _openSearch,
+                      onChanged: (v) => setState(() => _query = v),
+                      onCancel: _closeSearch,
+                    ),
                   ),
+                if (_searching)
+                  // ─── ONE FLAT LIST, A TO Z ──────────────────────────
+                  //
+                  // No letter headings and no index rail. The list is short
+                  // enough to flick through on a phone, and a heading every
+                  // few rows on a list that shortens with every keystroke is
+                  // chrome that moves more than the content does.
+                  Expanded(child: _AzList(theme: widget.theme, apps: _matches(_allApps())))
+                else
                 Expanded(
                   child: GestureDetector(
                     behavior: HitTestBehavior.deferToChild,
@@ -215,20 +322,25 @@ class _LibraryViewState extends ConsumerState<LibraryView>
                         const SliverToBoxAdapter(child: SizedBox(height: 4)),
                         if (folders.isNotEmpty) _grid(context, folders, cell),
                         if (rest.isNotEmpty) _grid(context, rest, cell),
-                        // ─── ROOM FOR THE DOCK ────────────────────────────
+                        // ─── ROOM FOR THE DOCK, WHEN THERE IS A DOCK ─────
                         //
-                        // Twelve, and the dock is a floating slab about ninety
-                        // tall sitting over this. The last row was underneath
-                        // it with its label hidden, which on a screen whose
-                        // whole job is finding things is the row you were
-                        // scrolling to reach.
+                        // This was a literal 96, which was right while every
+                        // distro mounting this view kept its dock. Pocket does
+                        // not: `dockReveal: "desktop"` takes the dock away the
+                        // moment the library arrives, and 96dp of reserved
+                        // nothing under the last shelf reads as the grid having
+                        // stopped short.
                         //
-                        // Measured from the inset rather than fixed, so a
-                        // gesture-navigation phone and a three-button one both
-                        // clear it.
+                        // `drawerDockInsets` answers both cases from the dock's
+                        // own constants: zero when no dock covers this surface,
+                        // the real band when one does. The system inset stays
+                        // on top of it, because that is the gesture pill and it
+                        // is there either way.
                         SliverToBoxAdapter(
                           child: SizedBox(
-                            height: 96 + MediaQuery.viewPaddingOf(context).bottom,
+                            height: drawerDockInsets(theme).bottom +
+                                MediaQuery.viewPaddingOf(context).bottom +
+                                16,
                           ),
                         ),
                       ],
@@ -442,80 +554,247 @@ class _Cell extends ConsumerWidget {
   }
 }
 
-/// The search pill at the top of the Library.
+/// The field at the top of the Library.
 ///
-/// Opens [showSearchSheet]. Wide and soft, because it is the one control on a
-/// screen made entirely of rounded tiles and a square field would be the only
-/// hard edge.
+/// ─── IT WAS A PILL THAT OPENED A SHEET ──────────────────────────────────────
 ///
-/// ─── AND THIS IS NOW THE SHEET'S ONLY CALLER ────────────────────────────────
+/// It called `showSearchSheet`, which drops a card of eight rows from the top
+/// edge over whatever is underneath. That is Spotlight's shape: the thing you
+/// reach by swiping DOWN on a home page, over the wallpaper, when you already
+/// know what you want.
 ///
-/// It briefly opened from all seven drawers. That was wrong: `SearchPage`
-/// carries suggested apps, settings topics, folders, recent searches and a
-/// voice button, and the sheet carries a field and eight rows, so making it
-/// universal deleted five features from six distros.
+/// The field at the top of an App Library is a different control on a different
+/// surface. You are already looking at every app you own, arranged by what they
+/// are for; the field is how you stop looking at them that way. Covering the
+/// Library with a card would hide the thing you came here to narrow.
 ///
-/// The sheet is right HERE, on a phone home screen where a card over the
-/// wallpaper is what the desktop actually does. Everywhere else opens the page
-/// again. Ranking is shared either way: both read `paletteResultsProvider`.
-class _SearchPill extends StatelessWidget {
-  const _SearchPill({required this.theme});
+/// ─── WHAT THIS ORPHANS, SAID PLAINLY ────────────────────────────────────────
+///
+/// This widget's old doc noted it was the sheet's ONLY caller. It no longer
+/// calls it, so `showSearchSheet` in `search_sheet.dart` now has none, and the
+/// import of that file is gone from here. The sheet is not deleted and
+/// should not be: it is written, it is correct, and it is exactly right for the
+/// swipe-down gesture on the home page. Until that gesture is bound it is dead
+/// code, and that is a decision recorded here rather than a thing that happened
+/// by accident.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.theme,
+    required this.controller,
+    required this.focus,
+    required this.searching,
+    required this.onOpen,
+    required this.onChanged,
+    required this.onCancel,
+  });
 
   final EffectiveTheme theme;
+  final TextEditingController controller;
+  final FocusNode focus;
+  final bool searching;
+  final VoidCallback onOpen;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
     final palette = theme.palette;
 
+    final pill = Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: palette.onDark.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(19),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search,
+            size: 17,
+            color: palette.onDark.withValues(alpha: 0.55),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: searching
+                ? TextField(
+                    controller: controller,
+                    focusNode: focus,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    // SEARCH rather than go. There is nothing to submit: the
+                    // list has been answering since before the first letter.
+                    textInputAction: TextInputAction.search,
+                    onChanged: onChanged,
+                    style: TextStyle(
+                      fontFamily: theme.typography.display,
+                      fontSize: 13 * theme.textScale,
+                      color: palette.onDark,
+                    ),
+                    cursorColor: palette.accent,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintText: context.t('drawer.appLibrary'),
+                      hintStyle: TextStyle(
+                        fontFamily: theme.typography.display,
+                        fontSize: 13 * theme.textScale,
+                        color: palette.onDark.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  )
+                : Text(
+                    context.t('drawer.appLibrary'),
+                    style: TextStyle(
+                      fontFamily: theme.typography.display,
+                      fontSize: 13 * theme.textScale,
+                      color: palette.onDark.withValues(alpha: 0.55),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(_side, 2, _side, 12),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => showSearchSheet(context, theme),
-        child: Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: palette.onDark.withValues(alpha: 0.13),
-            borderRadius: BorderRadius.circular(19),
+      child: Row(
+        children: [
+          Expanded(
+            child: searching
+                ? pill
+                : GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onOpen,
+                    child: pill,
+                  ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.search,
-                size: 17,
-                color: palette.onDark.withValues(alpha: 0.55),
-              ),
-              const SizedBox(width: 9),
-              Text(
-                context.t('drawer.appLibrary'),
-                style: TextStyle(
-                  fontFamily: theme.typography.display,
-                  fontSize: 13 * theme.textScale,
-                  color: palette.onDark.withValues(alpha: 0.55),
+          // ─── THE WAY BACK, AND WHY IT IS A WORD ─────────────────────────
+          //
+          // Back would do it, and back with a focused field is taken by the
+          // keyboard first, so leaving would be two presses from a surface the
+          // user reached with one swipe. A word costs 60dp of a row that is
+          // otherwise empty.
+          if (searching)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onCancel,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: theme.typography.display,
+                    fontSize: 13 * theme.textScale,
+                    color: palette.accent,
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
 }
 
-/// Three large icons and a cluster, in a rounded square that fills its cell.
+/// Every app, one row each, alphabetical.
 ///
-/// ─── WHY NOT THE 2x2 THE PAGER'S FOLDERS USE ────────────────────────────────
+/// ─── ROWS RATHER THAN A GRID, AND NO HEADINGS ───────────────────────────────
 ///
-/// Size. A folder glyph in the pager is about 56dp and four quadrants of ~26
-/// each read fine. This tile is around 157dp, and four quadrants there gives
-/// four 70dp icons, which makes a folder look like four apps stuck together
-/// rather than like a container holding many.
-///
-/// Three large plus a cluster says the thing the 2x2 cannot: these three are
-/// the ones you want, and there are others. The three are the folder's most
-/// used, because `drawer_items` sorts every bucket by frecency before building
-/// it, so the tile leads with what you actually open.
+/// A grid of squircles is what the shelves already are. The point of this list
+/// is that it is the OTHER way of looking at the same apps: one column, name
+/// beside icon, read top to bottom. Letter headings were the obvious addition
+/// and are the wrong one here, because the list shortens on every keystroke and
+/// a heading that appears and vanishes between two letters moves more than the
+/// rows do.
+class _AzList extends ConsumerWidget {
+  const _AzList({required this.theme, required this.apps});
+
+  final EffectiveTheme theme;
+  final List<AppEntry> apps;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = theme.palette;
+
+    if (apps.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            context.t('drawer.noMatches'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: theme.typography.display,
+              fontSize: 13 * theme.textScale,
+              color: palette.onDark.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      // THREE THINGS STACK UP AT THE FOOT OF THIS LIST, and it needs all of
+      // them or the last few apps are unreachable, which on a screen whose only
+      // job is finding an app is the failure that matters.
+      //
+      //   the keyboard   `viewInsets`, present while typing and zero after the
+      //                  field is dismissed
+      //   the dock       zero on a distro that hides it over the app list,
+      //                  the real band on one that does not
+      //   the pill       `viewPadding`, the system's own gesture area
+      //
+      // `viewInsets` and `viewPadding` are not interchangeable: one is the
+      // keyboard and the other is the system bars, and this list sits under
+      // both at different moments.
+      padding: EdgeInsets.fromLTRB(
+        _side,
+        0,
+        _side,
+        16 +
+            MediaQuery.viewInsetsOf(context).bottom +
+            drawerDockInsets(theme).bottom +
+            MediaQuery.viewPaddingOf(context).bottom,
+      ),
+      itemCount: apps.length,
+      itemBuilder: (context, i) {
+        final entry = apps[i];
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // Through the shared helper, so a launch from here records usage the
+          // same way one from a shelf does. Two launch paths that disagree
+          // about that would make the frequency ranking depend on which screen
+          // you happened to open the app from.
+          onTap: () => launchDrawerApp(ref, entry),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
+              children: [
+                AppIcon(entry: entry, size: 34),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    entry.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: theme.typography.display,
+                      fontSize: 14 * theme.textScale,
+                      color: palette.onDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _FolderTile extends StatelessWidget {
   const _FolderTile({
     required this.theme,

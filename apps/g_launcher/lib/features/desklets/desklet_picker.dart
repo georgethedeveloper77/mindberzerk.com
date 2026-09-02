@@ -15,10 +15,11 @@ import '../../engine/widget_span.dart';
 import '../../platform/launcher_api.g.dart' as api;
 import '../drawer/app_icon.dart';
 import 'desklet_cell.dart';
+import 'desklet_preview.dart';
 import 'desklet_edit.dart';
 // DeskletSurfaceView for `gutter` only. The cell itself now arrives through
 // `deskletCellProvider`, measured, rather than being estimated from the window.
-import 'desklet_surface.dart' show buildDesklet, DeskletSurfaceView;
+import 'desklet_surface.dart' show DeskletSurfaceView;
 import 'widget_catalog.dart';
 import 'widget_provider_card.dart';
 
@@ -65,26 +66,14 @@ Future<void> showDeskletPicker(
   /// desktop. See the note on `_absorb`.
   String? intoStack,
 }) async {
-  const fallback = [
-    'glance',
-    'clock',
-    'monitor',
-    'fastfetch',
-    'network',
-    'storage',
-    'battery',
-    'notes',
-    'search',
-  ];
-
-  final offers = DeskletKinds.resolveOffers(
-    theme.spec.desklets.offersOr(fallback),
-  );
-
-  // Pane-only kinds never appear in a graphical picker: `df -h` on a GNOME
-  // desktop would be a file manager, not a desklet. On the terminal shell they
-  // are added by TYPING the command, which needs no sheet at all.
-  final shown = offers.where((k) => !k.paneOnly).toList();
+  // ─── THE LIST MOVED, THE RULE DID NOT ────────────────────────────────
+  //
+  // The fallback set, the offers lookup and the pane-only filter now live in
+  // [offeredDesklets], because setup's widgets step needs the same answer and
+  // had been carrying its own hardcoded copy. That copy offered `df`, `free`
+  // and `uptime` on a GNOME desktop, which this filter has always excluded
+  // here, so the two surfaces disagreed about what a distro offers.
+  final shown = offeredDesklets(theme);
 
   if (shown.isEmpty) {
     context.showMessage(context.t('desklets.thisThemeOffersNo'));
@@ -531,11 +520,10 @@ class _EmptyLine extends StatelessWidget {
 /// A live desklet, shown at rest inside a mini desktop swatch. The whole point
 /// of the restructure: you see the actual themed thing, not its name.
 ///
-/// The preview renders through the SAME [buildDesklet] the desktop uses, so a
-/// preview can never drift from what actually lands — and it sits on the
-/// distro's own dark base so a bare (text-on-wallpaper) desklet stays readable
-/// with no wallpaper behind it. [IgnorePointer] keeps the note and search tiles
-/// from swallowing the tap that is meant to ADD them.
+/// The swatch is [DeskletPreview], which renders through the same
+/// `buildDesklet` the desktop uses, so a preview can never drift from what
+/// actually lands. It was inline here until setup's widgets step needed the
+/// same picture; see that file for why the live render is worth its cost.
 class _DeskletPreviewCard extends StatelessWidget {
   const _DeskletPreviewCard({
     required this.theme,
@@ -550,21 +538,6 @@ class _DeskletPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = theme.palette;
-    final skin = theme.spec.desklets.skinFor(theme.shell, kind.id);
-
-    final preview = buildDesklet(
-      theme,
-      Desklet(
-        id: 'preview_${kind.id}',
-        kind: kind.id,
-        page: 0,
-        col: 0,
-        row: 0,
-        spanX: kind.defaultSpanX,
-        spanY: kind.defaultSpanY,
-      ),
-      skin,
-    );
 
     return GestureDetector(
       onTap: onTap,
@@ -572,27 +545,7 @@ class _DeskletPreviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 104,
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: p.bgBottom,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: p.onDark.withValues(alpha: 0.12)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Center(
-                child: IgnorePointer(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: preview ?? const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          DeskletPreview(theme: theme, kind: kind),
           const SizedBox(height: 7),
           Text(
             kind.label,

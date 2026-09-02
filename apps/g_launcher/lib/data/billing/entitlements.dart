@@ -95,7 +95,42 @@ final productSkusProvider = Provider<String>((ref) {
   return sorted.join(',');
 });
 
+/// The billing connection, ONE PER PROCESS.
+///
+/// ─── keepAlive IS NOT A TWEAK HERE, IT IS THE FIX ──────────────────────────
+///
+/// This had no `keepAlive`, so Riverpod 3 auto-disposed it. Its only real
+/// listeners are [ownedSkusProvider] and [productPriceProvider], and both are
+/// watched from the storefront's `build`. Close Distros and the last listener
+/// went, `service.dispose()` ran, and all three of its StreamControllers
+/// closed.
+///
+/// Three consequences, and the third is the worst:
+///
+///   1. A NEW BILLING CONNECTION PER STORE OPEN. `start` reconnected, re-queried
+///      every product and ran a full `restorePurchases` each time. Those
+///      serialise on one billing client, so a purchase issued while one was in
+///      flight waited behind it. The logcat evidence is `Billing service
+///      disconnected`, once per teardown.
+///
+///   2. PRICES WENT COLD EVERY TIME. `_products` lives on the instance, so
+///      reopening the storefront started from empty and `buy()` refused until
+///      the query resolved, which this app renders as "not available to buy
+///      right now" for a product that exists and is on sale.
+///
+///   3. THE PURCHASE LISTENER WAS ORPHANED. [packBridgeProvider] is kept alive
+///      and subscribes to `service.purchased`, but it obtained the service with
+///      `ref.read`, which creates no dependency. So it held a subscription to
+///      the FIRST instance; after the first storefront close that instance was
+///      disposed, later purchases fired on a new one, and the
+///      push-entitlements-then-install-then-apply chain silently stopped
+///      running. Paying and being handed back an unchanged screen is the worst
+///      outcome a paywall has.
+///
+/// One connection held for the life of the container is what billing wants
+/// anyway. `onDispose` stays for the teardown that ends the process.
 final entitlementServiceProvider = Provider<EntitlementService>((ref) {
+  ref.keepAlive();
   final service = EntitlementService();
   ref.onDispose(service.dispose);
   return service;
@@ -108,6 +143,13 @@ final entitlementServiceProvider = Provider<EntitlementService>((ref) {
 /// network; the alternative is trusting a cached flag, and failing open on a
 /// paywall is how an app ends up on a modding forum.
 final ownedSkusProvider = StreamProvider<Set<String>>((ref) {
+  // KEPT ALIVE for the same reason the service is. This provider is what calls
+  // `start()`, and letting it die with the storefront meant re-running the whole
+  // connect-query-restore sequence on every open. It also holds the push
+  // subscription that keeps native's owned set current, which must not lapse
+  // just because no store screen happens to be on top.
+  ref.keepAlive();
+
   final service = ref.watch(entitlementServiceProvider);
 
   // WATCHED, so this re-runs when the catalogue names a sku it did not before.
@@ -259,7 +301,14 @@ final packBridgeProvider = Provider<void>((ref) {
   // re-checks entitlement before downloading, so installing before the push
   // lands returns notEntitled and the user is back to tapping. That race was
   // acceptable when nothing auto-installed; it is the whole operation now.
-  final service = ref.read(entitlementServiceProvider);
+  // ─── watch, NOT read ────────────────────────────────────────────────────
+  //
+  // `ref.read` creates no dependency, so this held a subscription to whichever
+  // instance existed at startup while nothing stopped that instance being
+  // disposed and replaced. The service is kept alive now, which makes the two
+  // equivalent in practice, but the dependency should be the thing that says so
+  // rather than a comment on another provider.
+  final service = ref.watch(entitlementServiceProvider);
   final sub = service.purchased.listen((sku) async {
     await ref.read(packActionsProvider).pushEntitlements(service.ownedNow);
     ref.invalidate(catalogueProvider);

@@ -5,20 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:collection/collection.dart';
-
 import '../../core/analytics.dart';
-import '../../data/cdn/pack_repository.dart';
+import '../../data/cdn/distro_packs.dart';
 import '../../data/prefs/desklet_layout.dart';
+import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/folder_suggestions.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
-import '../../data/prefs/starter_desktop.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../design/device_stage.dart';
+import '../../design/drawer_transition.dart';
+import '../../design/setting_previews.dart';
 import '../../engine/desklet_spec.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_registry.dart';
@@ -30,6 +30,7 @@ import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
+import '../desklets/desklet_preview.dart';
 import '../drawer/folder_glyph.dart';
 import 'setup_chrome.dart';
 
@@ -161,9 +162,23 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// the default, and unticking everything is a meaningful answer rather than
   /// an unresolved one.
   ///
-  /// Two, because one is not a demonstration and three fills a phone. The
-  /// identity piece and the one that moves.
-  final Set<String> _widgets = <String>{'fastfetch', 'monitor'};
+  /// ─── SEEDED FROM THE DISTRO'S OWN STARTER, ONCE ───────────────────────
+  ///
+  /// It was a hardcoded `{fastfetch, monitor}`, which was a reasonable pair and
+  /// the wrong SOURCE. `theme.json` already says what desktop a distro lays out
+  /// for you (`desklets.starter`), and that is the desktop someone gets if this
+  /// step does not exist. Seeding from anything else means the default answer
+  /// and the no-answer outcome differ, so unticking is not a subtraction, it is
+  /// a swap for an arrangement nobody chose.
+  ///
+  /// Ubuntu starts a clock and a conky; KDE starts a clock, a conky and a `df`
+  /// that is silently dropped for being pane-only. So the ticks are what that
+  /// distro would have furnished, minus what it could never draw.
+  ///
+  /// Null until the first build that has a theme, because the seed needs one.
+  /// See [_seedWidgetChoice], and note that a distro SWIPE deliberately does
+  /// not re-seed: an answer already given belongs to the person who gave it.
+  Set<String>? _widgets;
 
   /// Suffix, because this loop mints several ids in one synchronous pass.
   int _deskletSeq = 0;
@@ -203,6 +218,141 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// sending them round the loop a second time. A wizard that cannot be left
   /// except by granting a permission is a wizard people uninstall.
   bool _badgeAsked = false;
+
+  /// The distro whose packs have already been asked for.
+  ///
+  /// Entering the step and swiping the deck both want to fire this, and on a
+  /// rebuild-heavy screen the build itself fires it again. One field makes all
+  /// three idempotent without any of them having to know about the others.
+  String? _packsAskedFor;
+
+  /// Start (or re-start) the pack sweep for [themeId].
+  ///
+  /// ─── FROM THE FIRST BUILD, NOT FROM THE DISTRO STEP ───────────────────
+  ///
+  /// The welcome step is a language list and a home-role button, which is
+  /// twenty seconds of reading during which the phone is doing nothing. The
+  /// index is a couple of kilobytes behind an ETag and a distro pack is around
+  /// 140KB, so starting here usually means the deck on the NEXT screen is
+  /// already drawing the current copy rather than the one baked into the APK.
+  ///
+  /// Ubuntu is what it fetches first, because that is what
+  /// `activeThemeSpecProvider` resolves to before anybody picks anything. A
+  /// swipe supersedes it inside the notifier.
+  ///
+  /// ─── themeOnly, AND THAT IS THE WHOLE POINT OF THE SCOPE ──────────────
+  ///
+  /// A distro's icon pack is 491 bytes that `requires` 10.58 MB of shared
+  /// drawings, and this runs before anybody has been asked anything. The icon
+  /// step is where that question gets put; see [_commitIcons].
+  void _ensurePacksFor(String themeId) {
+    if (_packsAskedFor == themeId) return;
+    _packsAskedFor = themeId;
+    unawaited(
+      ref.read(distroPacksProvider.notifier).ensure(
+            themeId,
+            scope: DistroPackScope.themeOnly,
+          ),
+    );
+  }
+
+  /// Fill [_widgets] from this distro's authored starter, once.
+  ///
+  /// ─── ONCE, AND NOT ON A SWIPE ─────────────────────────────────────────
+  ///
+  /// Re-seeding when the distro changes would look tidy and would throw away an
+  /// answer. Someone who unticks the conky, goes back to compare KDE, and comes
+  /// forward again has not changed their mind about the conky.
+  ///
+  /// What a swipe DOES do is change which kinds exist, so the set is intersected
+  /// against the new distro's offers at render time rather than rewritten here.
+  /// See [_chosenWidgets].
+  void _seedWidgetChoice(EffectiveTheme theme) {
+    if (_widgets != null) return;
+    final offered = {for (final k in offeredDesklets(theme)) k.id};
+    final starter = {
+      for (final s in theme.spec.desklets.starter)
+        if (offered.contains(s.kind)) s.kind,
+    };
+    // A distro authoring no starter, or one made entirely of pane-only kinds,
+    // still gets a demonstration rather than an empty desktop. Two, because one
+    // is not a demonstration and three fills a phone.
+    _widgets = starter.isNotEmpty
+        ? starter
+        : {
+            for (final id in const ['fastfetch', 'monitor'])
+              if (offered.contains(id)) id,
+          };
+  }
+
+  /// The ticked kinds that THIS distro can actually draw.
+  ///
+  /// Intersected rather than trimmed in place, so switching distro and back
+  /// does not lose a choice: KDE offers no `fastfetch`, and someone who ticked
+  /// it on Ubuntu, looked at KDE, and returned should still find it ticked.
+  Set<String> _chosenWidgets(EffectiveTheme theme) {
+    final chosen = _widgets ?? const <String>{};
+    final offered = {for (final k in offeredDesklets(theme)) k.id};
+    return {
+      for (final id in chosen)
+        if (offered.contains(id)) id,
+    };
+  }
+
+  /// Does the user want the distro's own icons, or their apps' own artwork?
+  ///
+  /// TRUE BY DEFAULT, which is what a null pref already resolves to, so leaving
+  /// the step untouched writes nothing and behaves exactly as the app did
+  /// before this step existed.
+  bool _distroIcons = true;
+
+  /// Write the icon answer into THIS distro's prefs bucket, and start the
+  /// download if one was agreed to.
+  ///
+  /// ─── ON THE WAY OUT, LIKE FOLDERS AND DESKLETS ────────────────────────
+  ///
+  /// Not on tap. `iconPackId` and `iconBrandPackId` are per-theme, so the
+  /// answer belongs to whichever distro is selected when the step is LEFT.
+  /// Someone who goes back, picks KDE and comes forward again has answered for
+  /// KDE, and committing on advance is what makes that true without this widget
+  /// having to track which buckets it has already written.
+  ///
+  /// ─── AND THE DOWNLOAD IS THE CONSENT ──────────────────────────────────
+  ///
+  /// Choosing the distro's icons is the moment the ten megabytes become
+  /// something the user asked for. Choosing app icons fetches nothing at all,
+  /// which on a metered connection is a real saving and is worth the step
+  /// existing even for someone who would have taken the default.
+  Future<void> _commitIcons(EffectiveTheme theme) async {
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+    if (_distroIcons) {
+      // `clearing`, not `copyWith(x: null)`. copyWith reads a null argument as
+      // "leave it alone", so a reset would silently do nothing. Clearing is
+      // also righter than writing the distro's pack id: null means "whatever
+      // this distro names", which keeps following a republish.
+      await notifier.edit(
+        (p) => p.clearing(iconPackId: true, iconBrandPackId: true),
+      );
+      unawaited(
+        ref.read(distroPacksProvider.notifier).ensure(
+              theme.spec.id,
+              scope: DistroPackScope.iconsOnly,
+            ),
+      );
+      return;
+    }
+
+    // BOTH tiers. Setting only the brand one would leave a hero pack resolving,
+    // so "app icons" would mean hand-drawn art for whatever a hero pack covers
+    // and generated icons for the rest. See [kNoIconPack].
+    await notifier.edit(
+      (p) => p.copyWith(
+        iconPackId: kNoIconPack,
+        iconBrandPackId: kNoIconPack,
+      ),
+    );
+  }
 
   bool _isDefault = false;
 
@@ -351,28 +501,62 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
           final rows = theme.deskletRows;
           var next = theme.prefs;
 
-          // ── THE AUTHORED STARTER IS OVERRULED, FOR SHORTLIST KINDS ONLY ─
+          // ── AN EXISTING PLACEMENT IS LEFT WHERE THE DISTRO PUT IT ──────
           //
-          // `StarterDesktop` places what theme.json asks for the first time a
-          // distro is worn, which is why Ubuntu arrives with a glance whether
-          // or not this step was answered. Once the user HAS been asked, their
-          // answer has to win, or unticking something does nothing and the
-          // step is decoration.
+          // `EffectiveTheme.resolve` lays out the authored `desklets.starter`
+          // the first time a distro is worn, which happens at the DISTRO step,
+          // before this one. So by the time the user answers, Ubuntu's clock is
+          // already at (0,0) spanning 3x1, which is the arrangement its
+          // screenshot shows and the reason the block is authored at all.
           //
-          // Scoped to the six ids this step offers. Anything else the starter
-          // placed, and anything the user added by hand, is left alone: this
-          // owns the question it asked and nothing more.
+          // This used to remove every offered kind and re-place the ticked ones
+          // at their DEFAULT spans, packed left to right. Ubuntu's clock came
+          // back as 4x2 at (0,0) and its conky as 4x3 at (4,0): a generic
+          // arrangement, written over the authored one, on every run, even when
+          // the user changed nothing at all.
+          //
+          // It went unnoticed because the old hardcoded shortlist happened not
+          // to name `clock`, so the one authored tile that survived made the
+          // result look intentional. Reading the offers list properly is what
+          // exposed it.
+          //
+          // ─── SO THE RULE IS SUBTRACTIVE ────────────────────────────────
+          //
+          // Remove what was UNTICKED. Leave what was ticked and is already
+          // placed exactly as it is. Place only what was ticked and is not
+          // there yet. Unticking still works, which is the whole reason this
+          // block exists, and ticking nothing new is now genuinely a no-op
+          // rather than a silent reflow.
+          //
+          // Scoped to what this step OFFERED, so anything the starter placed
+          // that was never asked about, and anything the user added by hand,
+          // is untouched. This owns the question it asked and nothing more.
+          final offeredIds = {for (final k in offeredDesklets(theme)) k.id};
+          final picked = _chosenWidgets(theme);
+
+          // Captured BEFORE the removals below, or a kind removed and re-added
+          // in the same pass would read as absent and be re-placed at its
+          // default, which is the bug this whole comment is about.
+          final alreadyPlaced = {
+            for (final dk in next.desklets)
+              if (dk.page == 0) dk.kind,
+          };
+
           for (final dk in [...next.desklets]) {
             if (dk.page != 0) continue;
-            if (!_StepWidgets.shortlist.contains(dk.kind)) continue;
+            if (!offeredIds.contains(dk.kind)) continue;
+            if (picked.contains(dk.kind)) continue;
             next = DeskletLayout.remove(next, dk.id);
           }
 
-          // Ticked kinds in CATALOGUE order, not tap order, so two people who
-          // chose the same set get the same desktop.
+          // Ticked, offered, and not on the desktop yet, in the DISTRO'S OWN
+          // offer order rather than tap order, so two people who chose the same
+          // set get the same desktop. Ordering by `DeskletKinds.all` would have
+          // been the shipping order rather than the one the distro authored,
+          // which is the order its picker shows.
           final chosen = [
-            for (final k in DeskletKinds.all)
-              if (_widgets.contains(k.id)) k,
+            for (final k in offeredDesklets(theme))
+              if (picked.contains(k.id) && !alreadyPlaced.contains(k.id)) k,
           ];
 
           // ── TWO ACROSS WHERE THEY FIT ──────────────────────────────────
@@ -458,6 +642,25 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       }
     }
 
+    // ── ICONS, WRITTEN ON THE WAY OUT ─────────────────────────────────
+    //
+    // Same shape as folders and desklets above and for the same reason: the
+    // prefs bucket belongs to whichever distro is selected as the step is left,
+    // so committing here is what makes going back and choosing a different
+    // distro answer for that one instead.
+    //
+    // Best-effort like its neighbours. An icon preference that failed to write
+    // is a desktop wearing the distro default, which is recoverable from the
+    // icons screen; a setup that cannot be finished is not.
+    if (_step == _SetupStep.icons) {
+      try {
+        final theme = ref.read(effectiveThemeProvider).asData?.value;
+        if (theme != null) await _commitIcons(theme);
+      } catch (e, s) {
+        debugPrint('setup: writing the icon choice failed: $e\n$s');
+      }
+    }
+
     // ── BADGES: THE ASK HAPPENS ON THE WAY OUT ────────────────────────
     //
     // Not on tapping the toggle. The toggle records what the user wants; this
@@ -502,125 +705,49 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         ref.read(selectedThemeIdProvider).asData?.value ?? fallbackThemeId;
     Analytics.setupComplete(themeId: themeId, granted: _isDefault);
 
-    // Furnish the first desktop BEFORE it is ever shown, so a fresh install
-    // reads as a set-up desktop rather than a blank one. This is also the only
-    // place `StarterDesktop.apply` is wired in — without it, an authored
-    // `desklets.starter` block in a theme.json would never take effect.
+    // ── _seedFirstDesktop WAS HERE, AND IT NEVER PLACED ANYTHING ────────
     //
-    // BEST-EFFORT, and never allowed to block completion. A desktop that comes
-    // up empty is recoverable (add from the picker); a setup that never finishes
-    // because furnishing threw is not. So a failure here is swallowed and the
-    // wizard still hands off to the desktop.
-    try {
-      await _seedFirstDesktop();
-    } catch (e, s) {
-      debugPrint('setup: seeding first desktop failed: $e\n$s');
-    }
+    // Its docblock called itself the only place `StarterDesktop.apply` is
+    // wired in. That was not true: `EffectiveTheme.resolve` applies the starter
+    // the first time a theme resolves, guarded by `deskletsInitialized`, which
+    // during setup happens at the DISTRO step. By the time this ran, every
+    // authored placement was already down.
+    //
+    // So this was a second, unguarded application, and it passed `theme.cols`
+    // and `theme.rows` where resolve correctly passes `deskletCols` and
+    // `deskletRows`, which are twice and three times larger. Every placement it
+    // attempted therefore either collided with the one resolve had already made
+    // and was refused, or would have landed at the wrong scale if it had not.
+    // A device dump confirmed the first: Ubuntu's stored clock and monitor are
+    // resolve's, at resolve's coordinates, and this call changed nothing.
+    //
+    // Removing it also fixes the ordering the widgets step depends on. Resolve
+    // seeds BEFORE that step, which is what makes the step's sweep able to
+    // overrule it; a second application afterwards would have put back exactly
+    // what the user unticked, had it ever succeeded.
 
-    // Same best-effort contract as the line above, and for the same reason: a
-    // desktop that comes up with generated icons is recoverable, a setup that
-    // never finishes because a download timed out is not.
-    try {
-      await _installDistroIcons();
-    } catch (e, s) {
-      debugPrint('setup: installing distro icons failed: $e\n$s');
-    }
+    // ── THE ICON DOWNLOAD USED TO BE HERE, AND IT WAS THE WRONG PLACE ────
+    //
+    // `_installDistroIcons` ran at this exact point: after the install
+    // animation had reached 100%, awaited, with two sequential downloads behind
+    // it. On a slow connection that is a progress bar sitting full while
+    // nothing happens, on the one screen whose entire job is to say the work is
+    // finished.
+    //
+    // It also could not work on a fresh device. It looked its packs up in
+    // `catalogueProvider`, which reads the cached index, which is null until
+    // something fetches one, and nothing in this wizard ever did. So both
+    // lookups returned null and both `continue`d, silently, every time.
+    //
+    // Both are now [DistroPacks], started from the first build of this screen
+    // and re-started on every swipe of the deck. By the time anyone reaches
+    // this line the packs are normally already on disk, and if they are not,
+    // the sweep is still running and will finish over the desktop.
 
     // Hand-off flag first, then the completion that swaps this screen out: the
     // desktop mounts fresh and reads the flag on that very build.
     ref.read(firstRunBootPendingProvider.notifier).state = true;
     await ref.read(setupCompletedProvider.notifier).complete();
-  }
-
-  /// Download the icon pack the chosen distro is about to ask for.
-  ///
-  /// ─── THE THEME NAMED IT AND NOTHING FETCHED IT ──────────────────────────
-  ///
-  /// `EffectiveTheme` resolves `brandPack` to the distro's own line pack, and
-  /// for the three bundled distros it does so without the theme.json naming
-  /// one, through `defaultLinePackFor`. That resolution was always correct.
-  ///
-  /// What never happened is the download. The resolver asked for
-  /// `ubuntu-24-04-line`, found nothing installed, and the generator drew
-  /// instead: every fresh install wore masked app icons rather than the set the
-  /// distro ships with, and there was nothing on screen to say why.
-  ///
-  /// ─── FREE OR OWNED ONLY ─────────────────────────────────────────────────
-  ///
-  /// NOT "install whatever the theme names". Eleven of the fifteen line packs
-  /// carry a Play SKU, and setup must not attempt a download the user has not
-  /// paid for; `install` would refuse with `notEntitled` and the wizard would
-  /// swallow it, which is a silent failure dressed as a feature.
-  ///
-  /// The three distros offered at setup are the free ones, so in practice this
-  /// installs their packs and nothing else. The check is written against the
-  /// catalogue rather than against that assumption, because the free three are
-  /// a product decision that has already changed once.
-  ///
-  /// ─── AND THE HERO PACK TOO, WHEN THERE IS ONE ───────────────────────────
-  ///
-  /// Ubuntu names `papirus-icon-theme`, forty-four hand-drawn icons that sit
-  /// ABOVE the line set in the three-tier resolve. Installing only the brand
-  /// pack would give a correct-looking desktop missing the one layer that is
-  /// hand-made.
-  Future<void> _installDistroIcons() async {
-    final theme = ref.read(effectiveThemeProvider).asData?.value;
-    if (theme == null) return;
-
-    final wanted = <String>{
-      if (theme.icons.heroPack != null) theme.icons.heroPack!,
-      if (theme.icons.brandPack != null) theme.icons.brandPack!,
-    };
-    if (wanted.isEmpty) return;
-
-    final packs = await ref.read(catalogueProvider.future);
-    final actions = ref.read(packActionsProvider);
-
-    for (final id in wanted) {
-      final p = packs.where((x) => x.packId == id).firstOrNull;
-      // Not in the catalogue at all: a pack id the theme names and the CDN does
-      // not carry. The generator covers it, which is what happens today.
-      if (p == null) continue;
-      // Already on disk, or bundled into the APK.
-      if (p.state == 'installed' || p.state == 'bundled') continue;
-      // PAID and not owned. Leaving it is correct: the icons screen will offer
-      // it, and a purchase installs it there.
-      if (p.sku != null && !p.unlocked) continue;
-
-      // Sequential, on a phone that has just been set up and may be on mobile
-      // data. Two packs at most.
-      await actions.install(id);
-    }
-  }
-
-  /// Apply the chosen distro's authored starter desklets, once, at the end of
-  /// setup. A no-op until a theme ships a `desklets.starter` block — and this
-  /// is the only place `StarterDesktop.apply` is wired in, so without this
-  /// call an authored block would never take effect.
-  ///
-  /// The old Glance-tile fallback (seed a default widget onto any empty
-  /// graphical desktop) was REMOVED deliberately: a fresh desktop now comes up
-  /// clean, and widgets are something the user adds, not something the
-  /// installer leaves behind. Only content a distro explicitly authors gets
-  /// placed.
-  Future<void> _seedFirstDesktop() async {
-    final theme = ref.read(effectiveThemeProvider).asData?.value;
-    if (theme == null) return;
-
-    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-
-    var n = 0;
-    String newId() => 'dk${DateTime.now().microsecondsSinceEpoch}_${n++}';
-
-    await notifier.edit(
-      (p) => StarterDesktop.apply(
-        p,
-        theme.spec.desklets,
-        cols: theme.cols,
-        rows: theme.rows,
-        newId: newId,
-      ),
-    );
   }
 
   @override
@@ -647,6 +774,30 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     final skin = theme == null
         ? SetupSkin.defaultForShell(ShellKind.gnome)
         : SetupSkin.defaultForShell(theme.shell);
+
+    // The pack sweep, watched for its STATE (the footer reads it) and started
+    // as a side effect below.
+    final packs = ref.watch(distroPacksProvider);
+
+    // ── POST-FRAME, BECAUSE STARTING WORK INSIDE build IS NOT ALLOWED ────
+    //
+    // `ensure` writes to a notifier, and a provider write during a build throws
+    // in Riverpod. The guard inside [_ensurePacksFor] makes the repeat calls
+    // free, so this costs one comparison per rebuild and needs no lifecycle of
+    // its own.
+    //
+    // Here rather than in `initState` because it needs the RESOLVED theme, and
+    // on a cold start that has not landed by the time initState runs.
+    if (theme != null) {
+      final id = theme.spec.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ensurePacksFor(id);
+      });
+      // Synchronous and idempotent, so it belongs in build rather than behind a
+      // post-frame callback: it writes no provider, only a field this widget
+      // owns, and the widgets step several screens later needs it settled.
+      _seedWidgetChoice(theme);
+    }
 
     return ChromeScope(
       data: chrome,
@@ -704,10 +855,23 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                         windowTitle: _windowTitle(theme, skin),
                         title: _title(current),
                         subtitle: _subtitle(current),
-                        status: ref.t('setup.status', {
-                          'n': '${i + 1}',
-                          'total': '${steps.length}',
-                        }),
+                        // ── NULL WHEN THERE IS NOTHING TO SAY ──────────
+                        //
+                        // The frame gives this slot to the status line when it
+                        // is non-null and to the progress dots otherwise, so a
+                        // step counter passed unconditionally here would delete
+                        // the dots from every wizard on every skin that has
+                        // them. It used to fall back to `setup.status` for
+                        // exactly that reason and the ordering in the frame
+                        // made it dead code instead.
+                        //
+                        // The count is not lost: the console skin prints it in
+                        // its title bar, and the dot row IS the count on the
+                        // skins that draw one. What the slot is borrowed for is
+                        // the one thing neither of those can say, which is what
+                        // the machine is currently doing.
+                        status: _packLine(packs, theme),
+                        nextEnabled: _mayAdvance(current, packs, theme),
                         footerNote:
                             !_isDefault && i > steps.indexOf(_SetupStep.welcome)
                                 ? _NagLine(onFix: _openHomePicker)
@@ -737,6 +901,57 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         ),
       ),
     );
+  }
+
+  /// What the pack sweep is doing, or null when it is not worth saying.
+  ///
+  /// ─── ONLY FOR THE DISTRO THIS SCREEN IS SHOWING ───────────────────────
+  ///
+  /// A swipe supersedes the pass in flight, so for a frame or two the state
+  /// still describes the distro the user just left. Reporting that would put
+  /// another distro's name in the footer of the one on screen, which is worse
+  /// than silence.
+  ///
+  /// LITERALS, not `ref.t`. The i18n migration has not run over the strings
+  /// added in this pass, and `ref.t` against a key that does not exist renders
+  /// the key itself, which is worse on screen than English is. Same call the
+  /// widgets step already makes.
+  String? _packLine(DistroPackState packs, EffectiveTheme? theme) {
+    if (theme == null || packs.themeId != theme.spec.id) return null;
+    return switch (packs.phase) {
+      DistroPackPhase.refreshing => 'Fetching package lists',
+      DistroPackPhase.installing when packs.total > 1 =>
+        'Installing ${packs.label}, ${packs.done + 1} of ${packs.total}',
+      DistroPackPhase.installing => 'Installing ${packs.label}',
+      _ => null,
+    };
+  }
+
+  /// May Continue be pressed?
+  ///
+  /// ─── IT BLOCKS IN ONE PLACE, ON ONE THING, BRIEFLY ────────────────────
+  ///
+  /// Only the distro step, only while THIS distro's own theme pack is still
+  /// transferring. Everything else is allowed through: an icon pack landing
+  /// four seconds late means four seconds of generated icons, and holding a
+  /// wizard for that would make a slow connection look like a hang on the one
+  /// screen where nobody can tell what is being waited for.
+  ///
+  /// It also fails OPEN. An unstarted sweep, a superseded one, a theme that has
+  /// not resolved, a crash inside `ensure`: all of them advance. The app has a
+  /// guaranteed floor either way, because `activeThemeSpecProvider` resolves
+  /// bundled when nothing is installed, so the worst case of advancing early is
+  /// the APK's copy of a distro rather than the CDN's. The worst case of
+  /// failing closed is a wizard nobody can leave.
+  bool _mayAdvance(
+    _SetupStep step,
+    DistroPackState packs,
+    EffectiveTheme? theme,
+  ) {
+    if (step != _SetupStep.distro) return true;
+    if (theme == null || packs.themeId != theme.spec.id) return true;
+    if (packs.phase != DistroPackPhase.installing) return true;
+    return packs.themeReady;
   }
 
   /// The live desktop above the step, or null where one would be dishonest.
@@ -770,6 +985,24 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     if (skin.kind == SetupFrameKind.console) return null;
     if (step == _SetupStep.welcome || step == _SetupStep.install) return null;
 
+    // ── AND THE ICONS STEP, WHICH IS THE ONE THE STAGE CANNOT ANSWER ─────
+    //
+    // Every other step asks a question the stage can show: move the dock, watch
+    // the dock move. This one asks which icon set you want, and only ONE icon
+    // style can be live at a time (`setIconTheme` pushes one to native and
+    // `IconCache` keys every bitmap by it). The distro's pack is also not on
+    // the device yet, which is the thing being agreed to.
+    //
+    // So the stage could only ever draw the App icons answer, permanently,
+    // including while Ubuntu icons was selected. The biggest element on screen
+    // showing the option the user did not pick is worse than no picture, and on
+    // a 260dp stage it read as a broken grid: eight oversized icons, no labels,
+    // cropped mid-row.
+    //
+    // The comparison moved into the step itself, where both answers can sit
+    // side by side at a size where the difference is visible. See [_StepIcons].
+    if (step == _SetupStep.icons) return null;
+
     // ── THE DISTRO STEP OWNS THE STAGE RATHER THAN WATCHING IT ─────────────
     //
     // Every other step ASKS A QUESTION and the stage answers it: pick a dock
@@ -781,7 +1014,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // three distros under a stage showing the selected one drew the same
     // desktop twice, once at 62dp inside a row and once at 260dp above it.
     if (step == _SetupStep.distro) {
-      return _DistroDeck(active: theme.spec.id);
+      return _DistroDeck(
+        active: theme.spec.id,
+        onSelected: _ensurePacksFor,
+      );
     }
 
     final mode = switch (step) {
@@ -846,13 +1082,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   /// block is the height the desklet will actually occupy rather than a
   /// decorative bar.
   Widget? _widgetGhosts(EffectiveTheme theme) {
+    final picked = _chosenWidgets(theme);
     final kinds = [
-      for (final k in DeskletKinds.all)
-        if (_widgets.contains(k.id)) k,
+      for (final k in offeredDesklets(theme))
+        if (picked.contains(k.id)) k,
     ];
     if (kinds.isEmpty) return null;
 
-    final rows = theme.rows < 1 ? 1 : theme.rows;
+    // The DESKLET grid, matching the packing in `_next` and the starter in
+    // `_seedFirstDesktop`. This read `theme.rows`, the icon grid, so a block
+    // drawn here was a third of the height of the tile it stood for and the
+    // Top / Middle / Bottom strip moved it by the wrong amount.
+    final rows = theme.deskletRows < 1 ? 1 : theme.deskletRows;
     final tall = kinds.fold<int>(0, (n, k) => n + k.defaultSpanY);
     // The PALETTE's own colours, not a constructed ChromeData. Building one
     // here would mean matching the four named arguments the screen's own
@@ -1039,6 +1280,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   String _title(_SetupStep step) => switch (step) {
         _SetupStep.welcome => ref.t('setup.welcome.chooseLanguage'),
         _SetupStep.distro => ref.t('setup.title.distro'),
+        // LITERAL, not a key, matching the widgets step below: the i18n
+        // migration has not run over this step, and `ref.t` against a missing
+        // key renders the key itself, which is worse on screen than English is.
+        _SetupStep.icons => 'Icons',
         _SetupStep.appearance => ref.t('setup.title.appearance'),
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
@@ -1055,6 +1300,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         // The reference has no line under "Choose your language:".
         _SetupStep.welcome => null,
         _SetupStep.distro => ref.t('setup.subtitle.distro'),
+        _SetupStep.icons => 'How your apps should look.',
         _SetupStep.appearance => ref.t('setup.subtitle.appearance'),
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
@@ -1073,6 +1319,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             onRequest: _openHomePicker,
           ),
         _SetupStep.distro => _StepDistro(mono: skin.mono),
+        _SetupStep.icons => _StepIcons(
+            theme: theme,
+            mono: skin.mono,
+            distroIcons: _distroIcons,
+            onChanged: (v) => setState(() => _distroIcons = v),
+          ),
         _SetupStep.appearance => _StepAppearance(theme: theme, mono: skin.mono),
         _SetupStep.dock => _StepDock(theme: theme, mono: skin.mono),
         _SetupStep.drawer => _StepDrawer(theme: theme, mono: skin.mono),
@@ -1087,10 +1339,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         _SetupStep.widgets => _StepWidgets(
             theme: theme,
             mono: skin.mono,
-            chosen: _widgets,
+            chosen: _chosenWidgets(theme),
             spot: _widgetSpot,
             onToggle: (id) => setState(() {
-              if (!_widgets.remove(id)) _widgets.add(id);
+              final set = _widgets ??= <String>{};
+              if (!set.remove(id)) set.add(id);
             }),
             onSpot: (v) => setState(() => _widgetSpot = v),
           ),
@@ -1110,6 +1363,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 enum _SetupStep {
   welcome('Welcome'),
   distro('Desktop'),
+  icons('Icons'),
   appearance('Appearance'),
   dock('Dock'),
   drawer('App drawer'),
@@ -1152,6 +1406,19 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
   return const [
     _SetupStep.welcome,
     _SetupStep.distro,
+    // ── STRAIGHT AFTER THE DISTRO, BECAUSE IT IS THE DISTRO'S QUESTION ──
+    //
+    // Which icons you get is a fact about the distro you just chose: the pack
+    // is named by its theme.json and derived from its id. Asking here means the
+    // answer sits beside the choice that produced it, and it means the ten
+    // megabytes are agreed to before the wizard spends five more screens
+    // implying they are already on their way.
+    //
+    // NOT in the terminal list below. The TUI shell has no app grid, so there
+    // is no surface for an icon pack to appear on and offering one would be
+    // offering a place that does not exist. Its line pack is still fetched if
+    // the user ever switches to a graphical distro.
+    _SetupStep.icons,
     // BEFORE the layout steps, deliberately. Dock and drawer both preview
     // themselves, and a preview painted in the mode you are about to leave is
     // worse than no preview. After distro because the preview needs a palette.
@@ -1407,10 +1674,17 @@ class _LanguageLine extends StatelessWidget {
 /// source of truth while this widget is alive; the selection is the record of
 /// it.
 class _DistroDeck extends ConsumerStatefulWidget {
-  const _DistroDeck({required this.active});
+  const _DistroDeck({required this.active, required this.onSelected});
 
   /// The currently selected distro id, used ONCE to pick the opening page.
   final String active;
+
+  /// Fired when a page settles, alongside the selection write.
+  ///
+  /// The deck is where a distro is CHOSEN, so it is the only place that knows
+  /// the moment a different distro's packs became the ones worth having. The
+  /// screen holds the idempotence guard; this just reports.
+  final ValueChanged<String> onSelected;
 
   @override
   ConsumerState<_DistroDeck> createState() => _DistroDeckState();
@@ -1452,6 +1726,9 @@ class _DistroDeckState extends ConsumerState<_DistroDeck> {
         final spec = specs[i];
         Analytics.themeSelected(spec.id);
         ref.read(selectedThemeIdProvider.notifier).select(spec.id);
+        // AFTER the select, so `activeThemeSpecProvider` is already resolving
+        // toward this distro when the sweep asks it what icon packs to fetch.
+        widget.onSelected(spec.id);
       },
       itemBuilder: (context, i) {
         final spec = specs[i];
@@ -1661,6 +1938,404 @@ class _StepDistro extends ConsumerWidget {
 /// layout scalars, all of which `setupDistrosProvider` has already loaded. No
 /// wallpaper decode, no icon lookup, no EffectiveTheme to build. Three of them
 /// on one screen is three gradients and some rectangles.
+/// The distro's own icons, or each app's own artwork.
+///
+/// ─── TWO CARDS, BECAUSE THE ANSWER IS A PICTURE ─────────────────────────────
+///
+/// The first version was two rows with four coloured squares beside each. It
+/// was honest and it communicated nothing: four flat orange plates do not tell
+/// anyone what an outline icon set looks like, and four palette steps look even
+/// less like app artwork than they do like icons.
+///
+/// So each option carries eight icons at a size where the difference is the
+/// obvious thing on the screen, and the stage is gone: see `_stage`, which
+/// could only ever have drawn one of the two answers while the user was
+/// choosing between them.
+///
+/// ─── ONE SIDE IS REAL AND THE OTHER CANNOT BE, YET ──────────────────────────
+///
+/// `getIcon` needs no pack, so App icons genuinely shows this phone's own first
+/// eight apps. The distro's set cannot: `previewIcons` renders from
+/// `arcticons-line`, which is the 10.58 MB download this step exists to ask
+/// about, so before the answer it returns eight nulls.
+///
+/// Rather than pick one, this ASKS and degrades. `previewIcons` is called every
+/// time; when bytes come back the card shows the true thing, and when they do
+/// not it falls back to outline glyphs in the distro's accent on its own plate.
+/// Someone who already has the pack, or who backs into this step after choosing
+/// it, sees the truth, and the card improves itself with no second code path.
+///
+/// It also drives the SIZE label. Real bytes mean the pack is installed, which
+/// means there is nothing to download, so quoting ten megabytes at that point
+/// would be quoting a cost the user has already paid.
+class _StepIcons extends ConsumerWidget {
+  const _StepIcons({
+    required this.theme,
+    required this.mono,
+    required this.distroIcons,
+    required this.onChanged,
+  });
+
+  final EffectiveTheme theme;
+  final bool mono;
+  final bool distroIcons;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // DEVICE pixels, because native renders a bitmap and a logical number
+    // produces a soft icon on every phone above 1x. The icons screen asks the
+    // same way for the same reason.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final sizePx = (40 * dpr).round();
+
+    // The distro's own accent, which for the fourteen official packs IS the
+    // pack's tint: `ubuntu-24-04-line` carries `#e95420` and so does Ubuntu's
+    // palette. Read from the palette rather than the catalogue so this works
+    // before an index has ever been fetched, which on a fresh device is the
+    // only state this step ever runs in.
+    final tint = _hexOf(theme.palette.accent);
+
+    final shot = ref.watch(_iconPreviewProvider((tint: tint, sizePx: sizePx)));
+    final drawn = [
+      for (final b in shot.value ?? const <Uint8List?>[])
+        if (b != null) b,
+    ];
+    final haveReal = drawn.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _IconOption(
+          mono: mono,
+          selected: distroIcons,
+          onTap: () => onChanged(true),
+          title: '${theme.spec.name} icons',
+          // Absent, not "0 MB", once the pack is already here. A nullable fact
+          // renders as no row rather than as a placeholder.
+          trailing: haveReal ? null : 'About 10 MB',
+          note: haveReal
+              ? 'One outline set across every app, in this distro colour.'
+              : 'One outline set across every app, in this distro colour. '
+                  'Downloaded once and shared by every distro.',
+          grid: _DistroIconGrid(theme: theme, drawn: drawn),
+        ),
+        const SizedBox(height: 10),
+        _IconOption(
+          mono: mono,
+          selected: !distroIcons,
+          onTap: () => onChanged(false),
+          title: 'App icons',
+          trailing: 'Nothing to download',
+          note: "Each app's own artwork, in this distro shape.",
+          grid: _AppIconGrid(sizePx: sizePx),
+        ),
+      ],
+    );
+  }
+}
+
+/// `#RRGGBB` for the native preview bridge, which parses a hex string.
+///
+/// Alpha is dropped rather than passed: a tint is a colour, the pack applies it
+/// at full opacity, and handing native eight hex digits where it expects six is
+/// the kind of thing that fails as a black icon rather than as an error.
+String _hexOf(Color c) {
+  final v = c.toARGB32() & 0x00FFFFFF;
+  return '#${v.toRadixString(16).padLeft(6, '0')}';
+}
+
+/// Eight of the user's real apps, rendered in an arbitrary tint by native.
+///
+/// A RECORD as the family key, for the structural equality a key needs without
+/// a hand-written `==` whose only failure mode is forgetting the next field.
+///
+/// Auto-disposing on purpose: these bitmaps describe a moment of choosing and
+/// must not outlive the wizard. Native caches none of them either, because
+/// `IconCache` keys by the APPLIED style and a previewed colour is not one.
+final _iconPreviewProvider = FutureProvider.family<List<Uint8List?>,
+    ({String tint, int sizePx})>((ref, key) async {
+  final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+  if (apps.isEmpty) return const [];
+
+  final keys = [for (final a in apps.take(8)) a.componentKey];
+  try {
+    return await ref
+        .read(launcherHostApiProvider)
+        .previewIcons(keys, key.tint, key.sizePx);
+  } catch (_) {
+    // The pack is not installed, or the bridge is not there at all, which is
+    // exactly the state of a widget test. Empty, and the card draws glyphs.
+    return const [];
+  }
+});
+
+/// What the distro's pack would give you: real bytes when they exist, outline
+/// glyphs in the accent when they do not. See [_StepIcons] for why both.
+class _DistroIconGrid extends StatelessWidget {
+  const _DistroIconGrid({required this.theme, required this.drawn});
+
+  final EffectiveTheme theme;
+  final List<Uint8List> drawn;
+
+  /// Eight generic shapes standing in for eight apps.
+  ///
+  /// Deliberately not the user's own apps recoloured. A line pack draws its OWN
+  /// outline of a messaging app; silhouetting the installed artwork would be a
+  /// different picture that happens to be per-app, which is a more convincing
+  /// wrong answer than an obviously generic right one.
+  static const _glyphs = <IconData>[
+    Icons.chat_bubble_outline,
+    Icons.photo_camera_outlined,
+    Icons.public,
+    Icons.music_note_outlined,
+    Icons.mail_outline,
+    Icons.place_outlined,
+    Icons.calendar_today_outlined,
+    Icons.shopping_bag_outlined,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = theme.palette;
+    final radius = 40 * theme.icons.cornerRadius.clamp(0.0, 0.5).toDouble();
+
+    return _Eight(
+      builder: (i, side) {
+        if (i < drawn.length) {
+          return Image.memory(drawn[i], fit: BoxFit.contain);
+        }
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: p.bgBottom,
+            borderRadius: BorderRadius.circular(radius * side / 40),
+          ),
+          child: Center(
+            child: Icon(_glyphs[i], size: side * 0.58, color: p.accent),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// This phone's own first eight apps with NO PACK over them.
+///
+/// ─── AND NOT [AppIcon], WHICH IS WHAT THIS USED TO BE ───────────────────────
+///
+/// `AppIcon` goes through `getIcon`, which renders the APPLIED style. During
+/// this step nothing has been written yet, so the applied style is still the
+/// distro default with `brandPack` resolved through `defaultLinePackFor`. On a
+/// device that already holds `arcticons-line` that is the distro's outline set,
+/// so this card drew Ubuntu icons and the two options were identical.
+///
+/// Worse, it was identical only SOMETIMES: a device without the pack fell
+/// through to the generator and looked correct. A comparison that depends on
+/// what the phone happens to have installed is not a comparison.
+///
+/// `previewGeneratedIcons` renders the generator tier on its own, so this is
+/// the same picture on every device regardless of what is on disk. See the
+/// method's own note for why it is not [getIcon] with an argument.
+class _AppIconGrid extends ConsumerWidget {
+  const _AppIconGrid({required this.sizePx});
+
+  final int sizePx;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shot = ref.watch(_appIconPreviewProvider(sizePx));
+    final bytes = shot.value ?? const <Uint8List?>[];
+
+    return _Eight(
+      builder: (i, side) {
+        if (i >= bytes.length) return const SizedBox.shrink();
+        final b = bytes[i];
+        // Nothing could be extracted for this app, which is rare and not worth
+        // a placeholder: an empty slot reads as loading, a grey box reads as
+        // broken. The grid simply has a gap.
+        if (b == null) return const SizedBox.shrink();
+        return Image.memory(b, fit: BoxFit.contain);
+      },
+    );
+  }
+}
+
+/// The generator tier for eight of this phone's apps. Sibling of
+/// [_iconPreviewProvider], keyed only by size because there is no colour to
+/// substitute: the artwork IS the app's own.
+final _appIconPreviewProvider =
+    FutureProvider.family<List<Uint8List?>, int>((ref, sizePx) async {
+  final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
+  if (apps.isEmpty) return const [];
+
+  final keys = [for (final a in apps.take(8)) a.componentKey];
+  try {
+    return await ref
+        .read(launcherHostApiProvider)
+        .previewGeneratedIcons(keys, sizePx);
+  } catch (_) {
+    // The bridge is not there at all, which is exactly the state of a widget
+    // test. Empty, and the grid draws nothing rather than throwing.
+    return const [];
+  }
+});
+
+/// Four across, two down, sized from the width it is given.
+///
+/// A [LayoutBuilder] rather than a fixed number, because the two grids sit
+/// inside cards whose padding differs by a pixel when one is selected, and a
+/// hardcoded side is how the same widget ends up correct in one card and
+/// overflowing in the other.
+class _Eight extends StatelessWidget {
+  const _Eight({required this.builder});
+
+  final Widget Function(int index, double side) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    const cols = 4;
+    const gap = 8.0;
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final side =
+            ((box.maxWidth - gap * (cols - 1)) / cols).clamp(24.0, 56.0);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var row = 0; row < 2; row++) ...[
+              if (row > 0) const SizedBox(height: gap),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (var col = 0; col < cols; col++)
+                    SizedBox(
+                      width: side,
+                      height: side,
+                      child: builder(row * cols + col, side),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One choosable card: radio, name, an optional right-aligned fact, the grid,
+/// and a line of prose under it.
+///
+/// Shaped like [SetupRow] rather than reusing it, because that widget puts its
+/// marker and text in a Row with a small optional `preview` on the right, and
+/// this needs the picture to be the body of the card rather than an ornament
+/// beside it. Same border weights, same selected treatment, same radius rule.
+class _IconOption extends StatelessWidget {
+  const _IconOption({
+    required this.mono,
+    required this.selected,
+    required this.onTap,
+    required this.title,
+    required this.note,
+    required this.grid,
+    this.trailing,
+  });
+
+  final bool mono;
+  final bool selected;
+  final VoidCallback onTap;
+  final String title;
+  final String note;
+  final String? trailing;
+  final Widget grid;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(selected ? 10 : 11),
+        decoration: BoxDecoration(
+          color: selected ? c.surfaceAlt : null,
+          borderRadius: BorderRadius.circular(mono ? 0 : 10),
+          border: Border.all(
+            color: selected ? c.accent : c.line,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                _Radio(on: selected, mono: mono),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: d.text.body.copyWith(color: c.text),
+                  ),
+                ),
+                if (trailing != null)
+                  Text(
+                    trailing!,
+                    style: d.text.caption.copyWith(color: c.textFaint),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            grid,
+            const SizedBox(height: 8),
+            Text(
+              note,
+              softWrap: true,
+              style: d.text.caption.copyWith(color: c.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The console keeps brackets and no fill, like every other control there.
+class _Radio extends StatelessWidget {
+  const _Radio({required this.on, required this.mono});
+
+  final bool on;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+    if (mono) {
+      return Text(
+        on ? '[x]' : '[ ]',
+        style: ChromeScope.of(context)
+            .text
+            .label
+            .copyWith(color: on ? c.accent : c.textMuted),
+      );
+    }
+
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: on ? c.accent : c.line, width: on ? 4.5 : 1.5),
+      ),
+    );
+  }
+}
+
 class _StepAppearance extends ConsumerWidget {
   const _StepAppearance({required this.theme, required this.mono});
 
@@ -1823,22 +2498,84 @@ class _StepDrawer extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         const _MiniLabel(text: 'How it moves'),
-        // Pages first, because it is the default and the list should read
-        // top-down in the order of likelihood rather than alphabetically.
-        for (final e in const {
-          'pages': ('Pages', 'Swipe sideways. Wraps around at the end.'),
-          'cube': ('Cube', 'The pages are faces of a solid.'),
-          'vertical': ('One long list', 'Scrolls up and down.'),
-        }.entries)
-          SetupRow(
-            title: e.value.$1,
-            subtitle: e.value.$2,
-            selected: style == e.key,
-            mono: mono,
-            marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-            onTap: () =>
-                notifier.edit((p) => p.copyWith(drawerScrollStyle: e.key)),
+
+        // ── THE NAMES COME FROM THE ENUM, NOT FROM HERE ─────────────────
+        //
+        // This held its own map of three styles and their blurbs, and Settings
+        // held a different list of the same three with no blurbs at all. Two
+        // hand-written lists is two chances to add a style to one and not the
+        // other, which is the drift that left `pages || cube` in one file
+        // disagreeing with `'vertical','pages','cube'` in another.
+        //
+        // [DrawerTransition.catalogue] is the six that ARE transitions, in the
+        // order they should read: the default first, then the one people have
+        // heard of, then its two variations, then the two that do not rotate.
+        //
+        // ─── AND THE ROWS PLAY WHAT THEY NAME ───────────────────────────
+        //
+        // A word cannot tell a cube from a cylinder, and neither can a still.
+        // Each row carries the transition running beside its name, from the
+        // same function the drawer itself applies, so nothing here can promise
+        // a motion the drawer does not have.
+        ScrollStylePlayer(
+          // The style the distro or the user already chose demonstrates itself
+          // once when the step opens, so the wizard shows what the preselected
+          // answer means before anyone taps anything.
+          initial: style,
+          builder: (context, phase, playing, play) => Column(
+            children: [
+              for (final t in DrawerTransition.catalogue)
+                SetupRow(
+                  title: t.copy.$1,
+                  subtitle: t.copy.$2,
+                  selected: style == t.value,
+                  mono: mono,
+                  marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+                  onTap: () {
+                    notifier
+                        .edit((p) => p.copyWith(drawerScrollStyle: t.value));
+                    // Every tap plays, including one on the row that is already
+                    // selected. A picker whose second tap does nothing reads as
+                    // broken rather than as already answered.
+                    play(t.value);
+                  },
+                  preview: SizedBox(
+                    width: 34,
+                    height: 46,
+                    child: ScrollStyleTile(
+                      style: t.value,
+                      palette: theme.palette,
+                      // Only the row being demonstrated moves. The others hold
+                      // the frozen pose that says what they do.
+                      phase: playing == t.value
+                          ? phase
+                          : ScrollStyleTile.restPhase,
+                    ),
+                  ),
+                ),
+              // Last, and outside the catalogue, because it is the one answer
+              // that is not a transition at all: it swaps the paged drawer for
+              // a single scrolling grid.
+              SetupRow(
+                title: 'One long list',
+                subtitle: 'Scrolls up and down. No pages at all.',
+                selected: style == 'vertical',
+                mono: mono,
+                marker: mono ? SetupMarker.chevron : SetupMarker.radio,
+                onTap: () => notifier
+                    .edit((p) => p.copyWith(drawerScrollStyle: 'vertical')),
+                preview: SizedBox(
+                  width: 34,
+                  height: 46,
+                  child: ScrollStyleTile(
+                    style: 'vertical',
+                    palette: theme.palette,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -2279,46 +3016,60 @@ class _StepWidgets extends ConsumerWidget {
   final ValueChanged<String> onToggle;
   final ValueChanged<String> onSpot;
 
-  /// The six offered, in this order. Ids, so a label change never breaks the
-  /// mapping and a kind this build does not have simply drops out below.
-  ///
-  /// PUBLIC, because `_next` sweeps the authored starter using exactly this
-  /// set: any of these already on page 0 is removed before the chosen ones are
-  /// placed, so unticking one actually unticks it. Two copies of this list
-  /// would mean a kind this step offers but the sweep does not know about,
-  /// which appears twice.
-  static const shortlist = <String>[
-    'fastfetch',
-    'monitor',
-    // The one Ubuntu's own theme.json places. Offered here so it can be turned
-    // OFF, which was the whole reason it kept coming back.
-    'glance',
-    'battery',
-    'df',
-    'free',
-    'uptime',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ChromeScope.of(context);
     final c = d.colors;
 
-    final kinds = [
-      for (final id in shortlist)
-        if (DeskletKinds.byId(id) != null) DeskletKinds.byId(id)!,
-    ];
+    // THE DISTRO'S OWN LIST. See [offeredDesklets]: the hardcoded seven this
+    // used to carry offered `df`, `free` and `uptime`, all of which are
+    // pane-only, so ticking one wrote a desklet that `renderable` drops from
+    // every shell this step runs on. It also offered `glance`, which Ubuntu no
+    // longer names, and missed the five Ubuntu does.
+    final kinds = offeredDesklets(theme);
     if (kinds.isEmpty) return const SizedBox.shrink();
+
+    // What is on workspace one right now, which the commit in `_next` leaves
+    // alone. Read here rather than passed in, because it is derived from the
+    // same `theme` this widget already has and a parameter would be a second
+    // copy of a rule that has to match the commit exactly.
+    final placed = {
+      for (final dk in theme.prefs.desklets)
+        if (dk.page == 0) dk.kind,
+    };
+    final willPlace =
+        kinds.any((k) => chosen.contains(k.id) && !placed.contains(k.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        // ─── LIVE TILES, NOT NAMES ─────────────────────────────────────
+        //
+        // This was a Wrap of `_WidgetChoice` chips, and the argument for that
+        // was real: a conky at 60dp is four grey bars, and the stage above is
+        // where the picture goes. It answers the wrong question. The stage
+        // shows WHERE the chosen ones land; this asks WHICH, and a name cannot
+        // tell you whether you want a fastfetch on your home screen.
+        //
+        // `desklet_picker` has drawn nine of these live for a while, so both
+        // the precedent and the budget exist. Two columns rather than the
+        // picker's full-screen grid, because this sits inside an installer
+        // window with a stage above it and a footer below.
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          // Swatch plus the label line beneath it. Fixed rather than measured,
+          // because an intrinsic pass over live desklets would rebuild each one
+          // twice on every scroll frame.
+          childAspectRatio: 1.35,
           children: [
             for (final k in kinds)
-              _WidgetChoice(
+              _WidgetTile(
+                theme: theme,
+                kind: k,
                 // `conky` rather than `System monitor`. The kind's own label is
                 // the settings-screen name and this is the shop window.
                 label: k.id == 'monitor' ? 'conky' : k.label,
@@ -2330,10 +3081,16 @@ class _StepWidgets extends ConsumerWidget {
         ),
         // ─── THE POSITION STRIP IS ABSENT, NOT DISABLED ──────────────────
         //
-        // Nothing ticked means nothing to place, so there is no question left
-        // to ask. A greyed-out control asks the reader to work out WHY it is
-        // greyed out, and the answer is already on the screen above it.
-        if (chosen.isNotEmpty) ...[
+        // Nothing to PLACE means no question left to ask, and that is no longer
+        // the same as nothing ticked. An existing placement stays where the
+        // distro's authored starter put it, so on a fresh Ubuntu, whose default
+        // ticks are exactly what the starter already laid out, this strip would
+        // move nothing at all. It appears once something is ticked that is not
+        // on the desktop yet, and governs those.
+        //
+        // A greyed-out control asks the reader to work out WHY it is greyed
+        // out, and the answer is already on the screen above it.
+        if (willPlace) ...[
           const SizedBox(height: 16),
           const _MiniLabel(text: 'Where they sit'),
           const SizedBox(height: 8),
@@ -2370,20 +3127,32 @@ class _StepWidgets extends ConsumerWidget {
   }
 }
 
-/// One tickable desklet name.
+/// One tickable desklet, drawn as itself.
 ///
-/// Deliberately NOT a preview of the desklet. A conky rendered at 60dp is four
-/// grey bars, and six of them side by side is the wall of slabs the desktop
-/// canvas already got wrong once. The stage above is where the picture goes;
-/// this is where the name goes.
-class _WidgetChoice extends StatelessWidget {
-  const _WidgetChoice({
+/// ─── IT USED TO BE A NAME IN A BOX ──────────────────────────────────────────
+///
+/// `_WidgetChoice` was a chip with a label, and its docblock argued that a
+/// conky at 60dp is four grey bars and that the stage above is where the
+/// picture belongs. Both halves are true and the conclusion does not follow.
+/// The stage answers WHERE the chosen ones sit, which is a smaller question
+/// than which ones you want, and "Fastfetch" tells someone who has never seen
+/// one absolutely nothing about whether they want it.
+///
+/// [DeskletPreview] is the same widget the picker uses, rendering through the
+/// same `buildDesklet` the desktop does, so this cannot show something the
+/// desktop would not.
+class _WidgetTile extends StatelessWidget {
+  const _WidgetTile({
+    required this.theme,
+    required this.kind,
     required this.label,
     required this.chosen,
     required this.mono,
     required this.onTap,
   });
 
+  final EffectiveTheme theme;
+  final DeskletKind kind;
   final String label;
   final bool chosen;
   final bool mono;
@@ -2398,7 +3167,7 @@ class _WidgetChoice extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: chosen && !mono ? c.accent.withValues(alpha: 0.14) : null,
           border: Border.all(
@@ -2407,21 +3176,40 @@ class _WidgetChoice extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(mono ? 0 : 10),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              chosen ? Icons.check : Icons.add,
-              size: 14,
-              color: chosen ? c.accent : c.textMuted,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: d.text.body.copyWith(
-                color: chosen ? c.text : c.textMuted,
-                fontFamily: mono ? null : d.text.caption.fontFamily,
+            // Expanded rather than a fixed height: the tile is sized by the
+            // grid's aspect ratio, so the swatch takes whatever the label row
+            // leaves. A fixed number here is how the same widget ends up
+            // correct on one phone and overflowing on the next.
+            Expanded(
+              child: DeskletPreview(
+                theme: theme,
+                kind: kind,
+                height: double.infinity,
               ),
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                Icon(
+                  chosen ? Icons.check : Icons.add,
+                  size: 13,
+                  color: chosen ? c.accent : c.textMuted,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: d.text.caption.copyWith(
+                      color: chosen ? c.text : c.textMuted,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -358,6 +358,18 @@ class _Rail extends StatelessWidget {
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 110),
+                    // ─── A FLOOR, BECAUSE THE ROW IS A DROP TARGET ────────
+                    //
+                    // The height came entirely from the label: 8dp of padding
+                    // around one to three wrapped lines. "11 Forensics" is one
+                    // line and landed near 29dp, well under the platform
+                    // minimum, while "03 Web Application Analysis" is three
+                    // and cleared it comfortably. So the rail's hit area
+                    // varied with the length of the name, and the shortest
+                    // shelves were the hardest to tap AND the hardest to drop
+                    // an app onto, which is the gesture this whole drawer is
+                    // built around.
+                    constraints: const BoxConstraints(minHeight: 48),
                     padding: const EdgeInsets.fromLTRB(9, 8, 7, 8),
                     decoration: BoxDecoration(
                       color: hovering

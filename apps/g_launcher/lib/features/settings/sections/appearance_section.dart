@@ -8,7 +8,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/data/prefs/launcher_prefs.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../data/prefs/prefs_repository.dart';
@@ -18,6 +20,7 @@ import '../../../design/setting_previews.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../engine/font_catalogue.dart';
+import '../../../engine/theme_spec.dart';
 import '../../icons/icon_theme_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
@@ -76,6 +79,19 @@ List<Widget> appearanceSection(
   final monoFonts = catalogue?.monospace ?? const <FontEntry>[];
 
   final mode = theme.prefs.themeMode ?? 'system';
+  final accents = theme.spec.accents;
+  final layouts = theme.spec.layouts;
+  // The stored id, else whichever card the distro marked default, else the
+  // first. Never null once a distro ships presets, so the picker always has a
+  // ring on something: an unselected chooser reads as broken, and there is
+  // always a true answer here because `layoutFor` falls back to `layout` and
+  // the default preset paints the same thing.
+  final preset = theme.prefs.layoutPreset ??
+      (layouts.isEmpty
+          ? ''
+          : layouts
+              .firstWhere((l) => l.isDefault, orElse: () => layouts.first)
+              .id);
   // THROUGH THE CAPABILITY, not a second `paletteLight != null`. Identical
   // today, and the point of `capabilities.dart` is that one file answers this
   // for every row rather than each computing its own.
@@ -131,7 +147,14 @@ List<Widget> appearanceSection(
           // 'icon pack' kept as a search term even though the row is now called
           // Icons: it is what Play, Nova and Icon Pack Studio all call the
           // thing, so it is what someone will type.
-          const ['icons', 'icon pack', 'icon theme', 'adaptive', 'yaru', 'nova'],
+          const [
+            'icons',
+            'icon pack',
+            'icon theme',
+            'adaptive',
+            'yaru',
+            'nova'
+          ],
           SettingsRow(
             icon: Icons.grid_view_outlined,
             // "Icons", because in Linux an icon set is an icon THEME and the
@@ -242,6 +265,56 @@ List<Widget> appearanceSection(
         // The tiles paint from `spec.paletteLight` and `spec.palette`, so this
         // is the real answer for the distro on screen rather than a generic
         // pale rectangle and a generic dark one.
+        // ─── ONLY WHEN THE DISTRO SHIPS A SET ───────────────────────────
+        //
+        // An empty `accents` is not "no opinion", it is "this distro has one
+        // accent", and rendering a one-swatch picker would be a control whose
+        // only possible use is to reselect what is already selected. Every
+        // theme shipping today is in that case, so this row simply does not
+        // exist for them.
+        // ─── ONLY WHEN THE DISTRO SHIPS MORE THAN ONE ───────────────────
+        //
+        // One preset is not a choice, and a chooser with a single card is a
+        // control whose only use is to reselect what is already selected. The
+        // same rule the accent row below follows.
+        if (layouts.length > 1)
+          FilterRow(
+            const [
+              'layout',
+              'desktop layout',
+              'appearance',
+              'preset',
+              'windows',
+              'macos',
+              'touch'
+            ],
+            PreviewChoice<String>(
+              value: preset,
+              onSelect: (v) => notifier.edit((p) => _applyPreset(p, v)),
+              options: [
+                for (final l in layouts)
+                  PreviewOption(
+                    value: l.id,
+                    label: l.name,
+                    child: DevicePreview(
+                      palette: theme.palette,
+                      mode: DevicePreviewMode.desktop,
+                      // EACH CARD PAINTS ITS OWN LAYOUT, which is the entire
+                      // point: four cards showing the current dock would be
+                      // four identical pictures with different captions, and
+                      // the captions are the part nobody reads.
+                      dock: l.layout.dock,
+                      framed: false,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        if (accents.isNotEmpty)
+          FilterRow(
+            const ['accent', 'colour', 'color', 'highlight', 'tint'],
+            _AccentRow(theme: theme, accents: accents),
+          ),
         FilterRow(
           const ['light', 'dark', 'theme mode', 'appearance', 'night'],
           PreviewChoice<String>(
@@ -304,7 +377,8 @@ List<Widget> appearanceSection(
             const ['light', 'dark'],
             SettingsRow(
               icon: Icons.info_outline,
-              title: context.t('settings.distroDarkOnly', {'name': theme.spec.name}),
+              title: context
+                  .t('settings.distroDarkOnly', {'name': theme.spec.name}),
               subtitle: context.t('settings.appliesToBoth'),
               trailing: const SizedBox.shrink(),
             ),
@@ -442,8 +516,23 @@ List<Widget> appearanceSection(
           const ['opacity', 'transparency', 'surface', 'glass', 'wallpaper'],
           OpacityRow(
             value: theme.surfaceOpacity,
+            // ─── THE MAIN SLIDER FOLLOWS THE DISTRO ───────────────────
+            //
+            // Every other Follow on this screen means "rejoin the main
+            // slider". This one is the bottom of the chain, so it means
+            // "back to what this distro ships", and it is the only row
+            // where that sentence is available.
+            //
+            // Without it, splitting the main slider once pinned an opacity
+            // across every distro forever: Garuda's glass and Zorin's solid
+            // drawer would both be overwritten by one drag on Ubuntu. That is
+            // the same failure `dockSide` documents two files away, and it
+            // has the same fix.
+            following: theme.prefs.surfaceOpacity == null,
             onChanged: (v) =>
                 notifier.edit((p) => p.copyWith(surfaceOpacity: v)),
+            onFollow: () =>
+                notifier.edit((p) => p.clearing(surfaceOpacity: true)),
           ),
         ),
       ],
@@ -494,9 +583,12 @@ List<Widget> appearanceSection(
             min: 0,
             max: 24,
             divisions: 12,
-            format: (v) =>
-                v <= 0 ? context.t('settings.panels.blurOff') : v.round().toString(),
+            format: (v) => v <= 0
+                ? context.t('settings.panels.blurOff')
+                : v.round().toString(),
+            following: theme.prefs.panelBlur == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelBlur: v)),
+            onFollow: () => notifier.edit((p) => p.clearing(panelBlur: true)),
           ),
         ),
         FilterRow(
@@ -510,7 +602,9 @@ List<Widget> appearanceSection(
             max: 1,
             divisions: 10,
             format: (v) => '${(v * 100).round()}%',
+            following: theme.prefs.panelTint == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelTint: v)),
+            onFollow: () => notifier.edit((p) => p.clearing(panelTint: true)),
           ),
         ),
         FilterRow(
@@ -524,10 +618,144 @@ List<Widget> appearanceSection(
             max: 28,
             divisions: 14,
             format: (v) => '${v.round()}',
+            following: theme.prefs.panelRadius == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelRadius: v)),
+            onFollow: () =>
+                notifier.edit((p) => p.clearing(panelRadius: true)),
           ),
         ),
       ],
     ),
   ];
+}
+
+/// Switch to a layout preset, clearing the overrides that preset owns.
+///
+/// ─── WHY A SWITCH THROWS WORK AWAY, DELIBERATELY ────────────────────────────
+///
+/// `LayoutResolver` reads `prefs.X ?? layout.X` for the dock, the bar, its
+/// side, its readouts, its modules, its height, the grid and the drawer width.
+/// So a user who has ever moved any one of those would tap macOS-like and watch
+/// the desktop not change, because their old override still beats the new
+/// layout. The control would be visibly broken for exactly the people who use
+/// the launcher most.
+///
+/// Three ways out were on the table. Leaving prefs to win is the least code and
+/// ships that broken control. Scoping every layout pref per preset is correct
+/// and multiplies the stored surface by the number of presets, permanently, for
+/// a feature with no users yet. Clearing is what Zorin Appearance itself does:
+/// a deliberate act with a visible whole-desktop result.
+///
+/// ONLY THE FIELDS A PRESET CAN EXPRESS are cleared. Opacity, fonts, icon pack,
+/// wallpaper, folders, gestures and the accent all survive, because none of
+/// them appears in a `layouts` entry and throwing them away would make this
+/// button a theme reset wearing a layout label.
+LauncherPrefs _applyPreset(LauncherPrefs p, String id) => p
+    .clearing(
+      dockSide: true,
+      topBar: true,
+      topBarSide: true,
+      topBarStats: true,
+      panelModules: true,
+      panelHeight: true,
+      panelSide: true,
+      desktopIcons: true,
+      rows: true,
+      cols: true,
+      drawerCols: true,
+    )
+    .copyWith(layoutPreset: id);
+
+/// The accent swatches, as one settings row.
+///
+/// ─── A ROW OF SWATCHES, NOT A SHEET ─────────────────────────────────────────
+///
+/// Six colours fit across a phone at 44dp with room to spare, and the whole
+/// value of an accent picker is seeing the answers next to each other against
+/// this distro's own background. A row that says "Blue" with a chevron, opening
+/// a screen that shows six circles, is two taps and a page transition to reach
+/// something that fits on the row it replaced.
+///
+/// ─── AND THE SELECTED ONE IS RINGED, NOT TICKED ─────────────────────────────
+///
+/// A checkmark inside a swatch has to be drawn in something, and whatever that
+/// something is will be invisible against at least one of the six. A ring
+/// outside the circle is always legible because it sits on the row's own
+/// surface rather than on the colour being chosen.
+class _AccentRow extends ConsumerWidget {
+  const _AccentRow({required this.theme, required this.accents});
+
+  final EffectiveTheme theme;
+  final List<ThemeAccent> accents;
+
+  /// Clears the 44dp minimum, and six of them plus gaps fit inside 360dp with
+  /// the row's own 16dp padding on both sides.
+  static const _swatch = 44.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final chosen = theme.prefs.accentId;
+    final onDark = theme.palette.onDark;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.t('settings.accent'),
+            style: TextStyle(
+              fontFamily: theme.typography.display,
+              fontSize: 15 * theme.textScale,
+              color: onDark,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (final a in accents) ...[
+                Semantics(
+                  button: true,
+                  selected: a.id == chosen,
+                  label: a.name,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      // Tapping the SELECTED one clears back to the distro's
+                      // own accent. Otherwise a user who tries the six and
+                      // wants the original back has no way to say so short of
+                      // resetting the whole theme, and one of the six only
+                      // happens to be the default on some distros.
+                      notifier.edit(
+                        (p) => a.id == chosen
+                            ? p.clearing(accentId: true)
+                            : p.copyWith(accentId: a.id),
+                      );
+                    },
+                    child: Container(
+                      width: _swatch,
+                      height: _swatch,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: a.value,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: a.id == chosen
+                              ? onDark
+                              : onDark.withValues(alpha: 0.18),
+                          width: a.id == chosen ? 2.5 : 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

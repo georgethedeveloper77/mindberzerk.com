@@ -21,6 +21,8 @@ import 'app_menu_words.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
+import 'folder_glyph_picker.dart';
+import 'folder_glyphs.dart';
 import 'folder_store.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
@@ -315,6 +317,45 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     }();
   }
 
+  /// Open the icon picker and write the answer.
+  ///
+  /// ─── CONVERT FIRST, LIKE RENAME ─────────────────────────────────────────
+  ///
+  /// A generated `cat:` folder owns nothing, so `setGlyph` against its id is a
+  /// no-op that LOOKS like it worked: the sheet closes, and the icon comes back
+  /// on the next launch because the category is rebuilt from scratch. Going
+  /// through [_editable] first is the same dance `_commitRename` does and for
+  /// the same reason.
+  ///
+  /// The distro's authored glyph survives the conversion, because
+  /// [DrawerFolderStore.editable] copies it onto the materialised folder. So a
+  /// user who opens the picker on Internet, changes nothing and backs out is
+  /// left exactly where they started rather than with a plain folder.
+  Future<void> _chooseGlyph(
+    BuildContext scoped,
+    EffectiveTheme theme,
+    FolderSnapshot live,
+  ) async {
+    // [scoped], never `context`. See [_Actions.onIcon].
+    final picked = await showFolderGlyphPicker(
+      scoped,
+      current: live.glyph,
+    );
+    // Null is CANCELLED, not cleared. Clearing comes back as the sentinel
+    // below, because a nullable return cannot say both things and silently
+    // wiping someone's icon when they dismissed a sheet is the worse failure.
+    if (picked == null) return;
+    if (!mounted) return;
+
+    final id = await _editable(live);
+    await widget.store.setGlyph(
+      ref,
+      theme,
+      id,
+      picked == kFolderGlyphCleared ? null : picked,
+    );
+  }
+
   /// The folder as it stands right now, or null if it has just been dissolved.
   ///
   /// Read from the provider rather than captured, because `_commitRename` runs
@@ -445,6 +486,8 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
                   // not stick; `_editable` converts it first, so they can.
                   _Actions(
                     theme: theme,
+                    glyph: live.glyph,
+                    onIcon: (inner) => _chooseGlyph(inner, theme, live),
                     onAdd: () => _addApps(theme, live),
                     onUngroup: () {
                       // ─── ASK BEFORE PROMISING ──────────────────────────
@@ -730,11 +773,29 @@ class _Actions extends StatelessWidget {
     required this.theme,
     required this.onAdd,
     required this.onUngroup,
+    required this.onIcon,
+    required this.glyph,
   });
 
   final EffectiveTheme theme;
   final VoidCallback onAdd;
   final VoidCallback onUngroup;
+
+  /// Takes a [BuildContext] rather than being a [VoidCallback], and that is
+  /// load-bearing.
+  ///
+  /// The picker is a [ThemedSheet], which reads [ChromeScope] BEFORE pushing
+  /// its route. The overlay's State builds the scope, so the State's own
+  /// `context` is ABOVE it and would resolve to [ChromeData.bootstrap]: house
+  /// colours on a sheet opened over a Zorin panel. This widget is built INSIDE
+  /// the scope, so its context resolves correctly, and passing it down is the
+  /// smallest way to say so.
+  final void Function(BuildContext) onIcon;
+
+  /// Drawn INSIDE its own button, so the control shows the current answer
+  /// rather than a generic paintbrush. A settings row that displays its value
+  /// is the difference between "you may change this" and "this is what it is".
+  final String? glyph;
 
   @override
   Widget build(BuildContext context) {
@@ -750,6 +811,19 @@ class _Actions extends StatelessWidget {
             icon: Icons.folder_off_outlined,
             semantic: 'Ungroup this folder',
             onTap: onUngroup,
+          ),
+          const SizedBox(width: 18),
+          Builder(
+            // The context this needs is one below [ChromeScope], and the
+            // closure above was created in the State's build, which is one
+            // above. A Builder is the cheapest way to get a context from the
+            // right side of that boundary.
+            builder: (inner) => _GlyphButton(
+              theme: theme,
+              icon: resolveFolderGlyph(folderGlyph: glyph),
+              semantic: context.t('drawer.chooseAnIconForThisFolder'),
+              onTap: () => onIcon(inner),
+            ),
           ),
           const SizedBox(width: 18),
           _GlyphButton(

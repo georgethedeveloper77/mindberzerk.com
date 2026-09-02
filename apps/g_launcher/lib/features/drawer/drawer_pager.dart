@@ -4,14 +4,46 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../design/drawer_transition.dart';
 import '../../design/grid_metrics.dart';
 
 /// The drawer as PAGES rather than one long scroll, optionally with the cube.
 ///
 /// **Why this is cheap.** Each page is an ordinary non-scrolling grid, and the
 /// cube is a `Matrix4` applied to a page that is already built and laid out. No
-/// extra rasterisation, no shader, no rebuild per frame; the transform runs on
-/// the compositor. The famous CyanogenMod effect costs about as much as a fade.
+/// extra rasterisation, no shader; the transform runs on the compositor. The
+/// famous CyanogenMod effect costs about as much as a fade.
+///
+/// ─── AND FOR A LONG TIME IT ALSO REBUILT EVERY PAGE, EVERY FRAME ───────────
+///
+/// The claim above said "no rebuild per frame" and the code did the opposite.
+/// The controller listener called `setState` on every scroll frame, so a drag
+/// re-ran this whole `build`: the LayoutBuilder recomputed every row count and
+/// slack figure, `PageView.builder` rebuilt each live page, and each page's
+/// `GridView.builder` rebuilt all twenty tiles. In the real drawer a tile is an
+/// `AppIcon`, a ConsumerWidget watching four providers.
+///
+/// Measured on an S22 in profile, eight flings per style
+/// (`integration_test/drawer_transition_bench_test.dart`):
+///
+///     style      avg build   worst build   avg raster
+///     vertical        0.78          3.83         3.08
+///     pages           2.61         20.19         2.88
+///     cube            2.36         18.89         2.67
+///
+/// Raster was flat, which is the transform being genuinely free. BUILD was five
+/// times the vertical list's, with a worst frame of 20ms against an 8.3ms
+/// budget: two to three dropped frames in one hitch.
+///
+/// The slide paid all of it for nothing. It never reads the page offset; only
+/// the cube's matrix and the dots do. And it explains a review that called the
+/// slide jerky and the cube smooth: both hitch, but a dropped frame against a
+/// constant-velocity slide is obvious, while the same frame inside a rotating
+/// cube is hidden by the rotation.
+///
+/// So the offset is a [ValueNotifier] now, not state. The pages are built once
+/// and the only thing that rebuilds per frame is the `Transform` itself, with
+/// the grid handed through as a `child` the builder never touches.
 ///
 /// **Why pages need a fixed row count.** A vertical drawer can let content
 /// decide its own length; a paged one cannot, because the page boundary has to
@@ -33,7 +65,7 @@ class DrawerPager extends StatefulWidget {
     required this.columns,
     required this.aspectRatio,
     required this.itemBuilder,
-    this.cube = false,
+    this.transition = DrawerTransition.slide,
     this.topPadding = 0,
     this.rowsOverride,
     this.onRows,
@@ -64,8 +96,20 @@ class DrawerPager extends StatefulWidget {
   final double aspectRatio;
   final Widget Function(BuildContext, int) itemBuilder;
 
-  /// Rotate pages around the vertical axis instead of sliding them.
-  final bool cube;
+  /// How a page moves as the next one arrives.
+  ///
+  /// ─── IT WAS `cube: bool`, AND A BOOL HOLDS TWO ANSWERS ──────────────────
+  ///
+  /// Fine while there were two. There are six, and the caller wrote
+  /// `cube: style == 'cube'`, which quietly threw away every value it did not
+  /// recognise: a distro authoring `cylinder` would have rendered a plain slide
+  /// with nothing anywhere reporting a problem.
+  ///
+  /// An ENUM rather than the raw string, so this widget cannot be handed
+  /// `'cubbe'`. The string-to-enum step is [DrawerTransition.parse] and it lives
+  /// at the boundary, once, where a value arriving from prefs or from a newer
+  /// pack's theme.json can degrade in one known place.
+  final DrawerTransition transition;
 
   /// Render exactly this many rows instead of deriving them from the height.
   ///
@@ -205,7 +249,20 @@ class _DrawerPagerState extends State<DrawerPager> {
   /// Live page offset, driven by the controller so the transform tracks the
   /// FINGER rather than an animation. A cube that only animates on release
   /// feels broken, because the whole appeal is dragging it round.
-  late double _page = (_wrapBase + widget.initialPage).toDouble();
+  ///
+  /// ─── A NOTIFIER, AND IT USED TO BE STATE ────────────────────────────────
+  ///
+  /// Written with `setState` this is the most expensive line in the file: see
+  /// the measurements in the class doc. A scroll frame does not change the row
+  /// count, the page count, the tile aspect or the contents of any page, and
+  /// those are what `build` recomputes. It changes ONE number that two small
+  /// widgets read.
+  ///
+  /// So it is published rather than stored. `_cube` and `_Dots` listen; nothing
+  /// else does; `build` runs when the widget's inputs change and not when a
+  /// finger moves.
+  late final ValueNotifier<double> _page =
+      ValueNotifier<double>((_wrapBase + widget.initialPage).toDouble());
 
   /// The page count from the last build, so the listener can turn a raw
   /// controller index into a logical page. Layout owns the real number; this is
@@ -215,6 +272,22 @@ class _DrawerPagerState extends State<DrawerPager> {
   /// The last logical page handed to [DrawerPager.onPage], so the report fires
   /// on change rather than on every scroll frame.
   int? _reportedPage;
+
+  /// The pager's width from the last layout, in logical pixels.
+  ///
+  /// ─── TWO STYLES TRANSLATE IN PIXELS, AND HAVE TO ────────────────────────
+  ///
+  /// A `PageView` has already moved each page by its own full width by the time
+  /// a transform is applied, so `depth` and `stack`, which want a page to
+  /// travel LESS than that, have to subtract part of it back. A matrix takes
+  /// pixels; the fraction alone is meaningless without knowing what it is a
+  /// fraction of.
+  ///
+  /// Recorded during build rather than read from a LayoutBuilder inside the
+  /// transform: one of those per live page per frame is what `_cube` used to
+  /// do, and its constraints were never read. Set before any page is built, so
+  /// it is never stale by the time [drawerTransformFor] runs.
+  double _lastWidth = 0;
 
   /// The last derived row count handed to [DrawerPager.onRows], so the
   /// post-frame report fires on change rather than on every build.
@@ -228,8 +301,10 @@ class _DrawerPagerState extends State<DrawerPager> {
     super.initState();
     _controller.addListener(() {
       if (!_controller.hasClients) return;
-      final p = _controller.page ?? _page;
-      if (p != _page) setState(() => _page = p);
+      final p = _controller.page ?? _page.value;
+      // NO setState. Assigning the notifier notifies its two listeners and
+      // leaves this widget's own element clean, which is the entire fix.
+      if (p != _page.value) _page.value = p;
 
       // Dart's % is non-negative for a positive divisor, so wrapping backwards
       // past the anchor still reports a real page.
@@ -261,7 +336,7 @@ class _DrawerPagerState extends State<DrawerPager> {
     // So the move is a DELTA from wherever the controller actually is, taking
     // the shorter way round the loop. That is what the wrap is for, and it
     // would be a shame to have it and still scroll the long way to the answer.
-    final current = (_controller.page ?? _page).round();
+    final current = (_controller.page ?? _page.value).round();
     final logical = (current - _wrapBase) % _pageCount;
 
     var delta = target - logical;
@@ -283,6 +358,7 @@ class _DrawerPagerState extends State<DrawerPager> {
   void dispose() {
     _turnTimer?.cancel();
     _controller.dispose();
+    _page.dispose();
     super.dispose();
   }
 
@@ -292,7 +368,7 @@ class _DrawerPagerState extends State<DrawerPager> {
     // after one period, which doubles as the hover-intent delay.
     _turnTimer = Timer.periodic(const Duration(milliseconds: 550), (_) {
       if (!mounted || !_controller.hasClients) return;
-      final current = (_controller.page ?? _page).round();
+      final current = (_controller.page ?? _page.value).round();
       _controller.animateToPage(
         previous ? current - 1 : current + 1,
         duration: const Duration(milliseconds: 260),
@@ -338,6 +414,11 @@ class _DrawerPagerState extends State<DrawerPager> {
         const vPad = 12.0;
         const crossGap = GridMetrics.columnGap;
         const mainGap = GridMetrics.rowGap;
+
+        // See [_lastWidth]. Assigned here rather than in a post-frame
+        // callback, because the pages built below in this same pass are the
+        // ones that will read it.
+        _lastWidth = constraints.maxWidth;
 
         final tileW = (constraints.maxWidth -
                 hPad * 2 -
@@ -508,7 +589,14 @@ class _DrawerPagerState extends State<DrawerPager> {
                   // scroll position, and two faces showing the same logical
                   // page (wrapping a two-page drawer) still sit at different
                   // raw indices.
-                  return widget.cube ? _cube(index, grid) : grid;
+                  // ─── EVERY STYLE GOES THROUGH THE SAME BUILDER ───────
+                  //
+                  // Including the plain slide, which needs no matrix at all.
+                  // Branching to return a bare grid for one style is exactly
+                  // the widget-type swap that cost the cube nine dropped
+                  // frames a run; see [_transformed]. `slide` returns an
+                  // identity transform, which is one matrix multiply.
+                  return _transformed(index, grid);
                 },
               );
 
@@ -528,10 +616,16 @@ class _DrawerPagerState extends State<DrawerPager> {
             // The "+" has to be reachable even on a one-page drawer, which
             // is the one case the old `> 1` test hid.
             if (pageCount > 1 || widget.onAddPage != null)
-              _Dots(
-                count: pageCount,
-                page: (_page.round() - _wrapBase) % pageCount,
-                onAdd: widget.onAddPage,
+              // Listens rather than reads. The dots are the only thing below
+              // the pages that cares about the live offset, and a strip of six
+              // circles is cheap to rebuild; the pages behind it are not.
+              ValueListenableBuilder<double>(
+                valueListenable: _page,
+                builder: (context, page, _) => _Dots(
+                  count: pageCount,
+                  page: (page.round() - _wrapBase) % pageCount,
+                  onAdd: widget.onAddPage,
+                ),
               ),
           ],
         );
@@ -545,30 +639,95 @@ class _DrawerPagerState extends State<DrawerPager> {
   /// stays touching its neighbour, which is what makes the pages read as faces
   /// of a solid rather than two cards passing each other. The page being
   /// dragged away hinges on its right edge, the one arriving hinges on its left.
-  Widget _cube(int index, Widget child) {
-    final delta = (index - _page).clamp(-1.0, 1.0);
-    if (delta == 0) return child;
+  ///
+  /// ─── THE GRID IS A `child`, NOT SOMETHING THIS BUILDS ────────────────────
+  ///
+  /// [ValueListenableBuilder] rebuilds its builder on every notification and
+  /// passes `child` straight through untouched. So a scroll frame rebuilds one
+  /// `Transform` and nothing underneath it: the grid, its delegate and its
+  /// twenty tiles keep the elements they already had.
+  ///
+  /// That is the whole difference between this and the `setState` it replaced,
+  /// which rebuilt the same twenty tiles per page per frame. Passing the grid
+  /// INTO the builder instead of through `child` would quietly restore the old
+  /// cost while looking like the fix.
+  ///
+  /// ─── AND THE LayoutBuilder IS GONE ──────────────────────────────────────
+  ///
+  /// It was here and its constraints were never read. A LayoutBuilder is not
+  /// free: it defers its child to layout time and rebuilds it whenever the
+  /// constraints change, so this was one per live page per frame, buying
+  /// nothing at all.
+  Widget _transformed(int index, Widget child) {
+    return ValueListenableBuilder<double>(
+      valueListenable: _page,
+      child: child,
+      builder: (context, live, built) {
+        // How far this page is from where the finger has dragged to. 0 is
+        // dead centre, +1 is one page to the right, -1 to the left. Clamped,
+        // because a PageView keeps a page or so of slack either side and a
+        // face rotated past ninety degrees is a face pointing backwards.
+        final delta = (index - live).clamp(-1.0, 1.0);
+        // The SAME function the Settings picker and the setup wizard animate
+        // their tiles from. One definition of what each style looks like; see
+        // `design/drawer_transition.dart`.
+        final spec = drawerTransformFor(widget.transition, delta, _lastWidth);
 
-    // 90 degrees at a full page apart: any more and the faces detach, any less
-    // and it reads as a lazy skew.
-    final angle = delta * math.pi / 2;
-
-    return LayoutBuilder(
-      builder: (context, c) {
-        final transform = Matrix4.identity()
-          // Perspective. Without this the rotation is an orthographic squash
-          // and the whole illusion collapses.
-          ..setEntry(3, 2, 0.0015)
-          ..rotateY(angle);
-
-        return Transform(
-          alignment: delta > 0 ? Alignment.centerLeft : Alignment.centerRight,
-          transform: transform,
-          child: child,
+        // ─── ALWAYS A Transform, EVEN AT ZERO ────────────────────────────
+        //
+        // An earlier version returned the child unwrapped when `delta == 0`,
+        // on the reasoning that the page under the thumb needs no matrix and
+        // skipping it saves a widget. It cost far more than it saved, and the
+        // harness is what found it.
+        //
+        // A settle drives delta to exactly 0, at which point the builder
+        // returned a GridView where it previously returned a Transform.
+        // Flutter compares the two by runtimeType, cannot reuse the element,
+        // and deactivates the whole subtree to inflate a fresh one: twenty
+        // tiles rebuilt from nothing, inside one frame, once per settle.
+        //
+        // Measured, cube only, eight flings:
+        //
+        //     worst build   worst raster   missed
+        //     30.05 / 26.89        19.17        9   swapping type at zero
+        //             21.56         8.00        1   always a Transform
+        //
+        // An identity rotation is one matrix multiply. A subtree re-inflation
+        // is twenty widgets, twenty elements and twenty render objects. Never
+        // change the widget TYPE a builder returns as a function of an
+        // animating value; change its arguments. Every style below obeys that,
+        // including `slide`, which is why it has no shortcut of its own.
+        //
+        // ─── AND NO RepaintBoundary, WHICH WAS ALSO TRIED ────────────────
+        //
+        // `PageView.builder` wraps each ITEM, so its boundary sits above this.
+        // Adding one below, so the transform could re-composite a cached layer
+        // rather than repaint, took the cube from 18.89 to 30.05 worst build.
+        // A boundary pays off when the cached layer is REUSED across frames;
+        // this transform changes every frame by construction, so the layer is
+        // re-rasterised anyway and all that is bought is an allocation and an
+        // extra composite.
+        final t = Opacity(
+          // 1.0 is the overwhelmingly common case and `RenderOpacity` skips
+          // its work entirely at full opacity, so this costs nothing on the
+          // five styles that never dim, nor on the arriving page of `stack`,
+          // which is the only style left that does. See the `depth` arm for
+          // what a translucent layer costs when it is also being scaled.
+          opacity: spec.opacity,
+          child: Transform(
+            // An argument, not a structural change, so the element survives
+            // the flip at zero, where the matrix is identity and the alignment
+            // therefore changes nothing on screen.
+            alignment: spec.alignment,
+            transform: spec.matrix,
+            child: built,
+          ),
         );
+        return t;
       },
     );
   }
+
 }
 
 class _Dots extends StatelessWidget {

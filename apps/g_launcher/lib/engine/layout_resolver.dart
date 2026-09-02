@@ -37,6 +37,7 @@ class ResolvedLayout {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
     required this.appDrawer,
@@ -120,6 +121,15 @@ class ResolvedLayout {
   final String drawerScrollStyle;
   final String drawerGrouping;
 
+  /// Where the drawer's search bar sits, RESOLVED: 'top' | 'bottom' | 'off'.
+  /// Never null, so `AppDrawer` carries no fallback of its own.
+  ///
+  /// It carried one, and that fallback was the whole bug: the read site was
+  /// `theme.prefs.drawerSearchPosition ?? 'bottom'`, so a distro could not pin
+  /// its own position no matter what it authored. See
+  /// [ThemeLayout.drawerSearchPosition] for what that cost Deepin.
+  final String drawerSearchPosition;
+
   /// What the Kickoff rail is made of, RESOLVED: 'tabs' | 'categories'. Never
   /// null, so [KickoffDrawer] carries no fallback of its own.
   ///
@@ -194,6 +204,7 @@ class ResolvedLayout {
           other.drawerCols == drawerCols &&
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
+          other.drawerSearchPosition == drawerSearchPosition &&
           other.kickoffRail == kickoffRail &&
           other.tilingLauncher == tilingLauncher &&
           other.appDrawer == appDrawer &&
@@ -232,6 +243,7 @@ class ResolvedLayout {
         drawerCols,
         drawerScrollStyle,
         drawerGrouping,
+        drawerSearchPosition,
         kickoffRail,
         tilingLauncher,
         appDrawer,
@@ -276,6 +288,10 @@ abstract final class LayoutResolver {
   /// disagreement cannot recur.
   static const defaultDrawerScrollStyle = 'pages';
   static const defaultDrawerGrouping = 'none';
+
+  /// Thumb-reachable, and what every distro drew before the field existed. A
+  /// theme that says nothing keeps exactly the bar it had.
+  static const defaultDrawerSearchPosition = 'bottom';
 
   /// KDE's own menu, and what every plasma distro drew before the field
   /// existed. A theme that says nothing keeps exactly the rail it had.
@@ -367,7 +383,14 @@ abstract final class LayoutResolver {
   /// PREFS FIRST, then the theme's first authored panel, then bottom. Same
   /// three-step shape as every other resolved field, and the one it was
   /// missing.
-  static TopBarSide _panelSide(LauncherPrefs prefs, ThemeSpec spec) {
+  /// Takes the RESOLVED layout, not the spec.
+  ///
+  /// It read `spec.layout` and was called from `resolve`, which by then had
+  /// already picked a preset. So a distro whose macOS-like layout puts its bar
+  /// on top would have had its panel side answered from the Zorin layout it was
+  /// not using: a plausible answer, from the wrong layout, which is the failure
+  /// shape this whole file's allow-list notes keep describing.
+  static TopBarSide _panelSide(LauncherPrefs prefs, ThemeLayout base) {
     // The PREF wins, and it is a string because that is what a settings row
     // writes. An unrecognised value falls through to the authored side rather
     // than to bottom, so a pref from a newer build degrades to the theme's
@@ -385,7 +408,7 @@ abstract final class LayoutResolver {
     // `panels` is non-nullable and `side` is already a TopBarSide, so the
     // theme's own answer needs no parsing. First panel only: the shell draws
     // exactly one and `plasma_shell` places it by this value.
-    final panels = spec.layout.panels;
+    final panels = base.panels;
     return panels.isEmpty ? TopBarSide.bottom : panels.first.side;
   }
 
@@ -412,12 +435,14 @@ abstract final class LayoutResolver {
   /// The right fix for GNOME is to stop inlining its pager. That is a change to
   /// `gnome_shell.dart` and not a line here, and this clamp is what keeps the
   /// gap honest until then.
-  static AppsSurface _appsSurface(ThemeSpec spec) =>
+  /// [base], because a preset may move the app surface even though the SHELL
+  /// it is being matched against cannot change.
+  static AppsSurface _appsSurface(ThemeSpec spec, ThemeLayout base) =>
       switch (spec.shell) {
         ShellKind.plasma ||
         ShellKind.tiling ||
         ShellKind.aqua =>
-          spec.layout.appsSurface,
+          base.appsSurface,
         ShellKind.gnome || ShellKind.tui => AppsSurface.overlay,
       };
 
@@ -426,23 +451,36 @@ abstract final class LayoutResolver {
   /// Bottom, for the same reason the Plasma shell matches on bottom: that is
   /// the panel this scalar describes, and a synthesised TOP bar's height would
   /// be the wrong answer to the question the shell is asking.
-  static double? _authoredHeight(ThemeSpec spec) {
-    for (final p in spec.layout.panels) {
+  static double? _authoredHeight(ThemeLayout base) {
+    for (final p in base.panels) {
       if (p.side == TopBarSide.bottom) return p.height;
     }
     return null;
   }
 
   static ResolvedLayout resolve(ThemeSpec spec, LauncherPrefs prefs) {
+    // ─── THE PRESET IS RESOLVED ONCE, HERE, AND THEN FORGOTTEN ───────────
+    //
+    // `layoutFor` returns a complete [ThemeLayout] that was merged at parse, so
+    // everything below is the same theme-default-then-user-override merge this
+    // function has always performed. Nothing in [ResolvedLayout] changes, no
+    // shell learns that presets exist, and a distro that authors none gets
+    // `spec.layout` byte for byte.
+    //
+    // Read through this local, never `spec.layout`. A single missed site would
+    // mix one preset's panels with another's grid, and the result would be a
+    // plausible-looking layout that no card in the picker describes.
+    final base = spec.layoutFor(prefs.layoutPreset);
+
     return ResolvedLayout(
       dock: switch (prefs.dockSide) {
         'left' => DockSide.left,
         'bottom' => DockSide.bottom,
         'off' => DockSide.off,
         'right' => DockSide.right,
-        _ => spec.layout.dock,
+        _ => base.dock,
       },
-      topBar: prefs.topBar ?? spec.layout.topBar,
+      topBar: prefs.topBar ?? base.topBar,
       topBarSide: switch (prefs.topBarSide) {
         'top' => TopBarSide.top,
         'bottom' => TopBarSide.bottom,
@@ -450,9 +488,9 @@ abstract final class LayoutResolver {
         'right' => TopBarSide.right,
         // Anything else, including null and a value written by a newer build,
         // inherits the distro. Same contract as `dockSide` directly above.
-        _ => spec.layout.topBarSide,
+        _ => base.topBarSide,
       },
-      topBarStats: prefs.topBarStats ?? spec.layout.topBarStats,
+      topBarStats: prefs.topBarStats ?? base.topBarStats,
       // A user who moves the bar or toggles its readouts is editing the
       // SYNTHESISED panel, so the synthesis is re-run against their choices
       // rather than the theme's. A distro that authored real panels keeps them:
@@ -486,7 +524,7 @@ abstract final class LayoutResolver {
           // still a separate decision: reordering the clock should not also
           // move the bar to the bottom, which is what passing prefs alone did
           // once `_panelSide` learned to read the theme.
-          side: _panelSide(prefs, spec),
+          side: _panelSide(prefs, base),
                 modules: prefs.panelModules!
                     .map(PanelModule.parse)
                     .whereType<PanelModule>()
@@ -509,7 +547,7 @@ abstract final class LayoutResolver {
           // where it is still answerable. The `length == 1` test stays as a
           // guard on `.first`, not as evidence: synthesis returns either one
           // panel or `const []`, and the empty case must not reach `.first`.
-          : !spec.layout.panelsAuthored && spec.layout.panels.length == 1
+          : !base.panelsAuthored && base.panels.length == 1
               ? [
                   PanelSpec(
                     side: switch (prefs.topBarSide) {
@@ -517,15 +555,15 @@ abstract final class LayoutResolver {
                       'bottom' => TopBarSide.bottom,
                       'left' => TopBarSide.left,
                       'right' => TopBarSide.right,
-                      _ => spec.layout.panels.first.side,
+                      _ => base.panels.first.side,
                     },
-                    modules: spec.layout.panels.first.modules,
+                    modules: base.panels.first.modules,
                   ),
                 ]
-              : spec.layout.panels,
-      panelsAuthored: spec.layout.panelsAuthored,
-      workspaceAxis: spec.layout.workspaceAxis,
-      appsSurface: _appsSurface(spec),
+              : base.panels,
+      panelsAuthored: base.panelsAuthored,
+      workspaceAxis: base.workspaceAxis,
+      appsSurface: _appsSurface(spec, base),
       // ─── AND ONLY DOWNWARDS ───────────────────────────────────────────────
       //
       // Every other override on this page is symmetric: a null inherits the
@@ -542,34 +580,71 @@ abstract final class LayoutResolver {
       // It also keeps the Settings row honest. A greyed row that says Ubuntu
       // keeps a bare desktop is TRUE here, rather than being a control that
       // exists and is arbitrarily withheld.
-      desktopIcons: spec.layout.desktopIcons && (prefs.desktopIcons ?? true),
-      panelEdit: spec.layout.panelEdit,
+      desktopIcons: base.desktopIcons && (prefs.desktopIcons ?? true),
+      panelEdit: base.panelEdit,
       // The user's, else whatever the distro authored on the panel this shell
       // draws, else null and the shell uses its own default.
-      panelHeight: prefs.panelHeight ?? _authoredHeight(spec),
-      panelSide: _panelSide(prefs, spec),
-      rows: prefs.rows ?? spec.layout.rows,
-      cols: prefs.cols ?? spec.layout.cols,
+      panelHeight: prefs.panelHeight ?? _authoredHeight(base),
+      panelSide: _panelSide(prefs, base),
+      rows: prefs.rows ?? base.rows,
+      cols: prefs.cols ?? base.cols,
       // Drawer defaults to the SAME width as home (a clean 4-wide), not home+1.
       // The user can still bump it in Settings, and the width-responsive
       // GridMetrics path applies in the drawer widget where it is used.
-      drawerCols: prefs.drawerCols ?? (prefs.cols ?? spec.layout.cols),
+      drawerCols: prefs.drawerCols ?? (prefs.cols ?? base.cols),
+      // ─── THE ALLOW-LIST IS THE DANGEROUS HALF OF ADDING A STYLE ────────
+      //
+      // A value missing from this set is dropped here, silently, and the
+      // resolver hands back something plausible instead. So a distro could
+      // author `cylinder`, the pack could publish, the device could install it,
+      // and the drawer would slide with nothing anywhere reporting a problem.
+      // That is the exact failure shape `drawerGrouping` and `chromeFamily`
+      // both hit before.
+      //
+      // `vertical` is not a transition: it selects a different widget entirely,
+      // and `app_drawer` branches on it before `DrawerPager` is reached. It
+      // lives in the same field because that is the question a user is
+      // answering, which is "how does my drawer move", and splitting it into
+      // two fields would cost a prefs migration to express a distinction
+      // nobody sees.
+      //
+      // Keep this set, `DrawerTransition.parse` and the Settings picker edited
+      // together. Two of the three fail loudly; this one does not.
       drawerScrollStyle: _pick(
         prefs.drawerScrollStyle,
-        spec.layout.drawerScrollStyle,
-        const {'vertical', 'pages', 'cube'},
+        base.drawerScrollStyle,
+        const {
+          'vertical',
+          'pages',
+          'cube',
+          'cylinder',
+          'sphere',
+          'depth',
+          'stack',
+        },
         defaultDrawerScrollStyle,
       ),
       drawerGrouping: _pick(
         prefs.drawerGrouping,
-        spec.layout.drawerGrouping,
+        base.drawerGrouping,
         const {'none', 'az', 'library'},
         defaultDrawerGrouping,
+      ),
+      // A PREFS ARM, unlike the four below it. Where the search bar sits is a
+      // reach preference on a phone, so a user who has moved it keeps it on
+      // every distro they visit; the distro only answers for someone who never
+      // touched it. That is also why this cannot carry an `exclusive` feature
+      // row: all-access Settings reproduces it.
+      drawerSearchPosition: _pick(
+        prefs.drawerSearchPosition,
+        base.drawerSearchPosition,
+        const {'top', 'bottom', 'off'},
+        defaultDrawerSearchPosition,
       ),
       // No prefs argument: a capability, not a preference. See the field doc.
       kickoffRail: _pick(
         null,
-        spec.layout.kickoffRail,
+        base.kickoffRail,
         const {'tabs', 'categories'},
         defaultKickoffRail,
       ),
@@ -577,32 +652,36 @@ abstract final class LayoutResolver {
       // is not a setting someone forgot to expose.
       tilingLauncher: _pick(
         null,
-        spec.layout.tilingLauncher,
+        base.tilingLauncher,
         const {'rofi', 'dmenu'},
         defaultTilingLauncher,
       ),
       // No prefs arm. Which menu a distro has is not a setting.
       homeLayout: _pick(
         null,
-        spec.layout.homeLayout,
+        base.homeLayout,
         const {'grid', 'tiled'},
         defaultHomeLayout,
       ),
       dockStyle: _pick(
         null,
-        spec.layout.dockStyle,
+        base.dockStyle,
         const {'flat', 'floating', 'magnified'},
         defaultDockStyle,
       ),
       dockReveal: _pick(
         null,
-        spec.layout.dockReveal,
-        const {'always', 'apps'},
+        base.dockReveal,
+        // THE SECOND LIST. `ThemeSpec.fromJson` parses these and this set
+        // admits them, and a value in one and not the other resolves to the
+        // default forever behind a working dock. That is the `appDrawer` story
+        // below, six passes long.
+        const {'always', 'apps', 'desktop'},
         defaultDockReveal,
       ),
       appDrawer: _pick(
         null,
-        spec.layout.appDrawer,
+        base.appDrawer,
         // ─── EVERY VALUE, AND THIS SET IS WHY SIX PASSES DID NOTHING ────
         //
         // This read `{'grid', 'tools'}` and was never widened. `ThemeSpec`
@@ -633,7 +712,7 @@ abstract final class LayoutResolver {
       iconSizeDp: prefs.iconSizeDp ?? defaultIconSizeDp,
       labelLines: prefs.labelLines ?? defaultLabelLines,
       textScale: prefs.textScale ?? defaultTextScale,
-      iconScale: spec.layout.iconScale,
+      iconScale: base.iconScale,
     );
   }
 }

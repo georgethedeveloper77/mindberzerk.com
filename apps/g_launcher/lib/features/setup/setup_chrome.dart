@@ -130,6 +130,7 @@ class SetupRow extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.trailing,
+    this.preview,
     this.marker = SetupMarker.radio,
     this.mono = false,
     this.enabled = true,
@@ -140,6 +141,23 @@ class SetupRow extends StatelessWidget {
 
   /// Right-aligned secondary text: a version string, an app count.
   final String? trailing;
+
+  /// A small picture on the right, instead of text.
+  ///
+  /// ─── A SECOND PARAMETER RATHER THAN A WIDER [trailing] ────────────────────
+  ///
+  /// Widening `trailing` to `Widget?` would have been tidier and would have
+  /// touched every existing caller, all of which pass a string and none of
+  /// which wants to start writing `Text(...)` to keep doing so.
+  ///
+  /// It exists for the drawer step, where the options are MOTIONS. A word
+  /// cannot tell a cube from a cylinder and neither can a still, so each row
+  /// carries the transition playing beside its name. Nothing else uses it, and
+  /// nothing else should: a picture on a row whose choice is already obvious
+  /// from its label is decoration.
+  ///
+  /// Sized by the CALLER, because only the caller knows how tall its row is.
+  final Widget? preview;
 
   final bool selected;
   final SetupMarker marker;
@@ -202,6 +220,15 @@ class SetupRow extends StatelessWidget {
                 Text(
                   trailing!,
                   style: d.text.caption.copyWith(color: c.textMuted),
+                ),
+              ],
+              if (preview != null) ...[
+                const SizedBox(width: 10),
+                // Clipped and cornered here rather than by the caller, so every
+                // row that grows one gets the same shape without repeating it.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: preview,
                 ),
               ],
             ],
@@ -377,6 +404,7 @@ class SetupInstallerFrame extends StatelessWidget {
     this.footerNote,
     this.stage,
     this.fills = false,
+    this.nextEnabled = true,
   });
 
   final SetupSkin skin;
@@ -436,6 +464,25 @@ class SetupInstallerFrame extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback onNext;
   final String nextLabel;
+
+  /// May the wizard advance right now?
+  ///
+  /// ─── DIMMED AND PRESENT, NOT ABSENT ───────────────────────────────────
+  ///
+  /// A flag rather than making [onNext] nullable, so the button keeps its place
+  /// in the footer. A Continue that disappears while a distro downloads reads
+  /// as the wizard having broken, and it moves the Back button under the thumb
+  /// that was reaching for Continue.
+  ///
+  /// Nothing here explains WHY it is dim. [status] does, in the slot beside it,
+  /// which is the installer idiom and the reason that slot exists. A disabled
+  /// control with no nearby explanation is the failure `_StepWidgets` documents
+  /// when it removes the position strip rather than greying it out.
+  ///
+  /// Opacity plus [IgnorePointer] rather than a disabled variant of
+  /// [ThemedButton], matching [SetupRow]'s own disabled treatment two hundred
+  /// lines up: same 0.45, same refusal to accept the tap.
+  final bool nextEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -654,14 +701,23 @@ class SetupInstallerFrame extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
               ],
-              // Dots take the middle, the reference layout. Without dots the
-              // slot carries the console-style status line instead; both are
-              // Expanded so the Next button always sits at the trailing edge.
-              if (dots)
-                Expanded(
-                    child:
-                        Center(child: _Dots(count: steps.length, step: step)))
-              else if (status != null)
+              // ── THE STATUS LINE OUTRANKS THE DOTS WHILE IT HAS SOMETHING
+              //    TO SAY ────────────────────────────────────────────────
+              //
+              // This was `if (dots) ... else if (status != null) ...`, so on
+              // any skin using dots, which includes GNOME and therefore the
+              // default install, the status slot was never rendered at all. The
+              // step counter never appeared, and neither did the pack sweep's
+              // "Fetching package lists", which is the one line that explains
+              // why Continue is dimmed. Confirmed on device: the footer showed
+              // dots and nothing else through the whole download.
+              //
+              // Dots are decoration and the status is an answer, so the answer
+              // takes the slot when there is one. It is transient by nature
+              // (the sweep finishes, the line goes, the dots come back), which
+              // is what makes borrowing the space acceptable rather than a
+              // permanent loss of the step indicator.
+              if (status != null)
                 Expanded(
                   child: Text(
                     status!,
@@ -669,9 +725,19 @@ class SetupInstallerFrame extends StatelessWidget {
                     style: d.text.caption.copyWith(color: c.textMuted),
                   ),
                 )
+              else if (dots)
+                Expanded(
+                    child:
+                        Center(child: _Dots(count: steps.length, step: step)))
               else
                 const Spacer(),
-              ThemedButton(label: nextLabel, onPressed: onNext),
+              IgnorePointer(
+                ignoring: !nextEnabled,
+                child: Opacity(
+                  opacity: nextEnabled ? 1 : 0.45,
+                  child: ThemedButton(label: nextLabel, onPressed: onNext),
+                ),
+              ),
             ],
           ),
         ],

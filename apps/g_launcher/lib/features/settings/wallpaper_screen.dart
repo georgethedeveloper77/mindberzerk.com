@@ -88,6 +88,7 @@ Future<bool?> chooseApplyTarget(
   return ThemedSheet.show<bool>(
     context,
     title: 'Choose where to apply',
+    isScrollControlled: true,
     builder: (ctx) {
       final d = ChromeScope.of(ctx);
       final c = d.colors;
@@ -139,63 +140,65 @@ Future<bool?> chooseApplyTarget(
                 ),
               );
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    pane(
-                      label: context.t('settings.lockScreen'),
-                      on: lock,
-                      toggle: () => setSheetState(() => lock = !lock),
-                      preview: DevicePreview(
-                        palette: theme.palette,
-                        mode: DevicePreviewMode.lock,
-                        background: image,
-                        backgroundFraming: framing,
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      pane(
+                        label: context.t('settings.lockScreen'),
+                        on: lock,
+                        toggle: () => setSheetState(() => lock = !lock),
+                        preview: DevicePreview(
+                          palette: theme.palette,
+                          mode: DevicePreviewMode.lock,
+                          background: image,
+                          backgroundFraming: framing,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    pane(
-                      label: 'Home screen',
-                      on: home,
-                      toggle: () => setSheetState(() => home = !home),
-                      preview: DevicePreview(
-                        palette: theme.palette,
-                        mode: DevicePreviewMode.desktop,
-                        dock: theme.dock,
-                        gridButton: theme.prefs.dockGridButton ?? 'end',
-                        background: image,
-                        backgroundFraming: framing,
+                      const SizedBox(width: 14),
+                      pane(
+                        label: 'Home screen',
+                        on: home,
+                        toggle: () => setSheetState(() => home = !home),
+                        preview: DevicePreview(
+                          palette: theme.palette,
+                          mode: DevicePreviewMode.desktop,
+                          dock: theme.dock,
+                          gridButton: theme.prefs.dockGridButton ?? 'end',
+                          background: image,
+                          backgroundFraming: framing,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-                child: ThemedButton(
-                  label: 'Next',
-                  expand: true,
-                  // Neither selected is not a third answer, it is a request to
-                  // change nothing, and a button that would do nothing should
-                  // not be pressable.
-                  onPressed:
-                      (lock || home) ? () => Navigator.pop(ctx, lock) : null,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                  child: ThemedButton(
+                    label: 'Next',
+                    expand: true,
+                    // Neither selected is not a third answer, it is a request to
+                    // change nothing, and a button that would do nothing should
+                    // not be pressable.
+                    onPressed:
+                        (lock || home) ? () => Navigator.pop(ctx, lock) : null,
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
-                child: Text(
-                  'You can change this later under Applies to.',
-                  textAlign: TextAlign.center,
-                  style: d.text.caption.copyWith(color: c.textFaint),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+                  child: Text(
+                    'You can change this later under Applies to.',
+                    textAlign: TextAlign.center,
+                    style: d.text.caption.copyWith(color: c.textFaint),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       );

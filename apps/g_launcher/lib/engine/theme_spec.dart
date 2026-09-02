@@ -42,8 +42,29 @@ class ThemeSpec {
     this.gestures = const {},
     this.categories = const [],
     this.categoryFallback,
-    this.source = const ThemeSource.bundled(),
-  }) : _chromeFamily = chromeFamily;
+    this.accents = const [],
+    this.layouts = const [],
+    this.surfaces,
+    ThemeSource? source,
+    // ─── STORED NULLABLE, RESOLVED IN THE GETTER ─────────────────────────
+    //
+    // This was `this.source = const ThemeSource.bundled()`, which took no
+    // argument because bundled resolution used to be the identity function. It
+    // resolves against `assets/themes/<id>/` now, so the default has to carry
+    // the id.
+    //
+    // Defaulting it in the initializer list does not compile. This constructor
+    // is `const`, so every initializer must be a POTENTIALLY CONSTANT
+    // expression, and `ThemeSource.bundled(id)` is not one: object creation
+    // only qualifies when it is written `const`, and `const` cannot take a
+    // constructor parameter as an argument. The analyzer says
+    // `invalid_constant` and it is right.
+    //
+    // So the resolution moves to [source], one line down. Dropping `const`
+    // from this constructor would also have worked and is the worse trade: it
+    // is the single most-constructed object in the theme layer.
+  })  : _chromeFamily = chromeFamily,
+        _source = source;
 
   final String id;
   final String name;
@@ -264,13 +285,94 @@ class ThemeSpec {
   ///
   /// Defaults to bundled so every existing construction site, test and fixture
   /// compiles and behaves exactly as before.
-  final ThemeSource source;
+  /// Null means bundled, and is not the same as "unknown". Read [source], never
+  /// this: a null here is a spec that came out of [fromJson] over an asset in
+  /// the APK, and the getter is what turns that into a resolvable source.
+  ///
+  /// Private so a caller cannot accidentally read the unresolved value and get
+  /// a null, exactly as [_chromeFamily] is.
+  final ThemeSource? _source;
+
+  /// Where this theme's files live, always answerable.
+  ///
+  /// The loader stamps [ThemeSource.installed] onto a pack immediately after
+  /// parsing it and `theme_peek` stamps [ThemeSource.remote], so this fallback
+  /// is only reached by a theme read out of the asset bundle. Which is the one
+  /// case that knows its own directory from its id.
+  ///
+  /// Allocates on each read rather than caching, which is affordable because
+  /// [ThemeSource] is two nullable strings with value equality: a caller that
+  /// holds two of these compares them as equal, so nothing downstream can tell
+  /// the difference between this and a cached field.
+  ThemeSource get source => _source ?? ThemeSource.bundled(id);
 
   /// This distro's own category vocabulary, in display order. Empty means the
   /// built-in set (Social, Media, Productivity, Games, News, Travel, Utilities,
   /// Other), which is what every distro shipping today gets. See
   /// [ThemeCategory].
   final List<ThemeCategory> categories;
+
+  /// The accent colours this distro offers, in the order the picker shows them.
+  ///
+  /// ─── WHY A DISTRO SHIPS A LIST AND NOT A COLOUR WHEEL ───────────────────
+  ///
+  /// A free picker is one line of code and it destroys the thing being sold.
+  /// Zorin ships six accents, Ubuntu ships ten, and both chose theirs against
+  /// their own wallpapers and their own chrome; a user who lands on a colour
+  /// nobody vetted gets a desktop that looks like the distro is broken rather
+  /// than like they customised it. The authored set is the product.
+  ///
+  /// EMPTY IS THE NORMAL CASE and means this distro offers no choice at all:
+  /// [ThemePalette.accent] stands alone, which is what every theme did before
+  /// this field existed. So nothing moves until a pack authors it.
+  ///
+  /// The list does NOT have to contain [ThemePalette.accent]. When it does, the
+  /// matching entry reads as selected on a fresh install; when it does not, the
+  /// picker simply has no selection until one is made, which is honest.
+  final List<ThemeAccent> accents;
+
+  /// This distro's named layout presets, in the order the picker shows them.
+  ///
+  /// ─── WHY A PRESET IS A WHOLE LAYOUT AND NOT A DIFF AT RUNTIME ───────────
+  ///
+  /// Each entry here is already MERGED: the preset's JSON is shallow-merged
+  /// over the distro's own `layout` at parse, where both maps are still in
+  /// scope, and the result is a complete [ThemeLayout]. So nothing downstream
+  /// merges anything. [LayoutResolver] takes one layout and applies the user's
+  /// overrides to it exactly as it always has, and no shell, no drawer and no
+  /// panel learns that presets exist.
+  ///
+  /// The merge is SHALLOW on purpose. A preset naming `panels` replaces the
+  /// panel list wholesale rather than merging panel-by-panel, because "the
+  /// macOS-like layout has a top bar with these four modules" is a statement
+  /// about the whole bar, and a deep merge would leave it carrying leftover
+  /// modules from the layout it replaced.
+  ///
+  /// EMPTY IS THE NORMAL CASE and means this distro has one layout, which is
+  /// every theme shipping today. See [layoutFor].
+  final List<ThemeLayoutPreset> layouts;
+
+  /// How solid, how blurred and how tinted this distro's glass is.
+  ///
+  /// ─── THE DISTRO IS THE ROOT OF THE CHAIN, NOT A FOURTH LEVEL ────────────
+  ///
+  /// `EffectiveTheme` already resolves the dock, the bar and the drawer as
+  /// "this section's own setting, else the main slider, else solid". This adds
+  /// exactly one step under the main slider and changes nothing above it: the
+  /// section rows still Follow the main slider, and the main slider now Follows
+  /// the distro. Authoring per-section values here would make three levels into
+  /// four and give "Follow" two possible meanings on one screen.
+  ///
+  /// ─── AND WHY IT MATTERS MORE THAN IT LOOKS ──────────────────────────────
+  ///
+  /// The default was a hardcoded 1.0, so every distro shipped fully opaque and
+  /// nothing in the catalogue was translucent until someone found the slider.
+  /// Garuda's entire identity is glass; it looked like every other dark distro
+  /// out of the box, and the reason was one constant.
+  ///
+  /// Null means the old constants, so every theme that authors nothing renders
+  /// exactly as it did.
+  final ThemeSurfaces? surfaces;
 
   /// Where an app lands when nothing in [categories] claims it.
   ///
@@ -306,6 +408,16 @@ class ThemeSpec {
         logo: logo,
         boot: boot,
         splash: splash,
+        // ─── DROPPED FOR THE WHOLE LIFE OF THIS METHOD ──────────────────
+        //
+        // Exactly the omission the `categories` note below warns about, and it
+        // went unnoticed for exactly the reason that note gives: `withSource`
+        // only runs for INSTALLED packs, so every bundled distro kept its
+        // terminal block and every CDN one silently lost it. A downloaded Kali
+        // fell back to the generic sixteen ANSI colours and the default prompt
+        // while the bundled terminal looked right, which reads as the CDN
+        // pack having been authored without one.
+        terminal: terminal,
         desklets: desklets,
         home: home,
         gestures: gestures,
@@ -316,8 +428,41 @@ class ThemeSpec {
         // would survive testing on the emulator.
         categories: categories,
         categoryFallback: categoryFallback,
+        // CARRIED, for the reason the note above gives. An accent list dropped
+        // here would leave every CDN distro with no picker and every bundled
+        // one with a working one, which is the exact asymmetry that hid the
+        // `terminal` omission for the whole life of this method.
+        accents: accents,
+        layouts: layouts,
+        surfaces: surfaces,
         source: source,
       );
+
+  /// The layout to actually resolve against: the named preset, else this
+  /// distro's own.
+  ///
+  /// ─── AN UNKNOWN ID FALLS BACK RATHER THAN FAILING ───────────────────────
+  ///
+  /// `prefs.layoutPreset` is per theme and survives a pack update, so an id
+  /// that a later version retires must not leave the launcher with no layout at
+  /// all. Falling back to [layout] gives the distro's default, which is exactly
+  /// what a user who never chose a preset sees, and the stored id is left alone
+  /// so reinstating the preset reinstates their choice. Same contract
+  /// `EffectiveTheme.accent` follows for the same reason.
+  ///
+  /// The DEFAULT preset is not applied automatically. A theme marking one
+  /// `default: true` is describing which card reads as selected before anyone
+  /// has chosen, and that card must paint the same layout [layout] already
+  /// produces, or the picker would show a selection that does not match the
+  /// desktop behind it.
+  ThemeLayout layoutFor(String? presetId) {
+    final id = presetId?.trim();
+    if (id == null || id.isEmpty) return layout;
+    for (final p in layouts) {
+      if (p.id == id) return p.layout;
+    }
+    return layout;
+  }
 
   /// Resolve one of this theme's own asset paths (a wallpaper, a logo) to
   /// something openable. Shorthand for `source.asset(path)`.
@@ -373,9 +518,7 @@ class ThemeSpec {
       typography: ThemeTypography.fromJson(
         (json['typography'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
-      layout: ThemeLayout.fromJson(
-        (json['layout'] as Map?)?.cast<String, dynamic>() ?? const {},
-      ),
+      layout: ThemeLayout.fromJson(_rawLayout(json)),
       icons: api.IconStyle(
         treatment: _treatment(icons['treatment'] as String?),
         cornerRadius: (icons['cornerRadius'] as num?)?.toDouble() ?? 0.22,
@@ -438,8 +581,38 @@ class ThemeSpec {
           .whereType<ThemeCategory>()
           .toList(),
       categoryFallback: (json['categoryFallback'] as String?)?.trim(),
+      // Same tolerance as `categories`: an entry with no id or an unparseable
+      // colour is dropped rather than fatal, because a pack authored against a
+      // newer builder must still install.
+      accents: ((json['accents'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ThemeAccent.fromJson(e.cast<String, dynamic>()))
+          .whereType<ThemeAccent>()
+          .toList(),
+      surfaces: ThemeSurfaces.fromJson(
+        (json['surfaces'] as Map?)?.cast<String, dynamic>(),
+      ),
+      // Merged HERE, where the base layout map is still in scope. Doing it at
+      // resolve time would mean carrying the raw JSON on the spec for the whole
+      // life of the app so that one getter could re-parse it on every frame.
+      layouts: ((json['layouts'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ThemeLayoutPreset.fromJson(
+                e.cast<String, dynamic>(),
+                _rawLayout(json),
+              ))
+          .whereType<ThemeLayoutPreset>()
+          .toList(),
     );
   }
+
+  /// The distro's own `layout` map, or an empty one.
+  ///
+  /// Read twice during parse, by the base layout and by every preset merging
+  /// over it, and a second spelling of this would eventually disagree about
+  /// what an absent `layout` key means.
+  static Map<String, dynamic> _rawLayout(Map<String, dynamic> json) =>
+      (json['layout'] as Map?)?.cast<String, dynamic>() ?? const {};
 
   /// Accepts a "wallpapers" list, and still reads the old single
   /// wallpaper.asset — a theme already on someone's phone must not stop working
@@ -525,10 +698,169 @@ class ThemeSpec {
 /// Usual Applications and 01 through 13 hold tools. On a phone those thirteen
 /// start empty and the user fills them, which is what makes the CRUD the
 /// feature rather than a consolation.
+/// A distro's own glass: how solid, how blurred, how tinted, how rounded.
+///
+/// ─── EVERY FIELD IS NULLABLE AND NULL MEANS THE OLD CONSTANT ────────────────
+///
+/// A theme authoring only `blur` must not silently reset the other three to
+/// something it never chose. So this is four independent opt-ins rather than a
+/// block with defaults, and `EffectiveTheme` reads each one separately.
+///
+/// ─── THE THEME MAY GO BELOW THE USER'S FLOOR ────────────────────────────────
+///
+/// `surfaceOpacity` clamps user values to 0.6, and `settings_rows.dart` gives
+/// the reason: under that a settings page stops being readable over an
+/// arbitrary photograph. That reasoning assumes NO BLUR. At 24 logical pixels
+/// the wallpaper behind a panel is a wash rather than a photograph, and 0.4 is
+/// perfectly legible.
+///
+/// So the authored floor is 0.35 and the user's stays 0.6. The asymmetry is the
+/// point: a distro author has seen the result on their own wallpapers and
+/// chosen it, and somebody dragging a slider has not. Nobody can drag their way
+/// to an unreadable launcher; a pack can ship one deliberately.
+class ThemeSurfaces {
+  const ThemeSurfaces({this.opacity, this.blur, this.tint, this.radius});
+
+  /// 0.35 to 1.0. The ROOT of the opacity chain, under the main slider.
+  final double? opacity;
+
+  /// 0 to 24 logical pixels. Zero switches the BackdropFilter off entirely,
+  /// which is a real answer for a distro that wants flat chrome.
+  final double? blur;
+
+  /// 0 is neutral grey, 1 is fully the distro's own colour.
+  final double? tint;
+
+  /// Logical pixels, capped at 28 for the reason [EffectiveTheme.panelRadius]
+  /// gives: past that a sheet's corners eat the grab handle.
+  final double? radius;
+
+  static ThemeSurfaces? fromJson(Map<String, dynamic>? j) {
+    if (j == null) return null;
+    double? num_(Object? v) => (v as num?)?.toDouble();
+    final out = ThemeSurfaces(
+      opacity: num_(j['opacity']),
+      blur: num_(j['blur']),
+      tint: num_(j['tint']),
+      radius: num_(j['radius']),
+    );
+    // A block that authored nothing readable is the same as no block. Returning
+    // an empty instance would work, and would also make `spec.surfaces != null`
+    // a lie that a later reader would have to test around.
+    if (out.opacity == null &&
+        out.blur == null &&
+        out.tint == null &&
+        out.radius == null) {
+      return null;
+    }
+    return out;
+  }
+}
+
+/// One named layout this distro offers.
+///
+/// Zorin Appearance is the reference: one install, several desktops, chosen by
+/// the user rather than by reinstalling. It is the single feature that cannot
+/// be reproduced by the all-access settings, because those move one field at a
+/// time and a layout is a coherent set of them that somebody designed together.
+class ThemeLayoutPreset {
+  const ThemeLayoutPreset({
+    required this.id,
+    required this.name,
+    required this.layout,
+    this.summary,
+    this.isDefault = false,
+  });
+
+  /// Stable and permanent once published: `prefs.layoutPreset` stores it, so
+  /// renaming one drops every user who chose it back to the distro's default.
+  final String id;
+
+  final String name;
+
+  /// One short line under the card. Null renders no line, never a placeholder.
+  final String? summary;
+
+  /// Reads as selected before the user has chosen. See [ThemeSpec.layoutFor]
+  /// for why it is not applied.
+  final bool isDefault;
+
+  /// Already merged over the distro's base layout. See [ThemeSpec.layouts].
+  final ThemeLayout layout;
+
+  static ThemeLayoutPreset? fromJson(
+    Map<String, dynamic> j,
+    Map<String, dynamic> baseLayout,
+  ) {
+    final id = (j['id'] as String?)?.trim();
+    if (id == null || id.isEmpty) return null;
+    final name = (j['name'] as String?)?.trim();
+    final summary = (j['summary'] as String?)?.trim();
+    final over = (j['layout'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return ThemeLayoutPreset(
+      id: id,
+      // An unnamed preset would be a blank card. The id is a poor label and a
+      // better one than nothing, and it makes the omission visible in the
+      // picker rather than invisible.
+      name: (name == null || name.isEmpty) ? id : name,
+      summary: (summary == null || summary.isEmpty) ? null : summary,
+      isDefault: j['default'] == true,
+      layout: ThemeLayout.fromJson({...baseLayout, ...over}),
+    );
+  }
+}
+
+/// One accent this distro offers.
+///
+/// ─── THE ID IS THE STORED VALUE, NOT THE COLOUR ─────────────────────────────
+///
+/// `prefs.accentId` holds the id, so a pack update that retunes its blue moves
+/// every user who chose blue rather than stranding them on the old hex. Storing
+/// the colour would freeze each user's desktop at the version they happened to
+/// pick on, and the whole reason themes are data is that the author can still
+/// change their mind.
+///
+/// It also means an id is permanent once published. Renaming one silently
+/// resets every user who chose it back to the distro default.
+class ThemeAccent {
+  const ThemeAccent({
+    required this.id,
+    required this.name,
+    required this.value,
+  });
+
+  /// Stable, lowercase, and never reused for a different colour.
+  final String id;
+
+  /// Shown under the swatch. Not derived from [id], because "Grey" and "grey"
+  /// are a label and a key and only one of them should ever be translated.
+  final String name;
+
+  final Color value;
+
+  static ThemeAccent? fromJson(Map<String, dynamic> j) {
+    final id = (j['id'] as String?)?.trim();
+    if (id == null || id.isEmpty) return null;
+    final value = parseColor(j['value'] as String?);
+    // No fallback colour. An accent that cannot be parsed is a swatch that
+    // would render as something nobody authored, and a picker offering a
+    // colour the distro did not choose is worse than a picker with five
+    // entries instead of six.
+    if (value == null) return null;
+    final name = (j['name'] as String?)?.trim();
+    return ThemeAccent(
+      id: id,
+      name: (name == null || name.isEmpty) ? id : name,
+      value: value,
+    );
+  }
+}
+
 class ThemeCategory {
   const ThemeCategory({
     required this.name,
     this.feeds = const [],
+    this.glyph,
   });
 
   /// The label, and the folder id. Shown in the rail and on the folder tile.
@@ -539,15 +871,28 @@ class ThemeCategory {
   /// nothing arrives automatically.
   final List<String> feeds;
 
+  /// The icon this bucket wears, as a `folder_glyphs.dart` catalogue id.
+  ///
+  /// The distro's DEFAULT, not a lock: a user who picks their own writes it
+  /// onto the folder and that wins forever after. Null means the fallback,
+  /// which is what every theme authored before this field existed gets.
+  ///
+  /// An id this build does not know resolves to the fallback rather than to
+  /// nothing, so a pack authored against a newer catalogue degrades to a plain
+  /// folder instead of an empty square.
+  final String? glyph;
+
   static ThemeCategory? fromJson(Map<String, dynamic> j) {
     final name = (j['name'] as String?)?.trim();
     if (name == null || name.isEmpty) return null;
+    final glyph = (j['glyph'] as String?)?.trim();
     return ThemeCategory(
       name: name,
       feeds: [
         for (final f in (j['feeds'] as List?) ?? const [])
           if ('$f'.trim().isNotEmpty) '$f'.trim(),
       ],
+      glyph: (glyph == null || glyph.isEmpty) ? null : glyph,
     );
   }
 }
@@ -747,6 +1092,21 @@ class ThemePalette {
         dock: parseColor(j['dock'] as String?) ?? const Color(0xBD201B21),
         accent: parseColor(j['accent'] as String?) ?? const Color(0xFFE95420),
         onDark: parseColor(j['onDark'] as String?) ?? const Color(0xFFFFFFFF),
+      );
+
+  /// This palette with a different accent.
+  ///
+  /// Exists for [EffectiveTheme.palette] and nothing else. A full `copyWith`
+  /// was the obvious spelling and is the wrong one here: six optional named
+  /// parameters invite a caller to rewrite a distro's background from a widget,
+  /// and the accent is the only one of the six a user is ever allowed to move.
+  ThemePalette withAccent(Color accent) => ThemePalette(
+        bgTop: bgTop,
+        bgBottom: bgBottom,
+        bar: bar,
+        dock: dock,
+        accent: accent,
+        onDark: onDark,
       );
 
   /// Value equality, added with the light variant.
@@ -980,6 +1340,7 @@ class ThemeLayout {
     this.iconScale = 1.0,
     this.drawerScrollStyle,
     this.drawerGrouping,
+    this.drawerSearchPosition,
     this.kickoffRail,
     this.tilingLauncher,
     this.appDrawer,
@@ -1160,6 +1521,39 @@ class ThemeLayout {
   /// doc mattering is not incidental: it is what a reader checks before adding
   /// a value, so a stale list here is how the next one goes missing too.
   final String? drawerGrouping;
+
+  /// The distro's DEFAULT search bar position: 'top' | 'bottom' | 'off', or
+  /// null for the engine default ('bottom').
+  ///
+  /// ─── THE PREF EXISTED AND THE DISTRO HAD NO VOTE ─────────────────────────
+  ///
+  /// `LauncherPrefs.drawerSearchPosition` has been settable since the bar had
+  /// three positions, and `AppDrawer` read it as
+  /// `theme.prefs.drawerSearchPosition ?? 'bottom'` with a comment saying "a
+  /// theme may pin 'top' for an authentic GNOME feel". No theme could. There
+  /// was no field here, no arm in `LayoutResolver`, and the fallback in that
+  /// expression was the literal string. The comment described a capability
+  /// nobody had built, which is the same shape as `drawerGrouping: 'library'`
+  /// being documented one layer above the parse that admitted it.
+  ///
+  /// It cost Deepin its search. Deepin sets `appsSurface: "workspace"`, so its
+  /// app list is a PAGE with the dock painted over it rather than an overlay
+  /// covering the dock. A bar defaulted to the bottom therefore laid out
+  /// underneath the dock: rendered, hit-testable in theory, invisible in fact.
+  /// Every overlay distro got away with the same default.
+  ///
+  /// Same default-never-override contract as [drawerScrollStyle]: consulted
+  /// only when the user has never touched the setting, and a user who has
+  /// still wins. Unknown values parse to null and fall through.
+  ///
+  ///  - **top**: the field above the grid. What Deepin's fullscreen launcher
+  ///    does and what GNOME's Activities does, and mandatory rather than
+  ///    decorative on a bottom-dock distro whose app list is a page.
+  ///  - **bottom**: thumb-reachable, matching the One UI search page. The
+  ///    engine default and what every distro had before this field.
+  ///  - **off**: no bar. For a distro that reaches search by gesture or by the
+  ///    desktop search desklet.
+  final String? drawerSearchPosition;
 
   /// What the Plasma menu's left rail is made of: 'tabs' | 'categories', or
   /// null for the engine default ('tabs').
@@ -1343,6 +1737,16 @@ class ThemeLayout {
   ///    today, so a theme that says nothing does not move.
   ///  - **apps**: it exists only while the apps surface is open. A DASH, and
   ///    the desktop underneath has nothing on it at all.
+  ///  - **desktop**: the mirror. A dock on every home page and none on the app
+  ///    list. What iOS does, and what Pocket is: the App Library replaces the
+  ///    dock with its own search field rather than sitting under it.
+  ///
+  ///    It reads as a third value and is really the first distinction this
+  ///    field has had to make on a WORKSPACE-surface distro. 'always' and
+  ///    'apps' were both written for an overlay, where `activitiesOpenProvider`
+  ///    answers everything; on a distro whose apps are a page there is no flag,
+  ///    and Deepin and Pocket want opposite answers from the same arrangement.
+  ///    Deepin's "the dock stays put" is one of its exclusive rows.
   ///
   /// `gnome_shell` already computes `dockRevealed` for its own edge gesture, so
   /// the machinery was built and wired to one caller. That is the third time
@@ -1486,6 +1890,16 @@ class ThemeLayout {
         'library' => 'library',
         _ => null,
       },
+      // THE SECOND LIST. `LayoutResolver._pick` carries the other one, and a
+      // value here that is missing there resolves to the default forever. That
+      // is written up at length on the `appDrawer` allow-list, where six
+      // passes shipped drawers nothing could reach.
+      drawerSearchPosition: switch (j['drawerSearchPosition'] as String?) {
+        'top' => 'top',
+        'bottom' => 'bottom',
+        'off' => 'off',
+        _ => null,
+      },
       kickoffRail: switch (j['kickoffRail'] as String?) {
         'tabs' => 'tabs',
         'categories' => 'categories',
@@ -1516,6 +1930,9 @@ class ThemeLayout {
       dockReveal: switch (j['dockReveal'] as String?) {
         'always' => 'always',
         'apps' => 'apps',
+        // THE MIRROR OF 'apps', and the value Pocket needs. See the field doc.
+        // Remember `LayoutResolver._pick` carries the other half of this list.
+        'desktop' => 'desktop',
         _ => null,
       },
       dockStyle: switch (j['dockStyle'] as String?) {

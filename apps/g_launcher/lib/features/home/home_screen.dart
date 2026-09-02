@@ -21,6 +21,8 @@ import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
 import '../desklets/widget_stage.dart';
 import 'workspaces/workspace_controller.dart';
+import 'quick_settings.dart';
+import 'workspaces/workspace_overview.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -193,6 +195,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Stack(
               children: [
                 rawShell,
+                // ─── THE OVERVIEW SITS ABOVE THE SHELL, NOT INSIDE IT ────
+                //
+                // GNOME inlines its own pager and the other three mount
+                // `WorkspaceCanvas`, so there is no one place inside the shells
+                // to put this. Here it is above all four, and every shell's
+                // pager carries on underneath without learning it exists.
+                //
+                // Always mounted, drawing `SizedBox.shrink()` while closed.
+                // Mounting it conditionally would change the Stack's shape on
+                // every open and close, and this Stack contains the shell: a
+                // shape change unmounts the pager and rebuilds its
+                // PageController, which is the workspace-one snap this file
+                // already documents under skipLoadingOnReload.
+                WorkspaceOverview(theme: t),
+                // Same reasoning as the overview above: mounted always, drawing
+                // nothing while closed, so the Stack that contains the shell
+                // never changes shape.
+                QuickSettingsPanel(theme: t),
                 // Renders nothing. Mounted inside the shell's own subtree so it
                 // lives and dies with the desktop.
                 const WidgetStageSync(),
@@ -315,7 +335,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // [appsShowing] and [closeApps] answer for both, so this
                       // scope keeps owning back for every shell without
                       // learning which kind of launcher it is looking at.
-                      if (appsShowing(ref)) {
+                      // TOP DOWN, and the overview is the top. It is entered
+                      // from the desktop and can be entered while the drawer is
+                      // shut, so it is the most recently entered thing whenever
+                      // it is open.
+                      // Above the overview, because it is opened FROM the
+                      // desktop with one tap and the overview is a pinch, so
+                      // whichever is open, this one was entered last whenever
+                      // both could be.
+                      if (ref.read(quickSettingsProvider)) {
+                        ref.read(quickSettingsProvider.notifier).close();
+                      } else if (ref.read(workspaceOverviewProvider)) {
+                        ref.read(workspaceOverviewProvider.notifier).close();
+                      } else if (appsShowing(ref)) {
                         closeApps(ref);
                       } else if (ref.read(deskletEditProvider).active) {
                         ref.read(deskletEditProvider.notifier).exit();

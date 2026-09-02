@@ -29,21 +29,16 @@
     "cornerRadius": 0.22,
     "foregroundScale": 1,
     "backgroundColor": null,
-    "monochromeTint": null,
-    "heroPack": "papirus-icon-theme"
+    "monochromeTint": null
   },
   "logo": {
-    "light": "logo_light.svg",
-    "dark": "logo_dark.svg"
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
   },
   "wallpapers": [
     "numbat_color.webp",
     "noble_light.webp",
-    "numbat_dark.webp",
-    "linux_ubuntu.webp",
-    "Ubuntu_24.10_Oracular_Oriole.webp",
-    "ubuntu_logo.webp",
-    "ubuntu.webp"
+    "numbat_dark.webp"
   ],
   "minAppVersion": 6,
   "boot": {
@@ -141,17 +136,13 @@
         "kind": "clock",
         "page": 0,
         "col": 0,
-        "row": 0,
-        "spanX": 3,
-        "spanY": 1
+        "row": 0
       },
       {
         "kind": "monitor",
         "page": 0,
         "col": 2,
-        "row": 1,
-        "spanX": 2,
-        "spanY": 3
+        "row": 1
       }
     ],
     "skins": {
@@ -161,5 +152,27 @@
         "showTitle": true
       }
     }
-  }
+  },
+  "features": [
+    {
+      "title": "Activities overview",
+      "body": "Windows, workspaces and search on one surface.",
+      "exclusive": true
+    },
+    {
+      "title": "Left vertical dock",
+      "body": "Always visible, show-apps button at the foot.",
+      "exclusive": true
+    },
+    {
+      "title": "GRUB to desktop",
+      "body": "Seventeen lines, from the boot menu through to the login manager.",
+      "exclusive": true
+    },
+    {
+      "title": "Aubergine and orange",
+      "body": "Deep purple wallpapers with the Ubuntu orange on every accent.",
+      "exclusive": false
+    }
+  ]
 }

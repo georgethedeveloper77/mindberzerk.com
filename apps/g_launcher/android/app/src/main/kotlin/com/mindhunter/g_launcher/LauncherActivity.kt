@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.core.view.WindowCompat
+import com.mindhunter.g_launcher.system.WallpaperOffsets
 import com.mindhunter.g_launcher.widgets.StageBridge
 import com.mindhunter.g_launcher.widgets.WidgetStage
 import io.flutter.embedding.android.FlutterActivity
@@ -209,6 +210,20 @@ class LauncherActivity : FlutterActivity() {
         // the object that has one. Re-registering on a recreate is harmless:
         // setMethodCallHandler replaces rather than stacks.
         StageBridge.setUp(flutterEngine.dartExecutor.binaryMessenger)
+
+        // ── WALLPAPER PANNING, FOR THE SAME REASON ──────────────────────────
+        //
+        // `setWallpaperOffsets` takes a WINDOW TOKEN, and the Pigeon host API
+        // holds an application Context. A token comes from a View attached to a
+        // window, so this belongs to the Activity exactly as the stage does.
+        //
+        // The decorView is passed as a LAMBDA rather than a View: this method
+        // runs before the window is necessarily laid out, and a token read now
+        // would be null. Resolved when a call arrives instead, by which point
+        // there is certainly a window because somebody is looking at it.
+        WallpaperOffsets.setUp(flutterEngine.dartExecutor.binaryMessenger) {
+            if (isFinishing || isDestroyed) null else window?.decorView
+        }
     }
 
     /**

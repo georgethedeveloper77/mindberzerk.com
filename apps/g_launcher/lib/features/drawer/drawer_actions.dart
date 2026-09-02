@@ -322,6 +322,7 @@ Future<void> showDrawerAppMenu(
               entry.componentKey,
               page: 0,
               capacity: theme.rows * theme.cols,
+              cols: theme.cols,
             );
             // TWO REASONS addToHome CAN REFUSE, and they need different
             // sentences. It returns `p` unchanged when the page is full AND
@@ -343,6 +344,7 @@ Future<void> showDrawerAppMenu(
                   entry.componentKey,
                   page: 0,
                   capacity: theme.rows * theme.cols,
+                  cols: theme.cols,
                 ));
           },
         ),
@@ -461,6 +463,40 @@ Future<void> showDrawerAppMenu(
         ),
     ],
     rows: (sheet) => [
+      // ─── MOVE TO, WHICH IS THE ONLY WAY MOST PEOPLE WILL EVER FILE ──────
+      //
+      // The tool drawer files by DRAGGING an app onto a rail slot, and that is
+      // the right gesture: it is direct, it is reversible, and `_Rail` is built
+      // around it. It is also completely invisible. Nothing on the screen says
+      // a shelf will accept a drop, and a paid distro whose headline feature is
+      // thirteen shelves cannot depend on the buyer guessing.
+      //
+      // ─── AND IT IS HERE RATHER THAN IN THE TOOL DRAWER ──────────────────
+      //
+      // This menu serves every drawer, so the row appears on all of them. That
+      // is deliberate rather than spillover: dragging is equally undiscoverable
+      // on Zorin's rail and in the folder grid, and a distro that authors no
+      // categories still has the built-in buckets to file into. One row, one
+      // sheet, every surface.
+      //
+      // In `rows` and not in the action strip, because the strip holds THREE
+      // and `AnchoredMenu` says why: a fourth column forces the labels to an
+      // ellipsis at 360dp.
+      ThemedListRow(
+        icon: Icons.drive_file_move_outline,
+        title: context.t('drawer.moveTo'),
+        // Where it lives NOW, so the menu answers "which shelf is this on"
+        // without anything being opened. A user folder shows its own name
+        // rather than a shelf, which is honest: that is where the app is.
+        subtitle: DrawerLayout.folderOf(theme.prefs, entry.componentKey)?.name ??
+            CategorySet.forTheme(theme).fallback,
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () {
+          Navigator.pop(sheet);
+          showMoveToSheet(host, ref, theme, entry);
+        },
+      ),
+
       if (!entry.isWorkProfile && theme.desktopIcons)
         ThemedListRow(
           icon: Icons.delete_outline,
@@ -794,5 +830,150 @@ class _RenameFolderBodyState extends State<_RenameFolderBody> {
         ],
       ),
     );
+  }
+}
+
+
+/// Move [entry] onto one of this distro's shelves, or off all of them.
+///
+/// ─── WHY THIS IS NOT `fileInto` ON ITS OWN ──────────────────────────────────
+///
+/// [DrawerLayout.fileInto] REFUSES an app that already sits in another folder,
+/// and its own comment says why: moving one silently between folders is a
+/// surprise when the caller was a drag onto a shelf. It is not a surprise when
+/// the caller is a control labelled Move to, so this unfiles first and then
+/// files, inside ONE transform. Two `edit` calls would be two writes and two
+/// rebuilds for what the user performed as a single action, and a failure
+/// between them would leave the app on no shelf at all.
+///
+/// ─── AND WHY THE FALLBACK IS A REAL DESTINATION ─────────────────────────────
+///
+/// [CategorySet.fallback] is not a folder. It is where an app lands when
+/// nothing claims it, so moving something there is exactly "take it off its
+/// shelf" and the write is a removal with no matching file. Offering it as a
+/// row rather than as a separate Remove action is what makes the sheet a
+/// complete answer: every shelf, plus the way back, in one list.
+Future<void> showMoveToSheet(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  AppEntry entry,
+) {
+  final cats = CategorySet.forTheme(theme);
+  final host = context;
+
+  // ─── THE FALLBACK FIRST, NOT IN ITS AUTHORED POSITION ─────────────────────
+  //
+  // `CategorySet.order` puts it last, which is right for the rail: it is the
+  // remainder, and a remainder belongs at the end of the thing it remains from.
+  // It is wrong here. On Kali this sheet is nineteen rows and the fallback is
+  // the nineteenth, so the one row that UNDOES a move is the one row nobody
+  // scrolls to. A destination people reach for by name belongs where it can be
+  // reached.
+  final slots = <String>[
+    cats.fallback,
+    for (final name in cats.order)
+      if (name != cats.fallback) name,
+  ];
+
+  return ThemedSheet.show<void>(
+    context,
+    title: host.t('drawer.moveTo'),
+    isScrollControlled: true,
+    builder: (sheet) {
+      final c = ChromeScope.of(sheet).colors;
+      final current =
+          DrawerLayout.folderOf(theme.prefs, entry.componentKey)?.name ??
+              cats.fallback;
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The subject, so a sheet opened from a 253-app drawer says which app
+          // it is about. Same reasoning as the menu's own leading icon.
+          ThemedListRow(
+            title: entry.label,
+            subtitle: current,
+            icon: null,
+            trailing: AppIcon(entry: entry, size: 30),
+          ),
+          Divider(height: 0.5, thickness: 0.5, color: c.line),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: slots.length,
+              itemBuilder: (context, i) {
+                final name = slots[i];
+                final on = name == current;
+
+                return ThemedListRow(
+                  title: name,
+                  // Named for what it MEANS rather than for what it is. A row
+                  // reading "Usual Applications" does not tell anybody it takes
+                  // the app off its shelf, and this sheet is the only place
+                  // that undo exists.
+                  subtitle: name == cats.fallback
+                      ? host.t('drawer.notOnAShelf')
+                      : null,
+                  // ─── NO COUNTS HERE, UNLIKE THE RAIL ──────────────────
+                  //
+                  // `_Rail` shows how full each shelf is, and should: it is a
+                  // view of what you have. This is a destination picker, where
+                  // the number answers a question nobody is asking, and the
+                  // only honest source for it is the resolved drawer items
+                  // rather than prefs. Reading that here would make a modal
+                  // sheet depend on the whole app list to draw a label.
+                  trailing:
+                      on ? Icon(Icons.check, size: 20, color: c.accent) : null,
+                  // The current shelf is shown and NOT tappable. Moving an app
+                  // to where it already is would be a write that changes
+                  // nothing, and a row that accepts a tap and does nothing is
+                  // the failure this whole codebase keeps naming.
+                  onTap: on
+                      ? null
+                      : () {
+                          Navigator.pop(sheet);
+                          moveAppToShelf(host, ref, theme, entry, name);
+                        },
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// The write behind [showMoveToSheet]. One transform, unfile then file.
+void moveAppToShelf(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  AppEntry entry,
+  String slot,
+) {
+  final cats = CategorySet.forTheme(theme);
+  final key = entry.componentKey;
+  HapticFeedback.mediumImpact();
+
+  ref.read(prefsProvider(theme.spec.id).notifier).edit((p) {
+    final from = DrawerLayout.folderOf(p, key);
+    final unfiled =
+        from == null ? p : DrawerLayout.removeFromFolder(p, from.id, key);
+    // Moving TO the fallback is the removal and nothing else: it is not a
+    // folder, so there is nothing to file into.
+    if (slot == cats.fallback) return unfiled;
+    return DrawerLayout.fileInto(
+      unfiled,
+      slot,
+      key,
+      newFolderId: newDrawerFolderId,
+    );
+  });
+
+  if (context.mounted) {
+    context.showMessage(context.t('drawer.movedTo', {'name': slot}));
   }
 }

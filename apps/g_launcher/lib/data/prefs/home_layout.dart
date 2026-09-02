@@ -42,15 +42,119 @@ class HomeLayout {
   static bool isOnHome(LauncherPrefs p, String componentKey) =>
       p.homeItems.any((i) => i.componentKey == componentKey);
 
+  /// Last free slot on [page]: the bottom row first, left to right within it,
+  /// then upward. Null when the page is full.
+  ///
+  /// ─── WHY A PINNED APP LANDS AT THE BOTTOM ───────────────────────────────
+  ///
+  /// [firstFreeSlot] put it in the top-left cell, which on a 6.1 inch phone is
+  /// the one corner a thumb cannot reach without moving the hand. The desktop
+  /// is not a list being filled from the start; it is a surface reached with
+  /// one hand, and the row nearest the dock is the row nearest the thumb.
+  ///
+  /// Bottom-up rather than "skip the first two rows", which was the other way
+  /// to say this. A fixed skip has to mean something on a three-row desktop and
+  /// on a seven-row one, and it does not.
+  ///
+  /// LEFT TO RIGHT WITHIN THE ROW, not a plain reverse walk. Reversing the
+  /// index would fill the bottom row right to left, so the first app pinned on
+  /// a fresh desktop would sit in the bottom-RIGHT corner with three empty
+  /// cells beside it, and the second would appear to its left. Apps would
+  /// accumulate backwards, which no launcher does.
+  static int? lastFreeSlot(
+    LauncherPrefs p,
+    int page,
+    int capacity,
+    int cols,
+  ) {
+    if (cols <= 0) return firstFreeSlot(p, page, capacity);
+
+    final taken = {
+      for (final i in p.homeItems)
+        if (i.page == page) i.index,
+    };
+
+    // `ceil`, so a capacity that is not a whole number of rows still has its
+    // last, partial row searched. The bounds check inside covers the cells that
+    // row does not have.
+    final rows = (capacity / cols).ceil();
+    for (var r = rows - 1; r >= 0; r--) {
+      for (var c = 0; c < cols; c++) {
+        final i = r * cols + c;
+        if (i >= capacity) continue;
+        if (!taken.contains(i)) return i;
+      }
+    }
+    return null;
+  }
+
+  /// Pin an app the user just asked for. Lands in the bottom row.
+  ///
+  /// `cols` is REQUIRED rather than optional with a fallback. An `int? cols`
+  /// defaulting to the old top-left walk would compile at every call site and
+  /// keep the old behaviour at whichever one was missed, which is the shape of
+  /// failure this codebase keeps finding. Required means the compiler names
+  /// them, and it did: `starter_home` and six tests.
   static LauncherPrefs addToHome(
     LauncherPrefs p,
     String componentKey, {
     int page = 0,
     required int capacity,
-  }) {
-    if (isOnHome(p, componentKey)) return p;
+    required int cols,
+  }) =>
+      _place(
+        p,
+        componentKey,
+        page,
+        lastFreeSlot(p, page, capacity, cols),
+      );
 
-    final slot = firstFreeSlot(p, page, capacity);
+  /// Lay a starting desktop out, top-left first.
+  ///
+  /// ─── WHY THE SEED DOES NOT FILL THE WAY A PIN DOES ──────────────────────
+  ///
+  /// Thumb reach is the argument for [addToHome], and it is an argument about
+  /// ONE app arriving on a desktop the user is already looking at. A starter
+  /// block is laid out before anyone has touched anything, and every desktop
+  /// this launcher imitates puts its starting icons in the top-left corner:
+  /// Plasma's Folder View, Cinnamon, Deepin.
+  ///
+  /// It also has an order to keep. `StarterHome` walks an ALPHABETICAL list, so
+  /// filling upward would read bottom-left, bottom-right, then up a row, which
+  /// is not a reading order anybody has.
+  ///
+  /// ─── AND WHY THIS IS A SECOND FUNCTION RATHER THAN A FLAG ───────────────
+  ///
+  /// A `bool fromTop` on [addToHome] would put the decision at the call site,
+  /// where it reads as a formatting preference rather than as two different
+  /// events. These are named for what happened: a person pinned something, or a
+  /// theme was applied for the first time. Both go through [_place], so the
+  /// duplicate and full-page refusals cannot drift apart.
+  static LauncherPrefs seedToHome(
+    LauncherPrefs p,
+    String componentKey, {
+    int page = 0,
+    required int capacity,
+  }) =>
+      _place(
+        p,
+        componentKey,
+        page,
+        firstFreeSlot(p, page, capacity),
+      );
+
+  /// The shared half: refuse a duplicate, refuse a full page, otherwise write.
+  ///
+  /// Returns `p` ITSELF on both refusals, not a copy. `StarterHome` counts
+  /// placements with `identical(next, out)`, so a fresh object that happened to
+  /// be equal would count as a placement and the starter would stop early.
+  static LauncherPrefs _place(
+    LauncherPrefs p,
+    String componentKey,
+    int page,
+    int? slot,
+  ) {
+    if (isOnHome(p, componentKey)) return p;
     if (slot == null) return p; // page full; caller should say so
 
     return p.copyWith(
@@ -181,6 +285,34 @@ class HomeLayout {
       folders: [
         for (final f in p.folders)
           if (f.id == id) f.copyWith(name: name) else f,
+      ],
+    );
+  }
+
+  /// Give [id] an icon, or clear it back to the fallback with a null [glyph].
+  ///
+  /// The twin of `DrawerLayout.setGlyph`, writing to [LauncherPrefs.folders]
+  /// instead of `drawerFolders`. The two are separate for the reason every
+  /// other pair here is separate: same [AppFolder] type, two storage lists, and
+  /// a single function taking a "which list" flag would be one line shorter and
+  /// one bug deeper.
+  ///
+  /// Unlike [renameFolder] this normalises: a glyph that is whitespace is
+  /// stored as null, because an id that trims to nothing can never resolve and
+  /// keeping it would leave the picker showing a selection that draws the
+  /// fallback.
+  static LauncherPrefs setFolderGlyph(
+    LauncherPrefs p,
+    String id,
+    String? glyph,
+  ) {
+    final trimmed = glyph?.trim();
+    final next = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+
+    return p.copyWith(
+      folders: [
+        for (final f in p.folders)
+          if (f.id == id) f.copyWith(glyph: [next]) else f,
       ],
     );
   }

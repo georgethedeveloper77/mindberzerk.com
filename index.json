@@ -1,0 +1,1053 @@
+{
+  "formatVersion": 1,
+  "generatedAt": 1788046700,
+  "keyId": "mh-2026-07",
+  "packs": [
+    {
+      "packId": "arch-linux-line",
+      "packType": "brand",
+      "path": "brandpacks/arch-linux-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 491,
+      "title": "Arch Linux Icons",
+      "summary": "",
+      "sku": "icons_arch_linux",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#1793d1"
+    },
+    {
+      "packId": "arch-linux-theme",
+      "packType": "theme",
+      "path": "themes/arch-linux-theme/1787590319",
+      "version": 1787590319,
+      "minAppVersion": 0,
+      "sizeBytes": 3701421,
+      "title": "Arch Linux",
+      "summary": "Rolling · i3",
+      "sku": "distro_arch_linux",
+      "preview": {
+        "shell": "tiling",
+        "bgTop": "#0F1A24",
+        "bgBottom": "#080F16",
+        "bar": "#0C1620",
+        "dock": "#CC0C1620",
+        "accent": "#1793D1",
+        "layout": "tiled"
+      },
+      "features": [
+        {
+          "title": "Tiled desktop",
+          "body": "Apps fill the screen edge to edge instead of sitting on a wallpaper.",
+          "exclusive": true
+        },
+        {
+          "title": "dmenu launcher",
+          "body": "Type a few letters and run it, with no grid to scroll.",
+          "exclusive": true
+        },
+        {
+          "title": "Top status bar",
+          "body": "Workspaces, network, memory and a clock in a 24dp strip.",
+          "exclusive": true
+        },
+        {
+          "title": "archiso boot",
+          "body": "A pacman sync and a tty login prompt before anything appears.",
+          "exclusive": true
+        },
+        {
+          "title": "Steel blue on near-black",
+          "body": "Square icons with no corner radius, and no rounded chrome anywhere.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 4,
+        "iconPack": "Arch Linux Icons"
+      }
+    },
+    {
+      "packId": "arcticons-line",
+      "packType": "brand",
+      "path": "brandpacks/arcticons-line/1787608589",
+      "version": 1787608589,
+      "minAppVersion": 6,
+      "sizeBytes": 10585247,
+      "title": "Arcticons",
+      "summary": ""
+    },
+    {
+      "packId": "deepin-23-line",
+      "packType": "brand",
+      "path": "brandpacks/deepin-23-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 485,
+      "title": "Deepin Icons",
+      "summary": "",
+      "sku": "icons_deepin",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#0081ff"
+    },
+    {
+      "packId": "deepin-23-theme",
+      "packType": "theme",
+      "path": "themes/deepin-23-theme/1787590313",
+      "version": 1787590313,
+      "minAppVersion": 6,
+      "sizeBytes": 208365,
+      "title": "Deepin",
+      "summary": "23 · DDE",
+      "sku": "distro_deepin_23",
+      "preview": {
+        "shell": "aqua",
+        "bgTop": "#0E4E9E",
+        "bgBottom": "#08213F",
+        "bar": "#0B2E5C",
+        "dock": "#26FFFFFF",
+        "accent": "#0081FF",
+        "layout": "dockMagnified"
+      },
+      "features": [
+        {
+          "title": "Your apps are a page",
+          "body": "Swipe past your last workspace and they are simply there. Nothing opens, nothing closes, the dock stays put.",
+          "exclusive": true
+        },
+        {
+          "title": "Search across the top",
+          "body": "The field sits above the grid, where the Deepin launcher puts it, not down by the dock.",
+          "exclusive": false
+        },
+        {
+          "title": "Nothing across the top",
+          "body": "No bar, no menu, no clock of its own. Just the wallpaper and the dock.",
+          "exclusive": true
+        },
+        {
+          "title": "Glass dock",
+          "body": "A translucent strip along the foot that the wallpaper reads through.",
+          "exclusive": true
+        },
+        {
+          "title": "Deepin session boot",
+          "body": "Twelve lines through the session and display managers before the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "Deep blue and cyan",
+          "body": "Rounded square icons on a navy backing, with one bright accent.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 6,
+        "iconPack": "Deepin Icons"
+      }
+    },
+    {
+      "packId": "elementary-os-8-line",
+      "packType": "brand",
+      "path": "brandpacks/elementary-os-8-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 504,
+      "title": "elementary OS Icons",
+      "summary": "",
+      "sku": "icons_elementary_os",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#3689e6"
+    },
+    {
+      "packId": "elementary-os-8-theme",
+      "packType": "theme",
+      "path": "themes/elementary-os-8-theme/1787590314",
+      "version": 1787590314,
+      "minAppVersion": 6,
+      "sizeBytes": 988416,
+      "title": "elementary OS",
+      "summary": "8.0 · Pantheon",
+      "sku": "distro_elementary_os_8",
+      "preview": {
+        "shell": "aqua",
+        "bgTop": "#48586B",
+        "bgBottom": "#252E38",
+        "bar": "#1E252D",
+        "dock": "#1AFFFFFF",
+        "accent": "#3689E6",
+        "layout": "dockFlat"
+      },
+      "features": [
+        {
+          "title": "Cards, not a grid",
+          "body": "The app list is a deck you flick through, one face at a time.",
+          "exclusive": true
+        },
+        {
+          "title": "Bar on top, dock at the foot",
+          "body": "A 22dp strip and a flat dock that sits still instead of magnifying.",
+          "exclusive": true
+        },
+        {
+          "title": "Clock in the centre",
+          "body": "Spacers either side hold it there, with network and memory to the right.",
+          "exclusive": true
+        },
+        {
+          "title": "elementary Greeter",
+          "body": "Twelve lines of boot, through Avahi and the greeter, before the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "Slate and blue",
+          "body": "Rounded icons on a grey backing, and desklets with no cards or accent.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 7,
+        "iconPack": "elementary OS Icons"
+      }
+    },
+    {
+      "packId": "endeavouros-line",
+      "packType": "brand",
+      "path": "brandpacks/endeavouros-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 494,
+      "title": "EndeavourOS Icons",
+      "summary": "",
+      "sku": "icons_endeavouros",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#7f3fbf"
+    },
+    {
+      "packId": "endeavouros-theme",
+      "packType": "theme",
+      "path": "themes/endeavouros-theme/1787590310",
+      "version": 1787590310,
+      "minAppVersion": 0,
+      "sizeBytes": 6159477,
+      "title": "EndeavourOS",
+      "summary": "Titan · i3",
+      "sku": "distro_endeavouros",
+      "preview": {
+        "shell": "tiling",
+        "bgTop": "#2B1B3D",
+        "bgBottom": "#170D24",
+        "bar": "#1F1230",
+        "dock": "#CC1F1230",
+        "accent": "#8A5FCF",
+        "layout": "noDock"
+      },
+      "features": [
+        {
+          "title": "A welcome panel on the desktop",
+          "body": "Wiki, forum, news and donate links, sitting on the workspace itself.",
+          "exclusive": true
+        },
+        {
+          "title": "Workspaces run sideways",
+          "body": "Swipe left and right, numbered on the bar, the way i3 does it.",
+          "exclusive": true
+        },
+        {
+          "title": "It boots to a greeter",
+          "body": "GRUB picks EndeavourOS Linux, the Welcome service starts, and the display manager brings up the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "rofi launcher",
+          "body": "Type a few letters and run it, with no grid to scroll.",
+          "exclusive": true
+        },
+        {
+          "title": "Purple and teardrop",
+          "body": "Teardrop icon shapes, and every desklet on an accented card.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 5,
+        "iconPack": "EndeavourOS Icons"
+      }
+    },
+    {
+      "packId": "fedora-40-line",
+      "packType": "brand",
+      "path": "brandpacks/fedora-40-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 485,
+      "title": "Fedora Icons",
+      "summary": "",
+      "sku": "icons_fedora",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#3c6eb4"
+    },
+    {
+      "packId": "fedora-40-theme",
+      "packType": "theme",
+      "path": "themes/fedora-40-theme/1787590310",
+      "version": 1787590310,
+      "minAppVersion": 0,
+      "sizeBytes": 2874400,
+      "title": "Fedora",
+      "summary": "44 · GNOME",
+      "sku": "distro_fedora",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#1C2B3A",
+        "bgBottom": "#0F1A26",
+        "bar": "#17212B",
+        "dock": "#CC17212B",
+        "accent": "#51A2DA",
+        "layout": "dash"
+      },
+      "features": [
+        {
+          "title": "A dock that stays out of the way",
+          "body": "It floats clear of the edge and appears when you go to your apps.",
+          "exclusive": true
+        },
+        {
+          "title": "Clock in the centre",
+          "body": "A 22dp bar with activities on the left, network and tray on the right.",
+          "exclusive": true
+        },
+        {
+          "title": "SELinux boot",
+          "body": "Nine lines through the policy load and GDM before the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "Fedora blue",
+          "body": "Circle icons, bare desklets, and a drawer that turns like a cube.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 2,
+        "iconPack": "Fedora Icons"
+      }
+    },
+    {
+      "packId": "garuda-dr460nized-line",
+      "packType": "brand",
+      "path": "brandpacks/garuda-dr460nized-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 501,
+      "title": "Garuda Icons",
+      "summary": "",
+      "sku": "icons_garuda",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#bd93f9"
+    },
+    {
+      "packId": "garuda-dr460nized-theme",
+      "packType": "theme",
+      "path": "themes/garuda-dr460nized-theme/1787590314",
+      "version": 1787590314,
+      "minAppVersion": 0,
+      "sizeBytes": 2583502,
+      "title": "Garuda Dr460nized",
+      "summary": "Rolling · KDE Plasma",
+      "sku": "distro_garuda_dragonized",
+      "preview": {
+        "shell": "plasma",
+        "bgTop": "#2D0B45",
+        "bgBottom": "#16062A",
+        "bar": "#1E0730",
+        "dock": "#331E0730",
+        "accent": "#FF0F7B",
+        "layout": "dockMagnified"
+      },
+      "features": [],
+      "contents": {
+        "wallpapers": 4,
+        "iconPack": "Garuda Icons"
+      }
+    },
+    {
+      "packId": "kali-2024-line",
+      "packType": "brand",
+      "path": "brandpacks/kali-2024-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 489,
+      "title": "Kali Linux Icons",
+      "summary": "",
+      "sku": "icons_kali",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#367bf0"
+    },
+    {
+      "packId": "kali-2024-theme",
+      "packType": "theme",
+      "path": "themes/kali-2024-theme/1787590314",
+      "version": 1787590314,
+      "minAppVersion": 6,
+      "sizeBytes": 384848,
+      "title": "Kali Linux",
+      "summary": "2024.3 · Xfce",
+      "sku": "distro_kali",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#1B2733",
+        "bgBottom": "#0D1117",
+        "bar": "#0A0E13",
+        "dock": "#14FFFFFF",
+        "accent": "#367BF0",
+        "layout": "dockMagnified"
+      },
+      "features": [
+        {
+          "title": "The tool menu",
+          "body": "Thirteen numbered categories, the way Kali files its own tools. Drag any app onto a shelf and it stays there.",
+          "exclusive": true
+        },
+        {
+          "title": "Two panels, like Xfce",
+          "body": "A top bar carrying network, memory and free space, and a separate dock along the bottom.",
+          "exclusive": true
+        },
+        {
+          "title": "Icons on the desktop",
+          "body": "Xfce's desktop is a file manager, so this one has a grid on it.",
+          "exclusive": true
+        },
+        {
+          "title": "Boots like a workstation",
+          "body": "Seventeen lines through the SSH server, PostgreSQL and LightDM.",
+          "exclusive": true
+        },
+        {
+          "title": "Blue on near-black",
+          "body": "Eight wallpapers, and readouts drawn in terminal frames rather than cards.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 8,
+        "iconPack": "Kali Linux Icons"
+      }
+    },
+    {
+      "packId": "kde-plasma-6",
+      "packType": "theme",
+      "path": "themes/kde-plasma-6/1787590309",
+      "version": 1787590309,
+      "minAppVersion": 6,
+      "sizeBytes": 488763,
+      "title": "KDE Plasma",
+      "summary": "6 · Breeze",
+      "preview": {
+        "shell": "plasma",
+        "bgTop": "#1B2733",
+        "bgBottom": "#151A1F",
+        "bar": "#31363B",
+        "dock": "#CC2A2E32",
+        "accent": "#3DAEE9",
+        "layout": "barBottom"
+      },
+      "features": [
+        {
+          "title": "Panel edit mode",
+          "body": "Hold the panel, add or remove modules, move it to any edge.",
+          "exclusive": true
+        },
+        {
+          "title": "Desktop icons",
+          "body": "Folder View, with apps placed on the workspace itself.",
+          "exclusive": true
+        },
+        {
+          "title": "Bottom task panel",
+          "body": "Kickoff, running apps, tray and clock on a single strip.",
+          "exclusive": true
+        },
+        {
+          "title": "Plasma boot",
+          "body": "Twelve lines of SDDM start-up before the desktop appears.",
+          "exclusive": true
+        },
+        {
+          "title": "Breeze palette",
+          "body": "Noto Sans, squircle icons, and a light set for daytime.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 5
+      }
+    },
+    {
+      "packId": "kde-plasma-6-line",
+      "packType": "brand",
+      "path": "brandpacks/kde-plasma-6-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 495,
+      "title": "KDE Plasma Icons",
+      "summary": "",
+      "sku": "icons_kde_plasma",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#3daee9"
+    },
+    {
+      "packId": "linux-mint-22-line",
+      "packType": "brand",
+      "path": "brandpacks/linux-mint-22-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 497,
+      "title": "Linux Mint Icons",
+      "summary": "",
+      "sku": "icons_linux_mint",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#87cf3e"
+    },
+    {
+      "packId": "linux-mint-22-theme",
+      "packType": "theme",
+      "path": "themes/linux-mint-22-theme/1787590309",
+      "version": 1787590309,
+      "minAppVersion": 0,
+      "sizeBytes": 623195,
+      "title": "Linux Mint",
+      "summary": "22 · Cinnamon",
+      "sku": "distro_linux_mint",
+      "preview": {
+        "shell": "plasma",
+        "bgTop": "#2C3B30",
+        "bgBottom": "#1A241D",
+        "bar": "#1E1E1E",
+        "dock": "#CC1E1E1E",
+        "accent": "#87CF3E",
+        "layout": "barBottom"
+      },
+      "features": [
+        {
+          "title": "The Cinnamon menu",
+          "body": "Favourites down one side, categories down the other, search at the top.",
+          "exclusive": true
+        },
+        {
+          "title": "One panel, at the bottom",
+          "body": "Menu, running apps, tray and clock in a 40dp strip, and no dock at all.",
+          "exclusive": true
+        },
+        {
+          "title": "Panel edit mode",
+          "body": "Hold the panel, add or remove modules, move it to any edge.",
+          "exclusive": true
+        },
+        {
+          "title": "Plymouth to Cinnamon",
+          "body": "Thirteen lines from GRUB through Update Manager and into the session.",
+          "exclusive": true
+        },
+        {
+          "title": "Mint green",
+          "body": "An oversized clock on the desktop, with the rest on quiet cards.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 4,
+        "iconPack": "Linux Mint Icons"
+      }
+    },
+    {
+      "packId": "manjaro-kde-line",
+      "packType": "brand",
+      "path": "brandpacks/manjaro-kde-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 490,
+      "title": "Manjaro Icons",
+      "summary": "",
+      "sku": "icons_manjaro",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#35bf5c"
+    },
+    {
+      "packId": "manjaro-kde-theme",
+      "packType": "theme",
+      "path": "themes/manjaro-kde-theme/1787590314",
+      "version": 1787590314,
+      "minAppVersion": 0,
+      "sizeBytes": 1574050,
+      "title": "Manjaro",
+      "summary": "Rolling · Xfce",
+      "sku": "distro_manjaro_kde",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#16362A",
+        "bgBottom": "#0B1F17",
+        "bar": "#102A20",
+        "dock": "#CC102A20",
+        "accent": "#35BF5C",
+        "layout": "dockFlat"
+      },
+      "features": [
+        {
+          "title": "The Whisker menu",
+          "body": "Categories on the left, apps on the right, search where your thumb lands.",
+          "exclusive": true
+        },
+        {
+          "title": "Bar on top, flat dock below",
+          "body": "A 26dp strip with network, memory and clock, and a dock that does not magnify.",
+          "exclusive": true
+        },
+        {
+          "title": "Panel edit mode",
+          "body": "Hold the panel, add or remove modules, move it to any edge.",
+          "exclusive": true
+        },
+        {
+          "title": "Manjaro boot",
+          "body": "Nine lines through the Settings Manager and SDDM before the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "Forest green",
+          "body": "Rounded icons on dark green, with readouts on accented cards.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 3,
+        "iconPack": "Manjaro Icons"
+      }
+    },
+    {
+      "packId": "papirus-icon-theme",
+      "packType": "hero",
+      "path": "heropacks/papirus-icon-theme/12",
+      "version": 12,
+      "minAppVersion": 8,
+      "sizeBytes": 341826,
+      "title": "Papirus Icon Theme",
+      "summary": "44 hero icons"
+    },
+    {
+      "packId": "pocket-theme",
+      "packType": "theme",
+      "path": "themes/pocket-theme/16",
+      "version": 16,
+      "minAppVersion": 0,
+      "sizeBytes": 834189,
+      "title": "Pocket  Os",
+      "summary": "iPhone · Inspired",
+      "sku": "distro_pocket",
+      "preview": {
+        "shell": "aqua",
+        "bgTop": "#1C1C1E",
+        "bgBottom": "#000000",
+        "bar": "#1C1C1E",
+        "dock": "#3D2C2C2E",
+        "accent": "#4C8DFF",
+        "layout": "dockBottom"
+      },
+      "features": [
+        {
+          "title": "A library, not a grid",
+          "body": "Eleven shelves by what apps are for: social, money, health, reading.",
+          "exclusive": true
+        },
+        {
+          "title": "One home, apps one swipe away",
+          "body": "A single desktop with the library just past it. Nothing opens or closes.",
+          "exclusive": true
+        },
+        {
+          "title": "The dock steps aside",
+          "body": "It sits under every home page and leaves when the library arrives, so the shelves have the whole screen.",
+          "exclusive": true
+        },
+        {
+          "title": "No bar, no boot",
+          "body": "Nothing across the top and no start-up sequence. It opens straight to the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "A floating dock",
+          "body": "Lifted clear of the edge, dark enough to sit on black without a seam.",
+          "exclusive": true
+        },
+        {
+          "title": "Black and blue",
+          "body": "Squircle icons, one accent, and quiet cards for anything you add.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 4
+      }
+    },
+    {
+      "packId": "pop-os-2204-line",
+      "packType": "brand",
+      "path": "brandpacks/pop-os-2204-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 490,
+      "title": "Pop!_OS Icons",
+      "summary": "",
+      "sku": "icons_pop_cosmic",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#48b9c7"
+    },
+    {
+      "packId": "pop-os-2204-theme",
+      "packType": "theme",
+      "path": "themes/pop-os-2204-theme/1787590309",
+      "version": 1787590309,
+      "minAppVersion": 0,
+      "sizeBytes": 2361603,
+      "title": "Pop!_OS",
+      "summary": "24.04 · COSMIC",
+      "sku": "distro_pop_cosmic",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#2B2B2B",
+        "bgBottom": "#161616",
+        "bar": "#1B1B1B",
+        "dock": "#CC1B1B1B",
+        "accent": "#48B9C7",
+        "layout": "tiled"
+      },
+      "features": [
+        {
+          "title": "Tiled desktop",
+          "body": "Apps fill the screen edge to edge instead of sitting on a wallpaper.",
+          "exclusive": true
+        },
+        {
+          "title": "Search before scrolling",
+          "body": "The app list opens on a query, so you type rather than hunt a grid.",
+          "exclusive": true
+        },
+        {
+          "title": "One slim bar, no dock",
+          "body": "A 22dp strip with the clock centred, network and tray to the right.",
+          "exclusive": true
+        },
+        {
+          "title": "System76 boot",
+          "body": "Ten lines through the power daemon and scheduler before the desktop.",
+          "exclusive": true
+        },
+        {
+          "title": "Graphite and teal",
+          "body": "Rounded icons on near-black, with readouts on accented cards.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 3,
+        "iconPack": "Pop!_OS Icons"
+      }
+    },
+    {
+      "packId": "terminal",
+      "packType": "theme",
+      "path": "themes/terminal/1787590305",
+      "version": 1787590305,
+      "minAppVersion": 0,
+      "sizeBytes": 30915,
+      "title": "Terminal",
+      "summary": "type-to-launch",
+      "preview": {
+        "shell": "tui",
+        "bgTop": "#080D08",
+        "bgBottom": "#080D08",
+        "bar": "#0E1A0E",
+        "dock": "#0E1A0E",
+        "accent": "#FFB000",
+        "layout": "terminal"
+      },
+      "features": [
+        {
+          "title": "Everything by command",
+          "body": "Launch, search and read device state from a prompt.",
+          "exclusive": true
+        },
+        {
+          "title": "Scrollback buffer",
+          "body": "Your session history stays where you left it.",
+          "exclusive": true
+        },
+        {
+          "title": "fastfetch on the desktop",
+          "body": "Device summary drawn in the terminal's own frame, not a card.",
+          "exclusive": true
+        },
+        {
+          "title": "tty boot",
+          "body": "Nine lines of kernel log and an automatic login before the prompt.",
+          "exclusive": true
+        },
+        {
+          "title": "Amber on black",
+          "body": "Monospace throughout, and no wallpaper behind any of it.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 0
+      }
+    },
+    {
+      "packId": "terminal-line",
+      "packType": "brand",
+      "path": "brandpacks/terminal-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 485,
+      "title": "Terminal Icons",
+      "summary": "",
+      "sku": "icons_terminal",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#33ff33"
+    },
+    {
+      "packId": "ubuntu-24-04",
+      "packType": "theme",
+      "path": "themes/ubuntu-24-04/1787590307",
+      "version": 1787590307,
+      "minAppVersion": 6,
+      "sizeBytes": 225974,
+      "title": "Ubuntu",
+      "summary": "24.04 · GNOME",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#622A4C",
+        "bgBottom": "#220817",
+        "bar": "#1A171B",
+        "dock": "#BD201B21",
+        "accent": "#E95420",
+        "layout": "dockLeft"
+      },
+      "features": [
+        {
+          "title": "Activities overview",
+          "body": "Windows, workspaces and search on one surface.",
+          "exclusive": true
+        },
+        {
+          "title": "Left vertical dock",
+          "body": "Always visible, show-apps button at the foot.",
+          "exclusive": true
+        },
+        {
+          "title": "GRUB to desktop",
+          "body": "Seventeen lines, from the boot menu through to the login manager.",
+          "exclusive": true
+        },
+        {
+          "title": "Aubergine and orange",
+          "body": "Deep purple wallpapers with the Ubuntu orange on every accent.",
+          "exclusive": false
+        }
+      ],
+      "contents": {
+        "wallpapers": 7,
+        "iconPack": "Papirus Icon Theme"
+      }
+    },
+    {
+      "packId": "ubuntu-24-04-line",
+      "packType": "brand",
+      "path": "brandpacks/ubuntu-24-04-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 491,
+      "title": "Ubuntu Icons",
+      "summary": "",
+      "sku": "icons_ubuntu",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#e95420"
+    },
+    {
+      "packId": "zorin-os-17-line",
+      "packType": "brand",
+      "path": "brandpacks/zorin-os-17-line/1787608616",
+      "version": 1787608616,
+      "minAppVersion": 7,
+      "sizeBytes": 491,
+      "title": "Zorin OS Icons",
+      "summary": "",
+      "sku": "icons_zorin_os",
+      "requires": [
+        "arcticons-line"
+      ],
+      "tint": "#0f94d2"
+    },
+    {
+      "packId": "zorin-os-17-theme",
+      "packType": "theme",
+      "path": "themes/zorin-os-17-theme/1787590308",
+      "version": 1787590308,
+      "minAppVersion": 0,
+      "sizeBytes": 3143239,
+      "title": "Zorin OS",
+      "summary": "17 · Zorin Desktop",
+      "sku": "distro_zorin_os_17",
+      "preview": {
+        "shell": "gnome",
+        "bgTop": "#15334D",
+        "bgBottom": "#0A1F30",
+        "bar": "#0E2438",
+        "dock": "#CC0E2438",
+        "accent": "#0F94D2",
+        "layout": "barBottom"
+      },
+      "features": [],
+      "contents": {
+        "wallpapers": 3,
+        "iconPack": "Zorin OS Icons"
+      }
+    }
+  ],
+  "entitlements": [
+    {
+      "sku": "distro_zorin_os_17",
+      "title": "Zorin OS",
+      "summary": "17 · Zorin Desktop",
+      "grants": [
+        "zorin-os-17-theme",
+        "zorin-os-17-line"
+      ]
+    },
+    {
+      "sku": "distro_garuda_dragonized",
+      "title": "Garuda Dr460nized",
+      "summary": "Rolling · KDE Plasma",
+      "grants": [
+        "garuda-dr460nized-theme",
+        "garuda-dr460nized-line"
+      ]
+    },
+    {
+      "sku": "distro_arch_linux",
+      "title": "Arch Linux",
+      "summary": "Rolling · i3",
+      "grants": [
+        "arch-linux-theme",
+        "arch-linux-line"
+      ]
+    },
+    {
+      "sku": "distro_elementary_os_8",
+      "title": "elementary OS",
+      "summary": "8.0 · Pantheon",
+      "grants": [
+        "elementary-os-8-theme",
+        "elementary-os-8-line"
+      ]
+    },
+    {
+      "sku": "distro_endeavouros",
+      "title": "EndeavourOS",
+      "summary": "Titan · i3",
+      "grants": [
+        "endeavouros-theme",
+        "endeavouros-line"
+      ]
+    },
+    {
+      "sku": "distro_fedora",
+      "title": "Fedora",
+      "summary": "44 · GNOME",
+      "grants": [
+        "fedora-40-theme",
+        "fedora-40-line"
+      ]
+    },
+    {
+      "sku": "distro_kali",
+      "title": "Kali Linux",
+      "summary": "2024.3 · Xfce",
+      "grants": [
+        "kali-2024-theme",
+        "kali-2024-line"
+      ]
+    },
+    {
+      "sku": "distro_linux_mint",
+      "title": "Linux Mint",
+      "summary": "22 · Cinnamon",
+      "grants": [
+        "linux-mint-22-theme",
+        "linux-mint-22-line"
+      ]
+    },
+    {
+      "sku": "distro_manjaro_kde",
+      "title": "Manjaro",
+      "summary": "Rolling · Xfce",
+      "grants": [
+        "manjaro-kde-theme",
+        "manjaro-kde-line"
+      ]
+    },
+    {
+      "sku": "distro_pop_cosmic",
+      "title": "Pop!_OS",
+      "summary": "24.04 · COSMIC",
+      "grants": [
+        "pop-os-2204-theme",
+        "pop-os-2204-line"
+      ]
+    },
+    {
+      "sku": "distro_deepin_23",
+      "title": "Deepin",
+      "summary": "23 · DDE",
+      "grants": [
+        "deepin-23-theme",
+        "deepin-23-line"
+      ]
+    },
+    {
+      "sku": "distro_pocket",
+      "title": "Pocket  Os",
+      "summary": "iPhone · Inspired",
+      "grants": [
+        "pocket-theme"
+      ]
+    }
+  ]
+}

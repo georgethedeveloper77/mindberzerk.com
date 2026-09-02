@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/crash_context.dart';
 import 'data/prefs/setup_state.dart';
 import 'data/billing/entitlements.dart';
+import 'data/update/update_repository.dart';
 import 'design/theme.dart';
 import 'features/desklets/widget_stage.dart';
 import 'features/home/home_intent.dart';
@@ -134,6 +135,31 @@ class _Root extends ConsumerWidget {
     // every theme switch and the keys must survive that. See
     // `core/crash_context.dart`.
     ref.watch(crashContextProvider);
+
+    // ── THE PLAY UPDATE CHECK ────────────────────────────────────────────
+    //
+    // The third line watched for its side effect, and mounted here for the
+    // same two reasons as the two above it: a provider nothing watches never
+    // runs, and a shell is torn down on every theme switch while this must
+    // survive one. A downloaded-but-not-installed update is a fact about the
+    // process, not about whichever distro is on screen when it finishes.
+    //
+    // WATCH, not read, and that is load-bearing rather than stylistic.
+    // `ref.read` creates no dependency, so under auto-dispose the update state
+    // would be collected the moment the Settings screen closed and a completed
+    // download would be forgotten. Watching from `_Root` pins it for the life
+    // of the process.
+    //
+    // The check itself is deferred to a microtask inside the provider, and it
+    // is throttled: see `kUpdateCheckInterval`. This is one SharedPreferences
+    // read on the common path, not a Play round trip on every launch.
+    //
+    // WHAT THIS DELIBERATELY IS NOT: `crash_context.dart` ends with a long note
+    // on why a synchronous Provider in `_Root` must not watch an async one, and
+    // that rule is obeyed here. `appUpdateWatchProvider` mounts a synchronous
+    // `Notifier` and nothing else; the prefs read and the platform call both
+    // happen after the build phase has ended.
+    ref.watch(appUpdateWatchProvider);
 
     final done = ref.watch(setupCompletedProvider);
 

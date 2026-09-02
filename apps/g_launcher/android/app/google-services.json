@@ -1,127 +1,102 @@
 {
   "project_info": {
-    "project_number": "256459048998",
-    "project_id": "g-editor-72969",
-    "storage_bucket": "g-editor-72969.firebasestorage.app"
+    "project_number": "562290793596",
+    "project_id": "mindberzerk-3eaf5",
+    "storage_bucket": "mindberzerk-3eaf5.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:256459048998:android:73f3de72f26100622c7ee7",
-        "android_client_info": {
-          "package_name": "com.mindhunter.g_editor"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "256459048998-481rkb5gejvufjb1nes98a8hdd13e0tt.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_editor",
-            "certificate_hash": "9063635d57d0d23124604375663842709adfa21e"
-          }
-        },
-        {
-          "client_id": "256459048998-aandc40h3cknh8pg7sl6oopg3spl92js.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_editor",
-            "certificate_hash": "ac436c6f2077eefea65253e8cb0dcdcf21973144"
-          }
-        },
-        {
-          "client_id": "256459048998-h1m6841t8am5o6thanq13vgcc129oank.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_editor",
-            "certificate_hash": "37e4b34c64195bbfe17b691d35c2a3f9170b2552"
-          }
-        },
-        {
-          "client_id": "256459048998-r365huoqkkhuun5k0buf24a96atlvpok.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_editor",
-            "certificate_hash": "ef20bfbb22035851e68d3f2032fb078363454c62"
-          }
-        },
-        {
-          "client_id": "256459048998-uhaffihfnu3ac1vvqj12nrqda4727ujd.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_editor",
-            "certificate_hash": "b4f8d9e2953be4450c104f42e44107087cbdba9e"
-          }
-        },
-        {
-          "client_id": "256459048998-fl7jh8n06icg4160e7er0c11bkh2h6jv.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyA_2rgE46_BwKoB6jwF4P_dnRlECUcAG9A"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "256459048998-fl7jh8n06icg4160e7er0c11bkh2h6jv.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      },
-      "admob_app_id": "ca-app-pub-7657066096391604~6864059770"
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:256459048998:android:3d8f67c9c5fb48bd2c7ee7",
+        "mobilesdk_app_id": "1:562290793596:android:740db6aa3ffef8b724bdf9",
         "android_client_info": {
           "package_name": "com.mindhunter.g_launcher"
         }
       },
       "oauth_client": [
         {
-          "client_id": "256459048998-820g0tdtelm68t5fts7v5v1uc9g0t19b.apps.googleusercontent.com",
+          "client_id": "562290793596-kivj38t0q8kbjjfdkkt5il08n8ed4hi7.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.mindhunter.g_launcher",
-            "certificate_hash": "d4d93e33699270c381897e03ce94f58919409813"
+            "certificate_hash": "8302d409043b77a08f14c670ae7910b92680685a"
           }
         },
         {
-          "client_id": "256459048998-83qt6d86ld0uq6bao69hjdiagbmu0qlc.apps.googleusercontent.com",
+          "client_id": "562290793596-lkbhfnle4rnp007r767lo60psube7i6m.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.mindhunter.g_launcher",
-            "certificate_hash": "37e4b34c64195bbfe17b691d35c2a3f9170b2552"
+            "certificate_hash": "ac436c6f2077eefea65253e8cb0dcdcf21973144"
           }
         },
         {
-          "client_id": "256459048998-i3uprfcfbqmoulqbtor0qi3vb2jabcfr.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mindhunter.g_launcher",
-            "certificate_hash": "ed7db3947f2c3ff78ef798591dfe3d9dcc44903d"
-          }
-        },
-        {
-          "client_id": "256459048998-fl7jh8n06icg4160e7er0c11bkh2h6jv.apps.googleusercontent.com",
+          "client_id": "562290793596-gvh94s77k7d1onj8kklq34idfh84fc0p.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyA_2rgE46_BwKoB6jwF4P_dnRlECUcAG9A"
+          "current_key": "AIzaSyCUkuR57bEYnyySQGZ3pI4HzQs00Qk9qNM"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "256459048998-fl7jh8n06icg4160e7er0c11bkh2h6jv.apps.googleusercontent.com",
+              "client_id": "562290793596-gvh94s77k7d1onj8kklq34idfh84fc0p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562290793596:android:b172062fa5bbc0f524bdf9",
+        "android_client_info": {
+          "package_name": "com.mindhunter.g_recovery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "562290793596-8ctq1f6drat7v2moa4c56fr5kvokn6jq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindhunter.g_recovery",
+            "certificate_hash": "d4d93e33699270c381897e03ce94f58919409813"
+          }
+        },
+        {
+          "client_id": "562290793596-jdlr3m937n9rafgh0edknrk7o2ce4tob.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindhunter.g_recovery",
+            "certificate_hash": "ac436c6f2077eefea65253e8cb0dcdcf21973144"
+          }
+        },
+        {
+          "client_id": "562290793596-pt06pofkg82m60pcplfsv7jbbdmkc0o7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindhunter.g_recovery",
+            "certificate_hash": "e7b04a3b6694b591d6c03e430478c7cbdce493cb"
+          }
+        },
+        {
+          "client_id": "562290793596-gvh94s77k7d1onj8kklq34idfh84fc0p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUkuR57bEYnyySQGZ3pI4HzQs00Qk9qNM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "562290793596-gvh94s77k7d1onj8kklq34idfh84fc0p.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../engine/theme_spec.dart';
 import '../engine/wallpaper_framing.dart';
+import 'device_metrics.dart';
 
 /// Draws a wallpaper the way the phone will draw it.
 ///
@@ -48,21 +49,80 @@ class WallpaperPaint extends StatelessWidget {
 
   final WallpaperFraming framing;
 
+  /// The fit the framing actually names, before any guard.
+  BoxFit get _authoredFit => switch (framing.resolvedFit) {
+        'fill' => BoxFit.fill,
+        'contain' => BoxFit.contain,
+        // Actual size. Nothing scales it but the zoom below, which is the whole
+        // meaning of the fit.
+        'center' => BoxFit.none,
+        _ => BoxFit.cover,
+      };
+
+  /// ─── THE GUARD: `fill` ONLY MEANS ANYTHING IN A BOX SHAPED LIKE THE PHONE ─
+  ///
+  /// `fill` is the default fit and its docblock is precise about what it buys:
+  /// the image maps onto exactly this screen, nothing is cropped, nothing is
+  /// guessed. It also names the cost, that aspect is not preserved. Both halves
+  /// are true of a box that IS the screen, and neither is true of one that is
+  /// not.
+  ///
+  /// The storefront proved it. A card's picture band was 328 x 152, an aspect
+  /// of 2.16 against a device's 0.462, and it painted the user's own wallpaper
+  /// with their own resolved framing. `fill` did exactly what it promises and
+  /// stretched a portrait photograph across a landscape box by a factor of 4.7.
+  /// Nothing was misconfigured anywhere in that chain. The framing was correct
+  /// for the phone and was handed to something that was not the phone.
+  ///
+  /// So a box that is materially the wrong shape gets `cover` instead. Cropping
+  /// is a smaller lie than distortion: a crop shows less of a true picture, a
+  /// stretch shows all of a false one, and only one of those is a thing anybody
+  /// notices on their own wallpaper.
+  ///
+  /// ─── HERE RATHER THAN IN DevicePreview, ON PURPOSE ──────────────────────
+  ///
+  /// The docblock above is the argument. Framing became one widget rather than
+  /// a `DecorationImage` per caller because four call sites is four chances to
+  /// drop part of the setting. A guard living one level up in `DevicePreview`
+  /// would protect that widget's callers and nobody else, and the next thing
+  /// to paint a wallpaper outside it would reintroduce this with nothing left
+  /// to catch it.
+  ///
+  /// ─── IT IS INERT WHERE IT MATTERS MOST ─────────────────────────────────
+  ///
+  /// The framing screen draws this at `StackFit.expand` inside a
+  /// `ThemedScaffold` with no app bar, so its canvas is the window and its
+  /// aspect is the device's by construction. The one screen whose whole job is
+  /// showing the exact truth never degrades, and that is the property that
+  /// makes this safe to apply everywhere else.
+  BoxFit _guardedFit(BuildContext context, BoxConstraints c) {
+    // An unbounded height is the absence of an answer rather than evidence of a
+    // wrong shape, and `boxMatchesDevice` reads it as a match, so the authored
+    // fit survives a constraint this cannot interrogate.
+    final boxAspect = c.maxWidth / c.maxHeight;
+    return boxMatchesDevice(context, boxAspect) ? BoxFit.fill : BoxFit.cover;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ── THE LayoutBuilder IS ONLY ON THE ARM THAT NEEDS IT ────────────────
+    //
+    // `fill` is the default, so this is the common path. The three other fits
+    // cannot be degraded by anything and get exactly the widget tree they had
+    // before this guard existed: a `contain` in a settings row does not gain a
+    // relayout boundary to answer a question about a fit it is not using.
+    if (framing.resolvedFit != 'fill') return _paint(_authoredFit);
+
+    return LayoutBuilder(
+      builder: (context, c) => _paint(_guardedFit(context, c)),
+    );
+  }
+
+  Widget _paint(BoxFit fit) {
     final align = Alignment(
       framing.focalX * 2 - 1,
       framing.focalY * 2 - 1,
     );
-
-    final fit = switch (framing.resolvedFit) {
-      'fill' => BoxFit.fill,
-      'contain' => BoxFit.contain,
-      // Actual size. Nothing scales it but the zoom below, which is the whole
-      // meaning of the fit.
-      'center' => BoxFit.none,
-      _ => BoxFit.cover,
-    };
 
     return ColoredBox(
       color: palette.bgTop,
