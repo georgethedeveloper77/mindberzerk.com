@@ -86,6 +86,14 @@ abstract final class UninstallStatus {
   static const noInstaller = 'no_installer';
   static const refused = 'refused';
 
+  /// A web app: a site added from a browser and held by this launcher.
+  ///
+  /// There is no package, so there is nothing for Android to uninstall and no
+  /// system dialog to wait on. NOT a success for [succeeded], because nothing
+  /// has been started and nothing will arrive through `onAppsChanged`; the
+  /// caller removes it directly and says so itself.
+  static const webApp = 'web_app';
+
   /// An UNRECOGNISED status is a failure, never a success. If native gains a
   /// status this build has never heard of, the honest response is the generic
   /// message rather than pretending the uninstall is under way.

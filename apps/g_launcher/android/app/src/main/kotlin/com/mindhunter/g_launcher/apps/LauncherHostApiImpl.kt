@@ -124,6 +124,17 @@ class LauncherHostApiImpl(
     fun onForeground() = watcher.onForeground()
 
     /**
+     * A web app was added or removed.
+     *
+     * Called from `PinShortcutActivity`, which is a separate Activity with no
+     * Flutter engine of its own, so this is the only route it has back into
+     * the app list. Distinct from [onForeground], which releases a DEFERRED
+     * change and returns early when there is none — reusing it here would have
+     * done nothing at all.
+     */
+    fun webAppsChanged() = watcher.notifyChanged()
+
+    /**
      * Android is asking for memory. Forwarded to the icon cache, which is the
      * only bitmap tier this object owns.
      *

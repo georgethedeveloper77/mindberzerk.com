@@ -4,9 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
 import '../desklets/desklet_edit.dart';
-import 'gnome/desktop_menu.dart';
+import 'workspaces/workspace_overview.dart';
 
-/// Hold the empty desktop to reach wallpaper, themes, widgets and settings.
+/// Hold the empty desktop to zoom out to the workspaces.
+///
+/// ─── IT USED TO OPEN A MENU, AND THE MENU IS STILL IN THERE ─────────────────
+///
+/// The hold opened `showDesktopMenu`: a bottom bar of six actions over the
+/// desktop. Pinch, separately, opened the overview. So the launcher had two
+/// zoomed-out ideas of the desktop reachable by two gestures, one of which
+/// could change how it looks and the other of which could change how many there
+/// were, and neither could do the other's job.
+///
+/// The overview now carries that same bar along its foot, so the hold arrives
+/// somewhere strictly larger than where it used to. `showDesktopMenu` is
+/// untouched and still exported for any caller that wants the bar on its own.
 ///
 /// ─── WHY THIS IS A SHARED FILE AND NOT FOUR COPIES ────────────────────────
 ///
@@ -76,7 +88,12 @@ class DesktopHold extends ConsumerWidget {
               // the gate. A buzz followed by nothing reads as a dropped input
               // rather than as a refusal.
               HapticFeedback.mediumImpact();
-              showDesktopMenu(context, ref, theme);
+              // `open()` refuses during edit mode on its own, which is the same
+              // refusal the null callback above already makes. Both stay: the
+              // gate here is what stops the recognizer competing for the
+              // pointer at all, and the one in `open` is the floor under every
+              // other caller.
+              ref.read(workspaceOverviewProvider.notifier).open();
             },
       child: child,
     );

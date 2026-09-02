@@ -16,9 +16,26 @@
     "display": "Ubuntu",
     "mono": "UbuntuMono"
   },
+  "surfaces": {
+    "opacity": 0.9,
+    "blur": 16,
+    "tint": 0.7,
+    "radius": 14
+  },
   "layout": {
     "dock": "left",
-    "topBar": true,
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "clock",
+          "spacer",
+          "tray"
+        ]
+      }
+    ],
     "grid": {
       "rows": 5,
       "cols": 4
@@ -29,16 +46,21 @@
     "cornerRadius": 0.22,
     "foregroundScale": 1,
     "backgroundColor": null,
-    "monochromeTint": null
+    "monochromeTint": null,
+    "brandPack": "ubuntu-24-04-line"
   },
   "logo": {
-    "light": "logo_light.webp",
-    "dark": "logo_dark.webp"
+    "light": "logo_light.svg",
+    "dark": "logo_dark.svg"
   },
   "wallpapers": [
     "numbat_color.webp",
     "noble_light.webp",
-    "numbat_dark.webp"
+    "numbat_dark.webp",
+    "linux_ubuntu.webp",
+    "Ubuntu_24.10_Oracular_Oriole.webp",
+    "ubuntu_logo.webp",
+    "ubuntu.webp"
   ],
   "minAppVersion": 6,
   "boot": {
@@ -135,14 +157,14 @@
       {
         "kind": "clock",
         "page": 0,
-        "col": 0,
+        "col": 4,
         "row": 0
       },
       {
         "kind": "monitor",
         "page": 0,
-        "col": 2,
-        "row": 1
+        "col": 4,
+        "row": 2
       }
     ],
     "skins": {
@@ -162,7 +184,7 @@
     {
       "title": "Left vertical dock",
       "body": "Always visible, show-apps button at the foot.",
-      "exclusive": true
+      "exclusive": false
     },
     {
       "title": "GRUB to desktop",

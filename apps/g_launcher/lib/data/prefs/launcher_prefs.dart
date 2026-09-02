@@ -1011,8 +1011,7 @@ class LauncherPrefs {
       monoFont: monoFont ?? this.monoFont,
       gestures: gestures ?? this.gestures,
       hiddenApps: hiddenApps ?? this.hiddenApps,
-      hiddenAppsSearchable:
-          hiddenAppsSearchable ?? this.hiddenAppsSearchable,
+      hiddenAppsSearchable: hiddenAppsSearchable ?? this.hiddenAppsSearchable,
       favourites: favourites ?? this.favourites,
       dockExcluded: dockExcluded ?? this.dockExcluded,
       homeItems: homeItems ?? this.homeItems,
@@ -1074,6 +1073,7 @@ class LauncherPrefs {
     bool panelTint = false,
     bool panelRadius = false,
     bool badgeStyle = false,
+
     /// Clearable, because removing the wallpaper you had chosen has to
     /// leave NO choice rather than a path pointing at a picture that is no
     /// longer in the list. `effective_theme` treats a non-null value here
@@ -1124,8 +1124,7 @@ class LauncherPrefs {
       // whatever it was clearing — silently reset the drawer scroll style back
       // to null. A field omitted from this method is not "left alone", it is
       // dropped, because the constructor defaults it.
-      drawerScrollStyle:
-          drawerScrollStyle ? null : this.drawerScrollStyle,
+      drawerScrollStyle: drawerScrollStyle ? null : this.drawerScrollStyle,
       drawerGrouping: drawerGrouping ? null : this.drawerGrouping,
       drawerSortMode: drawerSortMode ? null : this.drawerSortMode,
       // Pass-through, not clearable: the arrangement survives leaving Custom,
@@ -1141,8 +1140,7 @@ class LauncherPrefs {
       themeMode: themeMode ? null : this.themeMode,
       accentId: accentId ? null : this.accentId,
       layoutPreset: layoutPreset ? null : this.layoutPreset,
-      deskletGridVersion:
-          deskletGridVersion ? null : this.deskletGridVersion,
+      deskletGridVersion: deskletGridVersion ? null : this.deskletGridVersion,
       topBarSide: topBarSide ? null : this.topBarSide,
       topBarStats: topBarStats ? null : this.topBarStats,
       surfaceOpacity: surfaceOpacity ? null : this.surfaceOpacity,
@@ -1186,8 +1184,7 @@ class LauncherPrefs {
       folderCols: folderCols ? null : this.folderCols,
       folderRows: folderRows ? null : this.folderRows,
       folderShape: folderShape ? null : this.folderShape,
-      folderOrderCustom:
-          folderOrderCustom ? null : this.folderOrderCustom,
+      folderOrderCustom: folderOrderCustom ? null : this.folderOrderCustom,
       wallpapers: wallpapers,
       // Pass-through. A Set has no null state, so there is no flag for it and
       // never will be: emptying it is `copyWith(wallpapersHidden: const {})`,
@@ -1320,9 +1317,8 @@ class LauncherPrefs {
       dockGridButton: j['dockGridButton'] as String?,
       topBar: j['topBar'] as bool?,
       desktopIcons: j['desktopIcons'] as bool?,
-      panelModules: (j['panelModules'] as List?)
-          ?.map((e) => e.toString())
-          .toList(),
+      panelModules:
+          (j['panelModules'] as List?)?.map((e) => e.toString()).toList(),
       panelHeight: (j['panelHeight'] as num?)?.toDouble(),
       panelSide: j['panelSide'] as String?,
       rows: (j['rows'] as num?)?.toInt(),
@@ -1453,8 +1449,7 @@ class LauncherPrefs {
         other.dockGridButton == dockGridButton &&
         other.topBar == topBar &&
         other.desktopIcons == desktopIcons &&
-        const ListEquality<String>()
-            .equals(other.panelModules, panelModules) &&
+        const ListEquality<String>().equals(other.panelModules, panelModules) &&
         other.panelHeight == panelHeight &&
         other.panelSide == panelSide &&
         other.rows == rows &&
@@ -1464,7 +1459,8 @@ class LauncherPrefs {
         other.drawerScrollStyle == drawerScrollStyle &&
         other.drawerGrouping == drawerGrouping &&
         other.drawerSortMode == drawerSortMode &&
-        const ListEquality<DrawerSlot>().equals(other.drawerSlots, drawerSlots) &&
+        const ListEquality<DrawerSlot>()
+            .equals(other.drawerSlots, drawerSlots) &&
         other.drawerSlotCols == drawerSlotCols &&
         other.drawerSlotRows == drawerSlotRows &&
         other.drawerPageCount == drawerPageCount &&
@@ -1515,8 +1511,7 @@ class LauncherPrefs {
         const SetEquality<String>().equals(other.hiddenApps, hiddenApps) &&
         other.hiddenAppsSearchable == hiddenAppsSearchable &&
         const ListEquality<String>().equals(other.favourites, favourites) &&
-        const SetEquality<String>()
-            .equals(other.dockExcluded, dockExcluded) &&
+        const SetEquality<String>().equals(other.dockExcluded, dockExcluded) &&
         const ListEquality<HomeItem>().equals(other.homeItems, homeItems) &&
         const ListEquality<AppFolder>().equals(other.folders, folders) &&
         const ListEquality<AppFolder>()

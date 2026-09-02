@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_account/g_account.dart';
 
@@ -366,4 +367,114 @@ final packBridgeProvider = Provider<void>((ref) {
   // Unawaited: nothing should wait on it, and it resolves against the
   // catalogue which the storefront is loading anyway.
   unawaited(_resumePendingApply(ref));
+});
+
+/// Connect to Play the moment an Activity exists, not when a store screen opens.
+///
+/// ─── WHAT WAS ACTUALLY WRONG WITH THE TIMING ────────────────────────────────
+///
+/// `start()` is called from exactly one place: the body of [ownedSkusProvider].
+/// That provider is lazy, so the moment billing connects was whichever screen
+/// happened to read it first. Nothing at the app root read it at all.
+///
+/// Two consequences, and both were in the field.
+///
+/// THE CRASH. `in_app_purchase_android` builds its `BillingClient` when the
+/// plugin attaches to an ACTIVITY. This launcher warms its Flutter engine in
+/// `LauncherApplication.onCreate` (`LauncherHostApiImpl` says so in its own
+/// header), so Dart runs for a while in a process that has no Activity yet. A
+/// `start()` landing in that window asked a client that did not exist, and
+/// `isAvailable` threw `PlatformException(UNAVAILABLE, BillingClient is unset)`
+/// fatally, fifty times across nine users in two days.
+///
+/// THE WAIT. When it did not crash, the connection, the product query and the
+/// restore all happened at store-open, with the user watching. That is the
+/// delay that reads as a broken storefront.
+///
+/// ─── WHY resumed IS THE RIGHT SIGNAL AND NOT AN APPROXIMATION ───────────────
+///
+/// `AppLifecycleState.resumed` means an Activity is attached and foregrounded,
+/// which is precisely the condition the billing client needs. It is a Dart-side
+/// observer, so it costs no Pigeon method and no Kotlin.
+///
+/// The `available` check makes every later resume a single bool read, which
+/// matters more here than in an ordinary app: this IS the home screen, so resume
+/// fires on every home press. While the store is unreachable it retries, which
+/// is correct and free, and it is how a device that finishes Play Services setup
+/// after first launch gets a working storefront without a restart.
+///
+/// ─── WHAT THIS DOES NOT REMOVE ──────────────────────────────────────────────
+///
+/// The timer backoff inside `EntitlementService` stays. This is the precise
+/// path; that is the backstop for a resume that still loses the race. Neither
+/// replaces the other, and both are safe to run because `start` is documented
+/// as repeatable and, since the crash above, cannot throw.
+///
+/// ─── AND WHAT IT CANNOT MAKE INSTANT ────────────────────────────────────────
+///
+/// Prices, on a genuinely cold cache. The SKU set comes from the signed
+/// catalogue, deliberately, so the first ever launch has nothing to query and
+/// only the connection and the restore get warmed. Prices land when the index
+/// does. Hardcoding SKUs would fix that and would undo the thing the whole
+/// architecture is for.
+final billingWarmupProvider = Provider<void>((ref) {
+  // KEPT ALIVE for the reason `packBridgeProvider` gives above: the value is
+  // void, so nothing downstream holds it, and a provider that exists purely for
+  // a side effect must not depend on somebody continuing to watch it.
+  ref.keepAlive();
+
+  // The last attempt, so an unreachable store is not re-probed on every home
+  // press.
+  //
+  // WITHOUT THIS, a de-Googled ROM pays a failing platform call every time the
+  // user goes home, forever, because `available` is false there permanently and
+  // correctly. Sixty seconds keeps the retry that matters (someone finishing
+  // Play Services setup, or a system update landing) while making the cost
+  // negligible.
+  DateTime? lastAttempt;
+
+  void warm() {
+    final service = ref.read(entitlementServiceProvider);
+
+    // Connected already. Every home press lands here and stops.
+    if (service.available) return;
+
+    final now = DateTime.now();
+    final since = lastAttempt;
+    if (since != null && now.difference(since) < const Duration(seconds: 60)) {
+      return;
+    }
+    lastAttempt = now;
+
+    // Mounts [ownedSkusProvider] if nothing has yet, which installs the native
+    // entitlement push and calls `start` with the current set. `read`, not
+    // `watch`: this provider must not rebuild when ownership changes.
+    ref.read(ownedSkusProvider);
+
+    // And call it directly as well, because the line above does nothing when
+    // the provider was already mounted by a store screen or by the terminal
+    // entitlement. That is the case where the first `start` already ran, and
+    // failed, before there was an Activity.
+    final joined = ref.read(productSkusProvider);
+    unawaited(
+      service.start(joined.isEmpty ? <String>{} : joined.split(',').toSet()),
+    );
+  }
+
+  final listener = AppLifecycleListener(onResume: warm);
+  ref.onDispose(listener.dispose);
+
+  // `onResume` fires on the TRANSITION, so an app that is already resumed when
+  // this mounts would never be told. On a cold start with a warm engine the
+  // state here is usually detached or paused and the callback does the work;
+  // this covers the other ordering.
+  //
+  // Deferred to a microtask, not called inline. `productSkusProvider` watches
+  // the async `catalogueProvider`, and `crash_context.dart` ends with a long
+  // note on what happens when a synchronous provider mounted mid-build causes
+  // an emit during the same flush. Riverpod forbids it and the symptom is not
+  // local to here.
+  if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+    Future.microtask(warm);
+  }
 });

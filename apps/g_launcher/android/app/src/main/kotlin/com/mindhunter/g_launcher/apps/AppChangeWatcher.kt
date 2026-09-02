@@ -116,6 +116,23 @@ class AppChangeWatcher(
         handler.post { onChanged(reason, repository.refresh()) }
     }
 
+    /**
+     * Something that is not a package changed the app list.
+     *
+     * Web apps are pinned shortcuts rather than packages, so no
+     * `LauncherApps.Callback` below ever fires for one and nothing here would
+     * notice. Routed through [schedule] rather than calling `refresh()`
+     * directly, so a pin shares the 250ms debounce and the foreground gate
+     * with every package event: three accepted in a burst enumerate once, and
+     * one that lands while the desktop is off screen is deferred until
+     * [onForeground] releases it.
+     *
+     * CHANGED and not ADDED, deliberately. The reason drives the Dart-side
+     * animation, and a site being added is closer to a list edit than to an
+     * install: nothing was downloaded and nothing appeared in Play.
+     */
+    fun notifyChanged() = schedule(AppChangeReason.CHANGED)
+
     private val callback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String?, user: UserHandle?) =
             schedule(AppChangeReason.ADDED)

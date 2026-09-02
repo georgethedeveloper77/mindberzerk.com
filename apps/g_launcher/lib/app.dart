@@ -161,6 +161,20 @@ class _Root extends ConsumerWidget {
     // happen after the build phase has ended.
     ref.watch(appUpdateWatchProvider);
 
+    // ── BILLING, WARMED BEFORE ANYONE ASKS ───────────────────────────────
+    //
+    // The fourth side-effect line, and the one with money attached. Until this
+    // existed, `EntitlementService.start` ran whenever some screen first read
+    // `ownedSkusProvider`, which on a warm engine could be before any Activity
+    // was attached: `isAvailable` then threw fatally, fifty times across nine
+    // users. When it did not crash, the whole connect-query-restore sequence
+    // happened at store-open with the user watching it.
+    //
+    // This mounts a resume listener instead, so the connection is made the
+    // moment an Activity exists and the storefront opens onto answers that are
+    // already there. See `billingWarmupProvider`.
+    ref.watch(billingWarmupProvider);
+
     final done = ref.watch(setupCompletedProvider);
 
     // ── THE HOME PRESS ───────────────────────────────────────────────────

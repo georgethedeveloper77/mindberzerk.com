@@ -35,6 +35,22 @@ class AppRepository(context: Context) {
     private val userManager =
         appContext.getSystemService(Context.USER_SERVICE) as UserManager
 
+    /**
+     * Web apps, which are pinned shortcuts this launcher holds rather than
+     * packages the system enumerates. Constructed here rather than injected so
+     * `LauncherApplication` needs no change: this class is the only thing that
+     * assembles an app list, and a second list assembled somewhere else is how
+     * the drawer and the dock start disagreeing.
+     */
+    /**
+     * PUBLIC, because `IconCache` needs it too. Every icon layer keys on the
+     * package name, and a web app's package is the browser, so the icon cache
+     * has to be able to ask "is this one of ours" before it consults any of
+     * them. Exposing the repository is cheaper than threading a second
+     * constructor argument through `LauncherApplication`.
+     */
+    val shortcuts = ShortcutRepository(appContext)
+
     @Volatile
     private var cache: List<AppEntry> = emptyList()
 
@@ -64,7 +80,17 @@ class AppRepository(context: Context) {
             list.map { info ->
                 info.toAppEntry(serial = serial, isWorkProfile = isWork)
             }
-        }.sortedWith(
+        }.plus(
+            // ── WEB APPS JOIN THE LIST, THEY DO NOT FOLLOW IT ──────────────
+            //
+            // Added BEFORE the sort, so a site lands in alphabetical position
+            // among real apps instead of in a block at the end. That is the
+            // whole of the "treat them like apps" decision expressed in one
+            // line: everything downstream — the dock, folders, search, usage
+            // ranking, hidden apps — reads this sorted list and needs no idea
+            // that two kinds went into it.
+            shortcuts.entries()
+        ).sortedWith(
             compareBy(
                 { it.label.lowercase() },
                 { it.componentKey }, // stable tiebreak: two apps can share a label
@@ -79,6 +105,11 @@ class AppRepository(context: Context) {
     // ---- launching -------------------------------------------------------
 
     fun launch(componentKey: String, bounds: Rect?) {
+        // Web apps first: their keys parse cleanly as components but name no
+        // activity, so falling through to startMainActivity would be a start
+        // on something that is not there.
+        if (shortcuts.launch(componentKey, bounds)) return
+
         val key = ComponentKey.parse(componentKey) ?: return
         val user = userManager.getUserForSerialNumber(key.userSerial) ?: return
         val component = ComponentName(key.packageName, key.className)
@@ -89,6 +120,12 @@ class AppRepository(context: Context) {
     }
 
     fun openAppInfo(componentKey: String) {
+        // There is no package to show a details screen for. Android's own page
+        // for the browser is not what someone tapping App info on a site
+        // wants, so this does nothing rather than something misleading; the
+        // drawer menu drops the entry in a later pass.
+        if (shortcuts.store.owns(componentKey)) return
+
         val key = ComponentKey.parse(componentKey) ?: return
         val user = userManager.getUserForSerialNumber(key.userSerial) ?: return
         launcherApps.startAppDetailsActivity(
@@ -123,6 +160,14 @@ class AppRepository(context: Context) {
      * renumbers every existing class.
      */
     fun uninstallStatus(componentKey: String): String {
+        // ── A WEB APP IS REMOVED, NOT UNINSTALLED ─────────────────────────
+        //
+        // There is no package, so ACTION_DELETE has nothing to address and the
+        // system has nothing to confirm. Reported as its own status rather
+        // than as a failure: the caller is expected to remove it directly, and
+        // saying `refused` here would read as a bug in a path that works.
+        if (shortcuts.store.owns(componentKey)) return UninstallStatus.WEB_APP
+
         val entry = cache.firstOrNull { it.componentKey == componentKey }
             ?: return UninstallStatus.UNKNOWN_APP
 
@@ -292,6 +337,15 @@ object UninstallStatus {
 
     /** The system refused the start outright. */
     const val REFUSED = "refused"
+
+    /**
+     * A web app. No package, so nothing to uninstall; the launcher removes it.
+     *
+     * Handled by the caller rather than here, because removal is not a
+     * confirmation the system owns and should not borrow the uninstall
+     * dialog's wording.
+     */
+    const val WEB_APP = "web_app"
 }
 data class ComponentKey(
     val packageName: String,

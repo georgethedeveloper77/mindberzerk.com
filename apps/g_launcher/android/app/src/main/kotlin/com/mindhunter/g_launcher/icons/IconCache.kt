@@ -408,7 +408,24 @@ class IconCache(
         // not leave the other hundred bare. If that mixing ever reads as
         // incoherent, moving `renderIconPack` below `renderHero` is the one-line
         // change, and it is a taste call rather than a correctness one.
-        val bitmap = renderIconPack(componentKey, sizePx)
+        // ── WEB APPS SHORT-CIRCUIT THE WHOLE CHAIN ────────────────────────
+        //
+        // Not a fifth layer at the top of the four: a BRANCH that replaces
+        // them. Every layer below keys on the package name, and a web app's
+        // package is the browser it was added from, so all four give the wrong
+        // answer rather than no answer. The icon pack, hero pack and brand pack
+        // each hand back the BROWSER's icon, identically, for every site the
+        // user has added; the generator returns null because IconExtractor
+        // looks for an activity called `@web:...` and finds none.
+        //
+        // Wrong-and-confident is worse than absent, and here it was both at
+        // once: blank tiles on a distro with no Chrome art, four identical
+        // Chrome tiles on one that has it.
+        //
+        // A distro can still override a site's icon: `renderWebApp` falls
+        // through to the normal chain when the system has no bitmap for it.
+        val bitmap = renderWebApp(componentKey, sizePx)
+            ?: renderIconPack(componentKey, sizePx)
             ?: renderHero(componentKey, sizePx)
             ?: renderBrand(componentKey, sizePx)
             ?: renderGenerated(componentKey, sizePx)
@@ -486,6 +503,67 @@ class IconCache(
             stroked = brands.stroked,
             strokeWidth = brands.strokeWidth,
         )
+    }
+
+    /**
+     * A web app's own icon, drawn through the distro's shape.
+     *
+     * ─── THROUGH renderHero, AND WHY THAT IS THE RIGHT DOOR ─────────────────
+     *
+     * `renderHero` is the path for a finished drawable that already has its own
+     * artwork, which is exactly what the system hands back for a shortcut. The
+     * generator's door is the wrong one: it wants an `ExtractedIcon` with
+     * separate foreground and background layers, and a shortcut bitmap has no
+     * such layers to pull apart.
+     *
+     * ─── applyMask = true, AND IT IS A TRADE ────────────────────────────────
+     *
+     * Masking makes a web app take the distro's silhouette, which is the whole
+     * of the decision to treat these as apps: a squircle drawer with four bare
+     * squares in it does not read as one grid.
+     *
+     * The cost is real and worth writing down. Chrome composes its shortcut
+     * icons as a circular favicon with a small browser badge already burned in,
+     * so masking that to a squircle puts a circle inside a rounded square and
+     * the result sits visibly smaller than its neighbours. If that reads badly
+     * on device, `false` here is the one-line change, and it is a taste call
+     * rather than a correctness one — the same wording `renderIconPack` uses
+     * about its own ordering.
+     *
+     * ─── NULL FALLS THROUGH, IT DOES NOT DRAW A HOLE ────────────────────────
+     *
+     * A denied query, a revoked shortcut or an uninstalled browser all return
+     * null here and the caller continues down the normal chain. That chain
+     * answers with the BROWSER's icon, which is wrong but at least not blank,
+     * and it is the same wrong icon this branch exists to avoid. It is the
+     * lesser failure, not a good one.
+     *
+     * ─── AND A DISTRO CANNOT OVERRIDE THIS ──────────────────────────────────
+     *
+     * Because this runs first, a hero or brand pack can never claim a web app,
+     * even one that named the exact component key. That is the price of the
+     * branch and it is the right way round: the packs key on package name, so
+     * letting them go first is what produced four Chrome tiles. If a distro
+     * ever needs to art-direct a specific site, the fix is a hero lookup by
+     * FULL component key ahead of this call, never reordering these two.
+     *
+     * ─── THE CACHE KEY CANNOT SEE A CHANGED FAVICON ─────────────────────────
+     *
+     * `cacheKey` mixes in `updateToken`, which for a web app is the label hash
+     * (see `ShortcutRepository.entries`). A site that changes its icon without
+     * changing its name therefore keeps the old bitmap indefinitely. Hashing
+     * the drawable instead would mean loading it on every enumeration, which is
+     * a binder call per web app on every package change, to catch something
+     * that happens rarely. Settings > Rebuild icon cache already clears it, and
+     * that is the documented escape hatch rather than an oversight.
+     */
+    private fun renderWebApp(componentKey: String, sizePx: Int): Bitmap? {
+        if (!repository.shortcuts.store.owns(componentKey)) return null
+        val drawable = repository.shortcuts.iconDrawable(
+            componentKey,
+            appContext.resources.displayMetrics.densityDpi,
+        ) ?: return null
+        return renderer.renderHero(drawable, style, sizePx, true)
     }
 
     private fun renderGenerated(componentKey: String, sizePx: Int): Bitmap? {

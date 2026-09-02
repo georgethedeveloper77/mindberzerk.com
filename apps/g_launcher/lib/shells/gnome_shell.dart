@@ -195,7 +195,7 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
         else
           MenuAction(
             icon: Icons.remove_circle_outline,
-            label: 'Remove from dock',
+            label: host.t('shell.removeFromDock'),
             onTap: () => notifier.edit(
               (p) => HomeLayout.excludeFromDock(p, app.componentKey),
             ),
@@ -371,6 +371,12 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final insets = MediaQuery.viewPaddingOf(context);
+
+                    // Which way the workspaces run. Read here rather than at
+                    // the indicator, because the dock's own placement rules
+                    // below have to know about it too.
+                    final horizontalWorkspaces =
+                        theme.workspaceAxis == WorkspaceAxis.horizontal;
 
                     // 'off' renders where Ubuntu keeps it — the left — so it is
                     // vertical for sizing too, even though the pref isn't 'left'.
@@ -589,26 +595,60 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         // as a rendering fault rather than as chrome.
                         if (!activitiesOpen)
                         Positioned(
-                          // ── THE DOTS GET OUT OF THE DOCK'S WAY ──────────
+                          // ── THE STRIP LIES ALONG THE AXIS IT INDICATES ──
                           //
-                          // Hardcoded `right: 9` while the dock only ever sat
-                          // on the left, which made the two edges a fixed pair
-                          // rather than a decision. A right dock lands the dots
-                          // and the dock on the same 9px strip, overlapping,
-                          // and the dots lose because they are drawn first.
+                          // This was a column pinned to a side edge, full stop,
+                          // which is GNOME 3's switcher and was right while
+                          // every distro paged vertically. `workspaceAxis` says
+                          // which way they actually run, and a vertical column
+                          // of pips beside a desktop that slides SIDEWAYS is
+                          // pointing across the movement it describes.
                           //
-                          // The rule is OPPOSITE THE DOCK, not "always right":
-                          // the pair is what reads as a workspace strip on one
-                          // side and apps on the other, and a bottom or absent
-                          // dock leaves them where Ubuntu keeps them.
-                          left: side == DockSide.right ? 9 : null,
-                          right: side == DockSide.right ? null : 9,
-                          top: 0,
-                          bottom: 0,
+                          // Horizontal: along the foot, centred, clear of the
+                          // gesture inset and of a bottom dock. Vertical: the
+                          // side edge it has always used.
+                          //
+                          // ── AND STILL OUT OF THE DOCK'S WAY ─────────────
+                          //
+                          // The old rule was OPPOSITE THE DOCK rather than
+                          // "always right": a right dock lands the dots and the
+                          // dock on the same 9px strip, overlapping, and the
+                          // dots lose because they are drawn first. That rule
+                          // is kept for the vertical case and has a counterpart
+                          // here: a horizontal strip clears a BOTTOM dock the
+                          // same way, by the band that dock reserves.
+                          left: horizontalWorkspaces
+                              ? 0
+                              : (side == DockSide.right ? 9 : null),
+                          right: horizontalWorkspaces
+                              ? 0
+                              : (side == DockSide.right ? null : 9),
+                          top: horizontalWorkspaces ? null : 0,
+                          bottom: horizontalWorkspaces
+                              ? (side == DockSide.bottom
+                                  ? DockMetrics.reserve + 9
+                                  : insets.bottom + 9)
+                              : 0,
                           child: Center(
                             child: WorkspaceDots(
+                              axis: horizontalWorkspaces
+                                  ? Axis.horizontal
+                                  : Axis.vertical,
                               count: count,
                               active: active,
+                              // RESOLVED HERE, because the strip cannot. It is
+                              // deliberately provider-free so its goldens run
+                              // without any, which also means it has no way to
+                              // look a key up. See [WorkspaceDots.stripLabel].
+                              stripLabel: context.t('settings.workspaces'),
+                              stripValue: context.t(
+                                'home.workspaceNOfTotal',
+                                {'n': '${active + 1}', 'total': '$count'},
+                              ),
+                              dotLabel: (i) => context.t(
+                                'home.workspaceN',
+                                {'n': '${i + 1}'},
+                              ),
                               accent: theme.palette.accent,
                               // Was Ubuntu.dotIdle. An inactive workspace dot
                               // has to read against THIS distro's wallpaper.

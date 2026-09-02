@@ -217,8 +217,27 @@ Future<bool> applyWallpaper(
   String? fit,
   WallpaperFraming? framing,
 }) async {
+  // ─── EVERY PROVIDER READ HAPPENS HERE, BEFORE THE FIRST await ────────────
+  //
+  // `ref` belongs to a widget element, and reading it after that element is
+  // gone throws `Bad state: Using "ref" after the widget was disposed`. This
+  // function awaits four times: a sheet the user may sit on, two prefs writes,
+  // and `setWallpaper`, which `LauncherHostApiImpl` puts on its IO executor
+  // precisely because decoding and pushing a wallpaper takes hundreds of
+  // milliseconds. Any of those is long enough for the screen to go.
+  //
+  // `api` and `notifier` were already captured here for that reason. The store
+  // was NOT: it was read at the write near the bottom of this function, after
+  // all four awaits, and it reached Crashlytics as a fatal FlutterError.
+  //
+  // Backing out of the wallpaper screen while an apply is in flight is an
+  // ordinary thing to do, which is why it found two users in a day. Capturing
+  // is the fix, not a `context.mounted` check: mounted can pass and then the
+  // element can be gone by the time `ref.read` runs, and the object being
+  // reached for here does not depend on the widget at all.
   final api = ref.read(launcherHostApiProvider);
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+  final store = ref.read(prefsStoreProvider);
 
   // ─── ASKED ONCE, BEFORE ANYTHING IS TOUCHED ───────────────────────────────
   //
@@ -284,21 +303,21 @@ Future<bool> applyWallpaper(
               }..removeWhere((_, v) => v.isDefault)),
       ),
     );
-    await ref.read(prefsStoreProvider).write(
-          wallpaperAppliedForKey,
-          // The stamp is composed HERE from the same two lists the resolve
-          // reads, because the two must agree exactly. They are the pair the
-          // token's doc warns about: they drifted once when the mode was added
-          // and the screen's pick quietly undid itself on the next rebuild.
-          wallpaperAppliedToken(
-            theme.spec.id,
-            dark: theme.dark,
-            stamp: wallpaperContentStamp(
-              theme.spec.wallpapers,
-              theme.spec.wallpapersLight,
-            ),
-          ),
-        );
+    await store.write(
+      wallpaperAppliedForKey,
+      // The stamp is composed HERE from the same two lists the resolve
+      // reads, because the two must agree exactly. They are the pair the
+      // token's doc warns about: they drifted once when the mode was added
+      // and the screen's pick quietly undid itself on the next rebuild.
+      wallpaperAppliedToken(
+        theme.spec.id,
+        dark: theme.dark,
+        stamp: wallpaperContentStamp(
+          theme.spec.wallpapers,
+          theme.spec.wallpapersLight,
+        ),
+      ),
+    );
   }
   if (context.mounted) {
     context.showMessage(ok ? 'Wallpaper set' : 'Could not set that image');

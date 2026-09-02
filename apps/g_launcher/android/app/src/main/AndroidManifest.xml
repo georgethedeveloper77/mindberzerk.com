@@ -302,6 +302,36 @@
             </intent-filter>
         </service>
 
+        <!--
+          THE PWA FIX. Its existence is the feature.
+
+          `ShortcutManager.isRequestPinShortcutSupported()` returns false unless
+          the DEFAULT LAUNCHER declares an activity for this action. Chrome asks
+          that before offering "Install app" on a site, and while this block was
+          missing the answer was no: the install was abandoned with no error, no
+          log and nothing on screen. It read as "G Launcher does not support
+          PWAs", which is how it was reported.
+
+          NOT exported to a permission, and it does not need to be: the system
+          is the only caller, and `getPinItemRequest` returns null for an intent
+          that did not come from it.
+
+          excludeFromRecents + NoDisplay: this accepts and finishes without
+          drawing. A confirmation sheet here would be the second dialog asking
+          the same question, because Chrome has already shown its own.
+        -->
+        <activity
+            android:name=".apps.PinShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

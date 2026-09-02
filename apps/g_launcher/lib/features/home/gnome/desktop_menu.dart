@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/components.dart';
@@ -72,108 +73,19 @@ Future<void> showDesktopMenu(
     barrierLabel: 'Close',
     transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (routeContext, _, __) {
-      void open(Widget screen) {
-        Navigator.pop(routeContext);
-        navigator.push(MaterialPageRoute<void>(builder: (_) => screen));
-      }
-
       return ChromeScope(
         data: chrome,
         child: Align(
           alignment: Alignment.bottomCenter,
-          child: _Bar(
+          child: DesktopActionBar(
             theme: theme,
-            actions: [
-              _Action(
-                icon: Icons.image_outlined,
-                label: 'Wallpaper',
-                onTap: () => open(WallpaperScreen(theme: theme)),
-              ),
-              _Action(
-                icon: Icons.format_paint_outlined,
-                label: 'Themes',
-                onTap: () => open(const ThemesScreen()),
-              ),
-              // ─── ICONS, A PEER OF THEMES ────────────────────────────
-              //
-              // It sat three taps inside Settings, which put "change how every
-              // icon looks" below "change how the desktop looks" in a way
-              // nothing about the product supports. Choosing an icon pack is
-              // the same KIND of decision as choosing a theme, and there are
-              // now fourteen packs behind it.
-              //
-              // Between Themes and Widgets: the two appearance actions sit
-              // together and the two content actions sit together, so the bar
-              // reads in pairs rather than as four unrelated glyphs.
-              _Action(
-                icon: Icons.apps_outlined,
-                label: 'Icons',
-                onTap: () => open(const IconThemeScreen()),
-              ),
-              _Action(
-                icon: Icons.widgets_outlined,
-                label: 'Widgets',
-                // ── STRAIGHT TO THE PICKER ──────────────────────────────
-                //
-                // This used to enter desklet edit mode and surface an "Editing
-                // workspace" bar with an Add button on it — two steps and a bar
-                // to reach a screen. Adding a widget is a single intent, so it
-                // now opens the widget picker directly. Resizing an existing
-                // desklet is the OTHER gesture (long-press the tile), and it no
-                // longer needs a bar either.
-                //
-                // Pop the menu FIRST, then push on the shell's Navigator via
-                // the captured shell context — the picker captures ChromeScope
-                // from it, and the menu's own route is dead by the time the
-                // push lands.
-                onTap: () {
-                  Navigator.pop(routeContext);
-                  showDeskletPicker(
-                    context,
-                    ref,
-                    theme,
-                    page: ref.read(activeWorkspaceProvider),
-                  );
-                },
-              ),
-              // ── ONLY WHERE THERE ARE APPS TO ARRANGE ──────────────────
-              //
-              // A distro with no desktop grid has nothing to jiggle, and an
-              // Arrange glyph on a bare Pantheon desktop would open an edit
-              // mode over an empty screen. The same `desktopIcons` gate the
-              // grid itself uses, asked in the one other place that offers to
-              // edit it.
-              if (theme.desktopIcons)
-                _Action(
-                  icon: Icons.dashboard_customize_outlined,
-                  label: 'Arrange',
-                  // Pop FIRST, for the reason Widgets gives above: the menu's
-                  // own route is dead by the time anything downstream runs, and
-                  // entering edit mode rebuilds the desktop underneath it.
-                  onTap: () {
-                    Navigator.pop(routeContext);
-                    ref.read(deskletEditProvider.notifier).enterApps();
-                  },
-                ),
-              // ── THE ONLY MARKED ACTION IN THIS BAR ────────────────────
-              //
-              // A waiting Play update has nowhere else to be seen: the banner
-              // and the About row are both inside Settings, so someone who
-              // never opens Settings never learns there is one. This is the
-              // quietest surface that fixes that, because a long-press menu is
-              // something you opened on purpose.
-              //
-              // `dot: true` is the ONLY place this flag is passed, and
-              // [UpdateDot] takes no condition of its own, so this cannot
-              // become a general badge mechanism without someone deliberately
-              // widening both.
-              _Action(
-                icon: Icons.settings_outlined,
-                label: 'Settings',
-                dot: true,
-                onTap: () => open(SettingsScreen(theme: theme)),
-              ),
-            ],
+            actions: desktopActions(
+              context: context,
+              ref: ref,
+              theme: theme,
+              navigator: navigator,
+              dismiss: () => Navigator.pop(routeContext),
+            ),
           ),
         ),
       );
@@ -199,18 +111,194 @@ Future<void> showDesktopMenu(
   );
 }
 
+
+/// The desktop actions, as data, so more than one surface can wear them.
+///
+/// ─── WHY THIS IS A FUNCTION AND NOT A LIST IN [showDesktopMenu] ─────────────
+///
+/// The bar was private to the route that shows it, and everything it does is
+/// phrased in that route's terms: each action pops `routeContext` before it
+/// pushes or before it enters edit mode. That is correct for a
+/// `showGeneralDialog`, and it is unusable anywhere else, because the workspace
+/// overview is not a route at all. It is a Stack layer in `home_screen` toggled
+/// by a provider, so it has nothing to pop and dismisses itself by calling
+/// `close()` on that notifier.
+///
+/// So the one thing that differs between the two surfaces is HOW THEY GO AWAY,
+/// and that is the parameter. [dismiss] is the only thing the caller has to
+/// know about itself; everything below is the same six decisions either way.
+///
+/// [navigator] is captured by the CALLER rather than read from [context] here.
+/// The route case must capture it before the bar is built, because pushing onto
+/// the bar's own context tears the new route down with the bar, and a helper
+/// that read it itself would quietly reintroduce that.
+List<DesktopAction> desktopActions({
+  required BuildContext context,
+  required WidgetRef ref,
+  required EffectiveTheme theme,
+  required NavigatorState navigator,
+  required VoidCallback dismiss,
+}) {
+  void open(Widget screen) {
+    dismiss();
+    navigator.push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  return [
+            DesktopAction(
+                icon: Icons.image_outlined,
+                label: context.t('settings.wallpaper'),
+                onTap: () => open(WallpaperScreen(theme: theme)),
+              ),
+            DesktopAction(
+                icon: Icons.format_paint_outlined,
+                label: context.t('home.themes'),
+                onTap: () => open(const ThemesScreen()),
+              ),
+              // ─── ICONS, A PEER OF THEMES ────────────────────────────
+              //
+              // It sat three taps inside Settings, which put "change how every
+              // icon looks" below "change how the desktop looks" in a way
+              // nothing about the product supports. Choosing an icon pack is
+              // the same KIND of decision as choosing a theme, and there are
+              // now fourteen packs behind it.
+              //
+              // Between Themes and Widgets: the two appearance actions sit
+              // together and the two content actions sit together, so the bar
+              // reads in pairs rather than as four unrelated glyphs.
+            DesktopAction(
+                icon: Icons.apps_outlined,
+                label: context.t('settings.icons'),
+                onTap: () => open(const IconThemeScreen()),
+              ),
+            DesktopAction(
+                icon: Icons.widgets_outlined,
+                label: context.t('home.widgets'),
+                // ── STRAIGHT TO THE PICKER ──────────────────────────────
+                //
+                // This used to enter desklet edit mode and surface an "Editing
+                // workspace" bar with an Add button on it — two steps and a bar
+                // to reach a screen. Adding a widget is a single intent, so it
+                // now opens the widget picker directly. Resizing an existing
+                // desklet is the OTHER gesture (long-press the tile), and it no
+                // longer needs a bar either.
+                //
+                // Pop the menu FIRST, then push on the shell's Navigator via
+                // the captured shell context — the picker captures ChromeScope
+                // from it, and the menu's own route is dead by the time the
+                // push lands.
+                onTap: () {
+                  dismiss();
+                  showDeskletPicker(
+                    context,
+                    ref,
+                    theme,
+                    page: ref.read(activeWorkspaceProvider),
+                  );
+                },
+              ),
+              // ── ONLY WHERE THERE ARE APPS TO ARRANGE ──────────────────
+              //
+              // A distro with no desktop grid has nothing to jiggle, and an
+              // Arrange glyph on a bare Pantheon desktop would open an edit
+              // mode over an empty screen. The same `desktopIcons` gate the
+              // grid itself uses, asked in the one other place that offers to
+              // edit it.
+              if (theme.desktopIcons)
+                DesktopAction(
+                  icon: Icons.dashboard_customize_outlined,
+                  label: context.t('home.arrange'),
+                  // Pop FIRST, for the reason Widgets gives above: the menu's
+                  // own route is dead by the time anything downstream runs, and
+                  // entering edit mode rebuilds the desktop underneath it.
+                  onTap: () {
+                    dismiss();
+                    ref.read(deskletEditProvider.notifier).enterApps();
+                  },
+                ),
+              // ── THE ONLY MARKED ACTION IN THIS BAR ────────────────────
+              //
+              // A waiting Play update has nowhere else to be seen: the banner
+              // and the About row are both inside Settings, so someone who
+              // never opens Settings never learns there is one. This is the
+              // quietest surface that fixes that, because a long-press menu is
+              // something you opened on purpose.
+              //
+              // `dot: true` is the ONLY place this flag is passed, and
+              // [UpdateDot] takes no condition of its own, so this cannot
+              // become a general badge mechanism without someone deliberately
+              // widening both.
+            DesktopAction(
+                icon: Icons.settings_outlined,
+                label: context.t('settings.settings'),
+                dot: true,
+                onTap: () => open(SettingsScreen(theme: theme)),
+              ),
+  ];
+}
+
 /// The bar itself: one row, evenly divided, sitting above the gesture inset.
-class _Bar extends StatelessWidget {
-  const _Bar({required this.theme, required this.actions});
+class DesktopActionBar extends StatelessWidget {
+  const DesktopActionBar({
+    super.key,
+    required this.theme,
+    required this.actions,
+    this.showLabels = true,
+    this.plated = true,
+  });
 
   final EffectiveTheme theme;
-  final List<_Action> actions;
+  final List<DesktopAction> actions;
+
+  /// Draw each action's word under its glyph.
+  ///
+  /// True for the long-press bar, which owns the bottom of the screen and has
+  /// room. False for the overview, where this bar sits under a strip of
+  /// workspace cards and six labelled columns at 360dp cannot fit: "Wallpaper"
+  /// alone is wider than the slot. The label is not dropped, it moves to the
+  /// semantics node, so the target is still announced.
+  final bool showLabels;
+
+  /// Draw the bar's own surface behind the actions.
+  ///
+  /// ─── THE OVERVIEW HAS NO PLATE, AND THAT IS THE REFERENCE ───────────────
+  ///
+  /// True for the long-press bar, which arrives over a desktop it did not
+  /// otherwise change and needs to read as a thing that appeared. False in the
+  /// overview, where the whole screen is already a dimmed mode with a card and
+  /// a control row stacked above: a second plate under the glyphs there makes
+  /// the foot of the screen three surfaces deep, and the reference draws them
+  /// straight onto the wash.
+  ///
+  /// The actions do not change. This is the surface and the outer padding only,
+  /// so a bar without a plate is the same six targets in the same places.
+  final bool plated;
 
   @override
   Widget build(BuildContext context) {
     // The chrome the route re-provided above. Read for the shared panel
     // radius; the colours still come from the glass itself.
     final d = ChromeScope.of(context);
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (final a in actions) Expanded(child: a.withLabels(showLabels)),
+        ],
+      ),
+    );
+
+    if (!plated) {
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: row,
+        ),
+      );
+    }
 
     return SafeArea(
       top: false,
@@ -266,13 +354,7 @@ class _Bar extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(d.panelRadius),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [for (final a in actions) Expanded(child: a)],
-              ),
-            ),
+            child: row,
           ),
         ),
       ),
@@ -354,12 +436,14 @@ class _Surface extends StatelessWidget {
 }
 
 /// One glyph-over-label target. Deliberately tall enough to hit without looking.
-class _Action extends StatelessWidget {
-  const _Action({
+class DesktopAction extends StatelessWidget {
+  const DesktopAction({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.dot = false,
+    this.showLabel = true,
   });
 
   final IconData icon;
@@ -377,11 +461,27 @@ class _Action extends StatelessWidget {
   /// unmarked unless someone types the word.
   final bool dot;
 
+  /// Draw [label] under the glyph. See [DesktopActionBar.showLabels].
+  final bool showLabel;
+
+  /// The same action, told whether to draw its word. A copy rather than a
+  /// mutable field so an action list can be built once and worn two ways.
+  DesktopAction withLabels(bool show) => DesktopAction(
+        icon: icon,
+        label: label,
+        onTap: onTap,
+        dot: dot,
+        showLabel: show,
+      );
+
   @override
   Widget build(BuildContext context) {
     final d = ChromeScope.of(context);
 
-    return InkWell(
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
@@ -394,16 +494,19 @@ class _Action extends StatelessWidget {
             dot
                 ? UpdateDot(child: Icon(icon, size: 24, color: d.colors.text))
                 : Icon(icon, size: 24, color: d.colors.text),
-            const SizedBox(height: 7),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: d.text.caption.copyWith(color: d.colors.text),
-            ),
+            if (showLabel) ...[
+              const SizedBox(height: 7),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: d.text.caption.copyWith(color: d.colors.text),
+              ),
+            ],
           ],
         ),
+      ),
       ),
     );
   }

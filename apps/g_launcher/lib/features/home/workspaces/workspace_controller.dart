@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/prefs/launcher_prefs.dart';
 import '../../../data/prefs/prefs_repository.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../engine/theme_engine.dart';
@@ -71,6 +72,66 @@ class WorkspaceCount extends Notifier<int> {
     // than no setting; the distro's is what a fresh install starts from.
     final theme = ref.watch(activeThemeSpecProvider).value?.layout.workspaces;
     return (prefs?.workspaceCount ?? theme ?? fallback).clamp(min, max);
+  }
+
+  /// Delete [page] and everything standing on it.
+  ///
+  /// ─── THIS ONE DESTROYS, AND set() DELIBERATELY DOES NOT ─────────────────
+  ///
+  /// `launcher_prefs.dart` chose a flat `page`-on-the-record shape partly so
+  /// that lowering the count HIDES pages rather than destroying them: nothing
+  /// prunes by page, so dropping from 5 to 2 leaves pages 3 to 5 intact and
+  /// raising it back restores them. [set] still behaves exactly that way and
+  /// the Settings stepper is still reversible.
+  ///
+  /// This is a different verb with its own affordance. A trash can that quietly
+  /// trimmed the last page would be naming the wrong workspace, and one that
+  /// hid the page it was dropped on would leave the contents alive somewhere
+  /// the user can no longer reach. So the explicit gesture does the explicit
+  /// thing, and it is the only thing in the app that prunes by page.
+  ///
+  /// ─── ONE WRITE, THREE EDITS, AND THE ORDER MATTERS ──────────────────────
+  ///
+  /// Prune, then shift, then lower the count, in a single `edit` so no frame
+  /// ever observes a desklet parked on a page the count no longer covers.
+  /// Doing it as three writes would let [ActiveWorkspace]'s clamp fire against
+  /// a half-applied state.
+  ///
+  /// Pages ABOVE the removed one shift down by one, which is what keeps
+  /// `page` an index rather than a name. Anything on the removed page is gone.
+  Future<void> removePage(int page) async {
+    if (state <= min) return;
+    if (page < 0 || page >= state) return;
+    final specId = ref.read(activeThemeSpecProvider).value?.id;
+    if (specId == null) return;
+
+    await ref.read(prefsProvider(specId).notifier).edit(
+          (p) => p.copyWith(
+            desklets: [
+              for (final d in p.desklets)
+                if (d.page != page)
+                  d.page > page ? d.copyWith(page: d.page - 1) : d,
+            ],
+            // HomeItem has no copyWith, so this rebuilds the record. Every
+            // field is carried across explicitly; a new field on HomeItem must
+            // be added here too, and the constructor is required-argument
+            // enough that leaving one out will not compile.
+            homeItems: [
+              for (final i in p.homeItems)
+                if (i.page != page)
+                  if (i.page > page)
+                    HomeItem(
+                      page: i.page - 1,
+                      index: i.index,
+                      componentKey: i.componentKey,
+                      folderId: i.folderId,
+                    )
+                  else
+                    i,
+            ],
+            workspaceCount: state - 1,
+          ),
+        );
   }
 
   /// Persists to the active theme's prefs; state follows by rebuild once the

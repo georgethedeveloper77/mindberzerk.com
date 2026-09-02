@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'safe_page.dart';
 import '../features/home/workspaces/workspace_canvas.dart';
 
 import '../engine/effective_theme.dart';
@@ -46,8 +47,18 @@ class _TilingShellState extends ConsumerState<TilingShell> {
     final activitiesOpen = ref.watch(activitiesOpenProvider);
 
     ref.listen<int>(activeWorkspaceProvider, (_, next) {
-      if (!_pages.hasClients) return;
-      if ((_pages.page ?? 0).round() == next) return;
+      // `pageOrNull`, not `hasClients` plus `page`. That pair reads as a guard
+      // and is not one: `hasClients` is `positions.isNotEmpty`, so it passes
+      // with TWO pagers attached and `page` then throws `Too many elements`
+      // out of `positions.single`. See `safe_page.dart`.
+      //
+      // Null means the pager cannot be read this frame, and `animateToPage`
+      // would fail on exactly the same getter, so there is nothing to do but
+      // return. `activeWorkspaceProvider` stays the source of truth and the
+      // pager catches up on the next change.
+      final current = _pages.pageOrNull;
+      if (current == null) return;
+      if (current.round() == next) return;
       _pages.animateToPage(
         next,
         duration: const Duration(milliseconds: 280),
