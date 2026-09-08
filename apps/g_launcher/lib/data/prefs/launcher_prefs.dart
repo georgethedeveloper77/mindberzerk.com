@@ -96,6 +96,7 @@ class LauncherPrefs {
     this.cornerRadius,
     this.labelLines,
     this.textScale,
+    this.menuActionLabels,
     this.displayFont,
     this.monoFont,
     this.gestures = const {},
@@ -581,6 +582,34 @@ class LauncherPrefs {
   final int? labelLines;
   final double? textScale;
 
+  /// Do the quick actions across the top of an app menu carry their words?
+  ///
+  /// ─── WHY THE ITEM SET DOES NOT MOVE WITH IT ─────────────────────────────
+  ///
+  /// The obvious next thought is that dropping the labels lifts the ceiling:
+  /// `AnchoredMenu` allows three because a fourth label goes to an ellipsis at
+  /// a readable size on a 360dp phone, and with no labels five would fit.
+  ///
+  /// It stays at three anyway. The strip earns its place by being hit from
+  /// muscle memory after the second use, and muscle memory is a claim about
+  /// POSITION. An action that sits second with labels on and third with them
+  /// off is an action you have to read every time, which is the flat list this
+  /// shape exists to avoid. Density is what this buys. Capacity is not.
+  ///
+  /// ─── AND WHY THE GLYPHS STILL ANSWER TO A LONG PRESS ────────────────────
+  ///
+  /// Every chip keeps a tooltip. Without one the only route back from a glyph
+  /// whose meaning has been forgotten is to tap it and find out, and one of
+  /// the three is Uninstall.
+  ///
+  /// PER THEME, matching [labelLines] and [textScale] directly above rather
+  /// than the font block below. Nothing here forecloses promoting it to the
+  /// global bucket later: that is the same `prefs.X ?? fallback` shape every
+  /// other two-layer setting already uses.
+  ///
+  /// Null means shown, which is what every build before this one did.
+  final bool? menuActionLabels;
+
   // --- fonts (global bucket: see GlobalPrefs) ---
 
   /// The family every label, title and menu is set in, overriding whatever the
@@ -934,6 +963,7 @@ class LauncherPrefs {
     double? cornerRadius,
     int? labelLines,
     double? textScale,
+    bool? menuActionLabels,
     String? displayFont,
     String? monoFont,
     Map<String, String>? gestures,
@@ -1007,6 +1037,7 @@ class LauncherPrefs {
       cornerRadius: cornerRadius ?? this.cornerRadius,
       labelLines: labelLines ?? this.labelLines,
       textScale: textScale ?? this.textScale,
+      menuActionLabels: menuActionLabels ?? this.menuActionLabels,
       displayFont: displayFont ?? this.displayFont,
       monoFont: monoFont ?? this.monoFont,
       gestures: gestures ?? this.gestures,
@@ -1101,6 +1132,7 @@ class LauncherPrefs {
     bool cornerRadius = false,
     bool labelLines = false,
     bool textScale = false,
+    bool menuActionLabels = false,
     bool displayFont = false,
     bool monoFont = false,
   }) {
@@ -1165,6 +1197,7 @@ class LauncherPrefs {
       cornerRadius: cornerRadius ? null : this.cornerRadius,
       labelLines: labelLines ? null : this.labelLines,
       textScale: textScale ? null : this.textScale,
+      menuActionLabels: menuActionLabels ? null : this.menuActionLabels,
       // THE ONLY ROUTE BACK TO THE DISTRO'S OWN FONT. copyWith cannot write
       // null, so without these two lines "use the distro's font" is a choice
       // the picker offers and cannot deliver: it would appear to do nothing.
@@ -1265,6 +1298,7 @@ class LauncherPrefs {
         if (cornerRadius != null) 'cornerRadius': cornerRadius,
         if (labelLines != null) 'labelLines': labelLines,
         if (textScale != null) 'textScale': textScale,
+        if (menuActionLabels != null) 'menuActionLabels': menuActionLabels,
         if (displayFont != null) 'displayFont': displayFont,
         if (monoFont != null) 'monoFont': monoFont,
         'gestures': gestures,
@@ -1362,6 +1396,7 @@ class LauncherPrefs {
       cornerRadius: (j['cornerRadius'] as num?)?.toDouble(),
       labelLines: (j['labelLines'] as num?)?.toInt(),
       textScale: (j['textScale'] as num?)?.toDouble(),
+      menuActionLabels: j['menuActionLabels'] as bool?,
       displayFont: j['displayFont'] as String?,
       monoFont: j['monoFont'] as String?,
       gestures: ((j['gestures'] as Map?) ?? const {})
@@ -1505,6 +1540,7 @@ class LauncherPrefs {
         other.cornerRadius == cornerRadius &&
         other.labelLines == labelLines &&
         other.textScale == textScale &&
+        other.menuActionLabels == menuActionLabels &&
         other.displayFont == displayFont &&
         other.monoFont == monoFont &&
         const MapEquality<String, String>().equals(other.gestures, gestures) &&
@@ -1585,6 +1621,7 @@ class LauncherPrefs {
         cornerRadius,
         labelLines,
         textScale,
+        menuActionLabels,
         displayFont,
         monoFont,
         const MapEquality<String, String>().hash(gestures),

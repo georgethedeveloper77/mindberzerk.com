@@ -345,6 +345,29 @@ class EffectiveTheme {
   double get panelRadius =>
       (prefs.panelRadius ?? spec.surfaces?.radius ?? 16.0).clamp(0.0, 28.0);
 
+  /// Do the quick actions across the top of an app menu carry their words?
+  ///
+  /// ─── A DIRECT GETTER, NOT A RESOLVER ARM ────────────────────────────────
+  ///
+  /// [labelLines] and [textScale] come through `LayoutResolver` because a
+  /// theme.json can author them and the user is overriding a distro's opinion.
+  /// No distro has an opinion about this one: there is no `menuActionLabels`
+  /// key in the spec and nothing publishes it, so routing it through the
+  /// resolver would mean adding a field to `ResolvedLayout`, its `==` and its
+  /// `hashCode` to carry a value with only one source.
+  ///
+  /// This is the shape `panelOpacity` and the three above it already use for a
+  /// setting whose fallback is a constant rather than a theme.
+  ///
+  /// ─── AND WHERE THE FAMILY DEFAULT WOULD GO IF IT IS EVER WANTED ─────────
+  ///
+  /// Aqua takes `asList` because a Mac answers a long press with a plain
+  /// vertical menu, and by the same argument a tiling WM might want glyphs
+  /// with no words out of the box. That is this one expression becoming
+  /// `prefs.menuActionLabels ?? _labelsForFamily(chromeFamily)`, with the
+  /// prefs arm still winning. Nothing else moves.
+  bool get menuActionLabels => prefs.menuActionLabels ?? true;
+
   /// The palette actually on screen.
   ///
   /// `spec.palette` is the DARK variant and keeps that name for

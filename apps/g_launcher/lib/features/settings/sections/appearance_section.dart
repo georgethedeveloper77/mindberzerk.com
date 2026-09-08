@@ -408,6 +408,32 @@ List<Widget> appearanceSection(
                 notifier.edit((p) => p.copyWith(labelLines: v ? 2 : 1)),
           ),
         ),
+        // ─── IN THIS GROUP BECAUSE IT IS LITERALLY ABOUT LABELS ────────
+        //
+        // The alternative was a Menus group of its own, which would have held
+        // exactly one row. This group is already "the words on things", and
+        // the row directly above it decides whether app names wrap.
+        FilterRow(
+          const [
+            'menu',
+            'menu labels',
+            'icons only',
+            'compact menu',
+            'quick actions',
+            'labels',
+          ],
+          SettingsToggleRow(
+            icon: Icons.short_text,
+            title: context.t('settings.menuActionLabels'),
+            // Off is the denser panel, not a different set of actions: the
+            // strip holds three either way. See LauncherPrefs.menuActionLabels
+            // for why the count does not move with the words.
+            subtitle: context.t('settings.wordsUnderTheGlyphs'),
+            value: theme.menuActionLabels,
+            onChanged: (v) =>
+                notifier.edit((p) => p.copyWith(menuActionLabels: v)),
+          ),
+        ),
         FilterRow(
           const ['text size', 'font size', 'labels'],
           SettingsRow(

@@ -12,6 +12,7 @@ import '../../platform/launcher_api.g.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The drawer search page — the One UI layout, dressed in the active theme.
 ///
@@ -318,7 +319,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       children: [
         _Block(
           d: d,
-          title: 'Suggested apps',
+          title: context.t('search.suggestedApps'),
           child: _SuggestedGrid(
             apps: suggestedFilled,
             iconSize: widget.theme.iconSizeDp,
@@ -328,7 +329,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ),
         _Block(
           d: d,
-          title: 'Settings topics',
+          title: context.t('search.settingsTopics'),
           child: Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -353,7 +354,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: _Tile(
                   d: d,
                   icon: Icons.folder_outlined,
-                  label: 'Downloads',
+                  label: context.t('search.downloads'),
                   // ── THE SEAM LANDED, SO THESE OPEN THE REAL THING ──────
                   //
                   // Both tiles said "Files browsing is coming soon" because
@@ -375,7 +376,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: _Tile(
                   d: d,
                   icon: Icons.image_outlined,
-                  label: 'Screenshots',
+                  label: context.t('search.screenshots'),
                   // ACTION_VIEW at the external images collection, which is
                   // what every gallery registers for. There is no screenshots
                   // intent: the folder is a MediaStore bucket, not a
@@ -396,10 +397,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (recent.isNotEmpty)
           _Block(
             d: d,
-            title: 'Recent searches',
+            title: context.t('search.recentSearches'),
             trailing: IconButton(
               icon: Icon(Icons.delete_outline, size: 20, color: c.textMuted),
-              tooltip: 'Clear recent searches',
+              tooltip: context.t('search.clearRecentSearches'),
               onPressed: () =>
                   ref.read(recentSearchesProvider.notifier).clear(),
             ),
@@ -485,7 +486,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                     sliver: SliverToBoxAdapter(
-                      child: Text('Apps', style: d.text.title),
+                      child: Text(context.t('search.apps'), style: d.text.title),
                     ),
                   ),
                   SliverPadding(
@@ -510,7 +511,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: Text('Launcher', style: d.text.title),
+                    child: Text(context.t('search.launcher'), style: d.text.title),
                   ),
                   for (final item in launcherHits)
                     _LauncherHit(
@@ -607,7 +608,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onSubmitted: (_) => _submit(),
                 style: d.text.body,
                 decoration: InputDecoration(
-                  hintText: 'Search',
+                  hintText: context.t('drawer.search'),
                   hintStyle: d.text.body.copyWith(color: c.textFaint),
                   border: InputBorder.none,
                   isDense: true,
@@ -624,13 +625,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _BarIcon(
                 icon: Icons.mic_none_outlined,
                 color: c.textMuted,
-                tooltip: 'Voice search',
+                tooltip: context.t('search.voiceSearch'),
                 onTap: _dictate,
               ),
             _BarIcon(
               icon: Icons.more_vert,
               color: c.textMuted,
-              tooltip: 'More',
+              tooltip: context.t('search.more'),
               onTap: () => _overflow(context),
             ),
           ],
@@ -648,11 +649,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         children: [
           ThemedListRow(
             icon: Icons.delete_outline,
-            title: 'Clear recent searches',
+            title: context.t('search.clearRecentSearches'),
             onTap: () {
               Navigator.pop(sheet);
               ref.read(recentSearchesProvider.notifier).clear();
-              if (host.mounted) host.showMessage('Recent searches cleared');
+              if (host.mounted) host.showMessage(context.t('search.recentSearchesCleared'));
             },
           ),
           const SizedBox(height: 8),

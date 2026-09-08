@@ -183,6 +183,23 @@ class AnchoredMenu {
     /// goes in [rows] underneath.
     List<MenuAction> actions = const [],
 
+    /// Do the quick actions carry their words, or only their glyphs?
+    ///
+    /// ─── AN OPTION, AND STILL THREE EITHER WAY ──────────────────────────
+    ///
+    /// Dropping the labels would fit five chips across the panel. The ceiling
+    /// stays at three regardless, because the strip is aimed at from memory
+    /// and memory is about POSITION: an action that moves when a setting
+    /// changes is one nobody can aim at. This buys density, not capacity.
+    ///
+    /// Every chip keeps its label as a tooltip when this is false, so a
+    /// forgotten glyph has an answer that is not tapping it to find out. One
+    /// of the three is Uninstall.
+    ///
+    /// Ignored under `asList`, where the actions are already rows and a row
+    /// without its title would be a blank line.
+    bool showActionLabels = true,
+
     /// The (i) button beside the title. Null draws no button and no spacer.
     VoidCallback? onInfo,
     double width = 240,
@@ -276,6 +293,7 @@ class AnchoredMenu {
                         actions: actions,
                         chrome: chrome,
                         menuContext: menuContext,
+                        showLabels: showActionLabels,
                       ),
                     if (actions.isNotEmpty && asList)
                       for (final a in actions)
@@ -521,10 +539,14 @@ class _Actions extends StatelessWidget {
     required this.actions,
     required this.chrome,
     required this.menuContext,
+    this.showLabels = true,
   });
 
   final List<MenuAction> actions;
   final ChromeData chrome;
+
+  /// See `AnchoredMenu.show`'s `showActionLabels`.
+  final bool showLabels;
 
   /// Popped before the action runs. See [MenuAction.onTap].
   final BuildContext menuContext;
@@ -592,28 +614,52 @@ class _Actions extends StatelessWidget {
                     a.onTap();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    // The chip keeps its height when the words go, rather than
+                    // collapsing to a 21dp glyph. A strip that changes height
+                    // with a setting moves the divider and every row under it,
+                    // so the whole menu would jump the first time this is
+                    // switched. Taller padding buys the same target back.
+                    padding: EdgeInsets.symmetric(
+                      vertical: showLabels ? 9 : 15,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          a.icon,
-                          size: 21,
-                          color: a.danger ? _danger : chrome.colors.text,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          a.label,
-                          textAlign: TextAlign.center,
-                          // Two lines here too, for the same reason as the title:
-                          // "Add to home" does not fit one line in a third of a
-                          // 236px panel, and it certainly does not fit in German.
-                          maxLines: 2,
-                          overflow: TextOverflow.fade,
-                          style: chrome.text.caption.copyWith(
+                        // ─── THE LABEL SURVIVES AS A TOOLTIP ────────────
+                        //
+                        // Wrapped rather than dropped. Without this the only
+                        // way to find out what a glyph does is to tap it, and
+                        // one of the three uninstalls the app. `Tooltip`
+                        // answers a long press, which is also how the menu
+                        // itself was opened, so the gesture is already learned.
+                        //
+                        // Present in BOTH states deliberately: a tooltip on a
+                        // chip that already shows its word costs nothing and
+                        // is one less conditional to keep in step.
+                        Tooltip(
+                          message: a.label,
+                          child: Icon(
+                            a.icon,
+                            size: 21,
                             color: a.danger ? _danger : chrome.colors.text,
                           ),
                         ),
+                        if (showLabels) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            a.label,
+                            textAlign: TextAlign.center,
+                            // Two lines here too, for the same reason as the
+                            // title: "Add to home" does not fit one line in a
+                            // third of a 236px panel, and it certainly does
+                            // not fit in German.
+                            maxLines: 2,
+                            overflow: TextOverflow.fade,
+                            style: chrome.text.caption.copyWith(
+                              color: a.danger ? _danger : chrome.colors.text,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

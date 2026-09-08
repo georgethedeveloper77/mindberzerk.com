@@ -158,6 +158,10 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
       width: 244,
       title: app.label,
       onInfo: () => apps.openInfo(app),
+      // The dock menu is the third panel carrying this strip, so it answers
+      // the setting too. A menu that keeps its words while the other two drop
+      // theirs reads as the setting having missed one.
+      showActionLabels: theme.menuActionLabels,
       actions: [
         if (isPinned)
           MenuAction(

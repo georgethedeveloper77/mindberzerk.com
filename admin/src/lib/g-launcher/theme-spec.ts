@@ -1103,6 +1103,15 @@ function pruneIcons(icons: IconStyleJson): Record<string, unknown> {
 
 // ── validation, surfacing exactly what the signer or device would reject ─────
 
+/** Shells whose implementation actually mounts a panel editor.
+ *
+ *  A ONE-ENTRY LIST, deliberately, and not a boolean on the shell. It reads as
+ *  a list because it is going to become one: `plasma_shell` holds the edit bar
+ *  and the remove badges as private widgets, and lifting them into a shared
+ *  component is what lets gnome join. Naming the set here means that change is
+ *  one push to this array rather than a hunt for an inverted condition. */
+const PANEL_EDIT_SHELLS: readonly ShellName[] = ['plasma'];
+
 export function validateDraft(draft: ThemeDraft): string[] {
   const p: string[] = [];
   const s = draft.spec;
@@ -1183,6 +1192,36 @@ export function validateDraft(draft: ThemeDraft): string[] {
   if (panels.length && (s.layout?.topBarSide || s.layout?.topBarStats)) {
     p.push(
       'Panels supersede topBarSide and topBarStats; those two will be ignored',
+    );
+  }
+
+  // ─── panelEdit ONLY WHERE A SHELL CAN HONOUR IT ────────────────────────────
+  //
+  // `panelEdit` reaches the device as a promise that holding the panel opens an
+  // editor. Exactly one shell keeps that promise: `plasma_shell` mounts the
+  // panel edit bar and draws remove badges on its modules.
+  //
+  // `gnome_shell` registers the long press and has neither. It mounts
+  // `DeskletEditBar` instead, which renders on any active edit mode, so a
+  // gnome-family distro publishing this today would put the user in a mode
+  // labelled "editing workspace" whose Add button drops a WIDGET on the
+  // desktop, over a panel showing no way to remove anything. The three
+  // remaining shells register no long press at all, so there the flag is inert.
+  //
+  // ─── AND WHY THIS IS CAUGHT HERE RATHER THAN ON THE DEVICE ────────────────
+  //
+  // Themes are data. A distro ships over the CDN with no Play release, so a
+  // checkbox in this panel is the whole distance between a correct build and a
+  // broken surface on every phone already installed. A device-side guard would
+  // only help the builds that ship after it.
+  //
+  // This list grows when a shell grows the surface, which is the right coupling:
+  // the set of shells that can honour the flag IS the set that implements it.
+  if (s.layout?.panelEdit && !PANEL_EDIT_SHELLS.includes(s.shell)) {
+    p.push(
+      `Panel editing is not implemented on the ${s.shell} shell, so ` +
+        `panelEdit would do nothing there. Only ${PANEL_EDIT_SHELLS.join(', ')} ` +
+        'mounts a panel editor.',
     );
   }
 

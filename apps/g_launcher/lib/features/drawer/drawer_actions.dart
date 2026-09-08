@@ -283,6 +283,9 @@ Future<void> showDrawerAppMenu(
     // difference between holding the right tile and finding out after the tap.
     leading: AppIcon(entry: entry, size: 30),
     onInfo: () => notifier.openInfo(entry),
+    // The user's answer, read the same way the folder menu reads it, so the
+    // two panels cannot disagree about whether the strip carries words.
+    showActionLabels: theme.menuActionLabels,
     actions: [
       // ─── ADD TO HOME IS BACK, WHERE THERE IS A HOME TO ADD TO ────────────
       //
