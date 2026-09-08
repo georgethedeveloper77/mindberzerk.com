@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
 import 'themed_list_row.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// A context menu that opens beside the thing it is about.
 ///
@@ -516,7 +517,7 @@ class _Header extends StatelessWidget {
                   Icons.info_outline,
                   color: chrome.colors.textMuted,
                 ),
-                tooltip: 'App info',
+                tooltip: context.t('shell.appInfo'),
               ),
             ),
         ],

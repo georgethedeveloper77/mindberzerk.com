@@ -391,7 +391,7 @@ class _SearchField extends StatelessWidget {
                     isCollapsed: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 13),
                     border: InputBorder.none,
-                    hintText: 'Search settings',
+                    hintText: context.t('settings.searchSettings'),
                     hintStyle: TextStyle(color: s.mut, fontSize: 14),
                   ),
                 ),
@@ -455,7 +455,7 @@ class _DefaultLauncherBanner extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'G Launcher is not your home app',
+                      context.t('settings.gLauncherIsNot'),
                       style: TextStyle(
                         color: s.tx,
                         fontSize: 14.5,
@@ -464,7 +464,7 @@ class _DefaultLauncherBanner extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Gestures and the home button will not work',
+                      context.t('settings.gesturesAndTheHome'),
                       style: TextStyle(color: s.mut, fontSize: 12.5),
                     ),
                   ],

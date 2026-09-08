@@ -6,6 +6,7 @@ import '../../design/wallpaper_paint.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/wallpaper_framing.dart';
 import 'wallpaper_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Frame ONE wallpaper against the chrome it will sit behind.
 ///
@@ -163,7 +164,7 @@ class _WallpaperFramingScreenState
                 ),
                 const Spacer(),
                 ThemedButton(
-                  label: 'Done',
+                  label: context.t('shell.done'),
                   onPressed: _saving ? null : _done,
                 ),
               ],
@@ -256,7 +257,7 @@ class _WallpaperFramingScreenState
                       const SizedBox(width: 10),
                       _Pill(
                         icon: Icons.restart_alt,
-                        label: 'Reset',
+                        label: context.t('settings.reset'),
                         onTap: () => setState(() {
                           _moved = false;
                           _framing = _authored;

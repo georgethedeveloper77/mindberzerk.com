@@ -7,6 +7,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Restore defaults, per section or wholesale.
 ///
@@ -100,7 +101,7 @@ class RestoreScreen extends ConsumerWidget {
           ),
           section(
             icon: Icons.category_outlined,
-            title: 'Icons',
+            title: context.t('settings.icons'),
             subtitle: 'Shape, size, corners, packs',
             which: PrefsSection.icons,
           ),
@@ -112,7 +113,7 @@ class RestoreScreen extends ConsumerWidget {
           ),
           section(
             icon: Icons.folder_outlined,
-            title: 'Folders',
+            title: context.t('setup.step.folders'),
             subtitle: 'Grid and shape. Your folders stay',
             which: PrefsSection.folders,
           ),
@@ -124,7 +125,7 @@ class RestoreScreen extends ConsumerWidget {
           ),
           section(
             icon: Icons.image_outlined,
-            title: 'Wallpaper',
+            title: context.t('settings.wallpaper'),
             subtitle: 'Rotation, fit and lock. Your photos stay',
             which: PrefsSection.wallpaper,
             also: () async =>
@@ -132,19 +133,19 @@ class RestoreScreen extends ConsumerWidget {
           ),
           section(
             icon: Icons.swipe,
-            title: 'Gestures',
+            title: context.t('settings.gestures'),
             subtitle: 'Every swipe back to its default',
             which: PrefsSection.gestures,
           ),
           section(
             icon: Icons.desktop_windows_outlined,
-            title: 'Desktop',
+            title: context.t('setup.step.distro'),
             subtitle: 'Dock, bar, grid and workspaces',
             which: PrefsSection.desktop,
           ),
           section(
             icon: Icons.opacity,
-            title: 'Surfaces',
+            title: context.t('settings.surfaces'),
             subtitle: 'All four opacity sliders rejoin as one',
             which: PrefsSection.surfaces,
           ),

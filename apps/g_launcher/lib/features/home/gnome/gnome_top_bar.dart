@@ -9,6 +9,7 @@ import '../quick_settings.dart';
 import '../../../design/ubuntu_tokens.dart';
 import '../../../engine/theme_spec.dart'
     show PanelModule, PanelSpec, ThemePalette, TopBarSide;
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The GNOME top bar, phone-adapted.
 ///
@@ -278,7 +279,7 @@ class _Activities extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Activities',
+      label: context.t('home.activities'),
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -290,7 +291,7 @@ class _Activities extends StatelessWidget {
                   Icon(Icons.grid_view_rounded, size: 13, color: color),
                   const SizedBox(width: 6),
                   Text(
-                    'Activities',
+                    context.t('home.activities'),
                     style: TextStyle(
                       fontFamily: fontFamily,
                       fontSize: 12,
@@ -480,7 +481,7 @@ class _Tray extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label: 'Quick settings',
+      label: context.t('gestures.quickSettings'),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => ref.read(quickSettingsProvider.notifier).toggle(),

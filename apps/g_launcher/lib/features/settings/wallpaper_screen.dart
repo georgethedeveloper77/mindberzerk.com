@@ -162,7 +162,7 @@ Future<bool?> chooseApplyTarget(
                       ),
                       const SizedBox(width: 14),
                       pane(
-                        label: 'Home screen',
+                        label: context.t('setup.homeScreen'),
                         on: home,
                         toggle: () => setSheetState(() => home = !home),
                         preview: DevicePreview(
@@ -180,7 +180,7 @@ Future<bool?> chooseApplyTarget(
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
                   child: ThemedButton(
-                    label: 'Next',
+                    label: context.t('common.next'),
                     expand: true,
                     // Neither selected is not a third answer, it is a request to
                     // change nothing, and a button that would do nothing should
@@ -1154,7 +1154,7 @@ class WallpaperScreen extends ConsumerWidget {
                   message: 'Rotation, fit and the lock-screen switch go back '
                       'to their defaults. Your photos, your collections and '
                       'the wallpaper on screen right now are untouched.',
-                  confirmLabel: 'Reset',
+                  confirmLabel: context.t('settings.reset'),
                 );
                 if (ok != true) return;
 
@@ -1360,7 +1360,7 @@ class _Strip extends StatelessWidget {
     if (sources.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text('Nothing yet', style: TextStyle(color: c.textFaint)),
+        child: Text(context.t('settings.nothingYet'), style: TextStyle(color: c.textFaint)),
       );
     }
 

@@ -81,9 +81,11 @@ Future<void> showDeskletMenu(
     _ when isStack => memberCount == 1
         ? context.t('desklets.stackOne')
         : context.t('desklets.stackMany', {'n': '$memberCount'}),
-    // The kind's own label is authored English in desklet_spec and stays that
-    // way for now: those are a separate table with their own keys to mint.
-    _ => kind?.label ?? context.t('desklets.widget'),
+    // Those keys are minted now, so the kind's own name is translated like
+    // everything else in this menu.
+    _ => kind == null
+        ? context.t('desklets.widget')
+        : context.t(kind.labelKey),
   };
 
   // Built from the theme rather than looked up: the desktop is not guaranteed

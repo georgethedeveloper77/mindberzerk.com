@@ -194,7 +194,7 @@ List<Widget> systemSection(
             SettingsRow(
               icon: Icons.info_outline,
               // NOT translated, and not a missed key. It is the product name.
-              title: 'G Launcher',
+              title: context.t('drawer.gLauncher'),
               trailing: _MutedValue(version),
             ),
           ),

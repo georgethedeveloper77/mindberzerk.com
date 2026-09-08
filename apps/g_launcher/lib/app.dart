@@ -24,7 +24,7 @@ class GLauncherApp extends ConsumerWidget {
     final i18n = ref.watch(i18nProvider);
 
     return MaterialApp(
-      title: 'G Launcher',
+      title: context.t('drawer.gLauncher'),
       debugShowCheckedModeBanner: false,
 
       // ── THE STAGE HAS TO KNOW WHEN IT IS COVERED ────────────────────────

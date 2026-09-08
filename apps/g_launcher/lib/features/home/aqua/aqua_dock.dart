@@ -6,6 +6,7 @@ import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/aqua_dock_metrics.dart';
 import '../gnome/gnome_dock.dart' show DockEntry;
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The magnifying dock.
 ///
@@ -344,7 +345,7 @@ class _LaunchpadSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Launchpad',
+      label: context.t('home.launchpad'),
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,

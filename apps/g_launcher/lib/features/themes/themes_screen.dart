@@ -14,6 +14,7 @@ import 'store_preview.dart';
 import 'theme_actions.dart';
 import 'theme_catalog.dart';
 import 'theme_detail_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The theme storefront. A header, a 2-col grid of mini-desktop preview cards,
 /// and a "more" list of themes that arrive over the CDN.
@@ -1451,7 +1452,7 @@ class _Header extends StatelessWidget {
           Text('Distros', style: d.text.display),
           const SizedBox(height: 3),
           Text(
-            'Your phone, as a Linux desktop. Named by the real distro version.',
+            context.t('themes.headerSub'),
             style: d.text.caption.copyWith(fontSize: 13),
           ),
         ],

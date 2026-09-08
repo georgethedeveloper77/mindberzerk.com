@@ -72,6 +72,56 @@ SKIP_VALUE = re.compile(
     re.VERBOSE,
 )
 
+# ─── NOT COPY, EVEN THOUGH IT READS LIKE IT ────────────────────────────────
+#
+# Strings that LOOK like prose to every rule above and must never be
+# translated. Keyed by file suffix so a match is deliberate rather than a
+# value colliding somewhere unrelated.
+#
+# Two categories, and both are bugs if translated:
+#
+#   PRODUCT NAMES. "Ubuntu" and "KDE Plasma" are trademarks. A distro card
+#   captioned "Ubuntu" in Spanish is captioned "Ubuntu", and a locale that
+#   renders anything else is naming software that does not exist.
+#
+#   COMMANDS. `free`, `df`, `ls`, `top` are things the user TYPES. The terminal
+#   shell's hint row lists them precisely so someone can type them, so a
+#   translated hint row is worse than an English one: it names commands the
+#   shell will reject.
+#
+# Suppressed rather than fixed, on purpose. A permanent false positive teaches
+# whoever reads this report to skim it, and skimming is how the real ones get
+# missed.
+IGNORE = {
+    "features/themes/theme_catalog.dart": {
+        "Ubuntu", "KDE Plasma", "Terminal",
+    },
+    "shells/tui_shell.dart": {
+        "free \u00b7 df \u00b7 ls \u00b7 top \u00b7 settings \u00b7 themes \u00b7 help",
+    },
+    # Mock terminal output inside a distro preview card: a `~ \u276f` prompt, a
+    # block cursor, and this line of simulated `ls`. It is a PICTURE of a
+    # terminal, not a message, and a translated one would be a terminal that
+    # never existed.
+    "features/themes/themes_screen.dart": {
+        "firefox files",
+    },
+    # `conky` is the program. The setup stage names it deliberately, because
+    # that is what the tile is a picture of.
+    "features/setup/setup_screen.dart": {
+        "conky",
+    },
+}
+
+
+def ignored(path, value):
+    """True when this file has declared this exact string untranslatable."""
+    for suffix, values in IGNORE.items():
+        if path.endswith(suffix) and value in values:
+            return True
+    return False
+
+
 # Anything with no letter in it, or no lowercase run of three, is very unlikely
 # to be a sentence. Catches format strings, keys and single glyphs.
 HAS_PROSE = re.compile(r"[a-z]{3}")
@@ -223,6 +273,8 @@ def scan(base):
                     continue
                 bare = INTERP.sub("", value).strip()
                 if SKIP_VALUE.match(bare) or not HAS_PROSE.search(bare):
+                    continue
+                if ignored(path, value):
                     continue
                 line_no = src_no_keys.count("\n", 0, m.start()) + 1
                 line = lines[line_no - 1] if line_no <= len(lines) else ""

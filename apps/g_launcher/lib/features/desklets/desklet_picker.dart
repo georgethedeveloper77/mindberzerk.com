@@ -330,7 +330,12 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
     final q = _query.trim().toLowerCase();
     final ours = q.isEmpty
         ? widget.kinds
-        : widget.kinds.where((k) => k.label.toLowerCase().contains(q)).toList();
+        // Matched against the TRANSLATED name. Filtering on the key would mean
+        // a Spanish user searching "reloj" finds nothing while "clock" works,
+        // which is a search box that only answers in English.
+        : widget.kinds
+            .where((k) => context.t(k.labelKey).toLowerCase().contains(q))
+            .toList();
 
     // Two cards per row on a phone. Computed from the real width so the grid
     // stays even on a fold or a tablet without a breakpoint table.
@@ -408,7 +413,7 @@ class _TopBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 16, 6),
       child: Text(
-        'Add to desktop',
+        context.t('desklets.addToDesktop'),
         style: TextStyle(
           fontFamily: theme.typography.display,
           fontSize: 20,
@@ -462,7 +467,7 @@ class _SearchField extends StatelessWidget {
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Search widgets',
+                  hintText: context.t('desklets.searchWidgets'),
                   hintStyle: TextStyle(
                     fontFamily: theme.typography.display,
                     color: p.onDark.withValues(alpha: 0.45),
@@ -548,7 +553,7 @@ class _DeskletPreviewCard extends StatelessWidget {
           DeskletPreview(theme: theme, kind: kind),
           const SizedBox(height: 7),
           Text(
-            kind.label,
+            context.t(kind.labelKey),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

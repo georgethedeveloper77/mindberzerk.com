@@ -362,7 +362,7 @@ class _LibraryViewState extends ConsumerState<LibraryView>
                       vertical: 6,
                     ),
                     child: Text(
-                      'Done',
+                      context.t('shell.done'),
                       style: TextStyle(
                         color: theme.palette.accent,
                         fontSize: 14,
@@ -683,7 +683,7 @@ class _SearchField extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 12),
                 child: Text(
-                  'Cancel',
+                  context.t('common.cancel'),
                   style: TextStyle(
                     fontFamily: theme.typography.display,
                     fontSize: 13 * theme.textScale,

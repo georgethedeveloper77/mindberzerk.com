@@ -590,7 +590,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
       context,
       title: loose.isEmpty ? 'Nothing to add' : 'Add to ${folder.name}',
       content: loose.isEmpty
-          ? const Text('Every app is already in a folder.')
+          ? Text(context.t('drawer.everyAppIsAlready'))
           : SizedBox(
               // A dialog child is UNBOUNDED vertically, so the list must be
               // given a height or the ListView inside has nothing to lay out
@@ -810,7 +810,7 @@ class _Actions extends StatelessWidget {
           _GlyphButton(
             theme: theme,
             icon: Icons.folder_off_outlined,
-            semantic: 'Ungroup this folder',
+            semantic: context.t('drawer.ungroupThisFolder'),
             onTap: onUngroup,
           ),
           const SizedBox(width: 18),
@@ -830,7 +830,7 @@ class _Actions extends StatelessWidget {
           _GlyphButton(
             theme: theme,
             icon: Icons.add,
-            semantic: 'Add apps to this folder',
+            semantic: context.t('drawer.addAppsToThis'),
             onTap: onAdd,
           ),
         ],

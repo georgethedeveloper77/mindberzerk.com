@@ -106,20 +106,45 @@ def has_i18n_import(src):
 
 
 def add_import(src):
-    """Insert the i18n import after the last existing import.
+    """Insert the i18n import after the last COMPLETE import statement.
 
     After the block rather than alphabetically inside it: this codebase already
     puts the i18n import last in several files, and reordering imports would put
     unrelated churn in a diff whose whole value is being boring.
+
+    ─── AN IMPORT IS NOT A LINE ───────────────────────────────────────────
+
+    This searched for the last line STARTING with `import `, which is wrong on
+    every combinator in the codebase:
+
+        import '../../engine/theme_spec.dart'
+            show PanelModule, PanelSpec, ThemePalette, TopBarSide;
+
+    The `show` clause does not start with `import`, so the insertion landed
+    between the two lines and cut the statement in half. Dart then read the
+    orphaned combinator as a declaration and reported eight errors in one file,
+    none of which named the real cause.
+
+    So a statement runs from a line beginning `import ` to the next line ending
+    in a semicolon, and the insert goes after THAT.
     """
     lines = src.split("\n")
-    last = -1
-    for i, l in enumerate(lines):
-        if l.startswith("import "):
-            last = i
-    if last == -1:
+    end = -1
+    i = 0
+    while i < len(lines):
+        if lines[i].lstrip().startswith("import "):
+            j = i
+            # Walk to the line that actually terminates the statement. Bounded
+            # by the file, so an unterminated import cannot spin here.
+            while j < len(lines) and not lines[j].rstrip().endswith(";"):
+                j += 1
+            end = min(j, len(lines) - 1)
+            i = j + 1
+            continue
+        i += 1
+    if end == -1:
         return I18N_IMPORT + src
-    lines.insert(last + 1, I18N_IMPORT.rstrip("\n"))
+    lines.insert(end + 1, I18N_IMPORT.rstrip("\n"))
     return "\n".join(lines)
 
 
@@ -169,16 +194,36 @@ def main():
                 skipped.append((path, n, "interpolated, needs t(key, vars)"))
                 continue
 
-            line = lines[n - 1]
-            span = literal_span(line, text)
-            if span is None:
+            # ─── THE LITERAL IS NOT ALWAYS ON THE REPORTED LINE ─────────
+            #
+            # `CALL_STR` and `PARAM_STR` both span `\s*`, which matches
+            # newlines, and the audit reports the line the MATCH STARTS on. A
+            # wrapped call puts the literal below it:
+            #
+            #     Text(                <- reported
+            #       'Activities',      <- actual
+            #
+            # Searching only the reported line called twenty of these stale and
+            # they were nothing of the kind. The window is small on purpose: a
+            # literal further than a few lines from its call is more likely to
+            # be a different string that happens to match.
+            found = None
+            for off in range(0, 4):
+                if n - 1 + off >= len(lines):
+                    break
+                span = literal_span(lines[n - 1 + off], text)
+                if span is not None:
+                    found = (n - 1 + off, span)
+                    break
+            if found is None:
                 skipped.append(
-                    (path, n, "literal not found on that line, audit is stale")
+                    (path, n, "literal not found within 4 lines of the call")
                 )
                 continue
 
-            start, end, _ = span
-            ctx = enclosing_context(lines, n)
+            idx, (start, end, _) = found
+            line = lines[idx]
+            ctx = enclosing_context(lines, idx + 1)
             if ctx is None:
                 skipped.append((path, n, "no BuildContext in scope above"))
                 continue
@@ -192,7 +237,7 @@ def main():
             if call:
                 head = head[: call.start(1)] + call.group(2)
 
-            lines[n - 1] = f"{head}{ctx}.t('{key}'){tail}"
+            lines[idx] = f"{head}{ctx}.t('{key}'){tail}"
             applied += 1
             touched = True
 

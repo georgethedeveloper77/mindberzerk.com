@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/terminal_spec.dart';
 import 'terminal_entitlement.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Show it. Returns true when a purchase was STARTED, which is not the same as
 /// completed: Play's flow can take minutes on the cash and carrier-billing
@@ -162,7 +163,7 @@ class _ProSheet extends ConsumerWidget {
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
                 child: Text(
-                  'Not now',
+                  context.t('settings.notNow'),
                   style: TextStyle(fontFamily: fontFamily, color: p.dim),
                 ),
               ),

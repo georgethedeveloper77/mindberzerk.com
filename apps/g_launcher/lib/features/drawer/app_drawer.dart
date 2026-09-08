@@ -1129,7 +1129,7 @@ class _DrawerSearchBar extends StatelessWidget {
                               isDense: true,
                               border: InputBorder.none,
                               contentPadding: EdgeInsets.zero,
-                              hintText: 'Search',
+                              hintText: context.t('drawer.search'),
                               hintStyle: TextStyle(
                                 color: onDark.withValues(alpha: 0.6),
                                 fontFamily: theme.typography.display,
@@ -1138,7 +1138,7 @@ class _DrawerSearchBar extends StatelessWidget {
                             ),
                           )
                         : Text(
-                            'Search',
+                            context.t('drawer.search'),
                             style: TextStyle(
                               color: onDark.withValues(alpha: 0.6),
                               fontFamily: theme.typography.display,

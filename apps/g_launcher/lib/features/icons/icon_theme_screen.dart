@@ -19,6 +19,7 @@ import '../../platform/pack_api.g.dart';
 import '../drawer/app_icon.dart';
 import 'icon_appearance_rows.dart';
 import '../themes/theme_catalog.dart' show CardStatus;
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// One native handle for the preview lookup, mirroring theme_engine's rule:
 /// a new Pigeon wrapper per card is a new codec instance for no reason.
@@ -234,10 +235,10 @@ class IconThemeScreen extends ConsumerWidget {
       // are formalities. They render nothing rather than a spinner, because a
       // flash of unthemed chrome on the way into a settings page is worse than
       // a frame of nothing — the same call `themes_screen` makes.
-      loading: () =>
-          const ThemedScaffold(title: 'Icons', body: SizedBox.shrink()),
-      error: (_, __) =>
-          const ThemedScaffold(title: 'Icons', body: SizedBox.shrink()),
+      loading: () => ThemedScaffold(
+          title: context.t('settings.icons'), body: const SizedBox.shrink()),
+      error: (_, __) => ThemedScaffold(
+          title: context.t('settings.icons'), body: const SizedBox.shrink()),
       data: (theme) => _Screen(theme: theme),
     );
   }
@@ -731,7 +732,7 @@ class _Screen extends ConsumerWidget {
         );
 
     return ThemedScaffold(
-      title: 'Icons',
+      title: context.t('settings.icons'),
       // ── THE SELECTED SWATCH, RESOLVED ────────────────────────────────────
       //
       // Derived here rather than inside the strip, because the action panel
@@ -940,7 +941,7 @@ class _Screen extends ConsumerWidget {
                     ),
                     children: [
                       _Card(
-                        title: 'None',
+                        title: context.t('desklets.none'),
                         subtitle: 'Distro icons only',
                         active: selectedSystem == null,
                         preview: _Schematic(theme: theme, accent: false),

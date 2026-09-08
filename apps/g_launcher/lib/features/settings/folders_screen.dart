@@ -196,7 +196,7 @@ class FoldersScreen extends ConsumerWidget {
                     message: 'Folder size, shape and sort order go back to '
                         'their defaults. The folders themselves and everything '
                         'in them are untouched.',
-                    confirmLabel: 'Reset',
+                    confirmLabel: context.t('settings.reset'),
                   );
                   if (ok != true) return;
                   await notifier
@@ -220,7 +220,7 @@ class FoldersScreen extends ConsumerWidget {
                   message: 'The apps are not touched. They leave their '
                       'folders and return to the list, and the folders '
                       'themselves are removed.',
-                  confirmLabel: 'Ungroup',
+                  confirmLabel: context.t('drawer.ungroup'),
                   danger: true,
                 );
                 if (ok != true) return;
@@ -677,7 +677,7 @@ class _HiddenAppsRow extends ConsumerWidget {
             return Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: Text(
-                'Nothing is hidden.',
+                context.t('settings.nothingIsHidden'),
                 style: ChromeScope.of(ctx).text.caption,
               ),
             );
@@ -720,7 +720,7 @@ class _HiddenAppsRow extends ConsumerWidget {
                             // ambiguous about which state it is describing —
                             // the current one or the one you get by tapping.
                             Text(
-                              'Unhide',
+                              context.t('settings.unhide'),
                               style: ChromeScope.of(ctx)
                                   .text
                                   .caption
@@ -762,7 +762,7 @@ class _Empty extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       child: Text(
-        'Drag one app onto another in the drawer to make a folder.',
+        context.t('settings.dragOneAppOnto'),
         style: d.text.caption,
       ),
     );

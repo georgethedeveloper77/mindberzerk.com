@@ -1127,7 +1127,7 @@ class _Footer extends ConsumerWidget {
               child: _FooterButton(
                 theme: theme,
                 icon: Icons.settings_outlined,
-                label: 'G Launcher',
+                label: context.t('drawer.gLauncher'),
                 onTap: () => activateDrawerItem(
                   context,
                   ref,
@@ -1141,7 +1141,7 @@ class _Footer extends ConsumerWidget {
               child: _FooterButton(
                 theme: theme,
                 icon: Icons.tune,
-                label: 'Device settings',
+                label: context.t('drawer.deviceSettings'),
                 onTap: () => activateDrawerItem(
                   context,
                   ref,

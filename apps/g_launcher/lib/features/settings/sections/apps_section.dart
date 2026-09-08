@@ -229,7 +229,7 @@ List<Widget> applicationsSection(
             options: [
               PreviewOption(
                 value: 'vertical',
-                label: 'List',
+                label: context.t('settings.list'),
                 child: ScrollStyleTile(
                   style: 'vertical',
                   palette: theme.palette,
@@ -431,7 +431,7 @@ List<Widget> applicationsSection(
         // Raw, because there is no key for it yet and filing a DOCK row under
         // the App drawer heading is exactly the misplacement the regroup just
         // undid. It joins the i18n sweep with the scope labels.
-        label: 'Dock',
+        label: context.t('setup.step.dock'),
         scope: 'This distro',
         query: q,
         rows: [

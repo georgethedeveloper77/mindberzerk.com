@@ -10,6 +10,7 @@ import '../settings/settings_screen.dart';
 import '../terminal/command_registry.dart';
 import '../terminal/terminal_screen.dart';
 import '../themes/themes_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// What the terminal shell understands. PHASE D6, now reading from the shared
 /// registry.
@@ -182,7 +183,7 @@ class TerminalCommands {
     if (identical(after, before)) {
       // The grid is notionally full. On a pane that is close to meaningless,
       // but saying so beats a command that appears to do nothing.
-      context.showMessage('No room; try clear');
+      context.showMessage(context.t('desklets.noRoomTryClear'));
       return;
     }
 

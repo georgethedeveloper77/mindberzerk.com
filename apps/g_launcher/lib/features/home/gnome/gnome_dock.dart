@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/dock_metrics.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// One dock slot.
 ///
@@ -215,7 +216,7 @@ class GnomeDock extends StatelessWidget {
         slotSize: slotSize,
         entry: DockEntry(
           id: '__activities__',
-          label: 'Activities',
+          label: context.t('home.activities'),
           icon: activitiesIcon(),
           onTap: onActivities,
         ),
@@ -231,7 +232,7 @@ class GnomeDock extends StatelessWidget {
         slotSize: slotSize,
         entry: DockEntry(
           id: '__activities__',
-          label: 'Activities',
+          label: context.t('home.activities'),
           icon: activitiesIcon(),
           onTap: onActivities,
         ),

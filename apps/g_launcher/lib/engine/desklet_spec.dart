@@ -22,7 +22,7 @@
 class DeskletKind {
   const DeskletKind({
     required this.id,
-    required this.label,
+    required this.labelKey,
     required this.minSpanX,
     required this.minSpanY,
     required this.maxSpanX,
@@ -37,7 +37,26 @@ class DeskletKind {
   /// orphans every placement already on a user's desktop.
   final String id;
 
-  final String label;
+  /// An i18n KEY, not finished English. Render with `context.t(kind.labelKey)`.
+  ///
+  /// ─── WHY THE FIELD WAS RENAMED AND NOT JUST REFILLED ──────────────────
+  ///
+  /// Changing what a `String` MEANS without changing its name is the failure
+  /// this codebase keeps finding: every reader that forgets to translate keeps
+  /// compiling and ships a desktop tile captioned `desklet_spec.glance`. The
+  /// rename turns all of them into compile errors instead, which is the only
+  /// way to be sure none were missed.
+  ///
+  /// `desklet_settings` already names its own the same way (`labelKey`, read
+  /// through `context.t(c.labelKey)`), so this is the folder's existing
+  /// convention rather than a new one.
+  ///
+  /// ─── THE FOUR THAT ARE NOT WORDS ──────────────────────────────────────
+  ///
+  /// `free -h`, `df -h`, `ls` and `uptime` are COMMANDS. They get keys so the
+  /// table has one shape, but every locale keeps the English: a terminal pane
+  /// titled in Spanish would name a command that cannot be typed.
+  final String labelKey;
 
   final int minSpanX;
   final int minSpanY;
@@ -101,7 +120,7 @@ class DeskletKinds {
   /// only ever created through the hosting path.
   static const appWidget = DeskletKind(
     id: 'appwidget',
-    label: 'App widget',
+    labelKey: 'desklet_spec.appWidget',
     minSpanX: 1,
     minSpanY: 1,
     maxSpanX: 10,
@@ -130,7 +149,7 @@ class DeskletKinds {
   /// stack occupies, which is why adding one never has to refuse for space.
   static const stack = DeskletKind(
     id: 'stack',
-    label: 'Stack',
+    labelKey: 'desklet_spec.stack',
     minSpanX: 3,
     minSpanY: 2,
     maxSpanX: 10,
@@ -149,7 +168,7 @@ class DeskletKinds {
   /// ram — cpu absent on the many devices that will not report it.
   static const glance = DeskletKind(
     id: 'glance',
-    label: 'Glance',
+    labelKey: 'desklet_spec.glance',
     minSpanX: 3,
     minSpanY: 2,
     maxSpanX: 8,
@@ -185,7 +204,7 @@ class DeskletKinds {
   /// listing a step it cannot link to would otherwise have to omit the step.
   static const welcome = DeskletKind(
     id: 'welcome',
-    label: 'Welcome',
+    labelKey: 'desklet_spec.welcome',
     minSpanX: 3,
     minSpanY: 2,
     maxSpanX: 8,
@@ -213,7 +232,7 @@ class DeskletKinds {
   /// five shells, which is what makes it the right first kind to build.
   static const clock = DeskletKind(
     id: 'clock',
-    label: 'Clock',
+    labelKey: 'desklet_spec.clock',
     minSpanX: 2,
     minSpanY: 1,
     maxSpanX: 8,
@@ -231,7 +250,7 @@ class DeskletKinds {
   /// device allows it, which on most modern hardware it does not.
   static const monitor = DeskletKind(
     id: 'monitor',
-    label: 'System monitor',
+    labelKey: 'desklet_spec.systemMonitor',
     minSpanX: 3,
     minSpanY: 2,
     maxSpanX: 8,
@@ -244,7 +263,7 @@ class DeskletKinds {
   /// Logo plus spec table. Mostly static, so it costs nothing to keep on screen.
   static const fastfetch = DeskletKind(
     id: 'fastfetch',
-    label: 'Fastfetch',
+    labelKey: 'desklet_spec.fastfetch',
     minSpanX: 4,
     minSpanY: 2,
     maxSpanX: 10,
@@ -258,7 +277,7 @@ class DeskletKinds {
   /// ask for to draw a widget.
   static const network = DeskletKind(
     id: 'network',
-    label: 'Network',
+    labelKey: 'desklet_spec.network',
     minSpanX: 2,
     minSpanY: 1,
     maxSpanX: 8,
@@ -271,7 +290,7 @@ class DeskletKinds {
   /// Those agreeing matters more than technical completeness.
   static const storage = DeskletKind(
     id: 'storage',
-    label: 'Storage',
+    labelKey: 'desklet_spec.storage',
     minSpanX: 2,
     minSpanY: 1,
     maxSpanX: 8,
@@ -284,7 +303,7 @@ class DeskletKinds {
   /// bar already shows that, and duplicating it would fail the rule above.
   static const battery = DeskletKind(
     id: 'battery',
-    label: 'Battery detail',
+    labelKey: 'desklet_spec.batteryDetail',
     minSpanX: 2,
     minSpanY: 1,
     maxSpanX: 8,
@@ -295,7 +314,7 @@ class DeskletKinds {
 
   static const notes = DeskletKind(
     id: 'notes',
-    label: 'Note',
+    labelKey: 'desklet_spec.note',
     minSpanX: 2,
     minSpanY: 1,
     maxSpanX: 10,
@@ -307,7 +326,7 @@ class DeskletKinds {
 
   static const search = DeskletKind(
     id: 'search',
-    label: 'Search',
+    labelKey: 'desklet_spec.search',
     minSpanX: 4,
     minSpanY: 1,
     maxSpanX: 10,
@@ -322,7 +341,7 @@ class DeskletKinds {
 
   static const freeMem = DeskletKind(
     id: 'free',
-    label: 'free -h',
+    labelKey: 'desklet_spec.freeH',
     minSpanX: 2,
     minSpanY: 3,
     maxSpanX: 10,
@@ -339,7 +358,7 @@ class DeskletKinds {
   /// showing an empty `/`.
   static const appsList = DeskletKind(
     id: 'ls',
-    label: 'ls',
+    labelKey: 'desklet_spec.ls',
     minSpanX: 2,
     minSpanY: 3,
     maxSpanX: 10,
@@ -353,7 +372,7 @@ class DeskletKinds {
   /// `uptime`. One line, and it is the only thing that command ever was.
   static const uptime = DeskletKind(
     id: 'uptime',
-    label: 'uptime',
+    labelKey: 'desklet_spec.uptime',
     minSpanX: 2,
     minSpanY: 3,
     maxSpanX: 10,
@@ -365,7 +384,7 @@ class DeskletKinds {
 
   static const diskFree = DeskletKind(
     id: 'df',
-    label: 'df -h',
+    labelKey: 'desklet_spec.dfH',
     minSpanX: 2,
     minSpanY: 3,
     maxSpanX: 10,

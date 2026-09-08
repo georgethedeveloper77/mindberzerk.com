@@ -1120,7 +1120,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  k.id == 'monitor' ? 'conky' : k.label,
+                  k.id == 'monitor' ? 'conky' : context.t(k.labelKey),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 9, color: ink),
@@ -2557,7 +2557,7 @@ class _StepDrawer extends ConsumerWidget {
               // that is not a transition at all: it swaps the paged drawer for
               // a single scrolling grid.
               SetupRow(
-                title: 'One long list',
+                title: context.t('setup.oneLongList'),
                 subtitle: 'Scrolls up and down. No pages at all.',
                 selected: style == 'vertical',
                 mono: mono,
@@ -3072,7 +3072,7 @@ class _StepWidgets extends ConsumerWidget {
                 kind: k,
                 // `conky` rather than `System monitor`. The kind's own label is
                 // the settings-screen name and this is the shop window.
-                label: k.id == 'monitor' ? 'conky' : k.label,
+                label: k.id == 'monitor' ? 'conky' : context.t(k.labelKey),
                 chosen: chosen.contains(k.id),
                 mono: mono,
                 onTap: () => onToggle(k.id),

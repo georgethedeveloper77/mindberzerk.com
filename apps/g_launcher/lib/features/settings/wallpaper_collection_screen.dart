@@ -10,6 +10,7 @@ import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import 'wallpaper_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// One collection: its images as a grid, plus add, rename and delete.
 ///
@@ -97,7 +98,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
         message: 'It leaves the collection and this copy is deleted. Your '
             'original is not touched, and if it is on screen right now the '
             'screen does not change.',
-        confirmLabel: 'Remove',
+        confirmLabel: context.t('desklets.remove'),
         danger: true,
       );
       if (ok != true) return;
@@ -111,7 +112,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
         await prefs.edit((p) => p.clearing(wallpaperCurrent: true));
       }
       await resync();
-      if (context.mounted) context.showMessage('Removed');
+      if (context.mounted) context.showMessage(context.t('wallpaper.removed'));
     }
 
     Future<void> deleteCollection() async {
@@ -317,7 +318,7 @@ class _NameBodyState extends State<_NameBody> {
             onSubmitted: (_) => _commit(),
           ),
           const SizedBox(height: 14),
-          ThemedButton(label: 'Save', onPressed: _commit),
+          ThemedButton(label: context.t('common.save'), onPressed: _commit),
         ],
       ),
     );

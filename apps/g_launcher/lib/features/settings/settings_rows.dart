@@ -252,7 +252,7 @@ class SettingsGroup extends StatelessWidget {
                       // be reachable with a thumb, and the glyph is small.
                       padding: const EdgeInsets.fromLTRB(10, 2, 2, 4),
                       child: Text(
-                        'Reset',
+                        context.t('settings.reset'),
                         style: TextStyle(
                           color: ChromeScope.of(context).colors.accent,
                           fontSize: 12,
@@ -519,7 +519,7 @@ class SysBadge extends StatelessWidget {
             borderRadius: BorderRadius.circular(7),
           ),
           child: Text(
-            'System',
+            context.t('settings.system'),
             style: TextStyle(
               color: s.acc,
               fontSize: 10,

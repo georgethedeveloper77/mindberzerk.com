@@ -5,6 +5,7 @@ import '../../data/repositories/app_repository.dart';
 import '../../design/components/chrome_theme.dart';
 import '../../design/components/themed_button.dart';
 import '../../design/components/themed_scaffold.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// THE ONLY DOOR TO THE ACCESSIBILITY SETTINGS INTENT.
 ///
@@ -177,13 +178,13 @@ class _DisclosureBody extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 ThemedButton(
-                  label: 'Not now',
+                  label: context.t('settings.notNow'),
                   kind: ThemedButtonKind.text,
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
                 const SizedBox(width: 10),
                 ThemedButton(
-                  label: 'Continue',
+                  label: context.t('setup.next.continue'),
                   kind: ThemedButtonKind.primary,
                   onPressed: () => Navigator.of(context).pop(true),
                 ),

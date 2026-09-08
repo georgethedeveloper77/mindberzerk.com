@@ -11,6 +11,7 @@ import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
 import '../home/workspaces/workspace_controller.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The tiling WM's launcher, in two shapes.
 ///
@@ -748,7 +749,7 @@ class _Results extends ConsumerWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 22),
         child: Text(
-          'no matches',
+          context.t('drawer.noMatches'),
           style: TextStyle(
             fontFamily: mono,
             fontSize: 12.5,

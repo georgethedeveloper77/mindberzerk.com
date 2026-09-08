@@ -141,7 +141,7 @@ class _GestureServiceCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Shade, quick settings, recents and lock',
+                      context.t('settings.shadeQuickSettingsRecents'),
                       style: TextStyle(
                         color: s.tx,
                         fontSize: 14.5,
@@ -150,7 +150,7 @@ class _GestureServiceCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Needs an accessibility service',
+                      context.t('settings.needsAnAccessibilityService'),
                       style: TextStyle(color: s.mut, fontSize: 12.5),
                     ),
                     const SizedBox(height: 10),

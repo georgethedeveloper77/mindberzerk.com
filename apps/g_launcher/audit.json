@@ -1738,67 +1738,7 @@
     },
     {
       "file": "lib/features/search/search_page.dart",
-      "line": 321,
-      "where": "title (param)",
-      "text": "Suggested apps",
-      "existing": [
-        "search.suggestedApps"
-      ],
-      "suggest": "search.suggestedApps"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 331,
-      "where": "title (param)",
-      "text": "Settings topics",
-      "existing": [
-        "search.settingsTopics"
-      ],
-      "suggest": "search.settingsTopics"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 356,
-      "where": "label (param)",
-      "text": "Downloads",
-      "existing": [
-        "search.downloads"
-      ],
-      "suggest": "search.downloads"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 378,
-      "where": "label (param)",
-      "text": "Screenshots",
-      "existing": [
-        "search.screenshots"
-      ],
-      "suggest": "search.screenshots"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 399,
-      "where": "title (param)",
-      "text": "Recent searches",
-      "existing": [
-        "search.recentSearches"
-      ],
-      "suggest": "search.recentSearches"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 402,
-      "where": "tooltip (param)",
-      "text": "Clear recent searches",
-      "existing": [
-        "search.clearRecentSearches"
-      ],
-      "suggest": "search.clearRecentSearches"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 597,
+      "line": 598,
       "where": "tooltip (param)",
       "text": "Close search",
       "existing": [],
@@ -1806,81 +1746,11 @@
     },
     {
       "file": "lib/features/search/search_page.dart",
-      "line": 610,
-      "where": "hintText (param)",
-      "text": "Search",
-      "existing": [
-        "drawer.search"
-      ],
-      "suggest": "drawer.search"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 627,
-      "where": "tooltip (param)",
-      "text": "Voice search",
-      "existing": [
-        "search.voiceSearch"
-      ],
-      "suggest": "search.voiceSearch"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 633,
-      "where": "tooltip (param)",
-      "text": "More",
-      "existing": [
-        "search.more"
-      ],
-      "suggest": "search.more"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 651,
-      "where": "title (param)",
-      "text": "Clear recent searches",
-      "existing": [
-        "search.clearRecentSearches"
-      ],
-      "suggest": "search.clearRecentSearches"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 448,
+      "line": 449,
       "where": "Text (call)",
       "text": "Nothing matches \"$_query\"",
       "existing": [],
       "suggest": "search.nothingMatchesQuery"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 488,
-      "where": "Text (call)",
-      "text": "Apps",
-      "existing": [
-        "search.apps"
-      ],
-      "suggest": "search.apps"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 513,
-      "where": "Text (call)",
-      "text": "Launcher",
-      "existing": [
-        "search.launcher"
-      ],
-      "suggest": "search.launcher"
-    },
-    {
-      "file": "lib/features/search/search_page.dart",
-      "line": 655,
-      "where": "showMessage (call)",
-      "text": "Recent searches cleared",
-      "existing": [
-        "search.recentSearchesCleared"
-      ],
-      "suggest": "search.recentSearchesCleared"
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
@@ -2591,7 +2461,6 @@
     "drawer.frequent",
     "drawer.nothingToAdd",
     "drawer.removeFromHome",
-    "drawer.search",
     "drawer.theAppsYouUse",
     "drawer.ungroupNoRoom",
     "drawer.ungroupThisFolder",
@@ -2632,23 +2501,12 @@
     "home.removeLastWorkspace",
     "home.spotlight",
     "home.theAppStaysInstalled",
-    "search.apps",
     "search.battery",
-    "search.clearRecentSearches",
     "search.connections",
     "search.display",
-    "search.downloads",
     "search.filesBrowsingIsComing",
-    "search.launcher",
-    "search.more",
-    "search.recentSearches",
-    "search.recentSearchesCleared",
-    "search.screenshots",
     "search.security",
-    "search.settingsTopics",
-    "search.suggestedApps",
     "search.themesLayoutGesturesIcons",
-    "search.voiceSearch",
     "search.voiceSearchIsComing",
     "settings.aToZ",
     "settings.adaptive",

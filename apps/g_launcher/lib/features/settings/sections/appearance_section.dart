@@ -333,7 +333,7 @@ List<Widget> appearanceSection(
             options: [
               PreviewOption(
                 value: 'light',
-                label: 'Light',
+                label: context.t('settings.light'),
                 child: DevicePreview(
                   palette: theme.spec.paletteLight ?? theme.spec.palette,
                   mode: DevicePreviewMode.desktop,
@@ -353,7 +353,7 @@ List<Widget> appearanceSection(
               ),
               PreviewOption(
                 value: 'system',
-                label: 'System',
+                label: context.t('settings.system'),
                 child: SplitTile(
                   left: DevicePreview(
                     palette: theme.spec.paletteLight ?? theme.spec.palette,

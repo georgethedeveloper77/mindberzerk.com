@@ -6,6 +6,7 @@ import '../../../design/theme_mark.dart';
 import '../../../engine/theme_source.dart';
 import '../../../engine/theme_spec.dart' show PanelModule, ThemePalette;
 import 'aqua_bar_modules.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// The macOS menu bar, phone-adapted.
 ///
@@ -154,7 +155,7 @@ class AquaMenuBar extends StatelessWidget {
               // honest about which of the two kinds of thing it is.
               Semantics(
                 button: true,
-                label: 'Spotlight',
+                label: context.t('home.spotlight'),
                 child: GestureDetector(
                   onTap: onSpotlight,
                   behavior: HitTestBehavior.opaque,

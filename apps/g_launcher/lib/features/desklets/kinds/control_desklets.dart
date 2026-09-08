@@ -120,9 +120,9 @@ class NotesDesklet extends ConsumerWidget {
               minLines: 3,
               maxLines: 6,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Note',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: sheet.t('desklets.note'),
+                border: const OutlineInputBorder(),
               ),
               onSubmitted: (_) => save(sheet),
             ),

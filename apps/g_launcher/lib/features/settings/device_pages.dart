@@ -530,7 +530,7 @@ class _StorageChart extends StatelessWidget {
           if (full) ...[
             const SizedBox(height: 10),
             Text(
-              'Under 10% free. Android starts refusing updates and photos around here.',
+              context.t('settings.under10FreeAndroid'),
               style: TextStyle(color: c.warn, fontSize: 12),
             ),
           ],
@@ -610,7 +610,7 @@ class _DevicePage extends ConsumerWidget {
             // Saying so beats an empty page that looks like a dead screen.
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text('Reading', style: TextStyle(color: c.textMuted)),
+              child: Text(context.t('settings.reading'), style: TextStyle(color: c.textMuted)),
             )
           else ...[
             ThemedSectionHeader(context.t('settings.rightNow')),

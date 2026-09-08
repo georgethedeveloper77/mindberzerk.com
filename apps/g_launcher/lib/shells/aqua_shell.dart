@@ -129,7 +129,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         if (isPinned)
           MenuAction(
             icon: Icons.push_pin_outlined,
-            label: 'Remove from Dock',
+            label: host.t('shell.removeFromDock'),
             onTap: () => notifier.edit(
               (p) => HomeLayout.unpinFromDock(p, app.componentKey),
             ),
@@ -137,7 +137,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         else
           MenuAction(
             icon: Icons.push_pin,
-            label: 'Keep in Dock',
+            label: host.t('shell.keepInDock'),
             onTap: () => notifier.edit(
               (p) => HomeLayout.pinToDock(
                 p,
@@ -149,7 +149,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         if (isPinned)
           MenuAction(
             icon: Icons.visibility_off_outlined,
-            label: 'Hide from Launchpad',
+            label: host.t('shell.hideFromLaunchpad'),
             onTap: () {
               notifier.edit((p) => HiddenApps.hide(p, app.componentKey));
               if (host.mounted) {
@@ -162,7 +162,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         else
           MenuAction(
             icon: Icons.remove_circle_outline,
-            label: 'Take out of the Dock',
+            label: host.t('shell.takeOutOfDock'),
             onTap: () => notifier.edit(
               (p) => HomeLayout.excludeFromDock(p, app.componentKey),
             ),
@@ -173,14 +173,14 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         if (!app.isSystem && !app.isWorkProfile)
           MenuAction(
             icon: Icons.delete_outline,
-            label: 'Uninstall',
+            label: host.t('drawer.uninstall'),
             danger: true,
             onTap: () => apps.uninstall(app),
           )
         else
           MenuAction(
             icon: Icons.info_outline,
-            label: 'App info',
+            label: host.t('shell.appInfo'),
             onTap: () => apps.openInfo(app),
           ),
       ],
