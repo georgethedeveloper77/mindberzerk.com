@@ -35,6 +35,7 @@ import sys
 
 I18N = "assets/i18n"
 BASE = "en.json"
+REVIEWED = "tools/i18n_reviewed.json"
 
 # ─── LOCALE FILE TO ARGOS CODE ──────────────────────────────────────────────
 #
@@ -215,6 +216,38 @@ def translate_one(engine, text, retries=4):
     return None
 
 
+# Punctuation a translator may legitimately add, versus punctuation that is
+# just the model finishing a sentence nobody asked it to finish.
+TRAILING = ":.;,!"
+
+
+def tidy(source, translated):
+    """Undo the two things the model adds that the source never had.
+
+    ─── TRAILING PUNCTUATION ───────────────────────────────────────────────
+
+    `Note` came back as `Anmerkung:`. A colon on a settings row's title draws a
+    divider where the layout already has one, and it appears in some strings
+    and not others, so the screen reads as though half of it is broken.
+
+    Only stripped when the SOURCE has no trailing punctuation. A string that
+    ends in a question mark is meant to.
+
+    ─── SURROUNDING WHITESPACE ─────────────────────────────────────────────
+
+    A leading or trailing space in the English is load-bearing: it is usually a
+    fragment that sits beside another string. The model trims it, so it is put
+    back exactly as authored.
+    """
+    out = translated.strip()
+    if out and source.strip() and source.strip()[-1] not in TRAILING:
+        while out and out[-1] in TRAILING:
+            out = out[:-1]
+    lead = source[: len(source) - len(source.lstrip())]
+    trail = source[len(source.rstrip()):]
+    return lead + out + trail
+
+
 def write_locale(path, data):
     """Sorted, so a diff is only the new keys rather than a reshuffle, and two
     runs on different machines produce the same file."""
@@ -238,6 +271,11 @@ def main():
     ap.add_argument("--list", action="store_true",
                     help="show the gap per locale and whether Argos covers it")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="retranslate every key, not only the missing ones",
+    )
     args = ap.parse_args()
 
     if not os.path.isdir(I18N):
@@ -250,6 +288,14 @@ def main():
 
     with open(os.path.join(I18N, BASE), encoding="utf-8") as fh:
         base = json.load(fh)
+
+    reviewed = {}
+    if os.path.isfile(REVIEWED):
+        with open(REVIEWED, encoding="utf-8") as fh:
+            reviewed = {
+                k: v for k, v in json.load(fh).items()
+                if not k.startswith("_")
+            }
 
     if args.list:
         from argostranslate import package
@@ -286,9 +332,36 @@ def main():
 
         with open(path, encoding="utf-8") as fh:
             other = json.load(fh)
-        gap = [k for k in base if k not in other]
+
+        # ─── WHAT GETS TRANSLATED ────────────────────────────────────────
+        #
+        # Default is the missing keys only, which is what makes a re-run cheap
+        # and a crashed run resumable.
+        #
+        # `--overwrite` retranslates everything EXCEPT what a human has read.
+        # Without that exception the flag would be a downgrade button: es and
+        # pt are hand-written because they carry the paying users, and Argos
+        # renders `Note` as `Anmerkung:`.
+        locked = set(reviewed.get(stem, ()))
+        if args.overwrite:
+            gap = [k for k in base if k not in locked]
+            kept = len(locked & set(base))
+            if kept:
+                print(f"{stem}: {kept} reviewed keys kept as they are")
+        else:
+            gap = [k for k in base if k not in other]
+
+        # Keys the base no longer has are dead weight in every locale.
+        stale = [k for k in other if k not in base]
+        for k in stale:
+            del other[k]
+        if stale:
+            print(f"{stem}: dropped {len(stale)} keys no longer in en.json")
+
         if not gap:
             print(f"{stem}: already complete")
+            if stale and not args.dry_run:
+                write_locale(path, other)
             continue
 
         code = CODE_MAP.get(stem, stem)
@@ -307,7 +380,7 @@ def main():
             if raw is None:
                 failed += 1
                 continue
-            translated = unprotect(raw, restore)
+            translated = tidy(source, unprotect(raw, restore))
             other[key] = translated
             if args.dry_run and i <= 5:
                 print(f"    {key}\n      {source}\n      {translated}")
