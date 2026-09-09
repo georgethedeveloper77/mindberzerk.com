@@ -127,16 +127,6 @@
       "suggest": "settings.groupSuggestionSizeApps"
     },
     {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 128,
-      "where": "subtitle (param)",
-      "text": "Rotation, fit and lock. Your photos stay where they are.",
-      "existing": [
-        "settings.rotationFitAndLockPhotos"
-      ],
-      "suggest": "settings.rotationFitAndLockPhotos"
-    },
-    {
       "file": "lib/features/settings/settings_sheets.dart",
       "line": 549,
       "where": "message (param)",
@@ -153,16 +143,6 @@
       "suggest": "settings.deleteCollectionName"
     },
     {
-      "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 1149,
-      "where": "subtitle (param)",
-      "text": "Rotation, fit and lock screen",
-      "existing": [
-        "settings.rotationFitAndLock"
-      ],
-      "suggest": "settings.rotationFitAndLock"
-    },
-    {
       "file": "lib/features/settings/sections/apps_section.dart",
       "line": 701,
       "where": "showMessage (call)",
@@ -177,16 +157,6 @@
       "text": "Theme failed to load\\n\\n$e",
       "existing": [],
       "suggest": "home.themeFailedToLoad"
-    },
-    {
-      "file": "lib/features/home/gnome/gnome_top_bar.dart",
-      "line": 190,
-      "where": "label (param)",
-      "text": "Quick settings",
-      "existing": [
-        "gestures.quickSettings"
-      ],
-      "suggest": "gestures.quickSettings"
     },
     {
       "file": "lib/features/drawer/drawer_items.dart",
@@ -690,8 +660,6 @@
     "settings.pages",
     "settings.rebuildIconCache_2",
     "settings.restoreThisBackup",
-    "settings.rotationFitAndLock",
-    "settings.rotationFitAndLockPhotos",
     "settings.rounded",
     "settings.roundedSquare",
     "settings.searchBar_2",
@@ -13768,6 +13736,7 @@
     "lib/features/settings/sections/desktop_section.dart:225",
     "lib/features/settings/sections/desktop_section.dart:251",
     "lib/features/settings/sections/desktop_section.dart:306",
+    "lib/features/home/gnome/gnome_top_bar.dart:446",
     "lib/features/drawer/drawer_actions.dart:243",
     "lib/features/drawer/drawer_actions.dart:314",
     "lib/features/drawer/drawer_actions.dart:320",

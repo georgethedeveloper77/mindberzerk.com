@@ -48,6 +48,11 @@ I18N_IMPORT = "import 'package:g_launcher/i18n/i18n.dart';\n"
 # widget is being constructed at all, which is every site in the audit.
 CONTEXT_DECL = re.compile(r"\bBuildContext\s+(\w+)")
 
+# A bare `context` being USED: `context.showMessage(`, `context.mounted`,
+# `MediaQuery.of(context)`. Anchored on the word boundary so `menuContext` and
+# `sheetContext` do not count, since neither is named `context`.
+CONTEXT_USE = re.compile(r"(?<![A-Za-z0-9_])context\s*[.),]")
+
 # A literal that this pass will not rewrite. Interpolation is the big one: the
 # audit reports `'$covered of your ${cov.total} apps'` as hardcoded and it is,
 # but it needs `t(key, vars)` with a variable map, which is a judgement about
@@ -122,12 +127,41 @@ def enclosing_context(lines, line_no):
     the result does not compile and `flutter analyze` says so by name, which is
     a better failure than a wrong string.
     """
-    for i in range(line_no - 1, -1, -1):
+    # ─── BOUNDED AT THE TOP-LEVEL DECLARATION ────────────────────────────
+    #
+    # A `}` in column zero ends a class or a top-level function, and nothing
+    # declared before it is in scope after it. Without this the search walks
+    # into the previous class and returns a `context` from a `build` that
+    # closed forty lines ago, which is how one substitution in sixty-nine came
+    # back as "Undefined name 'context'".
+    top = 0
+    for i in range(line_no - 2, -1, -1):
+        if lines[i].startswith("}"):
+            top = i + 1
+            break
+
+    for i in range(line_no - 1, top - 1, -1):
         m = None
         for m in CONTEXT_DECL.finditer(lines[i]):
             pass  # keep the LAST on the line: `(BuildContext context, ...)`
         if m:
             return m.group(1)
+
+    # ─── A CONTEXT CAN BE INHERITED RATHER THAN DECLARED ─────────────────
+    #
+    # Inside a `State` or `ConsumerState` method, `context` is a MEMBER. No
+    # signature mentions it, so the search above finds nothing, and eight sites
+    # calling `context.showMessage(...)` on the very line being rewritten were
+    # refused for having no context in scope.
+    #
+    # So: if the surrounding code already uses a bare `context`, it is in
+    # scope. Looked for nearby rather than anywhere in the file, because a
+    # different class further down proves nothing about here. A wrong guess
+    # does not compile, which the analyzer reports by name.
+    hi = min(len(lines), line_no + 10)
+    for i in range(top, hi):
+        if CONTEXT_USE.search(lines[i]):
+            return "context"
     return None
 
 
@@ -238,7 +272,11 @@ def main():
             # literal further than a few lines from its call is more likely to
             # be a different string that happens to match.
             found = None
-            for off in range(0, 4):
+            # Eight rather than four: `terminal_pro_sheet` puts a three-line
+            # comment between `Text(` and its string, explaining why the copy
+            # says what it says, and that is a habit worth accommodating rather
+            # than a shape worth refusing.
+            for off in range(0, 8):
                 if n - 1 + off >= len(lines):
                     break
                 span = literal_span(lines[n - 1 + off], text)
@@ -247,7 +285,7 @@ def main():
                     break
             if found is None:
                 skipped.append(
-                    (path, n, "literal not found within 4 lines of the call")
+                    (path, n, "literal not found within 8 lines of the call")
                 )
                 continue
 

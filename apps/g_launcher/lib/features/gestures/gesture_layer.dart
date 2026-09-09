@@ -11,6 +11,7 @@ import '../drawer/drawer_state.dart';
 import 'accessibility_disclosure.dart';
 import 'gesture_actions.dart';
 import '../home/workspaces/workspace_overview.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Temporarily reveals the dock. Auto-hides — a dock summoned by a gesture that
 /// then sticks around forever is just a dock.
@@ -100,7 +101,7 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
     // it, and it says what is wrong rather than pointing at a settings screen
     // that cannot fix it.
     if (!ok && binding.action == GestureAction.assistant && mounted) {
-      context.showMessage('No voice assistant is set up on this phone');
+      context.showMessage(context.t('gestures.noVoiceAssistantIs'));
     }
   }
 

@@ -73,10 +73,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       // Null is CANCELLED, not failed. A message either way would congratulate
       // someone for backing out.
       if (saved != null && mounted) {
-        context.showMessage('Backup saved');
+        context.showMessage(context.t('settings.backupSaved'));
       }
     } catch (e) {
-      if (mounted) context.showMessage('Could not create the backup');
+      if (mounted) context.showMessage(context.t('settings.couldNotCreateThe'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -125,7 +125,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       final summary = PrefsBackup.inspect(text);
       if (summary == null) {
         if (mounted) {
-          context.showMessage('That is not a G Launcher backup');
+          context.showMessage(context.t('settings.thatIsNotA'));
         }
         return;
       }
@@ -133,7 +133,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (!mounted) return;
       final ok = await ThemedDialog.confirm(
         context,
-        title: 'Restore this backup?',
+        title: context.t('settings.restoreThisBackup'),
         // SPECIFIC, because this overwrites every setting on the phone. A
         // dialog that just says "Restore backup?" is one nobody can weigh.
         message: 'From ${summary.day}: ${summary.themeCount} '
@@ -143,7 +143,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             'Every setting on this phone is replaced. Photos are not carried '
             'in a backup, so a collection restored onto a different phone '
             'comes back with its name and without its images.',
-        confirmLabel: 'Restore',
+        confirmLabel: context.t('settings.restore'),
         danger: true,
       );
       if (ok != true) return;
@@ -162,9 +162,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       ref.invalidate(selectedThemeIdProvider);
       ref.invalidate(wallpaperCollectionsProvider);
 
-      if (mounted) context.showMessage('Backup restored');
+      if (mounted) context.showMessage(context.t('settings.backupRestored'));
     } catch (e) {
-      if (mounted) context.showMessage('Could not read that file');
+      if (mounted) context.showMessage(context.t('settings.couldNotReadThat'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

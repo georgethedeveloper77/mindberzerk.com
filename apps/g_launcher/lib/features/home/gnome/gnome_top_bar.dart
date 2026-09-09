@@ -187,7 +187,7 @@ class GnomeTopBar extends ConsumerWidget {
           // never asked.
           PanelModule.tray => _Tray(palette: palette, stacked: stacked),
           PanelModule.clock => _OpensQuickSettings(
-              label: 'Quick settings',
+              labelKey: 'gestures.quickSettings',
               child: _Clock(
                 palette: palette,
                 fontFamily: displayFontFamily,
@@ -426,16 +426,24 @@ class _Modules extends ConsumerWidget {
 /// The whole cluster is 44dp tall either way, so this costs nothing and closes
 /// the gap between them: tray, clock, or the space they sit in.
 class _OpensQuickSettings extends ConsumerWidget {
-  const _OpensQuickSettings({required this.child, required this.label});
+  const _OpensQuickSettings({required this.child, required this.labelKey});
 
   final Widget child;
-  final String label;
+
+  /// An i18n KEY. The module table that names this sits in a plain function
+  /// with no `BuildContext`, so the English cannot be resolved where it is
+  /// written. It resolves here, in the one place that has a context.
+  ///
+  /// Named `labelKey` for the same reason `DeskletKind` was renamed: a field
+  /// whose MEANING changes while its name does not is a field every future
+  /// reader gets wrong once.
+  final String labelKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Semantics(
       button: true,
-      label: label,
+      label: context.t(labelKey),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => ref.read(quickSettingsProvider.notifier).toggle(),
