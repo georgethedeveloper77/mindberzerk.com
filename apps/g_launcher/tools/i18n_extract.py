@@ -87,6 +87,11 @@ def main():
         action="store_true",
         help="list the strings that need t(key, vars) by hand, then exit",
     )
+    ap.add_argument(
+        "--repair-fragments",
+        action="store_true",
+        help="update en.json values that were minted from half a sentence",
+    )
     args = ap.parse_args()
 
     data = load(args.audit, "run: python3 tools/i18n_audit.py --json > audit.json")
@@ -120,6 +125,54 @@ def main():
             "becomes t('drawer.folderCreated', {'name': s.name}) with\n"
             '"{name} folder created" in en.json. The name is a decision, not a\n'
             "derivation, so no tool makes it."
+        )
+        return 0
+
+    # ─── KEYS MINTED FROM HALF A SENTENCE ───────────────────────────────────
+    #
+    # Running extract BEFORE join mints the first fragment of an adjacent
+    # literal run, because that is all the audit could see. The join then makes
+    # the code whole and en.json is left holding a truncated string, usually
+    # with the trailing space the author put before the line break.
+    #
+    # Safe to repair automatically because the shape is unambiguous: the stored
+    # value is a strict PREFIX of what the code now says. Anything else is a
+    # genuine disagreement about copy and stays in the report for a human.
+    if args.repair_fragments:
+        repairs, disputed = {}, []
+        for h in plain:
+            key, text = h["suggest"], unescape(h["text"])
+            if key not in en or en[key] == text:
+                continue
+            if text.startswith(en[key]):
+                repairs[key] = text
+            else:
+                disputed.append((key, en[key], text))
+
+        for key, text in sorted(repairs.items()):
+            print(f"  {key}\n      was {en[key]!r}\n      now {text!r}")
+        if disputed:
+            print(f"\n{len(disputed)} NOT a truncation, decide by hand:")
+            for key, was, now in disputed:
+                print(f"  {key}\n      en.json {was!r}\n      code    {now!r}")
+
+        if not repairs:
+            print("nothing to repair")
+            return 0
+        if args.dry_run:
+            print(f"\n(dry run, {len(repairs)} repairs not written)")
+            return 0
+        en.update(repairs)
+        with open(EN, "w", encoding="utf-8") as fh:
+            json.dump(dict(sorted(en.items())), fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+        print(f"\nrepaired {len(repairs)} keys in en.json")
+        print(
+            "\nnext:\n"
+            "  python3 tools/i18n_audit.py --json > audit.json\n"
+            "  python3 tools/i18n_reuse.py\n"
+            "  python3 tools/i18n_deconst.py\n"
+            "  flutter analyze"
         )
         return 0
 

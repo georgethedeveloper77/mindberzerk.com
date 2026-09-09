@@ -75,7 +75,7 @@ class RestoreScreen extends ConsumerWidget {
           subtitle: subtitle,
           onTap: () => run(
             title: '$title?',
-            message: 'These settings return to the distro defaults. Nothing you made or added is removed.',
+            message: context.t('settings.theseSettingsReturnTo'),
             done: 'Restored',
             action: () async {
               await notifier.edit((p) => PrefsReset.section(p, which));
@@ -94,7 +94,7 @@ class RestoreScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
-              'Settings only. Folders, desklets, arrangements and photos stay exactly where they are.',
+              context.t('settings.settingsOnlyFoldersDesklets'),
               style: TextStyle(color: c.textFaint),
             ),
           ),
@@ -156,7 +156,7 @@ class RestoreScreen extends ConsumerWidget {
             onTap: () => run(
               danger: true,
               title: context.t('settings.resetEverythingConfirm'),
-              message: 'Every setting on this distro returns to its default, including your folders, desklets and arrangements here, and the settings shared across distros. Other distros keep their own setups. Photos, collections and installed packs are not deleted.',
+              message: context.t('settings.everySettingOnThis'),
               done: 'Everything reset',
               action: () async {
                 // `resetEverything`, not `resetAll`: the theme file AND the

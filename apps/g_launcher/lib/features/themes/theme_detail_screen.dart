@@ -584,7 +584,7 @@ class _Terms extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Text(
-            'One time purchase, yours on every device signed in to this Play account. Every launcher feature stays free. Switch back to a free distro whenever you like.',
+            context.t('themes.oneTimePurchaseYours'),
             style: TextStyle(fontSize: 12.5, height: 1.5, color: c.textMuted),
           ),
         ),

@@ -95,7 +95,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
       final ok = await ThemedDialog.confirm(
         context,
         title: context.t('settings.removeThisWallpaper'),
-        message: 'It leaves the collection and this copy is deleted. Your original is not touched, and if it is on screen right now the screen does not change.',
+        message: context.t('settings.itLeavesTheCollection'),
         confirmLabel: context.t('desklets.remove'),
         danger: true,
       );
@@ -117,7 +117,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
       final ok = await ThemedDialog.confirm(
         context,
         title: 'Delete ${collection.name}?',
-        message: 'The copies in this collection are deleted. Your originals are not touched, and the screen does not change.',
+        message: context.t('settings.theCopiesInThis'),
         confirmLabel: context.t('settings.delete'),
         danger: true,
       );
@@ -150,7 +150,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
-                'Nothing here yet. Add photos and this set can rotate on its own.',
+                context.t('settings.nothingHereYetAdd'),
                 style: TextStyle(color: c.textFaint),
               ),
             )
