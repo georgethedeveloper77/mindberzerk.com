@@ -2,81 +2,11 @@
   "hardcoded": [
     {
       "file": "lib/features/settings/backup_screen.dart",
-      "line": 136,
-      "where": "title (param)",
-      "text": "Restore this backup?",
-      "existing": [
-        "settings.restoreThisBackup"
-      ],
-      "suggest": "settings.restoreThisBackup"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
       "line": 139,
       "where": "message (param)",
       "text": "From ${summary.day}: ${summary.themeCount} ",
       "existing": [],
       "suggest": "settings.fromSummaryDaySummary"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 146,
-      "where": "confirmLabel (param)",
-      "text": "Restore",
-      "existing": [
-        "settings.restore"
-      ],
-      "suggest": "settings.restore"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 76,
-      "where": "showMessage (call)",
-      "text": "Backup saved",
-      "existing": [
-        "settings.backupSaved"
-      ],
-      "suggest": "settings.backupSaved"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 79,
-      "where": "showMessage (call)",
-      "text": "Could not create the backup",
-      "existing": [
-        "settings.couldNotCreateThe"
-      ],
-      "suggest": "settings.couldNotCreateThe"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 128,
-      "where": "showMessage (call)",
-      "text": "That is not a G Launcher backup",
-      "existing": [
-        "settings.thatIsNotA"
-      ],
-      "suggest": "settings.thatIsNotA"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 165,
-      "where": "showMessage (call)",
-      "text": "Backup restored",
-      "existing": [
-        "settings.backupRestored"
-      ],
-      "suggest": "settings.backupRestored"
-    },
-    {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 167,
-      "where": "showMessage (call)",
-      "text": "Could not read that file",
-      "existing": [
-        "settings.couldNotReadThat"
-      ],
-      "suggest": "settings.couldNotReadThat"
     },
     {
       "file": "lib/features/settings/backup_screen.dart",
@@ -210,16 +140,6 @@
     },
     {
       "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 112,
-      "where": "Text (call)",
-      "text": "Every command stays free, and so does one saved server with a password.",
-      "existing": [
-        "terminal.everyCommandStaysFree"
-      ],
-      "suggest": "terminal.everyCommandStaysFree"
-    },
-    {
-      "file": "lib/features/terminal/terminal_pro_sheet.dart",
       "line": 152,
       "where": "Text (call)",
       "text": "Unlock for $price",
@@ -273,16 +193,6 @@
       "text": "G Launcher wants to use Android\\'s accessibility service",
       "existing": [],
       "suggest": "gestures.gLauncherWantsTo"
-    },
-    {
-      "file": "lib/features/gestures/gesture_layer.dart",
-      "line": 103,
-      "where": "showMessage (call)",
-      "text": "No voice assistant is set up on this phone",
-      "existing": [
-        "gestures.noVoiceAssistantIs"
-      ],
-      "suggest": "gestures.noVoiceAssistantIs"
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
@@ -542,7 +452,6 @@
     "gestures.fourGestureActionsNeed",
     "gestures.gLauncherWantsTo",
     "gestures.itDoesNotRead",
-    "gestures.noVoiceAssistantIs",
     "gestures.nothing",
     "gestures.notificationShade",
     "gestures.openActivities",
@@ -573,8 +482,6 @@
     "settings.alsoSetTheLock",
     "settings.appButton",
     "settings.appNames",
-    "settings.backupRestored",
-    "settings.backupSaved",
     "settings.badges.accessOff",
     "settings.badges.accessOffSub",
     "settings.badges.accessOn",
@@ -594,8 +501,6 @@
     "settings.circle",
     "settings.connection",
     "settings.cornerRoundness_2",
-    "settings.couldNotCreateThe",
-    "settings.couldNotReadThat",
     "settings.couldNotRestoreThat",
     "settings.couldNotSetThat",
     "settings.critical",
@@ -659,7 +564,6 @@
     "settings.pagedDrawer",
     "settings.pages",
     "settings.rebuildIconCache_2",
-    "settings.restoreThisBackup",
     "settings.rounded",
     "settings.roundedSquare",
     "settings.searchBar_2",
@@ -677,7 +581,6 @@
     "settings.teardrop",
     "settings.temperature",
     "settings.textSize_2",
-    "settings.thatIsNotA",
     "settings.theNetworkNameNeeds",
     "settings.theOneYouHad",
     "settings.theWholeDesktopLook",
@@ -791,7 +694,6 @@
     "system_stats.wednesday",
     "terminal.anAppIsA",
     "terminal.everyAppYouCan",
-    "terminal.everyCommandStaysFree",
     "terminal.grantOneFolderOnce",
     "terminal.lsAppsListsThem",
     "terminal.theGrantedFolderShown",

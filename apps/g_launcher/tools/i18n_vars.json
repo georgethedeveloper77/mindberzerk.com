@@ -1,0 +1,216 @@
+{
+  "_comment": [
+    "Interpolated strings, with their placeholders NAMED.",
+    "",
+    "Keyed on the exact source text as the audit reports it. Each entry gives",
+    "the en.json key, the English with {braces} where the values go, and the",
+    "Dart expression each brace stands for.",
+    "",
+    "Placeholders are named for what they MEAN to a reader, not for the",
+    "expression behind them: `{name}` rather than `{pTitle}` or `{cardName}`.",
+    "A translator never sees the code, and a language that has to reorder the",
+    "sentence needs to know which value is which.",
+    "",
+    "icons.* and themes.* keep separate keys despite identical English. They",
+    "are a different subject, and a language that declines an icon pack",
+    "differently from a distro cannot render one string for both. The audit",
+    "already prefers same-namespace keys for exactly this reason.",
+    "",
+    "EXPRESSIONS ARE WRITTEN AS THEY MUST APPEAR IN THE SOURCE, `.toString()`",
+    "and all. `t` takes a Map<String, String>, so an int or an Object needs the",
+    "conversion, and it is spelled out here rather than guessed at by the tool:",
+    "whether `count` is an int is a fact about the code, not about the string.",
+    "A plain String keeps no conversion, so the analyzer's",
+    "unnecessary_string_interpolations lint stays quiet."
+  ],
+  "$count · ↵ runs the top match": {
+    "key": "drawer.countRunsTopMatch",
+    "en": "{count} · ↵ runs the top match",
+    "vars": {
+      "count": "count.toString()"
+    }
+  },
+  "Theme failed to load\\n\\n$e": {
+    "key": "home.themeFailedToLoad",
+    "en": "Theme failed to load\n\n{error}",
+    "vars": {
+      "error": "e.toString()"
+    }
+  },
+  "${p.title} needs to be purchased first": {
+    "key": "icons.needsPurchaseFirst",
+    "en": "{name} needs to be purchased first",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "Not enough free space for ${p.title}": {
+    "key": "icons.notEnoughFreeSpace",
+    "en": "Not enough free space for {name}",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "${p.title} failed verification and was discarded": {
+    "key": "icons.failedVerification",
+    "en": "{name} failed verification and was discarded",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "Could not download ${p.title}, try again": {
+    "key": "icons.couldNotDownload",
+    "en": "Could not download {name}, try again",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "${p.title} is already your icon theme": {
+    "key": "icons.alreadyYourIconTheme",
+    "en": "{name} is already your icon theme",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "${p.title} is not available to buy right now": {
+    "key": "icons.notAvailableToBuy",
+    "en": "{name} is not available to buy right now",
+    "vars": {
+      "name": "p.title"
+    }
+  },
+  "$covered of your ${cov.total} apps": {
+    "key": "icons.coveredOfTotalApps",
+    "en": "{covered} of your {total} apps",
+    "vars": {
+      "covered": "covered.toString()",
+      "total": "cov.total.toString()"
+    }
+  },
+  "Nothing matches \"$_query\"": {
+    "key": "search.nothingMatches",
+    "en": "Nothing matches \"{query}\"",
+    "vars": {
+      "query": "_query"
+    }
+  },
+  "$percent% used": {
+    "key": "settings.percentUsed",
+    "en": "{percent}% used",
+    "vars": {
+      "percent": "percent.toString()"
+    }
+  },
+  "Create all ${suggestions.length} folders": {
+    "key": "settings.createAllFolders",
+    "en": "Create all {count} folders",
+    "vars": {
+      "count": "suggestions.length.toString()"
+    }
+  },
+  "${s.name} folder created": {
+    "key": "settings.folderCreated",
+    "en": "{name} folder created",
+    "vars": {
+      "name": "s.name"
+    }
+  },
+  "${theme.prefs.dismissedSuggestions.length} hidden group(s)": {
+    "key": "settings.hiddenGroups",
+    "en": "{count} hidden group(s)",
+    "vars": {
+      "count": "theme.prefs.dismissedSuggestions.length.toString()"
+    }
+  },
+  "Group ${suggestion.size} apps into a folder": {
+    "key": "settings.groupAppsIntoFolder",
+    "en": "Group {count} apps into a folder",
+    "vars": {
+      "count": "suggestion.size.toString()"
+    }
+  },
+  "${labels[key] ?? key} can return to the dock": {
+    "key": "settings.canReturnToDock",
+    "en": "{name} can return to the dock",
+    "vars": {
+      "name": "labels[key] ?? key"
+    }
+  },
+  "Delete ${collection.name}?": {
+    "key": "settings.deleteCollectionConfirm",
+    "en": "Delete {name}?",
+    "vars": {
+      "name": "collection.name"
+    }
+  },
+  "Arrives with $heroPack icons": {
+    "key": "setup.arrivesWithIcons",
+    "en": "Arrives with {name} icons",
+    "vars": {
+      "name": "heroPack"
+    }
+  },
+  "Every one is skinned by ${theme.spec.name}. More in the desktop menu later.": {
+    "key": "setup.everyOneIsSkinnedBy",
+    "en": "Every one is skinned by {name}. More in the desktop menu later.",
+    "vars": {
+      "name": "theme.spec.name"
+    }
+  },
+  "$command needs Terminal Pro": {
+    "key": "terminal.needsTerminalPro",
+    "en": "{command} needs Terminal Pro",
+    "vars": {
+      "command": "command"
+    }
+  },
+  "Unlock for $price": {
+    "key": "terminal.unlockForPrice",
+    "en": "Unlock for {price}",
+    "vars": {
+      "price": "price"
+    }
+  },
+  "${card.name} needs to be purchased first": {
+    "key": "themes.needsPurchaseFirst",
+    "en": "{name} needs to be purchased first",
+    "vars": {
+      "name": "card.name"
+    }
+  },
+  "Not enough free space for ${card.name}": {
+    "key": "themes.notEnoughFreeSpace",
+    "en": "Not enough free space for {name}",
+    "vars": {
+      "name": "card.name"
+    }
+  },
+  "${card.name} failed verification and was discarded": {
+    "key": "themes.failedVerification",
+    "en": "{name} failed verification and was discarded",
+    "vars": {
+      "name": "card.name"
+    }
+  },
+  "Could not download ${card.name}, try again": {
+    "key": "themes.couldNotDownload",
+    "en": "Could not download {name}, try again",
+    "vars": {
+      "name": "card.name"
+    }
+  },
+  "${card.name} is your current distro": {
+    "key": "themes.isYourCurrentDistro",
+    "en": "{name} is your current distro",
+    "vars": {
+      "name": "card.name"
+    }
+  },
+  "${card.name} is not available to buy right now": {
+    "key": "themes.notAvailableToBuy",
+    "en": "{name} is not available to buy right now",
+    "vars": {
+      "name": "card.name"
+    }
+  }
+}
