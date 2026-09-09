@@ -187,12 +187,12 @@ class FoldersScreen extends ConsumerWidget {
             if (PrefsReset.canReset(theme.prefs, PrefsSection.folders))
               ThemedListRow(
                 icon: Icons.settings_backup_restore,
-                title: 'Reset folder appearance',
-                subtitle: 'Size and shape only. Your folders stay',
+                title: context.t('settings.resetFolderAppearance'),
+                subtitle: context.t('settings.sizeAndShapeOnly'),
                 onTap: () async {
                   final ok = await ThemedDialog.confirm(
                     context,
-                    title: 'Reset folder appearance?',
+                    title: context.t('settings.resetFolderAppearanceConfirm'),
                     message: 'Folder size, shape and sort order go back to '
                         'their defaults. The folders themselves and everything '
                         'in them are untouched.',
@@ -202,7 +202,7 @@ class FoldersScreen extends ConsumerWidget {
                   await notifier
                       .edit((p) => PrefsReset.section(p, PrefsSection.folders));
                   if (context.mounted) {
-                    context.showMessage('Folder appearance reset');
+                    context.showMessage(context.t('settings.folderAppearanceReset'));
                   }
                 },
               ),
@@ -211,12 +211,12 @@ class FoldersScreen extends ConsumerWidget {
             // should not be the first thing under the thumb.
             ThemedListRow(
               icon: Icons.folder_off_outlined,
-              title: 'Ungroup all folders',
-              subtitle: 'Every app returns to the list',
+              title: context.t('settings.ungroupAllFolders'),
+              subtitle: context.t('settings.everyAppReturnsTo'),
               onTap: () async {
                 final ok = await ThemedDialog.confirm(
                   context,
-                  title: 'Ungroup all folders?',
+                  title: context.t('settings.ungroupAllFoldersConfirm'),
                   message: 'The apps are not touched. They leave their '
                       'folders and return to the list, and the folders '
                       'themselves are removed.',
@@ -226,7 +226,7 @@ class FoldersScreen extends ConsumerWidget {
                 if (ok != true) return;
                 await notifier.edit(DrawerLayout.dissolveAll);
                 if (context.mounted) {
-                  context.showMessage('All folders ungrouped');
+                  context.showMessage(context.t('settings.allFoldersUngrouped'));
                 }
               },
             ),

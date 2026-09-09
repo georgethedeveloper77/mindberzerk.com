@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
-import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/prefs/prefs_reset.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Restore defaults, per section or wholesale.
 ///
@@ -36,7 +36,8 @@ class RestoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(effectiveThemeProvider);
     if (!async.hasValue) {
-      return const ThemedScaffold(title: 'Restore defaults', body: SizedBox());
+      return ThemedScaffold(
+          title: context.t('settings.restoreDefaults'), body: const SizedBox());
     }
     final theme = async.requireValue;
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
@@ -53,7 +54,7 @@ class RestoreScreen extends ConsumerWidget {
         context,
         title: title,
         message: message,
-        confirmLabel: 'Restore',
+        confirmLabel: context.t('settings.restore'),
         danger: danger,
       );
       if (ok != true) return;
@@ -85,7 +86,7 @@ class RestoreScreen extends ConsumerWidget {
         );
 
     return ThemedScaffold(
-      title: 'Restore defaults',
+      title: context.t('settings.restoreDefaults'),
       body: ListView(
         // Clears the navigation bar. Trailing padding rather than a SafeArea,
         // so the list still scrolls behind a transparent bar.
@@ -102,25 +103,25 @@ class RestoreScreen extends ConsumerWidget {
           section(
             icon: Icons.category_outlined,
             title: context.t('settings.icons'),
-            subtitle: 'Shape, size, corners, packs',
+            subtitle: context.t('settings.shapeSizeCornersPacks'),
             which: PrefsSection.icons,
           ),
           section(
             icon: Icons.text_fields,
-            title: 'Type',
-            subtitle: 'Label lines and text size',
+            title: context.t('settings.type'),
+            subtitle: context.t('settings.labelLinesAndText'),
             which: PrefsSection.type,
           ),
           section(
             icon: Icons.folder_outlined,
             title: context.t('setup.step.folders'),
-            subtitle: 'Grid and shape. Your folders stay',
+            subtitle: context.t('settings.gridAndShapeYour'),
             which: PrefsSection.folders,
           ),
           section(
             icon: Icons.apps,
-            title: 'Drawer',
-            subtitle: 'Style, sorting, columns. A custom arrangement is kept',
+            title: context.t('settings.drawer'),
+            subtitle: context.t('settings.styleSortingColumnsA'),
             which: PrefsSection.drawer,
           ),
           section(
@@ -134,29 +135,29 @@ class RestoreScreen extends ConsumerWidget {
           section(
             icon: Icons.swipe,
             title: context.t('settings.gestures'),
-            subtitle: 'Every swipe back to its default',
+            subtitle: context.t('settings.everySwipeBackTo'),
             which: PrefsSection.gestures,
           ),
           section(
             icon: Icons.desktop_windows_outlined,
             title: context.t('setup.step.distro'),
-            subtitle: 'Dock, bar, grid and workspaces',
+            subtitle: context.t('settings.dockBarGridAnd'),
             which: PrefsSection.desktop,
           ),
           section(
             icon: Icons.opacity,
             title: context.t('settings.surfaces'),
-            subtitle: 'All four opacity sliders rejoin as one',
+            subtitle: context.t('settings.allFourOpacitySliders'),
             which: PrefsSection.surfaces,
           ),
           const SizedBox(height: 10),
           ThemedListRow(
             icon: Icons.restart_alt,
-            title: 'Reset everything',
-            subtitle: 'This distro back to a clean install',
+            title: context.t('settings.resetEverything'),
+            subtitle: context.t('settings.thisDistroBackTo'),
             onTap: () => run(
               danger: true,
-              title: 'Reset everything?',
+              title: context.t('settings.resetEverythingConfirm'),
               message: 'Every setting on this distro returns to its default, '
                   'including your folders, desklets and arrangements here, '
                   'and the settings shared across distros. Other distros '

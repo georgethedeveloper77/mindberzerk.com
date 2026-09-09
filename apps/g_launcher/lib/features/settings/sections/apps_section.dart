@@ -50,7 +50,7 @@ List<Widget> applicationsSection(
     // grid at rest, so the page opens on the thing it is about.
     SettingPreview(
       query: q,
-      caption: 'Drawer, live',
+      caption: context.t('settings.drawerLive'),
       child: SinglePreview(
         child: DevicePreview(
           palette: theme.palette,
@@ -439,7 +439,7 @@ List<Widget> applicationsSection(
             const ['dock', 'removed', 'hidden', 'restore', 'put back'],
             SettingsRow(
               icon: Icons.remove_circle_outline,
-              title: 'Removed from the dock',
+              title: context.t('settings.removedFromTheDock'),
               subtitle: theme.prefs.dockExcluded.length == 1
                   ? '1 app will not be filled in'
                   : '${theme.prefs.dockExcluded.length} apps will not be '
@@ -681,7 +681,7 @@ void _showRemovedFromDock(
 
   ThemedSheet.show<void>(
     context,
-    title: 'Removed from the dock',
+    title: context.t('settings.removedFromTheDock'),
     builder: (sheet) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -693,7 +693,7 @@ void _showRemovedFromDock(
             // frequency, so this restores eligibility rather than a slot, and
             // promising the app returns would be a promise the filler does not
             // keep for something the user rarely opens.
-            subtitle: 'Can be filled in again',
+            subtitle: context.t('settings.canBeFilledIn'),
             onTap: () {
               Navigator.pop(sheet);
               notifier.edit((p) => HomeLayout.restoreToDock(p, key));
@@ -704,11 +704,11 @@ void _showRemovedFromDock(
         if (removed.length > 1)
           ThemedListRow(
             icon: Icons.restart_alt,
-            title: 'Put them all back',
+            title: context.t('settings.putThemAllBack'),
             onTap: () {
               Navigator.pop(sheet);
               notifier.edit(HomeLayout.restoreToDock);
-              context.showMessage('The dock can fill from every app again');
+              context.showMessage(context.t('settings.theDockCanFill'));
             },
           ),
         const SizedBox(height: 8),

@@ -39,7 +39,7 @@ List<Widget> desktopSection(
   return [
     SettingPreview(
       query: q,
-      caption: 'Dock, bar and drawer, live',
+      caption: context.t('settings.dockBarAndDrawer'),
       child: LayoutPreview(theme: theme),
     ),
 

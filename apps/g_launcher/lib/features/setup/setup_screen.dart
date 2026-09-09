@@ -1896,7 +1896,7 @@ class _StepDistro extends ConsumerWidget {
               ),
             const Spacer(),
             Text(
-              'Swipe the desktop above',
+              context.t('setup.swipeTheDesktopAbove'),
               style: d.text.caption.copyWith(color: c.textFaint),
             ),
           ],
@@ -2025,7 +2025,7 @@ class _StepIcons extends ConsumerWidget {
           mono: mono,
           selected: !distroIcons,
           onTap: () => onChanged(false),
-          title: 'App icons',
+          title: context.t('setup.appIcons'),
           trailing: 'Nothing to download',
           note: "Each app's own artwork, in this distro shape.",
           grid: _AppIconGrid(sizePx: sizePx),
@@ -2375,7 +2375,7 @@ class _StepAppearance extends ConsumerWidget {
         // than as a line on every option. The other two never needed one:
         // "Light" and "Dark" explain themselves.
         Text(
-          "Follows the phone's own light and dark switch.",
+          context.t('setup.followsThePhoneS'),
           softWrap: true,
           style: d.text.caption.copyWith(color: d.colors.textMuted),
         ),
@@ -2558,7 +2558,7 @@ class _StepDrawer extends ConsumerWidget {
               // a single scrolling grid.
               SetupRow(
                 title: context.t('setup.oneLongList'),
-                subtitle: 'Scrolls up and down. No pages at all.',
+                subtitle: context.t('setup.scrollsUpAndDownNoPages'),
                 selected: style == 'vertical',
                 mono: mono,
                 marker: mono ? SetupMarker.chevron : SetupMarker.radio,

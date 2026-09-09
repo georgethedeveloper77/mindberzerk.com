@@ -51,6 +51,7 @@ import 'theme_actions.dart';
 import 'theme_catalog.dart';
 import 'theme_peek.dart';
 import 'themes_screen.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 class ThemeDetailScreen extends ConsumerWidget {
   const ThemeDetailScreen({super.key, required this.packId});
@@ -125,7 +126,7 @@ class ThemeDetailScreen extends ConsumerWidget {
                   _Title(card: card),
                   ..._featureSection(
                     context,
-                    title: 'What only this distro does',
+                    title: context.t('themes.whatOnlyThisDistro'),
                     rows: [
                       for (final f in card.features)
                         if (f.exclusive) f,
@@ -134,7 +135,7 @@ class ThemeDetailScreen extends ConsumerWidget {
                   ),
                   ..._featureSection(
                     context,
-                    title: 'Look and feel',
+                    title: context.t('themes.lookAndFeel'),
                     rows: [
                       for (final f in card.features)
                         if (!f.exclusive) f,
@@ -440,7 +441,7 @@ class _BackRow extends StatelessWidget {
                 Icon(Icons.chevron_left, size: 20, color: c.textMuted),
                 const SizedBox(width: 2),
                 Text(
-                  'Distros',
+                  context.t('themes.distros'),
                   style: TextStyle(fontSize: 13.5, color: c.textMuted),
                 ),
               ],
@@ -638,7 +639,7 @@ class _ActionButton extends ConsumerWidget {
           border: Border.all(color: c.line),
         ),
         child: Text(
-          'Needs a newer version of G Launcher',
+          context.t('themes.needsANewerVersion'),
           style: TextStyle(fontSize: 13, color: c.textMuted),
         ),
       );
@@ -706,7 +707,7 @@ class _Missing extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 40, 18, 0),
           child: Text(
-            'This distro is no longer in the catalogue.',
+            context.t('themes.thisDistroIsNo'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: c.textMuted),
           ),

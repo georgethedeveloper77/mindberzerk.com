@@ -87,7 +87,7 @@ Future<bool?> chooseApplyTarget(
 
   return ThemedSheet.show<bool>(
     context,
-    title: 'Choose where to apply',
+    title: context.t('settings.chooseWhereToApply'),
     isScrollControlled: true,
     builder: (ctx) {
       final d = ChromeScope.of(ctx);
@@ -192,7 +192,7 @@ Future<bool?> chooseApplyTarget(
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
                   child: Text(
-                    'You can change this later under Applies to.',
+                    context.t('settings.youCanChangeThis'),
                     textAlign: TextAlign.center,
                     style: d.text.caption.copyWith(color: c.textFaint),
                   ),
@@ -842,7 +842,7 @@ class WallpaperScreen extends ConsumerWidget {
     void openSourcePicker() {
       ThemedSheet.show<void>(
         context,
-        title: 'Rotate from',
+        title: context.t('settings.rotateFrom'),
         builder: (ctx) {
           final c = ChromeScope.of(ctx).colors;
           Widget option(String label, String? value) => ThemedListRow(
@@ -1011,7 +1011,7 @@ class WallpaperScreen extends ConsumerWidget {
               );
               if (copy == null) {
                 if (context.mounted) {
-                  context.showMessage('Could not add that photo');
+                  context.showMessage(context.t('settings.couldNotAddThat'));
                 }
                 return;
               }
@@ -1021,7 +1021,7 @@ class WallpaperScreen extends ConsumerWidget {
               );
             },
           ),
-          const ThemedSectionHeader('Collections'),
+          ThemedSectionHeader(context.t('settings.collections')),
           for (final col in collections)
             ThemedListRow(
               icon: Icons.photo_library_outlined,
@@ -1041,13 +1041,13 @@ class WallpaperScreen extends ConsumerWidget {
             ),
           ThemedListRow(
             icon: Icons.create_new_folder_outlined,
-            title: 'New collection',
+            title: context.t('settings.newCollection'),
             subtitle: collections.isEmpty
                 ? 'Group photos and rotate through one set'
                 : null,
             onTap: () => promptCollectionName(
               context,
-              title: 'Name this collection',
+              title: context.t('settings.nameThisCollection'),
               onSubmit: (name) async {
                 final created = await ref
                     .read(wallpaperCollectionsProvider.notifier)
@@ -1066,7 +1066,7 @@ class WallpaperScreen extends ConsumerWidget {
               },
             ),
           ),
-          const ThemedSectionHeader('Applies to'),
+          ThemedSectionHeader(context.t('settings.appliesTo')),
           // ─── A ROW, NOT A TOGGLE ────────────────────────────────────────
           //
           // The toggle was the buried control this whole change exists to
@@ -1109,7 +1109,7 @@ class WallpaperScreen extends ConsumerWidget {
           if (previewWallpaperFor(theme) case final src?)
             ThemedListRow(
               icon: Icons.crop_free,
-              title: 'Framing',
+              title: context.t('settings.framing'),
               subtitle: framingSummary(theme, src),
               trailing: const Icon(Icons.chevron_right, size: 18),
               onTap: () => Navigator.of(context).push(
@@ -1136,7 +1136,7 @@ class WallpaperScreen extends ConsumerWidget {
           if (collections.isNotEmpty)
             ThemedListRow(
               icon: Icons.collections_outlined,
-              title: 'Rotate from',
+              title: context.t('settings.rotateFrom'),
               subtitle: rotationSourceLabel(rotationSource, collections),
               trailing: const Icon(Icons.chevron_right, size: 18),
               onTap: openSourcePicker,
@@ -1145,12 +1145,12 @@ class WallpaperScreen extends ConsumerWidget {
           if (PrefsReset.canReset(theme.prefs, PrefsSection.wallpaper))
             ThemedListRow(
               icon: Icons.settings_backup_restore,
-              title: 'Reset wallpaper settings',
+              title: context.t('settings.resetWallpaperSettings'),
               subtitle: 'Rotation, fit and lock screen',
               onTap: () async {
                 final ok = await ThemedDialog.confirm(
                   context,
-                  title: 'Reset wallpaper settings?',
+                  title: context.t('settings.resetWallpaperSettingsConfirm'),
                   message: 'Rotation, fit and the lock-screen switch go back '
                       'to their defaults. Your photos, your collections and '
                       'the wallpaper on screen right now are untouched.',
@@ -1169,7 +1169,8 @@ class WallpaperScreen extends ConsumerWidget {
                     .read(launcherHostApiProvider)
                     .cancelWallpaperRotation();
                 if (context.mounted) {
-                  context.showMessage('Wallpaper settings reset');
+                  context.showMessage(
+                      context.t('settings.wallpaperSettingsReset'));
                 }
               },
             ),
@@ -1360,7 +1361,8 @@ class _Strip extends StatelessWidget {
     if (sources.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(context.t('settings.nothingYet'), style: TextStyle(color: c.textFaint)),
+        child: Text(context.t('settings.nothingYet'),
+            style: TextStyle(color: c.textFaint)),
       );
     }
 
@@ -1617,14 +1619,14 @@ class _StripHeader extends StatelessWidget {
               builder: (ctx) => Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const ThemedListRow(
+                  ThemedListRow(
                     icon: Icons.touch_app_outlined,
                     title: 'Tap',
-                    subtitle: 'Sets it as your wallpaper',
+                    subtitle: context.t('settings.setsItAsYour'),
                   ),
                   ThemedListRow(
                     icon: Icons.drag_indicator,
-                    title: 'Hold and drag',
+                    title: context.t('settings.holdAndDrag'),
                     subtitle: presets
                         // Said plainly, because the consequence is not
                         // obvious from the gesture: the first one is the one

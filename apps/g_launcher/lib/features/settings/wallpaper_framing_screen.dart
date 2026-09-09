@@ -158,7 +158,7 @@ class _WallpaperFramingScreenState
             child: Row(
               children: [
                 ThemedButton(
-                  label: 'Wallpapers',
+                  label: context.t('settings.wallpapers'),
                   kind: ThemedButtonKind.secondary,
                   onPressed: () => Navigator.of(context).pop(),
                 ),

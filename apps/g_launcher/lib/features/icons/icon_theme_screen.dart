@@ -5,21 +5,21 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/billing/entitlements.dart';
 import '../../data/cdn/pack_repository.dart';
+import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
-import '../../data/prefs/launcher_prefs.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../platform/pack_api.g.dart';
 import '../drawer/app_icon.dart';
-import 'icon_appearance_rows.dart';
 import '../themes/theme_catalog.dart' show CardStatus;
-import 'package:g_launcher/i18n/i18n.dart';
+import 'icon_appearance_rows.dart';
 
 /// One native handle for the preview lookup, mirroring theme_engine's rule:
 /// a new Pigeon wrapper per card is a new codec instance for no reason.
@@ -135,8 +135,7 @@ bool _isSold(PackInfo pack) => (pack.sku ?? '').isNotEmpty;
 /// A FutureProvider rather than widget state so it survives a rebuild, and so
 /// `ref.invalidate` is the whole of "refresh" when someone installs a pack and
 /// comes back.
-final installedIconThemesProvider =
-    FutureProvider<Map<String, String>>((ref) {
+final installedIconThemesProvider = FutureProvider<Map<String, String>>((ref) {
   return ref.read(launcherHostApiProvider).installedIconPacks();
 });
 
@@ -539,7 +538,6 @@ class _Screen extends ConsumerWidget {
 
     final selectedSystem = theme.prefs.systemIconPack;
 
-
     // ── the two writes ──────────────────────────────────────────────────────
     //
     // `.edit`, never `.update`. `.update` is an inherited name collision on
@@ -642,7 +640,8 @@ class _Screen extends ConsumerWidget {
           // A signature or hash check failed. NOT retryable, and worth saying
           // plainly rather than dressing up as a network blip — retrying a bad
           // signature produces the same answer and burns someone's data.
-          context.showMessage('${p.title} failed verification and was discarded');
+          context
+              .showMessage('${p.title} failed verification and was discarded');
         case 'missingDependency':
           // ─── THE ONE STATUS THAT ALREADY KNOWS WHY ────────────────────
           //
@@ -762,7 +761,7 @@ class _Screen extends ConsumerWidget {
           // something, and a heading that contradicts the card beneath it is
           // worse than a vague one. This is true in every state and names the
           // card by what it is rather than by where the pack came from.
-          const ThemedSectionHeader('Your icons'),
+          ThemedSectionHeader(context.t('icons.yourIcons')),
 
           // ── ONE WIDE CARD, NOT A HALF-WIDTH TILE ─────────────────────────
           //
@@ -839,7 +838,7 @@ class _Screen extends ConsumerWidget {
           // wrong, and it is the one swatch somebody is most likely looking
           // for.
           if (otherDistros.isNotEmpty) ...[
-            const ThemedSectionHeader('Colours'),
+            ThemedSectionHeader(context.t('icons.colours')),
             _ColourStrip(
               theme: theme,
               // Which base is the running distro, so its swatch reads Included
@@ -853,8 +852,8 @@ class _Screen extends ConsumerWidget {
               prices: {
                 for (final base in otherDistros)
                   if (byDistro[base]!.isNotEmpty)
-                    byDistro[base]!.first.packId:
-                        ref.watch(productPriceProvider(byDistro[base]!.first.sku)),
+                    byDistro[base]!.first.packId: ref
+                        .watch(productPriceProvider(byDistro[base]!.first.sku)),
               },
               distros: [
                 for (final base in otherDistros)
@@ -893,7 +892,7 @@ class _Screen extends ConsumerWidget {
           ],
 
           if (standalone.isNotEmpty) ...[
-            const ThemedSectionHeader('Standalone packs'),
+            ThemedSectionHeader(context.t('icons.standalonePacks')),
             packGrid([
               for (final p in standalone)
                 _PackCard(
@@ -917,7 +916,7 @@ class _Screen extends ConsumerWidget {
             ),
 
           // ── theirs ────────────────────────────────────────────────────────
-          const ThemedSectionHeader('Installed packs'),
+          ThemedSectionHeader(context.t('icons.installedPacks')),
 
           installed.when(
             loading: () => const SizedBox(height: 12),
@@ -942,7 +941,7 @@ class _Screen extends ConsumerWidget {
                     children: [
                       _Card(
                         title: context.t('desklets.none'),
-                        subtitle: 'Distro icons only',
+                        subtitle: context.t('icons.distroIconsOnly'),
                         active: selectedSystem == null,
                         preview: _Schematic(theme: theme, accent: false),
                         onTap: () async {
@@ -973,8 +972,8 @@ class _Screen extends ConsumerWidget {
           // Both selections are live at once, and without this line someone who
           // has picked from both grids sees half their icons come from one and
           // reasonably concludes the other did not work.
-          const _Disclosure(
-            title: 'How the layers combine',
+          _Disclosure(
+            title: context.t('icons.howTheLayersCombine'),
             text: 'An installed pack covers the apps it has art for. Anything '
                 'it misses falls back to the icon theme, then to the distro’s '
                 'own icons.',
@@ -1383,7 +1382,10 @@ class _WearingIcons extends ConsumerWidget {
           // installed, and the row simply ends there rather than padding with
           // blanks.
           data: (bytes) {
-            final drawn = [for (final b in bytes) if (b != null) b];
+            final drawn = [
+              for (final b in bytes)
+                if (b != null) b
+            ];
             return [
               for (var i = 0; i < _count; i++)
                 slot(
@@ -1531,6 +1533,7 @@ class _ColourStrip extends StatelessWidget {
 
   final EffectiveTheme theme;
   final List<({String base, String title, PackInfo pack})> distros;
+
   /// Play's formatted price per pack id, empty until Play answers.
   final Map<String, String?> prices;
   final String? selected;
@@ -1711,34 +1714,34 @@ class _ColourAction extends ConsumerWidget {
               const SizedBox(height: 14),
             ],
             Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title, style: d.text.body.copyWith(color: c.text)),
-                  const SizedBox(height: 3),
-                  Text(
-                    // BUYING A COLOUR IS NOT BUYING A DISTRO. This is
-                    // `icons_kali`, not `distro_kali`: the outlines travel, the
-                    // shell and shape stay whatever you are running. Said here
-                    // because it is the one thing a buyer could reasonably get
-                    // wrong, and the refund is on us if they do.
-                    status == CardStatus.locked
-                        ? 'These outlines on your own shell and shape'
-                        : 'Ready to use on ${theme.spec.name}',
-                    style: d.text.caption.copyWith(color: c.textMuted),
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: d.text.body.copyWith(color: c.text)),
+                      const SizedBox(height: 3),
+                      Text(
+                        // BUYING A COLOUR IS NOT BUYING A DISTRO. This is
+                        // `icons_kali`, not `distro_kali`: the outlines travel, the
+                        // shell and shape stay whatever you are running. Said here
+                        // because it is the one thing a buyer could reasonably get
+                        // wrong, and the refund is on us if they do.
+                        status == CardStatus.locked
+                            ? 'These outlines on your own shell and shape'
+                            : 'Ready to use on ${theme.spec.name}',
+                        style: d.text.caption.copyWith(color: c.textMuted),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton(
-              onPressed: enabled ? () => onTap(status) : null,
-              child: Text(label),
-            ),
-          ],
+                ),
+                const SizedBox(width: 12),
+                FilledButton(
+                  onPressed: enabled ? () => onTap(status) : null,
+                  child: Text(label),
+                ),
+              ],
             ),
           ],
         ),
@@ -1946,7 +1949,7 @@ class _Swatch extends StatelessWidget {
             // avoid.
             if (included)
               Text(
-                'Included',
+                context.t('icons.included'),
                 maxLines: 1,
                 style: d.text.caption.copyWith(
                   color: c.accent,

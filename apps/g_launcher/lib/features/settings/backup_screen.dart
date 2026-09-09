@@ -11,6 +11,7 @@ import '../../data/prefs/wallpaper_collections.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Back up every setting to a file, and put one back.
 ///
@@ -173,10 +174,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Widget build(BuildContext context) {
     final c = ChromeScope.of(context).colors;
     final async = ref.watch(effectiveThemeProvider);
-    final name = async.hasValue ? async.requireValue.spec.name : 'this distro';
+    final name = async.hasValue ? async.requireValue.spec.name : context.t('settings.thisDistro');
 
     return ThemedScaffold(
-      title: 'Backup',
+      title: context.t('settings.backup'),
       body: ListView(
         // Clears the navigation bar. Trailing padding rather than a SafeArea,
         // so the list still scrolls behind a transparent bar.
@@ -193,14 +194,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           ),
           ThemedListRow(
             icon: Icons.ios_share,
-            title: 'Back up settings',
-            subtitle: 'Choose where to keep it',
+            title: context.t('settings.backUpSettings'),
+            subtitle: context.t('settings.chooseWhereToKeep'),
             onTap: _export,
           ),
           ThemedListRow(
             icon: Icons.settings_backup_restore,
-            title: 'Restore from a backup',
-            subtitle: 'Replaces every setting on this phone',
+            title: context.t('settings.restoreFromABackup'),
+            subtitle: context.t('settings.replacesEverySettingOn'),
             onTap: _import,
           ),
           Padding(

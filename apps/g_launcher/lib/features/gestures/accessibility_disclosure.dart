@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/repositories/app_repository.dart';
 import '../../design/components/chrome_theme.dart';
 import '../../design/components/themed_button.dart';
 import '../../design/components/themed_scaffold.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// THE ONLY DOOR TO THE ACCESSIBILITY SETTINGS INTENT.
 ///
@@ -81,9 +81,9 @@ class AccessibilityDisclosureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ThemedScaffold(
-      title: 'Accessibility service',
-      body: _DisclosureBody(),
+    return ThemedScaffold(
+      title: context.t('gestures.accessibilityService'),
+      body: const _DisclosureBody(),
     );
   }
 }
@@ -109,7 +109,7 @@ class _DisclosureBody extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'It is off right now, and it stays off unless you switch it on yourself.',
+                  context.t('gestures.itIsOffRight'),
                   style: d.text.body.copyWith(color: c.textMuted),
                 ),
                 const SizedBox(height: 26),
@@ -118,7 +118,7 @@ class _DisclosureBody extends StatelessWidget {
                 _Block(
                   icon: Icons.swipe_outlined,
                   tone: c.accent,
-                  title: 'What it is for',
+                  title: context.t('gestures.whatItIsFor'),
                   body:
                       'Four gesture actions need it: open the notification shade, open quick settings, show recent apps, and lock the screen. Android gives a third-party launcher no other way to do those four things.\n\nEvery other part of G Launcher works without it, including all the other gesture actions.',
                 ),
@@ -127,9 +127,8 @@ class _DisclosureBody extends StatelessWidget {
                 _Block(
                   icon: Icons.check_circle_outline,
                   tone: c.ok,
-                  title: 'What it will do',
-                  body:
-                      'Perform those four actions, and only when you trigger a gesture you bound to one of them yourself. Nothing runs in the background.',
+                  title: context.t('gestures.whatItWillDo'),
+                  body: context.t('gestures.performThoseFourActions'),
                 ),
 
                 // ── WHAT IT DOES NOT DO ───────────────────────────────
@@ -140,7 +139,7 @@ class _DisclosureBody extends StatelessWidget {
                 _Block(
                   icon: Icons.visibility_off_outlined,
                   tone: c.ok,
-                  title: 'What it will not do',
+                  title: context.t('gestures.whatItWillNot'),
                   body:
                       'It does not read what is on your screen. It does not record what you type. It does not watch what you do in other apps. It does not collect, store, or share any data, and it sends nothing anywhere.\n\nG Launcher asks for no accessibility events, watches no packages, and does not request permission to retrieve window content.',
                 ),
@@ -153,7 +152,7 @@ class _DisclosureBody extends StatelessWidget {
                 _Block(
                   icon: Icons.info_outline,
                   tone: c.warn,
-                  title: 'About the next screen',
+                  title: context.t('gestures.aboutTheNextScreen'),
                   body:
                       'Continue opens Android\'s own accessibility settings. That page warns that G Launcher can "observe your actions". Android shows that line for every app that uses this API. It describes what the API can do, not what G Launcher does.\n\nNothing is enabled until you switch it on there, and you can switch it off again at any time in Settings, Accessibility.',
                 ),

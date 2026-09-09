@@ -111,7 +111,7 @@ List<Widget> appearanceSection(
     if (q.isEmpty)
       SettingPreview(
         query: q,
-        caption: 'Icons and labels, live',
+        caption: context.t('settings.iconsAndLabelsLive'),
         child: SinglePreview(
           child: DevicePreview(
             palette: theme.palette,
@@ -343,7 +343,7 @@ List<Widget> appearanceSection(
               ),
               PreviewOption(
                 value: 'dark',
-                label: 'Dark',
+                label: context.t('settings.dark'),
                 child: DevicePreview(
                   palette: theme.spec.palette,
                   mode: DevicePreviewMode.desktop,
@@ -470,13 +470,13 @@ List<Widget> appearanceSection(
           const ['font', 'typeface', 'display font', 'family'],
           SettingsRow(
             icon: Icons.text_fields,
-            title: 'Display font',
-            subtitle: 'Labels, titles and menus',
+            title: context.t('settings.displayFont'),
+            subtitle: context.t('settings.labelsTitlesAndMenus'),
             trailing: ValueLabel(_fontShort(theme.prefs.displayFont)),
             onTap: () => showFontSheet(
               context,
               notifier,
-              title: 'Display font',
+              title: context.t('settings.displayFont'),
               mono: false,
               current: theme.prefs.displayFont,
               catalogue: fonts,
@@ -487,13 +487,13 @@ List<Widget> appearanceSection(
           const ['font', 'monospace', 'mono', 'terminal', 'typeface'],
           SettingsRow(
             icon: Icons.terminal,
-            title: 'Monospace font',
-            subtitle: 'The terminal and fixed-width readouts',
+            title: context.t('settings.monospaceFont'),
+            subtitle: context.t('settings.theTerminalAndFixed'),
             trailing: ValueLabel(_fontShort(theme.prefs.monoFont)),
             onTap: () => showFontSheet(
               context,
               notifier,
-              title: 'Monospace font',
+              title: context.t('settings.monospaceFont'),
               mono: true,
               // Only fixed-advance families. The terminal derives its PTY
               // column count by measuring this face, so a proportional one

@@ -51,7 +51,7 @@ Future<String?> askSshPassword(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Password',
+            context.t('terminal.password'),
             style: TextStyle(
               fontFamily: fontFamily,
               fontSize: 15,
@@ -112,7 +112,7 @@ Future<String?> askSshPassword(
                 ),
                 onPressed: () =>
                     Navigator.of(sheetContext).pop(controller.text),
-                child: const Text('Connect'),
+                child: Text(context.t('terminal.connect')),
               ),
             ],
           ),
@@ -254,7 +254,7 @@ Future<bool> confirmSshHostKey(
                   HapticFeedback.selectionClick();
                   Navigator.of(sheetContext).pop(true);
                 },
-                child: const Text('Trust this key'),
+                child: Text(context.t('terminal.trustThisKey')),
               ),
             ],
           ),

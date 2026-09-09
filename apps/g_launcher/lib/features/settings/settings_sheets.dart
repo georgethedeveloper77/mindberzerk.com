@@ -326,7 +326,7 @@ void showFontSheet(
         children: [
           settingsSheetHead(context, title),
           SheetOption(
-            label: "The distro's own font",
+            label: context.t('settings.theDistroSOwn'),
             selected: selected == distroKey,
             onTap: () {
               notifier.edit(

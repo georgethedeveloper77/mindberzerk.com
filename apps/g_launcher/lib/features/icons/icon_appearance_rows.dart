@@ -38,7 +38,7 @@ List<Widget> iconAppearanceRows(
 
   return [
         SettingPreview(
-          caption: 'Icons, live',
+          caption: context.t('icons.iconsLive'),
           child: SinglePreview(
             child: DevicePreview(
               palette: theme.palette,
@@ -56,7 +56,7 @@ List<Widget> iconAppearanceRows(
         ),
 
         SettingsGroup(
-          label: 'Shape and size',
+          label: context.t('icons.shapeAndSize'),
           scope: 'All distros',
           rows: [
       FilterRow(

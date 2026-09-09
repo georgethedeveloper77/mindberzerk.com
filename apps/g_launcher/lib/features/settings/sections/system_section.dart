@@ -137,8 +137,8 @@ List<Widget> systemSection(
           const ['backup', 'export', 'restore', 'drive', 'transfer', 'new phone'],
           SettingsRow(
             icon: Icons.backup_outlined,
-            title: 'Backup',
-            subtitle: 'Save your settings, or bring them to a new phone',
+            title: context.t('settings.backup'),
+            subtitle: context.t('settings.saveYourSettingsOr'),
             trailing: const Chevron(),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const BackupScreen()),
@@ -149,8 +149,8 @@ List<Widget> systemSection(
           const ['restore', 'defaults', 'reset', 'sections'],
           SettingsRow(
             icon: Icons.settings_backup_restore,
-            title: 'Restore defaults',
-            subtitle: 'One section at a time, or everything',
+            title: context.t('settings.restoreDefaults'),
+            subtitle: context.t('settings.oneSectionAtA'),
             trailing: const Chevron(),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(

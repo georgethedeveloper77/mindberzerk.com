@@ -129,7 +129,7 @@ class _ProSheet extends ConsumerWidget {
               // answered, which on a de-Googled ROM it never will, and saying so
               // beats a button that does nothing when tapped.
               Text(
-                'Not available to buy on this device right now.',
+                context.t('terminal.notAvailableToBuy'),
                 style: TextStyle(
                   fontFamily: fontFamily,
                   fontSize: 12.5,

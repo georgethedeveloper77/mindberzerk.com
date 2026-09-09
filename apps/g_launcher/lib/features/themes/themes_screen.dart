@@ -1449,7 +1449,7 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Distros', style: d.text.display),
+          Text(context.t('themes.distros'), style: d.text.display),
           const SizedBox(height: 3),
           Text(
             context.t('themes.headerSub'),
@@ -1470,7 +1470,7 @@ class _MoreHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
-        'More distros — pushed via updates',
+        context.t('themes.moreDistrosPushedVia'),
         style: d.text.label.copyWith(fontSize: 11.5, letterSpacing: 0.5),
       ),
     );

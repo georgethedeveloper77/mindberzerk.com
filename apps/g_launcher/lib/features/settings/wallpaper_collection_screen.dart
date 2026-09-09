@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/prefs/prefs_repository.dart';
@@ -10,7 +11,6 @@ import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import 'wallpaper_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// One collection: its images as a grid, plus add, rename and delete.
 ///
@@ -49,9 +49,9 @@ class WallpaperCollectionScreen extends ConsumerWidget {
       // this can render; this covers any other route here). Nothing to show
       // and nothing to mutate, so an empty themed page beats a crash or a
       // phantom grid.
-      return const ThemedScaffold(
-        title: 'Collection',
-        body: SizedBox.shrink(),
+      return ThemedScaffold(
+        title: context.t('settings.collection'),
+        body: const SizedBox.shrink(),
       );
     }
     final collection = found;
@@ -94,7 +94,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
     Future<void> removeImage(String path) async {
       final ok = await ThemedDialog.confirm(
         context,
-        title: 'Remove this wallpaper?',
+        title: context.t('settings.removeThisWallpaper'),
         message: 'It leaves the collection and this copy is deleted. Your '
             'original is not touched, and if it is on screen right now the '
             'screen does not change.',
@@ -121,7 +121,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
         title: 'Delete ${collection.name}?',
         message: 'The copies in this collection are deleted. Your originals '
             'are not touched, and the screen does not change.',
-        confirmLabel: 'Delete',
+        confirmLabel: context.t('settings.delete'),
         danger: true,
       );
       if (ok != true) return;
@@ -137,7 +137,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
       await resync();
       if (!context.mounted) return;
       Navigator.of(context).pop();
-      context.showMessage('Collection deleted');
+      context.showMessage(context.t('settings.collectionDeleted'));
     }
 
     final c = ChromeScope.of(context).colors;
@@ -200,23 +200,23 @@ class WallpaperCollectionScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           ThemedListRow(
             icon: Icons.add_photo_alternate_outlined,
-            title: 'Add photos',
+            title: context.t('settings.addPhotos'),
             onTap: addPhotos,
           ),
           ThemedListRow(
             icon: Icons.drive_file_rename_outline,
-            title: 'Rename',
+            title: context.t('settings.rename'),
             onTap: () => promptCollectionName(
               context,
-              title: 'Rename this collection',
+              title: context.t('settings.renameThisCollection'),
               initial: collection.name,
               onSubmit: (name) => notifier.rename(collectionId, name),
             ),
           ),
           ThemedListRow(
             icon: Icons.delete_outline,
-            title: 'Delete collection',
-            subtitle: 'Your originals are not touched',
+            title: context.t('settings.deleteCollection'),
+            subtitle: context.t('settings.yourOriginalsAreNot'),
             onTap: deleteCollection,
           ),
         ],
@@ -306,7 +306,7 @@ class _NameBodyState extends State<_NameBody> {
             style: TextStyle(color: c.text),
             cursorColor: c.accent,
             decoration: InputDecoration(
-              hintText: 'Family',
+              hintText: context.t('settings.family'),
               hintStyle: TextStyle(color: c.textFaint),
               enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: c.line),

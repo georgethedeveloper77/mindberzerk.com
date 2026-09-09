@@ -595,7 +595,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             _BarIcon(
               icon: Icons.arrow_back,
               color: c.textMuted,
-              tooltip: 'Close search',
+              tooltip: context.t('search.closeSearch'),
               onTap: _dismiss,
             ),
             Expanded(

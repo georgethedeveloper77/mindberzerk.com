@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Exact source text to the key it should mint under, consulted before the",
+    "audit's four-word generator. Two things it is for.",
+    "",
+    "COLLISIONS. A row label and its confirmation dialog differ only by a",
+    "question mark, which the generator strips, so both land on one key and",
+    "neither can be minted. The dialog gets its own name here rather than the",
+    "copy being reworded to satisfy a tool.",
+    "",
+    "WRONG MATCHES. A string whose generated key is already taken by different",
+    "English, where the answer is a second key rather than overwriting the",
+    "first.",
+    "",
+    "Match is on the DECODED text, after Dart escapes are resolved."
+  ],
+
+  "Reset everything?": "settings.resetEverythingConfirm",
+  "Reset folder appearance?": "settings.resetFolderAppearanceConfirm",
+  "Reset wallpaper settings?": "settings.resetWallpaperSettingsConfirm",
+  "Ungroup all folders?": "settings.ungroupAllFoldersConfirm",
+
+  "Scrolls up and down. No pages at all.": "setup.scrollsUpAndDownNoPages"
+}

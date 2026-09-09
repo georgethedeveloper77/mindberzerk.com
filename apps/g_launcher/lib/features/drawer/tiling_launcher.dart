@@ -494,7 +494,7 @@ class _DmenuItemsState extends ConsumerState<_DmenuItems> {
         return Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'no match',
+            context.t('drawer.noMatch'),
             style: TextStyle(
               fontFamily: mono,
               fontSize: 13,

@@ -96,6 +96,16 @@ IGNORE = {
     "features/themes/theme_catalog.dart": {
         "Ubuntu", "KDE Plasma", "Terminal",
     },
+    # ─── WHOLE PARAMETERS, NOT INDIVIDUAL VALUES ───────────────────────────
+    #
+    # `name` and `subtitle` on a distro card are IDENTIFIERS. Every value they
+    # can hold is a trademark or a version: "KDE Plasma", "6 \u00b7 Breeze",
+    # "24.04 \u00b7 GNOME", "Dr460nized". Listing them one by one means adding
+    # an entry here every time a distro ships, and forgetting once puts a
+    # translated product name on a store card for a pack somebody paid for.
+    #
+    # Naming the parameter says the real rule: this field never holds copy.
+    "features/themes/theme_catalog.dart:params": {"name", "subtitle"},
     "shells/tui_shell.dart": {
         "free \u00b7 df \u00b7 ls \u00b7 top \u00b7 settings \u00b7 themes \u00b7 help",
     },
@@ -114,10 +124,17 @@ IGNORE = {
 }
 
 
-def ignored(path, value):
-    """True when this file has declared this exact string untranslatable."""
-    for suffix, values in IGNORE.items():
-        if path.endswith(suffix) and value in values:
+def ignored(path, value, param=None):
+    """True when this file has declared this string, or its whole field, copy-free.
+
+    Two forms. A plain suffix keys a set of VALUES. A suffix ending `:params`
+    keys a set of PARAMETER NAMES, and every value they carry is exempt.
+    """
+    for suffix, entries in IGNORE.items():
+        if suffix.endswith(":params"):
+            if param and path.endswith(suffix[: -len(":params")]) and param in entries:
+                return True
+        elif path.endswith(suffix) and value in entries:
             return True
     return False
 
@@ -274,7 +291,7 @@ def scan(base):
                 bare = INTERP.sub("", value).strip()
                 if SKIP_VALUE.match(bare) or not HAS_PROSE.search(bare):
                     continue
-                if ignored(path, value):
+                if ignored(path, bare, param=m.group(1)):
                     continue
                 line_no = src_no_keys.count("\n", 0, m.start()) + 1
                 line = lines[line_no - 1] if line_no <= len(lines) else ""

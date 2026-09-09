@@ -35,10 +35,40 @@ from collections import defaultdict
 
 AUDIT = "audit.json"
 EN = "assets/i18n/en.json"
+OVERRIDES = "tools/i18n_overrides.json"
 
 # `'$name'` or `'${expr}'`. These need `t(key, vars)` and a decision about what
 # to call each placeholder, which is a judgement rather than a transformation.
 INTERP = re.compile(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*")
+
+
+# Dart's escapes, as they appear in SOURCE. The audit reports the raw text
+# between the quotes, so a string written `'Android\\'s settings'` arrives with
+# the backslash still in it.
+UNESCAPE = [
+    ("\\\\", "\x00"),   # a real backslash, parked so nothing below eats it
+    ("\\n", "\n"),
+    ("\\t", "\t"),
+    ("\\r", "\r"),
+    ("\\'", "'"),
+    ('\\"', '"'),
+    ("\\$", "$"),
+    ("\x00", "\\"),
+]
+
+
+def unescape(text):
+    """Turn Dart source escapes into the characters they stand for.
+
+    Without this the mint writes `Android\\'s` into en.json, and every locale
+    inherits a backslash that renders on the phone. The double-backslash case is
+    parked on a sentinel first, so `\\\\n` stays a backslash followed by an n
+    rather than becoming a newline.
+    """
+    out = text
+    for src, dst in UNESCAPE:
+        out = out.replace(src, dst)
+    return out
 
 
 def load(path, what):
@@ -61,6 +91,15 @@ def main():
 
     data = load(args.audit, "run: python3 tools/i18n_audit.py --json > audit.json")
     en = load(EN, "run me from the app root")
+
+    # Hand-picked keys, consulted before the generator. Optional: a repo with no
+    # collisions needs no file.
+    overrides = {}
+    if os.path.isfile(OVERRIDES):
+        overrides = {
+            k: v for k, v in json.load(open(OVERRIDES, encoding="utf-8")).items()
+            if not k.startswith("_")
+        }
 
     # Only the ones with no key yet. Anything with `existing` is reuse's job and
     # touching it here would mint a duplicate of a string already shipped in 46
@@ -94,7 +133,18 @@ def main():
     # twice, and one key serving both is the correct outcome.
     by_key = defaultdict(set)
     for h in plain:
-        by_key[h["suggest"]].add(h["text"])
+        text = unescape(h["text"])
+        # The override wins over the generated suggestion. Keyed on the text
+        # rather than on file and line, so the same string in two places
+        # resolves the same way and moving code does not silently unresolve it.
+        by_key[overrides.get(text, h["suggest"])].add(text)
+
+    unused = sorted(set(overrides) - {t for v in by_key.values() for t in v})
+    if unused:
+        print(f"{len(unused)} overrides match nothing, stale or mistyped:")
+        for t in unused:
+            print(f"  {t!r}")
+        print()
 
     clashes = {k: v for k, v in by_key.items() if len(v) > 1}
     taken = {k: v for k, v in by_key.items() if k in en and en[k] not in v}
