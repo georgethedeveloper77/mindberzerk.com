@@ -83,6 +83,36 @@ def literal_span(line, text):
     return None
 
 
+def adjacent_literal(lines, idx, start, end):
+    """True when the literal at [start:end] is glued to another one.
+
+    Checked in all four directions a neighbour can sit: same line either side,
+    and the nearest non-blank line above or below. A line above that ends in a
+    quote is only a neighbour if it does NOT end the argument, so a trailing
+    comma, bracket or semicolon clears it.
+    """
+    before = lines[idx][:start].rstrip()
+    after = lines[idx][end:].lstrip()
+    if before.endswith(("'", '"')) or after.startswith(("'", '"')):
+        return True
+
+    if not after:
+        for j in range(idx + 1, min(idx + 3, len(lines))):
+            nxt = lines[j].strip()
+            if not nxt:
+                continue
+            return nxt.startswith(("'", '"'))
+
+    if not before:
+        for j in range(idx - 1, max(idx - 3, -1), -1):
+            prev = lines[j].strip()
+            if not prev:
+                continue
+            return prev.endswith(("'", '"'))
+
+    return False
+
+
 def enclosing_context(lines, line_no):
     """The name of the nearest BuildContext parameter declared above the site.
 
@@ -223,6 +253,30 @@ def main():
 
             idx, (start, end, _) = found
             line = lines[idx]
+
+            # ─── ADJACENT LITERALS ARE ONE STRING ───────────────────────
+            #
+            # Dart concatenates literals that merely sit next to each other:
+            #
+            #     Text(
+            #       'Rotation, fit and lock. Your photos stay'
+            #       ' where they are.',
+            #     )
+            #
+            # That is ONE argument. Replacing the first half leaves the second
+            # stranded as a second positional argument, and the analyzer says
+            # "Expected to find ','" without ever mentioning strings.
+            #
+            # The audit reports only the first piece, so its `text` is half a
+            # sentence and its suggested key is named after half a sentence.
+            # Both halves want to become one key with the full English in it,
+            # which is a join this pass has no business performing.
+            if adjacent_literal(lines, idx, start, end):
+                skipped.append(
+                    (path, n, "adjacent literal concatenation, join by hand")
+                )
+                continue
+
             ctx = enclosing_context(lines, idx + 1)
             if ctx is None:
                 skipped.append((path, n, "no BuildContext in scope above"))

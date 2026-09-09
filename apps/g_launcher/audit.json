@@ -1,96 +1,6 @@
 {
   "hardcoded": [
     {
-      "file": "lib/app.dart",
-      "line": 27,
-      "where": "title (param)",
-      "text": "G Launcher",
-      "existing": [
-        "drawer.gLauncher"
-      ],
-      "suggest": "drawer.gLauncher"
-    },
-    {
-      "file": "lib/design/components/anchored_menu.dart",
-      "line": 519,
-      "where": "tooltip (param)",
-      "text": "App info",
-      "existing": [
-        "shell.appInfo"
-      ],
-      "suggest": "shell.appInfo"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 132,
-      "where": "label (param)",
-      "text": "Remove from Dock",
-      "existing": [
-        "shell.removeFromDock"
-      ],
-      "suggest": "shell.removeFromDock"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 140,
-      "where": "label (param)",
-      "text": "Keep in Dock",
-      "existing": [
-        "shell.keepInDock"
-      ],
-      "suggest": "shell.keepInDock"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 152,
-      "where": "label (param)",
-      "text": "Hide from Launchpad",
-      "existing": [
-        "shell.hideFromLaunchpad"
-      ],
-      "suggest": "shell.hideFromLaunchpad"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 165,
-      "where": "label (param)",
-      "text": "Take out of the Dock",
-      "existing": [
-        "shell.takeOutOfDock"
-      ],
-      "suggest": "shell.takeOutOfDock"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 176,
-      "where": "label (param)",
-      "text": "Uninstall",
-      "existing": [
-        "drawer.uninstall"
-      ],
-      "suggest": "drawer.uninstall"
-    },
-    {
-      "file": "lib/shells/aqua_shell.dart",
-      "line": 183,
-      "where": "label (param)",
-      "text": "App info",
-      "existing": [
-        "shell.appInfo"
-      ],
-      "suggest": "shell.appInfo"
-    },
-    {
-      "file": "lib/shells/tui_shell.dart",
-      "line": 534,
-      "where": "Text (call)",
-      "text": "free \u00b7 df \u00b7 ls \u00b7 top \u00b7 settings \u00b7 themes \u00b7 help",
-      "existing": [
-        "shell.freeDfLsTop"
-      ],
-      "suggest": "shell.freeDfLsTop"
-    },
-    {
       "file": "lib/features/settings/backup_screen.dart",
       "line": 135,
       "where": "title (param)",
@@ -227,26 +137,6 @@
       "suggest": "settings.percentUsed"
     },
     {
-      "file": "lib/features/settings/device_pages.dart",
-      "line": 532,
-      "where": "Text (call)",
-      "text": "Under 10% free. Android starts refusing updates and photos around here.",
-      "existing": [
-        "settings.under10FreeAndroid"
-      ],
-      "suggest": "settings.under10FreeAndroid"
-    },
-    {
-      "file": "lib/features/settings/device_pages.dart",
-      "line": 613,
-      "where": "Text (call)",
-      "text": "Reading",
-      "existing": [
-        "settings.reading"
-      ],
-      "suggest": "settings.reading"
-    },
-    {
       "file": "lib/features/settings/folders_screen.dart",
       "line": 190,
       "where": "title (param)",
@@ -280,17 +170,6 @@
     },
     {
       "file": "lib/features/settings/folders_screen.dart",
-      "line": 199,
-      "where": "confirmLabel (param)",
-      "text": "Reset",
-      "existing": [
-        "settings.reset",
-        "shell.resetPanel"
-      ],
-      "suggest": "settings.reset"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
       "line": 214,
       "where": "title (param)",
       "text": "Ungroup all folders",
@@ -320,16 +199,6 @@
       "text": "The apps are not touched. They leave their ",
       "existing": [],
       "suggest": "settings.theAppsAreNot"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 223,
-      "where": "confirmLabel (param)",
-      "text": "Ungroup",
-      "existing": [
-        "drawer.ungroup"
-      ],
-      "suggest": "drawer.ungroup"
     },
     {
       "file": "lib/features/settings/folders_screen.dart",
@@ -380,38 +249,8 @@
       "suggest": "settings.groupSuggestionSizeApps"
     },
     {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 679,
-      "where": "Text (call)",
-      "text": "Nothing is hidden.",
-      "existing": [
-        "settings.nothingIsHidden"
-      ],
-      "suggest": "settings.nothingIsHidden"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 722,
-      "where": "Text (call)",
-      "text": "Unhide",
-      "existing": [
-        "settings.unhide"
-      ],
-      "suggest": "settings.unhide"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 764,
-      "where": "Text (call)",
-      "text": "Drag one app onto another in the drawer to make a folder.",
-      "existing": [
-        "settings.dragOneAppOnto"
-      ],
-      "suggest": "settings.dragOneAppOnto"
-    },
-    {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 38,
+      "line": 39,
       "where": "title (param)",
       "text": "Restore defaults",
       "existing": [],
@@ -419,7 +258,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 55,
+      "line": 56,
       "where": "confirmLabel (param)",
       "text": "Restore",
       "existing": [],
@@ -427,7 +266,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 76,
+      "line": 77,
       "where": "message (param)",
       "text": "These settings return to the distro defaults. Nothing ",
       "existing": [],
@@ -435,7 +274,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 87,
+      "line": 88,
       "where": "title (param)",
       "text": "Restore defaults",
       "existing": [],
@@ -443,17 +282,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 103,
-      "where": "title (param)",
-      "text": "Icons",
-      "existing": [
-        "settings.icons"
-      ],
-      "suggest": "settings.icons"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 104,
+      "line": 105,
       "where": "subtitle (param)",
       "text": "Shape, size, corners, packs",
       "existing": [],
@@ -461,7 +290,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 109,
+      "line": 110,
       "where": "title (param)",
       "text": "Type",
       "existing": [],
@@ -469,7 +298,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 110,
+      "line": 111,
       "where": "subtitle (param)",
       "text": "Label lines and text size",
       "existing": [],
@@ -477,18 +306,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 115,
-      "where": "title (param)",
-      "text": "Folders",
-      "existing": [
-        "setup.step.folders",
-        "setup.title.folders"
-      ],
-      "suggest": "setup.step.folders"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 116,
+      "line": 117,
       "where": "subtitle (param)",
       "text": "Grid and shape. Your folders stay",
       "existing": [],
@@ -496,7 +314,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 121,
+      "line": 122,
       "where": "title (param)",
       "text": "Drawer",
       "existing": [],
@@ -504,7 +322,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 122,
+      "line": 123,
       "where": "subtitle (param)",
       "text": "Style, sorting, columns. A custom arrangement is kept",
       "existing": [],
@@ -512,17 +330,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 127,
-      "where": "title (param)",
-      "text": "Wallpaper",
-      "existing": [
-        "settings.wallpaper"
-      ],
-      "suggest": "settings.wallpaper"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 128,
+      "line": 129,
       "where": "subtitle (param)",
       "text": "Rotation, fit and lock. Your photos stay",
       "existing": [],
@@ -530,17 +338,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 135,
-      "where": "title (param)",
-      "text": "Gestures",
-      "existing": [
-        "settings.gestures"
-      ],
-      "suggest": "settings.gestures"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 136,
+      "line": 137,
       "where": "subtitle (param)",
       "text": "Every swipe back to its default",
       "existing": [],
@@ -548,17 +346,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 141,
-      "where": "title (param)",
-      "text": "Desktop",
-      "existing": [
-        "setup.step.distro"
-      ],
-      "suggest": "setup.step.distro"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 142,
+      "line": 143,
       "where": "subtitle (param)",
       "text": "Dock, bar, grid and workspaces",
       "existing": [],
@@ -566,17 +354,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 147,
-      "where": "title (param)",
-      "text": "Surfaces",
-      "existing": [
-        "settings.surfaces"
-      ],
-      "suggest": "settings.surfaces"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 148,
+      "line": 149,
       "where": "subtitle (param)",
       "text": "All four opacity sliders rejoin as one",
       "existing": [],
@@ -584,7 +362,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 154,
+      "line": 155,
       "where": "title (param)",
       "text": "Reset everything",
       "existing": [],
@@ -592,7 +370,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 155,
+      "line": 156,
       "where": "subtitle (param)",
       "text": "This distro back to a clean install",
       "existing": [],
@@ -600,7 +378,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 158,
+      "line": 159,
       "where": "title (param)",
       "text": "Reset everything?",
       "existing": [],
@@ -608,7 +386,7 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 159,
+      "line": 160,
       "where": "message (param)",
       "text": "Every setting on this distro returns to its default, ",
       "existing": [],
@@ -616,62 +394,11 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 95,
+      "line": 96,
       "where": "Text (call)",
       "text": "Settings only. Folders, desklets, arrangements and photos ",
       "existing": [],
       "suggest": "settings.settingsOnlyFoldersDesklets"
-    },
-    {
-      "file": "lib/features/settings/settings_rows.dart",
-      "line": 254,
-      "where": "Text (call)",
-      "text": "Reset",
-      "existing": [
-        "settings.reset",
-        "shell.resetPanel"
-      ],
-      "suggest": "settings.reset"
-    },
-    {
-      "file": "lib/features/settings/settings_rows.dart",
-      "line": 521,
-      "where": "Text (call)",
-      "text": "System",
-      "existing": [
-        "settings.system"
-      ],
-      "suggest": "settings.system"
-    },
-    {
-      "file": "lib/features/settings/settings_screen.dart",
-      "line": 394,
-      "where": "hintText (param)",
-      "text": "Search settings",
-      "existing": [
-        "settings.searchSettings"
-      ],
-      "suggest": "settings.searchSettings"
-    },
-    {
-      "file": "lib/features/settings/settings_screen.dart",
-      "line": 457,
-      "where": "Text (call)",
-      "text": "G Launcher is not your home app",
-      "existing": [
-        "settings.gLauncherIsNot"
-      ],
-      "suggest": "settings.gLauncherIsNot"
-    },
-    {
-      "file": "lib/features/settings/settings_screen.dart",
-      "line": 466,
-      "where": "Text (call)",
-      "text": "Gestures and the home button will not work",
-      "existing": [
-        "settings.gesturesAndTheHome"
-      ],
-      "suggest": "settings.gesturesAndTheHome"
     },
     {
       "file": "lib/features/settings/settings_sheets.dart",
@@ -691,7 +418,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 52,
+      "line": 53,
       "where": "title (param)",
       "text": "Collection",
       "existing": [],
@@ -699,7 +426,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 96,
+      "line": 97,
       "where": "title (param)",
       "text": "Remove this wallpaper?",
       "existing": [],
@@ -707,7 +434,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 97,
+      "line": 98,
       "where": "message (param)",
       "text": "It leaves the collection and this copy is deleted. Your ",
       "existing": [],
@@ -715,17 +442,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 100,
-      "where": "confirmLabel (param)",
-      "text": "Remove",
-      "existing": [
-        "desklets.remove"
-      ],
-      "suggest": "desklets.remove"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 120,
+      "line": 121,
       "where": "title (param)",
       "text": "Delete ${collection.name}?",
       "existing": [],
@@ -733,7 +450,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 121,
+      "line": 122,
       "where": "message (param)",
       "text": "The copies in this collection are deleted. Your originals ",
       "existing": [],
@@ -741,7 +458,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 123,
+      "line": 124,
       "where": "confirmLabel (param)",
       "text": "Delete",
       "existing": [],
@@ -749,7 +466,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 202,
+      "line": 203,
       "where": "title (param)",
       "text": "Add photos",
       "existing": [],
@@ -757,7 +474,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 207,
+      "line": 208,
       "where": "title (param)",
       "text": "Rename",
       "existing": [],
@@ -765,7 +482,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 210,
+      "line": 211,
       "where": "title (param)",
       "text": "Rename this collection",
       "existing": [],
@@ -773,7 +490,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 217,
+      "line": 218,
       "where": "title (param)",
       "text": "Delete collection",
       "existing": [],
@@ -781,7 +498,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 218,
+      "line": 219,
       "where": "subtitle (param)",
       "text": "Your originals are not touched",
       "existing": [],
@@ -789,7 +506,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 308,
+      "line": 309,
       "where": "hintText (param)",
       "text": "Family",
       "existing": [],
@@ -797,27 +514,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 320,
-      "where": "label (param)",
-      "text": "Save",
-      "existing": [
-        "common.save"
-      ],
-      "suggest": "common.save"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 114,
-      "where": "showMessage (call)",
-      "text": "Removed",
-      "existing": [
-        "wallpaper.removed"
-      ],
-      "suggest": "wallpaper.removed"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 139,
+      "line": 140,
       "where": "showMessage (call)",
       "text": "Collection deleted",
       "existing": [],
@@ -825,7 +522,7 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 154,
+      "line": 155,
       "where": "Text (call)",
       "text": "Nothing here yet. Add photos and this set can rotate on ",
       "existing": [],
@@ -833,33 +530,11 @@
     },
     {
       "file": "lib/features/settings/wallpaper_framing_screen.dart",
-      "line": 160,
+      "line": 161,
       "where": "label (param)",
       "text": "Wallpapers",
       "existing": [],
       "suggest": "settings.wallpapers"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_framing_screen.dart",
-      "line": 166,
-      "where": "label (param)",
-      "text": "Done",
-      "existing": [
-        "shell.done",
-        "common.done"
-      ],
-      "suggest": "shell.done"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_framing_screen.dart",
-      "line": 259,
-      "where": "label (param)",
-      "text": "Reset",
-      "existing": [
-        "settings.reset",
-        "shell.resetPanel"
-      ],
-      "suggest": "settings.reset"
     },
     {
       "file": "lib/features/settings/wallpaper_screen.dart",
@@ -868,26 +543,6 @@
       "text": "Choose where to apply",
       "existing": [],
       "suggest": "settings.chooseWhereToApply"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 165,
-      "where": "label (param)",
-      "text": "Home screen",
-      "existing": [
-        "setup.homeScreen"
-      ],
-      "suggest": "setup.homeScreen"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 183,
-      "where": "label (param)",
-      "text": "Next",
-      "existing": [
-        "common.next"
-      ],
-      "suggest": "common.next"
     },
     {
       "file": "lib/features/settings/wallpaper_screen.dart",
@@ -963,17 +618,6 @@
     },
     {
       "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 1157,
-      "where": "confirmLabel (param)",
-      "text": "Reset",
-      "existing": [
-        "settings.reset",
-        "shell.resetPanel"
-      ],
-      "suggest": "settings.reset"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_screen.dart",
       "line": 1623,
       "where": "subtitle (param)",
       "text": "Sets it as your wallpaper",
@@ -1029,16 +673,6 @@
       "suggest": "settings.wallpaperSettingsReset"
     },
     {
-      "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 1363,
-      "where": "Text (call)",
-      "text": "Nothing yet",
-      "existing": [
-        "settings.nothingYet"
-      ],
-      "suggest": "settings.nothingYet"
-    },
-    {
       "file": "lib/features/settings/sections/appearance_section.dart",
       "line": 114,
       "where": "caption (param)",
@@ -1048,31 +682,11 @@
     },
     {
       "file": "lib/features/settings/sections/appearance_section.dart",
-      "line": 336,
-      "where": "label (param)",
-      "text": "Light",
-      "existing": [
-        "settings.light"
-      ],
-      "suggest": "settings.light"
-    },
-    {
-      "file": "lib/features/settings/sections/appearance_section.dart",
       "line": 346,
       "where": "label (param)",
       "text": "Dark",
       "existing": [],
       "suggest": "settings.dark"
-    },
-    {
-      "file": "lib/features/settings/sections/appearance_section.dart",
-      "line": 356,
-      "where": "label (param)",
-      "text": "System",
-      "existing": [
-        "settings.system"
-      ],
-      "suggest": "settings.system"
     },
     {
       "file": "lib/features/settings/sections/appearance_section.dart",
@@ -1132,27 +746,6 @@
     },
     {
       "file": "lib/features/settings/sections/apps_section.dart",
-      "line": 232,
-      "where": "label (param)",
-      "text": "List",
-      "existing": [
-        "settings.list"
-      ],
-      "suggest": "settings.list"
-    },
-    {
-      "file": "lib/features/settings/sections/apps_section.dart",
-      "line": 434,
-      "where": "label (param)",
-      "text": "Dock",
-      "existing": [
-        "setup.step.dock",
-        "setup.title.dock"
-      ],
-      "suggest": "setup.step.dock"
-    },
-    {
-      "file": "lib/features/settings/sections/apps_section.dart",
       "line": 442,
       "where": "title (param)",
       "text": "Removed from the dock",
@@ -1208,26 +801,6 @@
       "suggest": "settings.dockBarAndDrawer"
     },
     {
-      "file": "lib/features/settings/sections/gestures_section.dart",
-      "line": 143,
-      "where": "Text (call)",
-      "text": "Shade, quick settings, recents and lock",
-      "existing": [
-        "settings.shadeQuickSettingsRecents"
-      ],
-      "suggest": "settings.shadeQuickSettingsRecents"
-    },
-    {
-      "file": "lib/features/settings/sections/gestures_section.dart",
-      "line": 152,
-      "where": "Text (call)",
-      "text": "Needs an accessibility service",
-      "existing": [
-        "settings.needsAnAccessibilityService"
-      ],
-      "suggest": "settings.needsAnAccessibilityService"
-    },
-    {
       "file": "lib/features/settings/sections/system_section.dart",
       "line": 140,
       "where": "title (param)",
@@ -1260,16 +833,6 @@
       "suggest": "settings.oneSectionAtA"
     },
     {
-      "file": "lib/features/settings/sections/system_section.dart",
-      "line": 197,
-      "where": "title (param)",
-      "text": "G Launcher",
-      "existing": [
-        "drawer.gLauncher"
-      ],
-      "suggest": "drawer.gLauncher"
-    },
-    {
       "file": "lib/features/home/home_screen.dart",
       "line": 135,
       "where": "Text (call)",
@@ -1278,108 +841,14 @@
       "suggest": "home.themeFailedToLoad"
     },
     {
-      "file": "lib/features/home/gnome/gnome_dock.dart",
-      "line": 218,
-      "where": "label (param)",
-      "text": "Activities",
-      "existing": [
-        "home.activities",
-        "shell.moduleActivities"
-      ],
-      "suggest": "home.activities"
-    },
-    {
-      "file": "lib/features/home/gnome/gnome_dock.dart",
-      "line": 234,
-      "where": "label (param)",
-      "text": "Activities",
-      "existing": [
-        "home.activities",
-        "shell.moduleActivities"
-      ],
-      "suggest": "home.activities"
-    },
-    {
       "file": "lib/features/home/gnome/gnome_top_bar.dart",
-      "line": 189,
+      "line": 190,
       "where": "label (param)",
       "text": "Quick settings",
       "existing": [
         "gestures.quickSettings"
       ],
       "suggest": "gestures.quickSettings"
-    },
-    {
-      "file": "lib/features/home/gnome/gnome_top_bar.dart",
-      "line": 281,
-      "where": "label (param)",
-      "text": "Activities",
-      "existing": [
-        "home.activities",
-        "shell.moduleActivities"
-      ],
-      "suggest": "home.activities"
-    },
-    {
-      "file": "lib/features/home/gnome/gnome_top_bar.dart",
-      "line": 483,
-      "where": "label (param)",
-      "text": "Quick settings",
-      "existing": [
-        "gestures.quickSettings"
-      ],
-      "suggest": "gestures.quickSettings"
-    },
-    {
-      "file": "lib/features/home/gnome/gnome_top_bar.dart",
-      "line": 292,
-      "where": "Text (call)",
-      "text": "Activities",
-      "existing": [
-        "home.activities",
-        "shell.moduleActivities"
-      ],
-      "suggest": "home.activities"
-    },
-    {
-      "file": "lib/features/home/aqua/aqua_dock.dart",
-      "line": 347,
-      "where": "label (param)",
-      "text": "Launchpad",
-      "existing": [
-        "home.launchpad"
-      ],
-      "suggest": "home.launchpad"
-    },
-    {
-      "file": "lib/features/home/aqua/aqua_menu_bar.dart",
-      "line": 157,
-      "where": "label (param)",
-      "text": "Spotlight",
-      "existing": [
-        "home.spotlight"
-      ],
-      "suggest": "home.spotlight"
-    },
-    {
-      "file": "lib/features/drawer/app_drawer.dart",
-      "line": 1132,
-      "where": "hintText (param)",
-      "text": "Search",
-      "existing": [
-        "drawer.search"
-      ],
-      "suggest": "drawer.search"
-    },
-    {
-      "file": "lib/features/drawer/app_drawer.dart",
-      "line": 1140,
-      "where": "Text (call)",
-      "text": "Search",
-      "existing": [
-        "drawer.search"
-      ],
-      "suggest": "drawer.search"
     },
     {
       "file": "lib/features/drawer/drawer_items.dart",
@@ -1390,80 +859,8 @@
       "suggest": "drawer.suggestions"
     },
     {
-      "file": "lib/features/drawer/folder_overlay.dart",
-      "line": 813,
-      "where": "semantic (param)",
-      "text": "Ungroup this folder",
-      "existing": [
-        "drawer.ungroupThisFolder"
-      ],
-      "suggest": "drawer.ungroupThisFolder"
-    },
-    {
-      "file": "lib/features/drawer/folder_overlay.dart",
-      "line": 833,
-      "where": "semantic (param)",
-      "text": "Add apps to this folder",
-      "existing": [
-        "drawer.addAppsToThis"
-      ],
-      "suggest": "drawer.addAppsToThis"
-    },
-    {
-      "file": "lib/features/drawer/folder_overlay.dart",
-      "line": 593,
-      "where": "Text (call)",
-      "text": "Every app is already in a folder.",
-      "existing": [
-        "drawer.everyAppIsAlready"
-      ],
-      "suggest": "drawer.everyAppIsAlready"
-    },
-    {
-      "file": "lib/features/drawer/kickoff_drawer.dart",
-      "line": 1130,
-      "where": "label (param)",
-      "text": "G Launcher",
-      "existing": [
-        "drawer.gLauncher"
-      ],
-      "suggest": "drawer.gLauncher"
-    },
-    {
-      "file": "lib/features/drawer/kickoff_drawer.dart",
-      "line": 1144,
-      "where": "label (param)",
-      "text": "Device settings",
-      "existing": [
-        "drawer.deviceSettings",
-        "drawer.deviceSettings_2"
-      ],
-      "suggest": "drawer.deviceSettings"
-    },
-    {
-      "file": "lib/features/drawer/library_view.dart",
-      "line": 364,
-      "where": "Text (call)",
-      "text": "Done",
-      "existing": [
-        "shell.done",
-        "common.done"
-      ],
-      "suggest": "shell.done"
-    },
-    {
-      "file": "lib/features/drawer/library_view.dart",
-      "line": 685,
-      "where": "Text (call)",
-      "text": "Cancel",
-      "existing": [
-        "common.cancel"
-      ],
-      "suggest": "common.cancel"
-    },
-    {
       "file": "lib/features/drawer/tiling_launcher.dart",
-      "line": 495,
+      "line": 496,
       "where": "Text (call)",
       "text": "no match",
       "existing": [],
@@ -1471,62 +868,11 @@
     },
     {
       "file": "lib/features/drawer/tiling_launcher.dart",
-      "line": 750,
-      "where": "Text (call)",
-      "text": "no matches",
-      "existing": [
-        "drawer.noMatches"
-      ],
-      "suggest": "drawer.noMatches"
-    },
-    {
-      "file": "lib/features/drawer/tiling_launcher.dart",
-      "line": 1013,
+      "line": 1014,
       "where": "Text (call)",
       "text": "$count \u00b7 \u21b5 runs the top match",
       "existing": [],
       "suggest": "drawer.countRunsTheTop"
-    },
-    {
-      "file": "lib/features/desklets/desklet_picker.dart",
-      "line": 465,
-      "where": "hintText (param)",
-      "text": "Search widgets",
-      "existing": [
-        "desklets.searchWidgets"
-      ],
-      "suggest": "desklets.searchWidgets"
-    },
-    {
-      "file": "lib/features/desklets/desklet_picker.dart",
-      "line": 410,
-      "where": "Text (call)",
-      "text": "Add to desktop",
-      "existing": [
-        "desklets.addToDesktop",
-        "shell.addToHome"
-      ],
-      "suggest": "desklets.addToDesktop"
-    },
-    {
-      "file": "lib/features/desklets/terminal_commands.dart",
-      "line": 185,
-      "where": "showMessage (call)",
-      "text": "No room; try clear",
-      "existing": [
-        "desklets.noRoomTryClear"
-      ],
-      "suggest": "desklets.noRoomTryClear"
-    },
-    {
-      "file": "lib/features/desklets/kinds/control_desklets.dart",
-      "line": 124,
-      "where": "hintText (param)",
-      "text": "Note",
-      "existing": [
-        "desklets.note"
-      ],
-      "suggest": "desklets.note"
     },
     {
       "file": "lib/features/setup/setup_screen.dart",
@@ -1535,16 +881,6 @@
       "text": "App icons",
       "existing": [],
       "suggest": "setup.appIcons"
-    },
-    {
-      "file": "lib/features/setup/setup_screen.dart",
-      "line": 2560,
-      "where": "title (param)",
-      "text": "One long list",
-      "existing": [
-        "setup.oneLongList"
-      ],
-      "suggest": "setup.oneLongList"
     },
     {
       "file": "lib/features/setup/setup_screen.dart",
@@ -1588,7 +924,7 @@
     },
     {
       "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 52,
+      "line": 53,
       "where": "Text (call)",
       "text": "Password",
       "existing": [],
@@ -1596,17 +932,7 @@
     },
     {
       "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 104,
-      "where": "Text (call)",
-      "text": "Cancel",
-      "existing": [
-        "common.cancel"
-      ],
-      "suggest": "common.cancel"
-    },
-    {
-      "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 114,
+      "line": 115,
       "where": "Text (call)",
       "text": "Connect",
       "existing": [],
@@ -1614,7 +940,7 @@
     },
     {
       "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 229,
+      "line": 230,
       "where": "Text (call)",
       "text": "On the server:  ssh-keygen -lf /etc/ssh/ssh_host_${_keyFile(keyType)}_key.pub",
       "existing": [],
@@ -1622,17 +948,7 @@
     },
     {
       "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 244,
-      "where": "Text (call)",
-      "text": "Cancel",
-      "existing": [
-        "common.cancel"
-      ],
-      "suggest": "common.cancel"
-    },
-    {
-      "file": "lib/features/terminal/ssh_sheets.dart",
-      "line": 256,
+      "line": 257,
       "where": "Text (call)",
       "text": "Trust this key",
       "existing": [],
@@ -1688,7 +1004,7 @@
     },
     {
       "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 79,
+      "line": 80,
       "where": "Text (call)",
       "text": "$command needs Terminal Pro",
       "existing": [],
@@ -1696,7 +1012,7 @@
     },
     {
       "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 111,
+      "line": 112,
       "where": "Text (call)",
       "text": "Every command stays free, and so does one saved server with a ",
       "existing": [],
@@ -1704,7 +1020,7 @@
     },
     {
       "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 130,
+      "line": 131,
       "where": "Text (call)",
       "text": "Not available to buy on this device right now.",
       "existing": [],
@@ -1712,21 +1028,11 @@
     },
     {
       "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 152,
+      "line": 153,
       "where": "Text (call)",
       "text": "Unlock for $price",
       "existing": [],
       "suggest": "terminal.unlockForPrice"
-    },
-    {
-      "file": "lib/features/terminal/terminal_pro_sheet.dart",
-      "line": 164,
-      "where": "Text (call)",
-      "text": "Not now",
-      "existing": [
-        "settings.notNow"
-      ],
-      "suggest": "settings.notNow"
     },
     {
       "file": "lib/features/terminal/terminal_view.dart",
@@ -1754,7 +1060,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 84,
+      "line": 85,
       "where": "title (param)",
       "text": "Accessibility service",
       "existing": [],
@@ -1762,7 +1068,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 120,
+      "line": 121,
       "where": "title (param)",
       "text": "What it is for",
       "existing": [],
@@ -1770,7 +1076,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 121,
+      "line": 122,
       "where": "body (param)",
       "text": "Four gesture actions need it: open the notification shade, open quick settings, show recent apps, and lock the screen. Android gives a third-party launcher no other way to do those four things.\\n\\nEvery other part of G Launcher works without it, including all the other gesture actions.",
       "existing": [],
@@ -1778,7 +1084,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 129,
+      "line": 130,
       "where": "title (param)",
       "text": "What it will do",
       "existing": [],
@@ -1786,7 +1092,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 130,
+      "line": 131,
       "where": "body (param)",
       "text": "Perform those four actions, and only when you trigger a gesture you bound to one of them yourself. Nothing runs in the background.",
       "existing": [],
@@ -1794,7 +1100,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 142,
+      "line": 143,
       "where": "title (param)",
       "text": "What it will not do",
       "existing": [],
@@ -1802,7 +1108,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 143,
+      "line": 144,
       "where": "body (param)",
       "text": "It does not read what is on your screen. It does not record what you type. It does not watch what you do in other apps. It does not collect, store, or share any data, and it sends nothing anywhere.\\n\\nG Launcher asks for no accessibility events, watches no packages, and does not request permission to retrieve window content.",
       "existing": [],
@@ -1810,7 +1116,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 155,
+      "line": 156,
       "where": "title (param)",
       "text": "About the next screen",
       "existing": [],
@@ -1818,7 +1124,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 156,
+      "line": 157,
       "where": "body (param)",
       "text": "Continue opens Android\\'s own accessibility settings. That page warns that G Launcher can \"observe your actions\". Android shows that line for every app that uses this API. It describes what the API can do, not what G Launcher does.\\n\\nNothing is enabled until you switch it on there, and you can switch it off again at any time in Settings, Accessibility.",
       "existing": [],
@@ -1826,27 +1132,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 180,
-      "where": "label (param)",
-      "text": "Not now",
-      "existing": [
-        "settings.notNow"
-      ],
-      "suggest": "settings.notNow"
-    },
-    {
-      "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 186,
-      "where": "label (param)",
-      "text": "Continue",
-      "existing": [
-        "setup.next.continue"
-      ],
-      "suggest": "setup.next.continue"
-    },
-    {
-      "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 105,
+      "line": 106,
       "where": "Text (call)",
       "text": "G Launcher wants to use Android\\'s accessibility service",
       "existing": [],
@@ -1854,7 +1140,7 @@
     },
     {
       "file": "lib/features/gestures/accessibility_disclosure.dart",
-      "line": 110,
+      "line": 111,
       "where": "Text (call)",
       "text": "It is off right now, and it stays off unless you switch it on yourself.",
       "existing": [],
@@ -1886,47 +1172,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 238,
-      "where": "title (param)",
-      "text": "Icons",
-      "existing": [
-        "settings.icons"
-      ],
-      "suggest": "settings.icons"
-    },
-    {
-      "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 240,
-      "where": "title (param)",
-      "text": "Icons",
-      "existing": [
-        "settings.icons"
-      ],
-      "suggest": "settings.icons"
-    },
-    {
-      "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 734,
-      "where": "title (param)",
-      "text": "Icons",
-      "existing": [
-        "settings.icons"
-      ],
-      "suggest": "settings.icons"
-    },
-    {
-      "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 943,
-      "where": "title (param)",
-      "text": "None",
-      "existing": [
-        "desklets.none"
-      ],
-      "suggest": "desklets.none"
-    },
-    {
-      "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 944,
+      "line": 945,
       "where": "subtitle (param)",
       "text": "Distro icons only",
       "existing": [],
@@ -1934,7 +1180,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 976,
+      "line": 977,
       "where": "title (param)",
       "text": "How the layers combine",
       "existing": [],
@@ -1942,7 +1188,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 633,
+      "line": 634,
       "where": "showMessage (call)",
       "text": "${p.title} needs to be purchased first",
       "existing": [],
@@ -1950,7 +1196,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 635,
+      "line": 636,
       "where": "showMessage (call)",
       "text": "${p.title} needs a newer version of G Launcher",
       "existing": [],
@@ -1958,7 +1204,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 637,
+      "line": 638,
       "where": "showMessage (call)",
       "text": "Not enough free space for ${p.title}",
       "existing": [],
@@ -1966,7 +1212,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 644,
+      "line": 645,
       "where": "showMessage (call)",
       "text": "${p.title} failed verification and was discarded",
       "existing": [],
@@ -1974,7 +1220,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 664,
+      "line": 665,
       "where": "showMessage (call)",
       "text": "Could not download ${p.title}, try again",
       "existing": [],
@@ -1982,7 +1228,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 678,
+      "line": 679,
       "where": "showMessage (call)",
       "text": "${p.title} is already your icon theme",
       "existing": [],
@@ -1990,7 +1236,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 709,
+      "line": 710,
       "where": "showMessage (call)",
       "text": "${p.title} is not available to buy right now",
       "existing": [],
@@ -1998,7 +1244,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 713,
+      "line": 714,
       "where": "showMessage (call)",
       "text": "${p.title} needs a newer version of G Launcher",
       "existing": [],
@@ -2006,7 +1252,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 764,
+      "line": 765,
       "where": "ThemedSectionHeader (call)",
       "text": "Your icons",
       "existing": [],
@@ -2014,7 +1260,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 841,
+      "line": 842,
       "where": "ThemedSectionHeader (call)",
       "text": "Colours",
       "existing": [],
@@ -2022,7 +1268,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 895,
+      "line": 896,
       "where": "ThemedSectionHeader (call)",
       "text": "Standalone packs",
       "existing": [],
@@ -2030,7 +1276,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 919,
+      "line": 920,
       "where": "ThemedSectionHeader (call)",
       "text": "Installed packs",
       "existing": [],
@@ -2038,7 +1284,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 1232,
+      "line": 1233,
       "where": "Text (call)",
       "text": "$covered of your ${cov.total} apps",
       "existing": [],
@@ -2046,7 +1292,7 @@
     },
     {
       "file": "lib/features/icons/icon_theme_screen.dart",
-      "line": 1947,
+      "line": 1948,
       "where": "Text (call)",
       "text": "Included",
       "existing": [],
@@ -2118,37 +1364,11 @@
     },
     {
       "file": "lib/features/themes/theme_catalog.dart",
-      "line": 776,
-      "where": "name (param)",
-      "text": "Ubuntu",
-      "existing": [
-        "design.ubuntu"
-      ],
-      "suggest": "design.ubuntu"
-    },
-    {
-      "file": "lib/features/themes/theme_catalog.dart",
-      "line": 793,
-      "where": "name (param)",
-      "text": "Terminal",
-      "existing": [],
-      "suggest": "themes.terminal"
-    },
-    {
-      "file": "lib/features/themes/theme_catalog.dart",
       "line": 794,
       "where": "subtitle (param)",
       "text": "type-to-launch",
       "existing": [],
       "suggest": "themes.typeToLaunch"
-    },
-    {
-      "file": "lib/features/themes/theme_catalog.dart",
-      "line": 806,
-      "where": "name (param)",
-      "text": "KDE Plasma",
-      "existing": [],
-      "suggest": "themes.kdePlasma"
     },
     {
       "file": "lib/features/themes/theme_catalog.dart",
@@ -2210,17 +1430,7 @@
     },
     {
       "file": "lib/features/themes/themes_screen.dart",
-      "line": 1271,
-      "where": "Text (call)",
-      "text": "firefox files",
-      "existing": [
-        "themes.firefoxFiles"
-      ],
-      "suggest": "themes.firefoxFiles"
-    },
-    {
-      "file": "lib/features/themes/themes_screen.dart",
-      "line": 1451,
+      "line": 1452,
       "where": "Text (call)",
       "text": "Distros",
       "existing": [],
@@ -2228,18 +1438,7 @@
     },
     {
       "file": "lib/features/themes/themes_screen.dart",
-      "line": 1453,
-      "where": "Text (call)",
-      "text": "Your phone, as a Linux desktop. Named by the real distro version.",
-      "existing": [
-        "themes.headerSub",
-        "themes.yourPhoneAsA"
-      ],
-      "suggest": "themes.headerSub"
-    },
-    {
-      "file": "lib/features/themes/themes_screen.dart",
-      "line": 1471,
+      "line": 1472,
       "where": "Text (call)",
       "text": "More distros \u2014 pushed via updates",
       "existing": [],
@@ -2260,138 +1459,6 @@
       "text": "Social",
       "existing": [],
       "suggest": "prefs.social"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 104,
-      "where": "label (param)",
-      "text": "App widget",
-      "existing": [
-        "desklet_spec.appWidget"
-      ],
-      "suggest": "desklet_spec.appWidget"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 133,
-      "where": "label (param)",
-      "text": "Stack",
-      "existing": [],
-      "suggest": "engine.stack"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 152,
-      "where": "label (param)",
-      "text": "Glance",
-      "existing": [
-        "desklet_spec.glance"
-      ],
-      "suggest": "desklet_spec.glance"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 188,
-      "where": "label (param)",
-      "text": "Welcome",
-      "existing": [
-        "setup.step.welcome",
-        "setup.title.welcome"
-      ],
-      "suggest": "setup.step.welcome"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 216,
-      "where": "label (param)",
-      "text": "Clock",
-      "existing": [
-        "shell.moduleClock",
-        "desklet_spec.clock"
-      ],
-      "suggest": "shell.moduleClock"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 234,
-      "where": "label (param)",
-      "text": "System monitor",
-      "existing": [
-        "desklet_spec.systemMonitor"
-      ],
-      "suggest": "desklet_spec.systemMonitor"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 247,
-      "where": "label (param)",
-      "text": "Fastfetch",
-      "existing": [
-        "desklet_spec.fastfetch"
-      ],
-      "suggest": "desklet_spec.fastfetch"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 261,
-      "where": "label (param)",
-      "text": "Network",
-      "existing": [
-        "settings.network",
-        "shell.moduleNetwork"
-      ],
-      "suggest": "settings.network"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 274,
-      "where": "label (param)",
-      "text": "Storage",
-      "existing": [
-        "settings.storage",
-        "shell.moduleStorage"
-      ],
-      "suggest": "settings.storage"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 287,
-      "where": "label (param)",
-      "text": "Battery detail",
-      "existing": [
-        "desklet_spec.batteryDetail"
-      ],
-      "suggest": "desklet_spec.batteryDetail"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 298,
-      "where": "label (param)",
-      "text": "Note",
-      "existing": [
-        "desklets.note"
-      ],
-      "suggest": "desklets.note"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 310,
-      "where": "label (param)",
-      "text": "Search",
-      "existing": [
-        "drawer.search"
-      ],
-      "suggest": "drawer.search"
-    },
-    {
-      "file": "lib/engine/desklet_spec.dart",
-      "line": 325,
-      "where": "label (param)",
-      "text": "free -h",
-      "existing": [
-        "desklet_spec.freeH"
-      ],
-      "suggest": "desklet_spec.freeH"
     }
   ],
   "missing": [
@@ -2403,7 +1470,6 @@
     "settings.wordsUnderTheGlyphs"
   ],
   "unused": [
-    "common.next",
     "common.ok",
     "common.skip",
     "design.confirm",
@@ -2417,9 +1483,16 @@
     "desklet_spec.fastfetch",
     "desklet_spec.freeH",
     "desklet_spec.glance",
+    "desklet_spec.ls",
+    "desklet_spec.network",
+    "desklet_spec.note",
+    "desklet_spec.search",
+    "desklet_spec.stack",
+    "desklet_spec.storage",
     "desklet_spec.systemMonitor",
+    "desklet_spec.uptime",
+    "desklet_spec.welcome",
     "desklets.acpiV",
-    "desklets.addToDesktop",
     "desklets.clearThePane",
     "desklets.couldNotReadApp",
     "desklets.dfCannotStatData",
@@ -2435,13 +1508,9 @@
     "desklets.networkThroughput",
     "desklets.noAppWidgetsInstalled",
     "desklets.noAppWidgetsMatch",
-    "desklets.noRoomTryClear",
     "desklets.noWidgetsMatch",
-    "desklets.none",
-    "desklets.note",
     "desklets.pill",
     "desklets.rofiShowDrun",
-    "desklets.searchWidgets",
     "desklets.solid",
     "desklets.storageLive",
     "desklets.switchDistro",
@@ -2452,10 +1521,8 @@
     "desklets.totalUsedAvail",
     "desklets.uptimeNoStatsChannel",
     "drawer.add",
-    "drawer.addAppsToThis",
     "drawer.all",
     "drawer.deviceSettings_2",
-    "drawer.everyAppIsAlready",
     "drawer.favorites",
     "drawer.folder",
     "drawer.frequent",
@@ -2463,7 +1530,6 @@
     "drawer.removeFromHome",
     "drawer.theAppsYouUse",
     "drawer.ungroupNoRoom",
-    "drawer.ungroupThisFolder",
     "drawer.unhideItUnderApps",
     "drawer.uninstallFailed",
     "drawer.uninstallNoInstaller",
@@ -2486,7 +1552,6 @@
     "gestures.nothing",
     "gestures.notificationShade",
     "gestures.openActivities",
-    "gestures.quickSettings",
     "gestures.recentApps",
     "gestures.showDock",
     "gestures.swipeDown",
@@ -2494,12 +1559,9 @@
     "gestures.swipeRight",
     "gestures.swipeUp",
     "gestures.twoFingerSwipeDown",
-    "home.activities",
     "home.close",
-    "home.launchpad",
     "home.removeFromHome",
     "home.removeLastWorkspace",
-    "home.spotlight",
     "home.theAppStaysInstalled",
     "search.battery",
     "search.connections",
@@ -2546,7 +1608,6 @@
     "settings.discharging",
     "settings.distro",
     "settings.dockPosition_2",
-    "settings.dragOneAppOnto",
     "settings.draw",
     "settings.drawerColumns_2",
     "settings.drawerScroll",
@@ -2559,7 +1620,6 @@
     "settings.fontSize",
     "settings.fromThisTheme",
     "settings.gamesFolder",
-    "settings.gesturesAndTheHome",
     "settings.gnomeBar",
     "settings.gridButton",
     "settings.gridSize",
@@ -2581,8 +1641,6 @@
     "settings.large",
     "settings.left",
     "settings.letterHeadingsDownThe",
-    "settings.light",
-    "settings.list",
     "settings.manageStorage",
     "settings.matchMyIconShape",
     "settings.matchesYourIconShape",
@@ -2590,10 +1648,7 @@
     "settings.mobile",
     "settings.mobileData",
     "settings.moderate",
-    "settings.needsAnAccessibilityService",
     "settings.nominal",
-    "settings.nothingIsHidden",
-    "settings.nothingYet",
     "settings.off",
     "settings.offline",
     "settings.onlyOnTheList",
@@ -2603,16 +1658,13 @@
     "settings.overridesWorkspaceScrolling",
     "settings.pagedDrawer",
     "settings.pages",
-    "settings.reading",
     "settings.rebuildIconCache_2",
     "settings.rounded",
     "settings.roundedSquare",
     "settings.searchBar_2",
     "settings.searchPosition",
-    "settings.searchSettings",
     "settings.setDefault",
     "settings.severe",
-    "settings.shadeQuickSettingsRecents",
     "settings.shutdown",
     "settings.small",
     "settings.square",
@@ -2633,8 +1685,6 @@
     "settings.top",
     "settings.topBar_2",
     "settings.total",
-    "settings.under10FreeAndroid",
-    "settings.unhide",
     "settings.upload",
     "settings.uptime",
     "settings.verboseBoot_2",
@@ -2669,7 +1719,6 @@
     "setup.hidden",
     "setup.homeRole.attempt",
     "setup.homeRole.title",
-    "setup.homeScreen",
     "setup.homeScreenSet",
     "setup.howItMoves",
     "setup.installAsYourHome",
@@ -2681,7 +1730,6 @@
     "setup.noDock",
     "setup.noDockAStatus",
     "setup.notPossibleOnAndroid",
-    "setup.oneLongList",
     "setup.preparingYourDesktop",
     "setup.readingInstalledApplications",
     "setup.readingInstalledApplications_2",
@@ -2705,14 +1753,11 @@
     "shell.addToHome",
     "shell.addToPanel",
     "shell.freeDfLsTop",
-    "shell.hideFromLaunchpad",
-    "shell.keepInDock",
     "shell.pinToDash",
     "shell.removeFromDash",
     "shell.removeFromFavourites",
     "shell.removeFromPanel",
     "shell.sendToDesktop",
-    "shell.takeOutOfDock",
     "shell.theDockStopsChanging",
     "shell.theDockStopsChanging_2",
     "shell.unpinFromDash",
@@ -2745,7 +1790,6 @@
     "themes.dragonUndercoverMode",
     "themes.firefoxFiles",
     "themes.get",
-    "themes.headerSub",
     "themes.moreHeader",
     "themes.moreThemesPushedVia",
     "themes.msg.applied",
@@ -2799,6 +1843,33 @@
     "clock": [
       "desklet_spec.clock",
       "shell.moduleClock"
+    ],
+    "network": [
+      "desklet_spec.network",
+      "settings.network",
+      "shell.moduleNetwork"
+    ],
+    "note": [
+      "desklet_spec.note",
+      "desklets.note"
+    ],
+    "search": [
+      "desklet_spec.search",
+      "drawer.search"
+    ],
+    "storage": [
+      "desklet_spec.storage",
+      "settings.storage",
+      "shell.moduleStorage"
+    ],
+    "uptime": [
+      "desklet_spec.uptime",
+      "settings.uptime"
+    ],
+    "welcome": [
+      "desklet_spec.welcome",
+      "setup.step.welcome",
+      "setup.title.welcome"
     ],
     "add to desktop": [
       "desklets.addToDesktop",
@@ -2902,10 +1973,6 @@
       "settings.language.title",
       "setup.welcome.language"
     ],
-    "network": [
-      "settings.network",
-      "shell.moduleNetwork"
-    ],
     "rebuild icon cache": [
       "settings.rebuildIconCache",
       "settings.rebuildIconCache_2"
@@ -2917,10 +1984,6 @@
     "search bar": [
       "settings.searchBar",
       "settings.searchBar_2"
-    ],
-    "storage": [
-      "settings.storage",
-      "shell.moduleStorage"
     ],
     "text size": [
       "settings.textSize",
@@ -2962,10 +2025,6 @@
       "setup.step.folders",
       "setup.title.folders"
     ],
-    "welcome": [
-      "setup.step.welcome",
-      "setup.title.welcome"
-    ],
     "your phone, as a linux desktop. named by the real distro version.": [
       "themes.headerSub",
       "themes.yourPhoneAsA"
@@ -2979,6 +2038,14 @@
     "af.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3128,6 +2195,14 @@
     "am.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3277,6 +2352,14 @@
     "ar.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3426,6 +2509,14 @@
     "bn.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3575,6 +2666,14 @@
     "cs.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3724,6 +2823,14 @@
     "da.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -3872,6 +2979,14 @@
     },
     "de.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -3977,6 +3092,14 @@
     "el.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -4123,113 +3246,17 @@
         "why.toolMenuIsCategories"
       ]
     },
-    "es.json": {
-      "missing": [
-        "drawer.allApps",
-        "drawer.alreadyOnHome",
-        "drawer.appLibrary",
-        "drawer.dragAppsHere",
-        "drawer.enterToRun",
-        "drawer.favourites",
-        "drawer.homeIsFull",
-        "drawer.locateApp",
-        "drawer.mostUsed",
-        "drawer.moveTo",
-        "drawer.movedTo",
-        "drawer.nOfTotal",
-        "drawer.newFolder",
-        "drawer.notOnAShelf",
-        "drawer.pinned",
-        "drawer.removeFromHome",
-        "drawer.typeToRun",
-        "drawer.ungroupNoRoom",
-        "drawer.uninstallFailed",
-        "drawer.uninstallNoInstaller",
-        "drawer.uninstallSystemApp",
-        "drawer.uninstallUnknownApp",
-        "drawer.uninstallWorkProfile",
-        "drawer.viewCategories",
-        "drawer.viewGrid",
-        "home.addWorkspace",
-        "home.arrange",
-        "home.deleteWorkspace",
-        "home.deleteWorkspaceConfirm",
-        "home.removeLastWorkspace",
-        "home.workspaceN",
-        "home.workspaceNOfTotal",
-        "search.inCategory",
-        "settings.about",
-        "settings.appsOnTheWorkspace",
-        "settings.bareDesktop",
-        "settings.desktopIcons",
-        "settings.update.available",
-        "settings.update.check",
-        "settings.update.checkedDays",
-        "settings.update.checkedHour",
-        "settings.update.checkedHours",
-        "settings.update.checkedJustNow",
-        "settings.update.checkedMinutes",
-        "settings.update.checkedYesterday",
-        "settings.update.checking",
-        "settings.update.downloading",
-        "settings.update.fromPlay",
-        "settings.update.keepUsing",
-        "settings.update.ready",
-        "settings.update.readyRow",
-        "settings.update.restart",
-        "settings.update.restartBody",
-        "settings.update.restartTitle",
-        "settings.update.unavailable",
-        "settings.update.upToDate",
-        "settings.update.willReload",
-        "settings.update.willReloadOnRestart",
-        "shell.addModule",
-        "shell.addToFavourites",
-        "shell.addToHome",
-        "shell.addToPanel",
-        "shell.alreadyOnPanel",
-        "shell.currentEdge",
-        "shell.done",
-        "shell.hideFromLaunchpad",
-        "shell.moduleActivities",
-        "shell.moduleClock",
-        "shell.moduleKickoff",
-        "shell.moduleMemory",
-        "shell.moduleNetwork",
-        "shell.modulePager",
-        "shell.moduleSpacer",
-        "shell.moduleStorage",
-        "shell.moduleTasks",
-        "shell.moduleTray",
-        "shell.panelEdge",
-        "shell.pinToDash",
-        "shell.removeFromDash",
-        "shell.removeFromFavourites",
-        "shell.removeFromPanel",
-        "shell.resetPanel",
-        "shell.sendToDesktop",
-        "shell.takeOutOfDock",
-        "shell.unpinFromDash",
-        "why.appsAreAPage",
-        "why.bareDesktop",
-        "why.dmenuIsOneLine",
-        "why.kickoffIsAList",
-        "why.kickoffSearchIsFixed",
-        "why.libraryFilesByCategory",
-        "why.noBarOnThisDesktop",
-        "why.noDockOnThisDesktop",
-        "why.rofiIsARankedList",
-        "why.theDashIsInActivities",
-        "why.theDockHasOneHome",
-        "why.thePromptIsTheSearch",
-        "why.theTerminalHasNoWorkspaces",
-        "why.thisDistroStaysDark",
-        "why.toolMenuIsCategories"
-      ]
-    },
     "fa.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -4379,6 +3406,14 @@
     "fi.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -4527,6 +3562,14 @@
     },
     "fr.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -4632,6 +3675,14 @@
     "gu.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -4781,6 +3832,14 @@
     "ha.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -4930,6 +3989,14 @@
     "he.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5079,6 +4146,14 @@
     "hi.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5228,6 +4303,14 @@
     "hu.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5377,6 +4460,14 @@
     "id.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5526,6 +4617,14 @@
     "ig.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5674,6 +4773,14 @@
     },
     "it.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -5779,6 +4886,14 @@
     "ja.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -5928,6 +5043,14 @@
     "ko.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6077,6 +5200,14 @@
     "ml.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6226,6 +5357,14 @@
     "mr.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6375,6 +5514,14 @@
     "ms.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6523,6 +5670,14 @@
     },
     "nl.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -6628,6 +5783,14 @@
     "no.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6777,6 +5940,14 @@
     "pa.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -6925,110 +6096,14 @@
     },
     "pl.json": {
       "missing": [
-        "drawer.allApps",
-        "drawer.alreadyOnHome",
-        "drawer.appLibrary",
-        "drawer.dragAppsHere",
-        "drawer.enterToRun",
-        "drawer.favourites",
-        "drawer.homeIsFull",
-        "drawer.locateApp",
-        "drawer.mostUsed",
-        "drawer.moveTo",
-        "drawer.movedTo",
-        "drawer.nOfTotal",
-        "drawer.newFolder",
-        "drawer.notOnAShelf",
-        "drawer.pinned",
-        "drawer.removeFromHome",
-        "drawer.typeToRun",
-        "drawer.ungroupNoRoom",
-        "drawer.uninstallFailed",
-        "drawer.uninstallNoInstaller",
-        "drawer.uninstallSystemApp",
-        "drawer.uninstallUnknownApp",
-        "drawer.uninstallWorkProfile",
-        "drawer.viewCategories",
-        "drawer.viewGrid",
-        "home.addWorkspace",
-        "home.arrange",
-        "home.deleteWorkspace",
-        "home.deleteWorkspaceConfirm",
-        "home.removeLastWorkspace",
-        "home.workspaceN",
-        "home.workspaceNOfTotal",
-        "search.inCategory",
-        "settings.about",
-        "settings.appsOnTheWorkspace",
-        "settings.bareDesktop",
-        "settings.desktopIcons",
-        "settings.update.available",
-        "settings.update.check",
-        "settings.update.checkedDays",
-        "settings.update.checkedHour",
-        "settings.update.checkedHours",
-        "settings.update.checkedJustNow",
-        "settings.update.checkedMinutes",
-        "settings.update.checkedYesterday",
-        "settings.update.checking",
-        "settings.update.downloading",
-        "settings.update.fromPlay",
-        "settings.update.keepUsing",
-        "settings.update.ready",
-        "settings.update.readyRow",
-        "settings.update.restart",
-        "settings.update.restartBody",
-        "settings.update.restartTitle",
-        "settings.update.unavailable",
-        "settings.update.upToDate",
-        "settings.update.willReload",
-        "settings.update.willReloadOnRestart",
-        "shell.addModule",
-        "shell.addToFavourites",
-        "shell.addToHome",
-        "shell.addToPanel",
-        "shell.alreadyOnPanel",
-        "shell.currentEdge",
-        "shell.done",
-        "shell.hideFromLaunchpad",
-        "shell.moduleActivities",
-        "shell.moduleClock",
-        "shell.moduleKickoff",
-        "shell.moduleMemory",
-        "shell.moduleNetwork",
-        "shell.modulePager",
-        "shell.moduleSpacer",
-        "shell.moduleStorage",
-        "shell.moduleTasks",
-        "shell.moduleTray",
-        "shell.panelEdge",
-        "shell.pinToDash",
-        "shell.removeFromDash",
-        "shell.removeFromFavourites",
-        "shell.removeFromPanel",
-        "shell.resetPanel",
-        "shell.sendToDesktop",
-        "shell.takeOutOfDock",
-        "shell.unpinFromDash",
-        "why.appsAreAPage",
-        "why.bareDesktop",
-        "why.dmenuIsOneLine",
-        "why.kickoffIsAList",
-        "why.kickoffSearchIsFixed",
-        "why.libraryFilesByCategory",
-        "why.noBarOnThisDesktop",
-        "why.noDockOnThisDesktop",
-        "why.rofiIsARankedList",
-        "why.theDashIsInActivities",
-        "why.theDockHasOneHome",
-        "why.thePromptIsTheSearch",
-        "why.theTerminalHasNoWorkspaces",
-        "why.thisDistroStaysDark",
-        "why.toolMenuIsCategories"
-      ]
-    },
-    "pt.json": {
-      "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -7133,6 +6208,14 @@
     },
     "ro.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -7237,6 +6320,14 @@
     },
     "ru.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -7342,6 +6433,14 @@
     "sv.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -7491,6 +6590,14 @@
     "sw.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -7640,6 +6747,14 @@
     "ta.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -7789,6 +6904,14 @@
     "te.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -7938,6 +7061,14 @@
     "th.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -8087,6 +7218,14 @@
     "tl.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -8235,6 +7374,14 @@
     },
     "tr.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -8339,6 +7486,14 @@
     },
     "uk.json": {
       "missing": [
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "drawer.allApps",
         "drawer.alreadyOnHome",
         "drawer.appLibrary",
@@ -8444,6 +7599,14 @@
     "ur.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -8593,6 +7756,14 @@
     "vi.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -8742,6 +7913,14 @@
     "yo.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -8891,6 +8070,14 @@
     "zh_CN.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -9040,6 +8227,14 @@
     "zh_TW.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -9189,6 +8384,14 @@
     "zu.json": {
       "missing": [
         "common.add",
+        "desklet_spec.ls",
+        "desklet_spec.network",
+        "desklet_spec.note",
+        "desklet_spec.search",
+        "desklet_spec.stack",
+        "desklet_spec.storage",
+        "desklet_spec.uptime",
+        "desklet_spec.welcome",
         "desklets.editingWidget",
         "drawer.allApps",
         "drawer.alreadyOnHome",
@@ -9361,10 +8564,15 @@
     "lib/features/drawer/folder_overlay.dart:1749",
     "lib/features/drawer/folder_overlay.dart:1818",
     "lib/features/drawer/library_view.dart:223",
+    "lib/features/desklets/desklet_menu.dart:88",
+    "lib/features/desklets/desklet_picker.dart:337",
+    "lib/features/desklets/desklet_picker.dart:556",
     "lib/features/desklets/desklet_settings.dart:122",
     "lib/features/desklets/desklet_settings.dart:138",
+    "lib/features/setup/setup_screen.dart:1123",
     "lib/features/setup/setup_screen.dart:1775",
     "lib/features/setup/setup_screen.dart:1844",
+    "lib/features/setup/setup_screen.dart:3075",
     "lib/i18n/i18n.dart:103",
     "lib/i18n/i18n.dart:115"
   ]
