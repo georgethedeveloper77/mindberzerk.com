@@ -14,11 +14,10 @@
     "",
     "Match is on the DECODED text, after Dart escapes are resolved."
   ],
-
   "Reset everything?": "settings.resetEverythingConfirm",
   "Reset folder appearance?": "settings.resetFolderAppearanceConfirm",
   "Reset wallpaper settings?": "settings.resetWallpaperSettingsConfirm",
   "Ungroup all folders?": "settings.ungroupAllFoldersConfirm",
-
-  "Scrolls up and down. No pages at all.": "setup.scrollsUpAndDownNoPages"
+  "Scrolls up and down. No pages at all.": "setup.scrollsUpAndDownNoPages",
+  "Rotation, fit and lock. Your photos stay where they are.": "settings.rotationFitAndLockPhotos"
 }

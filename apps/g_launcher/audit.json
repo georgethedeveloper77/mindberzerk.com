@@ -87,42 +87,12 @@
       "suggest": "settings.aBackupCarriesEvery"
     },
     {
-      "file": "lib/features/settings/backup_screen.dart",
-      "line": 209,
-      "where": "Text (call)",
-      "text": "Photos are not inside the backup, only the list of them. Restoring onto the same phone finds them again; onto a new one, your collections come back empty and ready to fill.",
-      "existing": [
-        "settings.photosAreNotInside"
-      ],
-      "suggest": "settings.photosAreNotInside"
-    },
-    {
       "file": "lib/features/settings/device_pages.dart",
       "line": 505,
       "where": "Text (call)",
       "text": "$percent% used",
       "existing": [],
       "suggest": "settings.percentUsed"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 196,
-      "where": "message (param)",
-      "text": "Folder size, shape and sort order go back to their defaults. The folders themselves and everything in them are untouched.",
-      "existing": [
-        "settings.folderSizeShapeAnd"
-      ],
-      "suggest": "settings.folderSizeShapeAnd"
-    },
-    {
-      "file": "lib/features/settings/folders_screen.dart",
-      "line": 218,
-      "where": "message (param)",
-      "text": "The apps are not touched. They leave their folders and return to the list, and the folders themselves are removed.",
-      "existing": [
-        "settings.theAppsAreNot"
-      ],
-      "suggest": "settings.theAppsAreNot"
     },
     {
       "file": "lib/features/settings/folders_screen.dart",
@@ -158,41 +128,11 @@
     },
     {
       "file": "lib/features/settings/restore_screen.dart",
-      "line": 78,
-      "where": "message (param)",
-      "text": "These settings return to the distro defaults. Nothing you made or added is removed.",
-      "existing": [
-        "settings.theseSettingsReturnTo"
-      ],
-      "suggest": "settings.theseSettingsReturnTo"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
       "line": 128,
       "where": "subtitle (param)",
       "text": "Rotation, fit and lock. Your photos stay",
       "existing": [],
       "suggest": "settings.rotationFitAndLock"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 159,
-      "where": "message (param)",
-      "text": "Every setting on this distro returns to its default, including your folders, desklets and arrangements here, and the settings shared across distros. Other distros keep their own setups. Photos, collections and installed packs are not deleted.",
-      "existing": [
-        "settings.everySettingOnThis"
-      ],
-      "suggest": "settings.everySettingOnThis"
-    },
-    {
-      "file": "lib/features/settings/restore_screen.dart",
-      "line": 96,
-      "where": "Text (call)",
-      "text": "Settings only. Folders, desklets, arrangements and photos stay exactly where they are.",
-      "existing": [
-        "settings.settingsOnlyFoldersDesklets"
-      ],
-      "suggest": "settings.settingsOnlyFoldersDesklets"
     },
     {
       "file": "lib/features/settings/settings_sheets.dart",
@@ -204,41 +144,11 @@
     },
     {
       "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 98,
-      "where": "message (param)",
-      "text": "It leaves the collection and this copy is deleted. Your original is not touched, and if it is on screen right now the screen does not change.",
-      "existing": [
-        "settings.itLeavesTheCollection"
-      ],
-      "suggest": "settings.itLeavesTheCollection"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
       "line": 119,
       "where": "title (param)",
       "text": "Delete ${collection.name}?",
       "existing": [],
       "suggest": "settings.deleteCollectionName"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 120,
-      "where": "message (param)",
-      "text": "The copies in this collection are deleted. Your originals are not touched, and the screen does not change.",
-      "existing": [
-        "settings.theCopiesInThis"
-      ],
-      "suggest": "settings.theCopiesInThis"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_collection_screen.dart",
-      "line": 152,
-      "where": "Text (call)",
-      "text": "Nothing here yet. Add photos and this set can rotate on its own.",
-      "existing": [
-        "settings.nothingHereYetAdd"
-      ],
-      "suggest": "settings.nothingHereYetAdd"
     },
     {
       "file": "lib/features/settings/wallpaper_screen.dart",
@@ -247,16 +157,6 @@
       "text": "Rotation, fit and lock screen",
       "existing": [],
       "suggest": "settings.rotationFitAndLock"
-    },
-    {
-      "file": "lib/features/settings/wallpaper_screen.dart",
-      "line": 1154,
-      "where": "message (param)",
-      "text": "Rotation, fit and the lock-screen switch go back to their defaults. Your photos, your collections and the wallpaper on screen right now are untouched.",
-      "existing": [
-        "settings.rotationFitAndThe"
-      ],
-      "suggest": "settings.rotationFitAndThe"
     },
     {
       "file": "lib/features/settings/sections/apps_section.dart",
@@ -615,16 +515,6 @@
       "suggest": "themes.needsANewerVersion"
     },
     {
-      "file": "lib/features/themes/theme_detail_screen.dart",
-      "line": 586,
-      "where": "Text (call)",
-      "text": "One time purchase, yours on every device signed in to this Play account. Every launcher feature stays free. Switch back to a free distro whenever you like.",
-      "existing": [
-        "themes.oneTimePurchaseYours"
-      ],
-      "suggest": "themes.oneTimePurchaseYours"
-    },
-    {
       "file": "lib/data/prefs/folder_suggestions.dart",
       "line": 230,
       "where": "name (param)",
@@ -812,8 +702,6 @@
     "settings.ethernet",
     "settings.every15Minutes",
     "settings.every6Hours",
-    "settings.everySettingOnThis",
-    "settings.folderSizeShapeAnd",
     "settings.followingTheTheme",
     "settings.fontSize",
     "settings.fromThisTheme",
@@ -835,7 +723,6 @@
     "settings.iconSize_2",
     "settings.iconsAndBar",
     "settings.internalStorageMatchingWhat",
-    "settings.itLeavesTheCollection",
     "settings.language.subtitle",
     "settings.large",
     "settings.left",
@@ -848,7 +735,6 @@
     "settings.mobileData",
     "settings.moderate",
     "settings.nominal",
-    "settings.nothingHereYetAdd",
     "settings.off",
     "settings.offline",
     "settings.onlyOnTheList",
@@ -858,16 +744,13 @@
     "settings.overridesWorkspaceScrolling",
     "settings.pagedDrawer",
     "settings.pages",
-    "settings.photosAreNotInside",
     "settings.rebuildIconCache_2",
     "settings.restoreThisBackup",
-    "settings.rotationFitAndThe",
     "settings.rounded",
     "settings.roundedSquare",
     "settings.searchBar_2",
     "settings.searchPosition",
     "settings.setDefault",
-    "settings.settingsOnlyFoldersDesklets",
     "settings.severe",
     "settings.shutdown",
     "settings.small",
@@ -881,15 +764,12 @@
     "settings.temperature",
     "settings.textSize_2",
     "settings.thatIsNotA",
-    "settings.theAppsAreNot",
-    "settings.theCopiesInThis",
     "settings.theNetworkNameNeeds",
     "settings.theOneYouHad",
     "settings.theWholeDesktopLook",
     "settings.theme",
     "settings.themeDefault",
     "settings.thermalState",
-    "settings.theseSettingsReturnTo",
     "settings.top",
     "settings.topBar_2",
     "settings.total",
@@ -1019,7 +899,6 @@
     "themes.msg.rejected",
     "themes.msg.updated",
     "themes.neonDragonized",
-    "themes.oneTimePurchaseYours",
     "themes.plasma",
     "themes.pro",
     "themes.t2204Cosmic",
