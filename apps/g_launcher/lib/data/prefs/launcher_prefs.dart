@@ -117,6 +117,7 @@ class LauncherPrefs {
     this.wallpapersHidden = const {},
     this.wallpaperLock,
     this.wallpaperCurrent,
+    this.wallpaperLockCurrent,
     this.wallpaperRotationMinutes,
     this.wallpaperRotationSource,
     this.wallpaperFit,
@@ -822,6 +823,32 @@ class LauncherPrefs {
   /// used instead.
   final String? wallpaperCurrent;
 
+  /// The lock screen's OWN wallpaper, when it has one.
+  ///
+  /// ─── THREE STATES, AND THE MIGRATION IS THE REASON ─────────────────────
+  ///
+  /// Read together with [wallpaperLock], which used to mean "push the home
+  /// image to the lock screen too" and still does:
+  ///
+  ///   this null, wallpaperLock true   the home image, on both screens
+  ///   this null, wallpaperLock false  the lock screen is not ours to touch
+  ///   this set                        this image, whatever the flag says
+  ///
+  /// A simpler rule was tempting: null means mirror the home screen. It is
+  /// wrong for everybody who answered "home screen only", because their lock
+  /// screen currently shows whatever they had BEFORE the launcher, and
+  /// mirroring would overwrite it on the next apply. Nobody asked for that,
+  /// and it is not undoable: the wallpaper it replaced is gone.
+  ///
+  /// So the flag survives as "does this launcher own the lock screen", and
+  /// this field is the picture when the answer is yes and it differs. Every
+  /// install that exists today has this null and renders exactly as it does
+  /// now.
+  ///
+  /// PER THEME, like [wallpaperCurrent] directly above: a lock screen chosen
+  /// under Garuda is Garuda's, and switching to Ubuntu brings Ubuntu's back.
+  final String? wallpaperLockCurrent;
+
   /// null = no rotation. Android's WorkManager floor is 15 minutes; anything
   /// smaller is silently clamped, so do not offer "every 5 minutes" in the UI
   /// and quietly lie.
@@ -984,6 +1011,7 @@ class LauncherPrefs {
     Set<String>? wallpapersHidden,
     bool? wallpaperLock,
     String? wallpaperCurrent,
+    String? wallpaperLockCurrent,
     int? wallpaperRotationMinutes,
     String? wallpaperRotationSource,
     String? wallpaperFit,
@@ -1057,6 +1085,7 @@ class LauncherPrefs {
       wallpapersHidden: wallpapersHidden ?? this.wallpapersHidden,
       wallpaperLock: wallpaperLock ?? this.wallpaperLock,
       wallpaperCurrent: wallpaperCurrent ?? this.wallpaperCurrent,
+      wallpaperLockCurrent: wallpaperLockCurrent ?? this.wallpaperLockCurrent,
       wallpaperRotationMinutes:
           wallpaperRotationMinutes ?? this.wallpaperRotationMinutes,
       wallpaperRotationSource:
@@ -1111,6 +1140,7 @@ class LauncherPrefs {
     /// as "the user picked this", so a dangling one is a choice nobody can
     /// see or change.
     bool wallpaperCurrent = false,
+    bool wallpaperLockCurrent = false,
     bool wallpaperLock = false,
     bool wallpaperRotationMinutes = false,
     bool wallpaperRotationSource = false,
@@ -1227,6 +1257,8 @@ class LauncherPrefs {
       // dropped rather than preserved, which is how drawerScrollStyle was
       // once silently reset by every unrelated clear.
       wallpaperCurrent: wallpaperCurrent ? null : this.wallpaperCurrent,
+      wallpaperLockCurrent:
+          wallpaperLockCurrent ? null : this.wallpaperLockCurrent,
       // Clearable now (it was pass-through). The rotation sheet's Off used
       // copyWith(null), which copyWith cannot write, so the interval survived
       // Off forever. Nothing re-read it then; rescheduleRotation does now, and
@@ -1320,6 +1352,8 @@ class LauncherPrefs {
         'wallpapersHidden': wallpapersHidden.toList(),
         if (wallpaperLock != null) 'wallpaperLock': wallpaperLock,
         if (wallpaperCurrent != null) 'wallpaperCurrent': wallpaperCurrent,
+        if (wallpaperLockCurrent != null)
+          'wallpaperLockCurrent': wallpaperLockCurrent,
         if (wallpaperRotationMinutes != null)
           'wallpaperRotationMinutes': wallpaperRotationMinutes,
         if (wallpaperRotationSource != null)
@@ -1438,6 +1472,7 @@ class LauncherPrefs {
           .toSet(),
       wallpaperLock: j['wallpaperLock'] as bool?,
       wallpaperCurrent: j['wallpaperCurrent'] as String?,
+      wallpaperLockCurrent: j['wallpaperLockCurrent'] as String?,
       wallpaperRotationMinutes:
           (j['wallpaperRotationMinutes'] as num?)?.toInt(),
       wallpaperRotationSource: j['wallpaperRotationSource'] as String?,
@@ -1564,6 +1599,7 @@ class LauncherPrefs {
             .equals(other.wallpapersHidden, wallpapersHidden) &&
         other.wallpaperLock == wallpaperLock &&
         other.wallpaperCurrent == wallpaperCurrent &&
+        other.wallpaperLockCurrent == wallpaperLockCurrent &&
         other.wallpaperRotationMinutes == wallpaperRotationMinutes &&
         other.wallpaperRotationSource == wallpaperRotationSource &&
         other.wallpaperFit == wallpaperFit &&
@@ -1645,6 +1681,7 @@ class LauncherPrefs {
         const SetEquality<String>().hash(wallpapersHidden),
         wallpaperLock,
         wallpaperCurrent,
+        wallpaperLockCurrent,
         wallpaperRotationMinutes,
         wallpaperRotationSource,
         wallpaperFit,

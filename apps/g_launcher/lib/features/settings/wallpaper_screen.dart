@@ -206,6 +206,15 @@ Future<bool?> chooseApplyTarget(
   );
 }
 
+/// Which screen a wallpaper is being set on.
+///
+/// Two members and no `both`, deliberately, matching the native target this
+/// crosses to. "Both" is two applies with two framings, because the lock
+/// screen wears a clock across its top third and the home screen wears an
+/// icon grid across its middle: the same picture wants a different centre on
+/// each, so one call carrying one framing cannot serve them.
+enum WallpaperSurface { home, lock }
+
 Future<bool> applyWallpaper(
   BuildContext context,
   WidgetRef ref,
@@ -216,6 +225,18 @@ Future<bool> applyWallpaper(
   // re-applying with the stale pref. Same reason [framing] exists beside it.
   String? fit,
   WallpaperFraming? framing,
+
+  /// Which screen this picture is for.
+  ///
+  /// Null keeps the historical behaviour exactly: the home screen, plus the
+  /// lock screen when [LauncherPrefs.wallpaperLock] says the launcher owns it.
+  /// That is what every existing call site means, so none of them changed.
+  ///
+  /// Naming a surface writes ONLY that surface, which is how two different
+  /// pictures become possible: the lock screen gets its own source in
+  /// [LauncherPrefs.wallpaperLockCurrent] and the home screen keeps what it
+  /// has.
+  WallpaperSurface? surface,
 }) async {
   // ─── EVERY PROVIDER READ HAPPENS HERE, BEFORE THE FIRST await ────────────
   //
@@ -244,8 +265,17 @@ Future<bool> applyWallpaper(
   // Before the stash, deliberately. Backing out of the question has to leave
   // the device exactly as it was, and stashing first would have already moved
   // the user's existing wallpaper to make room for one that never arrives.
-  var applyToLock = theme.prefs.wallpaperLock;
-  if (applyToLock == null) {
+  // ─── NOT ASKED WHEN THE ANSWER IS ALREADY IN THE CALL ─────────────────────
+  //
+  // A caller naming a surface has been told which screen this is for, by a
+  // user who just tapped it. Asking again would be the app failing to hear an
+  // answer it already has.
+  // Nullable because "not asked yet" is a real third state, and the question
+  // below is skipped entirely when the caller named a surface. Narrowed to a
+  // plain bool at each use rather than here, so the three states stay
+  // distinguishable for the question itself.
+  bool? applyToLock = theme.prefs.wallpaperLock;
+  if (surface == null && applyToLock == null) {
     final chosen = await chooseApplyTarget(context, theme, source);
     // Dismissing a question is not answering it. Defaulting here is how the
     // old toggle ended up never being set: something decided for them.
@@ -269,26 +299,66 @@ Future<bool> applyWallpaper(
         legacyFit: fit ?? theme.prefs.wallpaperFit,
       );
 
-  final ok = await api.setWallpaper(
-    encodeWallpaperFor(theme, source),
-    // The local answer, not the pref. The write above has not round-tripped
-    // through the provider yet, so reading `theme.prefs` here would send the
-    // null it started with and the very first apply would miss the lock screen
-    // the user had just asked for.
-    applyToLock,
-    fit ?? resolved.resolvedFit,
-    // The theme's own background fills the bars contain and center leave, so
-    // a letterboxed photo still reads as this distro's desktop.
-    theme.palette.bgTop.toARGB32(),
-    resolved.focalX,
-    resolved.focalY,
-    resolved.zoom,
-  );
+  // ─── ONE CALL PER SCREEN ───────────────────────────────────────────────
+  //
+  // Native names a single surface now, so "both" is two calls rather than a
+  // flag. The lock push uses the LOCAL `applyToLock`, not the pref: the write
+  // above has not round-tripped through the provider yet, so reading
+  // `theme.prefs` here would send the null it started with and the very first
+  // apply would miss the lock screen the user had just asked for.
+  Future<bool> push(String target) => api.setWallpaper(
+        encodeWallpaperFor(theme, source),
+        target,
+        fit ?? resolved.resolvedFit,
+        // The theme's own background fills the bars contain and center leave,
+        // so a letterboxed photo still reads as this distro's desktop.
+        theme.palette.bgTop.toARGB32(),
+        resolved.focalX,
+        resolved.focalY,
+        resolved.zoom,
+      );
+
+  // The home screen is the one whose result counts. A lock push refused by an
+  // OEM must not report the whole apply as failed and leave the picture the
+  // user can plainly see marked as not applied.
+  final bool ok;
+  switch (surface) {
+    case WallpaperSurface.lock:
+      ok = await push('lock');
+    case WallpaperSurface.home:
+      ok = await push('home');
+    case null:
+      ok = await push('home');
+      if (ok && (applyToLock ?? false)) await push('lock');
+  }
 
   if (ok) {
     await notifier.edit(
       (p) => p.copyWith(
-        wallpaperCurrent: source,
+        // A lock-only apply must not move the home screen's picture, and vice
+        // versa. The historical path (null surface) writes the home field, as
+        // it always did, and the lock screen follows it through
+        // `wallpaperLock` rather than through a source of its own.
+        // ─── NULL HERE MEANS KEEP, NOT CLEAR ──────────────────────────
+        //
+        // `copyWith` treats a null argument as "leave this alone", so a
+        // lock-only apply passes null for the home field and the home screen
+        // keeps its picture. That is the behaviour wanted, but it is worth
+        // saying out loud, because the obvious reading of `null` here is the
+        // opposite one.
+        //
+        // The mirrored case has to write BOTH. It pushed the same bitmap to
+        // both surfaces a few lines above, so leaving the lock field at some
+        // older value would leave prefs describing a lock screen that is no
+        // longer there, and the next read would restore a picture the user
+        // replaced.
+        wallpaperCurrent:
+            surface == WallpaperSurface.lock ? null : source,
+        wallpaperLockCurrent: switch (surface) {
+          WallpaperSurface.lock => source,
+          WallpaperSurface.home => null,
+          null => (applyToLock ?? false) ? source : null,
+        },
         // Written only when this call carried framing, and only when that
         // framing says something. An apply that merely picked an image must
         // not stamp a row of defaults into the map for it.

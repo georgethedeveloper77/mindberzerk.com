@@ -590,7 +590,7 @@ class LauncherHostApiImpl(
 
     override fun setWallpaper(
         source: String,
-        applyToLock: Boolean,
+        target: String,
         fit: String,
         letterboxColor: Long,
         focalX: Double,
@@ -604,7 +604,7 @@ class LauncherHostApiImpl(
             val ok = runCatching {
                 wallpaper.setWallpaper(
                     source,
-                    applyToLock,
+                    target,
                     fit,
                     letterboxColor,
                     // Pigeon has no float, so these cross as doubles and narrow

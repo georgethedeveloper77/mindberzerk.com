@@ -882,6 +882,7 @@
     "why.theDockHasOneHome",
     "why.thePromptIsTheSearch",
     "why.theTerminalHasNoWorkspaces",
+    "why.theTerminalPaintsItsOwn",
     "why.thisDistroStaysDark",
     "why.toolMenuIsCategories"
   ],
@@ -1756,6 +1757,7 @@
     "why.theDockHasOneHome",
     "why.thePromptIsTheSearch",
     "why.theTerminalHasNoWorkspaces",
+    "why.theTerminalPaintsItsOwn",
     "why.thisDistroStaysDark",
     "why.toolMenuIsCategories"
   ]

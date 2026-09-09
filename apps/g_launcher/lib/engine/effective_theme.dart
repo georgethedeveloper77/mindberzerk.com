@@ -1058,19 +1058,35 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
           // does to a manual pick.
           legacyFit: prefs.wallpaperFit,
         );
-        final applied = await api_.setWallpaper(
-          encodeWallpaperSource(asset?.path ?? source),
-          prefs.wallpaperLock ?? false,
-          framing.resolvedFit,
-          // Letterbox bars wear the palette this apply is FOR, not whichever
-          // the getter would resolve later.
-          (effective.dark ? spec.palette : (spec.paletteLight ?? spec.palette))
-              .bgTop
-              .toARGB32(),
-          framing.focalX,
-          framing.focalY,
-          framing.zoom,
-        );
+        // ─── ONE CALL PER SCREEN ────────────────────────────────────────
+        //
+        // Native names a single surface now, so the boolean that used to mean
+        // "and the lock screen too" is two calls. The seed is the one apply
+        // with nobody watching, so it takes the same path as a manual one
+        // rather than a shortcut: a distro whose wallpaper seeded differently
+        // from how it re-applies is a distro that changes on second launch.
+        Future<bool> push(String target) => api_.setWallpaper(
+              encodeWallpaperSource(asset?.path ?? source),
+              target,
+              framing.resolvedFit,
+              // Letterbox bars wear the palette this apply is FOR, not
+              // whichever the getter would resolve later.
+              (effective.dark
+                      ? spec.palette
+                      : (spec.paletteLight ?? spec.palette))
+                  .bgTop
+                  .toARGB32(),
+              framing.focalX,
+              framing.focalY,
+              framing.zoom,
+            );
+
+        // The home screen decides whether the seed counts as done. A lock push
+        // refused by an OEM must not leave this branch un-marked, because the
+        // whole branch is gated on that token and the theme would seed again
+        // on every launch.
+        final applied = await push('home');
+        if (applied && (prefs.wallpaperLock ?? false)) await push('lock');
         if (applied) await store.write(wallpaperAppliedForKey, appliedToken);
       }
     }

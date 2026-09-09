@@ -112,21 +112,38 @@ class WallpaperWorker(
         val source = sources[next]
         val framing = framingFor(prefs.getString(KEY_FRAMING, "") ?: "", source)
 
-        val ok = WallpaperController(applicationContext)
-            .setWallpaper(
-                source,
-                prefs.getBoolean(KEY_LOCK, false),
-                // The per-wallpaper fit wins, and the schedule's fit is the
-                // fallback. A rotation that rendered differently from a manual
-                // apply of the same image would look like the rotation was
-                // picking a different picture.
-                framing?.optString("fit").takeUnless { it.isNullOrBlank() }
-                    ?: prefs.getString(KEY_FIT, "cover") ?: "cover",
-                prefs.getLong(KEY_COLOR, 0xFF000000L),
-                (framing?.optDouble("focalX", 0.5) ?: 0.5).toFloat(),
-                (framing?.optDouble("focalY", 0.5) ?: 0.5).toFloat(),
-                (framing?.optDouble("zoom", 1.0) ?: 1.0).toFloat(),
-            )
+        // ─── THE SCHEDULE KEEPS ITS BOOLEAN ─────────────────────────────
+        //
+        // `applyToLock` on a ROTATION means something the per-call target does
+        // not: "every tick drives the lock screen as well". That is a property
+        // of the schedule, not of one image, so it stays a stored flag and is
+        // translated into calls here.
+        //
+        // Translated rather than passed through, because the controller now
+        // names one surface per call. Two ticks of the same image is what the
+        // boolean always meant underneath. Both go through one local so the
+        // two surfaces cannot be given different fits by a later edit to one
+        // of two copies.
+        val controller = WallpaperController(applicationContext)
+
+        // The per-wallpaper fit wins, and the schedule's fit is the fallback. A
+        // rotation that rendered differently from a manual apply of the same
+        // image would look like the rotation was picking a different picture.
+        val fit = framing?.optString("fit").takeUnless { it.isNullOrBlank() }
+            ?: prefs.getString(KEY_FIT, "cover") ?: "cover"
+        val color = prefs.getLong(KEY_COLOR, 0xFF000000L)
+        val fx = (framing?.optDouble("focalX", 0.5) ?: 0.5).toFloat()
+        val fy = (framing?.optDouble("focalY", 0.5) ?: 0.5).toFloat()
+        val z = (framing?.optDouble("zoom", 1.0) ?: 1.0).toFloat()
+
+        fun push(target: String) =
+            controller.setWallpaper(source, target, fit, color, fx, fy, z)
+
+        // The home screen decides the result. A lock push that fails on an OEM
+        // that forbids it must not report the whole tick as failed and stall
+        // the rotation on an image the user can see perfectly well.
+        val ok = push("home")
+        if (prefs.getBoolean(KEY_LOCK, false)) push("lock")
 
         // Advance regardless: a source that fails every time (deleted photo)
         // must not wedge the rotation on it forever.

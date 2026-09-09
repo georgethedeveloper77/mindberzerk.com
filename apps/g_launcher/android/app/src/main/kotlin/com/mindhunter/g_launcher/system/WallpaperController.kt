@@ -54,7 +54,7 @@ class WallpaperController(context: Context) {
      */
     fun setWallpaper(
         source: String,
-        applyToLock: Boolean,
+        target: String,
         fit: String = "cover",
         letterboxColor: Long = 0xFF000000L,
         focalX: Float = 0.5f,
@@ -112,10 +112,24 @@ class WallpaperController(context: Context) {
             // The flag-based overload is API 24 and minSdk is 26, so there is no
             // legacy branch here. The single-argument setBitmap() it replaced
             // could not target home and lock separately.
-            manager.setBitmap(bitmap, hint, true, WallpaperManager.FLAG_SYSTEM)
-            if (applyToLock) {
-                manager.setBitmap(bitmap, hint, true, WallpaperManager.FLAG_LOCK)
+            // ─── ONE SURFACE PER CALL ───────────────────────────────────
+            //
+            // The boolean this replaced could only put the SAME bitmap on the
+            // lock screen, with the same crop hint. A clock sits across the top
+            // third of a lock screen and an icon grid across the middle of a
+            // home screen, so one hint cannot be right for both even when the
+            // picture is the same. Two surfaces are two calls.
+            //
+            // Anything unrecognised lands on the home screen, matching the
+            // degrade rule `fit` documents above: a target written by a future
+            // build must do something sensible on this one, and the home
+            // screen is what every build before this wrote to.
+            val flag = if (target == "lock") {
+                WallpaperManager.FLAG_LOCK
+            } else {
+                WallpaperManager.FLAG_SYSTEM
             }
+            manager.setBitmap(bitmap, hint, true, flag)
             true
         } catch (e: Exception) {
             // A failed wallpaper set must never take the launcher down. Worst

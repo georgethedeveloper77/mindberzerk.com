@@ -869,6 +869,7 @@
   "why.theDockHasOneHome": "Este dock tem um só lugar",
   "why.thePromptIsTheSearch": "O prompt é a pesquisa",
   "why.theTerminalHasNoWorkspaces": "O terminal não tem espaços de trabalho",
+  "why.theTerminalPaintsItsOwn": "O terminal pinta o próprio fundo",
   "why.thisDistroStaysDark": "{name} fica sempre no escuro",
   "why.toolMenuIsCategories": "O menu de ferramentas organiza por categorias"
 }

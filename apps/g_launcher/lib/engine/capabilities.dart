@@ -220,6 +220,31 @@ extension ThemeCapabilities on EffectiveTheme {
       ? const Capability(false, 'why.theTerminalHasNoWorkspaces')
       : const Capability(true);
 
+  /// Is there a wallpaper behind this shell?
+  ///
+  /// ─── THE TERMINAL PAINTS ITS OWN BACKGROUND ───────────────────────────
+  ///
+  /// Every other shell runs TRANSPARENT over the system wallpaper, which is
+  /// the whole reason `WallpaperController` sets a real one rather than
+  /// drawing a picture inside Flutter. The tui shell does not: it fills the
+  /// screen with its own terminal background, so a wallpaper set underneath it
+  /// is bought, framed, applied and then never seen.
+  ///
+  /// ─── AND WHY A CAPABILITY RATHER THAN HIDING THE ROW ──────────────────
+  ///
+  /// The settings row could just be omitted on tui. It would also be omitted
+  /// silently, and the next surface that wants to know this fact would have to
+  /// rediscover it from the shell name, which is exactly how `drawerGrouping`
+  /// came to mean nothing on plasma distros. Asking a capability puts the
+  /// reason in one place with a sentence attached, the same as the four above.
+  ///
+  /// The user's photos, collections and rotation choices are untouched by
+  /// this: they are global, and switching to any other distro brings the page
+  /// straight back with everything still in it.
+  Capability get hasWallpaper => shell == ShellKind.tui
+      ? const Capability(false, 'why.theTerminalPaintsItsOwn')
+      : const Capability(true);
+
   // `hasAuthoredCategories` was here and is deleted for the same reason. It was
   // written for the folders screen, which I have not read, so it was a getter
   // built against a guess at what that screen needed. It comes back when a

@@ -180,20 +180,30 @@ List<Widget> appearanceSection(
             ),
           ),
         ),
-        FilterRow(
-          const ['wallpaper', 'background', 'photo', 'rotation'],
-          SettingsRow(
-            icon: Icons.image_outlined,
-            title: context.t('settings.wallpaper'),
-            subtitle: context.t('settings.presetsYourPhotosRotation'),
-            trailing: const Chevron(),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => WallpaperScreen(theme: theme),
+        // ─── ABSENT UNDER THE TERMINAL, NOT DISABLED ────────────────────
+        //
+        // The tui shell paints its own background over the system wallpaper,
+        // so this page would let someone pick, frame and apply an image that
+        // is then covered. A greyed row still answers "can I?" with "yes, but
+        // not now", which is the wrong answer: the honest one is that this
+        // desktop has no wallpaper at all.
+        //
+        // Same shape the workspaces and light-mode rows already use.
+        if (theme.hasWallpaper.available)
+          FilterRow(
+            const ['wallpaper', 'background', 'photo', 'rotation'],
+            SettingsRow(
+              icon: Icons.image_outlined,
+              title: context.t('settings.wallpaper'),
+              subtitle: context.t('settings.presetsYourPhotosRotation'),
+              trailing: const Chevron(),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WallpaperScreen(theme: theme),
+                ),
               ),
             ),
           ),
-        ),
         FilterRow(
           const [
             'verbose boot',

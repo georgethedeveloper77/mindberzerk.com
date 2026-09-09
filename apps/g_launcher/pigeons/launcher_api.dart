@@ -699,10 +699,29 @@ abstract class LauncherHostApi {
   /// prefs, and prefs outlive the build that wrote them: a value from a future
   /// version, or a hand-edited theme.json, must degrade rather than produce a
   /// degenerate crop rect the system quietly ignores.
+  /// [target] is 'home' or 'lock', and names ONE surface per call.
+  ///
+  /// ─── WHY NOT THE BOOLEAN IT REPLACED, AND WHY NO 'both' ───────────────
+  ///
+  /// `applyToLock` could only say "the same bitmap, on the lock screen too".
+  /// Two different images was not expressible, and neither was the thing that
+  /// turns out to matter more: the SAME image needs a different crop on each
+  /// surface, because the lock screen puts a clock across the top third and
+  /// the home screen puts an icon grid across the middle. One call carrying
+  /// one framing cannot serve both.
+  ///
+  /// So there is no 'both'. Applying one picture to both screens is two calls
+  /// with two framings, which is what it always was underneath.
+  ///
+  /// A STRING for the same reason [fit] is one: an enum takes a codec id, and
+  /// appending one is only safe at the very end of a schema that already
+  /// carries enums and is read by packs already installed on phones. An
+  /// unrecognised value degrades NATIVELY to the home screen, which is the
+  /// surface every build before this one wrote to.
   @async
   bool setWallpaper(
     String source,
-    bool applyToLock,
+    String target,
     String fit,
     int letterboxColor,
     double focalX,
