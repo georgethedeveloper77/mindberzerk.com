@@ -23,6 +23,7 @@ import '../desklets/widget_stage.dart';
 import 'workspaces/workspace_controller.dart';
 import 'quick_settings.dart';
 import 'workspaces/workspace_overview.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -133,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Theme failed to load\n\n$e',
+              context.t('home.themeFailedToLoad', {'error': e.toString()}),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white70), // theme-exempt: bootstrap, this renders precisely when the theme failed to load
             ),

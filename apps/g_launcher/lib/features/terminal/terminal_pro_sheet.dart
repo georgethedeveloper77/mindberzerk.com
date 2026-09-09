@@ -78,7 +78,7 @@ class _ProSheet extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$command needs Terminal Pro',
+                    context.t('terminal.needsTerminalPro', {'command': command}),
                     style: TextStyle(
                       fontFamily: fontFamily,
                       fontSize: 15,
@@ -150,7 +150,7 @@ class _ProSheet extends ConsumerWidget {
                     if (context.mounted) Navigator.of(context).pop(ok);
                   },
                   child: Text(
-                    'Unlock for $price',
+                    context.t('terminal.unlockForPrice', {'price': price}),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),

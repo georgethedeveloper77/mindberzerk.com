@@ -1869,7 +1869,7 @@ class _StepDistro extends ConsumerWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Arrives with $heroPack icons',
+                  context.t('setup.arrivesWithIcons', {'name': heroPack}),
                   style: d.text.caption.copyWith(color: c.textMuted),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -3118,7 +3118,7 @@ class _StepWidgets extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Every one is skinned by ${theme.spec.name}. More in the desktop menu later.',
+          context.t('setup.everyOneIsSkinnedBy', {'name': theme.spec.name}),
           softWrap: true,
           style: d.text.caption.copyWith(color: c.textMuted),
         ),

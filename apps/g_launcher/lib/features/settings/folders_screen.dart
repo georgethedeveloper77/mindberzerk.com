@@ -261,7 +261,7 @@ class FoldersScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
               child: ThemedButton(
-                label: 'Create all ${suggestions.length} folders',
+                label: context.t('settings.createAllFolders', {'count': suggestions.length.toString()}),
                 icon: Icons.auto_awesome_outlined,
                 expand: true,
                 onPressed: () {
@@ -288,7 +288,7 @@ class FoldersScreen extends ConsumerWidget {
                       newFolderId: newDrawerFolderId,
                     ),
                   );
-                  context.showMessage('${s.name} folder created');
+                  context.showMessage(context.t('settings.folderCreated', {'name': s.name}));
                 },
                 onDismiss: () => notifier.edit(
                   (p) => FolderSuggestions.dismiss(p, s),
@@ -301,7 +301,7 @@ class FoldersScreen extends ConsumerWidget {
               icon: Icons.refresh,
               title: context.t('settings.showDismissedSuggestions'),
               subtitle:
-                  '${theme.prefs.dismissedSuggestions.length} hidden group(s)',
+                  context.t('settings.hiddenGroups', {'count': theme.prefs.dismissedSuggestions.length.toString()}),
               onTap: () => notifier.edit(FolderSuggestions.clearDismissals),
             ),
 
@@ -506,7 +506,7 @@ class _SuggestionRow extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Group ${suggestion.size} apps into a folder',
+            context.t('settings.groupAppsIntoFolder', {'count': suggestion.size.toString()}),
             style: d.text.caption,
           ),
           const SizedBox(height: 12),

@@ -1012,7 +1012,7 @@ class _Hint extends StatelessWidget {
         ),
       ),
       child: Text(
-        '$count · ↵ runs the top match',
+        context.t('drawer.countRunsTopMatch', {'count': count.toString()}),
         style: TextStyle(fontFamily: mono, fontSize: 11, color: ink),
       ),
     );

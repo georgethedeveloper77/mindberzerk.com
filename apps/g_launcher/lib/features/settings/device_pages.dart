@@ -503,7 +503,7 @@ class _StorageChart extends StatelessWidget {
               Text('free', style: TextStyle(color: c.textMuted, fontSize: 15)),
               const Spacer(),
               Text(
-                '$percent% used',
+                context.t('settings.percentUsed', {'percent': percent.toString()}),
                 style: TextStyle(color: c.textMuted, fontSize: 13),
               ),
             ],

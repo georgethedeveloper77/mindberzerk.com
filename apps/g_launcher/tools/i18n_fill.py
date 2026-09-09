@@ -61,6 +61,14 @@ KEEP = [
     "rofi", "waybar", "polybar", "Dash", "Dock", "Btrfs", "Snapper",
     "Android", "Google", "Play", "Samsung", "Nextcloud", "WebDAV", "SFTP",
     "SMB", "SSH", "Wi-Fi", "systemd", "fastfetch",
+    # ─── COMMANDS, NOT WORDS ───────────────────────────────────────────
+    #
+    # These reach the user as things to TYPE. A terminal pane titled
+    # "tiempo de actividad" names a command the shell will reject, and the
+    # desklet table hands these straight to the pane title.
+    #
+    # Longest first: "df -h" has to be masked before "df" can eat its prefix.
+    "free -h", "df -h", "uptime", "conky", "ls",
 ]
 
 # `{name}`, `{count}` and friends. The braces are the contract with `t(key,
@@ -153,6 +161,68 @@ def ensure_package(argostranslate, code):
     return src.get_translation(dst) if src and dst else None
 
 
+def warm_sentencizer(retries=6):
+    """Pull stanza's resource index once, with backoff, before any translating.
+
+    ─── WHY THIS IS NOT JUST A RETRY ───────────────────────────────────────
+
+    Argos splits input into sentences before translating, and its splitter
+    fetches an index from raw.githubusercontent.com the first time it runs.
+    That host answers `503 Backend.max_conn reached` under load, and the
+    failure surfaces 200 keys into a locale rather than at startup, which is
+    both the least useful moment and the most expensive one.
+
+    Doing it up front turns a mid-run crash into a startup message. Backoff is
+    doubling rather than fixed, because max_conn clears on its own and hammering
+    it at a constant rate is what caused it.
+    """
+    import time
+    from argostranslate import sbd
+
+    for attempt in range(1, retries + 1):
+        try:
+            sbd.get_sbd_package()
+            return True
+        except AttributeError:
+            return True  # older argos with no such helper; nothing to warm
+        except Exception as err:
+            wait = 2 ** attempt
+            if attempt == retries:
+                print(f"  sentencizer unavailable after {retries} tries: {err}")
+                return False
+            print(f"  sentencizer fetch failed, retrying in {wait}s")
+            time.sleep(wait)
+    return False
+
+
+def translate_one(engine, text, retries=4):
+    """Translate one string, surviving a transient fetch failure.
+
+    Returns None when every attempt fails, so the caller can leave the key
+    missing rather than writing an English string into a locale file where it
+    would look translated and never be revisited.
+    """
+    import time
+
+    for attempt in range(1, retries + 1):
+        try:
+            return engine.translate(text)
+        except Exception as err:
+            if attempt == retries:
+                print(f"    giving up on one string: {err}")
+                return None
+            time.sleep(2 ** attempt)
+    return None
+
+
+def write_locale(path, data):
+    """Sorted, so a diff is only the new keys rather than a reshuffle, and two
+    runs on different machines produce the same file."""
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(dict(sorted(data.items())), fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+
+
 def locale_files():
     return sorted(
         f for f in os.listdir(I18N)
@@ -206,6 +276,8 @@ def main():
     else:
         sys.exit("pass --locale, --all or --list")
 
+    warm_sentencizer()
+
     for stem in targets:
         path = os.path.join(I18N, f"{stem}.json")
         if not os.path.isfile(path):
@@ -227,26 +299,37 @@ def main():
             continue
 
         print(f"{stem}: {len(gap)} keys via en -> {code}")
+        failed = 0
         for i, key in enumerate(gap, 1):
             source = base[key]
             masked, restore = protect(source)
-            translated = unprotect(engine.translate(masked), restore)
+            raw = translate_one(engine, masked)
+            if raw is None:
+                failed += 1
+                continue
+            translated = unprotect(raw, restore)
             other[key] = translated
             if args.dry_run and i <= 5:
                 print(f"    {key}\n      {source}\n      {translated}")
             elif not args.dry_run and i % 25 == 0:
                 print(f"    {i}/{len(gap)}")
+                # ─── WRITTEN AS IT GOES ──────────────────────────────────
+                #
+                # A locale is a few hundred CPU-seconds of work. Saving only at
+                # the end means one 503 in the last stretch throws away all of
+                # it, and because the pass only ever fills MISSING keys, a
+                # partial file is not a broken state: the next run picks up
+                # exactly where this one stopped.
+                write_locale(path, other)
+
+        if failed:
+            print(f"    {failed} strings failed and were left missing")
 
         if args.dry_run:
             print(f"    (dry run, {stem}.json not written)")
             continue
 
-        # Sorted, so a locale file's diff is only the new keys rather than a
-        # reshuffle, and two runs on different machines produce the same file.
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(dict(sorted(other.items())), fh,
-                      ensure_ascii=False, indent=2)
-            fh.write("\n")
+        write_locale(path, other)
         print(f"    wrote {path}")
 
     print("\nnext: python3 tools/i18n_audit.py --only parity")

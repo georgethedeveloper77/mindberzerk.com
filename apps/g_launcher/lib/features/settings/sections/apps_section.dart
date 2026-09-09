@@ -698,7 +698,7 @@ void _showRemovedFromDock(
               Navigator.pop(sheet);
               notifier.edit((p) => HomeLayout.restoreToDock(p, key));
               context
-                  .showMessage('${labels[key] ?? key} can return to the dock');
+                  .showMessage(context.t('settings.canReturnToDock', {'name': labels[key] ?? key}));
             },
           ),
         if (removed.length > 1)

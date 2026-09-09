@@ -447,7 +447,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     if (results.isEmpty && launcherHits.isEmpty) {
       return Center(
         child: Text(
-          'Nothing matches "$_query"',
+          context.t('search.nothingMatches', {'query': _query}),
           style: d.text.body.copyWith(color: d.colors.textMuted),
         ),
       );
