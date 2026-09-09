@@ -125,7 +125,7 @@ class RestoreScreen extends ConsumerWidget {
           section(
             icon: Icons.image_outlined,
             title: context.t('settings.wallpaper'),
-            subtitle: 'Rotation, fit and lock. Your photos stay',
+            subtitle: context.t('settings.rotationFitAndLockPhotos'),
             which: PrefsSection.wallpaper,
             also: () async =>
                 ref.read(launcherHostApiProvider).cancelWallpaperRotation(),

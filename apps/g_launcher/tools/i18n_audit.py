@@ -121,17 +121,37 @@ IGNORE = {
     "features/setup/setup_screen.dart": {
         "conky",
     },
+    # ─── A WHOLE FILE OF SHELL OUTPUT ──────────────────────────────────────
+    #
+    # `term_vfs` is the terminal's filesystem, and everything it emits is what
+    # a shell prints: "not a directory", "no folder granted yet", and hints
+    # that name the commands themselves. Those commands stay English whatever
+    # the phone's language is, so a translated error beside an untranslated
+    # `ls /apps` is a terminal that has never existed anywhere.
+    #
+    # Real shells do this too. `bash` on a Spanish phone still says "No such
+    # file or directory".
+    #
+    # Marked `:all` rather than listed value by value, because the rule is
+    # about the FILE, and listing them one at a time would mean a new error
+    # message quietly becoming a translation candidate later.
+    "features/terminal/term_vfs.dart:all": True,
 }
 
 
 def ignored(path, value, param=None):
     """True when this file has declared this string, or its whole field, copy-free.
 
-    Two forms. A plain suffix keys a set of VALUES. A suffix ending `:params`
-    keys a set of PARAMETER NAMES, and every value they carry is exempt.
+    Three forms. A plain suffix keys a set of VALUES. A suffix ending `:params`
+    keys a set of PARAMETER NAMES, and every value they carry is exempt. A
+    suffix ending `:all` exempts the whole file, for one that holds no copy at
+    all.
     """
     for suffix, entries in IGNORE.items():
-        if suffix.endswith(":params"):
+        if suffix.endswith(":all"):
+            if path.endswith(suffix[: -len(":all")]):
+                return True
+        elif suffix.endswith(":params"):
             if param and path.endswith(suffix[: -len(":params")]) and param in entries:
                 return True
         elif path.endswith(suffix) and value in entries:

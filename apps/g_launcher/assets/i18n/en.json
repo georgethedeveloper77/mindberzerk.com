@@ -491,6 +491,8 @@
   "settings.rightNow": "Right now",
   "settings.rotateFrom": "Rotate from",
   "settings.rotation": "Rotation",
+  "settings.rotationFitAndLock": "Rotation, fit and lock screen",
+  "settings.rotationFitAndLockPhotos": "Rotation, fit and lock. Your photos stay where they are.",
   "settings.rotationFitAndThe": "Rotation, fit and the lock-screen switch go back to their defaults. Your photos, your collections and the wallpaper on screen right now are untouched.",
   "settings.rounded": "Rounded",
   "settings.roundedSquare": "Rounded square",

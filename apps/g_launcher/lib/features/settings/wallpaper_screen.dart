@@ -1146,7 +1146,7 @@ class WallpaperScreen extends ConsumerWidget {
             ThemedListRow(
               icon: Icons.settings_backup_restore,
               title: context.t('settings.resetWallpaperSettings'),
-              subtitle: 'Rotation, fit and lock screen',
+              subtitle: context.t('settings.rotationFitAndLock'),
               onTap: () async {
                 final ok = await ThemedDialog.confirm(
                   context,
