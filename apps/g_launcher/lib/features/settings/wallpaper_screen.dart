@@ -1151,9 +1151,7 @@ class WallpaperScreen extends ConsumerWidget {
                 final ok = await ThemedDialog.confirm(
                   context,
                   title: context.t('settings.resetWallpaperSettingsConfirm'),
-                  message: 'Rotation, fit and the lock-screen switch go back '
-                      'to their defaults. Your photos, your collections and '
-                      'the wallpaper on screen right now are untouched.',
+                  message: 'Rotation, fit and the lock-screen switch go back to their defaults. Your photos, your collections and the wallpaper on screen right now are untouched.',
                   confirmLabel: context.t('settings.reset'),
                 );
                 if (ok != true) return;

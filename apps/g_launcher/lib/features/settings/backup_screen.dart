@@ -207,9 +207,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
             child: Text(
-              'Photos are not inside the backup, only the list of them. '
-              'Restoring onto the same phone finds them again; onto a new one, '
-              'your collections come back empty and ready to fill.',
+              'Photos are not inside the backup, only the list of them. Restoring onto the same phone finds them again; onto a new one, your collections come back empty and ready to fill.',
               style: TextStyle(color: c.textFaint),
             ),
           ),

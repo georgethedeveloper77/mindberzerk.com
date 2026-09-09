@@ -113,8 +113,7 @@ class _ProSheet extends ConsumerWidget {
               // What stays free is stated, because a paywall that implies the
               // free tier is crippled is one people resent. Everything they
               // already use keeps working.
-              'Every command stays free, and so does one saved server with a '
-              'password.',
+              'Every command stays free, and so does one saved server with a password.',
               style: TextStyle(
                 fontFamily: fontFamily,
                 fontSize: 11.5,

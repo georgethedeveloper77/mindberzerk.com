@@ -193,9 +193,7 @@ class FoldersScreen extends ConsumerWidget {
                   final ok = await ThemedDialog.confirm(
                     context,
                     title: context.t('settings.resetFolderAppearanceConfirm'),
-                    message: 'Folder size, shape and sort order go back to '
-                        'their defaults. The folders themselves and everything '
-                        'in them are untouched.',
+                    message: 'Folder size, shape and sort order go back to their defaults. The folders themselves and everything in them are untouched.',
                     confirmLabel: context.t('settings.reset'),
                   );
                   if (ok != true) return;
@@ -217,9 +215,7 @@ class FoldersScreen extends ConsumerWidget {
                 final ok = await ThemedDialog.confirm(
                   context,
                   title: context.t('settings.ungroupAllFoldersConfirm'),
-                  message: 'The apps are not touched. They leave their '
-                      'folders and return to the list, and the folders '
-                      'themselves are removed.',
+                  message: 'The apps are not touched. They leave their folders and return to the list, and the folders themselves are removed.',
                   confirmLabel: context.t('drawer.ungroup'),
                   danger: true,
                 );
