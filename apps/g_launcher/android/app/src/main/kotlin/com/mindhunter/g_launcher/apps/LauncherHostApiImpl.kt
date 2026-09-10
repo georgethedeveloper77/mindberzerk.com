@@ -27,6 +27,7 @@ import com.mindhunter.g_launcher.icons.IconExtractor
 import com.mindhunter.g_launcher.icons.IconRenderer
 import com.mindhunter.g_launcher.DeviceStats
 import com.mindhunter.g_launcher.StatCapabilities
+import com.mindhunter.g_launcher.system.GalleryReader
 import com.mindhunter.g_launcher.system.DeviceStatsReader
 import com.mindhunter.g_launcher.system.GestureAccessibilityService
 import com.mindhunter.g_launcher.system.RoleRequester
@@ -201,6 +202,8 @@ class LauncherHostApiImpl(
      * result flow, and for the same underlying reason: some things need an
      * Activity, and the Application is the wrong object to hold one.
      */
+    private val gallery = GalleryReader(context)
+
     private var activityRef: java.lang.ref.WeakReference<android.app.Activity>? = null
 
     fun attachActivity(activity: android.app.Activity) {
@@ -587,6 +590,33 @@ class LauncherHostApiImpl(
     }
 
     // ---- wallpaper -------------------------------------------------------
+
+    override fun galleryAccess(callback: (Result<String>) -> Unit) {
+        io.execute {
+            val state = runCatching { gallery.state() }
+                .getOrDefault(GalleryReader.DENIED)
+            main.post { callback(Result.success(state)) }
+        }
+    }
+
+    override fun requestGalleryAccess(callback: (Result<Boolean>) -> Unit) {
+        // On the MAIN thread, unlike its neighbours: showing a dialog is a
+        // window operation and requestPermissions from a background thread is
+        // an immediate crash.
+        main.post {
+            val ok = runCatching { gallery.request(activityRef?.get()) }
+                .getOrDefault(false)
+            callback(Result.success(ok))
+        }
+    }
+
+    override fun recentImages(limit: Long, callback: (Result<List<String>>) -> Unit) {
+        io.execute {
+            val paths = runCatching { gallery.recent(limit) }
+                .getOrDefault(emptyList())
+            main.post { callback(Result.success(paths)) }
+        }
+    }
 
     override fun openMotionWallpaper(
         path: String,

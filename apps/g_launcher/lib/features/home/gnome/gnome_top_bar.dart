@@ -186,6 +186,24 @@ class GnomeTopBar extends ConsumerWidget {
           // other pack that never listed these are untouched, because they
           // never asked.
           PanelModule.tray => _Tray(palette: palette, stacked: stacked),
+          // ─── FOR THE REASON THE CLOCK IS ARGUED ABOUT BELOW ──────────
+          //
+          // A GNOME top bar sits directly under Android's status bar, which
+          // already shows charge and signal. That is this file's own argument
+          // about the clock and it applies here unchanged.
+          //
+          // Plasma's panel is a different case: it is usually at the BOTTOM,
+          // nowhere near the status bar. So the modules exist and this shell
+          // simply does not draw them, which is the difference between a
+          // vocabulary and a mandate.
+          //
+          // App buttons likewise: GNOME puts launchers in the dash, not the
+          // bar.
+          PanelModule.battery ||
+          PanelModule.wifi ||
+          PanelModule.app =>
+            const SizedBox.shrink(),
+
           PanelModule.clock => _OpensQuickSettings(
               labelKey: 'gestures.quickSettings',
               child: _Clock(

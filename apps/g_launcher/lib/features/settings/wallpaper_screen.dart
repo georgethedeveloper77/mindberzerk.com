@@ -834,6 +834,606 @@ final otherDistroWallpapersProvider =
   return out;
 });
 
+/// Pick a video and hand it to Android's live-wallpaper preview.
+///
+/// Top-level so the header's info sheet and the strip's add tile call the same
+/// thing. Two entry points to one action is how they drift.
+Future<void> pickMotion(BuildContext context, WidgetRef ref) async {
+  final picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+  if (picked == null) return;
+  // The picker is a whole activity, so the launcher can be torn down while it
+  // is up. Everything below reads the context, starting with `MediaQuery`.
+  if (!context.mounted) return;
+
+  // ─── A CEILING, CHECKED BEFORE THE COPY ─────────────────────────────────
+  //
+  // Refused rather than transcoded. Shrinking a video needs Media3 Transformer
+  // and a progress UI for something that can take a minute, and a launcher that
+  // silently re-encodes somebody's video is doing more than they asked. Naming
+  // the limit lets them trim it in the app that already knows how.
+  //
+  // The ceiling comes from the SCREEN, because that is what decides whether the
+  // extra pixels were ever going to be seen. A 720x1600 phone gains nothing
+  // from a clip sized for a 1440 panel and pays for it in decode and storage.
+  // Read BEFORE the await. `MediaQuery` needs a live context and the length
+  // read is an async gap, so measuring afterwards is the lint's exact case.
+  final cap = motionSizeCapMb(context);
+  final file = File(picked.path);
+  final mb = await file.length() / (1024 * 1024);
+  if (!context.mounted) return;
+  if (mb > cap) {
+    if (context.mounted) {
+      context.showMessage(
+        context.t('settings.thatVideoIsTooBig', {'mb': '$cap'}),
+      );
+    }
+    return;
+  }
+
+  final opened =
+      await ref.read(launcherHostApiProvider).openMotionWallpaper(picked.path);
+
+  // False means the PREVIEW did not open, which on a device with no
+  // live-wallpaper picker is the whole story. Success says nothing about
+  // whether they pressed Set, and there is no callback that would.
+  if (!opened && context.mounted) {
+    context.showMessage(context.t('settings.thisPhoneHasNoLiveWallpaper'));
+  }
+}
+
+/// The size ceiling for this device, in megabytes.
+///
+/// Three bands rather than a formula. The number is advice a person reads, and
+/// "under 15 MB" is followed where "under 14.7 MB" is not.
+int motionSizeCapMb(BuildContext context) {
+  final w = MediaQuery.of(context).size.width *
+      MediaQuery.of(context).devicePixelRatio;
+  if (w >= 1440) return 25;
+  if (w >= 1080) return 15;
+  return 8;
+}
+
+/// Is this launcher's motion wallpaper the one currently set?
+///
+/// Asked of the SYSTEM, never remembered. The user can change their wallpaper
+/// from Android's settings, the gallery or another launcher, and a stored bool
+/// would be wrong from that moment with nothing to correct it.
+final motionActiveProvider = FutureProvider<bool>((ref) async {
+  return ref.read(launcherHostApiProvider).motionWallpaperActive();
+});
+
+/// The Motion heading, with the info icon that explains the numbers.
+class _MotionHeader extends ConsumerWidget {
+  const _MotionHeader({required this.theme, required this.onPick});
+
+  final EffectiveTheme theme;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = ChromeScope.of(context).colors;
+    final active = ref.watch(motionActiveProvider).value ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              context.t('settings.motion'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: c.text,
+              ),
+            ),
+          ),
+          if (active)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                context.t('settings.oneVideo'),
+                style: TextStyle(fontSize: 11.5, color: c.textFaint),
+              ),
+            ),
+          // A SHEET, not a tooltip. Everything else that explains itself on
+          // this page is a sheet, and the numbers below need four lines and a
+          // table, which a tooltip cannot carry on a 360dp screen.
+          GestureDetector(
+            onTap: () => showMotionInfo(context, onPick),
+            child: Icon(Icons.info_outline, size: 18, color: c.textFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The Motion strip: the video when one is set, and always a way to change it.
+class _MotionStrip extends ConsumerWidget {
+  const _MotionStrip({required this.onPick});
+
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(motionActiveProvider).value ?? false;
+
+    if (!active) {
+      return _AddCard(
+        icon: Icons.movie_outlined,
+        title: context.t('settings.addAVideo'),
+        subtitle: context.t('settings.yourOwnVideoBoth'),
+        onTap: onPick,
+      );
+    }
+
+    return SizedBox(
+      height: 118,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          // ─── NO THUMBNAIL, DELIBERATELY ───────────────────────────────
+          //
+          // A frame out of the video would need a decoder pass on the way into
+          // a settings page, and the file is already playing behind everything
+          // the moment it is set. The badge answers the only question a
+          // thumbnail would: yes, one is running.
+          const _MotionTile(),
+          const SizedBox(width: 8),
+          _AddTile(label: context.t('settings.replace'), onTap: onPick),
+        ],
+      ),
+    );
+  }
+}
+
+class _MotionTile extends StatelessWidget {
+  const _MotionTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ChromeScope.of(context).colors;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(9),
+      child: SizedBox(
+        width: 62,
+        child: ColoredBox(
+          color: colors.surfaceAlt,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Icon(
+                  Icons.play_circle_outline,
+                  size: 22,
+                  color: colors.text,
+                ),
+              ),
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    context.t('settings.live'),
+                    style: const TextStyle(fontSize: 8, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Whether this app can read the user's photos, and which of them.
+///
+/// Re-read rather than remembered. The answer changes from Android's own
+/// Settings while this process is asleep, and under a partial grant it changes
+/// every time somebody shares another photo.
+final galleryAccessProvider = FutureProvider<String>((ref) async {
+  return ref.read(launcherHostApiProvider).galleryAccess();
+});
+
+/// Recent photos from the device, newest first.
+///
+/// Watches [galleryAccessProvider] rather than reading it, so granting access
+/// refills this without the page being rebuilt by hand.
+final recentImagesProvider = FutureProvider<List<String>>((ref) async {
+  final access = await ref.watch(galleryAccessProvider.future);
+  if (access == 'denied') return const [];
+  return ref.read(launcherHostApiProvider).recentImages(12);
+});
+
+/// The Gallery strip's recents: photos on the device that are not wallpapers.
+///
+/// ─── DIMMED AND HATCHED, BECAUSE THEY ARE NOT KEPT ──────────────────────────
+///
+/// These sit in the same strip as photos the user chose, and without a
+/// difference the section stops meaning anything: half of it would be theirs
+/// and half would be whatever the camera did last week, looking identical.
+///
+/// Tapping one copies it in exactly as the picker path does, and it moves up
+/// into the kept part of the strip. The hatch is what makes that a promotion
+/// rather than a mystery.
+class _RecentStrip extends ConsumerWidget {
+  const _RecentStrip({required this.onKeep});
+
+  final Future<void> Function(String path) onKeep;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = ChromeScope.of(context).colors;
+    final access = ref.watch(galleryAccessProvider).value ?? 'denied';
+    final recents = ref.watch(recentImagesProvider).value ?? const <String>[];
+
+    if (access == 'denied' || recents.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: recents.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) => GestureDetector(
+              onTap: () => onKeep(recents[i]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: SizedBox(
+                  width: 62,
+                  child: Opacity(
+                    opacity: 0.55,
+                    child: Image.file(File(recents[i]), fit: BoxFit.cover),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Text(
+            // Under a partial grant this is the whole truth and the sentence
+            // says so, rather than implying more is hidden behind a scroll.
+            context.t(
+              access == 'partial'
+                  ? 'settings.onlyThePhotosYouShared'
+                  : 'settings.recentPhotosTapToKeep',
+            ),
+            style: TextStyle(fontSize: 11.5, height: 1.4, color: c.textFaint),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The add affordance when a source is EMPTY.
+///
+/// ─── A CARD, NOT A LONE TILE ────────────────────────────────────────────────
+///
+/// A 62dp dashed tile is right at the END of a strip, where the wallpapers
+/// beside it give it a scale and a job. On its own in a 160dp row it is a
+/// narrow box with a screen's worth of nothing to the right of it, which reads
+/// as a section that failed to load rather than one nobody has used yet.
+///
+/// So the same action takes the width it has when it is the only thing there,
+/// and gets the sentence a tile has no room for. A section that has never been
+/// used is the one place there is space to say what it is for.
+class _AddCard extends StatelessWidget {
+  const _AddCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+      child: GestureDetector(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: c.textFaint),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: c.text,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: c.textFaint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.add, size: 20, color: c.textFaint),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The dashed tile that ends every source strip.
+class _AddTile extends StatelessWidget {
+  const _AddTile({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 62,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.surfaceAlt,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: c.line),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 17, color: c.textFaint),
+              const SizedBox(height: 3),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: TextStyle(fontSize: 10, color: c.textFaint),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Collections as tiles: the first photo, with how many are in the set.
+class _CollectionStrip extends StatelessWidget {
+  const _CollectionStrip({
+    required this.theme,
+    required this.collections,
+    required this.onOpen,
+    required this.onNew,
+  });
+
+  final EffectiveTheme theme;
+  final List<WallpaperCollection> collections;
+  final void Function(String id) onOpen;
+  final VoidCallback onNew;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    if (collections.isEmpty) {
+      return _AddCard(
+        icon: Icons.create_new_folder_outlined,
+        title: context.t('settings.newCollection'),
+        subtitle: context.t('settings.groupPhotosAndRotate'),
+        onTap: onNew,
+      );
+    }
+
+    return SizedBox(
+      height: 118,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          for (final col in collections) ...[
+            GestureDetector(
+              onTap: () => onOpen(col.id),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: SizedBox(
+                  width: 62,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // The first photo stands for the set. An empty set has
+                      // none, so it gets the surface rather than a broken
+                      // image: a collection with nothing in it is a real state
+                      // and one you have to be able to open to fix.
+                      if (col.paths.isNotEmpty)
+                        Image.file(File(col.paths.first), fit: BoxFit.cover)
+                      else
+                        ColoredBox(color: c.surfaceAlt),
+                      ColoredBox(color: Colors.black.withValues(alpha: 0.42)),
+                      Center(
+                        child: Text(
+                          '${col.paths.length}',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: c.text,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          _AddTile(label: context.t('settings.newSet'), onTap: onNew),
+        ],
+      ),
+    );
+  }
+}
+
+/// The line that separates picking from configuring.
+class _SettingsDivider extends StatelessWidget {
+  const _SettingsDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+      child: Divider(height: 1, thickness: 1, color: c.line),
+    );
+  }
+}
+
+/// What a motion wallpaper costs, and what size to give it.
+///
+/// ─── THE NUMBERS COME FROM THE SCREEN ───────────────────────────────────────
+///
+/// A fixed recommendation is wrong for most phones. A clip sized for a 1440
+/// panel is decode and storage a 720 one never sees, and a clip sized for 720
+/// is soft on a flagship. `MediaQuery` already knows, so it is asked.
+///
+/// ─── AND IT LEADS WITH BATTERY, NOT PIXELS ──────────────────────────────────
+///
+/// The first line is that playback stops when the wallpaper is not on screen,
+/// because that is what decides whether somebody keeps this feature. Resolution
+/// is the least important thing on this sheet and it is the thing a
+/// specification-shaped panel would put first.
+Future<void> showMotionInfo(BuildContext context, VoidCallback onPick) {
+  final media = MediaQuery.of(context);
+  final w = (media.size.width * media.devicePixelRatio).round();
+  final h = (media.size.height * media.devicePixelRatio).round();
+  // A wallpaper pans as the workspace changes, so a little wider than the
+  // screen is seen and the rest is not.
+  final wide = ((w * 1.2) / 10).round() * 10;
+  final cap = motionSizeCapMb(context);
+
+  return ThemedSheet.show<void>(
+    context,
+    title: context.t('settings.motionWallpaper'),
+    isScrollControlled: true,
+    builder: (ctx) {
+      final c = ChromeScope.of(ctx).colors;
+
+      Widget line(String label, String value) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 12.5, color: c.textFaint),
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(fontSize: 12.5, color: c.text),
+                ),
+              ],
+            ),
+          );
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+            child: Text(
+              ctx.t('settings.motionExplainer'),
+              style: TextStyle(fontSize: 12.5, height: 1.6, color: c.textFaint),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: c.surfaceAlt,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Column(
+                children: [
+                  line(ctx.t('settings.yourScreen'), '$w \u00d7 $h'),
+                  line(ctx.t('settings.goodSize'), '$wide \u00d7 $h'),
+                  line(ctx.t('settings.keepItUnder'), '$cap MB'),
+                  line(ctx.t('settings.length'),
+                      ctx.t('settings.aboutTenSeconds')),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Text(
+              ctx.t('settings.aLittleWiderBecause'),
+              style: TextStyle(fontSize: 11.5, height: 1.5, color: c.textFaint),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: ThemedButton(
+              label: ctx.t('settings.chooseAVideo'),
+              expand: true,
+              onPressed: () {
+                Navigator.pop(ctx);
+                onPick();
+              },
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 /// Wallpaper picker — Phase B, B2.
 ///
 /// Every surface here reads the chrome, not a constant: the app bar, section
@@ -934,6 +1534,8 @@ class WallpaperScreen extends ConsumerWidget {
     final presets = orderedPresets(theme);
     final mine = theme.prefs.wallpapers;
 
+    final galleryAccess = ref.watch(galleryAccessProvider).value ?? 'denied';
+
     final othersAsync = ref.watch(otherDistroWallpapersProvider);
     final others = othersAsync.hasValue
         ? othersAsync.requireValue
@@ -968,6 +1570,48 @@ class WallpaperScreen extends ConsumerWidget {
     // and stamps through the same writes; the history lives on the function.
     Future<void> apply(String source) =>
         applyWallpaper(context, ref, theme, source);
+
+    // ─── ONE COPY PATH, TWO WAYS IN ────────────────────────────────────
+    //
+    // A recent photo taken from MediaStore goes through the SAME copy as one
+    // returned by the picker. Storing the MediaStore path instead would be
+    // fine until the user deleted the photo, and a wallpaper that vanishes
+    // when a holiday album is tidied up is indistinguishable from a bug.
+    Future<void> keepPhoto(String path) async {
+      final copy = await copyWallpaperInto(await ownWallpapersDir(), path);
+      if (copy == null) {
+        if (context.mounted) {
+          context.showMessage(context.t('settings.couldNotAddThat'));
+        }
+        return;
+      }
+      await notifier.edit(
+        (p) => p.copyWith(wallpapers: [...p.wallpapers, copy]),
+      );
+    }
+
+    // Extracted from the list row it used to be, so the Gallery strip can
+    // carry its own add tile like every other source on this page.
+    Future<void> addPhoto() async {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+      );
+      if (picked == null) return;
+
+      // ── COPIED, NOT REFERENCED ────────────────────────────────
+      //
+      // This used to store `picked.path` and say copying "doubles
+      // disk use for no benefit, the photo is already on the
+      // device". The photo is; that PATH is not. image_picker hands
+      // back a file in cacheDir, the OS evicts caches whenever
+      // storage gets tight, and the entry then outlives the file it
+      // names. Every user photo here would eventually become a
+      // broken thumbnail nobody removed. See [copyWallpaperInto].
+      //
+      // Through `keepPhoto`, which a tapped recent also uses: two ways
+      // in, one copy, one failure message.
+      await keepPhoto(picked.path);
+    }
 
     final rotationSource = theme.prefs.wallpaperRotationSource;
     final pool = rotationPoolFor(theme, collections, rotationSource);
@@ -1196,11 +1840,16 @@ class WallpaperScreen extends ConsumerWidget {
               onTap: apply,
             ),
           ],
-          _StripHeader(title: context.t('wallpaper.yours'), presets: false),
+          _StripHeader(title: context.t('wallpaper.gallery'), presets: false),
           _Strip(
             sources: mine,
             source: theme.spec.source,
             onTap: apply,
+            onAdd: addPhoto,
+            // When the strip is empty AND access is granted, the recents below
+            // are the content, so the big empty-state card would be a second
+            // invitation on top of a full row.
+            suppressEmptyCard: galleryAccess != 'denied',
             // ─── ONLY YOUR OWN CAN BE REMOVED ──────────────────────────
             //
             // A photo could be added and never taken back, so a mistaken pick
@@ -1232,65 +1881,44 @@ class WallpaperScreen extends ConsumerWidget {
               );
             },
           ),
-          ThemedListRow(
-            icon: Icons.add_photo_alternate_outlined,
-            title: context.t('settings.addAPhoto'),
-            onTap: () async {
-              final picked = await ImagePicker().pickImage(
-                source: ImageSource.gallery,
-              );
-              if (picked == null) return;
-
-              // ── COPIED, NOT REFERENCED ────────────────────────────────
-              //
-              // This used to store `picked.path` and say copying "doubles
-              // disk use for no benefit, the photo is already on the
-              // device". The photo is; that PATH is not. image_picker hands
-              // back a file in cacheDir, the OS evicts caches whenever
-              // storage gets tight, and the entry then outlives the file it
-              // names. Every user photo here would eventually become a
-              // broken thumbnail nobody removed. See [copyWallpaperInto].
-              final copy = await copyWallpaperInto(
-                await ownWallpapersDir(),
-                picked.path,
-              );
-              if (copy == null) {
-                if (context.mounted) {
-                  context.showMessage(context.t('settings.couldNotAddThat'));
-                }
-                return;
-              }
-
-              await notifier.edit(
-                (p) => p.copyWith(wallpapers: [...p.wallpapers, copy]),
-              );
-            },
-          ),
-          ThemedSectionHeader(context.t('settings.collections')),
-          for (final col in collections)
-            ThemedListRow(
+          _RecentStrip(onKeep: keepPhoto),
+          // ─── ASKED IN PLACE, NOT ON ARRIVAL ─────────────────────────────
+          //
+          // The dialog fires from a tap here rather than when the page opens.
+          // A permission prompt nobody asked for is one people dismiss without
+          // reading, and dismissing it twice is how Android stops offering it
+          // at all.
+          //
+          // Only when there is something to gain: with photos already added and
+          // access denied, the picker route works fine and this would be a
+          // standing advert for a permission.
+          if (galleryAccess == 'denied' && mine.isNotEmpty)
+            _AddCard(
               icon: Icons.photo_library_outlined,
-              title: col.name,
-              subtitle: col.paths.length == 1
-                  ? '1 wallpaper'
-                  : '${col.paths.length} wallpapers',
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => WallpaperCollectionScreen(
-                    theme: theme,
-                    collectionId: col.id,
-                  ),
+              title: context.t('settings.showMyPhotos'),
+              subtitle: context.t('settings.soYouCanPickWithout'),
+              onTap: () async {
+                await ref.read(launcherHostApiProvider).requestGalleryAccess();
+                // Re-read rather than await an answer. The dialog resumes this
+                // page when it closes, and the same invalidation covers a grant
+                // made later from Android's own settings.
+                ref.invalidate(galleryAccessProvider);
+              },
+            ),
+          _StripHeader(
+              title: context.t('settings.collections'), presets: false),
+          _CollectionStrip(
+            theme: theme,
+            collections: collections,
+            onOpen: (id) => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WallpaperCollectionScreen(
+                  theme: theme,
+                  collectionId: id,
                 ),
               ),
             ),
-          ThemedListRow(
-            icon: Icons.create_new_folder_outlined,
-            title: context.t('settings.newCollection'),
-            subtitle: collections.isEmpty
-                ? 'Group photos and rotate through one set'
-                : null,
-            onTap: () => promptCollectionName(
+            onNew: () => promptCollectionName(
               context,
               title: context.t('settings.nameThisCollection'),
               onSubmit: (name) async {
@@ -1311,63 +1939,27 @@ class WallpaperScreen extends ConsumerWidget {
               },
             ),
           ),
-          // ─── MOTION ────────────────────────────────────────────────────
+          // ─── MOTION IS A SOURCE, SO IT IS A STRIP ──────────────────────
           //
-          // A row rather than a strip, because there is no set to browse: one
-          // video at a time, and choosing it happens in the system picker.
+          // It was a row, which could not answer the first question anybody
+          // has: is one set? A strip shows the video with a LIVE badge when it
+          // is, and one add tile when it is not, exactly like the three
+          // sources above it.
           //
-          // It sits below the still sources on purpose. Motion REPLACES both
-          // screens at once and is the expensive option, so it should be found
-          // after the cheap ones rather than offered first.
-          ThemedListRow(
-            icon: Icons.movie_outlined,
-            title: context.t('settings.motionWallpaper'),
-            subtitle: context.t('settings.yourOwnVideoBoth'),
-            onTap: () async {
-              final picked = await ImagePicker().pickVideo(
-                source: ImageSource.gallery,
-              );
-              if (picked == null) return;
-
-              // ─── A CEILING, CHECKED BEFORE THE COPY ──────────────────
-              //
-              // Refused rather than transcoded. Shrinking a video needs Media3
-              // Transformer and a progress UI for something that can take a
-              // minute, and a launcher that silently re-encodes somebody's
-              // video is doing more than they asked. Naming the limit lets
-              // them trim it in the app that already knows how.
-              //
-              // Twenty-five megabytes is a bound on the COPY, which lives in
-              // app storage for as long as the wallpaper is set. A phone with
-              // 32GB and a launcher quietly holding a 400MB clip is a support
-              // mail nobody can diagnose.
-              final file = File(picked.path);
-              final mb = await file.length() / (1024 * 1024);
-              if (mb > 25) {
-                if (context.mounted) {
-                  context.showMessage(
-                    context.t('settings.thatVideoIsTooBig'),
-                  );
-                }
-                return;
-              }
-
-              final opened = await ref
-                  .read(launcherHostApiProvider)
-                  .openMotionWallpaper(picked.path);
-
-              // False means the PREVIEW did not open, which on a device with
-              // no live-wallpaper picker is the whole story. Success says
-              // nothing about whether they pressed Set, and there is no
-              // callback that would: the next read of
-              // `motionWallpaperActive` is the only truth.
-              if (!opened && context.mounted) {
-                context.showMessage(
-                  context.t('settings.thisPhoneHasNoLiveWallpaper'),
-                );
-              }
-            },
-          ),
+          // Below the stills on purpose. Motion replaces both screens at once
+          // and is the expensive option, so it is found after the cheap ones
+          // rather than offered first.
+          _MotionHeader(theme: theme, onPick: () => pickMotion(context, ref)),
+          _MotionStrip(onPick: () => pickMotion(context, ref)),
+          // ─── EVERYTHING BELOW CONFIGURES, NOTHING BELOW PICKS ──────────
+          //
+          // The line and the heading are the whole point of this block. Four
+          // sources end here, and framing, rotation and reset are not a fifth:
+          // they are what happens to whatever was picked. Running them on from
+          // the strips with nothing between made the page read as one long
+          // undifferentiated list.
+          const _SettingsDivider(),
+          ThemedSectionHeader(context.t('settings.settings')),
           // ── FRAMING REPLACES THE FIT SHEET ─────────────────────────────
           //
           // The sheet it replaces wrote `prefs.wallpaperFit`, one value for the
@@ -1581,6 +2173,8 @@ class _Strip extends StatelessWidget {
     required this.source,
     required this.onTap,
     this.sourceFor,
+    this.onAdd,
+    this.suppressEmptyCard = false,
     this.onRemove,
     this.hidden = const {},
     this.onHide,
@@ -1641,15 +2235,48 @@ class _Strip extends StatelessWidget {
   /// order is theirs by construction and rotation walks it in sequence.
   final void Function(int oldIndex, int newIndex)? onReorder;
 
+  /// Skip the empty-state card even when there is nothing to show.
+  ///
+  /// The Gallery draws recents BELOW itself once access is granted, so an
+  /// empty strip there is not an empty section: the invitation to add is
+  /// already on screen a dozen times over, and a card on top of it would be a
+  /// second one shouting over the first.
+  final bool suppressEmptyCard;
+
+  /// The dashed tile that ends this strip, when it has one.
+  ///
+  /// ─── AN EMPTY SOURCE IS STILL A SOURCE ────────────────────────────────
+  ///
+  /// Empty used to render one faint line of text, and a separate list row did
+  /// the adding. So the Gallery with nothing in it looked like a settings
+  /// entry while the same section with one photo looked like a strip, and the
+  /// only difference was whether the user had got round to it yet.
+  ///
+  /// The add tile is part of the strip in BOTH states. A section that has not
+  /// been used yet is a strip holding exactly one tile, which is the honest
+  /// picture: there is one thing you can do here.
+  final VoidCallback? onAdd;
+
   @override
   Widget build(BuildContext context) {
-    final c = ChromeScope.of(context).colors;
+    final add = onAdd;
 
     if (sources.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(context.t('settings.nothingYet'),
-            style: TextStyle(color: c.textFaint)),
+      if (suppressEmptyCard) return const SizedBox.shrink();
+      if (add == null) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            context.t('settings.nothingYet'),
+            style: TextStyle(color: ChromeScope.of(context).colors.textFaint),
+          ),
+        );
+      }
+      return _AddCard(
+        icon: Icons.add_photo_alternate_outlined,
+        title: context.t('settings.addAWallpaper'),
+        subtitle: context.t('settings.photosYouAddStay'),
+        onTap: add,
       );
     }
 
@@ -1698,9 +2325,13 @@ class _Strip extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: sources.length,
+        // One past the end when this strip can be added to, so the tile
+        // travels with the list rather than sitting outside it.
+        itemCount: sources.length + (add == null ? 0 : 1),
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: _tile,
+        itemBuilder: (context, i) => i == sources.length
+            ? _AddTile(label: context.t('settings.addAPhoto'), onTap: add!)
+            : _tile(context, i),
       ),
     );
   }

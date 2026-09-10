@@ -25,6 +25,26 @@
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <!--
+        Reading the user's photos, so the wallpaper page can show recent ones
+        rather than sending them out to a picker and back for every attempt.
+
+        TWO permissions, not one. Android 14 splits this: READ_MEDIA_IMAGES is
+        everything, READ_MEDIA_VISUAL_USER_SELECTED is only what the user picked
+        in the system dialog, and that dialog's PRIMARY button grants the
+        second. Declaring only the first would make "Select photos" read as a
+        denial, which is what most people tap.
+
+        maxSdkVersion on the legacy one because 13 replaced it. Left in place
+        rather than dropped: the audience includes phones that never saw 13.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!--
       Haptics. HapticFeedback.lightImpact/mediumImpact are used on every launch,
       every long-press and every drag-to-merge; WITHOUT this they fail silently —
       no crash, no log, the phone just never buzzes. Normal permission, no prompt.

@@ -1257,6 +1257,36 @@ interface LauncherHostApi {
    * carries enums and is read by packs already installed on phones. An
    * unrecognised value degrades NATIVELY to the home screen, which is the
    * surface every build before this one wrote to.
+   * 'denied', 'partial' or 'granted'.
+   *
+   * ─── THREE, BECAUSE ANDROID 14 SPLIT IT ───────────────────────────────
+   *
+   * The system dialog's primary button is "Select photos", so a PARTIAL grant
+   * is the common answer rather than an edge case. Folding it into denied
+   * would hide the strip for most people; folding it into granted would show
+   * four photos with no account of the missing thousand.
+   *
+   * A STRING for the same reason [fit] is one: an enum takes a codec id.
+   */
+  fun galleryAccess(callback: (Result<String>) -> Unit)
+  /**
+   * Open the system permission dialog.
+   *
+   * Returns whether the dialog could be shown, NOT what was chosen. Nothing
+   * waits for the answer: the dialog resumes the activity when it closes and
+   * the page re-reads [galleryAccess] then. The answer can also change from
+   * the Settings app while this process is asleep, so a callback would only
+   * be right some of the time and a re-read is right always.
+   */
+  fun requestGalleryAccess(callback: (Result<Boolean>) -> Unit)
+  /**
+   * The most recent images, newest first, as absolute paths.
+   *
+   * Empty when access is denied, and under a partial grant it returns only
+   * what was shared, which is the complete answer to what this app can see.
+   */
+  fun recentImages(limit: Long, callback: (Result<List<String>>) -> Unit)
+  /**
    * Copy [path] into place and open Android's live-wallpaper preview.
    *
    * ─── OPENS A SCREEN, DOES NOT SET ANYTHING ────────────────────────────
@@ -1758,6 +1788,62 @@ interface LauncherHostApi {
               LauncherApiPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.galleryAccess$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.galleryAccess{ result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.requestGalleryAccess$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestGalleryAccess{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.recentImages$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val limitArg = args[0] as Long
+            api.recentImages(limitArg) { result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

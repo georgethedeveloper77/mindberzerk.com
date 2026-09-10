@@ -13,7 +13,7 @@ import '../../../data/repositories/shell_apps.dart';
 import '../../../data/usage/usage_repository.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../engine/theme_spec.dart'
-    show PanelModule, TopBarSide;
+    show PanelItem, PanelModule, TopBarSide;
 import '../../../design/components/components.dart';
 import '../../../features/desklets/desklet_edit.dart';
 import '../../../features/dock/dock_metrics.dart';
@@ -369,6 +369,9 @@ String _moduleLabel(BuildContext context, PanelModule m) => switch (m) {
       PanelModule.network => context.t('shell.moduleNetwork'),
       PanelModule.memory => context.t('shell.moduleMemory'),
       PanelModule.storage => context.t('shell.moduleStorage'),
+      PanelModule.battery => context.t('shell.moduleBattery'),
+      PanelModule.wifi => context.t('shell.moduleWifi'),
+      PanelModule.app => context.t('shell.moduleApp'),
     };
 
 IconData _moduleIcon(PanelModule m) => switch (m) {
@@ -376,6 +379,9 @@ IconData _moduleIcon(PanelModule m) => switch (m) {
       PanelModule.tasks => Icons.view_agenda_outlined,
       PanelModule.pager => Icons.grid_view,
       PanelModule.tray => Icons.expand_less,
+      PanelModule.battery => Icons.battery_std_outlined,
+      PanelModule.wifi => Icons.wifi,
+      PanelModule.app => Icons.widgets_outlined,
       PanelModule.clock => Icons.schedule,
       PanelModule.spacer => Icons.space_bar,
       PanelModule.activities => Icons.dashboard_outlined,
@@ -390,10 +396,14 @@ IconData _moduleIcon(PanelModule m) => switch (m) {
 /// is a different interaction with its own hit-testing; appending is the honest
 /// version of what this build does, and a module in the wrong place can be
 /// removed and re-added until reordering exists.
-void _addModule(WidgetRef ref, EffectiveTheme theme,
-    List<PanelModule> modules, PanelModule add) {
+void _addModule(
+  WidgetRef ref,
+  EffectiveTheme theme,
+  List<PanelItem> items,
+  PanelItem add,
+) {
   HapticFeedback.mediumImpact();
-  final next = [for (final m in modules) m.name, add.name];
+  final next = [for (final e in items) e.toStorage(), add.toStorage()];
   ref
       .read(prefsProvider(theme.spec.id).notifier)
       .edit((p) => p.copyWith(panelModules: next));
@@ -401,9 +411,8 @@ void _addModule(WidgetRef ref, EffectiveTheme theme,
 
 void _setHeight(WidgetRef ref, EffectiveTheme theme, double dp) {
   HapticFeedback.selectionClick();
-  ref
-      .read(prefsProvider(theme.spec.id).notifier)
-      .edit((p) => p.copyWith(panelHeight: dp.clamp(_minPanelHeight, _maxPanelHeight)));
+  ref.read(prefsProvider(theme.spec.id).notifier).edit((p) =>
+      p.copyWith(panelHeight: dp.clamp(_minPanelHeight, _maxPanelHeight)));
 }
 
 /// The four edges, with the current one marked.
@@ -452,7 +461,8 @@ void _showPanelEdge(BuildContext context, WidgetRef ref, EffectiveTheme theme) {
 /// so the list never changes shape between openings and nobody has to work out
 /// what disappeared.
 void _showAddModule(BuildContext context, WidgetRef ref, EffectiveTheme theme) {
-  final current = _currentModules(theme);
+  final items = _currentItems(theme);
+  final current = items.map((e) => e.kind).toList();
 
   ThemedSheet.show<void>(
     context,
@@ -472,7 +482,7 @@ void _showAddModule(BuildContext context, WidgetRef ref, EffectiveTheme theme) {
                 ? null
                 : () {
                     Navigator.pop(sheet);
-                    _addModule(ref, theme, current, m);
+                    _addModule(ref, theme, items, PanelItem(m));
                   },
           ),
       ],
@@ -486,11 +496,11 @@ void _showAddModule(BuildContext context, WidgetRef ref, EffectiveTheme theme) {
 /// ONE definition, used by both the Add sheet and the panel itself, because two
 /// readings of "what is on the panel right now" would drift the first time a
 /// fallback changed.
-List<PanelModule> _currentModules(EffectiveTheme theme) {
+List<PanelItem> _currentItems(EffectiveTheme theme) {
   for (final p in theme.panels) {
-    if (p.side == TopBarSide.bottom) return p.modules;
+    if (p.side == TopBarSide.bottom) return p.items;
   }
-  return _plasmaDefaultModules;
+  return _plasmaDefaultModules.map(PanelItem.new).toList();
 }
 
 /// A minus or plus for the height stepper. Inert at the bounds rather than
@@ -516,8 +526,7 @@ class _HeightStep extends StatelessWidget {
       icon: Icon(
         icon,
         size: 18,
-        color: theme.palette.onDark
-            .withValues(alpha: enabled ? 0.75 : 0.28),
+        color: theme.palette.onDark.withValues(alpha: enabled ? 0.75 : 0.28),
       ),
     );
   }
@@ -530,20 +539,258 @@ class _HeightStep extends StatelessWidget {
 /// other four rather than a note about the tray. `LauncherPrefs.panelModules`
 /// explains why a diff has no honest semantics once the distro's own panel can
 /// change underneath it.
+/// ─── BY INDEX, NOT BY VALUE ────────────────────────────────────────────────
+///
+/// This removed every module EQUAL to the one tapped, which was correct while
+/// a panel could not hold two of anything except spacers. It can now: two app
+/// buttons are the ordinary case, and two spacers were always legal. Removing
+/// by value would take both.
 void _removeModule(
   WidgetRef ref,
   EffectiveTheme theme,
-  List<PanelModule> modules,
-  PanelModule drop,
+  List<PanelItem> items,
+  int index,
 ) {
   HapticFeedback.mediumImpact();
   final kept = [
-    for (final m in modules)
-      if (m != drop) m.name,
+    for (var i = 0; i < items.length; i++)
+      if (i != index) items[i].toStorage(),
   ];
   ref
       .read(prefsProvider(theme.spec.id).notifier)
       .edit((p) => p.copyWith(panelModules: kept));
+}
+
+/// Android's own settings actions, named where they are used.
+///
+/// Raw strings rather than constants in a shared file: `openAndroidSettings`
+/// takes a `Settings.ACTION_*` and its doc says why the screen belongs to
+/// Android. Two of them do not earn a file.
+const _batterySettings = 'android.settings.BATTERY_SAVER_SETTINGS';
+const _wifiSettings = 'android.settings.WIFI_SETTINGS';
+
+void _showBattery(BuildContext context, WidgetRef ref) {
+  final stats = ref.read(systemStatsProvider).value;
+  final pct = stats?.batteryPercent;
+  final charging = stats?.batteryCharging ?? false;
+  final temp = stats?.batteryTempC;
+  final ma = stats?.batteryCurrentMa;
+
+  ThemedSheet.show<void>(
+    context,
+    title: context.t('shell.moduleBattery'),
+    builder: (sheet) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ThemedListRow(
+          icon: charging
+              ? Icons.battery_charging_full
+              : Icons.battery_std_outlined,
+          title: pct == null ? sheet.t('common.unknown') : '$pct%',
+          subtitle: sheet.t(
+            charging ? 'shell.charging' : 'shell.discharging',
+          ),
+        ),
+        // Shown only where the device reports them. `StatCapabilities` exists
+        // because several OEMs serve neither, and a row reading "null" is
+        // worse than a row that is not there.
+        if (temp != null)
+          ThemedListRow(
+            icon: Icons.thermostat,
+            title: '${temp.toStringAsFixed(1)} °C',
+            subtitle: sheet.t('shell.temperature'),
+          ),
+        if (ma != null)
+          ThemedListRow(
+            icon: Icons.bolt_outlined,
+            title: '$ma mA',
+            // MAGNITUDE ONLY. The platform's sign is not portable, which
+            // `SystemStats.batteryCurrentMa` documents at length, so the
+            // direction comes from the charging flag above and not from here.
+            subtitle: sheet.t('shell.current'),
+          ),
+        ThemedListRow(
+          icon: Icons.settings_outlined,
+          title: sheet.t('shell.batterySettings'),
+          onTap: () {
+            Navigator.pop(sheet);
+            ref
+                .read(launcherHostApiProvider)
+                .openAndroidSettings(_batterySettings);
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+void _showNetwork(BuildContext context, WidgetRef ref) {
+  final transport = ref.read(systemStatsProvider).value?.transport;
+
+  ThemedSheet.show<void>(
+    context,
+    title: context.t('shell.moduleWifi'),
+    builder: (sheet) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ThemedListRow(
+          icon: switch (transport) {
+            'wifi' => Icons.wifi,
+            'cellular' => Icons.signal_cellular_alt,
+            'ethernet' => Icons.settings_ethernet,
+            _ => Icons.wifi_off,
+          },
+          title: sheet.t(switch (transport) {
+            'wifi' => 'shell.onWifi',
+            'cellular' => 'shell.onMobileData',
+            'ethernet' => 'shell.onEthernet',
+            _ => 'shell.noConnection',
+          }),
+          // The name is deliberately absent, and saying so is better than
+          // leaving a gap somebody reads as a bug.
+          subtitle: sheet.t('shell.theNetworkNameNeeds'),
+        ),
+        ThemedListRow(
+          icon: Icons.settings_outlined,
+          title: sheet.t('shell.wifiSettings'),
+          onTap: () {
+            Navigator.pop(sheet);
+            ref
+                .read(launcherHostApiProvider)
+                .openAndroidSettings(_wifiSettings);
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+/// Charge, as a panel chip that opens the level and the settings screen.
+///
+/// ─── THE TAP IS THE JUSTIFICATION ──────────────────────────────────────────
+///
+/// `gnome_top_bar` argues a launcher bar should not repeat what Android's
+/// status bar already shows, and that argument stands for a GNOME bar sitting
+/// directly under it. A Plasma panel is at the BOTTOM of the screen, and more
+/// to the point a status-bar icon cannot be tapped from the launcher. This one
+/// opens the figure, the state, and a route into the real settings screen.
+class _BatteryModule extends ConsumerWidget {
+  const _BatteryModule();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(effectiveThemeProvider).value;
+    final stats = ref.watch(systemStatsProvider).value;
+    final pct = stats?.batteryPercent;
+    if (theme == null || pct == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => _showBattery(context, ref),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              // Charging is the one state worth a different glyph: it changes
+              // what a low number MEANS, and a user glancing at 12% wants to
+              // know whether it is falling.
+              (stats?.batteryCharging ?? false)
+                  ? Icons.battery_charging_full
+                  : Icons.battery_std_outlined,
+              size: 13,
+              color: theme.palette.onDark,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              '$pct%',
+              style: TextStyle(fontSize: 11, color: theme.palette.onDark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The network transport, as a panel chip.
+///
+/// ─── TRANSPORT, NEVER THE NAME ─────────────────────────────────────────────
+///
+/// `system_stats.dart` says it outright: reading the SSID needs a location
+/// permission. A launcher asking for location to put a network name on a panel
+/// is a trade nobody would take, so this shows WHAT KIND of connection there
+/// is and leaves the name to the settings screen.
+class _WifiModule extends ConsumerWidget {
+  const _WifiModule();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(effectiveThemeProvider).value;
+    final stats = ref.watch(systemStatsProvider).value;
+    if (theme == null) return const SizedBox.shrink();
+
+    final transport = stats?.transport;
+    return GestureDetector(
+      onTap: () => _showNetwork(context, ref),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        child: Icon(
+          switch (transport) {
+            'wifi' => Icons.wifi,
+            'cellular' => Icons.signal_cellular_alt,
+            'ethernet' => Icons.settings_ethernet,
+            // Null is NOT SAMPLED YET and 'none' is offline. Drawn the same,
+            // because a panel that flickers between two icons on every poll is
+            // worse than one that is briefly wrong about a phone with no
+            // connection.
+            _ => Icons.wifi_off,
+          },
+          size: 13,
+          color: theme.palette.onDark,
+        ),
+      ),
+    );
+  }
+}
+
+/// One app on the panel, launched by tapping it.
+///
+/// The panel's apps are its own. The dock is a different surface with its own
+/// capacity rules, and a panel holding Files beside a dock that does not is the
+/// arrangement `PanelModule.app` exists to allow.
+class _PanelAppButton extends ConsumerWidget {
+  const _PanelAppButton({required this.theme, required this.package});
+
+  final EffectiveTheme theme;
+  final String package;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // `shellAppsProvider`, the same list the dock and the drawer read, so a
+    // hidden app is hidden here too and the panel cannot become a way around
+    // the drawer's own filtering.
+    final apps = ref.watch(shellAppsProvider(theme));
+    // ─── AN UNINSTALLED APP DRAWS NOTHING ──────────────────────────────────
+    //
+    // Not a placeholder and not a question mark. The package can vanish at any
+    // time and the panel is not the place to report it; the entry is dropped on
+    // the next write, which is the same not-fatal contract `PanelModule.parse`
+    // keeps for a module this build has never heard of.
+    final entry = apps.where((a) => a.packageName == package).firstOrNull;
+    if (entry == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => launchDrawerApp(ref, entry),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: AppIcon(entry: entry, size: 18),
+      ),
+    );
+  }
 }
 
 /// The bar above the panel while it is being edited.
@@ -618,12 +865,12 @@ class _PanelEditBar extends ConsumerWidget {
                       ),
                     ),
 
-            // ─── A STEPPER, NOT A SLIDER ────────────────────────────────
-            //
-            // Panel height has about ten useful values and a wrong one is
-            // instantly visible, so the control that matters is the one you can
-            // nudge and read. A slider on a 44dp bar would also sit under the
-            // thumb that is trying to see the result.
+                    // ─── A STEPPER, NOT A SLIDER ────────────────────────────────
+                    //
+                    // Panel height has about ten useful values and a wrong one is
+                    // instantly visible, so the control that matters is the one you can
+                    // nudge and read. A slider on a 44dp bar would also sit under the
+                    // thumb that is trying to see the result.
                     _HeightStep(
                       theme: theme,
                       icon: Icons.remove,
@@ -836,7 +1083,7 @@ class _PlasmaPanel extends ConsumerWidget {
     // can contain a SYNTHESISED top bar, built from `topBar` and `topBarSide`
     // for a theme that authored no panels of its own, and handing this bottom
     // panel a top bar's module list would render it completely empty.
-    final modules = _currentModules(theme);
+    final items = _currentItems(theme);
 
     // ─── HEIGHT COMES FROM THE RESOLVER NOW ──────────────────────────────
     //
@@ -899,83 +1146,100 @@ class _PlasmaPanel extends ConsumerWidget {
             child: Flex(
               direction: vertical ? Axis.vertical : Axis.horizontal,
               children: [
-              for (final m in modules)
-                _PanelSlot(
-                  theme: theme,
-                  editing: editing,
-                  // The task strip is the flexible module, so its slot has to
-                  // be flexible too. Wrapping an Expanded in a plain widget
-                  // would drop the flex and pack the panel to the leading edge
-                  // the moment edit mode turned on, which reads as the panel
-                  // breaking rather than as it becoming editable.
-                  flexible: m == PanelModule.tasks,
-                  onRemove: () => _removeModule(ref, theme, modules, m),
-                  child: switch (m) {
-                  PanelModule.kickoff => _KickoffButton(
-                      accent: theme.palette.accent,
-                      onTap: () => openApps(ref),
-                    ),
+                for (final (index, item) in items.indexed)
+                  _PanelSlot(
+                    theme: theme,
+                    editing: editing,
+                    // The task strip is the flexible module, so its slot has to
+                    // be flexible too. Wrapping an Expanded in a plain widget
+                    // would drop the flex and pack the panel to the leading edge
+                    // the moment edit mode turned on, which reads as the panel
+                    // breaking rather than as it becoming editable.
+                    flexible: item.kind == PanelModule.tasks,
+                    onRemove: () => _removeModule(ref, theme, items, index),
+                    child: switch (item.kind) {
+                      // ─── THE TWO TAPPABLE READOUTS ───────────────────────
+                      //
+                      // Here and nowhere else. A GNOME bar sits under Android's
+                      // status bar, which shows both already; a Plasma panel is at
+                      // the bottom of the screen, nowhere near it. The tap is what
+                      // makes them worth having: a status-bar icon cannot be
+                      // tapped from the launcher, and these open the level and a
+                      // route into the settings screen for it.
+                      PanelModule.battery => const _BatteryModule(),
+                      PanelModule.wifi => const _WifiModule(),
 
-                  // EXPANDED, and that is why this panel needs no spacer. The
-                  // task strip is the only module that wants whatever is left,
-                  // exactly as a real taskbar does, so a Plasma panel packs its
-                  // fixed modules to both ends without one.
-                    // BARE, no Expanded. `_PanelSlot` applies the flex, because
-                    // it also has to apply the Stack that carries the badge and
-                    // the two have a required order: Stack inside, flex outside.
-                    // Scrolls ALONG the panel. Left horizontal, a vertical
-                    // strip would have tried to scroll its 40dp width and the
-                    // task list would have been unreachable past the first icon.
-                    PanelModule.tasks => ListView(
-                        scrollDirection:
-                            vertical ? Axis.vertical : Axis.horizontal,
-                        children: [
-                          for (final k in taskKeys)
-                            _TaskButton(
-                              vertical: vertical,
-                              entry: byKey[k]!,
-                              onTap: () {
-                                ref
-                                    .read(appListProvider.notifier)
-                                    .launch(byKey[k]!);
-                                ref.read(usageProvider.notifier).record(k);
-                              },
-                            ),
-                        ],
-                      ),
-                    PanelModule.pager => _Pager(theme: theme),
-                  PanelModule.tray => _Tray(theme: theme),
-                  PanelModule.clock =>
-                    _PanelClock(
-                      onDark: theme.palette.onDark,
-                      narrow: vertical,
-                    ),
-                  PanelModule.spacer => const Spacer(),
+                      // The package is why this loop walks items rather than
+                      // kinds. A null one cannot happen: `PanelItem.parse` drops
+                      // `app:` with nothing after it.
+                      PanelModule.app => _PanelAppButton(
+                          theme: theme,
+                          package: item.package ?? '',
+                        ),
+                      PanelModule.kickoff => _KickoffButton(
+                          accent: theme.palette.accent,
+                          onTap: () => openApps(ref),
+                        ),
 
-                  // ─── GNOME'S THREE READOUTS, NOT DRAWN HERE ────────────
-                  //
-                  // Not an oversight and not a TODO. They are one widget over
-                  // one stats subscription in `gnome_top_bar`, and lifting that
-                  // widget out of a file called gnome_top_bar so a Breeze panel
-                  // can borrow it is a refactor with its own decisions. A theme
-                  // listing them on a Plasma panel gets nothing until that
-                  // happens, which the compiler will keep pointing at because
-                  // this switch has no catch-all.
-                  PanelModule.activities ||
-                  PanelModule.network ||
-                  PanelModule.memory ||
-                    PanelModule.storage =>
-                      const SizedBox.shrink(),
-                  },
+                      // EXPANDED, and that is why this panel needs no spacer. The
+                      // task strip is the only module that wants whatever is left,
+                      // exactly as a real taskbar does, so a Plasma panel packs its
+                      // fixed modules to both ends without one.
+                      // BARE, no Expanded. `_PanelSlot` applies the flex, because
+                      // it also has to apply the Stack that carries the badge and
+                      // the two have a required order: Stack inside, flex outside.
+                      // Scrolls ALONG the panel. Left horizontal, a vertical
+                      // strip would have tried to scroll its 40dp width and the
+                      // task list would have been unreachable past the first icon.
+                      PanelModule.tasks => ListView(
+                          scrollDirection:
+                              vertical ? Axis.vertical : Axis.horizontal,
+                          children: [
+                            for (final k in taskKeys)
+                              _TaskButton(
+                                vertical: vertical,
+                                entry: byKey[k]!,
+                                onTap: () {
+                                  ref
+                                      .read(appListProvider.notifier)
+                                      .launch(byKey[k]!);
+                                  ref.read(usageProvider.notifier).record(k);
+                                },
+                              ),
+                          ],
+                        ),
+                      PanelModule.pager => _Pager(theme: theme),
+                      PanelModule.tray => _Tray(theme: theme),
+                      PanelModule.clock => _PanelClock(
+                          onDark: theme.palette.onDark,
+                          narrow: vertical,
+                        ),
+                      PanelModule.spacer => const Spacer(),
+
+                      // ─── GNOME'S THREE READOUTS, NOT DRAWN HERE ────────────
+                      //
+                      // Not an oversight and not a TODO. They are one widget over
+                      // one stats subscription in `gnome_top_bar`, and lifting that
+                      // widget out of a file called gnome_top_bar so a Breeze panel
+                      // can borrow it is a refactor with its own decisions. A theme
+                      // listing them on a Plasma panel gets nothing until that
+                      // happens, which the compiler will keep pointing at because
+                      // this switch has no catch-all.
+                      PanelModule.activities ||
+                      PanelModule.network ||
+                      PanelModule.memory ||
+                      PanelModule.storage =>
+                        const SizedBox.shrink(),
+                    },
+                  ),
+                // The trailing gutter turns with the panel: on a vertical strip
+                // a 12dp WIDTH would do nothing at all and the clock would sit
+                // against the bottom edge.
+                SizedBox(
+                  width: vertical ? 0 : 12,
+                  height: vertical ? 12 : 0,
                 ),
-              // The trailing gutter turns with the panel: on a vertical strip
-              // a 12dp WIDTH would do nothing at all and the clock would sit
-              // against the bottom edge.
-              SizedBox(
-                width: vertical ? 0 : 12,
-                height: vertical ? 12 : 0,
-              ),
-            ],
+              ],
             ),
           ),
         ),
@@ -1084,9 +1348,7 @@ class _Pager extends ConsumerWidget {
                 style: TextStyle(
                   fontFamily: theme.typography.mono,
                   fontSize: 9,
-                  color: i == active
-                      ? onDark
-                      : onDark.withValues(alpha: 0.7),
+                  color: i == active ? onDark : onDark.withValues(alpha: 0.7),
                 ),
               ),
             ),

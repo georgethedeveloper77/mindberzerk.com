@@ -555,6 +555,17 @@ class DevicePreview extends StatelessWidget {
       PanelModule.network => [block(unit * 1.2)],
       PanelModule.memory => [block(unit * 1.2)],
       PanelModule.storage => [block(unit * 1.2)],
+
+      // Same shape as the three above: on a real panel a charge figure and a
+      // memory figure occupy the same slot. This preview is about ARRANGEMENT,
+      // so drawing a battery glyph here would be more detail than the rest of
+      // the picture carries.
+      PanelModule.battery => [block(unit * 1.2)],
+      PanelModule.wifi => [block(unit * 1.2)],
+
+      // An app is an icon, so it gets the square the dock icons get rather
+      // than a readout's wide block.
+      PanelModule.app => [block(unit * 0.9, radius: unit * 0.28)],
     };
   }
 

@@ -525,9 +525,14 @@ abstract final class LayoutResolver {
           // move the bar to the bottom, which is what passing prefs alone did
           // once `_panelSide` learned to read the theme.
           side: _panelSide(prefs, base),
-                modules: prefs.panelModules!
-                    .map(PanelModule.parse)
-                    .whereType<PanelModule>()
+                // `PanelItem.parse`, not `PanelModule.parse`: the stored
+                // strings can now read `app:com.example.files`, and parsing to
+                // the kind alone would drop the package and render a button
+                // that launches nothing. Unrecognised entries are still
+                // dropped rather than fatal.
+                items: prefs.panelModules!
+                    .map(PanelItem.parse)
+                    .whereType<PanelItem>()
                     .toList(),
               ),
             ]
@@ -557,7 +562,7 @@ abstract final class LayoutResolver {
                       'right' => TopBarSide.right,
                       _ => base.panels.first.side,
                     },
-                    modules: base.panels.first.modules,
+                    items: base.panels.first.items,
                   ),
                 ]
               : base.panels,

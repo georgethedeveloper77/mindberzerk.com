@@ -200,7 +200,14 @@ class _Waybar extends ConsumerWidget {
           // than fatal, the same contract PanelModule.parse keeps.
           PanelModule.kickoff ||
           PanelModule.tasks ||
-          PanelModule.tray =>
+          PanelModule.tray ||
+          // A waybar shows battery and network as TEXT in its own readout run,
+          // which `PanelModule.network` already covers here. A separate tappable
+          // chip is a Plasma affordance, and an app button on a tiling bar is
+          // one too: this desktop launches from a keybind.
+          PanelModule.battery ||
+          PanelModule.wifi ||
+          PanelModule.app =>
             null,
         };
 

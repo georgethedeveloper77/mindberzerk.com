@@ -198,7 +198,7 @@ class DistroPreview extends StatelessWidget {
     return [
       PanelSpec(
         side: t.panelSide,
-        modules: const <PanelModule>[],
+        items: const <PanelItem>[],
         height: t.panelHeight,
       ),
     ];

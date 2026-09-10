@@ -63,6 +63,15 @@ List<Widget> aquaBarModules(
             fontFamily: displayFontFamily,
           ),
 
+        // A Mac menu bar has no launcher buttons on it, and its battery lives
+        // in the same right-hand cluster the readouts already occupy. Authored,
+        // these are dropped rather than fatal, the contract PanelModule.parse
+        // keeps.
+        PanelModule.battery ||
+        PanelModule.wifi ||
+        PanelModule.app =>
+          const SizedBox.shrink(),
+
         PanelModule.network || PanelModule.memory || PanelModule.storage =>
           m == stats.first
               ? _Readouts(

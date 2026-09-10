@@ -1204,37 +1204,95 @@ class ThemeFont {
 class PanelSpec {
   const PanelSpec({
     required this.side,
-    required this.modules,
+    required this.items,
     this.height,
   });
 
   final TopBarSide side;
 
   /// In order, leading edge first. A [PanelModule.spacer] splits the run.
-  final List<PanelModule> modules;
+  final List<PanelItem> items;
+
+  /// Just the kinds, for the readers that never cared which app.
+  ///
+  /// Kept so adding [PanelModule.app] did not become a rename across every
+  /// shell and the resolver at the same time as a behaviour change. A caller
+  /// that needs the package reads [items]; one asking "is there a clock" does
+  /// not, and should not have to say so.
+  List<PanelModule> get modules => items.map((e) => e.kind).toList();
 
   /// Thickness in dp. Null takes the shell's own default, which is what every
   /// theme authored before panels existed gets.
   final double? height;
 
-  bool get isEmpty => modules.isEmpty;
+  bool get isEmpty => items.isEmpty;
 
   static PanelSpec? fromJson(Map<String, dynamic> j) {
-    final mods = ((j['modules'] as List?) ?? const [])
-        .map((e) => PanelModule.parse(e.toString()))
-        .whereType<PanelModule>()
+    final items = ((j['modules'] as List?) ?? const [])
+        .map((e) => PanelItem.parse(e.toString()))
+        .whereType<PanelItem>()
         .toList();
 
     // A panel with nothing in it is a coloured strip. Dropped at parse so
     // nothing downstream has to decide what an empty one means.
-    if (mods.isEmpty) return null;
+    if (items.isEmpty) return null;
 
     return PanelSpec(
       side: TopBarSide.parse(j['side'] as String?),
-      modules: mods,
+      items: items,
       height: (j['height'] as num?)?.toDouble(),
     );
   }
+}
+
+/// One entry on a panel: what it is, and which app when that matters.
+///
+/// ─── A PAIR, BECAUSE ONE MEMBER NEEDS AN ARGUMENT ───────────────────────────
+///
+/// [PanelModule] is an enum and cannot carry a package name. The alternatives
+/// were a sealed class hierarchy for ten members of which one has a field, or
+/// a parallel list of payloads indexed alongside the modules. Both are heavier
+/// than a pair that is null nine times out of ten.
+///
+/// ─── AND WHY STORAGE IS STILL A PLAIN STRING ────────────────────────────────
+///
+/// `prefs.panelModules` is `List<String>` and stays that way. An app is written
+/// `app:com.example.files`, so `clearing()`, `fromJson`, `toJson`, `==` and
+/// `hashCode` on `LauncherPrefs` are all untouched, and a build older than this
+/// one meeting `app:` drops it through the existing not-fatal parse rather than
+/// failing to read the file.
+class PanelItem {
+  const PanelItem(this.kind, [this.package]);
+
+  final PanelModule kind;
+
+  /// The package, for [PanelModule.app] only. Null everywhere else.
+  final String? package;
+
+  /// Null when the string names nothing this build knows, or names an app with
+  /// no package after the colon.
+  static PanelItem? parse(String raw) {
+    final kind = PanelModule.parse(raw);
+    if (kind == null) return null;
+    if (kind != PanelModule.app) return PanelItem(kind);
+
+    final package = raw.substring('app:'.length).trim();
+    // `app:` with nothing after it is not an app. Dropped rather than rendered
+    // as a button that cannot launch anything.
+    if (package.isEmpty) return null;
+    return PanelItem(kind, package);
+  }
+
+  /// The form written to prefs and to theme.json.
+  String toStorage() =>
+      kind == PanelModule.app ? 'app:$package' : kind.name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PanelItem && other.kind == kind && other.package == package;
+
+  @override
+  int get hashCode => Object.hash(kind, package);
 }
 
 /// Which way workspaces run.
@@ -1805,15 +1863,17 @@ class ThemeLayout {
     return [
       PanelSpec(
         side: TopBarSide.parse(j['topBarSide'] as String?),
-        modules: [
-          PanelModule.activities,
-          if (j['topBarStats'] as bool? ?? false) ...[
-            PanelModule.spacer,
-            PanelModule.network,
-            PanelModule.memory,
-            PanelModule.storage,
-          ],
-        ],
+        items: const [
+          PanelItem(PanelModule.activities),
+        ] +
+            (j['topBarStats'] as bool? ?? false
+                ? const [
+                    PanelItem(PanelModule.spacer),
+                    PanelItem(PanelModule.network),
+                    PanelItem(PanelModule.memory),
+                    PanelItem(PanelModule.storage),
+                  ]
+                : const []),
       ),
     ];
   }
@@ -2007,6 +2067,46 @@ enum PanelModule {
   /// Status icons.
   tray,
 
+  /// Charge level, and a tap that opens it.
+  ///
+  /// ─── THIS REVERSES WHAT THE CLOCK ARGUES BELOW ──────────────────────────
+  ///
+  /// `gnome_top_bar` excludes the clock because Android's status bar already
+  /// shows one a few pixels away, and the same was true of battery and Wi-Fi:
+  /// duplicating a status bar is the opposite of authentic.
+  ///
+  /// What changed is the TAP. A status-bar icon cannot be tapped from the
+  /// launcher, so a panel readout is not a second copy of the same thing; it is
+  /// the level, some context, and a route into the settings screen for it. That
+  /// is a capability the bar above does not have, and it is the whole reason
+  /// these two exist.
+  ///
+  /// Removable like everything else, which is the answer for anyone who does
+  /// find them redundant.
+  battery,
+
+  /// The network, and a tap that opens Wi-Fi settings.
+  ///
+  /// Read-only, deliberately. Connecting and disconnecting needs
+  /// CHANGE_WIFI_STATE and a location permission, neither of which a launcher
+  /// has any other use for, and asking for them to save one tap into Settings
+  /// is a bad trade.
+  wifi,
+
+  /// One app, launched from the panel.
+  ///
+  /// ─── THE ONLY MODULE THAT CARRIES A VALUE ───────────────────────────────
+  ///
+  /// Every other member is a bare word: `clock` means the clock and there is
+  /// only one. An app module means a PARTICULAR app, so the stored form is
+  /// `app:com.example.files` and [PanelItem] is what holds the two halves apart
+  /// once parsed.
+  ///
+  /// The panel's apps are its own. A dock is a different surface with its own
+  /// capacity rules, and a KDE panel with a Files button beside a dock that
+  /// does not have one is the arrangement this exists to allow.
+  app,
+
   /// Time, with the date beneath it where the panel is tall enough.
   ///
   /// ─── AND WHY GNOME STILL WILL NOT HAVE ONE ──────────────────────────────
@@ -2030,6 +2130,11 @@ enum PanelModule {
         'pager' => PanelModule.pager,
         'tray' => PanelModule.tray,
         'clock' => PanelModule.clock,
+        'battery' => PanelModule.battery,
+        'wifi' => PanelModule.wifi,
+        // The one prefixed form. Anything after the colon is the package and
+        // is read by [PanelItem]; this only answers what KIND it is.
+        _ when raw.startsWith('app:') => PanelModule.app,
         // An unknown module from a newer catalogue is DROPPED, not fatal. A
         // panel missing one readout is a panel; a theme that fails to parse is
         // a black screen.

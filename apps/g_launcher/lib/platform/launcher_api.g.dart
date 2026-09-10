@@ -1336,6 +1336,84 @@ class LauncherHostApi {
   /// carries enums and is read by packs already installed on phones. An
   /// unrecognised value degrades NATIVELY to the home screen, which is the
   /// surface every build before this one wrote to.
+  /// 'denied', 'partial' or 'granted'.
+  ///
+  /// ─── THREE, BECAUSE ANDROID 14 SPLIT IT ───────────────────────────────
+  ///
+  /// The system dialog's primary button is "Select photos", so a PARTIAL grant
+  /// is the common answer rather than an edge case. Folding it into denied
+  /// would hide the strip for most people; folding it into granted would show
+  /// four photos with no account of the missing thousand.
+  ///
+  /// A STRING for the same reason [fit] is one: an enum takes a codec id.
+  Future<String> galleryAccess() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.galleryAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Open the system permission dialog.
+  ///
+  /// Returns whether the dialog could be shown, NOT what was chosen. Nothing
+  /// waits for the answer: the dialog resumes the activity when it closes and
+  /// the page re-reads [galleryAccess] then. The answer can also change from
+  /// the Settings app while this process is asleep, so a callback would only
+  /// be right some of the time and a re-read is right always.
+  Future<bool> requestGalleryAccess() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestGalleryAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// The most recent images, newest first, as absolute paths.
+  ///
+  /// Empty when access is denied, and under a partial grant it returns only
+  /// what was shared, which is the complete answer to what this app can see.
+  Future<List<String>> recentImages(int limit) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.recentImages$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[limit]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
+  }
+
   /// Copy [path] into place and open Android's live-wallpaper preview.
   ///
   /// ─── OPENS A SCREEN, DOES NOT SET ANYTHING ────────────────────────────
