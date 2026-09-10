@@ -815,6 +815,7 @@
   "shell.theNetworkNameNeeds": "El nombre de la red necesita un permiso de ubicación, así que no se muestra aquí",
   "shell.unpinFromDash": "Soltar del Dash",
   "shell.unpinFromDock": "Desanclar del muelle",
+  "shell.whichApp": "¿Qué aplicación?",
   "shell.wifiSettings": "Ajustes de Wi-Fi",
   "system_stats.april": "abril",
   "system_stats.august": "agosto",

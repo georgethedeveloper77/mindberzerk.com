@@ -208,7 +208,16 @@ class _PlasmaShellState extends ConsumerState<PlasmaShell> {
         // `theme_spec` with a `show` list that excludes it. Adding it would put
         // two identically named enums in one scope, which is the collision the
         // restricted import exists to prevent. `.name` needs neither.
-        if (theme.dock.name != 'off' && !activitiesOpen)
+        // ─── AND OUT OF THE WAY WHILE THE PANEL IS EDITED ─────────────
+        //
+        // Two bars, both live, and a module dragged a little too far lands in
+        // the wrong one. Hidden rather than dimmed: a dimmed dock still takes
+        // the drop, and the gesture that misses is the one nobody can explain
+        // afterwards.
+        //
+        // It comes straight back on Done, so nothing is lost and no state is
+        // written; this is a visibility condition, not an edit.
+        if (theme.dock.name != 'off' && !activitiesOpen && !editingPanel)
           Positioned(
             left: 0,
             right: 0,
@@ -346,6 +355,14 @@ const _panelHeightStep = 4.0;
 /// that readouts widget is lifted out of a file named after the GNOME bar, and
 /// that lift is a refactor with its own decisions rather than a line here.
 const _addableModules = [
+  // ─── FIRST, BECAUSE IT IS THE ONE PEOPLE COME FOR ────────────────────────
+  //
+  // The others rearrange what the distro already gave you. This one puts
+  // something on the panel that was never there, and it is the reason a KDE
+  // panel is a panel rather than a status bar.
+  PanelModule.app,
+  PanelModule.battery,
+  PanelModule.wifi,
   PanelModule.kickoff,
   PanelModule.tasks,
   PanelModule.pager,
@@ -473,19 +490,124 @@ void _showAddModule(BuildContext context, WidgetRef ref, EffectiveTheme theme) {
           ThemedListRow(
             icon: _moduleIcon(m),
             title: _moduleLabel(context, m),
-            // A spacer is the one module that can legitimately appear twice, so
-            // it never dims: two spacers is how a panel gets a centred module.
-            subtitle: (m != PanelModule.spacer && current.contains(m))
-                ? context.t('shell.alreadyOnPanel')
-                : null,
-            onTap: (m != PanelModule.spacer && current.contains(m))
+            // ─── TWO MODULES MAY REPEAT, FOR DIFFERENT REASONS ────────
+            //
+            // A spacer, because two spacers is how a panel centres the module
+            // between them. An app, because a panel with only one app button
+            // is not what anybody wants a panel for.
+            //
+            // Everything else is one of a kind: a second clock shows the same
+            // time and a second tray the same icons.
+            subtitle: (_repeatable(m) || !current.contains(m))
+                ? null
+                : context.t('shell.alreadyOnPanel'),
+            onTap: (!_repeatable(m) && current.contains(m))
                 ? null
                 : () {
                     Navigator.pop(sheet);
+                    if (m == PanelModule.app) {
+                      // A kind is not enough for this one: it needs to know
+                      // WHICH app, so the choice is a second sheet rather than
+                      // a write.
+                      _pickPanelApp(context, ref, theme, items);
+                      return;
+                    }
                     _addModule(ref, theme, items, PanelItem(m));
                   },
           ),
       ],
+    ),
+  );
+}
+
+/// Modules a panel may legitimately hold more than one of.
+bool _repeatable(PanelModule m) =>
+    m == PanelModule.spacer || m == PanelModule.app;
+
+/// Choose which app goes on the panel.
+///
+/// ─── A SECOND SHEET, NOT A SUBMENU ─────────────────────────────────────────
+///
+/// The Add sheet answers "what kind of thing", and for nine modules that is the
+/// whole question. An app needs a second answer, and a grid of every installed
+/// app does not fit inside a list of module rows.
+///
+/// Reads `shellAppsProvider`, the same list the dock and drawer use, so an app
+/// the user hid stays hidden here. The panel must not become a way around the
+/// drawer's own filtering.
+void _pickPanelApp(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+  List<PanelItem> items,
+) {
+  final apps = ref.read(shellAppsProvider(theme));
+  final already = {
+    for (final e in items)
+      if (e.kind == PanelModule.app) e.package,
+  };
+
+  ThemedSheet.show<void>(
+    context,
+    title: context.t('shell.whichApp'),
+    isScrollControlled: true,
+    builder: (sheet) => ConstrainedBox(
+      // Half the screen, so the panel being edited stays visible behind it. A
+      // full-height picker would hide the thing the choice is about.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(sheet).size.height * 0.5,
+      ),
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        shrinkWrap: true,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 6,
+          childAspectRatio: 0.78,
+        ),
+        itemCount: apps.length,
+        itemBuilder: (context, i) {
+          final entry = apps[i];
+          // Dimmed rather than absent. A panel CAN hold the same app twice and
+          // there is no harm in it, but somebody scanning for one they already
+          // added should be able to see that they did.
+          final on = already.contains(entry.packageName);
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.pop(sheet);
+              _addModule(
+                ref,
+                theme,
+                items,
+                PanelItem(PanelModule.app, entry.packageName),
+              );
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Opacity(
+              opacity: on ? 0.4 : 1,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppIcon(entry: entry, size: 38),
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      color: ChromeScope.of(context).colors.textFaint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     ),
   );
 }
@@ -793,6 +915,39 @@ class _PanelAppButton extends ConsumerWidget {
   }
 }
 
+/// Move one module from [from] to [to].
+///
+/// ─── REORDER IS A REWRITE, LIKE EVERY OTHER PANEL EDIT ─────────────────────
+///
+/// The whole list goes to prefs, not a move instruction. `LauncherPrefs
+/// .panelModules` explains why a diff has no honest semantics once the distro's
+/// own panel can change underneath it: an instruction that says "swap slots two
+/// and three" means something different after a republish, and a list does not.
+void _reorderModule(
+  WidgetRef ref,
+  EffectiveTheme theme,
+  List<PanelItem> items,
+  int from,
+  int to,
+) {
+  if (from == to) return;
+  HapticFeedback.mediumImpact();
+
+  final next = [...items];
+  final moved = next.removeAt(from);
+  // Removing first shifts everything after it, so a rightward move needs the
+  // index it left behind. This is the off-by-one `onReorderItem` exists to
+  // absorb elsewhere; here the drag reports a target SLOT, so it is corrected
+  // once, in the one place that does the move.
+  next.insert(from < to ? to - 1 : to, moved);
+
+  ref.read(prefsProvider(theme.spec.id).notifier).edit(
+        (p) => p.copyWith(
+          panelModules: [for (final e in next) e.toStorage()],
+        ),
+      );
+}
+
 /// The bar above the panel while it is being edited.
 ///
 /// TWO ACTIONS ONLY, and Reset is one of them. A user who removes the clock,
@@ -937,9 +1092,17 @@ class _PanelSlot extends StatelessWidget {
     required this.theme,
     required this.editing,
     required this.flexible,
+    required this.index,
     required this.onRemove,
+    required this.onMove,
     required this.child,
   });
+
+  /// Where this slot sits, which is the whole payload a drag carries.
+  final int index;
+
+  /// Called with the dragged slot's index when one is dropped on this one.
+  final void Function(int from) onMove;
 
   final EffectiveTheme theme;
   final bool editing;
@@ -1004,7 +1167,51 @@ class _PanelSlot extends StatelessWidget {
       ],
     );
 
-    return flexible ? Expanded(child: stacked) : stacked;
+    // ─── DRAGGED IN PLACE, NOT IN A REORDERABLE LIST ──────────────────────
+    //
+    // A `ReorderableListView` would be less code and would break the panel:
+    // its children cannot be `Expanded`, and the task strip IS one. The comment
+    // on [flexible] above says what that looks like, and it is the panel
+    // packing to the leading edge the moment edit mode turns on.
+    //
+    // So the Flex stays and each slot carries its own drag. `LongPressDraggable`
+    // rather than `Draggable`, matching the desklet grid and the wallpaper
+    // strip: a panel is small and a plain drag would fire on every mis-tap of
+    // a 24dp chip.
+    final draggable = LongPressDraggable<int>(
+      data: index,
+      // Nothing left behind: the panel is 34dp tall and a ghost in the gap
+      // reads as a second copy rather than as an absence.
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(opacity: 0.9, child: body),
+      ),
+      childWhenDragging: Opacity(opacity: 0.25, child: stacked),
+      child: stacked,
+    );
+
+    final target = DragTarget<int>(
+      // Itself is not a move. Refused here so the slot never highlights for a
+      // drop that would do nothing.
+      onWillAcceptWithDetails: (d) => d.data != index,
+      onAcceptWithDetails: (d) => onMove(d.data),
+      builder: (context, candidate, _) => DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            // One edge, not a box: the line marks WHERE it lands, and a full
+            // outline says "into this slot", which is not what a reorder does.
+            left: BorderSide(
+              color:
+                  candidate.isEmpty ? Colors.transparent : theme.palette.accent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: draggable,
+      ),
+    );
+
+    return flexible ? Expanded(child: target) : target;
   }
 }
 
@@ -1156,7 +1363,10 @@ class _PlasmaPanel extends ConsumerWidget {
                     // the moment edit mode turned on, which reads as the panel
                     // breaking rather than as it becoming editable.
                     flexible: item.kind == PanelModule.tasks,
+                    index: index,
                     onRemove: () => _removeModule(ref, theme, items, index),
+                    onMove: (from) =>
+                        _reorderModule(ref, theme, items, from, index),
                     child: switch (item.kind) {
                       // ─── THE TWO TAPPABLE READOUTS ───────────────────────
                       //

@@ -155,13 +155,40 @@ export const PANEL_MODULES = [
   'pager',
   'tray',
   'clock',
+  'battery',
+  'wifi',
 ] as const;
 export type PanelModuleName = (typeof PANEL_MODULES)[number];
+
+/**
+ * One app on the panel, as `app:com.example.files`.
+ *
+ * ─── NOT IN PANEL_MODULES, BECAUSE IT IS NOT A WORD ────────────────────────
+ *
+ * Every other module is a bare name and there is one of each. This one names a
+ * PARTICULAR app, so it cannot be an entry in a fixed list and cannot be a
+ * member of the union type. `PanelItem` on the device holds the two halves
+ * apart the same way.
+ *
+ * Accepted here rather than stripped. Silently dropping a form the device
+ * understands is the exact failure the list above documents: a round trip
+ * through this panel would delete the user-facing arrangement and no error
+ * would say so.
+ *
+ * A distro SHOULD almost never author one, for the reason `validateDraft`
+ * gives: a pack cannot know what is installed on the phone. That is a warning,
+ * not a strip.
+ */
+const PANEL_APP = /^app:[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/i;
+
+export function isPanelModule(m: string): boolean {
+  return (PANEL_MODULES as readonly string[]).includes(m) || PANEL_APP.test(m);
+}
 
 export interface PanelJson {
   side: TopBarSideName;
   /** In order, leading edge first. A `spacer` splits the run. */
-  modules: PanelModuleName[];
+  modules: (PanelModuleName | `app:${string}`)[];
   /** Thickness in dp. Omit for the shell's own default. */
   height?: number;
 }
@@ -1195,6 +1222,27 @@ export function validateDraft(draft: ThemeDraft): string[] {
     );
   }
 
+  // ─── AN AUTHORED APP IS A GUESS ABOUT SOMEBODY ELSE'S PHONE ───────────────
+  //
+  // `app:com.spotify.music` on a distro's panel draws nothing for everyone
+  // without Spotify, and the device is right to draw nothing: a button that
+  // cannot launch is worse than a gap. So the pack has shipped a hole.
+  //
+  // A WARNING, not a strip. The form is legitimate in a USER's own panel, which
+  // is where it comes from, and silently deleting it here would be the failure
+  // `PANEL_MODULES` is documented against. Naming it lets an author who really
+  // means it keep it.
+  for (const panel of panels) {
+    for (const m of panel.modules) {
+      if (m.startsWith('app:')) {
+        p.push(
+          `Panel module "${m}" names an app that may not be installed. It ` +
+            'will not draw on a phone without it.',
+        );
+      }
+    }
+  }
+
   // ─── panelEdit ONLY WHERE A SHELL CAN HONOUR IT ────────────────────────────
   //
   // `panelEdit` reaches the device as a promise that holding the panel opens an
@@ -1560,8 +1608,12 @@ export function importTheme(
                 : 'top') as TopBarSideName,
               modules: (Array.isArray(e.modules) ? e.modules : [])
                 .map(String)
-                .filter((m): m is PanelModuleName =>
-                  (PANEL_MODULES as readonly string[]).includes(m),
+                // `isPanelModule`, not a list membership test: an app entry
+                // carries its package and can never be a member of a fixed
+                // list. Filtering against the list alone would strip it on
+                // import and republish the distro without it.
+                .filter((m): m is PanelModuleName | `app:${string}` =>
+                  isPanelModule(m),
                 ),
               ...(typeof e.height === 'number' ? { height: e.height } : {}),
             }))

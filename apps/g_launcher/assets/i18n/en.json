@@ -815,6 +815,7 @@
   "shell.theNetworkNameNeeds": "The network name needs a location permission, so it is not shown here",
   "shell.unpinFromDash": "Unpin from dash",
   "shell.unpinFromDock": "Unpin from dock",
+  "shell.whichApp": "Which app?",
   "shell.wifiSettings": "Wi-Fi settings",
   "system_stats.april": "April",
   "system_stats.august": "August",
