@@ -1336,6 +1336,66 @@ class LauncherHostApi {
   /// carries enums and is read by packs already installed on phones. An
   /// unrecognised value degrades NATIVELY to the home screen, which is the
   /// surface every build before this one wrote to.
+  /// Copy [path] into place and open Android's live-wallpaper preview.
+  ///
+  /// ─── OPENS A SCREEN, DOES NOT SET ANYTHING ────────────────────────────
+  ///
+  /// `setWallpaperComponent` is signature-permission, so a third-party
+  /// launcher cannot switch to its own live wallpaper. The only route is
+  /// `ACTION_CHANGE_LIVE_WALLPAPER`, which shows Android's full-screen preview
+  /// with its own Set wallpaper button.
+  ///
+  /// So true means THE PREVIEW OPENED, not that a wallpaper was applied. The
+  /// user may well back out of it, and there is no callback saying so; the
+  /// next resume has to read the system's state rather than assume.
+  ///
+  /// The video is copied here rather than played from where it was picked,
+  /// for the reason `wallpaper_collections.dart` copies photos: a picker URI
+  /// is a grant that expires, and a wallpaper that stops playing weeks later
+  /// because a permission lapsed is indistinguishable from a bug.
+  Future<bool> openMotionWallpaper(String path) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openMotionWallpaper$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[path]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Is this launcher's motion wallpaper the one currently set?
+  ///
+  /// Asked of the SYSTEM rather than remembered, because the user can change
+  /// their wallpaper anywhere: Android's own settings, the gallery, another
+  /// launcher. A stored bool would be wrong the moment they did.
+  Future<bool> motionWallpaperActive() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.motionWallpaperActive$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
   Future<bool> setWallpaper(String source, String target, String fit, int letterboxColor, double focalX, double focalY, double zoom) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

@@ -718,6 +718,34 @@ abstract class LauncherHostApi {
   /// carries enums and is read by packs already installed on phones. An
   /// unrecognised value degrades NATIVELY to the home screen, which is the
   /// surface every build before this one wrote to.
+  /// Copy [path] into place and open Android's live-wallpaper preview.
+  ///
+  /// ─── OPENS A SCREEN, DOES NOT SET ANYTHING ────────────────────────────
+  ///
+  /// `setWallpaperComponent` is signature-permission, so a third-party
+  /// launcher cannot switch to its own live wallpaper. The only route is
+  /// `ACTION_CHANGE_LIVE_WALLPAPER`, which shows Android's full-screen preview
+  /// with its own Set wallpaper button.
+  ///
+  /// So true means THE PREVIEW OPENED, not that a wallpaper was applied. The
+  /// user may well back out of it, and there is no callback saying so; the
+  /// next resume has to read the system's state rather than assume.
+  ///
+  /// The video is copied here rather than played from where it was picked,
+  /// for the reason `wallpaper_collections.dart` copies photos: a picker URI
+  /// is a grant that expires, and a wallpaper that stops playing weeks later
+  /// because a permission lapsed is indistinguishable from a bug.
+  @async
+  bool openMotionWallpaper(String path);
+
+  /// Is this launcher's motion wallpaper the one currently set?
+  ///
+  /// Asked of the SYSTEM rather than remembered, because the user can change
+  /// their wallpaper anywhere: Android's own settings, the gallery, another
+  /// launcher. A stored bool would be wrong the moment they did.
+  @async
+  bool motionWallpaperActive();
+
   @async
   bool setWallpaper(
     String source,

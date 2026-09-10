@@ -213,12 +213,53 @@ class WallpaperFraming {
 /// survives as the lowest arm above the default. Someone who set it keeps it
 /// everywhere until they frame an individual wallpaper, at which point that
 /// wallpaper stops asking.
+/// Where a wallpaper's framing is filed, for one screen.
+///
+/// ─── A PREFIX, AND WHY IT IS NOT A SECOND MAP ──────────────────────────────
+///
+/// The home screen keeps the BARE SOURCE as its key, exactly as it always
+/// has, so every entry anybody has already saved keeps working and there is no
+/// migration to write and no schema version to bump. The lock screen's entry
+/// is the same source behind `lock:`.
+///
+/// A second `wallpaperLockFraming` map would read better and would mean nine
+/// more sites in `LauncherPrefs` — constructor, field, copyWith, clearing,
+/// toJson, fromJson, `==`, hashCode — for a value that is only ever looked up
+/// beside this one. The same trade the Pigeon schema makes when it keeps three
+/// loose doubles rather than a class: the narrow version is the one that
+/// cannot break what is already on people's phones.
+///
+/// ─── AND WHY THE PREFIX CANNOT COLLIDE ─────────────────────────────────────
+///
+/// A source is one of four shapes, all enumerated in `wallpaper_source.dart`:
+/// `assets/…`, `http…`, something carrying `://`, or a path beginning `/`.
+/// Bare pack filenames are a fifth, and `PackPaths` refuses separators in
+/// those. None of the five can begin `lock:`.
+String framingKeyFor(String source, {required bool lock}) =>
+    lock ? 'lock:$source' : source;
+
 WallpaperFraming resolveWallpaperFraming({
   required Map<String, WallpaperFraming> user,
   required Map<String, WallpaperFraming> authored,
   required String source,
   String? legacyFit,
+
+  /// Resolving for the lock screen rather than the home screen.
+  bool lock = false,
 }) {
+  // ─── THE LOCK SCREEN INHERITS UNTIL IT DISAGREES ──────────────────────────
+  //
+  // A lock entry wins, then the home entry, then the pack, then the legacy
+  // fit. The middle arm is the one worth naming: somebody who framed a photo
+  // for their home screen and then put the same photo on the lock screen
+  // should see that framing, not a reset to dead centre. The two only diverge
+  // once the lock screen is framed deliberately, which is the whole reason it
+  // can be.
+  if (lock) {
+    final locked = user[framingKeyFor(source, lock: true)];
+    if (locked != null) return locked;
+  }
+
   final mine = user[source];
   if (mine != null) return mine;
 

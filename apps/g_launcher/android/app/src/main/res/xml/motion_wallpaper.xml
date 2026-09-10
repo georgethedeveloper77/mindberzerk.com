@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The descriptor Android reads to list this live wallpaper in its own picker.
+
+    `thumbnail` and `description` are what the SYSTEM chooser shows, not
+    anything this app draws. They are the only branding on that screen, because
+    ACTION_CHANGE_LIVE_WALLPAPER hands the whole surface to Android.
+
+    No `settingsActivity`: the settings for this wallpaper are the wallpaper
+    page in the launcher, and a second entry point reached from Android's
+    chooser would be a second place to change the same thing.
+-->
+<wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:thumbnail="@mipmap/ic_launcher"
+    android:description="@string/motion_wallpaper_description" />

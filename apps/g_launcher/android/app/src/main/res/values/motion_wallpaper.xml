@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Shown by ANDROID'S chooser, not by this app, so it cannot come from
+        en.json like every other string. It is deliberately plain: the chooser
+        is a system screen and copy that tries to sell something there reads as
+        an advert in the settings app.
+    -->
+    <string name="motion_wallpaper_description">Your video, as a wallpaper</string>
+</resources>

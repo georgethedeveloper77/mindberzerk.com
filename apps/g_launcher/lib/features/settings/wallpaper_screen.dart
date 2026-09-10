@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../data/cdn/pack_repository.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/prefs_reset.dart';
 import '../../data/prefs/wallpaper_collections.dart';
@@ -15,6 +16,7 @@ import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../design/setting_previews.dart';
 import '../../engine/effective_theme.dart';
+import '../../engine/theme_engine.dart';
 import '../../engine/theme_source.dart';
 import '../../engine/wallpaper_framing.dart';
 import '../../system/wallpaper_source.dart';
@@ -77,7 +79,17 @@ String encodeWallpaperFor(EffectiveTheme theme, String source) {
 ///
 /// Returns the choice, or null if they backed out, which must cancel the apply
 /// rather than default: dismissing a question is not answering it.
-Future<bool?> chooseApplyTarget(
+/// ─── BOTH ANSWERS, NOT ONE ──────────────────────────────────────────────────
+///
+/// The two ticks were already independent on screen; only the RETURN collapsed
+/// them, popping `lock` and throwing `home` away. So "lock screen only" was a
+/// state the sheet could show and could not express, and the caller had no way
+/// to learn it.
+///
+/// Returning both is the whole of the two-picture feature. A tick left off
+/// means that screen keeps what it has, which is why neither ticked is not a
+/// third answer but a request to change nothing.
+Future<({bool home, bool lock})?> chooseApplyTarget(
   BuildContext context,
   EffectiveTheme theme,
   String source,
@@ -85,7 +97,7 @@ Future<bool?> chooseApplyTarget(
   var lock = true;
   var home = true;
 
-  return ThemedSheet.show<bool>(
+  return ThemedSheet.show<({bool home, bool lock})>(
     context,
     title: context.t('settings.chooseWhereToApply'),
     isScrollControlled: true,
@@ -185,8 +197,9 @@ Future<bool?> chooseApplyTarget(
                     // Neither selected is not a third answer, it is a request to
                     // change nothing, and a button that would do nothing should
                     // not be pressable.
-                    onPressed:
-                        (lock || home) ? () => Navigator.pop(ctx, lock) : null,
+                    onPressed: (lock || home)
+                        ? () => Navigator.pop(ctx, (home: home, lock: lock))
+                        : null,
                   ),
                 ),
                 Padding(
@@ -265,23 +278,35 @@ Future<bool> applyWallpaper(
   // Before the stash, deliberately. Backing out of the question has to leave
   // the device exactly as it was, and stashing first would have already moved
   // the user's existing wallpaper to make room for one that never arrives.
-  // ─── NOT ASKED WHEN THE ANSWER IS ALREADY IN THE CALL ─────────────────────
+  // ─── ASKED EVERY TIME, WHICH IS THE CHANGE ────────────────────────────────
   //
-  // A caller naming a surface has been told which screen this is for, by a
-  // user who just tapped it. Asking again would be the app failing to hear an
-  // answer it already has.
-  // Nullable because "not asked yet" is a real third state, and the question
-  // below is skipped entirely when the caller named a surface. Narrowed to a
-  // plain bool at each use rather than here, so the three states stay
-  // distinguishable for the question itself.
-  bool? applyToLock = theme.prefs.wallpaperLock;
-  if (surface == null && applyToLock == null) {
+  // It used to be asked ONCE and remembered, because the answer was a single
+  // bool describing the arrangement: does this launcher own the lock screen.
+  // Now it is a question about THIS picture, and the answer differs picture to
+  // picture: this photo on the lock screen, that render on the home screen.
+  // Remembering it would make the second one unreachable.
+  //
+  // A caller naming a surface has already been told, by a user who just tapped
+  // one screen's tile. Asking again would be the app failing to hear an answer
+  // it has.
+  var toHome = surface != WallpaperSurface.lock;
+  var toLock = surface == WallpaperSurface.lock;
+
+  if (surface == null) {
     final chosen = await chooseApplyTarget(context, theme, source);
     // Dismissing a question is not answering it. Defaulting here is how the
     // old toggle ended up never being set: something decided for them.
     if (chosen == null) return false;
-    applyToLock = chosen;
-    await notifier.edit((p) => p.copyWith(wallpaperLock: chosen));
+    toHome = chosen.home;
+    toLock = chosen.lock;
+
+    // Kept in step because the ROTATION still needs one bool: a schedule
+    // drives the lock screen or it does not, and that is a property of the
+    // arrangement rather than of one picture. Ticking lock once is what says
+    // the launcher owns that screen.
+    if (toLock && theme.prefs.wallpaperLock != true) {
+      await notifier.edit((p) => p.copyWith(wallpaperLock: true));
+    }
   }
   if (!context.mounted) return false;
 
@@ -291,21 +316,24 @@ Future<bool> applyWallpaper(
   // Explicit argument first, then the resolved three-arm answer. Passing a
   // bare `fit` still works and now means "this fit, framing otherwise as
   // resolved", which is what the old fit sheet is actually asking for.
+  final forLock = surface == WallpaperSurface.lock;
+
   final resolved = framing ??
       resolveWallpaperFraming(
         user: theme.prefs.wallpaperFraming,
         authored: theme.spec.wallpaperMeta,
         source: source,
         legacyFit: fit ?? theme.prefs.wallpaperFit,
+        lock: forLock,
       );
 
   // ─── ONE CALL PER SCREEN ───────────────────────────────────────────────
   //
   // Native names a single surface now, so "both" is two calls rather than a
-  // flag. The lock push uses the LOCAL `applyToLock`, not the pref: the write
-  // above has not round-tripped through the provider yet, so reading
-  // `theme.prefs` here would send the null it started with and the very first
-  // apply would miss the lock screen the user had just asked for.
+  // flag. The targets are the LOCAL answers from the sheet, not the pref: the
+  // write above has not round-tripped through the provider yet, so reading
+  // `theme.prefs` here would send the value it started with and the very first
+  // apply would miss the screen the user had just asked for.
   Future<bool> push(String target) => api.setWallpaper(
         encodeWallpaperFor(theme, source),
         target,
@@ -321,15 +349,15 @@ Future<bool> applyWallpaper(
   // The home screen is the one whose result counts. A lock push refused by an
   // OEM must not report the whole apply as failed and leave the picture the
   // user can plainly see marked as not applied.
-  final bool ok;
-  switch (surface) {
-    case WallpaperSurface.lock:
-      ok = await push('lock');
-    case WallpaperSurface.home:
-      ok = await push('home');
-    case null:
-      ok = await push('home');
-      if (ok && (applyToLock ?? false)) await push('lock');
+  // The home screen decides the result whenever it is one of the targets. A
+  // lock push refused by an OEM must not report the whole apply as failed and
+  // leave a picture the user can plainly see marked as not applied.
+  var ok = true;
+  if (toHome) ok = await push('home');
+  if (toLock && ok) {
+    final lockOk = await push('lock');
+    // Lock-only has nothing else to report, so its result is the result.
+    if (!toHome) ok = lockOk;
   }
 
   if (ok) {
@@ -352,24 +380,24 @@ Future<bool> applyWallpaper(
         // older value would leave prefs describing a lock screen that is no
         // longer there, and the next read would restore a picture the user
         // replaced.
-        wallpaperCurrent:
-            surface == WallpaperSurface.lock ? null : source,
-        wallpaperLockCurrent: switch (surface) {
-          WallpaperSurface.lock => source,
-          WallpaperSurface.home => null,
-          null => (applyToLock ?? false) ? source : null,
-        },
+        wallpaperCurrent: toHome ? source : null,
+        wallpaperLockCurrent: toLock ? source : null,
         // Written only when this call carried framing, and only when that
         // framing says something. An apply that merely picked an image must
         // not stamp a row of defaults into the map for it.
         // PARENTHESISED. Without the brackets the cascade binds to the whole
         // conditional rather than to the map literal, so the receiver is the
         // nullable expression and it does not compile.
+        // Filed under the surface's own key, so framing the lock screen does
+        // not overwrite the crop the home screen is using. `framingKeyFor`
+        // returns the bare source for the home screen, which is what every
+        // entry saved before this change already is.
         wallpaperFraming: framing == null
             ? null
             : ({
                 ...p.wallpaperFraming,
-                if (!framing.isDefault) source: framing,
+                if (!framing.isDefault)
+                  framingKeyFor(source, lock: forLock): framing,
               }..removeWhere((_, v) => v.isDefault)),
       ),
     );
@@ -732,6 +760,80 @@ final wallpaperRotationSyncProvider = FutureProvider<void>((ref) async {
   );
 });
 
+/// One other distro's wallpapers, ready to show.
+class OtherDistroWallpapers {
+  const OtherDistroWallpapers({
+    required this.packId,
+    required this.title,
+    required this.source,
+    required this.files,
+  });
+
+  final String packId;
+  final String title;
+
+  /// Where THAT pack's files live, which is not where the active theme's do.
+  /// `_Strip` needs it to build an image at all: the bare `wall_x.webp` a pack
+  /// ships resolves only against its own directory.
+  final ThemeSource source;
+
+  /// Bare filenames, exactly as the pack's own theme.json lists them.
+  final List<String> files;
+}
+
+/// Wallpapers belonging to distros other than the one in use.
+///
+/// ─── WHY THIS IS NOT JUST catalogueProvider ─────────────────────────────────
+///
+/// `PackInfo` carries a `wallpaperCount` and not the names, because the names
+/// live in each pack's own theme.json. So every entry here is a second read,
+/// through [packSpecProvider], which caches per pack.
+///
+/// ─── INSTALLED, NOT MERELY OWNED ────────────────────────────────────────────
+///
+/// A pack that is paid for but not downloaded has no files on the phone, so
+/// there is nothing to show and nothing to apply. Ownership is what unlocks
+/// the DOWNLOAD, and the storefront is where that happens; this list is about
+/// what is already here.
+///
+/// The active distro is excluded because its wallpapers are the strip directly
+/// above, and listing them twice under another heading would read as two
+/// different sets.
+final otherDistroWallpapersProvider =
+    FutureProvider<List<OtherDistroWallpapers>>((ref) async {
+  final packs = await ref.watch(catalogueProvider.future);
+  final activeId = (await ref.watch(activeThemeSpecProvider.future)).id;
+
+  final out = <OtherDistroWallpapers>[];
+  for (final p in packs) {
+    if (p.packType != 'theme' || p.packId == activeId) continue;
+    // ─── THREE STATES MEAN THE FILES ARE HERE ───────────────────────────
+    //
+    // `state` is native's word for what is on disk, and it has five values.
+    // `installed` and `updateAvailable` both have a downloaded copy, the
+    // second merely being older than the catalogue. `bundled` ships inside the
+    // APK, so its files are the most present of all.
+    //
+    // `available` and `requiresAppUpdate` have nothing on disk. Ownership is
+    // what unlocks the DOWNLOAD and the storefront is where that happens; this
+    // list is about what is already here.
+    if (!const {'installed', 'updateAvailable', 'bundled'}.contains(p.state)) {
+      continue;
+    }
+
+    final spec = await ref.watch(packSpecProvider(p.packId).future);
+    if (spec == null || spec.wallpapers.isEmpty) continue;
+
+    out.add(OtherDistroWallpapers(
+      packId: p.packId,
+      title: p.title,
+      source: spec.source,
+      files: spec.wallpapers,
+    ));
+  }
+  return out;
+});
+
 /// Wallpaper picker — Phase B, B2.
 ///
 /// Every surface here reads the chrome, not a constant: the app bar, section
@@ -831,6 +933,25 @@ class WallpaperScreen extends ConsumerWidget {
     // collection); [rotationPoolFor] is the one place that choice resolves.
     final presets = orderedPresets(theme);
     final mine = theme.prefs.wallpapers;
+
+    final othersAsync = ref.watch(otherDistroWallpapersProvider);
+    final others = othersAsync.hasValue
+        ? othersAsync.requireValue
+        : const <OtherDistroWallpapers>[];
+
+    // Flattened here rather than in the provider, because the provider's shape
+    // is per pack (a title, a source, its files) and the strip's is one flat
+    // list plus a lookup. Keeping the provider grouped means the section could
+    // go back to headings without touching it.
+    final otherFiles = <String>[];
+    final otherSources = <String, ThemeSource>{};
+    for (final o in others) {
+      for (final file in o.files) {
+        final path = o.source.asset(file).path;
+        otherFiles.add(path);
+        otherSources[path] = o.source;
+      }
+    }
 
     final colsAsync = ref.watch(wallpaperCollectionsProvider);
     final collections = colsAsync.hasValue
@@ -969,9 +1090,17 @@ class WallpaperScreen extends ConsumerWidget {
           // shows this distro's real dock side rather than a generic phone.
           if (previewWallpaperFor(theme) case final src?)
             SettingPreview(
-              caption: applyToLock
-                  ? 'Lock and home'
-                  : 'Lock screen unchanged, home only',
+              // ─── WHAT IS ACTUALLY ON EACH SCREEN ────────────────────
+              //
+              // It used to describe the ARRANGEMENT: "lock and home" or "home
+              // only". There is no single arrangement now, so it describes the
+              // state instead, which is what somebody looking at two previews
+              // wants to know anyway.
+              caption: theme.prefs.wallpaperLockCurrent == null
+                  ? (applyToLock
+                      ? context.t('settings.oneOnBothScreens')
+                      : context.t('settings.homeScreenOnly'))
+                  : context.t('settings.aDifferentOneEach'),
               child: _WallpaperPreviewPair(theme: theme, source: src),
             ),
 
@@ -1019,6 +1148,52 @@ class WallpaperScreen extends ConsumerWidget {
                   source: rotationSource,
                 );
               },
+            ),
+          ],
+          // ─── EVERY OTHER DISTRO, ONE SECTION ───────────────────────────
+          //
+          // One strip, not one per pack. A heading per distro was the shape
+          // `_Strip` forced when it could only resolve against a single
+          // directory, and it turned "wallpapers from the distros you have"
+          // into three or four separate-looking shelves.
+          //
+          // The entries are RESOLVED PATHS rather than the bare filenames a
+          // pack ships. Two distros can both call a file `wallpaper.webp`, and
+          // the strip identifies a tile by its string, so bare names would
+          // collide and `sourceFor` would answer for the wrong pack. A path is
+          // unique by construction and is also exactly what the tap applies.
+          if (otherFiles.isNotEmpty) ...[
+            // `presets: false` even though these ARE distro wallpapers. The
+            // flag decides which long-press the help sheet explains, and this
+            // strip offers neither: the eye hides one of the ACTIVE distro's
+            // presets and the cross forgets one of your photos. A foreign
+            // wallpaper is neither, so the header explains the gesture that
+            // does exist, which is the tap.
+            _StripHeader(
+              title: context.t('wallpaper.fromYourDistros'),
+              presets: false,
+            ),
+            _Strip(
+              sources: otherFiles,
+              source: theme.spec.source,
+              sourceFor: (path) => otherSources[path] ?? theme.spec.source,
+              // ─── APPLIED AS AN ABSOLUTE PATH ─────────────────────────
+              //
+              // NOT as the bare filename the pack ships. That string is
+              // resolved against the ACTIVE theme's directory everywhere
+              // downstream, so storing Garuda's `wall_x.webp` while Ubuntu is
+              // in use would look in Ubuntu's folder and quietly find nothing.
+              //
+              // Resolving here turns it into `/…`, which is already one of the
+              // four shapes `encodeWallpaperSource` handles, so prefs, the
+              // preview, framing and the rotation worker all keep working with
+              // no new scheme to teach them.
+              //
+              // The path is stable: `PackPaths.installedDir` is the pack id
+              // with no version in it, so a republish replaces the files
+              // underneath rather than moving them. Uninstalling the pack
+              // breaks the wallpaper, exactly as deleting a photo does.
+              onTap: apply,
             ),
           ],
           _StripHeader(title: context.t('wallpaper.yours'), presets: false),
@@ -1136,33 +1311,60 @@ class WallpaperScreen extends ConsumerWidget {
               },
             ),
           ),
-          ThemedSectionHeader(context.t('settings.appliesTo')),
-          // ─── A ROW, NOT A TOGGLE ────────────────────────────────────────
+          // ─── MOTION ────────────────────────────────────────────────────
           //
-          // The toggle was the buried control this whole change exists to
-          // unbury, and leaving it here beside the prompt would be two places
-          // holding one answer. It is a row now for two reasons: it STATES the
-          // current answer rather than making you read a switch position, and
-          // it reopens the same sheet the first apply showed, so changing your
-          // mind and making up your mind look identical.
+          // A row rather than a strip, because there is no set to browse: one
+          // video at a time, and choosing it happens in the system picker.
           //
-          // Still deliberately not retroactive. Rewriting the lock screen the
-          // instant an answer changes is the surprise the old comment was
-          // right about; the sheet says so itself.
+          // It sits below the still sources on purpose. Motion REPLACES both
+          // screens at once and is the expensive option, so it should be found
+          // after the cheap ones rather than offered first.
           ThemedListRow(
-            icon: Icons.lock_outline,
-            title: applyToLock ? 'Lock and home screen' : 'Home screen only',
-            subtitle: theme.prefs.wallpaperLock == null
-                // Never asked. Saying so is more useful than describing a
-                // default, because the next wallpaper is when it gets decided.
-                ? 'You will be asked when you pick a wallpaper'
-                : context.t('settings.appliesFromTheNext'),
-            trailing: const Icon(Icons.chevron_right, size: 18),
+            icon: Icons.movie_outlined,
+            title: context.t('settings.motionWallpaper'),
+            subtitle: context.t('settings.yourOwnVideoBoth'),
             onTap: () async {
-              if (previewWallpaperFor(theme) case final src?) {
-                final chosen = await chooseApplyTarget(context, theme, src);
-                if (chosen == null) return;
-                await notifier.edit((p) => p.copyWith(wallpaperLock: chosen));
+              final picked = await ImagePicker().pickVideo(
+                source: ImageSource.gallery,
+              );
+              if (picked == null) return;
+
+              // ─── A CEILING, CHECKED BEFORE THE COPY ──────────────────
+              //
+              // Refused rather than transcoded. Shrinking a video needs Media3
+              // Transformer and a progress UI for something that can take a
+              // minute, and a launcher that silently re-encodes somebody's
+              // video is doing more than they asked. Naming the limit lets
+              // them trim it in the app that already knows how.
+              //
+              // Twenty-five megabytes is a bound on the COPY, which lives in
+              // app storage for as long as the wallpaper is set. A phone with
+              // 32GB and a launcher quietly holding a 400MB clip is a support
+              // mail nobody can diagnose.
+              final file = File(picked.path);
+              final mb = await file.length() / (1024 * 1024);
+              if (mb > 25) {
+                if (context.mounted) {
+                  context.showMessage(
+                    context.t('settings.thatVideoIsTooBig'),
+                  );
+                }
+                return;
+              }
+
+              final opened = await ref
+                  .read(launcherHostApiProvider)
+                  .openMotionWallpaper(picked.path);
+
+              // False means the PREVIEW did not open, which on a device with
+              // no live-wallpaper picker is the whole story. Success says
+              // nothing about whether they pressed Set, and there is no
+              // callback that would: the next read of
+              // `motionWallpaperActive` is the only truth.
+              if (!opened && context.mounted) {
+                context.showMessage(
+                  context.t('settings.thisPhoneHasNoLiveWallpaper'),
+                );
               }
             },
           ),
@@ -1378,6 +1580,7 @@ class _Strip extends StatelessWidget {
     required this.sources,
     required this.source,
     required this.onTap,
+    this.sourceFor,
     this.onRemove,
     this.hidden = const {},
     this.onHide,
@@ -1406,6 +1609,22 @@ class _Strip extends StatelessWidget {
   /// that knows whether to build an AssetImage or a FileImage, and it already
   /// existed for exactly this.
   final ThemeSource source;
+
+  /// Where THIS entry's files live, when the strip mixes packs.
+  ///
+  /// ─── ONE STRIP, SEVERAL DISTROS ─────────────────────────────────────────
+  ///
+  /// [source] is one directory for everything drawn, which is right for a
+  /// strip holding one distro's wallpapers or the user's photos. It is wrong
+  /// for a strip holding wallpapers from SEVERAL distros: a bare
+  /// `wall_x.webp` resolves only against its own pack's folder, so Garuda's
+  /// file looked up in Ubuntu's directory finds nothing and draws a hole.
+  ///
+  /// The split-by-pack version of this section existed because of that
+  /// limitation, not because anybody wanted a heading per distro. This is the
+  /// limitation removed: null keeps [source] for every tile, and a callback
+  /// answers per tile.
+  final ThemeSource Function(String source)? sourceFor;
 
   final Future<void> Function(String) onTap;
 
@@ -1495,7 +1714,9 @@ class _Strip extends StatelessWidget {
     final isRemote = src.startsWith('http');
     // A theme reference, bundled OR installed. `source.asset` decides which,
     // and returns an AssetImage or a FileImage accordingly.
-    final themed = !isRemote && isThemeAssetRef(src) ? source.asset(src) : null;
+    final themed = !isRemote && isThemeAssetRef(src)
+        ? (sourceFor?.call(src) ?? source).asset(src)
+        : null;
 
     final hide = onHide;
     final isHidden = hidden.contains(src);

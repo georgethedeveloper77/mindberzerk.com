@@ -152,6 +152,40 @@ Future<ThemeSpec?> _loadAsset(String assetPath) async {
 /// platform channel not implemented at all (which is exactly the state of a
 /// widget test, and a home screen that cannot be tested is a home screen nobody
 /// tests).
+/// Any installed pack's spec, by id.
+///
+/// ─── NOT activeThemeSpecProvider WITH AN ARGUMENT ──────────────────────────
+///
+/// That provider must ALWAYS return a spec, because a launcher with no theme is
+/// a black screen, so it falls through bundled to Ubuntu. Doing the same here
+/// would be a lie with a straight face: asked for Garuda's wallpapers on a
+/// phone where Garuda is not installed, it would hand back Ubuntu's and the
+/// caller would render them under a Garuda badge.
+///
+/// So this one returns NULL. There is no floor to fall to, because the caller
+/// is asking about one specific pack rather than asking what to draw.
+///
+/// ─── BUNDLED IS STILL CHECKED, AND IN THE SAME ORDER ───────────────────────
+///
+/// Installed first, then the APK copy, exactly as the active resolve does. A
+/// published pack supersedes a bundled id, and a caller listing wallpapers has
+/// to see the same seven the desktop would rather than the three in the APK.
+///
+/// FAMILY, keyed by pack id, so Riverpod caches per pack: a wallpaper page
+/// listing several distros reads each spec once rather than once per rebuild.
+final packSpecProvider =
+    FutureProvider.family<ThemeSpec?, String>((ref, packId) async {
+  if (packId.isEmpty) return null;
+
+  final installed = await _loadInstalled(packId);
+  if (installed != null) return installed;
+
+  final bundled = bundledThemes[packId];
+  if (bundled != null) return _loadAsset(bundled.assetPath);
+
+  return null;
+});
+
 Future<ThemeSpec?> _loadInstalled(String themeId) async {
   try {
     final dir = await _packApi.installedPackDir(themeId);

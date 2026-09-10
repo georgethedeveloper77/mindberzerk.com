@@ -33,6 +33,7 @@ class WallpaperFramingScreen extends ConsumerStatefulWidget {
     super.key,
     required this.theme,
     required this.source,
+    this.surface,
   });
 
   final EffectiveTheme theme;
@@ -40,6 +41,14 @@ class WallpaperFramingScreen extends ConsumerStatefulWidget {
   /// The STORED source string, the same one used as the key in
   /// `prefs.wallpaperFraming`. Not the encoded form native receives.
   final String source;
+
+  /// Which screen is being framed, when only one is.
+  ///
+  /// Null is the historical flow: frame once, apply to the home screen and to
+  /// the lock screen if the launcher owns it. Naming a surface frames and
+  /// applies only that one, which is what makes a lock screen able to hold a
+  /// different crop of the same picture.
+  final WallpaperSurface? surface;
 
   @override
   ConsumerState<WallpaperFramingScreen> createState() =>
@@ -119,6 +128,7 @@ class _WallpaperFramingScreenState
       widget.theme,
       widget.source,
       framing: _framing,
+      surface: widget.surface,
     );
     if (mounted) Navigator.of(context).pop();
   }

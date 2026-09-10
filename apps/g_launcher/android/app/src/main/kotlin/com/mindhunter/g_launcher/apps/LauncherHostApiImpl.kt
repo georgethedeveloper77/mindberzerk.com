@@ -588,6 +588,27 @@ class LauncherHostApiImpl(
 
     // ---- wallpaper -------------------------------------------------------
 
+    override fun openMotionWallpaper(
+        path: String,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        // Off the main thread: this copies a video, which on a budget phone is
+        // long enough to drop frames on a home screen the user is looking at.
+        io.execute {
+            val ok = runCatching { wallpaper.openMotionWallpaper(path) }
+                .getOrDefault(false)
+            main.post { callback(Result.success(ok)) }
+        }
+    }
+
+    override fun motionWallpaperActive(callback: (Result<Boolean>) -> Unit) {
+        io.execute {
+            val ok = runCatching { wallpaper.motionWallpaperActive() }
+                .getOrDefault(false)
+            main.post { callback(Result.success(ok)) }
+        }
+    }
+
     override fun setWallpaper(
         source: String,
         target: String,

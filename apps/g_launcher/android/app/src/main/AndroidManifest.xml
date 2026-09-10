@@ -200,6 +200,17 @@
         </intent>
     </queries>
 
+    <!--
+        Declared so Android can offer the motion wallpaper in its own chooser.
+
+        `BIND_WALLPAPER` is what the SYSTEM must hold to bind this service, not
+        something this app requests. Without it any app could bind a wallpaper
+        engine and read the surface it draws on.
+
+        `exported` is true because the binder is the system, which is a
+        different process. It is not an app-to-app surface: nothing can start
+        this, only bind it, and only with that permission.
+    -->
     <application
         android:name=".LauncherApplication"
         android:label="G Launcher"
@@ -355,6 +366,20 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
+
+
+        <service
+            android:name=".system.MotionWallpaperService"
+            android:exported="true"
+            android:label="@string/motion_wallpaper_description"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/motion_wallpaper" />
+        </service>
 
     </application>
 </manifest>

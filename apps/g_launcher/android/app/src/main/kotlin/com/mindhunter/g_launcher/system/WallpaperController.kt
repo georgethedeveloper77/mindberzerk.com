@@ -2,7 +2,9 @@ package com.mindhunter.g_launcher.system
 
 import android.annotation.SuppressLint
 import android.app.WallpaperManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -52,6 +54,66 @@ class WallpaperController(context: Context) {
      * The CDN case is what lets a new distro ship wallpapers without a Play
      * release — the same property themes and hero icon packs have.
      */
+    /**
+     * Put [path] where the engine looks, then open Android's own preview.
+     *
+     * Returns true when the PREVIEW OPENED. Nothing here can apply a live
+     * wallpaper: `setWallpaperComponent` is signature-permission, so the Set
+     * button on that screen belongs to Android and the user may not press it.
+     */
+    fun openMotionWallpaper(path: String): Boolean {
+        return try {
+            val src = File(path)
+            if (!src.exists()) {
+                Log.w(TAG, "no such video: $path")
+                return false
+            }
+
+            // Copied to the engine's fixed location. The service is constructed
+            // by Android with no arguments, so one known path is how it learns
+            // which video to play, and replacing that file is how the video is
+            // changed.
+            val dest = MotionWallpaperService.currentFile(appContext)
+            src.copyTo(dest, overwrite = true)
+
+            val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+                .putExtra(
+                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    ComponentName(appContext, MotionWallpaperService::class.java),
+                )
+                // Started from a service context on some paths, and a task of
+                // its own is what a full-screen system preview wants anyway.
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            appContext.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            // ActivityNotFoundException on a device with no live-wallpaper
+            // picker at all, which is rare but real on stripped ROMs, and a
+            // launcher must not die because a chooser is missing.
+            Log.w(TAG, "could not open the live wallpaper preview", e)
+            false
+        }
+    }
+
+    /**
+     * Whether the wallpaper currently set is this launcher's engine.
+     *
+     * Asked of the system every time. The user can change their wallpaper from
+     * Android's settings, the gallery or another launcher, and a remembered
+     * bool would be wrong from that moment on with nothing to correct it.
+     */
+    fun motionWallpaperActive(): Boolean {
+        return try {
+            val info = manager.wallpaperInfo ?: return false
+            info.packageName == appContext.packageName &&
+                info.serviceName == MotionWallpaperService::class.java.name
+        } catch (e: Exception) {
+            Log.w(TAG, "could not read the wallpaper component", e)
+            false
+        }
+    }
+
     fun setWallpaper(
         source: String,
         target: String,
@@ -219,8 +281,21 @@ class WallpaperController(context: Context) {
         val stash = stashFile()
         if (!stash.exists() || stash.length() == 0L) return false
 
-        val ok = setWallpaper(stash.absolutePath.let { "file://$it" }, true)
-        if (ok) stash.delete()
+        // ─── BOTH SCREENS, WHICH IS NOW TWO CALLS ───────────────────────────
+        //
+        // Restore means "put the user back where they were", and where they
+        // were included their lock screen. The boolean that used to say so is
+        // gone, so this says it twice.
+        //
+        // The home screen decides the result, and the stash is only deleted if
+        // it succeeded. A lock push refused by an OEM must not throw away the
+        // one copy of the wallpaper this exists to give back.
+        val path = stash.absolutePath.let { "file://$it" }
+        val ok = setWallpaper(path, "home")
+        if (ok) {
+            setWallpaper(path, "lock")
+            stash.delete()
+        }
         return ok
     }
 
