@@ -17,10 +17,10 @@ import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/drawer_transition.dart';
 import '../../../design/setting_previews.dart';
+import '../../drawer/az_rail.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../system/notification_badges.dart';
-import '../../drawer/az_rail.dart';
 import '../folders_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
@@ -247,8 +247,7 @@ List<Widget> applicationsSection(
                 // alphabetical and so would have looked correct while quietly
                 // putting a value in prefs that no reader matches on.
                 notifier.edit(
-                  (p) => v == 'vertical' &&
-                          (p.drawerSortMode ?? 'custom') == 'custom'
+                  (p) => v == 'vertical' && (p.drawerSortMode ?? 'custom') == 'custom'
                       ? p
                           .copyWith(drawerScrollStyle: v)
                           .clearing(drawerSortMode: true)
@@ -373,6 +372,11 @@ List<Widget> applicationsSection(
               onFollow: () => notifier.edit(
                 (p) => p.clearing(drawerGrouping: true),
               ),
+              // NOT `const`. The Library entry below is conditional on a
+              // capability read at build time, and a conditional element makes
+              // the whole literal non-constant. Every other options map on this
+              // page stays const; this one cannot, which is the small price of
+              // the option existing on some distros and not others.
               options: {
                 'none': 'Off',
                 'az': 'A to Z',
@@ -466,6 +470,52 @@ List<Widget> applicationsSection(
                 var next = p.copyWith(
                   drawerListStyle: v,
                   drawerScrollStyle: 'vertical',
+                );
+                if ((p.drawerSortMode ?? 'custom') == 'custom') {
+                  next = next.clearing(drawerSortMode: true);
+                }
+                return next;
+              }),
+            ),
+          ),
+        ),
+
+        // ── ROWS THAT OPEN ─────────────────────────────────────────────
+        //
+        // Under List shape, because it is a property of a row and means
+        // nothing without one. Follows the same rule as the two rows around
+        // it: the capability greys, another setting in the way gets set.
+        FilterRow(
+          const [
+            'expand',
+            'shortcuts',
+            'long press',
+            'row',
+            'actions',
+            'app shortcuts',
+          ],
+          SettingsRow(
+            icon: Icons.unfold_more,
+            title: 'Expanding rows',
+            subtitle: theme.canExpandRows.available
+                ? 'Hold a name for its shortcuts'
+                : context.t(theme.canExpandRows.why!),
+            subtitleTint: theme.canExpandRows.available
+                ? null
+                : SettingsSkin.of(context).warn,
+            trailing: Seg(
+              enabled: theme.canExpandRows.available,
+              value: theme.drawerRowExpand,
+              options: const {'off': 'Off', 'on': 'On'},
+              onChanged: (v) => notifier.edit((p) {
+                if (v != 'on') return p.copyWith(drawerRowExpand: v);
+                // On implies the whole surface: the list, in rows, not
+                // Custom. Three preconditions in one write, so there is no
+                // frame in which a paged grid is asked to expand a row.
+                var next = p.copyWith(
+                  drawerRowExpand: v,
+                  drawerScrollStyle: 'vertical',
+                  drawerListStyle: 'rows',
                 );
                 if ((p.drawerSortMode ?? 'custom') == 'custom') {
                   next = next.clearing(drawerSortMode: true);

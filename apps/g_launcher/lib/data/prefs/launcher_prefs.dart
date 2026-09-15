@@ -72,6 +72,7 @@ class LauncherPrefs {
     this.drawerIndexRail,
     this.drawerListStyle,
     this.dockLayout,
+    this.drawerRowExpand,
     this.drawerSortMode,
     this.drawerSlots = const [],
     this.drawerSlotCols,
@@ -349,6 +350,20 @@ class LauncherPrefs {
   /// pinning, ordering, capacity and exclusion, all of which already exist and
   /// none of which know what the dock looks like.
   final String? dockLayout;
+
+  /// Whether a row opens in place for its shortcuts. null | 'off' | 'on'.
+  ///
+  /// ─── A STRING, NOT A BOOL, AND THE REASON IS `following` ────────────────
+  ///
+  /// Every pref here distinguishes "the user chose off" from "the user has not
+  /// chosen", because the settings rows draw a Follow link off exactly that.
+  /// A `bool?` can carry the distinction but reads as though it cannot, and the
+  /// next person to touch it writes `?? false` and silently deletes the third
+  /// state. The neighbours are all strings; this one matches them.
+  ///
+  /// Meaningful only on the list drawer in rows. A cell has no room to open
+  /// into and a paged grid has nowhere to put the height.
+  final String? drawerRowExpand;
 
   /// How the drawer's loose apps are ORDERED.
   /// null | 'az' | 'mostUsed' | 'recent' | 'custom'. null = alphabetical.
@@ -1065,6 +1080,7 @@ class LauncherPrefs {
     String? drawerIndexRail,
     String? drawerListStyle,
     String? dockLayout,
+    String? drawerRowExpand,
     String? drawerSortMode,
     List<DrawerSlot>? drawerSlots,
     int? drawerSlotCols,
@@ -1146,6 +1162,7 @@ class LauncherPrefs {
       drawerIndexRail: drawerIndexRail ?? this.drawerIndexRail,
       drawerListStyle: drawerListStyle ?? this.drawerListStyle,
       dockLayout: dockLayout ?? this.dockLayout,
+      drawerRowExpand: drawerRowExpand ?? this.drawerRowExpand,
       drawerSortMode: drawerSortMode ?? this.drawerSortMode,
       drawerSlots: drawerSlots ?? this.drawerSlots,
       drawerSlotCols: drawerSlotCols ?? this.drawerSlotCols,
@@ -1233,6 +1250,7 @@ class LauncherPrefs {
     bool drawerIndexRail = false,
     bool drawerListStyle = false,
     bool dockLayout = false,
+    bool drawerRowExpand = false,
     bool drawerSortMode = false,
     bool drawerPageCount = false,
     bool themeMode = false,
@@ -1311,6 +1329,7 @@ class LauncherPrefs {
       drawerIndexRail: drawerIndexRail ? null : this.drawerIndexRail,
       drawerListStyle: drawerListStyle ? null : this.drawerListStyle,
       dockLayout: dockLayout ? null : this.dockLayout,
+      drawerRowExpand: drawerRowExpand ? null : this.drawerRowExpand,
       drawerSortMode: drawerSortMode ? null : this.drawerSortMode,
       // Pass-through, not clearable: the arrangement survives leaving Custom,
       // which is what lets returning to Custom restore it. Omitting these
@@ -1426,6 +1445,7 @@ class LauncherPrefs {
         if (drawerIndexRail != null) 'drawerIndexRail': drawerIndexRail,
         if (drawerListStyle != null) 'drawerListStyle': drawerListStyle,
         if (dockLayout != null) 'dockLayout': dockLayout,
+        if (drawerRowExpand != null) 'drawerRowExpand': drawerRowExpand,
         if (drawerSortMode != null) 'drawerSortMode': drawerSortMode,
         'drawerSlots': drawerSlots.map((e) => e.toJson()).toList(),
         if (drawerSlotCols != null) 'drawerSlotCols': drawerSlotCols,
@@ -1530,6 +1550,7 @@ class LauncherPrefs {
       drawerIndexRail: j['drawerIndexRail'] as String?,
       drawerListStyle: j['drawerListStyle'] as String?,
       dockLayout: j['dockLayout'] as String?,
+      drawerRowExpand: j['drawerRowExpand'] as String?,
       drawerSortMode: j['drawerSortMode'] as String?,
       drawerSlots: ((j['drawerSlots'] as List?) ?? const [])
           .map((e) => DrawerSlot.fromJson((e as Map).cast<String, dynamic>()))
@@ -1669,6 +1690,7 @@ class LauncherPrefs {
         other.drawerIndexRail == drawerIndexRail &&
         other.drawerListStyle == drawerListStyle &&
         other.dockLayout == dockLayout &&
+        other.drawerRowExpand == drawerRowExpand &&
         other.drawerSortMode == drawerSortMode &&
         const ListEquality<DrawerSlot>()
             .equals(other.drawerSlots, drawerSlots) &&
@@ -1774,6 +1796,7 @@ class LauncherPrefs {
         drawerIndexRail,
         drawerListStyle,
         dockLayout,
+        drawerRowExpand,
         drawerSortMode,
         const ListEquality<DrawerSlot>().hash(drawerSlots),
         drawerSlotCols,

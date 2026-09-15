@@ -239,6 +239,11 @@ extension ThemeCapabilities on EffectiveTheme {
   /// Grid of cells, or list of rows. `AppDrawer` only, same as the index.
   Capability get canChooseListStyle => _scrollableDrawer;
 
+  /// Rows that open for their shortcuts. `AppDrawer` only, same as the two
+  /// above, and for the same reason: it is a property of the row, and only one
+  /// widget draws rows.
+  Capability get canExpandRows => _scrollableDrawer;
+
   /// Drawer columns. A list has one column whatever the number says.
   ///
   /// `drawerCols` is read by `AppDrawer` and by nothing else that draws a

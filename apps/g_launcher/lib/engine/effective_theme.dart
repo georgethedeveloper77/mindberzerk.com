@@ -65,6 +65,7 @@ class EffectiveTheme {
     required this.drawerIndexRail,
     required this.drawerListStyle,
     required this.dockLayout,
+    required this.drawerRowExpand,
     required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
@@ -168,6 +169,10 @@ class EffectiveTheme {
   /// The dock's presentation: 'bar' | 'list'. Distinct from [dockStyle], which
   /// is flat versus floating and is a distro's to author.
   final String dockLayout;
+
+  /// Whether a row opens for its shortcuts: 'off' | 'on'. Read together with
+  /// [drawerScrollStyle] and [drawerListStyle], never alone.
+  final String drawerRowExpand;
 
   /// Where the drawer's search bar sits: 'top' | 'bottom' | 'off'. Resolved in
   /// [LayoutResolver]: the user's choice, else the distro's authored default,
@@ -605,6 +610,7 @@ class EffectiveTheme {
       drawerIndexRail: layout.drawerIndexRail,
       drawerListStyle: layout.drawerListStyle,
       dockLayout: layout.dockLayout,
+      drawerRowExpand: layout.drawerRowExpand,
       drawerSearchPosition: layout.drawerSearchPosition,
       kickoffRail: layout.kickoffRail,
       tilingLauncher: layout.tilingLauncher,
@@ -820,6 +826,7 @@ class EffectiveTheme {
           other.drawerIndexRail == drawerIndexRail &&
           other.drawerListStyle == drawerListStyle &&
           other.dockLayout == dockLayout &&
+          other.drawerRowExpand == drawerRowExpand &&
           other.drawerSearchPosition == drawerSearchPosition &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
@@ -859,6 +866,7 @@ class EffectiveTheme {
         drawerIndexRail,
         drawerListStyle,
         dockLayout,
+        drawerRowExpand,
         drawerSearchPosition,
         iconSizeDp,
         labelLines,

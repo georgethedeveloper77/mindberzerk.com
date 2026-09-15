@@ -40,6 +40,7 @@ class ResolvedLayout {
     required this.drawerIndexRail,
     required this.drawerListStyle,
     required this.dockLayout,
+    required this.drawerRowExpand,
     required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
@@ -154,6 +155,12 @@ class ResolvedLayout {
   /// a reach preference, and no theme.json has a way to say it.
   final String dockLayout;
 
+  /// Whether a row opens for its shortcuts, RESOLVED: 'off' | 'on'.
+  ///
+  /// No distro arm. Shortcuts are the publishing app's, not the distro's, and
+  /// no theme.json has a way to say anything useful about them.
+  final String drawerRowExpand;
+
   /// Where the drawer's search bar sits, RESOLVED: 'top' | 'bottom' | 'off'.
   /// Never null, so `AppDrawer` carries no fallback of its own.
   ///
@@ -248,6 +255,7 @@ class ResolvedLayout {
           other.drawerIndexRail == drawerIndexRail &&
           other.drawerListStyle == drawerListStyle &&
           other.dockLayout == dockLayout &&
+          other.drawerRowExpand == drawerRowExpand &&
           other.drawerSearchPosition == drawerSearchPosition &&
           other.kickoffRail == kickoffRail &&
           other.tilingLauncher == tilingLauncher &&
@@ -293,6 +301,7 @@ class ResolvedLayout {
         drawerIndexRail,
         drawerListStyle,
         dockLayout,
+        drawerRowExpand,
         drawerSearchPosition,
         kickoffRail,
         tilingLauncher,
@@ -362,6 +371,14 @@ abstract final class LayoutResolver {
   /// and a list is a phone idiom borrowed onto them rather than anything Ubuntu
   /// or Fedora does. Opt in, never arrive in.
   static const defaultDockLayout = 'bar';
+
+  /// ON where it applies at all.
+  ///
+  /// It only renders on the list in rows, which is already a state somebody
+  /// chose deliberately, and a row that opens to its shortcuts is most of what
+  /// makes that state worth choosing. Off by default would hide the feature
+  /// from exactly the people who set up the surface it lives on.
+  static const defaultDrawerRowExpand = 'on';
 
   /// Thumb-reachable, and what every distro drew before the field existed. A
   /// theme that says nothing keeps exactly the bar it had.
@@ -766,6 +783,12 @@ abstract final class LayoutResolver {
         null,
         const {'bar', 'list'},
         defaultDockLayout,
+      ),
+      drawerRowExpand: _pick(
+        prefs.drawerRowExpand,
+        null,
+        const {'off', 'on'},
+        defaultDrawerRowExpand,
       ),
       // A PREFS ARM, unlike the four below it. Where the search bar sits is a
       // reach preference on a phone, so a user who has moved it keeps it on

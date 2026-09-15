@@ -7,6 +7,7 @@ import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/drawer_slots.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
@@ -23,6 +24,7 @@ import '../dock/dock_insets.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../search/search_page.dart';
 import 'app_icon.dart';
+import 'app_shortcuts.dart';
 import 'az_rail.dart';
 import 'drawer_actions.dart';
 import 'drawer_drag.dart';
@@ -548,11 +550,21 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           final rowExtent = _rowExtentFor(theme);
           final shape = asRows ? _TileShape.row : _TileShape.cell;
 
+          // ─── ROWS THAT OPEN NEED A ROW AND A SETTING ─────────────────────
+          //
+          // Both, because the pref is meaningless without the shape and the
+          // shape is perfectly usable without the pref. `apps_section` sets the
+          // shape when somebody turns this on, so the pair cannot disagree from
+          // the settings page; this is what holds if a theme or an old profile
+          // arrives with only one of them.
+          final expandable = asRows && theme.drawerRowExpand == 'on';
+
           Widget tileAt(int i) => _tileFor(
                 items[i],
                 theme: theme,
                 labelLines: labelLines,
                 shape: shape,
+                expandable: expandable,
                 onFolderCreated: onFolderCreated,
               );
 
@@ -991,6 +1003,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   theme: theme,
                   labelLines: labelLines,
                   shape: shape,
+                  expandable: expandable,
                   onFolderCreated: onFolderCreated,
                 ),
               ),
@@ -1425,6 +1438,7 @@ class _AppTile extends ConsumerStatefulWidget {
     required this.labelLines,
     required this.onFolderCreated,
     this.shape = _TileShape.cell,
+    this.expandable = false,
     this.slot,
   });
 
@@ -1435,6 +1449,14 @@ class _AppTile extends ConsumerStatefulWidget {
   /// Cell or row. Defaults to `cell`, so every existing call site keeps the
   /// shape it already had without naming it.
   final _TileShape shape;
+
+  /// Whether holding the NAME opens this row for its shortcuts.
+  ///
+  /// Separate from [shape] because a row can exist without expanding: the
+  /// setting is off by choice, or the drawer is a row list inside a surface
+  /// that has no room to grow. Folding it into the shape would make "rows"
+  /// mean two things and take the choice away from the pref.
+  final bool expandable;
 
   /// This tile's (page, index) in the CUSTOM slot grid, or null everywhere
   /// else. Non-null is what arms the zone split: drops on the middle of the
@@ -1451,6 +1473,13 @@ class _AppTile extends ConsumerStatefulWidget {
 }
 
 class _AppTileState extends ConsumerState<_AppTile> {
+  /// Is this row open for its shortcuts? Always false on a cell.
+  ///
+  /// LOCAL, not a provider, and that is the same call `library_view` makes
+  /// about its jiggle: nothing outside this row needs to know, and a drawer
+  /// that reopened with a row still hanging open would read as a bug rather
+  /// than as state being preserved.
+  bool _open = false;
   /// Where the tile was when the drag began, so release can measure travel.
   /// Where the finger went down, for the hold-versus-drag test. Captured from
   /// a Listener rather than onDragStarted, because the draggable reports no
@@ -1572,6 +1601,10 @@ class _AppTileState extends ConsumerState<_AppTile> {
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
+        if (widget.shape == _TileShape.row && widget.expandable) {
+          return _expandingRow(context, theme, entry, icon, hovering);
+        }
+
         return LongPressDraggable<DrawerDrag>(
           data: AppDrag(entry.componentKey),
           // See _AppTileState.onMove: this is what makes details.offset the
@@ -1662,6 +1695,159 @@ class _AppTileState extends ConsumerState<_AppTile> {
           ),
         );
       },
+    );
+  }
+
+  /// PHASE L6b. A row whose NAME opens it and whose ICON still holds the menu.
+  ///
+  /// ─── WHY THIS IS A SEPARATE PATH AND NOT A FLAG IN THE ONE BELOW ──────────
+  ///
+  /// The cell path wraps the WHOLE tile in one `LongPressDraggable`, and that
+  /// draggable is also the menu: it takes the long press, and on release
+  /// without travel it opens the panel instead of dropping anything. One
+  /// recogniser doing two jobs, which works because a cell has no halves.
+  ///
+  /// A row has halves, and they want different things from the same gesture.
+  /// Putting a second `onLongPress` inside that draggable's child would put two
+  /// long-press recognisers in one arena and let the winner be decided by tree
+  /// depth, which is a coin toss written as a nesting order. So the draggable
+  /// shrinks to the icon and the name gets a plain detector. Each target has
+  /// exactly one recogniser and neither can steal from the other.
+  ///
+  /// ─── AND THE SPLIT IS LOCAL TO THIS SHAPE ────────────────────────────────
+  ///
+  /// Everywhere else in the launcher a long press is the menu: the grid drawer,
+  /// the home grid, the dock. That stays true. This is the one surface where a
+  /// panel would cover the list it came from, which is the reason the row opens
+  /// in place rather than over itself.
+  Widget _expandingRow(
+    BuildContext context,
+    EffectiveTheme theme,
+    AppEntry entry,
+    Widget icon,
+    bool hovering,
+  ) {
+    final iconHalf = LongPressDraggable<DrawerDrag>(
+      data: AppDrag(entry.componentKey),
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: () {
+        HapticFeedback.mediumImpact();
+        if (mounted) setState(() => _held = true);
+      },
+      onDraggableCanceled: (_, offset) {
+        // Same hold-versus-drag test the cell path documents at length: nothing
+        // accepted it, so if the finger never travelled the user was holding,
+        // and holding the icon is the menu.
+        final from = _downAt;
+        if (from == null || (offset - from).distance < _slop) {
+          showDrawerAppMenu(context, ref, theme, entry).whenComplete(() {
+            if (mounted) setState(() => _held = false);
+          });
+        } else if (mounted) {
+          setState(() => _held = false);
+        }
+      },
+      onDragCompleted: () {
+        if (mounted) setState(() => _held = false);
+      },
+      // The ICON travels, not the row. A row carries an `Expanded` label and
+      // the feedback is laid out unbounded, which throws; and a full-width bar
+      // under the thumb covers the targets it is being dragged onto.
+      feedback: Transform.scale(
+        scale: 1.15,
+        child: Material(color: Colors.transparent, child: icon),
+      ),
+      child: Listener(
+        onPointerDown: (e) => _downAt = e.position,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // Tapping the icon launches too. The split is about the LONG press;
+          // making a tap mean different things either side of one row is the
+          // contradiction this arrangement was chosen to avoid.
+          onTap: () => _launch(context, ref),
+          child: icon,
+        ),
+      ),
+    );
+
+    final nameHalf = Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _launch(context, ref),
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          setState(() => _open = !_open);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            entry.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: _rowFontSize * theme.textScale,
+              color: theme.palette.onDark,
+              fontFamily: theme.typography.display,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return _DropFeedback(
+      theme: theme,
+      hovering: hovering,
+      // Null, always. Insert zones split a tile left and right, which is the
+      // right question for a grid cell and the wrong one for a full-width row,
+      // where before and after are above and below. The A to Z list passes no
+      // slot anyway, so this only states what was already true.
+      zone: null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: _rowExtentFor(theme),
+            child: Row(
+              children: [
+                iconHalf,
+                const SizedBox(width: 16),
+                nameHalf,
+              ],
+            ),
+          ),
+          // ─── grid-template-rows, THE FLUTTER SPELLING ──────────────────
+          //
+          // `AnimatedSize` rather than a height tween, because the payload's
+          // height is not knowable in advance: it is however many chips the
+          // app publishes, wrapped to however many lines they take. Animating
+          // to an unknown number means measuring it first, and measuring it
+          // means building it, which is the thing being animated into.
+          //
+          // The child is dropped entirely when closed rather than sized to
+          // zero, so a closed row runs no provider and makes no binder call.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _open
+                ? RowExpansion(
+                    componentKey: entry.componentKey,
+                    theme: theme,
+                    onLaunch: (id, rect) => ref
+                        .read(launcherHostApiProvider)
+                        .launchShortcut(
+                          entry.componentKey,
+                          id,
+                          rect.left,
+                          rect.top,
+                          rect.right,
+                          rect.bottom,
+                        ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2182,6 +2368,7 @@ Widget _tileFor(
   required int labelLines,
   required void Function(String folderId) onFolderCreated,
   _TileShape shape = _TileShape.cell,
+  bool expandable = false,
   ({int page, int index})? slot,
 }) {
   final item = drawerItem;
@@ -2200,6 +2387,10 @@ Widget _tileFor(
         theme: theme,
         labelLines: labelLines,
         shape: shape,
+        // Only the APP arm. A folder opens, an action fires, and neither
+        // publishes shortcuts, so handing them this flag would be a parameter
+        // that can only ever be false.
+        expandable: expandable,
         slot: slot,
       ),
     FolderDrawerItem() => _FolderTile(

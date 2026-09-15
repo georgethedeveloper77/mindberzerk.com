@@ -238,17 +238,14 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     // when the page changes. Watched rather than read, and spelled out rather
     // than hidden behind a helper that would silently not rebuild.
     final appsPage = ref.watch(appsPageProvider);
-    final activeWorkspace = ref.watch(activeWorkspaceProvider);
-    final appsUp =
-        appsPage == null ? activitiesOpen : activeWorkspace == appsPage;
 
-    // ─── WHETHER THE DOCK EXISTS RIGHT NOW ──────────────────────────────
+    // ─── WHETHER THE DOCK LEAVES, AND WHO DECIDES ───────────────────────
     //
-    // The guard below was `!activitiesOpen`, which is the OVERLAY flag. On a
-    // distro whose app list is a workspace page that flag is never true, so the
-    // dock never went away and Pocket's App Library wore a dock across its
-    // foot. iOS replaces the dock with the Library's search field; it does not
-    // stack them.
+    // This was a `dockHidden` bool consumed by an `if`, and the dock blinked
+    // out of existence rather than leaving. The decision did not change; where
+    // it lands did. `activitiesOpen` is still a hard cut below, because
+    // Launchpad is an overlay with no gesture to track, and the `desktop` case
+    // is handed to `_DockSlide` as a page index so it can follow the swipe.
     //
     // Per distro, because the two workspace-surface distros want opposite
     // answers from the identical arrangement. Deepin's app list is a page you
@@ -258,11 +255,18 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     //
     // 'apps' is deliberately NOT handled here. It is the GNOME dash, it belongs
     // to a shell that has one, and `gnome_shell` already computes `dockRevealed`
-    // for it. Implementing it in this expression would read as complete while
-    // being untested on a shell no distro authors it for, which is worse than
-    // it plainly not being here.
-    final dockHidden =
-        activitiesOpen || (theme.dockReveal == 'desktop' && appsUp);
+    // for it. Implementing it here would read as complete while being untested
+    // on a shell no distro authors it for.
+    //
+    // ─── AND `appsUp` IS GONE WITH IT ──────────────────────────────────
+    //
+    // It computed whether the app list was on screen, from `appsPage` and
+    // `activeWorkspace`, and the only thing that ever read it was `dockHidden`.
+    // The slide needs the page INDEX rather than a boolean about it, because a
+    // boolean is the answer after the swipe has finished and the whole point is
+    // to move during it. `activeWorkspace` went too, for the same reason: the
+    // PageController's live position is what `_DockSlide` reads, and the
+    // settled page number cannot describe a drag in progress.
 
     // Source of truth is the controller; the PageController follows, so a HOME
     // press or a menu-bar action moves the page too, not just a swipe.
@@ -405,7 +409,32 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         // reflows nothing, and a magnifying dock ghosting through an app grid
         // is the worst-looking version of this bug: the icons are large and
         // unevenly sized, so they read as a second broken grid.
-        if (!dockHidden)
+        // ─── IT SLIDES WITH THE THUMB, IT DOES NOT BLINK OUT ──────────────
+        //
+        // `if (!dockHidden)` removed the widget outright, so the dock vanished
+        // between two frames while the library was still sliding in. On a flick
+        // that reads as a glitch; on a slow drag it is worse, because the page
+        // is halfway across and the dock has already gone.
+        //
+        // ─── TRACKED, NOT TIMED ────────────────────────────────────────────
+        //
+        // A 200ms curve fired when the page settles is the easy version and it
+        // is wrong for this distro. Pocket's whole claim is that "nothing opens
+        // or closes": the library is a place you swipe to, so the dock leaving
+        // has to be part of the same gesture rather than a separate animation
+        // that happens afterwards. Driven off the PageController, it is exactly
+        // as far out as you have swiped, and swiping back brings it back.
+        //
+        // ─── AND IT STAYS MOUNTED ──────────────────────────────────────────
+        //
+        // Off-screen rather than absent. Unmounting mid-slide would drop the
+        // dock's own state and, on a magnified dock, restart the hover
+        // calculation from nothing the moment it returned.
+        //
+        // `activitiesOpen` is still a hard cut: Launchpad is an overlay that
+        // appears over everything, not a page you drag toward, so there is no
+        // gesture for the dock to track and a slide would just be a delay.
+        if (!activitiesOpen)
           Positioned(
             left: 0,
             right: 0,
@@ -419,7 +448,12 @@ class _AquaShellState extends ConsumerState<AquaShell> {
             // cannot tap.
             bottom:
                 theme.dockStyle == 'flat' ? insets.bottom : insets.bottom + 8,
-            child: AquaDock(
+            child: _DockSlide(
+              pages: _pages,
+              // The page the dock must be gone by. Null when this distro keeps
+              // its dock everywhere, and then the slide never runs at all.
+              hideAtPage: theme.dockReveal == 'desktop' ? appsPage : null,
+              child: AquaDock(
               entries: entries,
               palette: theme.palette,
               style: AquaDockStyle.parse(theme.dockStyle),
@@ -434,6 +468,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
               // refusing it on the docks with no pins would refuse the gesture
               // that makes pinning possible.
               onDropApp: (key) => _dockPin(key, capacity),
+              ),
             ),
           ),
 
@@ -443,6 +478,81 @@ class _AquaShellState extends ConsumerState<AquaShell> {
         // actually is.
         if (activitiesOpen) Positioned.fill(child: ShellDrawer(theme: theme)),
       ],
+    );
+  }
+}
+
+/// Slides [child] off the bottom edge as the pager approaches [hideAtPage].
+///
+/// ─── AN AnimatedBuilder ON THE CONTROLLER, NOT A STATE FLAG ────────────────
+///
+/// `PageController` is a `Listenable` that ticks on every pixel of a drag, so
+/// listening to it gives the dock the gesture itself rather than a summary of
+/// it delivered once the page has settled. That is the whole difference between
+/// the dock stepping aside and the dock disappearing.
+///
+/// Only this subtree rebuilds. The shell's own build stays out of it, which
+/// matters because it is rebuilding a dock, a workspace pager and a desklet
+/// surface, and doing that sixty times a second during a swipe is exactly the
+/// kind of thing the jank script would find.
+class _DockSlide extends StatelessWidget {
+  const _DockSlide({
+    required this.pages,
+    required this.hideAtPage,
+    required this.child,
+  });
+
+  final PageController pages;
+
+  /// The page index at which the dock should be fully gone, or null to never
+  /// hide. Null is every distro but Pocket.
+  final int? hideAtPage;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = hideAtPage;
+    if (target == null) return child;
+
+    return AnimatedBuilder(
+      animation: pages,
+      builder: (context, dock) {
+        // ─── BEFORE THE FIRST LAYOUT THERE IS NO PAGE ────────────────────
+        //
+        // `hasClients` is false on the first frame and `page` throws rather
+        // than returning null. Falling back to the controller's initial page
+        // means the dock is drawn in the right place immediately rather than
+        // sliding in from nowhere on launch.
+        final live = pages.hasClients && pages.page != null
+            ? pages.page!
+            : pages.initialPage.toDouble();
+
+        // 1.0 at the page before the library, 0.0 at the library itself, and
+        // clamped so the dock neither over-travels on a bounce nor creeps back
+        // up when the pager overscrolls past the last page.
+        final t = (target - live).clamp(0.0, 1.0);
+
+        // ─── DOWN BY ITS OWN HEIGHT PLUS A MARGIN ────────────────────────
+        //
+        // A fraction of the child's own height, so this needs no measurement
+        // and stays correct whatever the dock's style and slot size work out
+        // to. 1.4 rather than 1.0 because the dock sits `insets.bottom + 8`
+        // above the edge and a plain 1.0 would leave its last few pixels
+        // showing on a gesture-navigation phone.
+        //
+        // Opacity rides along on the same fraction. Sliding alone is enough on
+        // a dark wallpaper and not enough on a bright one, where the plate
+        // stays visible against the shelves until the last moment.
+        return Opacity(
+          opacity: t,
+          child: FractionalTranslation(
+            translation: Offset(0, (1 - t) * 1.4),
+            child: dock,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
