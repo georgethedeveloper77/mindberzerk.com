@@ -66,6 +66,27 @@ ok('strokeWidth positive when stroked',
 ok('icons precedes glyphs', keys.indexOf('icons') < keys.indexOf('glyphs'),
    `icons@${keys.indexOf('icons')} glyphs@${keys.indexOf('glyphs')}`);
 
+// ─── PHASE L4: THE CATEGORY MAP ────────────────────────────────────────────
+//
+// Optional, because every pack built before L4 is still valid and still loads;
+// the tier simply goes quiet. Present, it has to obey the same ordering rule
+// `icons` does, for the same reason and with the same absence of any symptom
+// when it does not.
+const cats = pack.categories;
+if (cats !== undefined) {
+  ok('categories is an object', cats && typeof cats === 'object' && !Array.isArray(cats));
+  ok('categories precedes glyphs', keys.indexOf('categories') < keys.indexOf('glyphs'),
+     `categories@${keys.indexOf('categories')} glyphs@${keys.indexOf('glyphs')}`);
+  // The unknown ring is the tier's floor. Without it an unclassifiable app
+  // falls to the generator, which is the one outcome the tier exists to stop.
+  ok('categories carries unknown', 'unknown' in cats);
+  const catSlugs = Object.values(cats);
+  ok('category values are slugs', catSlugs.every(v => typeof v === 'string' && v.length > 0));
+  const catDangling = catSlugs.filter(s => !(s in (pack.glyphs ?? {})));
+  ok('every category resolves', catDangling.length === 0, catDangling.slice(0, 5).join(','));
+  console.log(`\n  ${Object.keys(cats).length} category buckets`);
+}
+
 const iconVals = Object.values(pack.icons ?? {});
 ok('icons is not empty', iconVals.length > 0);
 const stringRefs = iconVals.filter(v => typeof v === 'string');
@@ -83,7 +104,12 @@ if (stringRefs.length) {
      vals.every(v => v.every(d => typeof d === 'string' && d.length > 0)));
   ok('every path starts with a move',
      vals.every(v => v.every(d => /^[Mm]/.test(d.trim()))));
-  const orphans = Object.keys(glyphs).filter(g => !stringRefs.includes(g));
+  // Category slugs count as references. Without this the orphan check rejects
+  // every pack that ships the L4 tier, which is how a correct pack gets refused
+  // by a contract that was right about everything except its own scope.
+  const catRefs = Object.values(pack.categories ?? {});
+  const referenced = new Set([...stringRefs, ...catRefs]);
+  const orphans = Object.keys(glyphs).filter(g => !referenced.has(g));
   ok('no orphan glyphs', orphans.length === 0, `${orphans.length} unreferenced`);
   console.log(`\n  ${Object.keys(pack.icons).length.toLocaleString()} packages, ` +
               `${vals.length.toLocaleString()} drawings, ` +

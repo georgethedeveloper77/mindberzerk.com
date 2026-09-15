@@ -12,6 +12,7 @@ import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
 import com.mindhunter.g_launcher.AppEntry
+import com.mindhunter.g_launcher.icons.CategoryIndex
 
 /**
  * The app list. Uses LauncherApps, which is the launcher-privileged API:
@@ -99,6 +100,27 @@ class AppRepository(context: Context) {
 
         Log.i(TAG, "TOTAL=${entries.size}")
         cache = entries
+
+        // ─── PHASE L4: PUBLISH WHAT WE ALREADY KNOW ─────────────────────────
+        //
+        // The icon path has a component key and nothing else, and classifying
+        // an app needs its LABEL, which is right here and was read for the
+        // drawer anyway. Handing this repository to `IconCache` would couple
+        // icon rendering to app enumeration for one string per package, so the
+        // repository pushes instead.
+        //
+        // AFTER `cache` is set, and the whole map at once: a reader that caught
+        // this half-built would draw a screen of unknown rings and then quietly
+        // become real icons a second later, which looks like a rendering bug
+        // rather than a list that was still loading.
+        //
+        // Web-app entries are in `entries` too and get classified like anything
+        // else. Harmless: their icon path short-circuits above this tier, so
+        // the bucket is computed and never read.
+        CategoryIndex.publish(
+            entries.associate { it.packageName to CategoryIndex.classify(it.label, it.category.toInt()) },
+        )
+
         return entries
     }
 

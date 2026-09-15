@@ -1,27 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/prefs/backup_apps.dart';
 import '../../data/prefs/home_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
+import '../../data/prefs/pending_apps.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
-import '../../engine/effective_theme.dart';
-import '../dock/dock_insets.dart';
 import '../../data/repositories/shell_apps.dart';
-import '../../platform/launcher_api.g.dart';
+import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../design/components/press_pop.dart';
 import '../../design/grid_metrics.dart';
 import '../../design/icon_sizing.dart';
-import '../../design/components/press_pop.dart';
-import '../drawer/app_icon.dart';
-import '../drawer/drawer_actions.dart';
-import 'package:g_launcher/i18n/i18n.dart';
-import '../drawer/folder_overlay.dart';
+import '../../engine/effective_theme.dart';
+import '../../platform/launcher_api.g.dart';
 // deskletEditProvider and EditMode.apps: the jiggle state lives here rather
 // than in a local bool, because the pager, the desktop hold and back all read
 // it. See DeskletEditState.
 import '../desklets/desklet_edit.dart';
+import '../dock/dock_extent.dart';
+import '../dock/dock_insets.dart';
+import '../drawer/app_icon.dart';
+import '../drawer/drawer_actions.dart';
+import '../drawer/drawer_drag.dart';
+import '../drawer/folder_overlay.dart';
 
 /// The home workspace: apps, folders, drag-and-drop.
 ///
@@ -63,6 +68,13 @@ class HomeGrid extends ConsumerStatefulWidget {
   @override
   ConsumerState<HomeGrid> createState() => _HomeGridState();
 }
+
+/// The gap between rows.
+///
+/// A named constant because the fit measurement and the GridView both need it,
+/// and an 8 in one place with an 8 in the other is how a grid ends up
+/// overflowing by exactly `rows - 1` pixels the day somebody changes one.
+const double _rowGap = 8.0;
 
 class _HomeGridState extends ConsumerState<HomeGrid>
     with SingleTickerProviderStateMixin {
@@ -137,6 +149,13 @@ class _HomeGridState extends ConsumerState<HomeGrid>
       builder: (context, constraints) {
         const pad = 12.0;
         const crossGap = 8.0;
+
+        // ONE reading, used by the measurement below AND by the GridView's own
+        // padding. Two reads of the same provider in one build would be a place
+        // for them to disagree about how much room there is.
+        final dockPad =
+            desktopDockInsets(theme, live: ref.watch(dockExtentProvider));
+
         final cols = theme.cols;
         final cellW =
             (constraints.maxWidth - pad * 2 - (cols - 1) * crossGap) / cols;
@@ -144,7 +163,6 @@ class _HomeGridState extends ConsumerState<HomeGrid>
         // Through IconSizing, so a distro's `iconScale` reaches the home grid
         // the same way it reaches the drawer and the dock. `theme.iconSizeDp`
         // is the legacy flat number and is deliberately not consulted here.
-        final iconSize = IconSizing.inCell(cellW, scale: theme.iconScale);
         final fontSize = _labelFontSize(theme);
 
         // The AMBIENT scaler, on top of the theme's own textScale. Omitting it
@@ -152,6 +170,45 @@ class _HomeGridState extends ConsumerState<HomeGrid>
         // their system font up, which is the setting most likely to clip a
         // label in the first place.
         final textScaler = MediaQuery.textScalerOf(context).scale(1.0);
+
+        // ─── THE CELL MUST FIT THE BOX, NOT JUST ITS OWN CONTENTS ──────
+        //
+        // `GridMetrics.aspectFor` derives a cell's height from the icon, the
+        // label lines and the gap, and never sees how much height there is.
+        // Nothing reconciled that with `rows`, so a pack asking for five rows
+        // on a phone whose panel has taken the fifth got five rows anyway: the
+        // last one laid out past the viewport, clipped, and with
+        // `NeverScrollableScrollPhysics` unreachable.
+        //
+        // Those cells are not merely ugly, they are DEAD. They still count
+        // toward capacity, `addToHome` still hands them out, and a drag toward
+        // the bottom of the screen finds nothing to drop on, which is the bug
+        // that looked like "drag works except near the panel".
+        //
+        // So the height is measured and the cell is made to fit. The icon is
+        // what gives, because it is the only part of a cell that can: the label
+        // block is text and shrinking it is a different setting.
+        final rows = theme.rows;
+        final vertical = pad * 2 + dockPad.vertical + (rows - 1) * _rowGap;
+        final roomPerRow =
+            ((constraints.maxHeight - vertical) / rows).clamp(0.0, 4000.0);
+
+        var iconSize = IconSizing.inCell(cellW, scale: theme.iconScale);
+        final natural = GridMetrics.cellHeightFor(
+          iconSize: iconSize,
+          labelLines: theme.labelLines,
+          fontSize: fontSize,
+          textScaler: textScaler,
+        );
+
+        if (natural > roomPerRow) {
+          // Every dp over comes off the icon, down to the hard floor. Below
+          // that an icon stops being recognisable, and a row of 24dp smudges is
+          // worse than a grid that admits it cannot fit what the pack asked
+          // for.
+          iconSize = (iconSize - (natural - roomPerRow))
+              .clamp(IconSizing.hardMinDp, IconSizing.hardMaxDp);
+        }
 
         // ─── TILED IS A GEOMETRY OVER THE SAME SLOTS ──────────────────
         //
@@ -212,7 +269,11 @@ class _HomeGridState extends ConsumerState<HomeGrid>
           // `dockReveal: "apps"` has no dock on the desktop at all, and
           // reserving a band for one would cost Fedora 89dp of a desktop whose
           // argument is that it is empty.
-          padding: const EdgeInsets.all(pad) + desktopDockInsets(theme),
+          // LIVE, not the constant. See `dockInsets`: the reserve is computed
+          // at the largest slot a dock can have, and a fit-to-run dock is
+          // usually smaller, which is the gap between the bottom row of apps
+          // and the dock.
+          padding: const EdgeInsets.all(pad) + dockPad,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
             crossAxisSpacing: crossGap,
@@ -223,7 +284,7 @@ class _HomeGridState extends ConsumerState<HomeGrid>
               fontSize: fontSize,
               textScaler: textScaler,
             ),
-            mainAxisSpacing: 8,
+            mainAxisSpacing: _rowGap,
           ),
           itemCount: capacity,
           itemBuilder: (context, index) {
@@ -417,11 +478,13 @@ List<Rect> _tile(Rect box, int count) {
     if (left.width >= left.height) {
       final w = left.width / 2;
       out.add(Rect.fromLTWH(left.left, left.top, w, left.height));
-      left = Rect.fromLTWH(left.left + w, left.top, left.width - w, left.height);
+      left =
+          Rect.fromLTWH(left.left + w, left.top, left.width - w, left.height);
     } else {
       final h = left.height / 2;
       out.add(Rect.fromLTWH(left.left, left.top, left.width, h));
-      left = Rect.fromLTWH(left.left, left.top + h, left.width, left.height - h);
+      left =
+          Rect.fromLTWH(left.left, left.top + h, left.width, left.height - h);
     }
   }
 
@@ -466,9 +529,20 @@ class _Slot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (d) => d.data != index,
-      onAcceptWithDetails: (d) => _onDrop(ref, from: d.data),
+    return DragTarget<DrawerDrag>(
+      // ─── FROM ANY SURFACE, NOT JUST THIS GRID ────────────────────────
+      //
+      // This was `DragTarget<int>` and the int was a slot on this page, which
+      // is why the desktop could only ever accept its own icons: a dock entry
+      // or a drawer tile arriving as a `DrawerDrag` was a type the target could
+      // not see, so it never highlighted and never fired.
+      //
+      // Itself is still refused. A tile dropped on the slot it came from is a
+      // cancel, not a move onto itself.
+      onWillAcceptWithDetails: (d) => !(d.data.from == DragOrigin.grid &&
+          d.data.page == page &&
+          d.data.index == index),
+      onAcceptWithDetails: (d) => _onDrop(ref, d.data),
       builder: (context, candidate, _) {
         final hovering = candidate.isNotEmpty;
 
@@ -550,7 +624,9 @@ class _Slot extends ConsumerWidget {
                     capacity: theme.rows * theme.cols,
                   )),
           child: _Draggable(
+            page: page,
             index: index,
+            folderId: it.folderId!,
             child: _FolderCell(
               theme: theme,
               folder: folder,
@@ -563,7 +639,45 @@ class _Slot extends ConsumerWidget {
     }
 
     final entry = byKey[it.componentKey];
-    if (entry == null) return const SizedBox.expand();
+    if (entry == null) {
+      // ─── A GAP, OR A PROMISE ──────────────────────────────────────────
+      //
+      // An unresolvable key used to mean one thing: an app that had been
+      // uninstalled, whose tile should quietly go. After a restore from another
+      // phone it can mean something else entirely, and the two need opposite
+      // treatment. `pendingAppsProvider` holds exactly the second kind and
+      // empties itself as each one is installed, so this reads as a gap again
+      // the moment it should.
+      final key = it.componentKey;
+      final pending = ref.watch(pendingAppsProvider);
+      final missing = (key == null || !pending.hasValue)
+          ? null
+          : pending.requireValue[key];
+      if (missing == null) return const SizedBox.expand();
+
+      return _wobble(
+        _Removable(
+          theme: theme,
+          size: iconSize,
+          editing: editing,
+          // Removes the placeholder AND forgets the app, because those are one
+          // decision. Leaving the record behind would re-draw the tile the next
+          // time this layout was rebuilt, which would read as the removal not
+          // having worked.
+          onRemove: () {
+            ref.read(pendingAppsProvider.notifier).forget(key!);
+            ref
+                .read(prefsProvider(theme.spec.id).notifier)
+                .edit((p) => HomeLayout.removeFromHome(p, page, index));
+          },
+          child: _MissingCell(
+            theme: theme,
+            app: missing,
+            iconSize: iconSize,
+          ),
+        ),
+      );
+    }
 
     // NOT wrapped in [_Draggable], unlike the folder above. See [_AppCell]:
     // it owns its own draggable because the hold-versus-drag split has to
@@ -594,11 +708,60 @@ class _Slot extends ConsumerWidget {
     );
   }
 
-  void _onDrop(WidgetRef ref, {required int from}) {
+  /// What a drop on this slot means, decided by where the drag came from.
+  ///
+  /// ─── THE TARGET DECIDES ────────────────────────────────────────────────
+  ///
+  /// A payload says where it started and nothing more. Everything below is this
+  /// surface's own rule, which is what lets a fourth surface be added without
+  /// editing the three that exist.
+  ///
+  /// ─── WITHIN A SURFACE MOVES, ACROSS SURFACES MOVES TOO ─────────────────
+  ///
+  /// The alternative was copying across surfaces, so an app could sit on the
+  /// desktop and in the dock at once, which is true of every real Linux
+  /// desktop. It is not what people expect from a phone: dragging an icon to
+  /// the dock and finding it still on the desktop reads as the drag having
+  /// failed. One arrangement, three surfaces, no duplicates.
+  ///
+  /// The drawer is the exception and cannot be anything else. It lists
+  /// everything installed, so an app cannot be absent from it and a drag out of
+  /// it is a copy by definition.
+  void _onDrop(WidgetRef ref, DrawerDrag drag) {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-    final capacity = theme.rows * theme.cols;
-
     HapticFeedback.mediumImpact();
+
+    // ─── ARRIVING FROM SOMEWHERE ELSE ────────────────────────────────────
+    //
+    // Placed, not merged. Dropping an app from the dock onto an occupied slot
+    // would have to answer what happens to the tile already there, and the
+    // honest answer for a cross-surface drop is that the user was aiming at the
+    // desktop rather than at that specific app. `placeAt` takes the slot when
+    // it is free and the next free one when it is not.
+    if (drag.from != DragOrigin.grid) {
+      if (drag case AppDrag(:final componentKey)) {
+        notifier.edit((p) {
+          final placed = HomeLayout.placeAt(
+            p,
+            componentKey,
+            page: page,
+            index: index,
+            capacity: theme.rows * theme.cols,
+            cols: theme.cols,
+          );
+          // Leaving the dock is what makes this a move rather than a copy.
+          // Harmless when it was never pinned: `unpinFromDock` is a filter.
+          return drag.from == DragOrigin.dock
+              ? HomeLayout.unpinFromDock(placed, componentKey)
+              : placed;
+        });
+      }
+      return;
+    }
+
+    // ─── A MOVE WITHIN THE GRID ──────────────────────────────────────────
+    final from = drag.index;
+    if (from == null) return;
 
     notifier.edit((p) {
       final target = HomeLayout.itemAt(p, page, index);
@@ -609,7 +772,7 @@ class _Slot extends ConsumerWidget {
       if (target == null) {
         return HomeLayout.move(
           p,
-          fromPage: page,
+          fromPage: drag.page ?? page,
           fromIndex: from,
           toPage: page,
           toIndex: index,
@@ -618,7 +781,7 @@ class _Slot extends ConsumerWidget {
 
       return HomeLayout.mergeOrSwap(
         p,
-        fromPage: page,
+        fromPage: drag.page ?? page,
         fromIndex: from,
         toPage: page,
         toIndex: index,
@@ -627,9 +790,10 @@ class _Slot extends ConsumerWidget {
       );
     });
 
-    // capacity is unused on this path today, but folder dissolve needs it and
-    // keeping the signature honest is cheaper than remembering later.
-    assert(capacity > 0);
+    // The `assert(capacity > 0)` that stood here went with the rewrite. It was
+    // keeping a local alive for a folder-dissolve path that never arrived, and
+    // capacity is now read where it is used: `placeAt`, on the cross-surface
+    // branch above.
   }
 }
 
@@ -647,14 +811,29 @@ class _Slot extends ConsumerWidget {
 /// [DragTarget] hit-tests the pointer either way and `_Slot` reads only
 /// `d.data`.
 class _Draggable extends StatelessWidget {
-  const _Draggable({required this.index, required this.child});
+  const _Draggable({
+    required this.page,
+    required this.index,
+    required this.folderId,
+    required this.child,
+  });
+
+  /// Carried on the payload so a target on another surface knows where this
+  /// came from. The grid's own targets could assume the current page; a dock
+  /// cannot.
+  final int page;
   final int index;
+
+  /// A folder, not an app, which is why this wrapper exists separately at all.
+  final String folderId;
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return LongPressDraggable<int>(
-      data: index,
+    return LongPressDraggable<DrawerDrag>(
+      data: FolderDrag(folderId, from: DragOrigin.grid, page: page,
+          index: index),
       // The dragged icon must FOLLOW the finger, not sit under it. dragAnchor
       // defaults leave the icon offset from your thumb and it feels wrong.
       feedback: Transform.scale(
@@ -760,8 +939,13 @@ class _AppCellState extends ConsumerState<_AppCell> {
       ],
     );
 
-    return LongPressDraggable<int>(
-      data: widget.slot,
+    return LongPressDraggable<DrawerDrag>(
+      data: AppDrag(
+        widget.entry.componentKey,
+        from: DragOrigin.grid,
+        page: widget.page,
+        index: widget.slot,
+      ),
       // See the class doc: this is what makes the release offset the pointer
       // rather than the feedback's corner, and the slop test therefore mean
       // anything at all.
@@ -821,7 +1005,9 @@ class _AppCellState extends ConsumerState<_AppCell> {
                 ? box.localToGlobal(Offset.zero) & box.size
                 : null;
             HapticFeedback.lightImpact();
-            ref.read(appListProvider.notifier).launch(entry, iconBounds: bounds);
+            ref
+                .read(appListProvider.notifier)
+                .launch(entry, iconBounds: bounds);
           },
           child: content,
         ),
@@ -853,8 +1039,7 @@ class _AppCellState extends ConsumerState<_AppCell> {
       // serves five drawers and four of them have no slots.
       onRemoveFromHome: () => ref
           .read(prefsProvider(theme.spec.id).notifier)
-          .edit((p) =>
-              HomeLayout.removeFromHome(p, widget.page, widget.slot)),
+          .edit((p) => HomeLayout.removeFromHome(p, widget.page, widget.slot)),
     );
   }
 }
@@ -928,8 +1113,83 @@ class _FolderCell extends ConsumerWidget {
   }
 }
 
+/// An app this layout places that the phone does not have yet.
+///
+/// ─── IT HOLDS THE SLOT, WHICH IS THE ENTIRE POINT ───────────────────────────
+///
+/// Closing the gap instead would silently rearrange a home screen the user
+/// deliberately built, and they would have no way to know it had happened or
+/// what used to be there. A dashed tile with the app's real name says both, and
+/// tapping it goes and gets the app, after which it fills its own slot with no
+/// dragging.
+///
+/// Drawn rather than borrowed from [AppIcon]: there is no icon to draw. The
+/// shape follows the same corner ratio `_AppCell` gives [PressPop], so a row of
+/// real icons with one placeholder among them reads as one grid.
+class _MissingCell extends ConsumerWidget {
+  const _MissingCell({
+    required this.theme,
+    required this.app,
+    required this.iconSize,
+  });
+
+  final EffectiveTheme theme;
+  final PendingApp app;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ink = theme.palette.onDark;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _get(context, ref),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: iconSize,
+            height: iconSize,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(iconSize * 0.24),
+                    border: Border.all(
+                      color: ink.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.download,
+                    size: iconSize * 0.42,
+                    color: ink.withValues(alpha: 0.55),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: GridMetrics.labelGap),
+          // The real label, faded. A placeholder that said "Missing" would make
+          // every gap look identical and tell the user nothing about which app
+          // they are being offered.
+          Opacity(opacity: 0.6, child: _Label(theme: theme, text: app.label)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _get(BuildContext context, WidgetRef ref) async {
+    final ok = await ref.read(openPlayListingProvider)(app.packageName);
+    if (!context.mounted) return;
+    if (!ok) context.showMessage(context.t('settings.backup.noPlay'));
+  }
+}
+
 class _Label extends StatelessWidget {
   const _Label({required this.theme, required this.text});
+
   final EffectiveTheme theme;
   final String text;
 

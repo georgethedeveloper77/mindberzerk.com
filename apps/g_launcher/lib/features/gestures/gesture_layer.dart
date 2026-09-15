@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import '../desklets/desklet_edit.dart';
 import '../drawer/drawer_state.dart';
+import '../home/workspaces/workspace_overview.dart';
 import 'accessibility_disclosure.dart';
 import 'gesture_actions.dart';
-import '../home/workspaces/workspace_overview.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Temporarily reveals the dock. Auto-hides — a dock summoned by a gesture that
 /// then sticks around forever is just a dock.
@@ -162,18 +162,20 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
           behavior: HitTestBehavior.translucent,
           // HORIZONTAL only. Vertical drags fall straight through to the
           // workspaces PageView underneath — see the class comment.
-          onHorizontalDragEnd: editing ? null : (details) {
-            final v = details.primaryVelocity ?? 0;
-            // 300 px/s: below that it is a hesitant touch, not a fling. Too low
-            // and every wobble fires a gesture.
-            if (v.abs() < 300) return;
+          onHorizontalDragEnd: editing
+              ? null
+              : (details) {
+                  final v = details.primaryVelocity ?? 0;
+                  // 300 px/s: below that it is a hesitant touch, not a fling. Too low
+                  // and every wobble fires a gesture.
+                  if (v.abs() < 300) return;
 
-            if (v > 0) {
-              _fire(Gesture.swipeRight);
-            } else {
-              _fire(Gesture.swipeLeft);
-            }
-          },
+                  if (v > 0) {
+                    _fire(Gesture.swipeRight);
+                  } else {
+                    _fire(Gesture.swipeLeft);
+                  }
+                },
           onDoubleTap: editing ? null : () => _fire(Gesture.doubleTapHome),
           child: widget.child,
         ),

@@ -169,12 +169,18 @@ class ThemedListCard extends StatelessWidget {
     final divided = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
-        divided.add(Divider(height: 0.5, thickness: 0.5, color: c.line, indent: GSpace.lg, endIndent: GSpace.lg));
+        divided.add(Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: c.line,
+            indent: GSpace.lg,
+            endIndent: GSpace.lg));
       }
       divided.add(children[i]);
     }
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: GSpace.lg, vertical: GSpace.sm),
+      margin: const EdgeInsets.symmetric(
+          horizontal: GSpace.lg, vertical: GSpace.sm),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: GRadius.mdAll,

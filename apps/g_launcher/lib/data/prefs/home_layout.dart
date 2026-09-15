@@ -42,6 +42,19 @@ class HomeLayout {
   static bool isOnHome(LauncherPrefs p, String componentKey) =>
       p.homeItems.any((i) => i.componentKey == componentKey);
 
+  /// Where an app sits on the home screen, or null when it is not on one.
+  ///
+  /// Needed because a cross-surface drag knows WHAT it is holding but not where
+  /// that thing was: the dock receives a component key, and taking the app off
+  /// the desktop means finding the tile it left behind. [isOnHome] answers the
+  /// same question with less of the answer.
+  static HomeItem? slotOf(LauncherPrefs p, String componentKey) {
+    for (final i in p.homeItems) {
+      if (i.componentKey == componentKey) return i;
+    }
+    return null;
+  }
+
   /// Last free slot on [page]: the bottom row first, left to right within it,
   /// then upward. Null when the page is full.
   ///
@@ -162,6 +175,38 @@ class HomeLayout {
         ...p.homeItems,
         HomeItem(page: page, index: slot, componentKey: componentKey),
       ],
+    );
+  }
+
+  /// Put an app on a SPECIFIC slot, falling back to the next free one.
+  ///
+  /// ─── WHY [addToHome] WAS NOT ENOUGH ────────────────────────────────────
+  ///
+  /// That one places at `lastFreeSlot`, which is right for "add this app to my
+  /// home screen" from a menu, where the user named an app and not a place. A
+  /// drop names a place: somebody dragging an icon from the dock onto the third
+  /// slot of the second row means that slot, and putting it at the end of the
+  /// page instead reads as the drag having been ignored.
+  ///
+  /// The requested slot is taken only if it is EMPTY. A cross-surface drop onto
+  /// an occupied tile is not a merge: merging is a deliberate gesture between
+  /// two icons already on the desktop, and an app arriving from the dock landing
+  /// inside a folder the user was only dragging past is not recoverable by
+  /// anything they can see.
+  static LauncherPrefs placeAt(
+    LauncherPrefs p,
+    String componentKey, {
+    required int page,
+    required int index,
+    required int capacity,
+    required int cols,
+  }) {
+    final free = itemAt(p, page, index) == null;
+    return _place(
+      p,
+      componentKey,
+      page,
+      free ? index : lastFreeSlot(p, page, capacity, cols),
     );
   }
 

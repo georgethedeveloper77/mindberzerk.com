@@ -103,6 +103,7 @@ abstract final class UninstallStatus {
 
 class _AppListSink implements LauncherFlutterApi {
   _AppListSink(this._onApps);
+
   final void Function(List<AppEntry>) _onApps;
 
   @override

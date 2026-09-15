@@ -78,7 +78,14 @@ class ThemedScaffold extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: c.bg,
         resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-        appBar: title == null ? null : _AppBar(data: data, title: title!, actions: actions, leading: leading, implyLeading: automaticallyImplyLeading),
+        appBar: title == null
+            ? null
+            : _AppBar(
+                data: data,
+                title: title!,
+                actions: actions,
+                leading: leading,
+                implyLeading: automaticallyImplyLeading),
         floatingActionButton: floatingActionButton,
         body: body,
       ),

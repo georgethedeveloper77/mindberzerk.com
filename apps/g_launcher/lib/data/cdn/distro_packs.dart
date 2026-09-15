@@ -133,7 +133,8 @@ class DistroPackState {
   final int total;
 
   bool get busy =>
-      phase == DistroPackPhase.refreshing || phase == DistroPackPhase.installing;
+      phase == DistroPackPhase.refreshing ||
+      phase == DistroPackPhase.installing;
 
   DistroPackState copyWith({
     String? themeId,
@@ -193,7 +194,8 @@ class DistroPacks extends Notifier<DistroPackState> {
       if (token == _token) state = next;
     }
 
-    publish(DistroPackState(themeId: themeId, phase: DistroPackPhase.refreshing));
+    publish(
+        DistroPackState(themeId: themeId, phase: DistroPackPhase.refreshing));
 
     final actions = ref.read(packActionsProvider);
 

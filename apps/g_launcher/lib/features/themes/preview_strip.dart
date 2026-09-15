@@ -148,9 +148,12 @@ class PreviewStrip extends StatelessWidget {
           // Below this there is nothing honest left to draw, and the
           // alternative is handing a SizedBox a negative dimension. Same floor
           // and same reasoning as `_folder`.
-          if (!h.isFinite || h < 8 || !w.isFinite) return const SizedBox.expand();
+          if (!h.isFinite || h < 8 || !w.isFinite) {
+            return const SizedBox.expand();
+          }
 
-          final totalMs = stagger.inMilliseconds * (n - 1) + fade.inMilliseconds;
+          final totalMs =
+              stagger.inMilliseconds * (n - 1) + fade.inMilliseconds;
 
           return TweenAnimationBuilder<double>(
             tween: Tween<double>(begin: 0, end: 1),

@@ -190,6 +190,7 @@ abstract final class FreezeWatchdog {
 @immutable
 class _MainIsolateStall implements Exception {
   const _MainIsolateStall(this.lateBy);
+
   final Duration lateBy;
 
   @override
@@ -202,6 +203,7 @@ class _MainIsolateStall implements Exception {
 @immutable
 class _FrameStall implements Exception {
   const _FrameStall(this.span, this.bound);
+
   final Duration span;
   final String bound;
 

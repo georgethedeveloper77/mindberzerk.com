@@ -339,10 +339,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     icon: Icons.info_outline,
                     accent: true,
                     title: context.t('settings.system'),
-                    subtitle: context.t('settings.androidSettingsMaintenanceReset'),
+                    subtitle:
+                        context.t('settings.androidSettingsMaintenanceReset'),
                     trailing: const Chevron(),
-                    onTap: () =>
-                        _openSection(context, 'System', systemSection),
+                    onTap: () => _openSection(context, 'System', systemSection),
                   ),
                 ),
               ],

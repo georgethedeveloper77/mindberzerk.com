@@ -394,9 +394,12 @@ class _Categories extends ConsumerWidget {
                   onTap: () =>
                       ref.read(_categoryProvider.notifier).state = null,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 4,
+                    ),
                     child: Icon(Icons.chevron_left,
-                        size: 18, color: theme.palette.accent),
+                        size: 22, color: theme.palette.accent),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -437,7 +440,7 @@ class _Categories extends ConsumerWidget {
             ref.read(_categoryProvider.notifier).state = name;
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 // A stack of three, not a folder glyph and not a 2x2. The card
@@ -478,7 +481,7 @@ class _Categories extends ConsumerWidget {
                   '${members.length}',
                   style: TextStyle(
                     fontFamily: theme.typography.display,
-                    fontSize: 10.5 * theme.textScale,
+                    fontSize: 12 * theme.textScale,
                     color: theme.palette.onDark.withValues(alpha: 0.4),
                   ),
                 ),
@@ -510,7 +513,7 @@ class _Views extends ConsumerWidget {
             behavior: HitTestBehavior.opaque,
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               color: on
                   ? theme.palette.accent.withValues(alpha: 0.22)
                   : Colors.transparent,
@@ -519,7 +522,7 @@ class _Views extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: theme.typography.display,
-                  fontSize: 11 * theme.textScale,
+                  fontSize: 13 * theme.textScale,
                   fontWeight: on ? FontWeight.w600 : FontWeight.w400,
                   color: on
                       ? theme.palette.onDark
@@ -587,7 +590,7 @@ class _Tile extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: theme.typography.display,
-                fontSize: 9.5 * theme.textScale,
+                fontSize: 12 * theme.textScale,
                 color: theme.palette.onDark,
               ),
             ),
@@ -631,13 +634,13 @@ class _Search extends StatelessWidget {
           child: Row(
             children: [
               Icon(Icons.search,
-                  size: 14, color: theme.palette.onDark.withValues(alpha: 0.5)),
-              const SizedBox(width: 7),
+                  size: 20, color: theme.palette.onDark.withValues(alpha: 0.5)),
+              const SizedBox(width: 9),
               Text(
                 context.t('drawer.searchApps'),
                 style: TextStyle(
                   fontFamily: theme.typography.display,
-                  fontSize: 11.5 * theme.textScale,
+                  fontSize: 14 * theme.textScale,
                   color: theme.palette.onDark.withValues(alpha: 0.5),
                 ),
               ),

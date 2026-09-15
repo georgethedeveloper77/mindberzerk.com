@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
@@ -19,7 +20,6 @@ import 'drawer_actions.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The numbered category menu. Kali's Applications menu, generalised.
 ///
@@ -139,9 +139,8 @@ class ToolDrawer extends ConsumerWidget {
     // remainder rather than to index zero keeps the menu on the bucket that
     // actually holds apps instead of on Favourites.
     final wanted = ref.watch(_slotProvider);
-    final active = (wanted != null && slots.contains(wanted))
-        ? wanted
-        : cats.fallback;
+    final active =
+        (wanted != null && slots.contains(wanted)) ? wanted : cats.fallback;
 
     final shown = _forSlot(ref, active, listable, buckets, folders);
 
@@ -154,8 +153,8 @@ class ToolDrawer extends ConsumerWidget {
       // The drawer's own wash, exactly as AppDrawer paints it: the desktop
       // stays legible behind the menu, which is what stops a full-screen menu
       // reading as a separate app.
-      color: theme.palette.bgBottom
-          .withValues(alpha: 0.94 * theme.drawerOpacity),
+      color:
+          theme.palette.bgBottom.withValues(alpha: 0.94 * theme.drawerOpacity),
       child: SafeArea(
         child: Column(
           children: [
@@ -172,8 +171,7 @@ class ToolDrawer extends ConsumerWidget {
                       for (final s in slots)
                         s: _forSlot(ref, s, listable, buckets, folders).length,
                     },
-                    onSelect: (s) =>
-                        ref.read(_slotProvider.notifier).state = s,
+                    onSelect: (s) => ref.read(_slotProvider.notifier).state = s,
                     onDropApp: (s, key) => _file(ref, s, key),
                   ),
                   Expanded(
@@ -319,7 +317,13 @@ class _Rail extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final void Function(String slot, String componentKey) onDropApp;
 
-  static const _width = 132.0;
+  /// ─── WIDER FOR THE LABEL, NOT FOR THE LAYOUT ──────────────────────────
+  ///
+  /// 132 fits a slot name at 10.5pt. At 13 it fits about nine characters, and
+  /// the slot name is the only thing identifying what is in it. 160 is the
+  /// smallest that holds the longest of them without cutting, and the app grid
+  /// beside it still has 190dp on a 360dp phone.
+  static const _width = 160.0;
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +410,7 @@ class _Rail extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: theme.typography.mono ?? 'UbuntuMono',
-                              fontSize: 10.5 * theme.textScale,
+                              fontSize: 13 * theme.textScale,
                               height: 1.25,
                               color: on
                                   ? palette.onDark
@@ -425,7 +429,7 @@ class _Rail extends StatelessWidget {
                               style: TextStyle(
                                 fontFamily:
                                     theme.typography.mono ?? 'UbuntuMono',
-                                fontSize: 9.5 * theme.textScale,
+                                fontSize: 12 * theme.textScale,
                                 color: palette.onDark.withValues(alpha: 0.40),
                               ),
                             ),
@@ -469,7 +473,7 @@ class _List extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: theme.typography.mono ?? 'UbuntuMono',
-              fontSize: 11.5 * theme.textScale,
+              fontSize: 13 * theme.textScale,
               height: 1.5,
               color: theme.palette.onDark.withValues(alpha: 0.38),
             ),
@@ -520,13 +524,18 @@ class _RowState extends ConsumerState<_Row> {
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final item = widget.item;
-    final size = theme.iconSizeDp * 0.55;
+    // 0.55 gave a 26dp icon beside a 13pt label, which reads as a favicon
+    // rather than an app. The row is 52dp now and has the height for it.
+    final size = theme.iconSizeDp * 0.72;
 
     final located = item is AppDrawerItem &&
         ref.watch(locateTargetProvider) == item.entry.componentKey;
 
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+    // A Container rather than a Padding: the row needs a floor as well as an
+    // inset, and 6dp of padding around a 30dp icon is 42, under the target.
+    final content = Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           PressPop(
@@ -537,7 +546,8 @@ class _RowState extends ConsumerState<_Row> {
               width: size,
               height: size,
               child: switch (item) {
-                AppDrawerItem(:final entry) => AppIcon(entry: entry, size: size),
+                AppDrawerItem(:final entry) =>
+                  AppIcon(entry: entry, size: size),
                 // Unreachable: `listable` keeps only real apps, and the
                 // terminal moved to the footer with the other two
                 // launcher-owned entries. The switch stays exhaustive with no
@@ -696,7 +706,7 @@ class _Search extends StatelessWidget {
             children: [
               Icon(
                 Icons.search,
-                size: 17,
+                size: 20,
                 color: palette.onDark.withValues(alpha: 0.45),
               ),
               const SizedBox(width: 9),
@@ -741,11 +751,11 @@ class _Footer extends ConsumerWidget {
               onTap();
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 17, color: ink),
+                  Icon(icon, size: 22, color: ink),
                   const SizedBox(height: 5),
                   Text(
                     label,
@@ -757,7 +767,7 @@ class _Footer extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: theme.typography.display,
-                      fontSize: 10.5 * theme.textScale,
+                      fontSize: 12 * theme.textScale,
                       height: 1.2,
                       color: ink,
                     ),

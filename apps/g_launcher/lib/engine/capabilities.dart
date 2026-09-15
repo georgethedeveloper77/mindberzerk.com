@@ -39,6 +39,19 @@ import 'effective_theme.dart';
 import 'theme_spec.dart';
 
 /// Which drawer widget `ShellDrawer` will mount for this distro.
+///
+/// ─── TEN VALUES, BECAUSE `ShellDrawer` HAS TEN ARMS ─────────────────────────
+///
+/// This had four, and the shell switch it was copied from has five arms sitting
+/// under SEVEN `appDrawer` overrides that are consulted first. Six of those
+/// seven had no value here, so a distro authoring `card`, `whisker`,
+/// `cinnamon`, `zorin`, `query` or `library` was reported as [grid]: every
+/// drawer row in Settings said it was live, and `AppDrawer` was not on screen
+/// to receive any of them.
+///
+/// That is the failure this whole file was written to end, reproduced inside
+/// the file itself, and it is the reason the library doc calls keeping this in
+/// step "a real maintenance cost" rather than a formality.
 enum DrawerWidget {
   /// The full-screen grid. Pages, groups, columns and a movable search bar.
   grid,
@@ -51,6 +64,25 @@ enum DrawerWidget {
 
   /// The numbered category menu.
   tools,
+
+  /// elementary's card list.
+  card,
+
+  /// Xfce's Whisker menu.
+  whisker,
+
+  /// Cinnamon's menu.
+  cinnamon,
+
+  /// Zorin's menu.
+  zorin,
+
+  /// The query-first menu.
+  query,
+
+  /// The category bubbles, reached by `appDrawer: "library"` rather than by
+  /// the grouping pref. See `ShellDrawer._Library`.
+  library,
 }
 
 /// An answer, plus why when the answer is no.
@@ -68,8 +100,31 @@ extension ThemeCapabilities on EffectiveTheme {
   /// Reproduces `ShellDrawer.build`'s routing. See the library doc for why this
   /// is a copy rather than a call: that widget returns a WIDGET, and a settings
   /// row needs to know which one without building it.
+  /// ─── THE OVERRIDES COME FIRST, AND THAT ORDER IS LOAD-BEARING ───────────
+  ///
+  /// `ShellDrawer.build` tests all seven `appDrawer` values BEFORE it reaches
+  /// the shell switch, because a distro's own answer outranks its shell's. This
+  /// tested one of them and then fell through to the shell, which is how a
+  /// gnome-shell distro authoring `zorin` was reported as a grid.
+  ///
+  /// A map rather than seven ifs, so a value added to `ShellDrawer` and
+  /// forgotten here is a missing key rather than a silent fall-through to the
+  /// shell. The fall-through is still the right answer for an UNKNOWN value:
+  /// `ThemeLayout.appDrawer` parses those to 'grid' and they land in the switch,
+  /// which is what the router does too.
+  static const Map<String, DrawerWidget> _overrides = {
+    'tools': DrawerWidget.tools,
+    'card': DrawerWidget.card,
+    'whisker': DrawerWidget.whisker,
+    'cinnamon': DrawerWidget.cinnamon,
+    'zorin': DrawerWidget.zorin,
+    'query': DrawerWidget.query,
+    'library': DrawerWidget.library,
+  };
+
   DrawerWidget get drawerWidget {
-    if (appDrawer == 'tools') return DrawerWidget.tools;
+    final override = _overrides[appDrawer];
+    if (override != null) return override;
     return switch (shell) {
       ShellKind.plasma => DrawerWidget.kickoff,
       ShellKind.tiling => DrawerWidget.prompt,
@@ -85,9 +140,24 @@ extension ThemeCapabilities on EffectiveTheme {
             ? 'why.dmenuIsOneLine'
             : 'why.rofiIsARankedList',
         DrawerWidget.tools => 'why.toolMenuIsCategories',
+        DrawerWidget.library => 'why.libraryFilesByCategory',
+        // ─── ONE KEY FOR FIVE MENUS, ON PURPOSE ───────────────────────────
+        //
+        // Five separate sentences would each have to name a menu the reader
+        // has never heard called that, and all five say the same thing: this
+        // distro draws its own menu, so the grid's rows are not describing what
+        // is on screen. The distro's name is already at the top of the page.
+        DrawerWidget.card ||
+        DrawerWidget.whisker ||
+        DrawerWidget.cinnamon ||
+        DrawerWidget.zorin ||
+        DrawerWidget.query =>
+          'why.thisDistroDrawsItsOwnMenu',
         DrawerWidget.grid => '',
       };
 
+  /// Strictly `AppDrawer`. Gate a row on this only when the pref behind it has
+  /// been PROVEN to reach nowhere else, by grepping the field across `lib/`.
   Capability get _gridDrawer => drawerWidget == DrawerWidget.grid
       ? const Capability(true)
       : Capability(false, _drawerWhy);
@@ -105,15 +175,77 @@ extension ThemeCapabilities on EffectiveTheme {
 
   /// Group A to Z. `AppDrawer` only, and already refused under `library`,
   /// which is the one gate that existed before this file.
+  /// ─── LIVE ON EVERY DISTRO MENU, NOT JUST THE GRID ───────────────────────
+  ///
+  /// The grep says so twice over. `drawer_items.dart` applies `library`
+  /// grouping inside the SHARED item provider, so the value reaches whichever
+  /// widget `ShellDrawer` mounted rather than only `AppDrawer`; and
+  /// `CardDrawer` reads the field directly to seed its own library toggle.
+  /// Greying this on elementary, Mint or Zorin would have taken away a row that
+  /// works.
+  ///
+  /// The `az` arm IS `AppDrawer`-only, which is a different statement from the
+  /// row being inert. The row's subtitle already carries that caveat, and it is
+  /// the same split `apps_section` draws for the index rail.
   Capability get canChooseDrawerGrouping {
-    final base = _gridDrawer;
+    final base = switch (drawerWidget) {
+      DrawerWidget.kickoff ||
+      DrawerWidget.prompt ||
+      DrawerWidget.tools =>
+        Capability(false, _drawerWhy),
+      _ => const Capability(true),
+    };
     if (!base.available) return base;
     return drawerGrouping == 'library'
         ? const Capability(false, 'why.libraryFilesByCategory')
         : const Capability(true);
   }
 
+  /// The alphabet index down the drawer's edge. `AppDrawer` only.
+  ///
+  /// Asks only whether the widget that draws it is there. Whether it has
+  /// anything to index is a question about the LIVE layout and grouping, which
+  /// a user can change from the row itself, and a capability that flipped as
+  /// the row beside it was tapped would be reporting a setting rather than a
+  /// distro. The Settings row carries that half; see `apps_section`.
+  /// ─── THE WORKSPACE GATE, WHICH BOTH OF THESE WERE MISSING ──────────────
+  ///
+  /// [canChooseDrawerMotion] refuses on a distro whose apps are a workspace
+  /// PAGE rather than an overlay, and says so: a page does not scroll as a
+  /// list, whatever widget draws it. Ubuntu is exactly that distro.
+  ///
+  /// These two shipped gated on [_gridDrawer] alone, so on Ubuntu the layout
+  /// row above them greyed with "the apps are a page" while List shape and
+  /// Index rail stayed live underneath it. A user could set both, see the
+  /// drawer not change, and have no way to tell which of the three rows was
+  /// telling the truth.
+  ///
+  /// That is worse than either row being wrong on its own. One greyed control
+  /// teaches something; a greyed control stacked on two live ones that depend
+  /// on it teaches that the page is unreliable.
+  ///
+  /// Written as a shared getter rather than copied twice, because the next row
+  /// that depends on the drawer being a scrollable list will need it too and
+  /// copying it a third time is how one of the three gets missed.
+  Capability get _scrollableDrawer {
+    if (appsSurface == AppsSurface.workspace) {
+      return const Capability(false, 'why.appsAreAPage');
+    }
+    return _gridDrawer;
+  }
+
+  Capability get canChooseIndexRail => _scrollableDrawer;
+
+  /// Grid of cells, or list of rows. `AppDrawer` only, same as the index.
+  Capability get canChooseListStyle => _scrollableDrawer;
+
   /// Drawer columns. A list has one column whatever the number says.
+  ///
+  /// `drawerCols` is read by `AppDrawer` and by nothing else that draws a
+  /// drawer. `CardDrawer` is the near miss and it settles the question rather
+  /// than complicating it: its own comment says the count is FIXED there
+  /// "rather than `theme.drawerCols`", so elementary was offering a stepper
+  /// that moved a number the screen ignored.
   Capability get canChooseDrawerColumns => _gridDrawer;
 
   /// Where the search bar sits.
@@ -121,11 +253,44 @@ extension ThemeCapabilities on EffectiveTheme {
   /// The tool menu is the exception among the non-grid drawers: it has a real
   /// search field and honours the pref, which is why this asks a narrower
   /// question than [_gridDrawer] rather than reusing it.
+  /// ─── SIX MENUS NEVER ASK WHERE THE BAR GOES ─────────────────────────────
+  ///
+  /// `drawerSearchPosition` is read by three widgets: `AppDrawer`,
+  /// `ToolDrawer` and `KickoffDrawer`. `CardDrawer` and `CinnamonDrawer`
+  /// mention it only in comments explaining that they do not, and the other
+  /// four never name it. So the row was live and doing nothing on every distro
+  /// authoring its own menu, which is what this file exists to stop.
+  ///
+  /// ─── AND KICKOFF WAS NEVER FIXED ────────────────────────────────────────
+  ///
+  /// This answered `false` with 'why.kickoffSearchIsFixed', and Kickoff has
+  /// been placing its search field above or below the rail off the pref the
+  /// whole time. So the one row on the whole KDE settings page that claimed a
+  /// distro limitation was describing a limitation that did not exist, and KDE
+  /// users were told to stop asking for something they already had.
+  ///
+  /// That reads as the mirror of everything else in this file, and it is the
+  /// same mistake: the answer was written from an impression of what Kickoff is
+  /// rather than from what `kickoff_drawer.dart` does. A capability asserted
+  /// without reading the widget is a guess whichever way it points.
+  ///
+  /// 'why.kickoffSearchIsFixed' now has no caller. The JSON key stays put; an
+  /// unused string costs nothing and deleting it would break any pack or
+  /// screenshot still pointing at it.
   Capability get canMoveSearchBar => switch (drawerWidget) {
-        DrawerWidget.grid || DrawerWidget.tools => const Capability(true),
-        DrawerWidget.kickoff => const Capability(false, 'why.kickoffSearchIsFixed'),
+        DrawerWidget.grid ||
+        DrawerWidget.tools ||
+        DrawerWidget.kickoff =>
+          const Capability(true),
         DrawerWidget.prompt =>
           const Capability(false, 'why.thePromptIsTheSearch'),
+        DrawerWidget.card ||
+        DrawerWidget.whisker ||
+        DrawerWidget.cinnamon ||
+        DrawerWidget.zorin ||
+        DrawerWidget.query ||
+        DrawerWidget.library =>
+          const Capability(false, 'why.thisDistroDrawsItsOwnMenu'),
       };
 
   /// Is there a dock to position or fade?
@@ -146,11 +311,46 @@ extension ThemeCapabilities on EffectiveTheme {
   Capability get canPositionDock => !_revealedDock.available
       ? _revealedDock
       : switch (shell) {
-        ShellKind.gnome || ShellKind.plasma => const Capability(true),
-        ShellKind.aqua => const Capability(false, 'why.theDockHasOneHome'),
-        ShellKind.tiling || ShellKind.tui =>
-          const Capability(false, 'why.noDockOnThisDesktop'),
-      };
+          ShellKind.gnome || ShellKind.plasma => const Capability(true),
+          ShellKind.aqua => const Capability(false, 'why.theDockHasOneHome'),
+          ShellKind.tiling ||
+          ShellKind.tui =>
+            const Capability(false, 'why.noDockOnThisDesktop'),
+        };
+
+  /// Can the dock be a list of names instead of a bar of icons?
+  ///
+  /// ─── GNOME ONLY, AND THAT IS A FIDELITY CALL ────────────────────────────
+  ///
+  /// Not a technical limit. `FavouritesList` takes the same `List<DockEntry>`
+  /// both dock shells already build, so Aqua could mount it tomorrow. It
+  /// should not.
+  ///
+  /// Aqua's dock magnifies under the pointer and carries a Launchpad slot in
+  /// its run, and both of those ARE the emulation: a labelled column down the
+  /// left edge is not a thing macOS has ever done, and putting one there would
+  /// be the first place in the catalogue where a setting makes a distro stop
+  /// looking like what it claims to be. Plasma's launchers live on the panel,
+  /// where a dock presentation has nothing to present.
+  ///
+  /// GNOME is the honest home for it because Ubuntu already keeps a vertical
+  /// dock down the left. Widening that strip and writing the names beside the
+  /// icons is a variation on an arrangement the distro shipped, not a
+  /// contradiction of it.
+  Capability get canListDock {
+    if (!_revealedDock.available) return _revealedDock;
+    if (dock == DockSide.off) {
+      return const Capability(false, 'why.noDockOnThisDesktop');
+    }
+    return switch (shell) {
+      ShellKind.gnome => const Capability(true),
+      ShellKind.aqua => const Capability(false, 'why.theDockHasOneHome'),
+      ShellKind.plasma ||
+      ShellKind.tiling ||
+      ShellKind.tui =>
+        const Capability(false, 'why.noDockOnThisDesktop'),
+    };
+  }
 
   /// Is there a dock surface to fade?
   ///
@@ -182,10 +382,9 @@ extension ThemeCapabilities on EffectiveTheme {
   /// synthesises one for the legacy `topBar: true` and returns `const []` for
   /// false. That is the same test `gnome_shell.panelsOn` and `aqua_shell` use,
   /// so a distro that turns its bar off greys these rows by saying one thing.
-  Capability get hasTopBar =>
-      panels.any((p) => p.side == TopBarSide.top)
-          ? const Capability(true)
-          : const Capability(false, 'why.noBarOnThisDesktop');
+  Capability get hasTopBar => panels.any((p) => p.side == TopBarSide.top)
+      ? const Capability(true)
+      : const Capability(false, 'why.noBarOnThisDesktop');
 
   /// Icons on the desktop, and therefore a grid to shape.
   ///
@@ -245,8 +444,8 @@ extension ThemeCapabilities on EffectiveTheme {
       ? const Capability(false, 'why.theTerminalPaintsItsOwn')
       : const Capability(true);
 
-  // `hasAuthoredCategories` was here and is deleted for the same reason. It was
-  // written for the folders screen, which I have not read, so it was a getter
-  // built against a guess at what that screen needed. It comes back when a
-  // caller does.
+// `hasAuthoredCategories` was here and is deleted for the same reason. It was
+// written for the folders screen, which I have not read, so it was a getter
+// built against a guess at what that screen needed. It comes back when a
+// caller does.
 }

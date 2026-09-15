@@ -15,8 +15,10 @@ class AppsCommand extends TermCommand {
 
   @override
   String get name => 'apps';
+
   @override
   TermGroup get group => TermGroup.apps;
+
   @override
   String get help => 'every app you can launch';
 
@@ -42,10 +44,13 @@ class PmCommand extends TermCommand {
 
   @override
   String get name => 'pm';
+
   @override
   TermGroup get group => TermGroup.apps;
+
   @override
   String get help => 'pm info, pm uninstall, pm settings';
+
   @override
   String? get usage => 'pm info|uninstall|settings <app>';
 
@@ -90,7 +95,8 @@ class PmCommand extends TermCommand {
         }
       case 'settings':
         await inv.context.host.openAppSettings(app);
-        return TermResult.line('opening app info for ${app.label}', TermInk.dim);
+        return TermResult.line(
+            'opening app info for ${app.label}', TermInk.dim);
       default:
         return TermResult.lines(<TermLine>[
           TermLine.of('pm: unknown subcommand $sub', TermInk.bad),
@@ -107,24 +113,27 @@ class LaunchCommand extends TermCommand {
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.apps;
+
   @override
   String get help => 'open an app by name';
+
   @override
   String? get usage => '$commandName <app>';
 
   @override
   Future<TermResult> run(TermInvocation inv) async {
     // `am start firefox` is the same verb with the shape Android users know.
-    final List<String> words = inv.positionals
-        .where((String w) => w != 'start')
-        .toList();
+    final List<String> words =
+        inv.positionals.where((String w) => w != 'start').toList();
     if (words.isEmpty) return missing('an app name');
 
     final TermApp? app = await inv.context.vfs.appNamed(words.join(' '));
     if (app == null) {
-      return TermResult.error('$commandName: no app matches ${words.join(' ')}');
+      return TermResult.error(
+          '$commandName: no app matches ${words.join(' ')}');
     }
     await inv.context.host.launchApp(app);
     return TermResult.lines(<TermLine>[
@@ -142,10 +151,13 @@ class WhichCommand extends TermCommand {
 
   @override
   String get name => 'which';
+
   @override
   TermGroup get group => TermGroup.apps;
+
   @override
   String get help => 'what a word resolves to';
+
   @override
   String? get usage => 'which <word>';
 

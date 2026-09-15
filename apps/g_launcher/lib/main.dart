@@ -137,8 +137,8 @@ void _registerFontLicences() {
       if (families.isEmpty) continue;
 
       try {
-        final text = await rootBundle
-            .loadString('assets/fonts/licences/$licence.txt');
+        final text =
+            await rootBundle.loadString('assets/fonts/licences/$licence.txt');
         yield LicenseEntryWithLineBreaks(families, text);
       } catch (e) {
         // A missing licence file must not take the licence PAGE down, which is

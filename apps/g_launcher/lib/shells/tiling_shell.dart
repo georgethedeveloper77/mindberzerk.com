@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'safe_page.dart';
-import '../features/home/workspaces/workspace_canvas.dart';
 
 import '../engine/effective_theme.dart';
 // PanelSpec, PanelModule and TopBarSide: the bar is built from the distro's
 // authored panel now, not from a list in this file.
 import '../engine/theme_spec.dart';
-import '../features/drawer/shell_drawer.dart';
 import '../features/drawer/drawer_state.dart';
+import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
 import '../features/home/desktop_hold.dart';
+import '../features/home/workspaces/workspace_canvas.dart';
 import '../features/home/workspaces/workspace_controller.dart';
 import '../system/system_stats.dart';
+import 'safe_page.dart';
 
 /// A tiling window manager (Arch + Hyprland, i3). The chrome that says "tiling"
 /// is a THIN STATUS BAR at the top, waybar-style: numbered workspaces on the
@@ -207,6 +207,7 @@ class _Waybar extends ConsumerWidget {
           // one too: this desktop launches from a keybind.
           PanelModule.battery ||
           PanelModule.wifi ||
+          PanelModule.volume ||
           PanelModule.app =>
             null,
         };

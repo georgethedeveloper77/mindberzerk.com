@@ -13,6 +13,7 @@ import 'term_path.dart';
 /// Why a path could not be used, in the words the shell prints.
 class TermVfsError {
   const TermVfsError(this.message, {this.hint});
+
   final String message;
 
   /// A second, dimmer line naming the verb that would have worked.
@@ -21,6 +22,7 @@ class TermVfsError {
 
 class TermListing {
   const TermListing(this.entries, {this.error});
+
   final List<TermEntry> entries;
   final TermVfsError? error;
 
@@ -170,7 +172,8 @@ class TermVfs {
 
   Future<TermEntry?> stat(TermPath path) async {
     if (path.isSlash) {
-      return const TermEntry(name: '/', kind: TermEntryKind.directory, childCount: 2);
+      return const TermEntry(
+          name: '/', kind: TermEntryKind.directory, childCount: 2);
     }
     switch (path.root) {
       case null:

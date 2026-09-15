@@ -2,11 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
+import '../../dock/dock_extent.dart';
 import '../../dock/dock_metrics.dart';
-import 'package:g_launcher/i18n/i18n.dart';
+import '../../dock/dock_motion.dart';
+import '../../drawer/drawer_drag.dart';
 
 /// One dock slot.
 ///
@@ -107,6 +111,9 @@ class GnomeDock extends StatelessWidget {
     this.opacity = 1.0,
     this.activitiesIconBuilder,
     this.onReorder,
+    this.onDropApp,
+    this.hover = 'none',
+    this.press = 'sink',
   });
 
   final List<DockEntry> entries;
@@ -163,6 +170,42 @@ class GnomeDock extends StatelessWidget {
   /// frequent-apps mode has no arrangement to change, and the golden tests pass
   /// nothing, so both keep the plain non-draggable slots.
   final void Function(String movedId, String targetId, bool after)? onReorder;
+
+  /// How this dock responds to a finger, from `EffectiveTheme.dockHover`.
+  ///
+  /// ─── THIS DOCK HAS NEVER RESPONDED TO ONE ──────────────────────────────
+  ///
+  /// It tracked no pointer and drew no motion, which was fine while
+  /// magnification was a `dockStyle` value only the Aqua dock honoured. It is
+  /// not fine now that seven modes are offered in Settings: four of them would
+  /// have done nothing on Ubuntu, Fedora, Pop and Zorin, which is a setting
+  /// that silently does nothing.
+  ///
+  /// The motion itself is `DockSlotMotion`, shared with every other surface
+  /// that holds slots, so this dock implements none of the seven. It reports
+  /// where the finger is and wraps each slot.
+  final String hover;
+
+  /// What a slot does when it is tapped, from `EffectiveTheme.dockPress`.
+  ///
+  /// Shares the hover tracker: a pointer stream that already reports where the
+  /// finger is knows when it went down, and a second tracker would be a second
+  /// claim on the same gesture.
+  final String press;
+
+  /// An app arriving from another surface, by component key.
+  ///
+  /// ─── SEPARATE FROM [onReorder], BECAUSE THEY ARE DIFFERENT EVENTS ──────
+  ///
+  /// A reorder moves something already in the dock and is expressed as two ids
+  /// and a side. An arrival has no position to move from and no neighbour to
+  /// land beside; it is a pin. Folding them together would mean inventing a
+  /// target id for something that has none.
+  ///
+  /// Null on a shell that does not accept drops, which is also how the dock
+  /// refuses them: with no handler the whole-dock target never accepts, so
+  /// nothing highlights and the drag returns home.
+  final void Function(String componentKey)? onDropApp;
 
   /// Builds the Activities (app-drawer) button's icon at the dock-owned glyph
   /// size. When null, the button falls back to the 9-dot grid glyph.
@@ -248,6 +291,10 @@ class GnomeDock extends StatelessWidget {
     for (var i = 0; i < entries.length; i++) {
       if (children.isNotEmpty) children.add(_gapBox(vertical));
       children.add(_DockSlot(
+        // Only a real app. The Activities slots above pass nothing, so they
+        // stay a plain button: it is drawn by the dock rather than held by it
+        // and has no component key to carry.
+        draggable: true,
         vertical: vertical,
         outerEdgeIsStart: outerEdgeIsStart,
         slotSize: slotSize,
@@ -273,9 +320,38 @@ class GnomeDock extends StatelessWidget {
       children.removeLast();
     }
 
-    final flow = vertical
-        ? Column(mainAxisSize: MainAxisSize.min, children: children)
-        : Row(mainAxisSize: MainAxisSize.min, children: children);
+    // ─── THE MOTION WRAPS THE ROW, NOT EACH SLOT'S BOX ──────────────────
+    //
+    // `children` is already built and is a mixed list: app slots, the grid
+    // button, separators and gap boxes. Wrapping it here rather than at each
+    // `_DockSlot` means the separators and gaps do not move, which is correct:
+    // a hairline that lifted with its neighbour would read as part of the icon.
+    //
+    // Centres are computed from the slot size and the index rather than
+    // measured, because every child in this Flex is either a slot or a known
+    // constant. Measuring would need a key per child and a post-frame pass to
+    // learn what the layout already knows.
+    // The tracker runs for EITHER axis. Gating it on hover alone left press
+    // dead on every dock whose distro chose Flat, which is the pairing a
+    // minimal shell is most likely to want: no motion following the finger, a
+    // clear acknowledgement on the tap.
+    final flow = hover == 'none' && press == 'none'
+        ? _flow(vertical: vertical, children: children)
+        : DockFocusTracker(
+            enabled: true,
+            vertical: vertical,
+            // Two slots either side. Wider and the whole row moves as one
+            // piece, which reads as the dock sliding rather than reacting.
+            spread: (slotSize + DockMetrics.gap) * 2,
+            builder: (context, focus) => _flow(
+              vertical: vertical,
+              children: _withMotion(
+                children,
+                focus: focus,
+                vertical: vertical,
+              ),
+            ),
+          );
 
     // ONE radius, used by the clip AND the decoration below. They were two
     // literals that had to agree, and a second style is exactly the point at
@@ -287,7 +363,8 @@ class GnomeDock extends StatelessWidget {
     final radius = switch (style) {
       GnomeDockStyle.floating => BorderRadius.circular(18),
       GnomeDockStyle.flat => switch (side) {
-          DockSide.bottom || DockSide.off =>
+          DockSide.bottom ||
+          DockSide.off =>
             const BorderRadius.vertical(top: Radius.circular(14)),
           DockSide.left => const BorderRadius.horizontal(
               right: Radius.circular(14),
@@ -298,7 +375,46 @@ class GnomeDock extends StatelessWidget {
         },
     };
 
-    return ClipRRect(
+    // ─── MEASURED HERE, NOT AT THE SHELL'S Positioned ────────────────────
+    //
+    // Four shells mount this widget and each positions it themselves. Wrapping
+    // inside the dock means all four report their extent without knowing the
+    // provider exists, and a fifth cannot forget to.
+    // ─── ONE TARGET FOR THE WHOLE DOCK ──────────────────────────────────
+    //
+    // The per-slot target below handles reordering and refuses everything
+    // else, which is what lets this one take it: Flutter offers a drag to every
+    // target under the pointer and the innermost that ACCEPTS wins, so a slot
+    // declining an arrival hands it outward rather than swallowing it.
+    //
+    // Whole-dock rather than per-slot, because an app arriving from the desktop
+    // has no opinion about WHERE in the dock it goes. Asking the user to hit a
+    // 9dp gap between two icons to express something they were not thinking
+    // about is how a drop becomes a game.
+    return DragTarget<DrawerDrag>(
+      onWillAcceptWithDetails: (d) =>
+          onDropApp != null &&
+          d.data is AppDrag &&
+          d.data.from != DragOrigin.dock,
+      onAcceptWithDetails: (d) {
+        HapticFeedback.mediumImpact();
+        onDropApp!((d.data as AppDrag).componentKey);
+      },
+      builder: (context, candidate, __) => DockExtentProbe(
+      vertical: vertical,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          // The only thing saying a drop will land. Drawn OUTSIDE the dock's
+          // own clip so it reads as a halo around the dock rather than as a
+          // change to the dock's own surface.
+          borderRadius: radius,
+          boxShadow: candidate.isEmpty
+              ? null
+              : [BoxShadow(color: palette.accent.withValues(alpha: 0.55),
+                  blurRadius: 14, spreadRadius: 1)],
+        ),
+        child: ClipRRect(
       borderRadius: radius,
       child: BackdropFilter(
         // The blur earns its keep — the dock sits on an arbitrary photograph —
@@ -330,15 +446,98 @@ class GnomeDock extends StatelessWidget {
           child: flow,
         ),
       ),
+      ),
+      ),
+      ),
     );
   }
+
+  /// The Flex the dock's children sit in, built in one place so the motion
+  /// branch and the plain branch cannot drift on `mainAxisSize`.
+  static Widget _flow({
+    required bool vertical,
+    required List<Widget> children,
+  }) =>
+      vertical
+          ? Column(mainAxisSize: MainAxisSize.min, children: children)
+          : Row(mainAxisSize: MainAxisSize.min, children: children);
+
+  /// Wrap each real slot in the hover motion, leaving the furniture alone.
+  ///
+  /// ─── COUNTED BY SLOT, NOT BY CHILD INDEX ───────────────────────────────
+  ///
+  /// `children` is a mixed list: slots, gap boxes and a hairline separator
+  /// before the grid button. Positioning by child index would put every slot
+  /// after the separator roughly half a slot out, and the error would grow
+  /// along the row, so the focus would drift from the finger on exactly the
+  /// docks with the most apps.
+  ///
+  /// Separators and gaps are returned untouched. A hairline that lifted with
+  /// its neighbour would read as part of the icon.
+  List<Widget> _withMotion(
+    List<Widget> children, {
+    required DockFocus? focus,
+    required bool vertical,
+  }) {
+    var slot = 0;
+    return [
+      for (final child in children)
+        if (child is! _DockSlot)
+          child
+        else
+          _wrapSlot(
+            child: child,
+            focus: focus,
+            vertical: vertical,
+            // Computed rather than measured: every slot is `slotSize` with a
+            // `gap` between, which is what this dock's own Flex lays out.
+            // Measuring would need a key per child and a post-frame pass to
+            // learn what the layout already knows.
+            centre: DockMetrics.padding +
+                slotSize / 2 +
+                (slot++) * (slotSize + DockMetrics.gap),
+          ),
+    ];
+  }
+
+  /// Hover outside, press inside.
+  ///
+  /// ─── THE ORDER MATTERS ─────────────────────────────────────────────────
+  ///
+  /// Hover moves a slot to where the finger says it should be; press moves it
+  /// relative to wherever that is. Nested the other way, a magnified icon's
+  /// squash would be scaled by the magnification and a lifted icon's bounce
+  /// would start from the lift and overshoot the panel above it.
+  ///
+  /// Two widgets rather than one answering both axes, so the seven and the ten
+  /// compose instead of enumerating seventy combinations.
+  Widget _wrapSlot({
+    required Widget child,
+    required DockFocus? focus,
+    required bool vertical,
+    required double centre,
+  }) =>
+      DockSlotMotion(
+        mode: hover,
+        focus: focus,
+        centre: centre,
+        slotSize: slotSize,
+        vertical: vertical,
+        child: DockPressMotion(
+          mode: press,
+          focus: focus,
+          centre: centre,
+          vertical: vertical,
+          child: child,
+        ),
+      );
 
   static Widget _gapBox(bool vertical) => vertical
       ? const SizedBox(height: DockMetrics.gap)
       : const SizedBox(width: DockMetrics.gap);
 }
 
-class _DockSlot extends StatefulWidget {
+class _DockSlot extends ConsumerStatefulWidget {
   const _DockSlot({
     required this.entry,
     required this.vertical,
@@ -348,7 +547,24 @@ class _DockSlot extends StatefulWidget {
     this.plate,
     this.onReorder,
     this.caretColor,
+    this.draggable = false,
   });
+
+  /// True for a slot holding a real app.
+  ///
+  /// ─── DRAGGING OUT IS NOT REORDERING ────────────────────────────────────
+  ///
+  /// Both used to be gated on [onReorder] being non-null, which the shell
+  /// passes only when something is pinned. That is right for REORDERING: a dock
+  /// auto-filling from frequent apps has no arrangement to change. It is wrong
+  /// for dragging an app OUT, which is how somebody takes an app off a dock
+  /// they never arranged, and pinning is not a thing they should have to do
+  /// first in order to unpin.
+  ///
+  /// Conflating the two also made the Activities button and a frequent-apps
+  /// slot the same case. They are not: Activities is drawn by the dock rather
+  /// than held by it, has no component key, and must never be draggable.
+  final bool draggable;
 
   final DockEntry entry;
   final bool vertical;
@@ -369,10 +585,10 @@ class _DockSlot extends StatefulWidget {
   final Color? caretColor;
 
   @override
-  State<_DockSlot> createState() => _DockSlotState();
+  ConsumerState<_DockSlot> createState() => _DockSlotState();
 }
 
-class _DockSlotState extends State<_DockSlot> {
+class _DockSlotState extends ConsumerState<_DockSlot> {
   /// Where the POINTER went down, for the hold-versus-drag test on release.
   /// Compared against the draggable's release offset, which under
   /// `pointerDragAnchorStrategy` is the finger.
@@ -445,14 +661,16 @@ class _DockSlotState extends State<_DockSlot> {
       child: core,
     );
 
-    // ─── NO onReorder MEANS NOTHING CHANGES ────────────────────────────────
+    // ─── NOT AN APP MEANS NOTHING CHANGES ──────────────────────────────────
     //
-    // The Activities button, a dock in frequent-apps mode, and every golden
-    // test take this branch, and it is the original widget unchanged: a plain
-    // GestureDetector whose long press opens the menu. Introducing a draggable
-    // on paths that cannot reorder would cost them the simple long-press for no
-    // gain, and the goldens would start rendering a different tree.
-    if (widget.onReorder == null) {
+    // The Activities button and every golden test take this branch, and it is
+    // the original widget unchanged: a plain GestureDetector whose long press
+    // opens the menu. A button the dock DRAWS has nothing to drag.
+    //
+    // This used to test `onReorder == null`, which also caught every slot on a
+    // dock with no pins. See [draggable]: that made pinning a prerequisite for
+    // unpinning by drag, which is backwards.
+    if (!widget.draggable) {
       return Semantics(
         button: true,
         label: entry.label,
@@ -468,11 +686,33 @@ class _DockSlotState extends State<_DockSlot> {
     final marker = _dropAfter;
     final caret = widget.caretColor ?? widget.accent;
 
+    // ─── STILL GATED, BECAUSE THIS ONE REALLY IS ABOUT ARRANGEMENT ────────
+    //
+    // `reorderDockKeys` matches against `favourites` and returns the prefs
+    // unchanged when either key is not pinned, so on a frequent-apps dock every
+    // reorder is a silent no-op. Arming the caret there would draw an insertion
+    // marker for a move that cannot happen.
+    final canReorder = widget.onReorder != null;
+
     return Semantics(
       button: true,
       label: entry.label,
-      child: DragTarget<String>(
-        onWillAcceptWithDetails: (d) => d.data != entry.id,
+      child: DragTarget<DrawerDrag>(
+        // ─── REORDERS ONLY, AND EVERYTHING ELSE FALLS THROUGH ───────────
+        //
+        // This target is INSIDE the whole-dock one that accepts arrivals. A
+        // refusal here is not a dead end: Flutter offers a drag to every target
+        // under the pointer and the innermost that accepts wins, so a desktop
+        // icon dropped on a dock slot is declined by this and taken by the dock
+        // as a pin, which is what the user meant by aiming at the dock.
+        //
+        // Only a dock-origin app is a reorder. A folder has no dock position to
+        // move to, and an arrival has no position to move from.
+        onWillAcceptWithDetails: (d) =>
+            canReorder &&
+            d.data is AppDrag &&
+            d.data.from == DragOrigin.dock &&
+            (d.data as AppDrag).componentKey != entry.id,
         onLeave: (_) {
           if (_dropAfter != null) setState(() => _dropAfter = null);
         },
@@ -497,17 +737,42 @@ class _DockSlotState extends State<_DockSlot> {
           final after = _dropAfter ?? false;
           setState(() => _dropAfter = null);
           HapticFeedback.selectionClick();
-          widget.onReorder!(d.data, entry.id, after);
+          widget.onReorder!((d.data as AppDrag).componentKey, entry.id, after);
         },
         builder: (context, candidate, __) => Stack(
           clipBehavior: Clip.none,
           children: [
             Listener(
               onPointerDown: (e) => _downAt = e.position,
-              child: LongPressDraggable<String>(
-                data: entry.id,
+              child: LongPressDraggable<DrawerDrag>(
+                // ─── THE MOTION STANDS DOWN FOR THE DRAG ─────────────────
+                //
+                // A transformed icon carries its drop target with it, so a dock
+                // that keeps animating while something is being dragged across
+                // it is a dock whose targets slide away from the finger. See
+                // `dockDragActiveProvider`.
+                //
+                // Cleared on BOTH ends. `onDragEnd` covers a drop and
+                // `onDraggableCanceled` covers a release over nothing; missing
+                // either would leave the dock frozen until the next drag.
+                onDragStarted: () {
+                  HapticFeedback.mediumImpact();
+                  ref.read(dockDragActiveProvider.notifier).set(true);
+                },
+                onDragEnd: (_) =>
+                    ref.read(dockDragActiveProvider.notifier).set(false),
+                // ─── THE DOCK IS A SOURCE NOW ─────────────────────────────
+                //
+                // This sent a bare `String`, the entry id, which only this
+                // dock's own targets could read. That is why a dock icon could
+                // be reordered and could not be dragged anywhere: the desktop
+                // was not refusing it, the desktop could not see it.
+                //
+                // `entry.id` IS the component key. `_dockReorder` already hands
+                // it to `HomeLayout.reorderDockKeys`, which matches against
+                // `favourites`, so the two were always the same string.
+                data: AppDrag(entry.id, from: DragOrigin.dock),
                 dragAnchorStrategy: pointerDragAnchorStrategy,
-                onDragStarted: HapticFeedback.mediumImpact,
 
                 // Split on release, the same trade the drawer and the folder
                 // grid document: the draggable consumes the long press, so the
@@ -515,6 +780,7 @@ class _DockSlotState extends State<_DockSlot> {
                 // never really travelled. Doing it differently here would make
                 // one gesture mean different things on three surfaces.
                 onDraggableCanceled: (_, offset) {
+                  ref.read(dockDragActiveProvider.notifier).set(false);
                   final from = _downAt;
                   if (from == null || (offset - from).distance < _slop) {
                     _openMenu();

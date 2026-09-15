@@ -20,8 +20,8 @@ String appSlug(String label) {
   final StringBuffer out = StringBuffer();
   var lastWasDash = true;
   for (final int unit in label.toLowerCase().codeUnits) {
-    final bool alnum = (unit >= 0x61 && unit <= 0x7a) ||
-        (unit >= 0x30 && unit <= 0x39);
+    final bool alnum =
+        (unit >= 0x61 && unit <= 0x7a) || (unit >= 0x30 && unit <= 0x39);
     if (alnum) {
       out.writeCharCode(unit);
       lastWasDash = false;

@@ -83,7 +83,10 @@ class TerminalSpec {
       prompt: json['prompt'] as String?,
       logo: json['logo'] as String?,
       motd: motd is List
-          ? <String>[for (final Object? line in motd) if (line is String) line]
+          ? <String>[
+              for (final Object? line in motd)
+                if (line is String) line
+            ]
           : const <String>[],
       hint: json['hint'] as String?,
       cursor: json['cursor'] as String? ?? 'block',
@@ -101,7 +104,8 @@ class TerminalSpec {
       other.motd.length == motd.length;
 
   @override
-  int get hashCode => Object.hash(promptTop, prompt, logo, hint, cursor, motd.length);
+  int get hashCode =>
+      Object.hash(promptTop, prompt, logo, hint, cursor, motd.length);
 }
 
 /// The default fetch logo.
@@ -196,10 +200,13 @@ class TerminalSkin {
   /// The selected-row wash and the hint rule, both off the foreground at the
   /// alphas `terminal_tokens.dart` arrived at.
   Color get selection => foreground.withValues(alpha: 0.13);
+
   Color get rule => foreground.withValues(alpha: 0.14);
+
   Color get muted => foreground.withValues(alpha: 0.62);
 
   double get fontSize => 13.5;
+
   double get lineHeight => 1.6;
 
   TextStyle style({
@@ -222,8 +229,11 @@ class TerminalSkin {
       .replaceAll('{cwd}', cwd);
 
   String get promptLine => spec.prompt ?? '{cwd} \u276F';
+
   String? get promptTopLine => spec.promptTop;
+
   String get logo => spec.logo ?? kDefaultTerminalLogo;
+
   String get hint => spec.hint ?? kDefaultTerminalHint;
 
   double get cursorWidth => spec.cursor == 'bar' ? 2 : 8;

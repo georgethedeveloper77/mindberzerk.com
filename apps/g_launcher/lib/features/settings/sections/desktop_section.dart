@@ -6,22 +6,21 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/features/settings/settings_sheets.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../data/prefs/prefs_repository.dart';
 import '../../../data/repositories/app_repository.dart';
 import '../../../design/device_preview.dart';
-import '../../../engine/theme_spec.dart' show DockSide;
 import '../../../design/setting_previews.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
+import '../../../engine/theme_spec.dart' show DockSide;
+import '../../dock/dock_animations.dart';
 import '../../home/workspaces/workspace_controller.dart';
+import '../../panel/panel_editor_sheet.dart';
 import '../settings_rows.dart';
-import '../settings_sheets.dart';
 
-/// Desktop and drawer: dock, grid, workspaces, drawer layout.
-///
-/// Sliced VERBATIM out of the old single build method. The rows, their
 /// `FilterRow` keywords and their order are byte-identical to what shipped;
 /// only where they are mounted changed.
 List<Widget> desktopSection(
@@ -117,6 +116,42 @@ List<Widget> desktopSection(
             ],
           ),
         ),
+        // ── PHASE L5: BAR OR LIST ──────────────────────────────────────
+        //
+        // Directly under position, because it is the same question one level
+        // down: position says which edge, this says what sits on it. Above
+        // opacity, which is about the surface rather than its contents.
+        //
+        // Greyed rather than hidden on the four shells that refuse it, and the
+        // reasons differ: Aqua HAS a dock and a labelled column is not a thing
+        // macOS does, Plasma keeps its launchers on the panel, and the other
+        // two draw no dock at all. `canListDock` says which.
+        //
+        // Literals, like the L1 and L3 rows: `DrawerTransition.copy` sets the
+        // precedent and the sweep picks all of them up together.
+        FilterRow(
+          const ['dock', 'list', 'names', 'labels', 'favourites', 'pinned'],
+          SettingsRow(
+            icon: Icons.view_list_outlined,
+            title: 'Dock layout',
+            subtitle: theme.canListDock.available
+                ? 'Icons on a bar, or names in a list'
+                : context.t(theme.canListDock.why!),
+            subtitleTint: theme.canListDock.available
+                ? null
+                : SettingsSkin.of(context).warn,
+            trailing: Seg(
+              enabled: theme.canListDock.available,
+              value: theme.dockLayout,
+              // No `following` pair. No distro authors this: see
+              // `LauncherPrefs.dockLayout` for why it stops at the user.
+              options: const {'bar': 'Bar', 'list': 'List'},
+              onChanged: (v) =>
+                  notifier.edit((p) => p.copyWith(dockLayout: v)),
+            ),
+          ),
+        ),
+
         // Beside the dock's position, because it is the dock's own look. The
         // main slider under Surfaces still governs it until this is moved.
         FilterRow(
@@ -134,9 +169,82 @@ List<Widget> desktopSection(
             value: theme.dockOpacity,
             following: theme.prefs.dockOpacity == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(dockOpacity: v)),
-            onFollow: () =>
-                notifier.edit((p) => p.clearing(dockOpacity: true)),
+            onFollow: () => notifier.edit((p) => p.clearing(dockOpacity: true)),
           ),
+        ),
+        // ─── THE PANEL HAD NO ENTRY POINT AT ALL ───────────────────
+        //
+        // The editor opened from a long press on the panel and nowhere else,
+        // which is a gesture nobody is told about on a surface most people
+        // will not think to hold. Every other part of the desktop is reachable
+        // from this page, and a user who moved the panel to an edge they did
+        // not want then had to find the hold to get it back.
+        //
+        // The row OPENS the editor rather than restating it. Modules, order,
+        // edge and thickness are four controls that already live together in
+        // one place, and splitting them across a settings page would be two
+        // ways to say the same thing that could disagree.
+        if (theme.panelEdit && theme.panels.isNotEmpty)
+          FilterRow(
+            const ['panel', 'taskbar', 'bar', 'modules', 'tray', 'edge'],
+            SettingsRow(
+              icon: Icons.space_dashboard_outlined,
+              accent: true,
+              title: context.t('settings.panel'),
+              subtitle: context.t('settings.panelSub'),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => showPanelEditor(context, theme),
+            ),
+          ),
+        // ─── THREE AXES, THREE ROWS, ONE HELPER ──────────────────────
+        //
+        // Beside the dock's position and opacity rather than in Appearance,
+        // because this is where somebody looking for the dock looks. Appearance
+        // is about the distro's palette and type; these are about one surface's
+        // behaviour.
+        //
+        // A sheet rather than a `Seg`, for the reason the panel-edge row gives:
+        // seven and ten values do not fit a segmented control at any font
+        // scale, and each of these needs a line of description anyway. Nobody
+        // knows what "Magnetic part" looks like from its name.
+        _animationRow(
+          context: context,
+          ref: ref,
+          theme: theme,
+          axis: 'dockHover',
+          icon: Icons.touch_app_outlined,
+          modes: dockHoverModes,
+          value: theme.dockHover,
+          terms: const ['dock', 'hover', 'magnify', 'animation', 'motion'],
+          write: (v) => notifier.edit((p) => p.copyWith(dockHover: v)),
+          follow: theme.prefs.dockHover == null,
+          clear: () => notifier.edit((p) => p.clearing(dockHover: true)),
+        ),
+        _animationRow(
+          context: context,
+          ref: ref,
+          theme: theme,
+          axis: 'dockPress',
+          icon: Icons.ads_click,
+          modes: dockPressModes,
+          value: theme.dockPress,
+          terms: const ['dock', 'press', 'tap', 'bounce', 'animation'],
+          write: (v) => notifier.edit((p) => p.copyWith(dockPress: v)),
+          follow: theme.prefs.dockPress == null,
+          clear: () => notifier.edit((p) => p.clearing(dockPress: true)),
+        ),
+        _animationRow(
+          context: context,
+          ref: ref,
+          theme: theme,
+          axis: 'dockEntrance',
+          icon: Icons.animation,
+          modes: dockEntranceModes,
+          value: theme.dockEntrance,
+          terms: const ['dock', 'entrance', 'appear', 'slide', 'animation'],
+          write: (v) => notifier.edit((p) => p.copyWith(dockEntrance: v)),
+          follow: theme.prefs.dockEntrance == null,
+          clear: () => notifier.edit((p) => p.clearing(dockEntrance: true)),
         ),
         FilterRow(
           const ['activities', 'grid button', 'app button', 'dock'],
@@ -192,8 +300,7 @@ List<Widget> desktopSection(
                 : context.t('settings.bareDesktop', {'name': theme.spec.name}),
             value: theme.desktopIcons,
             enabled: theme.spec.layout.desktopIcons,
-            onChanged: (v) =>
-                notifier.edit((p) => p.copyWith(desktopIcons: v)),
+            onChanged: (v) => notifier.edit((p) => p.copyWith(desktopIcons: v)),
           ),
         ),
         FilterRow(
@@ -253,14 +360,14 @@ List<Widget> desktopSection(
             onTap: !theme.hasWorkspaces.available
                 ? null
                 : () => showStepperSheet(
-              context,
-              title: context.t('settings.workspaces'),
-              value: workspaces,
-              min: WorkspaceCount.min,
-              max: WorkspaceCount.max,
-              onChanged: (v) =>
-                  ref.read(workspaceCountProvider.notifier).set(v),
-            ),
+                      context,
+                      title: context.t('settings.workspaces'),
+                      value: workspaces,
+                      min: WorkspaceCount.min,
+                      max: WorkspaceCount.max,
+                      onChanged: (v) =>
+                          ref.read(workspaceCountProvider.notifier).set(v),
+                    ),
           ),
         ),
       ],
@@ -314,4 +421,81 @@ List<Widget> desktopSection(
       ],
     ),
   ];
+}
+
+/// One dock-animation row: the current mode's name, and a sheet to change it.
+///
+/// ─── A FUNCTION, BECAUSE THREE ROWS DIFFER ONLY IN THEIR LIST ──────────────
+///
+/// Written out three times this would be sixty lines saying the same thing
+/// three ways, and the third would be the one that forgot the Follow arm. The
+/// axis name is the only thing that varies structurally, and it is also the
+/// i18n key prefix, so it does both jobs.
+FilterRow _animationRow({
+  required BuildContext context,
+  required WidgetRef ref,
+  required EffectiveTheme theme,
+  required String axis,
+  required IconData icon,
+  required List<DockAnimation> modes,
+  required String value,
+  required List<String> terms,
+  required void Function(String) write,
+  required bool follow,
+  required VoidCallback clear,
+}) {
+  final current = dockAnimationFor(modes, value);
+
+  return FilterRow(
+    terms,
+    SettingsRow(
+      icon: icon,
+      accent: true,
+      title: context.t('settings.$axis'),
+      // The mode's NAME as the subtitle, not its description. The row has to
+      // answer "what is this set to" at a glance; the description belongs in
+      // the sheet, beside the alternatives it is being compared with.
+      subtitle: context.t(current.labelKey(axis)),
+      trailing: Icon(
+        Icons.chevron_right,
+        size: 20,
+        color: follow ? null : theme.palette.accent,
+      ),
+      onTap: () => settingsSheet<void>(
+        context,
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            settingsSheetHead(context, context.t('settings.$axis')),
+            for (final m in modes)
+              SheetOption(
+                icon: m.icon,
+                label: context.t(m.labelKey(axis)),
+                description: context.t(m.hintKey(axis)),
+                selected: m.id == value,
+                onTap: () {
+                  Navigator.pop(context);
+                  write(m.id);
+                },
+              ),
+            // Back to the distro's own choice. Same affordance every other
+            // themed setting carries, and the only way back once a user has
+            // picked: without it the pref is set forever and a pack update that
+            // changes its default is silently ignored.
+            if (!follow)
+              SheetOption(
+                icon: Icons.settings_backup_restore,
+                label: context.t('settings.followTheDistro'),
+                onTap: () {
+                  Navigator.pop(context);
+                  clear();
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+        scrollControlled: true,
+      ),
+    ),
+  );
 }

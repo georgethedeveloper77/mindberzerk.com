@@ -179,8 +179,7 @@ class _Dot extends StatelessWidget {
         color: isActive ? accent : idle,
         // Circle when idle (radius = half of 6), 3px bar when active. Animating
         // between the two radii is what gives the dot its little stretch.
-        borderRadius:
-            BorderRadius.circular(isActive ? 3 : dotSize / 2),
+        borderRadius: BorderRadius.circular(isActive ? 3 : dotSize / 2),
         boxShadow: const [
           BoxShadow(
               color: Color(0x40000000), blurRadius: 3, offset: Offset(0, 1)),

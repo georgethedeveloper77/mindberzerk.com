@@ -16,8 +16,18 @@ List<TermLine> _errorLines(TermVfsError error) => <TermLine>[
 String _stamp(DateTime? when) {
   if (when == null) return '';
   const List<String> months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final String day = when.day.toString().padLeft(2, ' ');
   final String hour = when.hour.toString().padLeft(2, '0');
@@ -30,10 +40,13 @@ class LsCommand extends TermCommand {
 
   @override
   String get name => 'ls';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'list what you are standing in';
+
   @override
   String? get usage => 'ls [-a] [-l] [-r] [path]';
 
@@ -45,9 +58,8 @@ class LsCommand extends TermCommand {
 
     List<TermEntry> entries = listing.entries;
     if (!inv.has('a')) {
-      entries = entries
-          .where((TermEntry e) => !e.name.startsWith('.'))
-          .toList();
+      entries =
+          entries.where((TermEntry e) => !e.name.startsWith('.')).toList();
     }
     if (inv.has('r')) entries = entries.reversed.toList();
     if (entries.isEmpty) {
@@ -90,10 +102,13 @@ class CdCommand extends TermCommand {
 
   @override
   String get name => 'cd';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'change folder, .. and ~ work';
+
   @override
   String? get usage => 'cd [path]';
 
@@ -101,8 +116,7 @@ class CdCommand extends TermCommand {
   Future<TermResult> run(TermInvocation inv) async {
     // Bare `cd` goes to `~`, the way a shell does. `~` always means storage,
     // and `/apps` never gets a home shorthand, so the two never blur.
-    final TermPath path =
-        inv.target == null ? TermPath.filesRoot : inv.path();
+    final TermPath path = inv.target == null ? TermPath.filesRoot : inv.path();
     final TermVfsError? error = await inv.context.vfs.canEnter(path);
     if (error != null) return TermResult.lines(_errorLines(error));
     inv.context.cwd = path;
@@ -115,8 +129,10 @@ class PwdCommand extends TermCommand {
 
   @override
   String get name => 'pwd';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'where you are';
 
@@ -132,15 +148,19 @@ class TreeCommand extends TermCommand {
 
   @override
   String get name => 'tree';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'this folder as a tree';
 
   @override
   Future<TermResult> run(TermInvocation inv) async {
     final TermPath root = inv.path();
-    final List<TermLine> out = <TermLine>[TermLine.of(root.display, TermInk.key)];
+    final List<TermLine> out = <TermLine>[
+      TermLine.of(root.display, TermInk.key)
+    ];
     final bool truncated = await _walk(inv, root, '', out);
     if (truncated) {
       out.add(TermLine.of('stopped at $_maxLines lines', TermInk.dim));
@@ -195,14 +215,17 @@ class CatCommand extends TermCommand {
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => switch (commandName) {
         'head' => 'the first lines of a file',
         'tail' => 'the last lines of a file',
         _ => 'read a text file, or an app entry',
       };
+
   @override
   String? get usage => '$commandName <path>';
 
@@ -256,8 +279,8 @@ class CatCommand extends TermCommand {
           TermLine.pair('target', 'SDK ${app.targetSdk}'),
         if (app.system) TermLine.pair('system', 'preinstalled'),
         TermLine.of('open ${app.slug} launches it', TermInk.dim),
-        TermLine.of('pm uninstall ${app.slug} opens the system prompt',
-            TermInk.dim),
+        TermLine.of(
+            'pm uninstall ${app.slug} opens the system prompt', TermInk.dim),
       ];
 }
 
@@ -266,10 +289,13 @@ class StatCommand extends TermCommand {
 
   @override
   String get name => 'stat';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'size, kind and modified date';
+
   @override
   String? get usage => 'stat <path>';
 
@@ -284,11 +310,13 @@ class StatCommand extends TermCommand {
     final int? size = await inv.context.vfs.sizeOf(path);
     return TermResult.lines(<TermLine>[
       TermLine.pair('path', path.display),
-      TermLine.pair('kind', switch (entry.kind) {
-        TermEntryKind.app => 'app',
-        TermEntryKind.directory => 'directory',
-        TermEntryKind.file => 'file',
-      }),
+      TermLine.pair(
+          'kind',
+          switch (entry.kind) {
+            TermEntryKind.app => 'app',
+            TermEntryKind.directory => 'directory',
+            TermEntryKind.file => 'file',
+          }),
       // Absent, not zero, when nothing measured it.
       if (size != null) TermLine.pair('size', humanBytes(size)),
       if (entry.childCount != null)
@@ -305,10 +333,13 @@ class DuCommand extends TermCommand {
 
   @override
   String get name => 'du';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'what is holding the space here, biggest first';
+
   @override
   String? get usage => 'du [path]';
 
@@ -321,8 +352,8 @@ class DuCommand extends TermCommand {
     final List<_Sized> sized = <_Sized>[];
     var unmeasured = 0;
     for (final TermEntry e in listing.entries) {
-      final int? size = e.sizeBytes ??
-          await inv.context.vfs.sizeOf(path.child(e.name));
+      final int? size =
+          e.sizeBytes ?? await inv.context.vfs.sizeOf(path.child(e.name));
       if (size == null) {
         unmeasured++;
         continue;
@@ -359,6 +390,7 @@ class DuCommand extends TermCommand {
 
 class _Sized {
   const _Sized(this.entry, this.size);
+
   final TermEntry entry;
   final int size;
 }
@@ -370,10 +402,13 @@ class FindCommand extends TermCommand {
 
   @override
   String get name => 'find';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'search by name below here';
+
   @override
   String? get usage => 'find <name>';
 
@@ -415,17 +450,21 @@ class FindCommand extends TermCommand {
 /// is what makes the wrong namespace a sentence rather than a silent nothing.
 class MakeCommand extends TermCommand {
   const MakeCommand.directory() : commandName = 'mkdir';
+
   const MakeCommand.file() : commandName = 'touch';
 
   final String commandName;
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help =>
       commandName == 'mkdir' ? 'make a folder' : 'make an empty file';
+
   @override
   String? get usage => '$commandName <name>';
 
@@ -449,10 +488,13 @@ class RemoveCommand extends TermCommand {
 
   @override
   String get name => 'rm';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'delete, -r for a folder';
+
   @override
   String? get usage => 'rm [-r] <path>';
 
@@ -487,17 +529,21 @@ class RemoveCommand extends TermCommand {
 
 class TransferCommand extends TermCommand {
   const TransferCommand.copy() : commandName = 'cp';
+
   const TransferCommand.move() : commandName = 'mv';
 
   final String commandName;
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help =>
       commandName == 'cp' ? 'copy a file or folder' : 'move or rename';
+
   @override
   String? get usage => '$commandName <source> <destination>';
 
@@ -517,8 +563,8 @@ class TransferCommand extends TermCommand {
     if (guardTo != null) return TermResult.lines(_errorLines(guardTo));
     if (from.root == TermRoot.apps) {
       return TermResult.lines(<TermLine>[
-        TermLine.of('$commandName: an app is not a file you can move',
-            TermInk.bad),
+        TermLine.of(
+            '$commandName: an app is not a file you can move', TermInk.bad),
         TermLine.of('open ${from.name} launches it', TermInk.dim),
       ]);
     }
@@ -536,10 +582,13 @@ class OpenCommand extends TermCommand {
 
   @override
   String get name => 'open';
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
   String get help => 'hand a file to its app, or launch an app';
+
   @override
   String? get usage => 'open <path>';
 

@@ -47,6 +47,7 @@ library;
 /// fails to resolve: the floor the fallback stands on.
 class BundledTheme {
   const BundledTheme(this.id, this.assetPath);
+
   final String id;
   final String assetPath;
 }

@@ -39,10 +39,30 @@ import 'dock_metrics.dart' show DockMetrics;
 /// Over-reserving is the safe direction and [DockMetrics.reserve] says so: too
 /// much leaves a strip of unused desktop, too little puts content back under
 /// the dock, which is the bug.
-EdgeInsets dockInsets(EffectiveTheme theme) {
-  final band = theme.shell == ShellKind.aqua
-      ? AquaDockMetrics.reserve
-      : DockMetrics.reserve;
+/// [live] is the dock's measured cross-axis extent from `dockExtentProvider`,
+/// or null before any dock has been laid out.
+///
+/// ─── MEASURED BEATS THE CONSTANT, WHEN THERE IS ONE ────────────────────────
+///
+/// Both `reserve` constants are computed at a slot size the dock often is not.
+/// `DockMetrics.reserve` uses `maxSlot`, so a packed dock leaves a strip of
+/// dead desktop between the last row of apps and the dock, which is the gap its
+/// own doc predicts. `AquaDockMetrics.reserve` uses the base slot, so a
+/// magnified dock swells PAST it and the bottom row ends up behind a lifted
+/// icon. One gap and one overlap, neither visible in the numbers.
+///
+/// The constants remain the right first-frame answer, which is the only time
+/// [live] is null. Over-reserving for one frame is invisible; drawing apps
+/// under a dock that has not measured itself yet is not.
+EdgeInsets dockInsets(EffectiveTheme theme, {double? live}) {
+  final band = live != null
+      // The shell positions the dock away from the edge and the probe measures
+      // only the dock itself, so the offset is added back. It is the same
+      // number both constants already fold in.
+      ? live + DockMetrics.edgeOffset
+      : theme.shell == ShellKind.aqua
+          ? AquaDockMetrics.reserve
+          : DockMetrics.reserve;
 
   return switch (theme.dock) {
     DockSide.off => EdgeInsets.zero,
@@ -66,8 +86,10 @@ EdgeInsets dockInsets(EffectiveTheme theme) {
 /// The drawer's version below deliberately does NOT ask, because both values
 /// put a dock over that surface: 'apps' means the dock is present precisely
 /// when the app list is.
-EdgeInsets desktopDockInsets(EffectiveTheme theme) =>
-    theme.dockReveal == 'apps' ? EdgeInsets.zero : dockInsets(theme);
+EdgeInsets desktopDockInsets(EffectiveTheme theme, {double? live}) =>
+    theme.dockReveal == 'apps'
+        ? EdgeInsets.zero
+        : dockInsets(theme, live: live);
 
 /// The same insets, for a drawer, or nothing when the drawer covers the dock
 /// rather than sitting under it.

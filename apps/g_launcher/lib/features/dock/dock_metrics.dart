@@ -139,8 +139,8 @@ abstract final class DockMetrics {
   ///
   /// Erring toward over-reserving is the right direction. Too much leaves a
   /// gap; too little puts a desklet back under the dock, which is the bug.
-  static const reserve = maxSlot + crossPadding * 2 + borderWidth * 2 +
-      edgeOffset;
+  static const reserve =
+      maxSlot + crossPadding * 2 + borderWidth * 2 + edgeOffset;
 
   /// The out-of-box dock: four apps, auto-filled from frequency. Also where the
   /// count-taper starts biting — apps past this pull the slot size down.

@@ -57,7 +57,6 @@ List<Widget> aquaBarModules(
             onTap: onActivities,
           ),
         PanelModule.spacer => const Spacer(),
-
         PanelModule.clock => _Clock(
             palette: palette,
             fontFamily: displayFontFamily,
@@ -69,10 +68,12 @@ List<Widget> aquaBarModules(
         // keeps.
         PanelModule.battery ||
         PanelModule.wifi ||
+        PanelModule.volume ||
         PanelModule.app =>
           const SizedBox.shrink(),
-
-        PanelModule.network || PanelModule.memory || PanelModule.storage =>
+        PanelModule.network ||
+        PanelModule.memory ||
+        PanelModule.storage =>
           m == stats.first
               ? _Readouts(
                   palette: palette,

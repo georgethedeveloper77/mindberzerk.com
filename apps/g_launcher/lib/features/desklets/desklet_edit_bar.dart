@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../engine/effective_theme.dart';
 import '../home/workspaces/workspace_controller.dart';
 import 'desklet_edit.dart';
 import 'desklet_picker.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The bar that says the desktop is being edited. PHASE D4.
 ///
@@ -55,12 +55,8 @@ class DeskletEditBar extends ConsumerWidget {
         color: p.bar.withValues(alpha: 0.94),
         child: Row(
           children: [
-            Icon(
-                focused
-                    ? Icons.open_with
-                    : Icons.dashboard_customize_outlined,
-                size: 18,
-                color: p.onDark.withValues(alpha: 0.7)),
+            Icon(focused ? Icons.open_with : Icons.dashboard_customize_outlined,
+                size: 18, color: p.onDark.withValues(alpha: 0.7)),
             const SizedBox(width: 10),
             Expanded(
               child: Text(

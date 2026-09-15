@@ -47,7 +47,8 @@ const String kTerminalProSku = 'terminal_pro';
 ///
 /// Separated from the provider so it can be tested without Play, a container or
 /// a network, which for a paywall check is worth the extra six lines.
-bool isTerminalPro(Set<String> ownedSkus) => ownedSkus.contains(kTerminalProSku);
+bool isTerminalPro(Set<String> ownedSkus) =>
+    ownedSkus.contains(kTerminalProSku);
 
 /// Live Pro state.
 ///

@@ -784,9 +784,8 @@ final drawerCustomGridProvider =
     append(AppDrawerItem(a));
   }
 
-  final maxFlat = placed.isEmpty
-      ? DrawerSlots.reservedSlots
-      : placed.keys.reduce(math.max);
+  final maxFlat =
+      placed.isEmpty ? DrawerSlots.reservedSlots : placed.keys.reduce(math.max);
 
   // Exactly as many pages as the contents occupy, PLUS any the user has grown
   // the drawer to with the "+" beside the page dots.
@@ -833,8 +832,9 @@ final drawerCustomGridProvider =
 /// list is already on screen and the user is narrowing it; results reordering
 /// under a substring they typed reads as the list fighting them. `AppDrawer`'s
 /// own filter made the same call.
-final drawerSearchProvider = Provider.family<List<DrawerItem>,
-    ({EffectiveTheme theme, String query})>((ref, arg) {
+final drawerSearchProvider =
+    Provider.family<List<DrawerItem>, ({EffectiveTheme theme, String query})>(
+        (ref, arg) {
   final items = ref.watch(drawerItemsProvider(arg.theme));
   final q = arg.query.trim().toLowerCase();
   if (q.isEmpty) return items;

@@ -49,8 +49,8 @@ final paletteResultsProvider =
       ? apps
       : [
           ...apps,
-          for (final a in ref.watch(appListProvider).asData?.value ??
-              const <AppEntry>[])
+          for (final a
+              in ref.watch(appListProvider).asData?.value ?? const <AppEntry>[])
             if (hiddenPrefs.hiddenApps.contains(a.componentKey) &&
                 HiddenApps.admits(hiddenPrefs, a, query))
               a,

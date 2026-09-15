@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
 // legacy.dart is where StateProvider moved in v3; flutter_riverpod.dart is for
 // Notifier / NotifierProvider below.
 
@@ -32,8 +33,7 @@ final activitiesOpenProvider = StateProvider<bool>((ref) => false);
 /// Deliberately NOT reset when the drawer closes. Reopening on the page you
 /// left is the lesser surprise, and a reset here would fire on exactly the
 /// remounts this exists to survive.
-final drawerPageProvider =
-    NotifierProvider<DrawerPage, int>(DrawerPage.new);
+final drawerPageProvider = NotifierProvider<DrawerPage, int>(DrawerPage.new);
 
 class DrawerPage extends Notifier<int> {
   @override

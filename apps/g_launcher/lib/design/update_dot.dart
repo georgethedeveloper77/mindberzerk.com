@@ -46,8 +46,7 @@ class UpdateDot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasUpdate =
-        ref.watch(appUpdateProvider.select((u) => u.hasUpdate));
+    final hasUpdate = ref.watch(appUpdateProvider.select((u) => u.hasUpdate));
     if (!hasUpdate) return child;
 
     final d = ChromeScope.of(context);

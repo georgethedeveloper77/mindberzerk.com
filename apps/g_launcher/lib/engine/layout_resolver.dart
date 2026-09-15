@@ -37,12 +37,18 @@ class ResolvedLayout {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.drawerIndexRail,
+    required this.drawerListStyle,
+    required this.dockLayout,
     required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
     required this.appDrawer,
     required this.homeLayout,
     required this.dockStyle,
+    required this.dockHover,
+    required this.dockPress,
+    required this.dockEntrance,
     required this.dockReveal,
     required this.iconSizeDp,
     required this.labelLines,
@@ -121,6 +127,33 @@ class ResolvedLayout {
   final String drawerScrollStyle;
   final String drawerGrouping;
 
+  /// The drawer's alphabet index, RESOLVED: 'off' | 'plain' | 'arc'.
+  ///
+  /// Resolves from the user and the engine only. There is no distro arm: see
+  /// [LauncherPrefs.drawerIndexRail] for why a field the admin cannot publish
+  /// is worse than a field the admin does not have.
+  ///
+  /// Meaningful only when the layout is the list AND the grouping is 'az',
+  /// because an index needs sections to point at. That pair is enforced in
+  /// Settings and checked again at the read site, rather than being resolved
+  /// away here: a resolver that silently answered 'off' on a paged drawer
+  /// would make the Settings row lie about what it had saved.
+  final String drawerIndexRail;
+
+  /// The vertical drawer's shape, RESOLVED: 'grid' | 'rows'.
+  ///
+  /// Meaningful only when the layout is the list. A page of rows is not a
+  /// shape the pager can size, so this is inert on every other scroll style
+  /// and `AppDrawer` gates on both.
+  final String drawerListStyle;
+
+  /// The dock's presentation, RESOLVED: 'bar' | 'list'.
+  ///
+  /// No distro arm, same as the two above it. A distro states WHERE its dock
+  /// is and whether it floats; whether the user wants names beside the icons is
+  /// a reach preference, and no theme.json has a way to say it.
+  final String dockLayout;
+
   /// Where the drawer's search bar sits, RESOLVED: 'top' | 'bottom' | 'off'.
   /// Never null, so `AppDrawer` carries no fallback of its own.
   ///
@@ -160,6 +193,14 @@ class ResolvedLayout {
   /// How the dock sits, RESOLVED: 'flat' | 'floating' | 'magnified'. Never
   /// null. No prefs arm; see [ThemeLayout.dockStyle].
   final String dockStyle;
+
+  /// The three dock animations, RESOLVED. See [ThemeLayout.dockHover].
+  ///
+  /// Each has a prefs arm, unlike [dockStyle]: how a dock sits is part of what
+  /// makes a distro that distro, and how it animates is taste.
+  final String dockHover;
+  final String dockPress;
+  final String dockEntrance;
 
   /// When the dock exists, RESOLVED: 'always' | 'apps'. Never null. No prefs
   /// arm; see [ThemeLayout.dockReveal].
@@ -204,12 +245,18 @@ class ResolvedLayout {
           other.drawerCols == drawerCols &&
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
+          other.drawerIndexRail == drawerIndexRail &&
+          other.drawerListStyle == drawerListStyle &&
+          other.dockLayout == dockLayout &&
           other.drawerSearchPosition == drawerSearchPosition &&
           other.kickoffRail == kickoffRail &&
           other.tilingLauncher == tilingLauncher &&
           other.appDrawer == appDrawer &&
           other.homeLayout == homeLayout &&
           other.dockStyle == dockStyle &&
+          other.dockHover == dockHover &&
+          other.dockPress == dockPress &&
+          other.dockEntrance == dockEntrance &&
           other.dockReveal == dockReveal &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
@@ -243,12 +290,18 @@ class ResolvedLayout {
         drawerCols,
         drawerScrollStyle,
         drawerGrouping,
+        drawerIndexRail,
+        drawerListStyle,
+        dockLayout,
         drawerSearchPosition,
         kickoffRail,
         tilingLauncher,
         appDrawer,
         homeLayout,
         dockStyle,
+        dockHover,
+        dockPress,
+        dockEntrance,
         dockReveal,
         iconSizeDp,
         labelLines,
@@ -289,6 +342,27 @@ abstract final class LayoutResolver {
   static const defaultDrawerScrollStyle = 'pages';
   static const defaultDrawerGrouping = 'none';
 
+  /// The index is ON where it applies at all.
+  ///
+  /// It only applies under `vertical` + `az`, which is already a state a user
+  /// chose on purpose, and a letter index is the thing that makes that state
+  /// worth choosing. Defaulting to 'off' would mean the feature ships switched
+  /// off for everyone who already wanted exactly what it improves.
+  static const defaultDrawerIndexRail = 'arc';
+
+  /// The grid, because that is what every existing drawer already looks like.
+  ///
+  /// The opposite call to [defaultDrawerIndexRail], and for the opposite
+  /// reason: the index adds a control to a screen that was missing one, while
+  /// rows REDRAW a screen the user has already arranged. Restyling fifteen
+  /// distros on upgrade is not a default, it is a redesign nobody asked for.
+  static const defaultDrawerListStyle = 'grid';
+
+  /// The bar. Every distro in the catalogue emulates a desktop that has one,
+  /// and a list is a phone idiom borrowed onto them rather than anything Ubuntu
+  /// or Fedora does. Opt in, never arrive in.
+  static const defaultDockLayout = 'bar';
+
   /// Thumb-reachable, and what every distro drew before the field existed. A
   /// theme that says nothing keeps exactly the bar it had.
   static const defaultDrawerSearchPosition = 'bottom';
@@ -308,7 +382,32 @@ abstract final class LayoutResolver {
   /// MAGNIFIED, because that is what the aqua dock has always drawn and a
   /// theme that says nothing must not move. The two distros that want
   /// something else now say so.
+  ///
+  /// It carries a corner radius as well as a swell, which is why `dockHover`
+  /// took the swell and left this alone rather than replacing it.
   static const defaultDockStyle = 'magnified';
+
+  /// MAGNIFY, for the reason the old dock-style default gave: it is what the
+  /// aqua dock has always drawn, and a theme that says nothing must not move.
+  ///
+  /// It is also harmless on the docks that cannot do it. `GnomeDock` has never
+  /// honoured magnification and does not start now; a hover mode it does not
+  /// implement is a value it ignores, the same way it already ignores
+  /// `dockStyle: magnified`.
+  static const defaultDockHover = 'magnify';
+
+  /// The safe one, and what every dock in the app already does on a tap:
+  /// `PressPop` scales down and back.
+  static const defaultDockPress = 'sink';
+
+  /// NOTHING, deliberately, unlike the other two.
+  ///
+  /// Hover and press have always-on defaults because the dock already did
+  /// something in both cases and removing it would be a change. An entrance
+  /// animation is new: no dock has ever slid, expanded or blurred in, so a
+  /// default of anything else would animate every distro on first paint on the
+  /// strength of a field nobody authored.
+  static const defaultDockEntrance = 'none';
 
   /// Part of the desktop, which is what every distro has drawn.
   static const defaultDockReveal = 'always';
@@ -525,15 +624,26 @@ abstract final class LayoutResolver {
           // move the bar to the bottom, which is what passing prefs alone did
           // once `_panelSide` learned to read the theme.
           side: _panelSide(prefs, base),
-                // `PanelItem.parse`, not `PanelModule.parse`: the stored
-                // strings can now read `app:com.example.files`, and parsing to
-                // the kind alone would drop the package and render a button
-                // that launches nothing. Unrecognised entries are still
-                // dropped rather than fatal.
-                items: prefs.panelModules!
-                    .map(PanelItem.parse)
-                    .whereType<PanelItem>()
-                    .toList(),
+                // `PanelItem.parseAll`, not `PanelModule.parse`: the stored
+                // strings can read `app:com.example.files`, and parsing to the
+                // kind alone would drop the package and render a button that
+                // launches nothing. Unrecognised entries are still dropped
+                // rather than fatal.
+                //
+                // ── AND IT EXPANDS `tray` FOR THE SAME REASON THE THEME DOES
+                //
+                // Edit mode writes the panel it rendered, so a list saved after
+                // the expansion landed holds the three modules already and this
+                // is a no-op on it. A list saved BEFORE it still says `tray`,
+                // and running it through the same function is what stops an
+                // early adopter's saved panel being the one panel in the app
+                // whose tray cannot be tapped. The side is the resolved one, so
+                // a saved panel moved to the top edge collapses back to the
+                // Quick Settings button rather than duplicating the status bar.
+                items: PanelItem.parseAll(
+                  prefs.panelModules!,
+                  side: _panelSide(prefs, base),
+                ),
               ),
             ]
           // ─── THE FLAG, NOT THE SHAPE ────────────────────────────────
@@ -635,6 +745,28 @@ abstract final class LayoutResolver {
         const {'none', 'az', 'library'},
         defaultDrawerGrouping,
       ),
+      // Null theme arm, like `kickoffRail` and `tilingLauncher` above, but for
+      // the opposite reason: those are capabilities a user should not vote on,
+      // this is a preference no distro can currently express. Keep this set and
+      // `IndexRail.parse` edited together.
+      drawerIndexRail: _pick(
+        prefs.drawerIndexRail,
+        null,
+        const {'off', 'plain', 'arc'},
+        defaultDrawerIndexRail,
+      ),
+      drawerListStyle: _pick(
+        prefs.drawerListStyle,
+        null,
+        const {'grid', 'rows'},
+        defaultDrawerListStyle,
+      ),
+      dockLayout: _pick(
+        prefs.dockLayout,
+        null,
+        const {'bar', 'list'},
+        defaultDockLayout,
+      ),
       // A PREFS ARM, unlike the four below it. Where the search bar sits is a
       // reach preference on a phone, so a user who has moved it keeps it on
       // every distro they visit; the distro only answers for someone who never
@@ -668,11 +800,55 @@ abstract final class LayoutResolver {
         const {'grid', 'tiled'},
         defaultHomeLayout,
       ),
+      // ─── `magnified` STAYS, AND SEEDS THE NEW FIELD ──────────────────
+      //
+      // The tidy version of this split rewrote it to `floating`, on the grounds
+      // that magnification is a RESPONSE and the other two are ways of SITTING.
+      // That is true and it is also not the whole job this value does:
+      // `AquaDockStyle.magnified` picks a corner radius of 0.28 where floating
+      // picks 0.42, so rewriting it would have quietly rounded Deepin's dock.
+      //
+      // So the split is additive. This field is untouched and every published
+      // pack resolves exactly as before; `dockHover` below reads it as its
+      // default, and only the SWELL moves to the new field.
       dockStyle: _pick(
         null,
         base.dockStyle,
         const {'flat', 'floating', 'magnified'},
         defaultDockStyle,
+      ),
+      dockHover: _pick(
+        prefs.dockHover,
+        base.dockHover ?? (base.dockStyle == 'magnified' ? 'magnify' : null),
+        // THE SECOND LIST, and the failure `dockReveal` documents below: a
+        // value this set omits resolves to the default forever behind a dock
+        // that looks like it is working. Kept in the same order as the parse in
+        // `theme_spec.dart` so the two can be read side by side.
+        const {'none', 'magnify', 'lift', 'tilt', 'part', 'focus', 'arc'},
+        defaultDockHover,
+      ),
+      dockPress: _pick(
+        prefs.dockPress,
+        base.dockPress,
+        const {
+          'sink',
+          'bounce',
+          'jelly',
+          'pop',
+          'flip',
+          'swing',
+          'pulse',
+          'ripple',
+          'wave',
+          'launch',
+        },
+        defaultDockPress,
+      ),
+      dockEntrance: _pick(
+        prefs.dockEntrance,
+        base.dockEntrance,
+        const {'none', 'slide', 'expand', 'blur', 'stagger', 'gloss'},
+        defaultDockEntrance,
       ),
       dockReveal: _pick(
         null,

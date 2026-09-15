@@ -470,6 +470,7 @@ class IconCircle extends StatelessWidget {
 
 class ValueLabel extends StatelessWidget {
   const ValueLabel(this.text, {super.key});
+
   final String text;
 
   @override
@@ -513,7 +514,7 @@ class SysBadge extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
             color: s.acc.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(7),
@@ -522,13 +523,13 @@ class SysBadge extends StatelessWidget {
             context.t('settings.system'),
             style: TextStyle(
               color: s.acc,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
         const SizedBox(width: 6),
-        Icon(Icons.open_in_new, size: 15, color: s.mut),
+        Icon(Icons.open_in_new, size: 18, color: s.mut),
       ],
     );
   }
@@ -645,8 +646,19 @@ class Seg extends StatelessWidget {
               onTap: enabled ? () => onChanged(e.key) : null,
               behavior: HitTestBehavior.opaque,
               child: Container(
+                // ─── 25dp WAS THE MOST-TOUCHED CONTROL IN SETTINGS ─────
+                //
+                // 5dp of padding around 11.5pt text gave a segment about 25
+                // tall, and this control is on dock position, the activities
+                // button and most of Appearance. It was the single worst target
+                // on the screen and the one people aim at most.
+                //
+                // The row grows with it, which is correct: a settings row is
+                // as tall as the control it carries.
+                constraints: const BoxConstraints(minHeight: 48),
+                alignment: Alignment.center,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: e.key == value
                     ? BoxDecoration(
                         color: s.acc,
@@ -656,7 +668,7 @@ class Seg extends StatelessWidget {
                 child: Text(
                   e.value,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 13,
                     fontWeight:
                         e.key == value ? FontWeight.w600 : FontWeight.w400,
                     color: e.key == value ? s.onAcc : s.mut,
@@ -680,12 +692,16 @@ class Seg extends StatelessWidget {
               GestureDetector(
                 onTap: onFollow,
                 behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Container(
+                  // A word with horizontal padding only takes whatever height
+                  // its line box happens to be, which here was about 16.
+                  constraints: const BoxConstraints(minHeight: 48),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
                     context.t('settings.follow'),
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: s.acc,
                     ),

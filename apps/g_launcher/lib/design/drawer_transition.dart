@@ -124,18 +124,27 @@ enum DrawerTransition {
   /// against a key that does not exist renders the key, which is worse on
   /// screen than English is.
   (String, String) get copy => switch (this) {
-        DrawerTransition.slide =>
-          ('Pages', 'Swipe sideways. Wraps around at the end.'),
-        DrawerTransition.cube =>
-          ('Cube', 'The pages are faces of a solid.'),
-        DrawerTransition.cylinder =>
-          ('Cylinder', 'The cube, curved. Faces meet at a softer angle.'),
-        DrawerTransition.sphere =>
-          ('Sphere', 'The cube, pinched top and bottom as it turns.'),
-        DrawerTransition.depth =>
-          ('Depth', 'The page you leave sinks behind the next one.'),
-        DrawerTransition.stack =>
-          ('Stack', 'The page you leave holds still. The next slides over it.'),
+        DrawerTransition.slide => (
+            'Pages',
+            'Swipe sideways. Wraps around at the end.'
+          ),
+        DrawerTransition.cube => ('Cube', 'The pages are faces of a solid.'),
+        DrawerTransition.cylinder => (
+            'Cylinder',
+            'The cube, curved. Faces meet at a softer angle.'
+          ),
+        DrawerTransition.sphere => (
+            'Sphere',
+            'The cube, pinched top and bottom as it turns.'
+          ),
+        DrawerTransition.depth => (
+            'Depth',
+            'The page you leave sinks behind the next one.'
+          ),
+        DrawerTransition.stack => (
+            'Stack',
+            'The page you leave holds still. The next slides over it.'
+          ),
       };
 
   /// Every style a picker offers, in the order it should read.
@@ -166,7 +175,6 @@ enum DrawerTransition {
       };
 }
 
-
 /// One page's transform for one frame.
 ///
 /// A record would do and this is a class for one reason: the three fields are
@@ -187,7 +195,6 @@ class TransformSpec {
   /// at full opacity, so the wrapper costs the other four nothing.
   final double opacity;
 }
-
 
 /// One page's transform, for any style, at any offset.
 ///
@@ -224,8 +231,7 @@ TransformSpec drawerTransformFor(
   // dragged away turns on its trailing edge, the one arriving on its
   // leading edge. Shared by the three rotating styles, because getting it
   // backwards is what makes faces read as two cards passing each other.
-  final hinge =
-      delta > 0 ? Alignment.centerLeft : Alignment.centerRight;
+  final hinge = delta > 0 ? Alignment.centerLeft : Alignment.centerRight;
 
   switch (transition) {
     case DrawerTransition.slide:

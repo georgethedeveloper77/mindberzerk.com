@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../home/workspaces/workspace_controller.dart';
 import '../palette/fuzzy.dart';
 import '../palette/palette_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
-import '../home/workspaces/workspace_controller.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The tiling WM's launcher, in two shapes.
 ///
@@ -186,7 +186,8 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
                   // NOT scaled: it is the dimming of the desktop behind, not a
                   // surface of ours, and fading it with this setting would make
                   // a translucent launcher unreadable over a bright wallpaper.
-                  color: palette.bar.withValues(alpha: 0.98 * theme.drawerOpacity),
+                  color:
+                      palette.bar.withValues(alpha: 0.98 * theme.drawerOpacity),
                   // Tiling WMs draw a hard accent border round the focused
                   // window. That border is the whole aesthetic; do not round it
                   // away.
@@ -221,8 +222,7 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
                     _Hint(
                       theme: theme,
                       mono: mono,
-                      count:
-                          query.isEmpty ? items.length : results.length,
+                      count: query.isEmpty ? items.length : results.length,
                     ),
                   ],
                 ),
@@ -305,7 +305,13 @@ class _DmenuBar extends StatelessWidget {
   /// One number fixes it and is also the correct design: dmenu is exactly one
   /// line tall, and a bar that grew with its contents would be a bar whose
   /// height depended on which app you had typed towards.
-  static const _height = 42.0;
+  ///
+  /// ─── 48, NOT 42 ───────────────────────────────────────────────────────
+  ///
+  /// One line tall is the design and stays the design; 42 was simply below the
+  /// target floor. dmenu's own bar is the height of its font, and at 13pt with
+  /// padding that lands on 48 anyway.
+  static const _height = 48.0;
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +373,8 @@ class _DmenuBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Expanded(child: _DmenuItems(
+          Expanded(
+              child: _DmenuItems(
             theme: theme,
             mono: mono,
             query: query,
@@ -860,11 +867,11 @@ class _AllList extends ConsumerWidget {
           ),
           onTap: () => activateDrawerItem(context, ref, theme, item),
           onLongPress: switch (item) {
-            AppDrawerItem(:final entry) => (rowContext) =>
-                showDrawerAppMenu(rowContext, ref, theme, entry,
+            AppDrawerItem(:final entry) => (rowContext) => showDrawerAppMenu(
+                rowContext, ref, theme, entry,
                 anchor: AnchoredMenu.anchorOf(rowContext)),
-            final FolderDrawerItem f => (rowContext) =>
-                drawerFolderSettings(rowContext, ref, theme, f,
+            final FolderDrawerItem f => (rowContext) => drawerFolderSettings(
+                rowContext, ref, theme, f,
                 anchor: AnchoredMenu.anchorOf(rowContext)),
             LauncherSettingsItem() ||
             DeviceSettingsItem() ||
@@ -895,6 +902,7 @@ class _Line extends StatelessWidget {
   final Widget icon;
   final Widget label;
   final VoidCallback onTap;
+
   /// Called with THIS ROW's context. See [_DmenuItem.onLongPress]: the same
   /// sliver-context trap applies to every row a `ListView.builder` makes, and
   /// this list is vertical rather than horizontal, which changes nothing about
@@ -914,7 +922,7 @@ class _Line extends StatelessWidget {
       onLongPress: onLongPress == null ? null : () => onLongPress!(context),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: isTop
               ? palette.accent.withValues(alpha: 0.18)

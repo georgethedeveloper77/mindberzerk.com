@@ -160,7 +160,15 @@ class AnsiStyle {
 
   @override
   int get hashCode => Object.hash(
-        fg, bg, bold, faint, italic, underline, inverse, strike, hidden,
+        fg,
+        bg,
+        bold,
+        faint,
+        italic,
+        underline,
+        inverse,
+        strike,
+        hidden,
       );
 }
 
@@ -591,7 +599,9 @@ AnsiStyle applySgr(AnsiStyle current, String params) {
           style = style.copyWith(bg: AnsiIndexedColor(c - 100 + 8));
         } else if (c == 38 || c == 48) {
           final result = _extendedColour(style, codes, i, foreground: c == 38);
-          if (result == null) return style; // Malformed; the rest is unreliable.
+          if (result == null) {
+            return style; // Malformed; the rest is unreliable.
+          }
           style = result.style;
           i += result.consumed;
         }

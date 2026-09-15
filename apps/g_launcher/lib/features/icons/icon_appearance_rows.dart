@@ -37,78 +37,78 @@ List<Widget> iconAppearanceRows(
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
   return [
-        SettingPreview(
-          caption: context.t('icons.iconsLive'),
-          child: SinglePreview(
-            child: DevicePreview(
-              palette: theme.palette,
-              mode: DevicePreviewMode.folder,
-              cols: theme.prefs.folderCols ?? 4,
-              rows: theme.prefs.folderRows ?? 3,
-              tileRadiusFraction: switch (theme.icons.treatment.name) {
-                'circle' => 0.5,
-                'square' => 0.0,
-                'squircle' => 0.32,
-                _ => theme.icons.cornerRadius,
-              },
-            ),
-          ),
-        ),
-
-        SettingsGroup(
-          label: context.t('icons.shapeAndSize'),
-          scope: 'All distros',
-          rows: [
-      FilterRow(
-        const ['icon shape', 'circle', 'squircle', 'rounded'],
-        SettingsRow(
-          icon: Icons.category_outlined,
-          title: context.t('settings.iconShape'),
-          subtitle: _shapeLong(theme.prefs.iconTreatment),
-          trailing: ValueLabel(_shapeShort(theme.prefs.iconTreatment)),
-          onTap: () => showShapeSheet(context, notifier, theme),
+    SettingPreview(
+      caption: context.t('icons.iconsLive'),
+      child: SinglePreview(
+        child: DevicePreview(
+          palette: theme.palette,
+          mode: DevicePreviewMode.folder,
+          cols: theme.prefs.folderCols ?? 4,
+          rows: theme.prefs.folderRows ?? 3,
+          tileRadiusFraction: switch (theme.icons.treatment.name) {
+            'circle' => 0.5,
+            'square' => 0.0,
+            'squircle' => 0.32,
+            _ => theme.icons.cornerRadius,
+          },
         ),
       ),
-      FilterRow(
-        const ['icon size', 'size', 'bigger', 'smaller'],
-        SettingsRow(
-          icon: Icons.photo_size_select_large_outlined,
-          accent: true,
-          title: context.t('settings.iconSize'),
-          trailing: ValueLabel(_iconSizeLabel(theme.iconSizeDp)),
-          onTap: () => showSliderSheet(
-            context,
-            title: context.t('settings.iconSize'),
-            value: theme.iconSizeDp,
-            min: 36,
-            max: 72,
-            format: (v) => '${v.round()} dp',
-            onCommit: (v) => notifier.edit((p) => p.copyWith(iconSizeDp: v)),
-          ),
-        ),
-      ),
-      if (theme.icons.treatment.name == 'roundedSquare')
+    ),
+    SettingsGroup(
+      label: context.t('icons.shapeAndSize'),
+      scope: 'All distros',
+      rows: [
         FilterRow(
-          const ['corner roundness', 'corners', 'rounded'],
+          const ['icon shape', 'circle', 'squircle', 'rounded'],
           SettingsRow(
-            icon: Icons.rounded_corner_outlined,
+            icon: Icons.category_outlined,
+            title: context.t('settings.iconShape'),
+            subtitle: _shapeLong(theme.prefs.iconTreatment),
+            trailing: ValueLabel(_shapeShort(theme.prefs.iconTreatment)),
+            onTap: () => showShapeSheet(context, notifier, theme),
+          ),
+        ),
+        FilterRow(
+          const ['icon size', 'size', 'bigger', 'smaller'],
+          SettingsRow(
+            icon: Icons.photo_size_select_large_outlined,
             accent: true,
-            title: context.t('settings.cornerRoundness'),
-            trailing: ValueLabel('${(theme.icons.cornerRadius * 200).round()}%'),
+            title: context.t('settings.iconSize'),
+            trailing: ValueLabel(_iconSizeLabel(theme.iconSizeDp)),
             onTap: () => showSliderSheet(
               context,
-              title: context.t('settings.cornerRoundness'),
-              value: theme.icons.cornerRadius,
-              min: 0,
-              max: 0.5,
-              format: (v) => '${(v * 200).round()}%',
-              onCommit: (v) =>
-                  notifier.edit((p) => p.copyWith(cornerRadius: v)),
+              title: context.t('settings.iconSize'),
+              value: theme.iconSizeDp,
+              min: 36,
+              max: 72,
+              format: (v) => '${v.round()} dp',
+              onCommit: (v) => notifier.edit((p) => p.copyWith(iconSizeDp: v)),
             ),
           ),
         ),
-          ],
-        ),
+        if (theme.icons.treatment.name == 'roundedSquare')
+          FilterRow(
+            const ['corner roundness', 'corners', 'rounded'],
+            SettingsRow(
+              icon: Icons.rounded_corner_outlined,
+              accent: true,
+              title: context.t('settings.cornerRoundness'),
+              trailing:
+                  ValueLabel('${(theme.icons.cornerRadius * 200).round()}%'),
+              onTap: () => showSliderSheet(
+                context,
+                title: context.t('settings.cornerRoundness'),
+                value: theme.icons.cornerRadius,
+                min: 0,
+                max: 0.5,
+                format: (v) => '${(v * 200).round()}%',
+                onCommit: (v) =>
+                    notifier.edit((p) => p.copyWith(cornerRadius: v)),
+              ),
+            ),
+          ),
+      ],
+    ),
   ];
 }
 

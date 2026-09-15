@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
@@ -9,7 +10,6 @@ import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
 import '../palette/palette_controller.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Search, as a sheet from the top edge.
 ///
@@ -330,9 +330,8 @@ class _Hit extends ConsumerWidget {
         anchor: AnchoredMenu.anchorOf(context),
       ),
       child: Container(
-        color: first
-            ? palette.accent.withValues(alpha: 0.18)
-            : Colors.transparent,
+        color:
+            first ? palette.accent.withValues(alpha: 0.18) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         child: Row(
           children: [

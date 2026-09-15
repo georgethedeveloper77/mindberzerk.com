@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/components.dart';
 import '../../design/wallpaper_paint.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/wallpaper_framing.dart';
 import 'wallpaper_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Frame ONE wallpaper against the chrome it will sit behind.
 ///
@@ -107,8 +107,8 @@ class _WallpaperFramingScreenState
         // what every photo cropper does and what the hand expects. The 0.8
         // factor makes a full swipe cross most of the image rather than all of
         // it, so the ends are reachable without the middle being twitchy.
-        focalX: (_framing.focalX - (d.delta.dx / size.width) * 0.8)
-            .clamp(0.0, 1.0),
+        focalX:
+            (_framing.focalX - (d.delta.dx / size.width) * 0.8).clamp(0.0, 1.0),
         focalY: (_framing.focalY - (d.delta.dy / size.height) * 0.8)
             .clamp(0.0, 1.0),
       );

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.LruCache
 import com.mindhunter.g_launcher.apps.AppRepository
+import com.mindhunter.g_launcher.apps.ComponentKey
 import com.mindhunter.g_launcher.cdn.PackChangeNotifier
 import java.io.File
 import java.security.MessageDigest
@@ -428,6 +429,9 @@ class IconCache(
             ?: renderIconPack(componentKey, sizePx)
             ?: renderHero(componentKey, sizePx)
             ?: renderBrand(componentKey, sizePx)
+            // PHASE L4. Below every layer that identifies the APP, above the
+            // one that identifies nothing. See CategoryIndex.
+            ?: renderCategory(componentKey, sizePx)
             ?: renderGenerated(componentKey, sizePx)
             ?: return null
 
@@ -493,6 +497,46 @@ class IconCache(
         // A glyph whose every path failed to parse falls through to the layer
         // below rather than drawing an empty tile. One malformed drawing in a
         // CDN pack must cost its own icon, never the drawer.
+        if (paths.isEmpty()) return null
+        return renderer.renderBrand(
+            glyph,
+            paths,
+            brands.viewBox,
+            style,
+            sizePx,
+            stroked = brands.stroked,
+            strokeWidth = brands.strokeWidth,
+        )
+    }
+
+    /**
+     * A drawing for what KIND of app this is, when nothing knows which app.
+     *
+     * Three ways to return null, and all three are the same decision: say
+     * nothing and let the generator answer.
+     *
+     *   - the index has not been built yet, on the very first frames
+     *   - the loaded pack predates L4 and ships no `categories`
+     *   - the drawing is there and its path data will not parse
+     *
+     * ─── AND THE CACHE KEY NEEDS NOTHING NEW ────────────────────────────────
+     *
+     * `fingerprint()` already carries `brandPack`, and the category glyphs live
+     * inside that pack, so a pack change invalidates this tier along with the
+     * brand tier it sits under. This is the one place the eight-place IconStyle
+     * checklist would normally bite, and it does not bite because the tier
+     * added no style.
+     *
+     * The one thing the key does NOT cover is an app changing its bucket
+     * because its LABEL changed on update. That is a rename, the app-change
+     * watcher already reacts to it, and the worst case in between is one app
+     * wearing the previous bucket's drawing until the next reload.
+     */
+    private fun renderCategory(componentKey: String, sizePx: Int): Bitmap? {
+        val pkg = ComponentKey.parse(componentKey)?.packageName ?: return null
+        val bucket = CategoryIndex.bucketFor(pkg) ?: return null
+        val glyph = brands.resolveCategory(bucket.key) ?: return null
+        val paths = brands.parsePaths(glyph)
         if (paths.isEmpty()) return null
         return renderer.renderBrand(
             glyph,

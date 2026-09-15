@@ -58,9 +58,19 @@ import '../../system/system_stats.dart';
 /// Wi-Fi, battery and storage screens are effectively universal.
 class _AndroidSettings {
   const _AndroidSettings._();
+
   static const wifi = 'android.settings.WIFI_SETTINGS';
   static const battery = 'android.intent.action.POWER_USAGE_SUMMARY';
   static const storage = 'android.settings.INTERNAL_STORAGE_SETTINGS';
+
+  /// ─── APPS, BECAUSE ANDROID HAS NO MEMORY SCREEN ────────────────────────
+  ///
+  /// The Memory page people remember lives inside Developer options on most
+  /// builds, and there is no public action that opens it. Apps is the honest
+  /// hand-off: it is where you go to stop the thing that is using the RAM, and
+  /// it exists on every device rather than only on the ones with developer
+  /// mode switched on.
+  static const apps = 'android.settings.APPLICATION_SETTINGS';
 }
 
 /// Which device categories this phone can actually fill.
@@ -79,13 +89,15 @@ final deviceCategoriesProvider = Provider<List<DeviceCategory>>((ref) {
     if (caps.network || caps.networkTransport) DeviceCategory.network,
     if (caps.battery) DeviceCategory.power,
     if (caps.storage) DeviceCategory.storage,
+    if (caps.memory) DeviceCategory.memory,
   ];
 });
 
 enum DeviceCategory {
   network('Network', Icons.wifi),
   power('Power', Icons.battery_charging_full_outlined),
-  storage('Storage', Icons.storage_outlined);
+  storage('Storage', Icons.storage_outlined),
+  memory('Memory', Icons.memory_outlined);
 
   const DeviceCategory(this.label, this.icon);
 
@@ -115,12 +127,22 @@ enum DeviceCategory {
             'temperature',
             'thermal'
           ],
+        // 'memory' LEFT THIS LIST. It was here because storage was the only
+        // place a search for it could land, and that stopped being true the
+        // moment there was a Memory page. A word that matches two categories
+        // makes the search useless for both.
         DeviceCategory.storage => const [
             'space',
             'free',
             'disk',
+            'full',
+          ],
+        DeviceCategory.memory => const [
+            'ram',
             'memory',
-            'full'
+            'slow',
+            'apps',
+            'usage',
           ],
       };
 
@@ -154,6 +176,13 @@ enum DeviceCategory {
       DeviceCategory.storage => s.hasStorage
           ? '${SystemStats.bytes(s.storageTotalBytes! - s.storageUsedBytes!)} free'
           : null,
+      // USED of total, not free, which is the opposite of the choice storage
+      // makes directly above and is deliberate. Free space is a budget you
+      // spend; free RAM is not, because an operating system that leaves memory
+      // unused is wasting it. "4.8/7G" is the figure every system monitor on
+      // every desktop prints, and it is the one this app's own panel readout
+      // already shows.
+      DeviceCategory.memory => s.hasMemory ? s.memLabel : null,
     };
   }
 
@@ -161,6 +190,7 @@ enum DeviceCategory {
         DeviceCategory.network => const NetworkPage(),
         DeviceCategory.power => const PowerPage(),
         DeviceCategory.storage => const StoragePage(),
+        DeviceCategory.memory => const MemoryPage(),
       };
 }
 
@@ -382,6 +412,82 @@ class StoragePage extends ConsumerWidget {
   }
 }
 
+// ─── memory ──────────────────────────────────────────────────────────────────
+
+/// RAM: how much is in use, and whether that has been climbing.
+///
+/// ─── THE PAGE THE DEVICE SECTION WAS MISSING ───────────────────────────────
+///
+/// `caps.memory` has been answered by the same probe as the other three since
+/// the desklets shipped, and the panel already draws the readout. Memory was
+/// simply the one category with no page behind it, which meant the figure
+/// people check when a phone feels slow was the one figure with nowhere to go.
+class MemoryPage extends ConsumerWidget {
+  const MemoryPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(systemStatsProvider);
+    final s = async.hasValue ? async.requireValue : null;
+    final history = ref.watch(statsHistoryProvider);
+
+    final has = s?.hasMemory ?? false;
+    final used = has ? s!.memUsedGb! : 0.0;
+    final total = has ? s!.memTotalGb! : 0.0;
+    final series = history.series((x) => x.memUsedGb);
+
+    return _DevicePage(
+      title: context.t('settings.memory'),
+      header: !has
+          ? null
+          : _ChartHeader(
+              legend: series.length >= 2 ? {'Used': ChartColors.cool} : null,
+              centre: RingGauge(
+                fraction: total == 0 ? 0 : used / total,
+                label: s!.memLabel,
+                // ─── NO WARNING COLOUR, AT ANY LEVEL ─────────────────────
+                //
+                // Power turns its ring red under 15% because a flat battery
+                // stops the phone. A phone at 95% memory is a phone using the
+                // memory it has, and Android will reclaim what it needs. Every
+                // cleaner app on the store makes its living by colouring that
+                // number red, and doing the same here would be the same lie in
+                // a nicer typeface.
+                color: ChartColors.cool,
+              ),
+              // The trend is the reason this page exists rather than a row on
+              // the landing screen. 4.8 of 7G says nothing on its own; 4.8
+              // after an hour at 3.1 says something.
+              child: series.length >= 2
+                  ? TrendChart(
+                      series: series,
+                      color: ChartColors.cool,
+                      height: 84,
+                      // Memory never starts at zero on a running phone, so the
+                      // chart is left to frame its own range. Pinning minY to 0
+                      // would flatten every interesting movement into the top
+                      // third of the box.
+                      labelFor: (v) => '${v.toStringAsFixed(1)}G',
+                    )
+                  : null,
+            ),
+      action: _AndroidSettings.apps,
+      actionLabel: 'Apps',
+      rows: [
+        if (has) ...[
+          _StatRow('In use', '${used.toStringAsFixed(1)}G'),
+          _StatRow('Free', '${(total - used).toStringAsFixed(1)}G'),
+          _StatRow('Total', '${total.round()}G'),
+        ],
+      ],
+      // Said plainly, because the alternative is somebody reading a high number
+      // as a fault and going looking for a cleaner.
+      note: 'Android reclaims memory as apps need it, so a high figure on its '
+          'own is not a problem.',
+    );
+  }
+}
+
 /// The chart block above a device page's rows.
 ///
 /// One wrapper so the three pages cannot drift on padding, legend placement or
@@ -503,7 +609,8 @@ class _StorageChart extends StatelessWidget {
               Text('free', style: TextStyle(color: c.textMuted, fontSize: 15)),
               const Spacer(),
               Text(
-                context.t('settings.percentUsed', {'percent': percent.toString()}),
+                context
+                    .t('settings.percentUsed', {'percent': percent.toString()}),
                 style: TextStyle(color: c.textMuted, fontSize: 13),
               ),
             ],
@@ -610,7 +717,8 @@ class _DevicePage extends ConsumerWidget {
             // Saying so beats an empty page that looks like a dead screen.
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(context.t('settings.reading'), style: TextStyle(color: c.textMuted)),
+              child: Text(context.t('settings.reading'),
+                  style: TextStyle(color: c.textMuted)),
             )
           else ...[
             ThemedSectionHeader(context.t('settings.rightNow')),

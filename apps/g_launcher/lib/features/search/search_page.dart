@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/recent_searches.dart';
 import '../../data/repositories/app_repository.dart';
@@ -12,7 +13,6 @@ import '../../platform/launcher_api.g.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The drawer search page — the One UI layout, dressed in the active theme.
 ///
@@ -200,9 +200,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     String? type,
     required String missing,
   }) async {
-    final ok = await ref
-        .read(launcherHostApiProvider)
-        .openIntent(action, uri, type);
+    final ok =
+        await ref.read(launcherHostApiProvider).openIntent(action, uri, type);
     if (!ok && mounted) context.showMessage(missing);
   }
 
@@ -413,9 +412,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     d: d,
                     term: term,
                     onTap: () => _searchFor(term),
-                    onRemove: () => ref
-                        .read(recentSearchesProvider.notifier)
-                        .remove(term),
+                    onRemove: () =>
+                        ref.read(recentSearchesProvider.notifier).remove(term),
                   ),
               ],
             ),
@@ -486,7 +484,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                     sliver: SliverToBoxAdapter(
-                      child: Text(context.t('search.apps'), style: d.text.title),
+                      child:
+                          Text(context.t('search.apps'), style: d.text.title),
                     ),
                   ),
                   SliverPadding(
@@ -511,7 +510,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: Text(context.t('search.launcher'), style: d.text.title),
+                    child:
+                        Text(context.t('search.launcher'), style: d.text.title),
                   ),
                   for (final item in launcherHits)
                     _LauncherHit(
@@ -653,7 +653,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             onTap: () {
               Navigator.pop(sheet);
               ref.read(recentSearchesProvider.notifier).clear();
-              if (host.mounted) host.showMessage(context.t('search.recentSearchesCleared'));
+              if (host.mounted) {
+                host.showMessage(context.t('search.recentSearchesCleared'));
+              }
             },
           ),
           const SizedBox(height: 8),
@@ -672,14 +674,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 // just (icon, label, intent action).
 class _Topic {
   const _Topic(this.icon, this.label, this.action);
+
   final IconData icon;
   final String label;
   final String action;
 }
 
 const _settingsTopics = <_Topic>[
-  _Topic(Icons.brightness_6_outlined, 'Display', 'android.settings.DISPLAY_SETTINGS'),
-  _Topic(Icons.shield_outlined, 'Security', 'android.settings.SECURITY_SETTINGS'),
+  _Topic(Icons.brightness_6_outlined, 'Display',
+      'android.settings.DISPLAY_SETTINGS'),
+  _Topic(
+      Icons.shield_outlined, 'Security', 'android.settings.SECURITY_SETTINGS'),
   _Topic(Icons.battery_charging_full_outlined, 'Battery',
       'android.intent.action.POWER_USAGE_SUMMARY'),
   _Topic(Icons.wifi, 'Connections', 'android.settings.WIRELESS_SETTINGS'),

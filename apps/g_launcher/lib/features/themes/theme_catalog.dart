@@ -41,7 +41,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/cdn/pack_repository.dart';
 import '../../platform/pack_api.g.dart';
 
-
 enum PreviewLayout {
   /// Ubuntu: left dock of dots + two offset tiles.
   dockLeft,
@@ -134,7 +133,8 @@ enum CardStatus {
       this == CardStatus.installed ||
       this == CardStatus.updateAvailable;
 
-  static CardStatus parse(String raw, {required bool unlocked, required bool free}) {
+  static CardStatus parse(String raw,
+      {required bool unlocked, required bool free}) {
     if (raw == 'requiresAppUpdate') return CardStatus.requiresAppUpdate;
     if (raw == 'bundled') return CardStatus.bundled;
     if (raw == 'installed') return CardStatus.installed;
@@ -198,6 +198,7 @@ class ThemePreviewSpec {
 }
 
 @immutable
+
 /// One thing a distro does that the card can name.
 ///
 /// ─── TWO ON THE CARD, THE REST ON THE DETAIL PAGE ─────────────────────────
@@ -209,8 +210,7 @@ class ThemePreviewSpec {
 ///
 /// [exclusive] means the all-access settings cannot reproduce it. That word is
 /// the whole price argument: a distro whose list is all `false` is selling a
-/// palette, and either needs a feature built or should not be paid.
-@immutable
+/// palette, and either needs a feature built or should not be paid. @immutable
 class ThemeFeature {
   const ThemeFeature({
     required this.title,
@@ -703,7 +703,8 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
       tier: p.sku == null ? ThemeTier.free : ThemeTier.pro,
       preview: _previewFromPack(p),
       specId: p.packId,
-      status: CardStatus.parse(p.state, unlocked: p.unlocked, free: p.sku == null),
+      status:
+          CardStatus.parse(p.state, unlocked: p.unlocked, free: p.sku == null),
       sku: p.sku,
       sizeBytes: p.sizeBytes,
       remoteVersion: p.version,
@@ -771,65 +772,68 @@ ThemeCard _cardFromPack(PackInfo p) => ThemeCard(
 /// these in the moment those packs are republished, and until then the cards
 /// draw no strip. That is the honest reading: nobody has counted yet.
 const _floorCards = <ThemeCard>[
-      ThemeCard(
-        id: 'ubuntu',
-        name: 'Ubuntu',
-        subtitle: '24.04 · GNOME',
-        tier: ThemeTier.free,
-        specId: 'ubuntu-24-04',
-        bundled: true,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF622A4C), Color(0xFF2C0A22)],
-          radial: true,
-          bar: Color(0xFF1A171B),
-          layout: PreviewLayout.dockLeft,
-          dockBg: Color(0xCC201B21), // rgba(32,27,33,.8)
-          accent: _ubuntuOrange,
-          icons: [_ubuntuOrange, Color(0xFF3A6EA5)],
-        ),
-      ),
-      ThemeCard(
-        id: 'terminal',
-        name: 'Terminal',
-        subtitle: 'type-to-launch',
-        tier: ThemeTier.free,
-        specId: 'terminal',
-        bundled: true,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF080D08), Color(0xFF080D08)],
-          bar: Color(0xFF0E1A0E),
-          layout: PreviewLayout.terminal,
-        ),
-      ),
-      ThemeCard(
-        id: 'kde-plasma-6',
-        name: 'KDE Plasma',
-        subtitle: '6 · Breeze',
-        tier: ThemeTier.free,
-        specId: 'kde-plasma-6',
-        bundled: true,
-        preview: ThemePreviewSpec(
-          bg: [Color(0xFF1B2A3A), Color(0xFF0E1620)],
-          bar: Color(0xFF31363B),
-          layout: PreviewLayout.dockBottom,
-          dockBg: Color(0xE62A2E33), // Breeze panel
-          accent: Color(0xFF3DAEE9), // Breeze blue
-          icons: [Color(0xFF3DAEE9), Color(0xFF1D99F3), Color(0xFF27AE60)],
-        ),
-      ),
-      // The paid distros (Kali, Garuda, Pop!_OS) live ONLY in themeMoreProvider
-      // below, as coming-soon rows, until three things ship together: their
-      // theme packs on the CDN, the Play billing loop, and the render bridge
-      // that lets a downloaded theme.json actually paint. Until then a real card
-      // could only dead-end: `available` installs a pack that does not exist,
-      // `locked` opens a purchase for a theme that cannot render. A coming-soon
-      // row promises nothing it cannot keep, which is the only honest state for
-      // a distro that is real but not yet buildable end to end.
-      //
-      // Aqua, Fedora and Arch were removed here for the same reason: they were
-      // `pro/available` grid cards with no pack, no SKU and no render path, so
-      // every tap produced "needs to be purchased first" with nowhere to buy.
-    ];
+  ThemeCard(
+    id: 'ubuntu',
+    name: 'Ubuntu',
+    subtitle: '24.04 · GNOME',
+    tier: ThemeTier.free,
+    specId: 'ubuntu-24-04',
+    bundled: true,
+    preview: ThemePreviewSpec(
+      bg: [Color(0xFF622A4C), Color(0xFF2C0A22)],
+      radial: true,
+      bar: Color(0xFF1A171B),
+      layout: PreviewLayout.dockLeft,
+      dockBg: Color(0xCC201B21),
+      // rgba(32,27,33,.8)
+      accent: _ubuntuOrange,
+      icons: [_ubuntuOrange, Color(0xFF3A6EA5)],
+    ),
+  ),
+  ThemeCard(
+    id: 'terminal',
+    name: 'Terminal',
+    subtitle: 'type-to-launch',
+    tier: ThemeTier.free,
+    specId: 'terminal',
+    bundled: true,
+    preview: ThemePreviewSpec(
+      bg: [Color(0xFF080D08), Color(0xFF080D08)],
+      bar: Color(0xFF0E1A0E),
+      layout: PreviewLayout.terminal,
+    ),
+  ),
+  ThemeCard(
+    id: 'kde-plasma-6',
+    name: 'KDE Plasma',
+    subtitle: '6 · Breeze',
+    tier: ThemeTier.free,
+    specId: 'kde-plasma-6',
+    bundled: true,
+    preview: ThemePreviewSpec(
+      bg: [Color(0xFF1B2A3A), Color(0xFF0E1620)],
+      bar: Color(0xFF31363B),
+      layout: PreviewLayout.dockBottom,
+      dockBg: Color(0xE62A2E33),
+      // Breeze panel
+      accent: Color(0xFF3DAEE9),
+      // Breeze blue
+      icons: [Color(0xFF3DAEE9), Color(0xFF1D99F3), Color(0xFF27AE60)],
+    ),
+  ),
+  // The paid distros (Kali, Garuda, Pop!_OS) live ONLY in themeMoreProvider
+  // below, as coming-soon rows, until three things ship together: their
+  // theme packs on the CDN, the Play billing loop, and the render bridge
+  // that lets a downloaded theme.json actually paint. Until then a real card
+  // could only dead-end: `available` installs a pack that does not exist,
+  // `locked` opens a purchase for a theme that cannot render. A coming-soon
+  // row promises nothing it cannot keep, which is the only honest state for
+  // a distro that is real but not yet buildable end to end.
+  //
+  // Aqua, Fedora and Arch were removed here for the same reason: they were
+  // `pro/available` grid cards with no pack, no SKU and no render path, so
+  // every tap produced "needs to be purchased first" with nowhere to buy.
+];
 
 /// The "More themes" list. EMPTY, and that is the change.
 ///

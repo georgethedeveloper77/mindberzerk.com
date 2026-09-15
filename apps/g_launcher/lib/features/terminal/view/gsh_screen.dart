@@ -154,8 +154,7 @@ class _GshScreenState extends ConsumerState<GshScreen> {
   void _walkHistory(int direction) {
     final List<String> history = ref.read(termSessionProvider).history;
     if (history.isEmpty) return;
-    _historyCursor =
-        (_historyCursor + direction).clamp(0, history.length);
+    _historyCursor = (_historyCursor + direction).clamp(0, history.length);
     _input.text =
         _historyCursor >= history.length ? '' : history[_historyCursor];
     _input.selection = TextSelection.collapsed(offset: _input.text.length);
@@ -179,7 +178,8 @@ class _GshScreenState extends ConsumerState<GshScreen> {
           ? const <String>[]
           : entries
               .map((e) => e.name)
-              .where((String n) => n.toLowerCase().startsWith(last.toLowerCase()))
+              .where(
+                  (String n) => n.toLowerCase().startsWith(last.toLowerCase()))
               .toList();
     }
     if (pool.isEmpty) return;
@@ -359,6 +359,7 @@ class _CompleteIntent extends Intent {
 
 class _HistoryIntent extends Intent {
   const _HistoryIntent(this.direction);
+
   final int direction;
 }
 
@@ -409,10 +410,11 @@ class _FetchHeader extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(skin.logo, style: skin.style(role: TermInk.accent, size: 13).copyWith(
-              height: 1.15,
-              fontWeight: FontWeight.w700,
-            )),
+        Text(skin.logo,
+            style: skin.style(role: TermInk.accent, size: 13).copyWith(
+                  height: 1.15,
+                  fontWeight: FontWeight.w700,
+                )),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -459,7 +461,8 @@ class _FetchRow extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            TextSpan(text: ' ~ ', style: TextStyle(color: skin.ink(TermInk.dim))),
+            TextSpan(
+                text: ' ~ ', style: TextStyle(color: skin.ink(TermInk.dim))),
             TextSpan(text: v),
           ],
         ),
@@ -595,9 +598,8 @@ class _LiveBlock extends ConsumerWidget {
           // Null when this ROM will not report CPU, which is most of them. The
           // bar disappears rather than resting at zero, because a zero bar is a
           // claim that the CPU is idle.
-          TermLiveKind.cpu => stats.cpuPercent == null
-              ? null
-              : stats.cpuPercent! / 100,
+          TermLiveKind.cpu =>
+            stats.cpuPercent == null ? null : stats.cpuPercent! / 100,
         };
       }
     }
@@ -667,7 +669,8 @@ class _Prompt extends StatelessWidget {
             children: <Widget>[
               Text(
                 skin.render(skin.promptLine, cwd),
-                style: skin.style(size: 13.5, weight: FontWeight.w700)
+                style: skin
+                    .style(size: 13.5, weight: FontWeight.w700)
                     .copyWith(color: skin.accent),
               ),
               const SizedBox(width: 8),
@@ -733,7 +736,8 @@ class _Suggestions extends StatelessWidget {
               GestureDetector(
                 onTap: () => onPick(command.name),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                   decoration: BoxDecoration(
                     border: Border.all(color: skin.rule),
                     borderRadius: BorderRadius.circular(5),
@@ -990,7 +994,8 @@ class _SheetGroup extends StatelessWidget {
           padding: const EdgeInsets.only(top: 12, bottom: 4),
           child: Text(
             group.label,
-            style: skin.style(role: TermInk.accent, size: 11)
+            style: skin
+                .style(role: TermInk.accent, size: 11)
                 .copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.4),
           ),
         ),
@@ -1109,6 +1114,7 @@ class _SymbolRow extends StatelessWidget {
 
 class _Key {
   const _Key(this.label, this.onTap, {this.accent = false});
+
   final String label;
   final VoidCallback onTap;
   final bool accent;
@@ -1126,6 +1132,7 @@ class _Hint extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: skin.rule)),
         ),
-        child: Text(skin.hint, style: skin.style(role: TermInk.dim, size: 11.5)),
+        child:
+            Text(skin.hint, style: skin.style(role: TermInk.dim, size: 11.5)),
       );
 }

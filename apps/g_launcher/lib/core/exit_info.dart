@@ -173,6 +173,7 @@ abstract final class ExitInfo {
 @immutable
 class _ProcessKilled implements Exception {
   const _ProcessKilled(this.reason);
+
   final String reason;
 
   @override

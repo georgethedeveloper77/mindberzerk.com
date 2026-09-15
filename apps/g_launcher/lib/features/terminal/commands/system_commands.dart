@@ -14,8 +14,10 @@ class DfCommand extends TermCommand {
 
   @override
   String get name => 'df';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'storage, measured';
 
@@ -47,8 +49,10 @@ class FreeCommand extends TermCommand {
 
   @override
   String get name => 'free';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'memory, measured';
 
@@ -81,8 +85,10 @@ class TopCommand extends TermCommand {
 
   @override
   String get name => 'top';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'live cpu and memory';
 
@@ -118,8 +124,10 @@ class UptimeCommand extends TermCommand {
 
   @override
   String get name => 'uptime';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'time since boot';
 
@@ -149,8 +157,10 @@ class DateCommand extends TermCommand {
 
   @override
   String get name => 'date';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'the date and time';
 
@@ -158,11 +168,27 @@ class DateCommand extends TermCommand {
   Future<TermResult> run(TermInvocation inv) async {
     final DateTime now = DateTime.now();
     const List<String> days = <String>[
-      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
     ];
     const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final String hh = now.hour.toString().padLeft(2, '0');
     final String mm = now.minute.toString().padLeft(2, '0');
@@ -178,8 +204,10 @@ class BatteryCommand extends TermCommand {
 
   @override
   String get name => 'battery';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'level, temperature, health';
 
@@ -195,7 +223,9 @@ class BatteryCommand extends TermCommand {
         TermLine.pair('temp', '${b.celsius!.toStringAsFixed(1)} C'),
       if (b.health != null) TermLine.pair('health', b.health!),
     ];
-    if (lines.isEmpty) return TermResult.line('battery unreadable', TermInk.dim);
+    if (lines.isEmpty) {
+      return TermResult.line('battery unreadable', TermInk.dim);
+    }
     return TermResult.lines(lines);
   }
 }
@@ -205,8 +235,10 @@ class NetCommand extends TermCommand {
 
   @override
   String get name => 'net';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'the interface that is up';
 
@@ -223,7 +255,9 @@ class NetCommand extends TermCommand {
       if (n.upBytesPerSec != null)
         TermLine.pair('up', '${humanBytes(n.upBytesPerSec!.round())}/s'),
     ];
-    if (lines.isEmpty) return TermResult.line('nothing measured yet', TermInk.dim);
+    if (lines.isEmpty) {
+      return TermResult.line('nothing measured yet', TermInk.dim);
+    }
     return TermResult.lines(lines);
   }
 }
@@ -233,8 +267,10 @@ class FetchCommand extends TermCommand {
 
   @override
   String get name => 'fetch';
+
   @override
   TermGroup get group => TermGroup.system;
+
   @override
   String get help => 'the header block again';
 
@@ -266,10 +302,13 @@ class TorchCommand extends TermCommand {
 
   @override
   String get name => 'torch';
+
   @override
   TermGroup get group => TermGroup.device;
+
   @override
   String get help => 'torch on, torch off';
+
   @override
   String? get usage => 'torch on|off';
 
@@ -281,7 +320,8 @@ class TorchCommand extends TermCommand {
     // device" for a build where the torch was simply not wired, which is a
     // confident sentence about hardware the shell had not asked about.
     if (outcome.failed) {
-      return TermResult.line(outcome.message ?? 'torch unavailable', TermInk.dim);
+      return TermResult.line(
+          outcome.message ?? 'torch unavailable', TermInk.dim);
     }
     return TermResult.lines(<TermLine>[
       TermLine(<TermSpan>[
@@ -297,10 +337,13 @@ class VolumeCommand extends TermCommand {
 
   @override
   String get name => 'vol';
+
   @override
   TermGroup get group => TermGroup.device;
+
   @override
   String get help => 'vol up, vol down, vol mute';
+
   @override
   String? get usage => 'vol up|down|mute';
 
@@ -329,11 +372,14 @@ class PanelCommand extends TermCommand {
   const PanelCommand.wifi()
       : commandName = 'wifi',
         panel = TermSystemPanel.wifi,
-        note = 'opens the wifi panel. Android stopped letting apps toggle it at 10';
+        note =
+            'opens the wifi panel. Android stopped letting apps toggle it at 10';
+
   const PanelCommand.bluetooth()
       : commandName = 'bt',
         panel = TermSystemPanel.bluetooth,
         note = 'opens the bluetooth panel, same rule as wifi';
+
   const PanelCommand.doNotDisturb()
       : commandName = 'dnd',
         panel = TermSystemPanel.doNotDisturb,
@@ -345,8 +391,10 @@ class PanelCommand extends TermCommand {
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.device;
+
   @override
   String get help => note;
 
@@ -365,14 +413,17 @@ class LauncherPageCommand extends TermCommand {
       : commandName = 'settings',
         page = TermLauncherPage.settings,
         note = 'launcher settings';
+
   const LauncherPageCommand.themes()
       : commandName = 'themes',
         page = TermLauncherPage.themes,
         note = 'the distro picker';
+
   const LauncherPageCommand.wallpaper()
       : commandName = 'wall',
         page = TermLauncherPage.wallpaper,
         note = 'the wallpaper picker';
+
   const LauncherPageCommand.icons()
       : commandName = 'icons',
         page = TermLauncherPage.icons,
@@ -384,8 +435,10 @@ class LauncherPageCommand extends TermCommand {
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.launcher;
+
   @override
   String get help => note;
 

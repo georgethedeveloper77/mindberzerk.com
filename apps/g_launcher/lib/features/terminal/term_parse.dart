@@ -59,7 +59,8 @@ class TermParser {
   /// [aliases] expands only the HEAD word of a stage, once, and never
   /// recursively. An alias that names itself is therefore a no-op instead of a
   /// hang, which matters because the alias table is user data.
-  TermParsed parse(String line, {Map<String, String> aliases = const <String, String>{}}) {
+  TermParsed parse(String line,
+      {Map<String, String> aliases = const <String, String>{}}) {
     final List<List<TermStage>> chunks = <List<TermStage>>[];
     for (final String chunk in _split(line, '&&')) {
       final List<TermStage> stages = <TermStage>[];
@@ -102,7 +103,10 @@ class TermParser {
       i++;
     }
     out.add(buffer.toString());
-    return out.map((String s) => s.trim()).where((String s) => s.isNotEmpty).toList();
+    return out
+        .map((String s) => s.trim())
+        .where((String s) => s.isNotEmpty)
+        .toList();
   }
 
   TermStage _stage(String raw, Map<String, String> aliases) {
@@ -125,7 +129,9 @@ class TermParser {
     for (final String word in words.skip(1)) {
       if (word.startsWith('--') && word.length > 2) {
         flags.add(word.substring(2));
-      } else if (word.startsWith('-') && word.length > 1 && !_looksNumeric(word)) {
+      } else if (word.startsWith('-') &&
+          word.length > 1 &&
+          !_looksNumeric(word)) {
         flags.addAll(word.substring(1).split(''));
       } else {
         positionals.add(word);
@@ -135,8 +141,7 @@ class TermParser {
   }
 
   /// `-5` is an argument to `head`, not five flags.
-  bool _looksNumeric(String word) =>
-      int.tryParse(word.substring(1)) != null;
+  bool _looksNumeric(String word) => int.tryParse(word.substring(1)) != null;
 
   /// Split on whitespace, honouring quotes and stripping them.
   static List<String> tokenize(String raw) {

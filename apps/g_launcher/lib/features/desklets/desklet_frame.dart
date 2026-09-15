@@ -178,8 +178,7 @@ class _Bare extends StatelessWidget {
     // reads: the numbers line up against the screen edge. A theme that wants it
     // left-aligned says so rather than getting a second surface.
     final right = skin.flag('alignRight', true);
-    final cross =
-        right ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final cross = right ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
     return DefaultTextStyle(
       style: TextStyle(
@@ -256,8 +255,8 @@ class _BareRow extends StatelessWidget {
             TextSpan(
               text: row.value,
               style: TextStyle(
-              color: row.accent ? accent : p.onDark,
-            ),
+                color: row.accent ? accent : p.onDark,
+              ),
             ),
         ],
       ),

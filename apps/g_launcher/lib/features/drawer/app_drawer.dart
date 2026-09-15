@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/drawer_slots.dart';
@@ -21,15 +22,15 @@ import '../../platform/launcher_api.g.dart';
 import '../dock/dock_insets.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../search/search_page.dart';
-import 'drawer_actions.dart';
-import 'drawer_pager.dart';
-import 'drawer_state.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import 'app_icon.dart';
+import 'az_rail.dart';
+import 'drawer_actions.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
-import 'library_view.dart';
+import 'drawer_pager.dart';
+import 'drawer_state.dart';
 import 'folder_overlay.dart';
+import 'library_view.dart';
 
 /// The Activities drawer.
 ///
@@ -301,7 +302,6 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     return index ~/ perPage;
   }
 
-
   /// One auto-seed attempt per drawer lifetime. Reset only when a scheduled
   /// attempt finds the app list empty, so the next rebuild (the one the
   /// arriving app list causes) can try again.
@@ -377,7 +377,6 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     // under it. See `drawerDockInsets`.
     final dockInset = drawerDockInsets(theme);
 
-
     // 'off' counts as "not at the top", so the empty first row survives when
     // the bar is hidden. The gap exists to clear the status bar, and that is
     // just as true with no search bar as with one at the bottom.
@@ -412,621 +411,658 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
     return _clearLocateOnTouch(
       child: LayoutBuilder(
-      builder: (context, constraints) {
-        // The user's explicit choice wins; otherwise the screen decides. A fixed
-        // theme constant loses to responsiveness here on purpose — a 5-column
-        // grid that's right on a tablet is cramped on a 392dp phone, and no
-        // theme author can know which one they're on.
-        // Custom renders the FROZEN grid; every other mode stays responsive.
-        final mode = theme.prefs.drawerSortMode ?? 'custom';
-        final columns = mode == 'custom'
-            ? (theme.prefs.drawerSlotCols ?? 4)
-            : theme.prefs.drawerCols ??
-                GridMetrics.drawerColumns(constraints.maxWidth);
+        builder: (context, constraints) {
+          // The user's explicit choice wins; otherwise the screen decides. A fixed
+          // theme constant loses to responsiveness here on purpose — a 5-column
+          // grid that's right on a tablet is cramped on a 392dp phone, and no
+          // theme author can know which one they're on.
+          // Custom renders the FROZEN grid; every other mode stays responsive.
+          final mode = theme.prefs.drawerSortMode ?? 'custom';
+          final columns = mode == 'custom'
+              ? (theme.prefs.drawerSlotCols ?? 4)
+              : theme.prefs.drawerCols ??
+                  GridMetrics.drawerColumns(constraints.maxWidth);
 
-        // The RESOLVED value, off EffectiveTheme, per the rule everything else
-        // follows. This line used to re-derive it as
-        // `prefs.labelLines ?? GridMetrics.defaultLabelLines`, which is how
-        // the drawer briefly disagreed with the home grid about row height:
-        // GridMetrics said 1 while LayoutResolver said 2, and this was the
-        // only surface reading the wrong constant.
-        // ─── THE MOST USED ROW ────────────────────────────────────────
-        //
-        // Spliced HERE rather than in `drawerItemsProvider`, and that is the
-        // whole of why this is safe. That provider is the flat order for
-        // search, the dock and the slot flattening, and the row deliberately
-        // repeats apps that also appear below it. Duplicates in the provider
-        // would mean search returning an app twice, a custom grid placing it
-        // in two slots, and `_locatePage` ringing whichever copy it found
-        // first. Here it is a rendering decision and reaches only the grid.
-        //
-        // Inside the LayoutBuilder because the count is one ROW, and how many
-        // that is depends on `columns`, which is resolved from the measured
-        // width a few lines above.
-        //
-        // Skipped in the four cases where it has nothing to add or something
-        // to break: while filtering, because the results ARE the ranking; in
-        // custom mode, because the user arranged that grid themselves; under
-        // A-Z, because a block above the first letter header belongs to no
-        // letter; and under library grouping, where the apps live in folders
-        // and `Suggestions` is already the same idea drawn as a bubble.
-        final items = (filtering ||
-                mode == 'custom' ||
-                (mode == 'az' && theme.drawerGrouping == 'az') ||
-                theme.libraryGrouped)
-            ? base
-            : _withFrequent(base, ref.watch(frequentAppsProvider), columns);
+          // The RESOLVED value, off EffectiveTheme, per the rule everything else
+          // follows. This line used to re-derive it as
+          // `prefs.labelLines ?? GridMetrics.defaultLabelLines`, which is how
+          // the drawer briefly disagreed with the home grid about row height:
+          // GridMetrics said 1 while LayoutResolver said 2, and this was the
+          // only surface reading the wrong constant.
+          // ─── THE MOST USED ROW ────────────────────────────────────────
+          //
+          // Spliced HERE rather than in `drawerItemsProvider`, and that is the
+          // whole of why this is safe. That provider is the flat order for
+          // search, the dock and the slot flattening, and the row deliberately
+          // repeats apps that also appear below it. Duplicates in the provider
+          // would mean search returning an app twice, a custom grid placing it
+          // in two slots, and `_locatePage` ringing whichever copy it found
+          // first. Here it is a rendering decision and reaches only the grid.
+          //
+          // Inside the LayoutBuilder because the count is one ROW, and how many
+          // that is depends on `columns`, which is resolved from the measured
+          // width a few lines above.
+          //
+          // Skipped in the four cases where it has nothing to add or something
+          // to break: while filtering, because the results ARE the ranking; in
+          // custom mode, because the user arranged that grid themselves; under
+          // A-Z, because a block above the first letter header belongs to no
+          // letter; and under library grouping, where the apps live in folders
+          // and `Suggestions` is already the same idea drawn as a bubble.
+          final items = (filtering ||
+                  mode == 'custom' ||
+                  (mode == 'az' && theme.drawerGrouping == 'az') ||
+                  theme.libraryGrouped)
+              ? base
+              : _withFrequent(base, ref.watch(frequentAppsProvider), columns);
 
-        final labelLines = theme.labelLines;
+          final labelLines = theme.labelLines;
 
-        // ─── THE CELL IS SIZED TO ITS CONTENTS ─────────────────────────
-        //
-        // This was `labelLines > 1 ? 0.70 : 0.78`, a constant that knew nothing
-        // about the icon size, the label's font size, or the system font scale.
-        // It clipped the second line of a long name on some phones and left a
-        // band of dead space under every short name on others, which is the
-        // uneven row spacing.
-        //
-        // `textScalerOf` is the piece that was missing entirely: Flutter
-        // applies the user's Android font-size setting on top of the theme's
-        // own textScale, so any measurement that leaves it out is wrong by
-        // exactly however far they have turned their font up.
-        final labelFontSize = _tileFontSize * theme.textScale;
-        final ambientScale = MediaQuery.textScalerOf(context).scale(1);
+          // ─── THE CELL IS SIZED TO ITS CONTENTS ─────────────────────────
+          //
+          // This was `labelLines > 1 ? 0.70 : 0.78`, a constant that knew nothing
+          // about the icon size, the label's font size, or the system font scale.
+          // It clipped the second line of a long name on some phones and left a
+          // band of dead space under every short name on others, which is the
+          // uneven row spacing.
+          //
+          // `textScalerOf` is the piece that was missing entirely: Flutter
+          // applies the user's Android font-size setting on top of the theme's
+          // own textScale, so any measurement that leaves it out is wrong by
+          // exactly however far they have turned their font up.
+          final labelFontSize = _tileFontSize * theme.textScale;
+          final ambientScale = MediaQuery.textScalerOf(context).scale(1);
 
-        final cellW = GridMetrics.cellWidthFor(constraints.maxWidth, columns);
-        final aspect = GridMetrics.aspectFor(
-          cellWidth: cellW,
-          iconSize: theme.iconSizeDp,
-          labelLines: labelLines,
-          fontSize: labelFontSize,
-          textScaler: ambientScale,
-        );
-
-        // How the drawer moves. Vertical is the default and the one nobody
-        // notices; paged and cube are the personalization payoff.
-        // PAGES IS THE DEFAULT, and this fallback is what changes it for
-        // everyone rather than only for new installs: the pref is nullable,
-        // and null means "the resolver decides".
-        //
-        // Applying it to existing users was a deliberate call. The alternative
-        // is writing 'vertical' into every existing profile on upgrade, which
-        // freezes them on the layout they never chose and makes the default a
-        // lie for the rest of the app's life.
-        //
-        // RESOLVED, no local fallback: since distros can author their own
-        // drawer default, `prefs ?? 'pages'` here would be only half the
-        // chain. LayoutResolver owns user-then-theme-then-engine; this widget
-        // just renders the answer.
-        final style = theme.drawerScrollStyle;
-
-        // ── THE EMPTY FIRST ROW ─────────────────────────────────────────
-        //
-        // One row of clearance above the grid. Not a reserved SLOT: padding.
-        //
-        // That distinction is the whole design. As a reserved slot it would
-        // have to be skipped by the item indexer, would cost four apps on
-        // every page of a paged drawer, and would need a rule about whether
-        // page two also gets one. As padding it is free, it applies to every
-        // page automatically, and the pager's row count absorbs it because
-        // rows are already derived from the height actually available.
-        //
-        // It exists because the drawer had twelve pixels of top padding, so
-        // on a real device the first row of icons sat jammed under the status
-        // bar with the shell's "Activities" label landing across the labels.
-        // Every drawer worth copying leaves this gap.
-        //
-        // ONLY when the search bar is at the bottom. With search at the top
-        // that row is already occupied by something, and a gap under it would
-        // be a hole rather than breathing room.
-        // HALF a row, not a whole one.
-        //
-        // A full tile height was the literal reading of "an empty first row"
-        // and it is too much on a phone: it reads as the grid having failed to
-        // start rather than as breathing room, and on a paged drawer it cost a
-        // whole row of apps on every page. Measured against the drawer this is
-        // modelled on, the gap there is a little under half a row.
-        //
-        // Still derived from the tile rather than a fixed dp, so it stays
-        // proportional across a 320dp Tecno and a tablet.
-        final tileH = cellW / aspect;
-        final topGap = searchAtBottom ? tileH * 0.5 : 0.0;
-
-        Widget tileAt(int i) => _tileFor(
-              items[i],
-              theme: theme,
-              labelLines: labelLines,
-              onFolderCreated: onFolderCreated,
-            );
-
-        // Grouping only applies to the alphabetical list; letter headers over
-        // a usage ranking or a custom arrangement would label an order that
-        // is not alphabetical. See LauncherPrefs.drawerGrouping.
-        final groupAz = mode == 'az' && theme.drawerGrouping == 'az';
-
-        // ── OVERFLOW MENU, SORT SHEET, AND THE HANDLERS BEHIND THEM ─────
-        //
-        // Defined here rather than on the State because they capture layout
-        // facts (columns, tile height, constraints) that only exist inside
-        // this LayoutBuilder, and seeding Custom must freeze exactly what is
-        // on screen.
-
-        // ─── ONE ROW COUNT, SHARED ──────────────────────────────────────
-        //
-        // The rows the pager ACTUALLY rendered, falling back to an estimate on
-        // the very first frame. The estimate subtracts a nominal 66 for the
-        // search bar and is only ever an estimate; the pager measures the box
-        // it is really given.
-        //
-        // Hoisted above the handlers because `addPage` reads the same grid the
-        // body renders, and the grid provider is keyed on this number. Two
-        // derivations would mean the button counted pages against one shape
-        // while the screen drew another.
-        final rowsNow = _pagedRows ??
-            DrawerPager.rowsFor(
-              // The page-dots strip is subtracted for the same reason the
-              // search bar is: neither is part of the height the pages get.
-              // Leaving it out made this estimate one row too generous, so the
-              // grid provider seeded and keyed itself on a shape the pager
-              // could not draw, and the first frame reflowed. Shared constant,
-              // not a copied number: two derivations of this drift.
-              maxHeight: constraints.maxHeight -
-                  (showSearch ? 66 : 0) -
-                  // Same reason the search bar and the dots strip are
-                  // subtracted: none of it is height the pages get. Leaving it
-                  // out seeds the grid provider on a shape one row taller than
-                  // the pager can draw, and the first frame reflows.
-                  dockInset.vertical -
-                  DrawerPager.dotsStripFor(withAdd: mode == 'custom'),
-              tileHeight: tileH,
-              topPadding: topGap,
-            );
-
-        final gridKey = (theme: theme, cols: columns, rows: rowsNow);
-
-        void enterCustom() {
-          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
-              theme.prefs;
-          final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-
-          // Returning to Custom restores the old arrangement; only a first
-          // visit seeds.
-          if (live.drawerSlots.isNotEmpty) {
-            notifier.edit((p) => p.copyWith(drawerSortMode: 'custom'));
-            return;
-          }
-
-          final apps = ref.read(shellAppsProvider(theme));
-          final foldedNow = DrawerLayout.foldedKeys(live);
-          final folderIds = [
-            for (final f in DrawerLayout.orderedFolders(live)) f.id,
-          ];
-          final appKeys = [
-            for (final a in apps)
-              if (!foldedNow.contains(a.componentKey)) a.componentKey,
-          ];
-
-          notifier.edit(
-            (p) => DrawerSlots.seed(
-              p,
-              folderIds: folderIds,
-              appKeys: appKeys,
-              cols: columns,
-              rows: rowsNow,
-            ),
+          final cellW = GridMetrics.cellWidthFor(constraints.maxWidth, columns);
+          final aspect = GridMetrics.aspectFor(
+            cellWidth: cellW,
+            iconSize: theme.iconSizeDp,
+            labelLines: labelLines,
+            fontSize: labelFontSize,
+            textScaler: ambientScale,
           );
-        }
 
-        // ── AUTO-SEED ───────────────────────────────────────────────────
-        //
-        // Custom is the DEFAULT now, so a fresh profile arrives here with
-        // nothing stored. The grid provider displays the dense append order
-        // regardless, but drags against unstored entries degrade to append
-        // fallbacks; seeding makes the first drag behave. Post-frame because
-        // a provider cannot be written during build. Checked against LIVE
-        // prefs inside the callback, since the frame that scheduled it may be
-        // stale by the time it runs; an empty app list resets the guard so
-        // the rebuild the arriving list causes can try again.
-        if (mode == 'custom' &&
-            theme.prefs.drawerSlots.isEmpty &&
-            !_seedScheduled) {
-          _seedScheduled = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            if (ref.read(shellAppsProvider(theme)).isEmpty) {
-              _seedScheduled = false;
+          // How the drawer moves. Vertical is the default and the one nobody
+          // notices; paged and cube are the personalization payoff.
+          // PAGES IS THE DEFAULT, and this fallback is what changes it for
+          // everyone rather than only for new installs: the pref is nullable,
+          // and null means "the resolver decides".
+          //
+          // Applying it to existing users was a deliberate call. The alternative
+          // is writing 'vertical' into every existing profile on upgrade, which
+          // freezes them on the layout they never chose and makes the default a
+          // lie for the rest of the app's life.
+          //
+          // RESOLVED, no local fallback: since distros can author their own
+          // drawer default, `prefs ?? 'pages'` here would be only half the
+          // chain. LayoutResolver owns user-then-theme-then-engine; this widget
+          // just renders the answer.
+          final style = theme.drawerScrollStyle;
+
+          // ── THE EMPTY FIRST ROW ─────────────────────────────────────────
+          //
+          // One row of clearance above the grid. Not a reserved SLOT: padding.
+          //
+          // That distinction is the whole design. As a reserved slot it would
+          // have to be skipped by the item indexer, would cost four apps on
+          // every page of a paged drawer, and would need a rule about whether
+          // page two also gets one. As padding it is free, it applies to every
+          // page automatically, and the pager's row count absorbs it because
+          // rows are already derived from the height actually available.
+          //
+          // It exists because the drawer had twelve pixels of top padding, so
+          // on a real device the first row of icons sat jammed under the status
+          // bar with the shell's "Activities" label landing across the labels.
+          // Every drawer worth copying leaves this gap.
+          //
+          // ONLY when the search bar is at the bottom. With search at the top
+          // that row is already occupied by something, and a gap under it would
+          // be a hole rather than breathing room.
+          // HALF a row, not a whole one.
+          //
+          // A full tile height was the literal reading of "an empty first row"
+          // and it is too much on a phone: it reads as the grid having failed to
+          // start rather than as breathing room, and on a paged drawer it cost a
+          // whole row of apps on every page. Measured against the drawer this is
+          // modelled on, the gap there is a little under half a row.
+          //
+          // Still derived from the tile rather than a fixed dp, so it stays
+          // proportional across a 320dp Tecno and a tablet.
+          final tileH = cellW / aspect;
+          final topGap = searchAtBottom ? tileH * 0.5 : 0.0;
+
+          // ─── ROWS ARE A VERTICAL-ONLY SHAPE ──────────────────────────────
+          //
+          // Gated on the layout as well as the pref, because a page of rows is
+          // not a thing: the pager sizes its pages from a column count and an
+          // aspect ratio, and a full-width row has neither. Authoring
+          // `drawerListStyle: "rows"` on a paged drawer therefore does nothing,
+          // which is why `apps_section` greys the row rather than offering it.
+          //
+          // The topGap above stays derived from `tileH` in both shapes. It is
+          // half a grid row either way, and matching it to the row extent
+          // instead would make the gap shrink exactly where the rows are
+          // already densest.
+          final asRows =
+              style == 'vertical' && theme.drawerListStyle == 'rows';
+          final rowExtent = _rowExtentFor(theme);
+          final shape = asRows ? _TileShape.row : _TileShape.cell;
+
+          Widget tileAt(int i) => _tileFor(
+                items[i],
+                theme: theme,
+                labelLines: labelLines,
+                shape: shape,
+                onFolderCreated: onFolderCreated,
+              );
+
+          // Grouping only applies to the alphabetical list; letter headers over
+          // a usage ranking or a custom arrangement would label an order that
+          // is not alphabetical. See LauncherPrefs.drawerGrouping.
+          final groupAz = mode == 'az' && theme.drawerGrouping == 'az';
+
+          // ── OVERFLOW MENU, SORT SHEET, AND THE HANDLERS BEHIND THEM ─────
+          //
+          // Defined here rather than on the State because they capture layout
+          // facts (columns, tile height, constraints) that only exist inside
+          // this LayoutBuilder, and seeding Custom must freeze exactly what is
+          // on screen.
+
+          // ─── ONE ROW COUNT, SHARED ──────────────────────────────────────
+          //
+          // The rows the pager ACTUALLY rendered, falling back to an estimate on
+          // the very first frame. The estimate subtracts a nominal 66 for the
+          // search bar and is only ever an estimate; the pager measures the box
+          // it is really given.
+          //
+          // Hoisted above the handlers because `addPage` reads the same grid the
+          // body renders, and the grid provider is keyed on this number. Two
+          // derivations would mean the button counted pages against one shape
+          // while the screen drew another.
+          final rowsNow = _pagedRows ??
+              DrawerPager.rowsFor(
+                // The page-dots strip is subtracted for the same reason the
+                // search bar is: neither is part of the height the pages get.
+                // Leaving it out made this estimate one row too generous, so the
+                // grid provider seeded and keyed itself on a shape the pager
+                // could not draw, and the first frame reflowed. Shared constant,
+                // not a copied number: two derivations of this drift.
+                maxHeight: constraints.maxHeight -
+                    (showSearch ? 66 : 0) -
+                    // Same reason the search bar and the dots strip are
+                    // subtracted: none of it is height the pages get. Leaving it
+                    // out seeds the grid provider on a shape one row taller than
+                    // the pager can draw, and the first frame reflows.
+                    dockInset.vertical -
+                    DrawerPager.dotsStripFor(withAdd: mode == 'custom'),
+                tileHeight: tileH,
+                topPadding: topGap,
+              );
+
+          final gridKey = (theme: theme, cols: columns, rows: rowsNow);
+
+          void enterCustom() {
+            final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+                theme.prefs;
+            final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+
+            // Returning to Custom restores the old arrangement; only a first
+            // visit seeds.
+            if (live.drawerSlots.isNotEmpty) {
+              notifier.edit((p) => p.copyWith(drawerSortMode: 'custom'));
               return;
             }
-            final live =
-                ref.read(prefsProvider(theme.spec.id)).asData?.value;
-            if (live == null || live.drawerSlots.isNotEmpty) return;
-            enterCustom();
-          });
-        }
 
-        void openSortSheet() {
-          _showSortSheet(
-            context,
-            ref,
-            theme,
-            currentMode: mode,
-            onCustom: enterCustom,
-          );
-        }
+            final apps = ref.read(shellAppsProvider(theme));
+            final foldedNow = DrawerLayout.foldedKeys(live);
+            final folderIds = [
+              for (final f in DrawerLayout.orderedFolders(live)) f.id,
+            ];
+            final appKeys = [
+              for (final a in apps)
+                if (!foldedNow.contains(a.componentKey)) a.componentKey,
+            ];
 
-        void cleanUpPages() {
-          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
-              theme.prefs;
-          final apps = ref.read(shellAppsProvider(theme));
-          final foldedNow = DrawerLayout.foldedKeys(live);
-          ref.read(prefsProvider(theme.spec.id).notifier).edit(
-                (p) => DrawerSlots.cleanUp(
-                  p,
-                  liveAppKeys: {
-                    for (final a in apps)
-                      if (!foldedNow.contains(a.componentKey)) a.componentKey,
-                  },
-                  liveFolderIds: {for (final f in live.drawerFolders) f.id},
-                ),
-              );
-          context.showMessage(context.t('drawer.pagesCleanedUp'));
-        }
+            notifier.edit(
+              (p) => DrawerSlots.seed(
+                p,
+                folderIds: folderIds,
+                appKeys: appKeys,
+                cols: columns,
+                rows: rowsNow,
+              ),
+            );
+          }
 
-        void addPage() {
-          final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
-              theme.prefs;
-          final grid = ref.read(drawerCustomGridProvider(gridKey));
-          // Against the CURRENT page count rather than the stored one, so the
-          // first tap on an auto-sized drawer grows it by one rather than
-          // jumping to 1 and appearing to do nothing.
-          final next = grid.pageCount + 1;
-          if ((live.drawerPageCount ?? 0) >= next) return;
-          ref
-              .read(prefsProvider(theme.spec.id).notifier)
-              .edit((p) => p.copyWith(drawerPageCount: next));
-        }
-
-        void showOverflow(Offset at) {
-          _showDrawerOverflowMenu(
-            context,
-            theme,
-            at: at,
-            showCleanUp: mode == 'custom',
-            onSort: openSortSheet,
-            onCleanUp: cleanUpPages,
-            onSettings: () => openLauncherSettings(context, theme),
-          );
-        }
-
-        // ── WHY THE PAGED BRANCH NO LONGER RETURNS EARLY ────────────────
-        //
-        // It used to `return Expanded(DrawerPager(...))` from here, which
-        // skipped everything below: the search bar, the SafeArea and the
-        // drawer's own backdrop. So choosing pages or cube silently lost the
-        // search bar, which is the bug that reads as "there is no search on
-        // pages". It also returned a bare Expanded from a LayoutBuilder, with
-        // no Flex above it to give it a flex factor.
-        //
-        // Now every layout produces a `body` and falls through to the one
-        // scaffold at the bottom. A layout can change how the grid MOVES; it
-        // has no business deciding whether the drawer has a search bar.
-        final Widget body;
-
-        // ─── THE LIBRARY IS ITS OWN VIEW ──────────────────────────────────
-        //
-        // FIRST, and outside the mode chain entirely, because the library is
-        // not a variant of the pager: it has no pages, no slots, no drag, no
-        // merge and no sort mode. Two earlier attempts built it as a grouping
-        // inside `DrawerPager`, and each fix uncovered the next thing that
-        // widget assumed. Everything those attempts added here has been
-        // removed; this branch is the whole of the integration.
-        //
-        // `items` is the same list every other mode gets. `drawerItemsProvider`
-        // already emits folders then the rest under `library` grouping, and
-        // LibraryView cuts its sections out of that rather than asking for a
-        // second, differently ordered provider.
-        if (filtering) {
-          // ─── RESULTS ARE NOT A LAYOUT ──────────────────────────────────
+          // ── AUTO-SEED ───────────────────────────────────────────────────
           //
-          // FIRST, ahead of every mode, and deliberately not routed through
-          // `DrawerPager`. A filtered list has no pages, no slots, no drag, no
-          // merge and no sort order to preserve, and the pager's whole job is
-          // to maintain those. Paging four results across three swipes would
-          // also be its own small absurdity.
-          //
-          // Not mounting it is what makes the page dots disappear while a
-          // query is live, with nothing having to hide them: they belong to
-          // the pager, and the pager is not here.
-          //
-          // `tileAt` already closes over the filtered `items`, so every result
-          // is an ordinary drawer tile with its ordinary long-press menu.
-          body = items.isEmpty
-              ? Expanded(child: _NoMatches(theme: theme))
-              : _plainGrid(
-                  items: items,
-                  columns: columns,
-                  aspect: aspect,
-                  // No empty first row here. That gap exists to clear the
-                  // status bar above a grid that starts at the top of the
-                  // drawer; with the bar at the top, the bar is what clears it.
-                  topGap: 0.0,
-                  tileAt: tileAt,
+          // Custom is the DEFAULT now, so a fresh profile arrives here with
+          // nothing stored. The grid provider displays the dense append order
+          // regardless, but drags against unstored entries degrade to append
+          // fallbacks; seeding makes the first drag behave. Post-frame because
+          // a provider cannot be written during build. Checked against LIVE
+          // prefs inside the callback, since the frame that scheduled it may be
+          // stale by the time it runs; an empty app list resets the guard so
+          // the rebuild the arriving list causes can try again.
+          if (mode == 'custom' &&
+              theme.prefs.drawerSlots.isEmpty &&
+              !_seedScheduled) {
+            _seedScheduled = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (ref.read(shellAppsProvider(theme)).isEmpty) {
+                _seedScheduled = false;
+                return;
+              }
+              final live = ref.read(prefsProvider(theme.spec.id)).asData?.value;
+              if (live == null || live.drawerSlots.isNotEmpty) return;
+              enterCustom();
+            });
+          }
+
+          void openSortSheet() {
+            _showSortSheet(
+              context,
+              ref,
+              theme,
+              currentMode: mode,
+              onCustom: enterCustom,
+            );
+          }
+
+          void cleanUpPages() {
+            final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+                theme.prefs;
+            final apps = ref.read(shellAppsProvider(theme));
+            final foldedNow = DrawerLayout.foldedKeys(live);
+            ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                  (p) => DrawerSlots.cleanUp(
+                    p,
+                    liveAppKeys: {
+                      for (final a in apps)
+                        if (!foldedNow.contains(a.componentKey)) a.componentKey,
+                    },
+                    liveFolderIds: {for (final f in live.drawerFolders) f.id},
+                  ),
                 );
-        } else if (theme.libraryGrouped) {
-          body = Expanded(
-            child: LibraryView(theme: theme, items: items),
-          );
-        } else if (mode == 'custom') {
-          // ── THE GRID FOLLOWS THE SCREEN, LIKE EVERY OTHER MODE ────────
-          //
-          // The row count came from `drawerSlotRows`, frozen when Custom was
-          // first entered, and was handed to the pager as `rowsOverride`. Two
-          // things went wrong with that and the second was mine.
-          //
-          // Custom rendered a different number of rows from alphabetical, so
-          // switching sort mode reshuffled the whole page. And once cells were
-          // sized to their contents the frozen count stopped fitting, at which
-          // point the pager's squeeze shrank the cells to make it fit, and
-          // shrinking a content-sized cell clips exactly one thing: the label
-          // on the last row.
-          //
-          // So the count is derived here with the SAME arithmetic the ordinary
-          // paged branch uses, and a stored arrangement whose shape no longer
-          // matches is re-packed onto the new one below.
-          final grid = ref.watch(drawerCustomGridProvider(gridKey));
-
-          // Persist the new shape once, post-frame, so the stored slots agree
-          // with what is on screen. Order survives; see DrawerSlots.reflow.
-          // Post-frame because a provider cannot be written during build, and
-          // guarded on a real difference so it settles after one pass.
-          if (theme.prefs.drawerSlotCols != columns ||
-              theme.prefs.drawerSlotRows != rowsNow) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              ref.read(prefsProvider(theme.spec.id).notifier).edit(
-                    (p) => DrawerSlots.reflow(
-                      p,
-                      cols: columns,
-                      rows: rowsNow,
-                      liveAppKeys: {
-                        for (final i in items)
-                          if (i is AppDrawerItem) i.entry.componentKey,
-                      },
-                      liveFolderIds: {
-                        for (final i in items)
-                          if (i is FolderDrawerItem) i.folder.id,
-                      },
-                    ),
-                  );
-            });
+            context.showMessage(context.t('drawer.pagesCleanedUp'));
           }
 
-          // ── RESERVED SLOT MIGRATION ──────────────────────────────────
-          //
-          // The reserved block grew from two cells to three when the Terminal
-          // entry landed, so anything stored at flat 2 is now inside it and
-          // would be skipped by the renderer: still in storage, gone from the
-          // screen. Nothing fails, an app just disappears.
-          //
-          // Guarded on the data rather than on a version flag, so it runs once
-          // and then never again on its own; see
-          // DrawerSlots.needsReservedMigration. Separate from the reflow above
-          // because it has to run even when the grid shape has not changed.
-          if (DrawerSlots.needsReservedMigration(theme.prefs)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              ref.read(prefsProvider(theme.spec.id).notifier).edit(
-                    (p) => DrawerSlots.migrateReserved(
-                      p,
-                      liveAppKeys: {
-                        for (final i in items)
-                          if (i is AppDrawerItem) i.entry.componentKey,
-                      },
-                      liveFolderIds: {
-                        for (final i in items)
-                          if (i is FolderDrawerItem) i.folder.id,
-                      },
-                    ),
-                  );
-            });
+          void addPage() {
+            final live = ref.read(prefsProvider(theme.spec.id)).asData?.value ??
+                theme.prefs;
+            final grid = ref.read(drawerCustomGridProvider(gridKey));
+            // Against the CURRENT page count rather than the stored one, so the
+            // first tap on an auto-sized drawer grows it by one rather than
+            // jumping to 1 and appearing to do nothing.
+            final next = grid.pageCount + 1;
+            if ((live.drawerPageCount ?? 0) >= next) return;
+            ref
+                .read(prefsProvider(theme.spec.id).notifier)
+                .edit((p) => p.copyWith(drawerPageCount: next));
           }
 
-          final per = grid.cols * grid.rows;
-          body = Expanded(
-            child: DrawerPager(
-              itemCount: grid.cells.length,
-              columns: grid.cols,
-              aspectRatio: aspect,
-              // The STYLE, not a boolean derived from it. `cube: style ==
-              // 'cube'` threw away every value it did not recognise, so a
-              // distro authoring `cylinder` rendered a plain slide with
-              // nothing reporting a problem. `parse` degrades in one place.
-              transition: DrawerTransition.parse(style),
-              dragPaging: true,
-              // Reported after layout, so the grid provider and the pager agree
-              // on the row count from the second frame onward.
-              onRows: (r) {
-                if (_pagedRows != r && mounted) {
-                  setState(() => _pagedRows = r);
-                }
-              },
-              topPadding: topGap,
-              initialPage: ref.read(drawerPageProvider),
-              onPage: (p) =>
-                  ref.read(drawerPageProvider.notifier).setPage(p),
-              onAddPage: addPage,
-              itemBuilder: (context, i) {
-                final page = i ~/ per;
-                final index = i % per;
-                final item = grid.cells[i];
-                if (item == null) {
-                  return _EmptySlot(
-                    key: ValueKey('empty-$page-$index'),
+          void showOverflow(Offset at) {
+            _showDrawerOverflowMenu(
+              context,
+              theme,
+              at: at,
+              showCleanUp: mode == 'custom',
+              onSort: openSortSheet,
+              onCleanUp: cleanUpPages,
+              onSettings: () => openLauncherSettings(context, theme),
+            );
+          }
+
+          // ── WHY THE PAGED BRANCH NO LONGER RETURNS EARLY ────────────────
+          //
+          // It used to `return Expanded(DrawerPager(...))` from here, which
+          // skipped everything below: the search bar, the SafeArea and the
+          // drawer's own backdrop. So choosing pages or cube silently lost the
+          // search bar, which is the bug that reads as "there is no search on
+          // pages". It also returned a bare Expanded from a LayoutBuilder, with
+          // no Flex above it to give it a flex factor.
+          //
+          // Now every layout produces a `body` and falls through to the one
+          // scaffold at the bottom. A layout can change how the grid MOVES; it
+          // has no business deciding whether the drawer has a search bar.
+          final Widget body;
+
+          // ─── THE LIBRARY IS ITS OWN VIEW ──────────────────────────────────
+          //
+          // FIRST, and outside the mode chain entirely, because the library is
+          // not a variant of the pager: it has no pages, no slots, no drag, no
+          // merge and no sort mode. Two earlier attempts built it as a grouping
+          // inside `DrawerPager`, and each fix uncovered the next thing that
+          // widget assumed. Everything those attempts added here has been
+          // removed; this branch is the whole of the integration.
+          //
+          // `items` is the same list every other mode gets. `drawerItemsProvider`
+          // already emits folders then the rest under `library` grouping, and
+          // LibraryView cuts its sections out of that rather than asking for a
+          // second, differently ordered provider.
+          if (filtering) {
+            // ─── RESULTS ARE NOT A LAYOUT ──────────────────────────────────
+            //
+            // FIRST, ahead of every mode, and deliberately not routed through
+            // `DrawerPager`. A filtered list has no pages, no slots, no drag, no
+            // merge and no sort order to preserve, and the pager's whole job is
+            // to maintain those. Paging four results across three swipes would
+            // also be its own small absurdity.
+            //
+            // Not mounting it is what makes the page dots disappear while a
+            // query is live, with nothing having to hide them: they belong to
+            // the pager, and the pager is not here.
+            //
+            // `tileAt` already closes over the filtered `items`, so every result
+            // is an ordinary drawer tile with its ordinary long-press menu.
+            body = items.isEmpty
+                ? Expanded(child: _NoMatches(theme: theme))
+                : _plainGrid(
+                    items: items,
+                    columns: columns,
+                    aspect: aspect,
+                    // No empty first row here. That gap exists to clear the
+                    // status bar above a grid that starts at the top of the
+                    // drawer; with the bar at the top, the bar is what clears it.
+                    topGap: 0.0,
+                    tileAt: tileAt,
+                  );
+          } else if (theme.libraryGrouped) {
+            body = Expanded(
+              child: LibraryView(theme: theme, items: items),
+            );
+          } else if (mode == 'custom') {
+            // ── THE GRID FOLLOWS THE SCREEN, LIKE EVERY OTHER MODE ────────
+            //
+            // The row count came from `drawerSlotRows`, frozen when Custom was
+            // first entered, and was handed to the pager as `rowsOverride`. Two
+            // things went wrong with that and the second was mine.
+            //
+            // Custom rendered a different number of rows from alphabetical, so
+            // switching sort mode reshuffled the whole page. And once cells were
+            // sized to their contents the frozen count stopped fitting, at which
+            // point the pager's squeeze shrank the cells to make it fit, and
+            // shrinking a content-sized cell clips exactly one thing: the label
+            // on the last row.
+            //
+            // So the count is derived here with the SAME arithmetic the ordinary
+            // paged branch uses, and a stored arrangement whose shape no longer
+            // matches is re-packed onto the new one below.
+            final grid = ref.watch(drawerCustomGridProvider(gridKey));
+
+            // Persist the new shape once, post-frame, so the stored slots agree
+            // with what is on screen. Order survives; see DrawerSlots.reflow.
+            // Post-frame because a provider cannot be written during build, and
+            // guarded on a real difference so it settles after one pass.
+            if (theme.prefs.drawerSlotCols != columns ||
+                theme.prefs.drawerSlotRows != rowsNow) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                      (p) => DrawerSlots.reflow(
+                        p,
+                        cols: columns,
+                        rows: rowsNow,
+                        liveAppKeys: {
+                          for (final i in items)
+                            if (i is AppDrawerItem) i.entry.componentKey,
+                        },
+                        liveFolderIds: {
+                          for (final i in items)
+                            if (i is FolderDrawerItem) i.folder.id,
+                        },
+                      ),
+                    );
+              });
+            }
+
+            // ── RESERVED SLOT MIGRATION ──────────────────────────────────
+            //
+            // The reserved block grew from two cells to three when the Terminal
+            // entry landed, so anything stored at flat 2 is now inside it and
+            // would be skipped by the renderer: still in storage, gone from the
+            // screen. Nothing fails, an app just disappears.
+            //
+            // Guarded on the data rather than on a version flag, so it runs once
+            // and then never again on its own; see
+            // DrawerSlots.needsReservedMigration. Separate from the reflow above
+            // because it has to run even when the grid shape has not changed.
+            if (DrawerSlots.needsReservedMigration(theme.prefs)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                      (p) => DrawerSlots.migrateReserved(
+                        p,
+                        liveAppKeys: {
+                          for (final i in items)
+                            if (i is AppDrawerItem) i.entry.componentKey,
+                        },
+                        liveFolderIds: {
+                          for (final i in items)
+                            if (i is FolderDrawerItem) i.folder.id,
+                        },
+                      ),
+                    );
+              });
+            }
+
+            final per = grid.cols * grid.rows;
+            body = Expanded(
+              child: DrawerPager(
+                itemCount: grid.cells.length,
+                columns: grid.cols,
+                aspectRatio: aspect,
+                // The STYLE, not a boolean derived from it. `cube: style ==
+                // 'cube'` threw away every value it did not recognise, so a
+                // distro authoring `cylinder` rendered a plain slide with
+                // nothing reporting a problem. `parse` degrades in one place.
+                transition: DrawerTransition.parse(style),
+                dragPaging: true,
+                // Reported after layout, so the grid provider and the pager agree
+                // on the row count from the second frame onward.
+                onRows: (r) {
+                  if (_pagedRows != r && mounted) {
+                    setState(() => _pagedRows = r);
+                  }
+                },
+                topPadding: topGap,
+                initialPage: ref.read(drawerPageProvider),
+                onPage: (p) => ref.read(drawerPageProvider.notifier).setPage(p),
+                onAddPage: addPage,
+                itemBuilder: (context, i) {
+                  final page = i ~/ per;
+                  final index = i % per;
+                  final item = grid.cells[i];
+                  if (item == null) {
+                    return _EmptySlot(
+                      key: ValueKey('empty-$page-$index'),
+                      theme: theme,
+                      page: page,
+                      index: index,
+                    );
+                  }
+                  return _tileFor(
+                    item,
                     theme: theme,
-                    page: page,
-                    index: index,
+                    labelLines: labelLines,
+                    onFolderCreated: onFolderCreated,
+                    // The reserved cells are chrome: not draggable, not
+                    // reorder targets, exactly as in every other mode.
+                    slot: i < DrawerSlots.reservedSlots
+                        ? null
+                        : (page: page, index: index),
                   );
-                }
-                return _tileFor(
+                },
+              ),
+            );
+            // ─── EVERYTHING EXCEPT `vertical` IS PAGED ───────────────────────
+            //
+            // This read `style == 'pages' || style == 'cube'`, which was an
+            // exhaustive list of the paged styles right up until it was not. The
+            // four added alongside it would have fallen through to the vertical
+            // list: the setting would appear to save, the drawer would scroll,
+            // and nothing would say why the animation never arrived.
+            //
+            // Inverted rather than extended, because `vertical` is the value with
+            // the actual meaning here. It is the one style that is a different
+            // WIDGET rather than a different transform, and it is the only thing
+            // this branch is really asking about. A style added later is paged by
+            // default, which is the safe direction: it renders, and it renders as
+            // a slide until `DrawerTransition.parse` learns its name.
+          } else if (style != 'vertical') {
+            body = Expanded(
+              child: DrawerPager(
+                itemCount: items.length,
+                columns: columns,
+                aspectRatio: aspect,
+                // The STYLE, not a boolean derived from it. `cube: style ==
+                // 'cube'` threw away every value it did not recognise, so a
+                // distro authoring `cylinder` rendered a plain slide with
+                // nothing reporting a problem. `parse` degrades in one place.
+                transition: DrawerTransition.parse(style),
+                topPadding: topGap,
+                // Assigned without setState: the ordinary paged branch does not
+                // rebuild on it, it is only read when Custom is entered to seed
+                // the frozen count. The custom branch above DOES need a rebuild,
+                // which is why it has its own handler.
+                // ─── setState WHEN SOMETHING IS WAITING ON THIS ───────────
+                //
+                // The bare assignment here was correct while nothing read the row
+                // count during build, and it silently broke Locate. `_pagedRows`
+                // is null on a drawer's FIRST build, so `_locatePage` returns
+                // null and no jump is requested; the real count then arrives here
+                // post-layout, and without a rebuild `jumpToPage` is never
+                // recomputed. A drawer that was closed when you hit Locate would
+                // therefore open on the wrong page, forever.
+                //
+                // Rebuilding only when a target is pending keeps the original
+                // reason for the bare assignment intact: the ordinary paged
+                // drawer still does not rebuild on a row report.
+                onRows: (r) {
+                  if (_pagedRows == r) return;
+                  _pagedRows = r;
+                  if (mounted && ref.read(locateTargetProvider) != null) {
+                    setState(() {});
+                  }
+                },
+                initialPage: ref.read(drawerPageProvider),
+                onPage: (p) => ref.read(drawerPageProvider.notifier).setPage(p),
+
+                // ─── ONLY THE DRAWER CAN WORK THIS OUT ────────────────────
+                //
+                // Locate knows the app; the pager knows the geometry; neither
+                // knows both. The page an item falls on is `index ~/ (rows *
+                // columns)`, and `rows` is DERIVED at layout from the available
+                // height, which is why it arrives here through `onRows` rather
+                // than being something anyone can compute in advance.
+                //
+                // Null until `_pagedRows` has been reported at least once, which
+                // is the first frame only. A jump on that frame would race the
+                // layout that produces the number it depends on.
+                jumpToPage: _locatePage(items, columns),
+                itemBuilder: (context, i) => tileAt(i),
+              ),
+            );
+          } else if (groupAz) {
+            body = Expanded(
+              child: _AzList(
+                // Null on a grid, an extent on rows. Threaded rather than read
+                // from `theme` inside the list, so the one place that decides
+                // the shape is the one place that decides the height.
+                rowExtent: asRows ? rowExtent : null,
+                items: items,
+                theme: theme,
+                columns: columns,
+                aspect: aspect,
+                topGap: topGap,
+                // MEASURED, not re-derived. `tileH` is the number the grid
+                // delegate actually produces from `cellW / aspect`, and the
+                // index's scroll offsets are arithmetic on top of it. A second
+                // derivation here is how the finger and the list would end up
+                // disagreeing by a row per section.
+                tileHeight: tileH,
+                // Resolved off EffectiveTheme like everything around it. The
+                // vertical and az preconditions are already true inside this
+                // branch, so the only question left is which style.
+                rail: IndexRail.parse(theme.drawerIndexRail),
+                tileBuilder: (item) => _tileFor(
                   item,
                   theme: theme,
                   labelLines: labelLines,
+                  shape: shape,
                   onFolderCreated: onFolderCreated,
-                  // The reserved cells are chrome: not draggable, not
-                  // reorder targets, exactly as in every other mode.
-                  slot: i < DrawerSlots.reservedSlots
-                      ? null
-                      : (page: page, index: index),
-                );
-              },
-            ),
-          );
-          // ─── EVERYTHING EXCEPT `vertical` IS PAGED ───────────────────────
-          //
-          // This read `style == 'pages' || style == 'cube'`, which was an
-          // exhaustive list of the paged styles right up until it was not. The
-          // four added alongside it would have fallen through to the vertical
-          // list: the setting would appear to save, the drawer would scroll,
-          // and nothing would say why the animation never arrived.
-          //
-          // Inverted rather than extended, because `vertical` is the value with
-          // the actual meaning here. It is the one style that is a different
-          // WIDGET rather than a different transform, and it is the only thing
-          // this branch is really asking about. A style added later is paged by
-          // default, which is the safe direction: it renders, and it renders as
-          // a slide until `DrawerTransition.parse` learns its name.
-        } else if (style != 'vertical') {
-          body = Expanded(
-            child: DrawerPager(
-              itemCount: items.length,
-              columns: columns,
-              aspectRatio: aspect,
-              // The STYLE, not a boolean derived from it. `cube: style ==
-              // 'cube'` threw away every value it did not recognise, so a
-              // distro authoring `cylinder` rendered a plain slide with
-              // nothing reporting a problem. `parse` degrades in one place.
-              transition: DrawerTransition.parse(style),
-              topPadding: topGap,
-              // Assigned without setState: the ordinary paged branch does not
-              // rebuild on it, it is only read when Custom is entered to seed
-              // the frozen count. The custom branch above DOES need a rebuild,
-              // which is why it has its own handler.
-              // ─── setState WHEN SOMETHING IS WAITING ON THIS ───────────
-              //
-              // The bare assignment here was correct while nothing read the row
-              // count during build, and it silently broke Locate. `_pagedRows`
-              // is null on a drawer's FIRST build, so `_locatePage` returns
-              // null and no jump is requested; the real count then arrives here
-              // post-layout, and without a rebuild `jumpToPage` is never
-              // recomputed. A drawer that was closed when you hit Locate would
-              // therefore open on the wrong page, forever.
-              //
-              // Rebuilding only when a target is pending keeps the original
-              // reason for the bare assignment intact: the ordinary paged
-              // drawer still does not rebuild on a row report.
-              onRows: (r) {
-                if (_pagedRows == r) return;
-                _pagedRows = r;
-                if (mounted && ref.read(locateTargetProvider) != null) {
-                  setState(() {});
-                }
-              },
-              initialPage: ref.read(drawerPageProvider),
-              onPage: (p) =>
-                  ref.read(drawerPageProvider.notifier).setPage(p),
-
-              // ─── ONLY THE DRAWER CAN WORK THIS OUT ────────────────────
-              //
-              // Locate knows the app; the pager knows the geometry; neither
-              // knows both. The page an item falls on is `index ~/ (rows *
-              // columns)`, and `rows` is DERIVED at layout from the available
-              // height, which is why it arrives here through `onRows` rather
-              // than being something anyone can compute in advance.
-              //
-              // Null until `_pagedRows` has been reported at least once, which
-              // is the first frame only. A jump on that frame would race the
-              // layout that produces the number it depends on.
-              jumpToPage: _locatePage(items, columns),
-              itemBuilder: (context, i) => tileAt(i),
-            ),
-          );
-        } else if (groupAz) {
-          body = Expanded(
-            child: _AzList(
+                ),
+              ),
+            );
+          } else if (asRows) {
+            body = _plainList(
               items: items,
-              theme: theme,
+              extent: rowExtent,
+              topGap: topGap,
+              tileAt: tileAt,
+            );
+          } else {
+            body = _plainGrid(
+              items: items,
               columns: columns,
               aspect: aspect,
               topGap: topGap,
-              tileBuilder: (item) => _tileFor(
-                item,
-                theme: theme,
-                labelLines: labelLines,
-                onFolderCreated: onFolderCreated,
+              tileAt: tileAt,
+            );
+          }
+
+          final searchBar = _DrawerSearchBar(
+            theme: theme,
+            onOverflow: showOverflow,
+            inline: inline,
+            controller: _searchController,
+            focus: _searchFocus,
+            onChanged: (v) => setState(() => _query = v),
+            onClear: _clearQuery,
+          );
+
+          // The drawer paints its OWN backdrop. GNOME's Activities is a
+          // translucent wash over the wallpaper, not an opaque page — you can see
+          // your desktop behind it, which is most of why it reads as GNOME rather
+          // than as "an app list". The shell should mount this full-bleed and add
+          // no chrome of its own (no back arrow: GNOME closes Activities with the
+          // Super key or a swipe, and Android's back gesture already does that
+          // here via the shell's PopScope).
+          return ColoredBox(
+            // The drawer's own setting, scaling the authored 0.92. This wash is
+            // what everything else on the shell is hidden behind while the
+            // drawer is open, which is exactly why it earns a separate slider.
+            // DEEPER WHILE FILTERING. The wash is what the results are read
+            // against, and at 0.92 a busy wallpaper competes with four tiles the
+            // way it never does with forty. It is also the only feedback that the
+            // grid is showing a subset, now that the dots are gone.
+            color: theme.palette.bgBottom.withValues(
+              alpha: (filtering ? 0.97 : 0.92) * theme.drawerOpacity,
+            ),
+            child: SafeArea(
+              // INSIDE the ColoredBox and outside the Column, so the wash still
+              // runs edge to edge behind a translucent dock while nothing the
+              // user has to read or tap does. A wash that stopped short of the
+              // dock would draw a seam across the bottom of the screen.
+              //
+              // Around the whole Column rather than the grid alone, so a bar at
+              // the bottom clears the dock too. That is the arrangement this was
+              // in until an hour ago, and it did not work.
+              child: Padding(
+                padding: dockInset,
+                child: Column(
+                  children: [
+                    if (showSearch && !searchAtBottom) searchBar,
+                    body,
+                    if (showSearch && searchAtBottom) searchBar,
+                  ],
+                ),
               ),
             ),
           );
-        } else {
-          body = _plainGrid(
-            items: items,
-            columns: columns,
-            aspect: aspect,
-            topGap: topGap,
-            tileAt: tileAt,
-          );
-        }
-
-        final searchBar = _DrawerSearchBar(
-          theme: theme,
-          onOverflow: showOverflow,
-          inline: inline,
-          controller: _searchController,
-          focus: _searchFocus,
-          onChanged: (v) => setState(() => _query = v),
-          onClear: _clearQuery,
-        );
-
-        // The drawer paints its OWN backdrop. GNOME's Activities is a
-        // translucent wash over the wallpaper, not an opaque page — you can see
-        // your desktop behind it, which is most of why it reads as GNOME rather
-        // than as "an app list". The shell should mount this full-bleed and add
-        // no chrome of its own (no back arrow: GNOME closes Activities with the
-        // Super key or a swipe, and Android's back gesture already does that
-        // here via the shell's PopScope).
-        return ColoredBox(
-          // The drawer's own setting, scaling the authored 0.92. This wash is
-          // what everything else on the shell is hidden behind while the
-          // drawer is open, which is exactly why it earns a separate slider.
-          // DEEPER WHILE FILTERING. The wash is what the results are read
-          // against, and at 0.92 a busy wallpaper competes with four tiles the
-          // way it never does with forty. It is also the only feedback that the
-          // grid is showing a subset, now that the dots are gone.
-          color: theme.palette.bgBottom.withValues(
-            alpha: (filtering ? 0.97 : 0.92) * theme.drawerOpacity,
-          ),
-          child: SafeArea(
-            // INSIDE the ColoredBox and outside the Column, so the wash still
-            // runs edge to edge behind a translucent dock while nothing the
-            // user has to read or tap does. A wash that stopped short of the
-            // dock would draw a seam across the bottom of the screen.
-            //
-            // Around the whole Column rather than the grid alone, so a bar at
-            // the bottom clears the dock too. That is the arrangement this was
-            // in until an hour ago, and it did not work.
-            child: Padding(
-              padding: dockInset,
-              child: Column(
-                children: [
-                  if (showSearch && !searchAtBottom) searchBar,
-                  body,
-                  if (showSearch && searchAtBottom) searchBar,
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ),
+        },
+      ),
     );
   }
 }
@@ -1168,21 +1204,21 @@ class _DrawerSearchBar extends StatelessWidget {
                       ),
                     )
                   else
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapDown: (d) => onOverflow(d.globalPosition),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 12,
-                      ),
-                      child: Icon(
-                        Icons.more_vert,
-                        size: 20,
-                        color: onDark.withValues(alpha: 0.7),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => onOverflow(d.globalPosition),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 12,
+                        ),
+                        child: Icon(
+                          Icons.more_vert,
+                          size: 20,
+                          color: onDark.withValues(alpha: 0.7),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1226,6 +1262,94 @@ class _NoMatches extends StatelessWidget {
 /// Android's own font scaling. Named because [GridMetrics.cellHeightFor] has to
 /// be handed the same number the label is drawn at.
 const double _tileFontSize = 12;
+
+/// The label size in a ROW, where the name is the thing being read rather than
+/// a caption under a picture. 12 is legible centred under an icon at a glance;
+/// beside one, at the left margin, it reads as a footnote.
+const double _rowFontSize = 16;
+
+/// How tall one row is.
+///
+/// ─── DERIVED FROM THE ICON SIZE, NOT A SECOND SETTING ───────────────────────
+///
+/// The obvious design is a Compact / Roomy control beside the shape control,
+/// and it is the wrong one: the user already has an icon size slider, and two
+/// controls that both change how tall a row is will disagree. A 64dp icon in a
+/// "compact" row is a clipped icon, and somebody has to decide which setting
+/// wins.
+///
+/// So the icon leads and the row follows. The 56 floor is not a touch target
+/// concern, since 48 would cover that; it stops the smallest icon setting from
+/// producing a list so dense the labels read as a paragraph.
+double _rowExtentFor(EffectiveTheme theme) {
+  final fromIcon = theme.iconSizeDp + 20;
+  return fromIcon < 56 ? 56 : fromIcon;
+}
+
+/// Which shape a drawer tile takes.
+enum _TileShape {
+  /// Icon above a centred caption, sized to a grid cell. Every paged layout,
+  /// the custom grid, and the vertical grid.
+  cell,
+
+  /// Icon beside the name, one app per full-width row.
+  row,
+}
+
+/// The inside of a drawer tile.
+///
+/// ─── ONE SHAPE DECISION, NOT THREE ────────────────────────────────────────
+///
+/// `_AppTile`, `_FolderTile` and `_ActionTile` each built this same Column
+/// independently, which was fine while there was one shape. A second shape
+/// would have been the same conditional written three times, and the third
+/// copy is always the one that gets missed: an action tile that stayed a cell
+/// in a list of rows is exactly the kind of near-right result this codebase
+/// keeps finding.
+///
+/// [icon] arrives already wrapped, because only `_AppTile` puts its icon in a
+/// `PressPop` and only the icon wears the press state.
+Widget _tileContent({
+  required Widget icon,
+  required String label,
+  required EffectiveTheme theme,
+  required int labelLines,
+  required _TileShape shape,
+}) {
+  if (shape == _TileShape.cell) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        icon,
+        const SizedBox(height: 6),
+        _TileLabel(text: label, theme: theme, labelLines: labelLines),
+      ],
+    );
+  }
+
+  // No `_TileLabel` here, and no `labelBlockFor`. That box exists because a
+  // grid cell is sized in advance and the label has to fit the height the
+  // arithmetic promised. A row has one line by definition and the list gives
+  // it a fixed extent, so the constraint is already satisfied by the layout.
+  return Row(
+    children: [
+      icon,
+      const SizedBox(width: 16),
+      Expanded(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: _rowFontSize * theme.textScale,
+            color: theme.palette.onDark,
+            fontFamily: theme.typography.display,
+          ),
+        ),
+      ),
+    ],
+  );
+}
 
 /// The shared label under any drawer tile. Extracted so the launcher entries are
 /// pixel-for-pixel peers of the app tiles, not lookalikes that drift.
@@ -1300,12 +1424,17 @@ class _AppTile extends ConsumerStatefulWidget {
     required this.theme,
     required this.labelLines,
     required this.onFolderCreated,
+    this.shape = _TileShape.cell,
     this.slot,
   });
 
   final AppEntry entry;
   final EffectiveTheme theme;
   final int labelLines;
+
+  /// Cell or row. Defaults to `cell`, so every existing call site keeps the
+  /// shape it already had without naming it.
+  final _TileShape shape;
 
   /// This tile's (page, index) in the CUSTOM slot grid, or null everywhere
   /// else. Non-null is what arms the zone split: drops on the middle of the
@@ -1362,23 +1491,36 @@ class _AppTileState extends ConsumerState<_AppTile> {
     // Only the ICON wears the press state, not the whole cell. Scaling the
     // label with it would push a two-line name into its neighbour's row, and
     // the ring would draw a box around text rather than an outline of an app.
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        PressPop(
-          held: _held || located,
-          radius: theme.iconSizeDp * 0.24,
-          ringColor: theme.palette.onDark,
-          child: AppIcon(entry: entry, size: theme.iconSizeDp),
-        ),
-        const SizedBox(height: 6),
-        _TileLabel(
-          text: entry.label,
-          theme: theme,
-          labelLines: widget.labelLines,
-        ),
-      ],
+    final icon = PressPop(
+      held: _held || located,
+      radius: theme.iconSizeDp * 0.24,
+      ringColor: theme.palette.onDark,
+      child: AppIcon(entry: entry, size: theme.iconSizeDp),
     );
+
+    final content = _tileContent(
+      shape: widget.shape,
+      theme: theme,
+      labelLines: widget.labelLines,
+      label: entry.label,
+      icon: icon,
+    );
+
+    // ─── THE FEEDBACK IS THE ICON, NOT THE ROW ──────────────────────────
+    //
+    // Two reasons, and the first one is not a preference.
+    //
+    // `LongPressDraggable` renders its feedback into an Overlay, which hands
+    // it UNBOUNDED width. A row is a Row with an `Expanded` label in it, and
+    // an Expanded under an unbounded width throws on the first drag. A cell
+    // has no flex in it and is unaffected, which is exactly why this only
+    // shows up once rows exist.
+    //
+    // And it is the right picture anyway: what travels under the thumb is the
+    // app, and a full-width bar sliding around the drawer obscures the targets
+    // it is being dragged onto. `childWhenDragging` keeps the whole row,
+    // because that gap is in the list where the width is real.
+    final dragVisual = widget.shape == _TileShape.row ? icon : content;
 
     return DragTarget<DrawerDrag>(
       onWillAcceptWithDetails: (d) => switch (d.data) {
@@ -1415,7 +1557,8 @@ class _AppTileState extends ConsumerState<_AppTile> {
         if (_zone != null) setState(() => _zone = null);
       },
       onAcceptWithDetails: (d) {
-        final z = widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
+        final z =
+            widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
         _zone = null;
         switch (z) {
           case _DropZone.merge:
@@ -1500,7 +1643,7 @@ class _AppTileState extends ConsumerState<_AppTile> {
             translation: const Offset(-0.5, -0.5),
             child: Transform.scale(
               scale: 1.15,
-              child: Material(color: Colors.transparent, child: content),
+              child: Material(color: Colors.transparent, child: dragVisual),
             ),
           ),
           childWhenDragging: _SourceOutline(theme: theme, child: content),
@@ -1666,7 +1809,6 @@ class _AppTileState extends ConsumerState<_AppTile> {
       iconBounds: bounds,
     );
   }
-
 }
 
 /// A drawer folder: a 2x2 preview of its first four members, its name beneath.
@@ -1698,12 +1840,16 @@ class _FolderTile extends ConsumerStatefulWidget {
     required this.item,
     required this.theme,
     required this.labelLines,
+    this.shape = _TileShape.cell,
     this.slot,
   });
 
   final FolderDrawerItem item;
   final EffectiveTheme theme;
   final int labelLines;
+
+  /// Cell or row. See `_AppTile.shape`.
+  final _TileShape shape;
 
   /// Same contract as [_AppTile.slot]: non-null in the Custom grid, arming
   /// the centre-merges-edges-insert split.
@@ -1764,8 +1910,7 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
 
         // Live prefs for the same reason as _AppTileState._mergeWith.
         final before =
-            ref.read(prefsProvider(theme.spec.id)).asData?.value ??
-                theme.prefs;
+            ref.read(prefsProvider(theme.spec.id)).asData?.value ?? theme.prefs;
         final after = merge(before);
         if (identical(before, after)) return;
 
@@ -1847,7 +1992,8 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
         if (_zone != null) setState(() => _zone = null);
       },
       onAcceptWithDetails: (d) {
-        final z = widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
+        final z =
+            widget.slot == null ? _DropZone.merge : _zone ?? _DropZone.merge;
         _zone = null;
         switch (z) {
           case _DropZone.merge:
@@ -1861,49 +2007,54 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
       builder: (context, candidate, __) {
         final hovering = candidate.isNotEmpty;
 
-        final content = Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PressPop(
-              held: _held,
-              // The FOLDER's radius, not an icon's. A folder glyph is a rounded
-              // square of its own and the ring has to follow that shape, or it
-              // reads as a box drawn near the folder rather than around it.
-              radius: folderCornerRadius(theme, size),
-              ringColor: theme.palette.onDark,
-              child: Container(
-                width: size,
-                height: size,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: theme.palette.onDark
-                      .withValues(alpha: hovering ? 0.30 : 0.15),
-                  borderRadius: BorderRadius.circular(
-                    folderCornerRadius(theme, size),
-                  ),
-                ),
-                // A 2x2 preview of the first four. The convention everyone
-                // already knows — do not invent a new folder glyph.
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 2,
-                  crossAxisSpacing: 2,
-                  children: [
-                    for (final m in item.members.take(4))
-                      AppIcon(entry: m, size: size / 2 - 5),
-                  ],
-                ),
+        final glyph = PressPop(
+          held: _held,
+          // The FOLDER's radius, not an icon's. A folder glyph is a rounded
+          // square of its own and the ring has to follow that shape, or it
+          // reads as a box drawn near the folder rather than around it.
+          radius: folderCornerRadius(theme, size),
+          ringColor: theme.palette.onDark,
+          child: Container(
+            width: size,
+            height: size,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: theme.palette.onDark
+                  .withValues(alpha: hovering ? 0.30 : 0.15),
+              borderRadius: BorderRadius.circular(
+                folderCornerRadius(theme, size),
               ),
             ),
-            const SizedBox(height: 6),
-            _TileLabel(
-              text: item.folder.name,
-              theme: theme,
-              labelLines: widget.labelLines,
+            // A 2x2 preview of the first four. The convention everyone
+            // already knows: do not invent a new folder glyph.
+            child: GridView.count(
+              crossAxisCount: 2,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              children: [
+                for (final m in item.members.take(4))
+                  AppIcon(entry: m, size: size / 2 - 5),
+              ],
             ),
-          ],
+          ),
         );
+
+        final content = _tileContent(
+          shape: widget.shape,
+          theme: theme,
+          labelLines: widget.labelLines,
+          label: item.folder.name,
+          icon: glyph,
+        );
+
+        // ─── THE FEEDBACK IS THE ICON, NOT THE ROW ──────────────────────
+        //
+        // Same reason as `_AppTile`: the Overlay hands the feedback unbounded
+        // width, and a row carries an `Expanded` label that throws under it.
+        // The folder glyph is a fixed square, so it travels fine and it is
+        // what the user is actually moving.
+        final dragVisual = widget.shape == _TileShape.row ? glyph : content;
 
         return LongPressDraggable<DrawerDrag>(
           data: FolderDrag(item.folder.id),
@@ -1954,7 +2105,7 @@ class _FolderTileState extends ConsumerState<_FolderTile> {
             translation: const Offset(-0.5, -0.5),
             child: Transform.scale(
               scale: 1.15,
-              child: Material(color: Colors.transparent, child: content),
+              child: Material(color: Colors.transparent, child: dragVisual),
             ),
           ),
           childWhenDragging: _SourceOutline(theme: theme, child: content),
@@ -1993,6 +2144,7 @@ class _ActionTile extends ConsumerWidget {
     required this.theme,
     required this.labelLines,
     required this.icon,
+    this.shape = _TileShape.cell,
   });
 
   final DrawerItem item;
@@ -2000,23 +2152,24 @@ class _ActionTile extends ConsumerWidget {
   final int labelLines;
   final Widget icon;
 
+  /// Cell or row. See `_AppTile.shape`.
+  final _TileShape shape;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => activateDrawerItem(context, ref, theme, item),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          icon,
-          const SizedBox(height: 6),
-          _TileLabel(text: item.label, theme: theme, labelLines: labelLines),
-        ],
+      child: _tileContent(
+        shape: shape,
+        theme: theme,
+        labelLines: labelLines,
+        label: item.label,
+        icon: icon,
       ),
     );
   }
 }
-
 
 /// One drawer tile.
 ///
@@ -2028,85 +2181,90 @@ Widget _tileFor(
   required EffectiveTheme theme,
   required int labelLines,
   required void Function(String folderId) onFolderCreated,
+  _TileShape shape = _TileShape.cell,
   ({int page, int index})? slot,
 }) {
-            final item = drawerItem;
-            // Sealed: adding a DrawerItem variant breaks this until it's
-            // handled, which is the safety we want.
-            return switch (item) {
-              AppDrawerItem(:final entry) => _AppTile(
-                  onFolderCreated: onFolderCreated,
-                  // Stable identity so a prefs change (a folder created, an
-                  // app pinned) REUSES this element instead of building a new
-                  // one. Without it the whole grid is rebuilt from scratch,
-                  // every AppIcon is recreated, and each one re-requests its
-                  // bitmap from native — which is the flash on merge.
-                  key: ValueKey(entry.componentKey),
-                  entry: entry,
-                  theme: theme,
-                  labelLines: labelLines,
-                  slot: slot,
-                ),
-              FolderDrawerItem() => _FolderTile(
-                  key: ValueKey(item.folder.id),
-                  item: item,
-                  theme: theme,
-                  labelLines: labelLines,
-                  slot: slot,
-                ),
-              LauncherSettingsItem() => _ActionTile(
-                  key: const ValueKey('launcher-settings'),
-                  item: item,
-                  theme: theme,
-                  labelLines: labelLines,
-                  // The launcher's own settings wear the theme's brand mark
-                  // (Ubuntu → the Ubuntu logo, others → the Mindhunter mark).
-                  icon: LauncherBrandIcon(
-                    theme: theme,
-                    size: theme.iconSizeDp,
-                  ),
-                ),
-              TerminalDrawerItem() => _ActionTile(
-                  key: const ValueKey('terminal'),
-                  item: item,
-                  theme: theme,
-                  labelLines: labelLines,
-                  // A tool, not a branded surface. The same reasoning that
-                  // gives Device Settings a plain gear rather than a logo.
-                  icon: SizedBox(
-                    width: theme.iconSizeDp,
-                    height: theme.iconSizeDp,
-                    child: Center(
-                      child: Icon(
-                        Icons.terminal,
-                        size: theme.iconSizeDp * 0.82,
-                        color: theme.palette.onDark,
-                      ),
-                    ),
-                  ),
-                ),
-              DeviceSettingsItem() => _ActionTile(
-                  key: const ValueKey('device-settings'),
-                  item: item,
-                  theme: theme,
-                  labelLines: labelLines,
-                  // A system handoff, not a branded app: a plain themed gear
-                  // reads as "this leaves the launcher" the way a logo wouldn't.
-                  icon: SizedBox(
-                    width: theme.iconSizeDp,
-                    height: theme.iconSizeDp,
-                    child: Center(
-                      child: Icon(
-                        Icons.settings,
-                        size: theme.iconSizeDp * 0.82,
-                        color: theme.palette.onDark,
-                      ),
-                    ),
-                  ),
-                ),
-            };
+  final item = drawerItem;
+  // Sealed: adding a DrawerItem variant breaks this until it's
+  // handled, which is the safety we want.
+  return switch (item) {
+    AppDrawerItem(:final entry) => _AppTile(
+        onFolderCreated: onFolderCreated,
+        // Stable identity so a prefs change (a folder created, an
+        // app pinned) REUSES this element instead of building a new
+        // one. Without it the whole grid is rebuilt from scratch,
+        // every AppIcon is recreated, and each one re-requests its
+        // bitmap from native — which is the flash on merge.
+        key: ValueKey(entry.componentKey),
+        entry: entry,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        slot: slot,
+      ),
+    FolderDrawerItem() => _FolderTile(
+        key: ValueKey(item.folder.id),
+        item: item,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        slot: slot,
+      ),
+    LauncherSettingsItem() => _ActionTile(
+        key: const ValueKey('launcher-settings'),
+        item: item,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        // The launcher's own settings wear the theme's brand mark
+        // (Ubuntu → the Ubuntu logo, others → the Mindhunter mark).
+        icon: LauncherBrandIcon(
+          theme: theme,
+          size: theme.iconSizeDp,
+        ),
+      ),
+    TerminalDrawerItem() => _ActionTile(
+        key: const ValueKey('terminal'),
+        item: item,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        // A tool, not a branded surface. The same reasoning that
+        // gives Device Settings a plain gear rather than a logo.
+        icon: SizedBox(
+          width: theme.iconSizeDp,
+          height: theme.iconSizeDp,
+          child: Center(
+            child: Icon(
+              Icons.terminal,
+              size: theme.iconSizeDp * 0.82,
+              color: theme.palette.onDark,
+            ),
+          ),
+        ),
+      ),
+    DeviceSettingsItem() => _ActionTile(
+        key: const ValueKey('device-settings'),
+        item: item,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        // A system handoff, not a branded app: a plain themed gear
+        // reads as "this leaves the launcher" the way a logo wouldn't.
+        icon: SizedBox(
+          width: theme.iconSizeDp,
+          height: theme.iconSizeDp,
+          child: Center(
+            child: Icon(
+              Icons.settings,
+              size: theme.iconSizeDp * 0.82,
+              color: theme.palette.onDark,
+            ),
+          ),
+        ),
+      ),
+  };
 }
-
 
 /// The drawer's app list, cut into letter sections.
 ///
@@ -2129,13 +2287,16 @@ Widget _tileFor(
 /// Column of GridViews would build every section eagerly, which on 261 apps is
 /// the one thing the drawer's performance rules forbid. Slivers give lazy
 /// building AND mixed row shapes, which is exactly the pair this needs.
-class _AzList extends StatelessWidget {
+class _AzList extends StatefulWidget {
   const _AzList({
     required this.items,
     required this.theme,
     required this.columns,
     required this.aspect,
     required this.topGap,
+    required this.tileHeight,
+    required this.rowExtent,
+    required this.rail,
     required this.tileBuilder,
   });
 
@@ -2144,6 +2305,17 @@ class _AzList extends StatelessWidget {
   final int columns;
   final double aspect;
   final double topGap;
+
+  /// The height one grid cell will actually be, measured where the delegate
+  /// was configured. See the call site for why this is passed rather than
+  /// recomputed.
+  final double tileHeight;
+
+  /// Non-null puts the sections in full-width rows of exactly this height
+  /// instead of a grid. See `_rowExtentFor`.
+  final double? rowExtent;
+
+  final IndexRail rail;
   final Widget Function(DrawerItem) tileBuilder;
 
   /// The section a label belongs to.
@@ -2152,21 +2324,103 @@ class _AzList extends StatelessWidget {
   /// music library puts them and where nobody is surprised to find "6amMart"
   /// or an app whose name starts with an emoji. Case-folded, so "iFixit" and
   /// "Instagram" share a section rather than sorting into two.
+  ///
+  /// '#' is [kIndexOther], shared with the rail rather than spelled twice: two
+  /// copies of this string is one silent mismatch between the list and its
+  /// index, and the failure is a letter that scrolls nowhere.
+  ///
+  /// ─── LATIN ONLY, AND THAT IS A KNOWN LIMIT ────────────────────────────────
+  ///
+  /// Cyrillic, Greek and every CJK label fall into '#' together. That is the
+  /// behaviour this had before the rail existed and the rail does not make it
+  /// worse, but it does make it visible: a Russian user now sees an alphabet
+  /// that indexes one bucket. Fixing it means a locale-aware collator, which
+  /// belongs with the i18n sweep and not here.
   static String _sectionOf(String label) {
     final t = label.trim();
-    if (t.isEmpty) return '#';
+    if (t.isEmpty) return kIndexOther;
     final c = t[0].toUpperCase();
-    return (c.codeUnitAt(0) >= 65 && c.codeUnitAt(0) <= 90) ? c : '#';
+    return (c.codeUnitAt(0) >= 65 && c.codeUnitAt(0) <= 90) ? c : kIndexOther;
+  }
+
+  @override
+  State<_AzList> createState() => _AzListState();
+}
+
+class _AzListState extends State<_AzList> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// How tall a grid of [count] tiles is, in the shape this list builds it.
+  ///
+  /// Spacing sits BETWEEN rows only, which is the off-by-one that would put
+  /// every section past the second one slightly too low.
+  double _gridHeight(int count) {
+    if (count == 0) return 0;
+    final extent = widget.rowExtent;
+    // Rows are the easy case and the reason this phase is cheap for the index:
+    // a fixed extent means the offset is a multiplication, with no columns, no
+    // aspect and no spacing to get wrong.
+    if (extent != null) return count * extent;
+    final rows = (count / widget.columns).ceil();
+    return rows * widget.tileHeight + (rows - 1) * GridMetrics.rowGap;
+  }
+
+  /// One section's worth of items, as a grid or as rows.
+  ///
+  /// The two arms have to agree with `_gridHeight` term for term. They are
+  /// written next to it for that reason: the index reads one and the user sees
+  /// the other, and nothing on screen reports a disagreement between them.
+  Widget _sliverFor(List<DrawerItem> items, SliverGridDelegate delegate) {
+    final extent = widget.rowExtent;
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: extent == null
+          ? SliverGrid(
+              gridDelegate: delegate,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => widget.tileBuilder(items[i]),
+                childCount: items.length,
+              ),
+            )
+          : SliverFixedExtentList(
+              itemExtent: extent,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => widget.tileBuilder(items[i]),
+                childCount: items.length,
+              ),
+            ),
+    );
+  }
+
+  /// Jumps rather than animates.
+  ///
+  /// A fast-scroll index is a direct-manipulation control: the list is supposed
+  /// to be wherever the finger is, and an animation queued per letter would
+  /// still be catching up three letters later. This is also why the offsets are
+  /// arithmetic rather than `ensureVisible`, which needs the target to have
+  /// been built and a sliver below the fold has not been.
+  void _jumpTo(double offset) {
+    if (!_controller.hasClients) return;
+    final max = _controller.position.maxScrollExtent;
+    _controller.jumpTo(offset.clamp(0.0, max));
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = widget.theme;
+
     final pinned = [
-      for (final i in items)
+      for (final i in widget.items)
         if (i is! AppDrawerItem) i,
     ];
     final apps = [
-      for (final i in items)
+      for (final i in widget.items)
         if (i is AppDrawerItem) i,
     ];
 
@@ -2176,52 +2430,78 @@ class _AzList extends StatelessWidget {
     // case-insensitive sort already treats digits and symbols.
     final sections = <String, List<DrawerItem>>{};
     for (final a in apps) {
-      sections.putIfAbsent(_sectionOf(a.label), () => <DrawerItem>[]).add(a);
+      sections
+          .putIfAbsent(_AzList._sectionOf(a.label), () => <DrawerItem>[])
+          .add(a);
+    }
+
+    // ─── OFFSETS, BUILT IN THE SAME PASS AS THE SLIVERS ──────────────────────
+    //
+    // Walked in the order the slivers are emitted below, so the two cannot
+    // drift: every term here has a sliver directly under it contributing
+    // exactly that height.
+    final offsets = <String, double>{};
+    var y = 12 + widget.topGap;
+    if (pinned.isNotEmpty) y += _gridHeight(pinned.length);
+    for (final e in sections.entries) {
+      offsets[e.key] = y;
+      y += _SectionHeader.height + _gridHeight(e.value.length);
     }
 
     final delegate = SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: columns,
-      childAspectRatio: aspect,
+      crossAxisCount: widget.columns,
+      childAspectRatio: widget.aspect,
       crossAxisSpacing: GridMetrics.columnGap,
       mainAxisSpacing: GridMetrics.rowGap,
     );
 
-    return CustomScrollView(
+    final list = CustomScrollView(
+      controller: _controller,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // The empty first row, as padding, exactly as the unsectioned grid
         // does it. Applied once at the top rather than per section.
-        SliverToBoxAdapter(child: SizedBox(height: 12 + topGap)),
+        SliverToBoxAdapter(child: SizedBox(height: 12 + widget.topGap)),
 
-        if (pinned.isNotEmpty)
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: delegate,
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => tileBuilder(pinned[i]),
-                childCount: pinned.length,
-              ),
-            ),
-          ),
+        if (pinned.isNotEmpty) _sliverFor(pinned, delegate),
 
         for (final e in sections.entries) ...[
           SliverToBoxAdapter(
             child: _SectionHeader(letter: e.key, theme: theme),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: delegate,
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => tileBuilder(e.value[i]),
-                childCount: e.value.length,
-              ),
-            ),
-          ),
+          _sliverFor(e.value, delegate),
         ],
 
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
+      ],
+    );
+
+    if (widget.rail == IndexRail.off) return list;
+
+    // ─── THE RAIL RESERVES NO WIDTH ───────────────────────────────────────
+    //
+    // It is stacked over the grid rather than laid out beside it, so turning
+    // the index on does not reflow the tiles or change how many fit a row.
+    // The cost is that the last column passes under the strip; the tiles are
+    // still tappable everywhere except the 44dp edge, which is the same trade
+    // every fast-scroll index on the platform makes.
+    return Stack(
+      children: [
+        Positioned.fill(child: list),
+        PositionedDirectional(
+          end: 0,
+          top: 0,
+          bottom: 0,
+          child: AzRail(
+            style: widget.rail,
+            theme: theme,
+            present: sections.keys.toSet(),
+            onJump: (label) {
+              final at = offsets[label];
+              if (at != null) _jumpTo(at);
+            },
+          ),
+        ),
       ],
     );
   }
@@ -2236,6 +2516,17 @@ class _AzList extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.letter, required this.theme});
 
+  /// ─── FIXED, BECAUSE THE INDEX HAS TO ADD IT UP ──────────────────────────
+  ///
+  /// 18 above, 8 below, 16 of glyph. That is what this measured before the
+  /// constant existed, so nothing moved on screen when it arrived; what changed
+  /// is that the height is now a fact rather than a consequence of the font.
+  ///
+  /// `_AzListState` sums these to find where a section starts, and a header
+  /// that grew with the display family would put the index further out with
+  /// every section on a distro that authored a taller face.
+  static const double height = 42;
+
   final String letter;
   final EffectiveTheme theme;
 
@@ -2243,32 +2534,34 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = theme.palette.onDark;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-      child: Row(
-        children: [
-          Text(
-            letter,
-            style: TextStyle(
-              fontFamily: theme.typography.display,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: theme.palette.accent,
+    return SizedBox(
+      height: height,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+        child: Row(
+          children: [
+            Text(
+              letter,
+              style: TextStyle(
+                fontFamily: theme.typography.display,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: theme.palette.accent,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              height: 1,
-              color: ink.withValues(alpha: 0.12),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: ink.withValues(alpha: 0.12),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-
 
 /// The unsectioned, unpaged grid: one long scroll.
 ///
@@ -2301,6 +2594,29 @@ Widget _plainGrid({
       // addRepaintBoundaries is on by default and we want it: each icon is an
       // Image.memory, and without a boundary one icon resolving repaints the
       // entire visible grid.
+      itemBuilder: (context, i) => tileAt(i),
+    ),
+  );
+}
+
+/// The unsectioned list of rows: `vertical` without A to Z.
+///
+/// A sibling of `_plainGrid` rather than a flag on it. The two share a name and
+/// nothing else: one is a `GridView` whose cell height falls out of an aspect
+/// ratio, the other a fixed-extent `ListView`, and folding them together would
+/// mean a builder that ignores half its own arguments depending on a boolean.
+Widget _plainList({
+  required List<DrawerItem> items,
+  required double extent,
+  required double topGap,
+  required Widget Function(int) tileAt,
+}) {
+  return Expanded(
+    child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(16, 12 + topGap, 16, 12),
+      itemExtent: extent,
+      itemCount: items.length,
       itemBuilder: (context, i) => tileAt(i),
     ),
   );
@@ -2363,9 +2679,8 @@ class _EmptySlot extends ConsumerWidget {
           duration: const Duration(milliseconds: 120),
           margin: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: hovering
-                ? onDark.withValues(alpha: 0.10)
-                : Colors.transparent,
+            color:
+                hovering ? onDark.withValues(alpha: 0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: hovering

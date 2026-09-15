@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/hidden_apps.dart';
@@ -25,7 +26,6 @@ import 'drawer_state.dart';
 import 'folder_glyph_picker.dart';
 import 'folder_glyphs.dart';
 import 'folder_store.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// An open drawer folder, full screen, over a blurred desktop.
 ///
@@ -374,8 +374,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     // write reloads effectiveThemeProvider, so each of those three actions fell
     // back to the very snapshot this line exists to avoid. See home_screen.dart.
     final themeAsync = ref.watch(effectiveThemeProvider);
-    final theme =
-        themeAsync.hasValue ? themeAsync.requireValue : widget.theme;
+    final theme = themeAsync.hasValue ? themeAsync.requireValue : widget.theme;
 
     // WATCH, not read: this is build, and the panel has to repaint when a
     // member is added, removed or reordered. See [FolderStore] for why the two
@@ -428,7 +427,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
       textScale: theme.textScale,
       family: theme.chromeFamily,
       // The drawer's own knob, falling back to the single slider when unset.
-    opacity: theme.drawerOpacity,
+      opacity: theme.drawerOpacity,
     );
 
     return ChromeScope(
@@ -699,6 +698,7 @@ class _Title extends StatelessWidget {
   final bool unnamed;
   final TextEditingController? controller;
   final FocusNode focus;
+
   /// NULLABLE, and null means this folder cannot be renamed.
   ///
   /// Passed straight to the title's `onTap`, so a null also removes the ripple
@@ -1185,8 +1185,7 @@ class _PanelState extends State<_Panel> {
     // drawer), and a cell whose extent still budgeted one line would clip the
     // second into an overflow stripe. 16 logical pixels per extra line covers
     // the 12sp label with its line height.
-    final tileH =
-        theme.iconSizeDp + 34 + (theme.labelLines - 1) * 16.0;
+    final tileH = theme.iconSizeDp + 34 + (theme.labelLines - 1) * 16.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1245,39 +1244,39 @@ class _PanelState extends State<_Panel> {
             onLeave: (_) => _stopFlip(),
 
             builder: (context, _, __) => PageView.builder(
-            controller: controller,
-            // One page of members always fits by construction, so the page
-            // itself never scrolls — which is what keeps the horizontal swipe
-            // unambiguous.
-            itemCount: pageCount,
-            itemBuilder: (_, page) {
-              final start = page * perPage;
-              final count = math.min(perPage, members.length - start);
+              controller: controller,
+              // One page of members always fits by construction, so the page
+              // itself never scrolls — which is what keeps the horizontal swipe
+              // unambiguous.
+              itemCount: pageCount,
+              itemBuilder: (_, page) {
+                final start = page * perPage;
+                final count = math.min(perPage, members.length - start);
 
-              return GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  mainAxisExtent: tileH,
-                  crossAxisSpacing: 4,
-                ),
-                itemCount: count,
-                itemBuilder: (_, i) => _MemberTile(
-                  editable: widget.editable,
-                  store: widget.store,
-                  theme: theme,
-                  entry: members[start + i],
-                  folderId: folderId,
-                  // The tiles are the active drag target for most of the
-                  // panel's area, so they are the only thing that sees the
-                  // pointer there. Without this the flip would arm only in the
-                  // few dp of padding at the very edge, which is not a zone
-                  // anyone can aim at.
-                  onDragOver: _onDragMove,
-                  onDragDone: _stopFlip,
-                ),
-              );
+                return GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    mainAxisExtent: tileH,
+                    crossAxisSpacing: 4,
+                  ),
+                  itemCount: count,
+                  itemBuilder: (_, i) => _MemberTile(
+                    editable: widget.editable,
+                    store: widget.store,
+                    theme: theme,
+                    entry: members[start + i],
+                    folderId: folderId,
+                    // The tiles are the active drag target for most of the
+                    // panel's area, so they are the only thing that sees the
+                    // pointer there. Without this the flip would arm only in the
+                    // few dp of padding at the very edge, which is not a zone
+                    // anyone can aim at.
+                    onDragOver: _onDragMove,
+                    onDragDone: _stopFlip,
+                  ),
+                );
               },
             ),
           ),
@@ -1582,32 +1581,32 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
               ),
             ),
 
-          // The insertion caret. A LINE on the side the drop will land, not a
-          // highlight over the tile: a highlight says "into this one", which
-          // is what merging looks like everywhere else in this launcher, and
-          // that is the one thing this drop cannot do.
-          if (marker != null)
-            Positioned(
-              top: 0,
-              bottom: 0,
-              left: marker ? null : -3,
-              right: marker ? -3 : null,
-              child: Center(
-                child: Container(
-                  width: 3,
-                  height: theme.iconSizeDp,
-                  decoration: BoxDecoration(
-                    color: theme.palette.accent,
-                    borderRadius: BorderRadius.circular(2),
+            // The insertion caret. A LINE on the side the drop will land, not a
+            // highlight over the tile: a highlight says "into this one", which
+            // is what merging looks like everywhere else in this launcher, and
+            // that is the one thing this drop cannot do.
+            if (marker != null)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: marker ? null : -3,
+                right: marker ? -3 : null,
+                child: Center(
+                  child: Container(
+                    width: 3,
+                    height: theme.iconSizeDp,
+                    decoration: BoxDecoration(
+                      color: theme.palette.accent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      );
-    },
-  );
-}
+          ],
+        );
+      },
+    );
+  }
 }
 
 /// A context menu anchored where the finger went down.
@@ -1638,28 +1637,28 @@ class _MemberTileState extends ConsumerState<_MemberTile> {
 /// for exactly as long as the panel is up, and without a future to wait on
 /// there is nothing to tell it when that is.
 Future<void> showFolderMemberMenu(
-BuildContext context,
-WidgetRef ref,
-EffectiveTheme theme, {
-required Offset at,
-required String folderId,
-required AppEntry entry,
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme, {
+  required Offset at,
+  required String folderId,
+  required AppEntry entry,
 
-/// Where this folder lives.
-///
-/// Only ONE row here needs it: Remove from folder. Pin, App info and Uninstall
-/// are about the APP and are identical whichever surface holds the folder,
-/// which is why this menu was already almost store-agnostic and why the seam
-/// costs one parameter rather than a rewrite. See [FolderStore].
-required FolderStore store,
+  /// Where this folder lives.
+  ///
+  /// Only ONE row here needs it: Remove from folder. Pin, App info and Uninstall
+  /// are about the APP and are identical whichever surface holds the folder,
+  /// which is why this menu was already almost store-agnostic and why the seam
+  /// costs one parameter rather than a rewrite. See [FolderStore].
+  required FolderStore store,
 }) {
-HapticFeedback.mediumImpact();
+  HapticFeedback.mediumImpact();
 
 // Captured before pushing, exactly as ThemedSheet and ThemedDialog do: the
 // menu's route is not a descendant of this screen's scope.
-final chrome = ChromeScope.of(context);
-final notifier = ref.read(appListProvider.notifier);
-final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
+  final chrome = ChromeScope.of(context);
+  final notifier = ref.read(appListProvider.notifier);
+  final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
 
 // ─── POSITIONING MOVED TO AnchoredMenu ────────────────────────────────
 //
@@ -1689,185 +1688,185 @@ final prefs = ref.read(prefsProvider(theme.spec.id).notifier);
 // from another surface while this menu is up can slip past the check; the
 // write below then refuses against the LIVE prefs and says so, and the window
 // is a tap wide.
-final words = AppMenuWords.forTheme(theme);
+  final words = AppMenuWords.forTheme(theme);
 
 // This used to also exclude `entry.isSystem`, which reads as "system apps
 // cannot be uninstalled" but actually means "apps that shipped with the phone",
 // and on a Samsung device that includes every preinstalled app the user has
 // since updated through Play. Those ARE removable: the system offers to drop
 // the update. Native makes the finer distinction and returns a status.
-final canUninstall = !entry.isWorkProfile;
+  final canUninstall = !entry.isWorkProfile;
 
 // Being in a folder does not bar an app from the dock: pinToDock takes any
 // componentKey and has no idea where the drawer files it. Pinned members get
 // Unpin; unpinned ones get Pin only while the dock has room, because offering a
 // pin that can only be refused is a button that exists to say no.
-final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
-final dockHasSpace = theme.prefs.favourites.length < DockMetrics.maxCapacity;
-final showPinRow = isPinned || dockHasSpace;
+  final isPinned = HomeLayout.isPinned(theme.prefs, entry.componentKey);
+  final dockHasSpace = theme.prefs.favourites.length < DockMetrics.maxCapacity;
+  final showPinRow = isPinned || dockHasSpace;
 
-return AnchoredMenu.show(
-  context: context,
-  chrome: chrome,
-  anchor: Rect.fromCenter(center: at, width: 1, height: 1),
-  width: 236,
-  // A HEADER, which this menu never had.
-  //
-  // It opened straight onto its rows, which was defensible while it was
-  // anchored at the finger inside a folder you had just opened. It is not
-  // defensible now that the drawer's menu names and pictures its subject:
-  // two panels with the same rows, one of which tells you what it is about,
-  // teaches that the header means something is different. It does not.
-  title: entry.label,
-  leading: AppIcon(entry: entry, size: 30),
-  onInfo: () => notifier.openInfo(entry),
-  // ─── THE SAME THREE GLYPHS THE DRAWER'S MENU HAS ──────────────────────
-  //
-  // This menu passed no `actions` at all, so it was rows top to bottom while
-  // the drawer's menu opened with a strip. Two panels about the SAME subject,
-  // in two shapes, and `showDrawerAppMenu` already claims otherwise: its pin
-  // row carries a comment saying the ordering matches "so the same action sits
-  // in the same place whichever surface the long-press came from". It could
-  // not. Pin was first there and third here.
-  //
-  // Same three, same order. What stays a row is what is genuinely about the
-  // FOLDER rather than the app: remove and move. That is also why the strip
-  // never reaches four and no ceiling has to bend.
-  //
-  // ─── AND WHY HIDE APPEARS HERE FOR THE FIRST TIME ─────────────────────
-  //
-  // A folder is a surface that shows apps in place, which is exactly where
-  // `showDrawerAppMenu` argues Hide belongs. It was missing for no reason
-  // other than this menu predating the strip.
-  showActionLabels: theme.menuActionLabels,
-  actions: [
-    if (showPinRow)
-      MenuAction(
-        icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-        // The FAMILY's word. Two menus performing the same write on the same
-        // app must not call it two different things.
-        label: context.t(isPinned ? words.unpin : words.pin),
-        onTap: () {
-          if (isPinned) {
-            prefs.edit(
-              (p) => HomeLayout.unpinFromDock(p, entry.componentKey),
-            );
-            return;
-          }
-          // The space check ran when the menu OPENED. Same refusal contract
-          // as the drawer menu: compare identity, say so, drop it.
-          final before = theme.prefs;
-          final after = HomeLayout.pinToDock(
-            before,
-            entry.componentKey,
-            capacity: DockMetrics.maxCapacity,
-          );
-          if (identical(before, after)) {
-            if (context.mounted) {
-              context.showMessage(context.t('drawer.dockIsFull'));
+  return AnchoredMenu.show(
+    context: context,
+    chrome: chrome,
+    anchor: Rect.fromCenter(center: at, width: 1, height: 1),
+    width: 236,
+    // A HEADER, which this menu never had.
+    //
+    // It opened straight onto its rows, which was defensible while it was
+    // anchored at the finger inside a folder you had just opened. It is not
+    // defensible now that the drawer's menu names and pictures its subject:
+    // two panels with the same rows, one of which tells you what it is about,
+    // teaches that the header means something is different. It does not.
+    title: entry.label,
+    leading: AppIcon(entry: entry, size: 30),
+    onInfo: () => notifier.openInfo(entry),
+    // ─── THE SAME THREE GLYPHS THE DRAWER'S MENU HAS ──────────────────────
+    //
+    // This menu passed no `actions` at all, so it was rows top to bottom while
+    // the drawer's menu opened with a strip. Two panels about the SAME subject,
+    // in two shapes, and `showDrawerAppMenu` already claims otherwise: its pin
+    // row carries a comment saying the ordering matches "so the same action sits
+    // in the same place whichever surface the long-press came from". It could
+    // not. Pin was first there and third here.
+    //
+    // Same three, same order. What stays a row is what is genuinely about the
+    // FOLDER rather than the app: remove and move. That is also why the strip
+    // never reaches four and no ceiling has to bend.
+    //
+    // ─── AND WHY HIDE APPEARS HERE FOR THE FIRST TIME ─────────────────────
+    //
+    // A folder is a surface that shows apps in place, which is exactly where
+    // `showDrawerAppMenu` argues Hide belongs. It was missing for no reason
+    // other than this menu predating the strip.
+    showActionLabels: theme.menuActionLabels,
+    actions: [
+      if (showPinRow)
+        MenuAction(
+          icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+          // The FAMILY's word. Two menus performing the same write on the same
+          // app must not call it two different things.
+          label: context.t(isPinned ? words.unpin : words.pin),
+          onTap: () {
+            if (isPinned) {
+              prefs.edit(
+                (p) => HomeLayout.unpinFromDock(p, entry.componentKey),
+              );
+              return;
             }
-            return;
-          }
-          prefs.edit(
-            (p) => HomeLayout.pinToDock(
-              p,
+            // The space check ran when the menu OPENED. Same refusal contract
+            // as the drawer menu: compare identity, say so, drop it.
+            final before = theme.prefs;
+            final after = HomeLayout.pinToDock(
+              before,
               entry.componentKey,
               capacity: DockMetrics.maxCapacity,
-            ),
-          );
-        },
-      ),
+            );
+            if (identical(before, after)) {
+              if (context.mounted) {
+                context.showMessage(context.t('drawer.dockIsFull'));
+              }
+              return;
+            }
+            prefs.edit(
+              (p) => HomeLayout.pinToDock(
+                p,
+                entry.componentKey,
+                capacity: DockMetrics.maxCapacity,
+              ),
+            );
+          },
+        ),
 
-    // Hidden from THIS theme's drawer. Per-theme, like the set it writes to:
-    // an app hidden under Ubuntu is still in KDE's drawer, because hiding is
-    // "off my desktop", not "gone from the phone".
-    //
-    // The message is doing real work. A hidden app is not in the drawer to
-    // long-press, so the only way back is the Apps and folders page, and
-    // someone who has just hidden their first app has no reason to know it
-    // exists. Naming it is the difference between a reversible action and one
-    // that feels permanent.
-    MenuAction(
-      icon: Icons.visibility_off_outlined,
-      label: context.t('drawer.hideApp'),
-      onTap: () {
-        prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
-        if (context.mounted) {
-          context.showMessage(
-            context.t('drawer.appHidden', {'name': entry.label}),
-          );
-        }
-      },
-    ),
-
-    // A refusal is spoken rather than swallowed. Work profile is filtered here
-    // rather than round-tripped, because that one is knowable from the entry
-    // and there is no version of it that succeeds. Everything else goes to
-    // native, which distinguishes "preinstalled and never updated" from
-    // "preinstalled and updated", and anything it refuses comes back as a
-    // status and gets a sentence.
-    if (canUninstall)
+      // Hidden from THIS theme's drawer. Per-theme, like the set it writes to:
+      // an app hidden under Ubuntu is still in KDE's drawer, because hiding is
+      // "off my desktop", not "gone from the phone".
+      //
+      // The message is doing real work. A hidden app is not in the drawer to
+      // long-press, so the only way back is the Apps and folders page, and
+      // someone who has just hidden their first app has no reason to know it
+      // exists. Naming it is the difference between a reversible action and one
+      // that feels permanent.
       MenuAction(
-        icon: Icons.delete_outline,
-        label: context.t('drawer.uninstall'),
-        danger: true,
-        onTap: () async {
-          final status = await notifier.uninstall(entry);
-          if (UninstallStatus.succeeded(status)) return;
-          if (!context.mounted) return;
-          context.showMessage(context.t(uninstallRefusalKey(status)));
-        },
-      )
-    else
-      // The third slot, on the one entry that can never take Uninstall. Same
-      // substitution `showDrawerAppMenu` makes, so a work-profile app gets the
-      // same panel on both surfaces rather than a strip with a gap in it.
-      MenuAction(
-        icon: Icons.info_outline,
-        label: context.t('shell.appInfo'),
-        onTap: () => notifier.openInfo(entry),
-      ),
-  ],
-  rows: (ctx) {
-    // ─── WHAT IS LEFT IS WHAT IS ABOUT THE FOLDER ───────────────────────
-    //
-    // Pin, Hide and Uninstall moved into the strip above, where the drawer's
-    // menu already keeps them. Remove and Move are the two verbs that only
-    // mean anything because this app is filed somewhere, so they stay rows.
-    //
-    // The App info row went with them and did not come back: `onInfo` above
-    // draws the (i) button beside the title, and a menu offering the same
-    // destination twice teaches that one of the two does something else.
-    return [
-      ThemedListRow(
-        icon: Icons.folder_off_outlined,
-        title: ctx.t('drawer.removeFromFolder'),
+        icon: Icons.visibility_off_outlined,
+        label: context.t('drawer.hideApp'),
         onTap: () {
-          Navigator.pop(ctx);
-          store.removeMember(ref, theme, folderId, entry.componentKey);
+          prefs.edit((p) => HiddenApps.hide(p, entry.componentKey));
+          if (context.mounted) {
+            context.showMessage(
+              context.t('drawer.appHidden', {'name': entry.label}),
+            );
+          }
         },
       ),
-      // ─── MOVE, WHICH IS THE ONE VERB THE SHEET WAS MISSING ────────
+
+      // A refusal is spoken rather than swallowed. Work profile is filtered here
+      // rather than round-tripped, because that one is knowable from the entry
+      // and there is no version of it that succeeds. Everything else goes to
+      // native, which distinguishes "preinstalled and never updated" from
+      // "preinstalled and updated", and anything it refuses comes back as a
+      // status and gets a sentence.
+      if (canUninstall)
+        MenuAction(
+          icon: Icons.delete_outline,
+          label: context.t('drawer.uninstall'),
+          danger: true,
+          onTap: () async {
+            final status = await notifier.uninstall(entry);
+            if (UninstallStatus.succeeded(status)) return;
+            if (!context.mounted) return;
+            context.showMessage(context.t(uninstallRefusalKey(status)));
+          },
+        )
+      else
+        // The third slot, on the one entry that can never take Uninstall. Same
+        // substitution `showDrawerAppMenu` makes, so a work-profile app gets the
+        // same panel on both surfaces rather than a strip with a gap in it.
+        MenuAction(
+          icon: Icons.info_outline,
+          label: context.t('shell.appInfo'),
+          onTap: () => notifier.openInfo(entry),
+        ),
+    ],
+    rows: (ctx) {
+      // ─── WHAT IS LEFT IS WHAT IS ABOUT THE FOLDER ───────────────────────
       //
-      // Remove takes an app OUT and leaves it loose. There was no way to say
-      // "this belongs in the other one", so moving meant remove, close the
-      // folder, find the app, open the target, add it. Five steps to express
-      // one intent.
+      // Pin, Hide and Uninstall moved into the strip above, where the drawer's
+      // menu already keeps them. Remove and Move are the two verbs that only
+      // mean anything because this app is filed somewhere, so they stay rows.
       //
-      // Placed after Remove because they are the same family of action and
-      // this is the gentler of the two: Move keeps the app filed somewhere,
-      // Remove does not.
-      ThemedListRow(
-        icon: Icons.drive_file_move_outline,
-        title: ctx.t('drawer.moveTo'),
-        onTap: () async {
-          Navigator.pop(ctx);
-          await _moveTo(context, ref, theme, folderId, entry);
-        },
-      ),
-    ];
-  },
-);
+      // The App info row went with them and did not come back: `onInfo` above
+      // draws the (i) button beside the title, and a menu offering the same
+      // destination twice teaches that one of the two does something else.
+      return [
+        ThemedListRow(
+          icon: Icons.folder_off_outlined,
+          title: ctx.t('drawer.removeFromFolder'),
+          onTap: () {
+            Navigator.pop(ctx);
+            store.removeMember(ref, theme, folderId, entry.componentKey);
+          },
+        ),
+        // ─── MOVE, WHICH IS THE ONE VERB THE SHEET WAS MISSING ────────
+        //
+        // Remove takes an app OUT and leaves it loose. There was no way to say
+        // "this belongs in the other one", so moving meant remove, close the
+        // folder, find the app, open the target, add it. Five steps to express
+        // one intent.
+        //
+        // Placed after Remove because they are the same family of action and
+        // this is the gentler of the two: Move keeps the app filed somewhere,
+        // Remove does not.
+        ThemedListRow(
+          icon: Icons.drive_file_move_outline,
+          title: ctx.t('drawer.moveTo'),
+          onTap: () async {
+            Navigator.pop(ctx);
+            await _moveTo(context, ref, theme, folderId, entry);
+          },
+        ),
+      ];
+    },
+  );
 }
 
 class _Dots extends StatelessWidget {

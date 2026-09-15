@@ -14,10 +14,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../engine/terminal_spec.dart';
 import 'ssh_host.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Ask for a password. Null when cancelled.
 ///
@@ -102,7 +102,8 @@ Future<String?> askSshPassword(
             children: [
               TextButton(
                 onPressed: () => Navigator.of(sheetContext).pop(),
-                child: Text(context.t('common.cancel'), style: TextStyle(color: palette.dim)),
+                child: Text(context.t('common.cancel'),
+                    style: TextStyle(color: palette.dim)),
               ),
               const SizedBox(width: 8),
               FilledButton(
@@ -242,7 +243,8 @@ Future<bool> confirmSshHostKey(
             children: [
               TextButton(
                 onPressed: () => Navigator.of(sheetContext).pop(false),
-                child: Text(context.t('common.cancel'), style: TextStyle(color: palette.dim)),
+                child: Text(context.t('common.cancel'),
+                    style: TextStyle(color: palette.dim)),
               ),
               const SizedBox(width: 8),
               FilledButton(

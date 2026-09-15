@@ -169,8 +169,7 @@ class ThemeAsset {
   /// writes `AssetImage(spec.wallpapers.first)` becomes
   /// `spec.source.asset(spec.wallpapers.first).image`, and installed themes
   /// start rendering with no further thought at that site.
-  ImageProvider get image =>
-      isFile ? FileImage(File(path)) : AssetImage(path);
+  ImageProvider get image => isFile ? FileImage(File(path)) : AssetImage(path);
 
   /// Cheap existence check, so a missing wallpaper can fall back to the palette
   /// gradient rather than painting a hole.

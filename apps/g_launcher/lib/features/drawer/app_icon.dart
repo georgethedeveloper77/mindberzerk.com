@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../design/theme_mark.dart';
 
-import '../../data/repositories/app_repository.dart';
 import '../../data/cdn/pack_repository.dart';
+import '../../data/repositories/app_repository.dart';
+import '../../design/theme_mark.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../system/notification_badges.dart';
@@ -38,6 +38,7 @@ final iconProvider =
 @immutable
 class IconRequest {
   const IconRequest(this.componentKey, this.sizePx, this.cacheId);
+
   final String componentKey;
   final int sizePx;
 
@@ -313,8 +314,10 @@ class _Badged extends ConsumerWidget {
     // luminance picks the ink, so Ubuntu orange takes white and a pastel accent
     // flips to dark. If that rule ever changes, it changes in both places.
     final onAccent = p.accent.computeLuminance() > 0.5
-        ? const Color(0xFF12080D) // theme-exempt: mirrors ChromeColors.onAccent, which is the one place this pair is authored
-        : const Color(0xFFFFFFFF); // theme-exempt: mirrors ChromeColors.onAccent
+        ? const Color(
+            0xFF12080D) // theme-exempt: mirrors ChromeColors.onAccent, which is the one place this pair is authored
+        : const Color(
+            0xFFFFFFFF); // theme-exempt: mirrors ChromeColors.onAccent
 
     // Proportional to the icon, not a fixed dp. The same badge has to sit on a
     // 32dp dock icon and a 64dp drawer icon, and a fixed size is conspicuous on

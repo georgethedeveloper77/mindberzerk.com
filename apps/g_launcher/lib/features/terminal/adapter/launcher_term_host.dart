@@ -76,7 +76,9 @@ class LauncherTermHost extends TermHost {
   final FilesBridge _files = FilesBridge();
 
   SystemStats? _stats;
+
   void cacheStats(SystemStats stats) => _stats = stats;
+
   void dispose() {}
 
   // ── /apps ───────────────────────────────────────────────────────────

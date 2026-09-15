@@ -116,7 +116,8 @@ class WallpaperCollectionScreen extends ConsumerWidget {
     Future<void> deleteCollection() async {
       final ok = await ThemedDialog.confirm(
         context,
-        title: context.t('settings.deleteCollectionConfirm', {'name': collection.name}),
+        title: context
+            .t('settings.deleteCollectionConfirm', {'name': collection.name}),
         message: context.t('settings.theCopiesInThis'),
         confirmLabel: context.t('settings.delete'),
         danger: true,

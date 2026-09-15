@@ -55,8 +55,7 @@ Future<Directory> wallpaperStorageDir(String relative) async {
 }
 
 /// The loose photos a user adds under "Yours", as opposed to a collection.
-Future<Directory> ownWallpapersDir() =>
-    wallpaperStorageDir('wallpapers_own');
+Future<Directory> ownWallpapersDir() => wallpaperStorageDir('wallpapers_own');
 
 /// Is [path] one of OUR copies?
 ///
@@ -78,9 +77,11 @@ Future<bool> isOwnWallpaperCopy(String path) async {
 /// already evicted, and losing nine other photos to it would be the worse
 /// outcome. Callers count the nulls by omission.
 Future<String?> copyWallpaperInto(Directory dir, String source) async {
-  final ext =
-      RegExp(r'\.([A-Za-z0-9]+)$').firstMatch(source)?.group(1)?.toLowerCase() ??
-          'jpg';
+  final ext = RegExp(r'\.([A-Za-z0-9]+)$')
+          .firstMatch(source)
+          ?.group(1)
+          ?.toLowerCase() ??
+      'jpg';
 
   // A tight import loop can read the same microsecond twice on a coarse
   // clock, and the second photo silently overwriting the first would look
@@ -286,7 +287,7 @@ class WallpaperCollectionsNotifier
   }
 }
 
-final wallpaperCollectionsProvider =
-    AsyncNotifierProvider<WallpaperCollectionsNotifier, List<WallpaperCollection>>(
+final wallpaperCollectionsProvider = AsyncNotifierProvider<
+    WallpaperCollectionsNotifier, List<WallpaperCollection>>(
   WallpaperCollectionsNotifier.new,
 );

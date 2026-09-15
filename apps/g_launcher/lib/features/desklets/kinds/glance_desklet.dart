@@ -78,8 +78,9 @@ class GlanceDesklet extends ConsumerWidget {
 
     // The skin names a family SLOT, never a typeface — the theme owns the
     // string. Same resolution the clock desklet uses.
-    final headFamily =
-        skin.font == DeskletFont.mono ? theme.typography.mono : theme.typography.display;
+    final headFamily = skin.font == DeskletFont.mono
+        ? theme.typography.mono
+        : theme.typography.display;
     final mono = theme.typography.mono;
 
     // A drop shadow only on the bare (GNOME / Aqua) surface, where text sits
@@ -121,7 +122,7 @@ class GlanceDesklet extends ConsumerWidget {
       addRow(
         'net',
         '\u2193 ${SystemStats.rate(s!.netDownBytesPerSec)}'
-        '  \u2191 ${SystemStats.rate(s.netUpBytesPerSec)}',
+            '  \u2191 ${SystemStats.rate(s.netUpBytesPerSec)}',
       );
     }
 
@@ -130,7 +131,7 @@ class GlanceDesklet extends ConsumerWidget {
       addRow(
         'disk',
         '${SystemStats.bytes(s!.storageUsedBytes)}'
-        ' / ${SystemStats.bytes(s.storageTotalBytes)}',
+            ' / ${SystemStats.bytes(s.storageTotalBytes)}',
       );
     }
     if (tier >= 4 && thermalLabel(s?.thermalStatus) != null) {
@@ -146,8 +147,8 @@ class GlanceDesklet extends ConsumerWidget {
           style: TextStyle(
             fontFamily: headFamily,
             fontSize: skin.num_('timeSize', 40),
-            fontWeight: FontWeight.values[
-                (skin.num_('timeWeight', 300) ~/ 100 - 1).clamp(0, 8)],
+            fontWeight: FontWeight
+                .values[(skin.num_('timeWeight', 300) ~/ 100 - 1).clamp(0, 8)],
             height: 1.0,
             letterSpacing: -1,
             color: p.onDark,

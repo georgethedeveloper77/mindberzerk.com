@@ -55,6 +55,9 @@ class LauncherPrefs {
   const LauncherPrefs({
     this.dockSide,
     this.dockGridButton,
+    this.dockHover,
+    this.dockPress,
+    this.dockEntrance,
     this.topBar,
     this.desktopIcons,
     this.panelModules,
@@ -66,6 +69,9 @@ class LauncherPrefs {
     this.drawerSearchPosition,
     this.drawerScrollStyle,
     this.drawerGrouping,
+    this.drawerIndexRail,
+    this.drawerListStyle,
+    this.dockLayout,
     this.drawerSortMode,
     this.drawerSlots = const [],
     this.drawerSlotCols,
@@ -153,6 +159,43 @@ class LauncherPrefs {
   /// Exists because the grid button is the most-tapped thing in the dock, and
   /// the far end of a tall left dock is a stretch on a big phone.
   final String? dockGridButton;
+
+  // --- dock animation (null = inherit from ThemeSpec) ---
+  //
+  // ─── THREE FIELDS, NOT ONE ────────────────────────────────────────────────
+  //
+  // They are independent questions and a user answers them separately: a dock
+  // that magnifies under the finger and sinks on press is a normal combination,
+  // and so is one that does neither but slides in on first paint. Folding them
+  // into a single "animation style" would have made the set a menu of the
+  // combinations somebody thought of.
+  //
+  // Strings rather than enums, the reason [dockSide] gives: a value written by
+  // a newer build survives a round trip through an older one, and every read
+  // goes through a parser that falls back.
+
+  /// How the dock responds to a finger moving over it.
+  /// 'none' | 'magnify' | 'lift' | 'tilt' | 'part' | 'focus' | 'arc'.
+  ///
+  /// This is where `dockStyle: "magnified"` went. That value described how a
+  /// dock RESPONDS while its two siblings, flat and floating, describe how it
+  /// SITS, which is a different question that only ever shared a field because
+  /// one dock was the only one doing either.
+  final String? dockHover;
+
+  /// What an icon does when it is tapped.
+  /// 'sink' | 'bounce' | 'jelly' | 'pop' | 'flip' | 'swing' | 'pulse' |
+  /// 'ripple' | 'wave' | 'launch'.
+  final String? dockPress;
+
+  /// How the dock arrives, on first paint and when an autohiding dock returns.
+  /// 'none' | 'slide' | 'expand' | 'blur' | 'stagger' | 'gloss'.
+  ///
+  /// NOT `dockReveal`, which is taken and means something else entirely:
+  /// whether the dock exists on the desktop at all, which is what tells Fedora
+  /// from Ubuntu. Reusing that name would have made a cosmetic setting look
+  /// like a structural one.
+  final String? dockEntrance;
 
   final bool? topBar;
 
@@ -250,6 +293,62 @@ class LauncherPrefs {
   /// Grouping is therefore ORTHOGONAL to layout, and only meaningful when
   /// drawerScrollStyle is the list. Settings hides this row otherwise.
   final String? drawerGrouping;
+
+  /// The alphabet index down the drawer's trailing edge.
+  /// null | 'off' | 'plain' | 'arc'.
+  ///
+  /// ─── A THIRD FIELD RATHER THAN A FOURTH GROUPING VALUE ──────────────────
+  ///
+  /// The same argument [drawerGrouping] makes against itself being a fourth
+  /// [drawerScrollStyle]. The index needs letter sections to point at, so it
+  /// depends on grouping being 'az' the way grouping depends on the layout
+  /// being the list, but "is there an index" and "are there headings" are two
+  /// questions and a user can want the second without the first. Folded into
+  /// grouping it would be a four-value control where two of the values differ
+  /// only in decoration.
+  ///
+  /// ─── NOT ON ThemeSpec, AND THAT IS DELIBERATE ───────────────────────────
+  ///
+  /// Every neighbour here has a distro arm. This one does not, because a
+  /// publishing pipeline it is not wired into would strip it: `theme-spec.ts`,
+  /// `THEME_SPEC_KEYS` and `canonicalThemeJson` all have to learn a field
+  /// before a pack can carry it, and a field the device parses but the admin
+  /// drops is the silent kind of broken. It is also, honestly, a reach
+  /// preference rather than a distro's identity, in the same class as
+  /// [drawerSearchPosition] and for the same reason.
+  final String? drawerIndexRail;
+
+  /// Whether the vertical drawer is a grid of cells or a list of rows.
+  /// null | 'grid' | 'rows'.
+  ///
+  /// ─── NOT `drawerCols: 1` ────────────────────────────────────────────────
+  ///
+  /// One column already exists and is not this. It gives a single stack of
+  /// grid CELLS: icon centred, name captioned underneath, each one as tall as
+  /// a tile. Rows put the name BESIDE the icon, which is a different widget
+  /// rather than a different arithmetic, and it is the shape that makes a
+  /// drawer readable as a list of names.
+  ///
+  /// Not on `ThemeSpec` for the reason [drawerIndexRail] gives at length.
+  final String? drawerListStyle;
+
+  /// Whether the dock is a bar of icons or a list of names.
+  /// null | 'bar' | 'list'.
+  ///
+  /// ─── NOT `dockStyle`, WHICH IS TAKEN ────────────────────────────────────
+  ///
+  /// `dockStyle` already means flat-against-the-edge versus floating, and it is
+  /// authored by distros. Two prefs one letter apart, both about how the dock
+  /// looks, is a name collision waiting to be resolved wrongly by whoever reads
+  /// the shorter one first.
+  ///
+  /// ─── AND NOT A HOME CONTENT TYPE ────────────────────────────────────────
+  ///
+  /// This is a presentation of the dock, so it shares `favourites` and every
+  /// operation on it. A separate favourites HOME would be a second writer for
+  /// pinning, ordering, capacity and exclusion, all of which already exist and
+  /// none of which know what the dock looks like.
+  final String? dockLayout;
 
   /// How the drawer's loose apps are ORDERED.
   /// null | 'az' | 'mostUsed' | 'recent' | 'custom'. null = alphabetical.
@@ -949,6 +1048,9 @@ class LauncherPrefs {
   LauncherPrefs copyWith({
     String? dockSide,
     String? dockGridButton,
+    String? dockHover,
+    String? dockPress,
+    String? dockEntrance,
     bool? topBar,
     bool? desktopIcons,
     List<String>? panelModules,
@@ -960,6 +1062,9 @@ class LauncherPrefs {
     String? drawerSearchPosition,
     String? drawerScrollStyle,
     String? drawerGrouping,
+    String? drawerIndexRail,
+    String? drawerListStyle,
+    String? dockLayout,
     String? drawerSortMode,
     List<DrawerSlot>? drawerSlots,
     int? drawerSlotCols,
@@ -1024,6 +1129,9 @@ class LauncherPrefs {
     return LauncherPrefs(
       dockSide: dockSide ?? this.dockSide,
       dockGridButton: dockGridButton ?? this.dockGridButton,
+      dockHover: dockHover ?? this.dockHover,
+      dockPress: dockPress ?? this.dockPress,
+      dockEntrance: dockEntrance ?? this.dockEntrance,
       topBar: topBar ?? this.topBar,
       desktopIcons: desktopIcons ?? this.desktopIcons,
       panelModules: panelModules ?? this.panelModules,
@@ -1035,6 +1143,9 @@ class LauncherPrefs {
       drawerSearchPosition: drawerSearchPosition ?? this.drawerSearchPosition,
       drawerScrollStyle: drawerScrollStyle ?? this.drawerScrollStyle,
       drawerGrouping: drawerGrouping ?? this.drawerGrouping,
+      drawerIndexRail: drawerIndexRail ?? this.drawerIndexRail,
+      drawerListStyle: drawerListStyle ?? this.drawerListStyle,
+      dockLayout: dockLayout ?? this.dockLayout,
       drawerSortMode: drawerSortMode ?? this.drawerSortMode,
       drawerSlots: drawerSlots ?? this.drawerSlots,
       drawerSlotCols: drawerSlotCols ?? this.drawerSlotCols,
@@ -1105,6 +1216,9 @@ class LauncherPrefs {
   LauncherPrefs clearing({
     bool dockSide = false,
     bool dockGridButton = false,
+    bool dockHover = false,
+    bool dockPress = false,
+    bool dockEntrance = false,
     bool topBar = false,
     bool desktopIcons = false,
     bool panelModules = false,
@@ -1116,6 +1230,9 @@ class LauncherPrefs {
     bool drawerSearchPosition = false,
     bool drawerScrollStyle = false,
     bool drawerGrouping = false,
+    bool drawerIndexRail = false,
+    bool drawerListStyle = false,
+    bool dockLayout = false,
     bool drawerSortMode = false,
     bool drawerPageCount = false,
     bool themeMode = false,
@@ -1169,6 +1286,9 @@ class LauncherPrefs {
     return LauncherPrefs(
       dockSide: dockSide ? null : this.dockSide,
       dockGridButton: dockGridButton ? null : this.dockGridButton,
+      dockHover: dockHover ? null : this.dockHover,
+      dockPress: dockPress ? null : this.dockPress,
+      dockEntrance: dockEntrance ? null : this.dockEntrance,
       // Clearable now, for the section resets. It was pass-through, so
       // "restore defaults" on Icons and bar could turn the bar back ON but
       // could never hand it back to the distro's own answer.
@@ -1188,6 +1308,9 @@ class LauncherPrefs {
       // dropped, because the constructor defaults it.
       drawerScrollStyle: drawerScrollStyle ? null : this.drawerScrollStyle,
       drawerGrouping: drawerGrouping ? null : this.drawerGrouping,
+      drawerIndexRail: drawerIndexRail ? null : this.drawerIndexRail,
+      drawerListStyle: drawerListStyle ? null : this.drawerListStyle,
+      dockLayout: dockLayout ? null : this.dockLayout,
       drawerSortMode: drawerSortMode ? null : this.drawerSortMode,
       // Pass-through, not clearable: the arrangement survives leaving Custom,
       // which is what lets returning to Custom restore it. Omitting these
@@ -1287,6 +1410,9 @@ class LauncherPrefs {
         'schemaVersion': schemaVersion,
         if (dockSide != null) 'dockSide': dockSide,
         if (dockGridButton != null) 'dockGridButton': dockGridButton,
+        if (dockHover != null) 'dockHover': dockHover,
+        if (dockPress != null) 'dockPress': dockPress,
+        if (dockEntrance != null) 'dockEntrance': dockEntrance,
         if (topBar != null) 'topBar': topBar,
         if (desktopIcons != null) 'desktopIcons': desktopIcons,
         if (panelModules != null) 'panelModules': panelModules,
@@ -1297,6 +1423,9 @@ class LauncherPrefs {
         if (drawerCols != null) 'drawerCols': drawerCols,
         if (drawerScrollStyle != null) 'drawerScrollStyle': drawerScrollStyle,
         if (drawerGrouping != null) 'drawerGrouping': drawerGrouping,
+        if (drawerIndexRail != null) 'drawerIndexRail': drawerIndexRail,
+        if (drawerListStyle != null) 'drawerListStyle': drawerListStyle,
+        if (dockLayout != null) 'dockLayout': dockLayout,
         if (drawerSortMode != null) 'drawerSortMode': drawerSortMode,
         'drawerSlots': drawerSlots.map((e) => e.toJson()).toList(),
         if (drawerSlotCols != null) 'drawerSlotCols': drawerSlotCols,
@@ -1383,6 +1512,9 @@ class LauncherPrefs {
     return LauncherPrefs(
       dockSide: j['dockSide'] as String?,
       dockGridButton: j['dockGridButton'] as String?,
+      dockHover: j['dockHover'] as String?,
+      dockPress: j['dockPress'] as String?,
+      dockEntrance: j['dockEntrance'] as String?,
       topBar: j['topBar'] as bool?,
       desktopIcons: j['desktopIcons'] as bool?,
       panelModules:
@@ -1395,6 +1527,9 @@ class LauncherPrefs {
       drawerSearchPosition: j['drawerSearchPosition'] as String?,
       drawerScrollStyle: j['drawerScrollStyle'] as String?,
       drawerGrouping: j['drawerGrouping'] as String?,
+      drawerIndexRail: j['drawerIndexRail'] as String?,
+      drawerListStyle: j['drawerListStyle'] as String?,
+      dockLayout: j['dockLayout'] as String?,
       drawerSortMode: j['drawerSortMode'] as String?,
       drawerSlots: ((j['drawerSlots'] as List?) ?? const [])
           .map((e) => DrawerSlot.fromJson((e as Map).cast<String, dynamic>()))
@@ -1517,6 +1652,9 @@ class LauncherPrefs {
     return other is LauncherPrefs &&
         other.dockSide == dockSide &&
         other.dockGridButton == dockGridButton &&
+        other.dockHover == dockHover &&
+        other.dockPress == dockPress &&
+        other.dockEntrance == dockEntrance &&
         other.topBar == topBar &&
         other.desktopIcons == desktopIcons &&
         const ListEquality<String>().equals(other.panelModules, panelModules) &&
@@ -1528,6 +1666,9 @@ class LauncherPrefs {
         other.drawerSearchPosition == drawerSearchPosition &&
         other.drawerScrollStyle == drawerScrollStyle &&
         other.drawerGrouping == drawerGrouping &&
+        other.drawerIndexRail == drawerIndexRail &&
+        other.drawerListStyle == drawerListStyle &&
+        other.dockLayout == dockLayout &&
         other.drawerSortMode == drawerSortMode &&
         const ListEquality<DrawerSlot>()
             .equals(other.drawerSlots, drawerSlots) &&
@@ -1616,6 +1757,9 @@ class LauncherPrefs {
   int get hashCode => Object.hashAll([
         dockSide,
         dockGridButton,
+        dockHover,
+        dockPress,
+        dockEntrance,
         topBar,
         desktopIcons,
         const ListEquality<String>().hash(panelModules),
@@ -1627,6 +1771,9 @@ class LauncherPrefs {
         drawerSearchPosition,
         drawerScrollStyle,
         drawerGrouping,
+        drawerIndexRail,
+        drawerListStyle,
+        dockLayout,
         drawerSortMode,
         const ListEquality<DrawerSlot>().hash(drawerSlots),
         drawerSlotCols,
@@ -1956,6 +2103,7 @@ class Desklet {
   /// and [right] is 4. Off-by-one here is an overlap bug that only shows up as
   /// two tiles drawn on top of each other.
   int get right => col + spanX;
+
   int get bottom => row + spanY;
 
   bool overlaps(Desklet other) {

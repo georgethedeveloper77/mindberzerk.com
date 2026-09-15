@@ -194,3 +194,14 @@ Ubuntu and UbuntuMono ship under the Ubuntu Font Licence 1.0, registered with
 `LicenseRegistry` and visible in the app's licence page. Simple Icons brand
 glyphs are CC0 (the files, not the trademarks). GPL icon sets (Papirus,
 Numix) are not distributable over the CDN and are not used.
+
+cd ~/Projects/mindberzerk/apps/g_launcher
+python3 tools/i18n_audit.py --json > audit.json
+python3 tools/i18n_extract.py
+python3 tools/i18n_audit.py --json > audit.json
+python3 tools/i18n_reuse.py
+python3 tools/i18n_deconst.py
+flutter analyze
+
+.venv-i18n/bin/python tools/i18n_fill.py --all
+python3 tools/i18n_audit.py --only parity

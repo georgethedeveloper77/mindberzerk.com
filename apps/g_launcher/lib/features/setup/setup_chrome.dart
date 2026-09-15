@@ -23,9 +23,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/components.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/theme_spec.dart';
 
 /// The structural language of the installer.
@@ -605,7 +605,9 @@ class SetupInstallerFrame extends StatelessWidget {
   /// it starts crowding the controls on a tall screen without showing more).
   /// Short screens shrink the stage; they do not scroll the controls away.
   Widget _stageAndContent(ChromeData d) {
-    if (stage == null || skin.kind == SetupFrameKind.console) return _content(d);
+    if (stage == null || skin.kind == SetupFrameKind.console) {
+      return _content(d);
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {

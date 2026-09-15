@@ -401,5 +401,31 @@
                 android:resource="@xml/motion_wallpaper" />
         </service>
 
+        <!--
+            Lets a backup cross to another app through the share sheet.
+
+            A file in our own storage cannot be handed over as a file:// URI at
+            all, so sharing one means a content:// URI from a provider, granted
+            per intent and revoked when the transfer ends.
+
+            SCOPED TO ONE CACHE FOLDER. file_paths.xml exposes cache/shared and
+            nothing else, so the grant reaches the single copy the user chose to
+            send and never the snapshot directory behind it.
+
+            The authority is suffixed onto ${applicationId} rather than written
+            out, so a debug build installed beside release gets its own and the
+            two do not collide. BackupStore builds the same string from the
+            package name; the two must stay in step.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 </manifest>

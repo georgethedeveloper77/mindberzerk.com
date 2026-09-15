@@ -344,10 +344,8 @@ class DrawerLayout {
   }
 
   /// "Ungroup" — every member returns to the list at once.
-  static LauncherPrefs dissolve(LauncherPrefs p, String folderId) =>
-      p.copyWith(
-        drawerFolders:
-            p.drawerFolders.where((x) => x.id != folderId).toList(),
+  static LauncherPrefs dissolve(LauncherPrefs p, String folderId) => p.copyWith(
+        drawerFolders: p.drawerFolders.where((x) => x.id != folderId).toList(),
       );
 
   /// Ungroup EVERYTHING: every folder's members return to the list at once.
@@ -362,9 +360,7 @@ class DrawerLayout {
   /// other mutations use.
   static LauncherPrefs dissolveAll(LauncherPrefs p) => p.drawerFolders.isEmpty
       ? p
-      : p
-          .copyWith(drawerFolders: const [])
-          .clearing(folderOrderCustom: true);
+      : p.copyWith(drawerFolders: const []).clearing(folderOrderCustom: true);
 
   /// Rename. A blank name is refused rather than stored: an unnamed folder in an
   /// alphabetical list has nowhere to sort and nothing to tap.
@@ -445,11 +441,13 @@ class DrawerLayout {
   static LauncherPrefs resetFolderOrder(LauncherPrefs p) =>
       p.folderOrderCustom != true
           ? p
-          : p.copyWith(
-              drawerFolders: orderedFolders(
-                p.copyWith(folderOrderCustom: false),
-              ),
-            ).clearing(folderOrderCustom: true);
+          : p
+              .copyWith(
+                drawerFolders: orderedFolders(
+                  p.copyWith(folderOrderCustom: false),
+                ),
+              )
+              .clearing(folderOrderCustom: true);
 
   /// Uninstalled apps must not haunt folders, and a folder emptied down to one
   /// survivor by an uninstall dissolves like any other. Call alongside

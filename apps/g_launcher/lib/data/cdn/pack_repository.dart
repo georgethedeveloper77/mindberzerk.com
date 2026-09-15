@@ -264,6 +264,7 @@ void registerPackFlutterApi(Ref ref) {
 /// controller would only add a state machine nobody needs.
 class PackActions {
   const PackActions(this._ref);
+
   final Ref _ref;
 
   /// Returns true when the catalogue changed and the UI should re-read.

@@ -419,7 +419,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     return k is String ? k : null;
   }
 
-  void _perform(CommandAction action, String? spawnKind, {required String name}) {
+  void _perform(CommandAction action, String? spawnKind,
+      {required String name}) {
     _exitCode = 0;
 
     // ─── THE GATE, AND WHERE IT IS ────────────────────────────────────────
@@ -581,7 +582,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   }
 
   Future<void> _runHostCommand(String args) async {
-    final parts = args.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts =
+        args.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
     if (parts.isEmpty) {
       _fail('host: usage: host <add|rm|forget> <alias> [user@host[:port]]');
       setState(() {});
@@ -618,8 +620,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
       case 'rm':
         await _hosts();
-        final removed =
-            await ref.read(sshHostsProvider.notifier).remove(alias);
+        final removed = await ref.read(sshHostsProvider.notifier).remove(alias);
         removed
             ? _write('\x1b[32mremoved\x1b[0m $alias')
             : _fail('host rm: no host called "$alias".');
@@ -1177,10 +1178,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   final lineHeight =
                       probe.height <= 0 ? 18.0 : probe.height * 1.45;
 
-                  final columns =
-                      ((constraints.maxWidth - 28) / charWidth).floor().clamp(20, 500);
-                  final rows =
-                      (constraints.maxHeight / lineHeight).floor().clamp(5, 200);
+                  final columns = ((constraints.maxWidth - 28) / charWidth)
+                      .floor()
+                      .clamp(20, 500);
+                  final rows = (constraints.maxHeight / lineHeight)
+                      .floor()
+                      .clamp(5, 200);
 
                   // Post-frame: a provider or a socket must not be written
                   // during build, and the size is only interesting after layout

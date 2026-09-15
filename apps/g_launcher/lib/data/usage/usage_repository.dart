@@ -44,7 +44,8 @@ class UsageStats {
 
     final scored = counts.entries.map((e) {
       final last = lastUsed[e.key] ?? 0;
-      final ageDays = last == 0 ? 365.0 : (t - last) / Duration.millisecondsPerDay;
+      final ageDays =
+          last == 0 ? 365.0 : (t - last) / Duration.millisecondsPerDay;
       final decay = math.pow(0.5, ageDays / 14).toDouble();
       return MapEntry(e.key, e.value * decay);
     }).toList()

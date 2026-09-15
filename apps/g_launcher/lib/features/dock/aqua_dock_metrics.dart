@@ -193,8 +193,7 @@ abstract final class AquaDockMetrics {
       sizes = [for (final s in sizes) s * k];
     }
 
-    final total =
-        sizes.fold<double>(0, (a, b) => a + b) + (count - 1) * gap;
+    final total = sizes.fold<double>(0, (a, b) => a + b) + (count - 1) * gap;
     final shift = (available - total) / 2;
 
     final out = <AquaSlot>[];

@@ -101,7 +101,9 @@ class SystemStats {
   final Duration? uptime;
 
   bool get hasMemory => memUsedGb != null && memTotalGb != null;
+
   bool get hasNet => netDownBytesPerSec != null && netUpBytesPerSec != null;
+
   bool get hasStorage => storageUsedBytes != null && storageTotalBytes != null;
 
   /// `3.1/8G` — the mockup's format exactly.

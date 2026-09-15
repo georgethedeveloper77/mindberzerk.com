@@ -46,7 +46,6 @@ class DeskletCellNotifier extends Notifier<DeskletCell?> {
   }
 }
 
-final deskletCellProvider =
-    NotifierProvider<DeskletCellNotifier, DeskletCell?>(
+final deskletCellProvider = NotifierProvider<DeskletCellNotifier, DeskletCell?>(
   DeskletCellNotifier.new,
 );

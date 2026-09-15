@@ -18,10 +18,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../engine/terminal_spec.dart';
 import 'terminal_entitlement.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Show it. Returns true when a purchase was STARTED, which is not the same as
 /// completed: Play's flow can take minutes on the cash and carrier-billing
@@ -78,7 +78,8 @@ class _ProSheet extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    context.t('terminal.needsTerminalPro', {'command': command}),
+                    context
+                        .t('terminal.needsTerminalPro', {'command': command}),
                     style: TextStyle(
                       fontFamily: fontFamily,
                       fontSize: 15,
@@ -90,7 +91,6 @@ class _ProSheet extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 14),
-
             _Line(
               palette: p,
               fontFamily: fontFamily,
@@ -107,7 +107,6 @@ class _ProSheet extends ConsumerWidget {
               fontFamily: fontFamily,
               text: 'One payment. Not a subscription.',
             ),
-
             const SizedBox(height: 16),
             Text(
               // What stays free is stated, because a paywall that implies the
@@ -121,7 +120,6 @@ class _ProSheet extends ConsumerWidget {
                 color: p.dim,
               ),
             ),
-
             const SizedBox(height: 18),
             if (price == null)
               // NOT a free unlock, and not a spinner forever. Play has not
@@ -155,7 +153,6 @@ class _ProSheet extends ConsumerWidget {
                   ),
                 ),
               ),
-
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.center,

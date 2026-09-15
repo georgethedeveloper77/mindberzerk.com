@@ -94,8 +94,7 @@ class MonitorDesklet extends ConsumerWidget {
         ),
       if (thermalLabel(s?.thermalStatus) != null)
         DeskletRow('temp', value: thermalLabel(s!.thermalStatus)),
-      if (s?.uptime != null)
-        DeskletRow('up', value: formatUptime(s!.uptime)),
+      if (s?.uptime != null) DeskletRow('up', value: formatUptime(s!.uptime)),
     ];
 
     return DeskletFrame(
@@ -160,8 +159,7 @@ class NetworkDesklet extends ConsumerWidget {
           if (s?.transport != null)
             DeskletRow('link', value: s!.transport, accent: true),
           if (s?.netDownBytesPerSec != null)
-            DeskletRow('down',
-                value: SystemStats.rate(s!.netDownBytesPerSec)),
+            DeskletRow('down', value: SystemStats.rate(s!.netDownBytesPerSec)),
           if (s?.netUpBytesPerSec != null)
             DeskletRow('up', value: SystemStats.rate(s!.netUpBytesPerSec)),
         ],
@@ -311,8 +309,7 @@ class FastfetchDesklet extends ConsumerWidget {
             DeskletRow('device', value: device!.deviceModel!),
           DeskletRow('apps', value: '${apps.length} installed'),
           if (s?.memTotalGb != null)
-            DeskletRow('memory',
-                value: '${s!.memTotalGb!.round()} GB'),
+            DeskletRow('memory', value: '${s!.memTotalGb!.round()} GB'),
           if (s?.uptime != null)
             DeskletRow('uptime', value: formatUptime(s!.uptime)),
         ],

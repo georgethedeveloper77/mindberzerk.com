@@ -14,6 +14,7 @@ import '../data/repositories/shell_apps.dart';
 import '../data/usage/usage_repository.dart';
 import '../design/branded_message.dart';
 import '../design/components/components.dart';
+import '../engine/capabilities.dart';
 import '../engine/effective_theme.dart';
 // TopBarSide only. An unrestricted import of theme_spec into a file that also
 // sees dock_metrics is an ambiguous-import error on DockSide, which is declared
@@ -29,6 +30,7 @@ import '../features/drawer/shell_drawer.dart';
 import '../features/gestures/gesture_layer.dart';
 import '../features/home/desktop_hold.dart';
 import '../features/home/home_grid.dart';
+import '../features/dock/favourites_list.dart';
 import '../features/home/gnome/gnome_dock.dart';
 import '../features/home/gnome/gnome_top_bar.dart';
 import '../features/home/workspaces/workspace_controller.dart';
@@ -116,6 +118,35 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
             after: after,
           ),
         );
+  }
+
+  /// An app dropped on the dock from the desktop or the drawer.
+  ///
+  /// Pins it, and takes it off the home screen, because the two surfaces hold
+  /// ONE arrangement between them. A drag that left a copy behind would read as
+  /// the drag having failed, and "within a surface moves, across surfaces
+  /// copies" is the rule we did NOT take: on a phone, an icon still sitting on
+  /// the desktop after you dragged it to the dock is a bug report.
+  ///
+  /// ─── PIN FIRST, THEN LOOK ──────────────────────────────────────────────
+  ///
+  /// `slotOf` is read from the prefs AFTER pinning rather than before, so the
+  /// two reads cannot disagree about a layout that something else changed in
+  /// between. `pinToDock` does not touch home items, so the tile is still there
+  /// to find.
+  /// [capacity] comes from the dock's own `LayoutBuilder`, because it is the
+  /// only place that knows: it depends on the dock's run length, the grid
+  /// button and whether the dock is on a horizontal edge. A pin past capacity
+  /// is refused inside `pinToDock`, silently and correctly, and the drop then
+  /// leaves the app where it was rather than losing it.
+  void _dockPin(String componentKey, int capacity) {
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit((p) {
+      final pinned = HomeLayout.pinToDock(p, componentKey, capacity: capacity);
+      final at = HomeLayout.slotOf(pinned, componentKey);
+      return at == null
+          ? pinned
+          : HomeLayout.removeFromHome(pinned, at.page, at.index);
+    });
   }
 
   void _dockLongPress(
@@ -396,11 +427,36 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         ? constraints.maxHeight - insets.bottom
                         : constraints.maxWidth - 18; // 9px margin each side
 
-                    final capacity = DockMetrics.capacityFor(
-                      available: available,
-                      hasGridButton: gridButton != GridButtonPosition.off,
-                      isBottom: !renderVertical,
-                    );
+                    // Declared before `asList` can be, because `asList` reads
+                    // the theme and this reads the constraints. Kept adjacent
+                    // so the pair is read together.
+                    final verticalRun = constraints.maxHeight - insets.bottom;
+
+                    // ─── PHASE L5: TWO PRESENTATIONS, TWO CAPACITIES ─────
+                    //
+                    // A bar holds slots along an edge; a list holds rows down
+                    // one. Both numbers go into the SAME `HomeLayout.dockKeys`
+                    // call, which takes capacity as an argument and has never
+                    // known what a dock looks like. That is why L5 changes no
+                    // pinning, ordering or exclusion code at all.
+                    //
+                    // Capped at `DockMetrics.maxCapacity` rather than at what
+                    // fits, because `pinToDock` already refuses past that
+                    // number. A list that rendered a fourteenth pin nobody
+                    // could create would be a row reserved for nothing.
+                    final asList = theme.dockLayout == 'list' &&
+                        theme.canListDock.available;
+
+                    final capacity = asList
+                        ? favouritesCapacityFor(
+                            available: verticalRun,
+                            max: DockMetrics.maxCapacity,
+                          )
+                        : DockMetrics.capacityFor(
+                            available: available,
+                            hasGridButton: gridButton != GridButtonPosition.off,
+                            isBottom: !renderVertical,
+                          );
 
                     final apps = ref.watch(shellAppsProvider(theme));
                     final frequent = ref.watch(frequentAppsProvider);
@@ -482,6 +538,16 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                     //
                     // Positioned either way, so not building it reflows
                     // nothing.
+                    // ─── A LIST IS ALWAYS VERTICAL ────────────────────────
+                    //
+                    // A row of names along the bottom is four truncated words
+                    // and no more apps than the bar fitted, so `list` overrides
+                    // a bottom dock into the side branch rather than offering a
+                    // horizontal variant nobody would choose twice. The dock
+                    // POSITION pref is untouched: switch back to the bar and the
+                    // dock returns to the bottom where it was left.
+                    final renderAsSide = renderVertical || asList;
+
                     final showDock = theme.dockReveal == 'apps'
                         ? (side != DockSide.off && activitiesOpen)
                         : ((side != DockSide.off || dockRevealed) &&
@@ -666,18 +732,47 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                         ),
 
                         if (showDock)
-                          side.isVertical || side == DockSide.off
+                          // `renderAsSide`, not the side test this was: a list
+                          // is vertical whatever the dock pref says, and the
+                          // sizing above already agreed to that. Two different
+                          // answers to "is this dock vertical" in one build
+                          // method is how a list gets sized for a column and
+                          // drawn as a row.
+                          renderAsSide
                               // Off + revealed by gesture shows it where Ubuntu
                               // keeps it: the left.
                               ? Positioned(
-                                  // `off` still reveals on the left, which is
-                                  // where Ubuntu keeps it; only an explicit
-                                  // `right` moves the strip across.
-                                  left: side == DockSide.right ? null : 9,
-                                  right: side == DockSide.right ? 9 : null,
+                                  // A LIST MEETS THE EDGE, a bar hovers 9dp
+                                  // off it. The gap is what makes a floating
+                                  // dock read as an object sitting on the
+                                  // desktop; a column of names is a region of
+                                  // the screen, and a strip of wallpaper down
+                                  // its outer side would read as a mistake.
+                                  left: side == DockSide.right
+                                      ? null
+                                      : (asList ? 0 : 9),
+                                  right: side == DockSide.right
+                                      ? (asList ? 0 : 9)
+                                      : null,
                                   top: 0,
                                   bottom: 0,
-                                  child: Center(
+                                  child: asList
+                                      ? Center(
+                                          child: FavouritesList(
+                                            entries: entries,
+                                            palette: theme.palette,
+                                            opacity: theme.dockOpacity,
+                                            // Armed unconditionally, matching
+                                            // the bar: on a list with no pins
+                                            // this is the gesture that creates
+                                            // an arrangement, so refusing it
+                                            // would refuse the only thing that
+                                            // makes reordering reachable.
+                                            onDropApp: (key) =>
+                                                _dockPin(key, capacity),
+                                          ),
+                                        )
+                                      : Center(
                                     child: GnomeDock(
                                       style: GnomeDockStyle.parse(
                                           theme.dockStyle),
@@ -707,6 +802,20 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       onReorder: pinned.isEmpty
                                           ? null
                                           : _dockReorder,
+                                      // ─── ALWAYS ARMED, UNLIKE onReorder ──
+                                      //
+                                      // Reordering needs an arrangement to
+                                      // change, which a frequent-apps dock has
+                                      // not got. Pinning CREATES one: dropping
+                                      // an app here on a dock with no pins is
+                                      // exactly how a user stops it being
+                                      // automatic, so refusing the drop there
+                                      // would refuse the only gesture that
+                                      // makes the other one available.
+                                      onDropApp: (key) =>
+                                          _dockPin(key, capacity),
+                                      hover: theme.dockHover,
+                                      press: theme.dockPress,
                                     ),
                                   ),
                                 )
@@ -748,6 +857,20 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       onReorder: pinned.isEmpty
                                           ? null
                                           : _dockReorder,
+                                      // ─── ALWAYS ARMED, UNLIKE onReorder ──
+                                      //
+                                      // Reordering needs an arrangement to
+                                      // change, which a frequent-apps dock has
+                                      // not got. Pinning CREATES one: dropping
+                                      // an app here on a dock with no pins is
+                                      // exactly how a user stops it being
+                                      // automatic, so refusing the drop there
+                                      // would refuse the only gesture that
+                                      // makes the other one available.
+                                      onDropApp: (key) =>
+                                          _dockPin(key, capacity),
+                                      hover: theme.dockHover,
+                                      press: theme.dockPress,
                                     ),
                                   ),
                                 ),

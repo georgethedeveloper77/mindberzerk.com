@@ -63,6 +63,7 @@ class TerminalGrid {
   late List<List<TerminalCell>> _lines;
 
   int get cols => _cols;
+
   int get rows => _rows;
 
   int cursorX = 0;
@@ -86,6 +87,7 @@ class TerminalGrid {
   int _scrollBottom = 0;
 
   int get scrollTop => _scrollTop;
+
   int get scrollBottom => _scrollBottom;
 
   /// ─── THE DEFERRED WRAP, WHICH EVERY NAIVE EMULATOR GETS WRONG ────────────
@@ -208,6 +210,7 @@ class TerminalGrid {
   }
 
   void moveToColumn(int x) => moveTo(x, cursorY);
+
   void moveToRow(int y) => moveTo(cursorX, y);
 
   void saveCursor() {

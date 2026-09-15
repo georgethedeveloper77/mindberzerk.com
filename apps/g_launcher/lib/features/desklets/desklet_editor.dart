@@ -2,19 +2,19 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
-import '../../engine/widget_span.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 // `show ThemePalette` is MANDATORY here, not tidiness: DockSide is declared in
 // BOTH theme_spec.dart and dock_metrics.dart, and an unrestricted import of
 // theme_spec into a file that also sees dock metrics is an ambiguous-import
 // error that reads as if neither declaration exists.
 import '../../engine/theme_spec.dart' show ThemePalette;
+import '../../engine/widget_span.dart';
 import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_menu.dart';
@@ -309,8 +309,9 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     // bottom of the screen. Measured at press time because the tile moves
     // whenever the grid reflows.
     final box = context.findRenderObject() as RenderBox?;
-    final anchor =
-        (box != null && box.hasSize) ? box.localToGlobal(Offset.zero) & box.size : null;
+    final anchor = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
     showDeskletMenu(context, ref, widget.theme, _d, anchor: anchor);
   }
 
@@ -529,9 +530,8 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                   // taps, and registering a competing recognizer here would
                   // make a note take two taps to open.
                   if (widget.editing)
-                    TapGestureRecognizer:
-                        GestureRecognizerFactoryWithHandlers<
-                            TapGestureRecognizer>(
+                    TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+                        TapGestureRecognizer>(
                       () => TapGestureRecognizer(),
                       (r) => r.onTap = () => ref
                           .read(deskletEditProvider.notifier)
@@ -601,127 +601,128 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
                 // fixed-size widget can still be repositioned and deleted.
                 if (!(placed.key == _HandleRole.resize && !_canResize))
                   (switch (placed.key) {
-                  // ─── A LISTENER, NOT A PAN RECOGNIZER ─────────────
-                  //
-                  // Same complaint as the move drag and a worse version of it:
-                  // kPanSlop meant the corner had to travel about 36 logical
-                  // pixels before the tile grew by a single cell, on a grid
-                  // whose cells are roughly 42 by 47. So the first cell of
-                  // every resize was free and invisible, and the handle felt
-                  // stuck to the tile.
-                  //
-                  // A handle is a dedicated target with nothing to disambiguate
-                  // against, so there is nothing for an arena to decide and a
-                  // raw Listener is the honest tool: it tracks from the first
-                  // pixel of movement, with no threshold at all.
-                  //
-                  // Safe here only because the two recognizers that used to
-                  // steal this pointer are now gone: the desktop long press is
-                  // not built in edit mode, and GestureLayer stands down. A
-                  // Listener does not enter the arena, so it cannot defend
-                  // itself against either.
-                  _HandleRole.resize => _positioned(
-                      placed.value,
-                      child: Listener(
-                        behavior: HitTestBehavior.opaque,
-                        onPointerDown: (_) {
-                          HapticFeedback.selectionClick();
-                          setState(() => _resizing = true);
-                        },
-                        onPointerMove: (e) => setState(() {
-                          _grow = Size(
-                            _grow.width + e.delta.dx,
-                            _grow.height + e.delta.dy,
-                          );
-                        }),
-                        onPointerUp: (_) => _resizeEnd(),
-                        onPointerCancel: (_) => setState(() {
-                          _grow = Size.zero;
-                          _resizing = false;
-                        }),
-                        child: _Handle(
-                          palette: p,
-                          icon: Icons.open_in_full,
-                          // The flag the resize drag already sets. A handle
-                          // that lights up while it is doing its job is the
-                          // whole feedback story: you can see WHICH control
-                          // your thumb captured, which matters most on a small
-                          // tile where three of them sit within a thumb-width.
-                          active: _resizing,
+                    // ─── A LISTENER, NOT A PAN RECOGNIZER ─────────────
+                    //
+                    // Same complaint as the move drag and a worse version of it:
+                    // kPanSlop meant the corner had to travel about 36 logical
+                    // pixels before the tile grew by a single cell, on a grid
+                    // whose cells are roughly 42 by 47. So the first cell of
+                    // every resize was free and invisible, and the handle felt
+                    // stuck to the tile.
+                    //
+                    // A handle is a dedicated target with nothing to disambiguate
+                    // against, so there is nothing for an arena to decide and a
+                    // raw Listener is the honest tool: it tracks from the first
+                    // pixel of movement, with no threshold at all.
+                    //
+                    // Safe here only because the two recognizers that used to
+                    // steal this pointer are now gone: the desktop long press is
+                    // not built in edit mode, and GestureLayer stands down. A
+                    // Listener does not enter the arena, so it cannot defend
+                    // itself against either.
+                    _HandleRole.resize => _positioned(
+                        placed.value,
+                        child: Listener(
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: (_) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _resizing = true);
+                          },
+                          onPointerMove: (e) => setState(() {
+                            _grow = Size(
+                              _grow.width + e.delta.dx,
+                              _grow.height + e.delta.dy,
+                            );
+                          }),
+                          onPointerUp: (_) => _resizeEnd(),
+                          onPointerCancel: (_) => setState(() {
+                            _grow = Size.zero;
+                            _resizing = false;
+                          }),
+                          child: _Handle(
+                            palette: p,
+                            icon: Icons.open_in_full,
+                            // The flag the resize drag already sets. A handle
+                            // that lights up while it is doing its job is the
+                            // whole feedback story: you can see WHICH control
+                            // your thumb captured, which matters most on a small
+                            // tile where three of them sit within a thumb-width.
+                            active: _resizing,
+                          ),
                         ),
                       ),
-                    ),
 
-                  // ── A HANDLE FOR MOVING, NOT ONLY THE WHOLE TILE ────
-                  //
-                  // Panning the tile itself already moves it, and it still
-                  // does; this changes nothing about that path. But an
-                  // invisible affordance is one nobody finds: the tile shows a
-                  // resize handle and a remove badge, so a user reasonably
-                  // concludes that resizing and removing are what a selected
-                  // tile offers, and reaches for the long-press menu to move.
-                  //
-                  // It drives the SAME _drag/_moveEnd path as the tile, so
-                  // there is one move implementation and the grid snapping
-                  // cannot diverge between them.
-                  _HandleRole.move => _positioned(
-                      placed.value,
-                      child: Listener(
-                        behavior: HitTestBehavior.opaque,
-                        onPointerDown: (_) {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            _moving = true;
+                    // ── A HANDLE FOR MOVING, NOT ONLY THE WHOLE TILE ────
+                    //
+                    // Panning the tile itself already moves it, and it still
+                    // does; this changes nothing about that path. But an
+                    // invisible affordance is one nobody finds: the tile shows a
+                    // resize handle and a remove badge, so a user reasonably
+                    // concludes that resizing and removing are what a selected
+                    // tile offers, and reaches for the long-press menu to move.
+                    //
+                    // It drives the SAME _drag/_moveEnd path as the tile, so
+                    // there is one move implementation and the grid snapping
+                    // cannot diverge between them.
+                    _HandleRole.move => _positioned(
+                        placed.value,
+                        child: Listener(
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: (_) {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _moving = true;
+                              _drag = Offset.zero;
+                            });
+                          },
+                          onPointerMove: (e) =>
+                              setState(() => _drag += e.delta),
+                          onPointerUp: (_) => _moveEnd(),
+                          onPointerCancel: (_) => setState(() {
                             _drag = Offset.zero;
-                          });
-                        },
-                        onPointerMove: (e) => setState(() => _drag += e.delta),
-                        onPointerUp: (_) => _moveEnd(),
-                        onPointerCancel: (_) => setState(() {
-                          _drag = Offset.zero;
-                          _moving = false;
-                        }),
-                        child: _Handle(
-                          palette: p,
-                          icon: Icons.open_with,
-                          active: _moving,
+                            _moving = false;
+                          }),
+                          child: _Handle(
+                            palette: p,
+                            icon: Icons.open_with,
+                            active: _moving,
+                          ),
                         ),
                       ),
-                    ),
-
-                  _HandleRole.remove => _positioned(
-                      placed.value,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        // Down and up drive the highlight; the tap itself still
-                        // does the work. Cancel is handled too, or a touch that
-                        // slides off the badge would leave it lit forever on a
-                        // control that never fired.
-                        onTapDown: (_) => setState(() => _removeDown = true),
-                        onTapCancel: () => setState(() => _removeDown = false),
-                        // One removal, shared with the long-press menu.
-                        //
-                        // A hosted AppWidget owns a native allocation that has
-                        // to be released or it leaks for the life of the
-                        // install, and that knowledge used to live only here,
-                        // in the badge that was then the only way to remove
-                        // anything. Now that the menu can remove too, two
-                        // copies of "remember to free the native thing" is one
-                        // copy too many.
-                        onTap: () {
-                          setState(() => _removeDown = false);
-                          removeDesklet(ref, widget.theme, _d);
-                        },
-                        child: _Handle(
-                          palette: p,
-                          icon: Icons.close,
-                          danger: true,
-                          size: _Handle.remove,
-                          active: _removeDown,
+                    _HandleRole.remove => _positioned(
+                        placed.value,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          // Down and up drive the highlight; the tap itself still
+                          // does the work. Cancel is handled too, or a touch that
+                          // slides off the badge would leave it lit forever on a
+                          // control that never fired.
+                          onTapDown: (_) => setState(() => _removeDown = true),
+                          onTapCancel: () =>
+                              setState(() => _removeDown = false),
+                          // One removal, shared with the long-press menu.
+                          //
+                          // A hosted AppWidget owns a native allocation that has
+                          // to be released or it leaks for the life of the
+                          // install, and that knowledge used to live only here,
+                          // in the badge that was then the only way to remove
+                          // anything. Now that the menu can remove too, two
+                          // copies of "remember to free the native thing" is one
+                          // copy too many.
+                          onTap: () {
+                            setState(() => _removeDown = false);
+                            removeDesklet(ref, widget.theme, _d);
+                          },
+                          child: _Handle(
+                            palette: p,
+                            icon: Icons.close,
+                            danger: true,
+                            size: _Handle.remove,
+                            active: _removeDown,
+                          ),
                         ),
                       ),
-                    ),
-                }),
+                  }),
             ],
           ],
         ),
@@ -747,7 +748,8 @@ typedef _Placement = ({_Corner corner, bool inset});
 /// below. Computed in CELLS rather than pixels: the tile's own geometry already
 /// knows whether it is against an edge, and asking the render box would mean
 /// measuring during layout to decide what to lay out.
-Set<_Corner> _clippedCorners(Desklet d, {required int cols, required int rows}) {
+Set<_Corner> _clippedCorners(Desklet d,
+    {required int cols, required int rows}) {
   final atLeft = d.col <= 0;
   final atTop = d.row <= 0;
   final atRight = d.col + d.spanX >= cols;
@@ -925,7 +927,8 @@ class _Frame extends StatelessWidget {
         boxShadow: lifted
             ? const [
                 BoxShadow(
-                  color: Color(0x66000000), // theme-exempt: a shadow is not a surface
+                  color: Color(
+                      0x66000000), // theme-exempt: a shadow is not a surface
                   blurRadius: 18,
                   offset: Offset(0, 6),
                 ),
@@ -1018,7 +1021,8 @@ class _Handle extends StatelessWidget {
           boxShadow: active
               ? const [
                   BoxShadow(
-                    color: Color(0x59000000), // theme-exempt: a shadow is not a surface
+                    color: Color(0x59000000),
+                    // theme-exempt: a shadow is not a surface
                     blurRadius: 10,
                     offset: Offset(0, 3),
                   ),

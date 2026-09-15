@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,8 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +44,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -105,7 +106,6 @@ int _deepHash(Object? value) {
   }
   return value.hashCode;
 }
-
 
 /// A pack, as the storefront needs to draw it.
 ///
@@ -334,7 +334,8 @@ class PackInfo {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PackInfo decode(Object result) {
     result as List<Object?>;
@@ -373,7 +374,28 @@ class PackInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(packType, other.packType) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(version, other.version) && _deepEquals(installedVersion, other.installedVersion) && _deepEquals(sizeBytes, other.sizeBytes) && _deepEquals(state, other.state) && _deepEquals(unlocked, other.unlocked) && _deepEquals(sku, other.sku) && _deepEquals(previewShell, other.previewShell) && _deepEquals(previewBgTop, other.previewBgTop) && _deepEquals(previewBgBottom, other.previewBgBottom) && _deepEquals(previewBar, other.previewBar) && _deepEquals(previewDock, other.previewDock) && _deepEquals(previewAccent, other.previewAccent) && _deepEquals(features, other.features) && _deepEquals(tint, other.tint) && _deepEquals(previewLayout, other.previewLayout) && _deepEquals(wallpaperCount, other.wallpaperCount) && _deepEquals(iconPackTitle, other.iconPackTitle) && _deepEquals(fontName, other.fontName);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(packType, other.packType) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(summary, other.summary) &&
+        _deepEquals(version, other.version) &&
+        _deepEquals(installedVersion, other.installedVersion) &&
+        _deepEquals(sizeBytes, other.sizeBytes) &&
+        _deepEquals(state, other.state) &&
+        _deepEquals(unlocked, other.unlocked) &&
+        _deepEquals(sku, other.sku) &&
+        _deepEquals(previewShell, other.previewShell) &&
+        _deepEquals(previewBgTop, other.previewBgTop) &&
+        _deepEquals(previewBgBottom, other.previewBgBottom) &&
+        _deepEquals(previewBar, other.previewBar) &&
+        _deepEquals(previewDock, other.previewDock) &&
+        _deepEquals(previewAccent, other.previewAccent) &&
+        _deepEquals(features, other.features) &&
+        _deepEquals(tint, other.tint) &&
+        _deepEquals(previewLayout, other.previewLayout) &&
+        _deepEquals(wallpaperCount, other.wallpaperCount) &&
+        _deepEquals(iconPackTitle, other.iconPackTitle) &&
+        _deepEquals(fontName, other.fontName);
   }
 
   @override
@@ -427,7 +449,8 @@ class BundleInfo {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BundleInfo decode(Object result) {
     result as List<Object?>;
@@ -450,7 +473,12 @@ class BundleInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(sku, other.sku) && _deepEquals(title, other.title) && _deepEquals(summary, other.summary) && _deepEquals(grantsAll, other.grantsAll) && _deepEquals(grantedPackIds, other.grantedPackIds) && _deepEquals(owned, other.owned);
+    return _deepEquals(sku, other.sku) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(summary, other.summary) &&
+        _deepEquals(grantsAll, other.grantsAll) &&
+        _deepEquals(grantedPackIds, other.grantedPackIds) &&
+        _deepEquals(owned, other.owned);
   }
 
   @override
@@ -488,7 +516,8 @@ class PackProgress {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PackProgress decode(Object result) {
     result as List<Object?>;
@@ -508,7 +537,9 @@ class PackProgress {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(bytesDone, other.bytesDone) && _deepEquals(bytesTotal, other.bytesTotal);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(bytesDone, other.bytesDone) &&
+        _deepEquals(bytesTotal, other.bytesTotal);
   }
 
   @override
@@ -566,7 +597,8 @@ class PackResult {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PackResult decode(Object result) {
     result as List<Object?>;
@@ -587,7 +619,10 @@ class PackResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(status, other.status) && _deepEquals(detail, other.detail) && _deepEquals(installedVersion, other.installedVersion);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(status, other.status) &&
+        _deepEquals(detail, other.detail) &&
+        _deepEquals(installedVersion, other.installedVersion);
   }
 
   @override
@@ -638,7 +673,8 @@ class PackFeature {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PackFeature decode(Object result) {
     result as List<Object?>;
@@ -658,7 +694,9 @@ class PackFeature {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(title, other.title) && _deepEquals(body, other.body) && _deepEquals(exclusive, other.exclusive);
+    return _deepEquals(title, other.title) &&
+        _deepEquals(body, other.body) &&
+        _deepEquals(exclusive, other.exclusive);
   }
 
   @override
@@ -715,7 +753,8 @@ class PackCoverage {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PackCoverage decode(Object result) {
     result as List<Object?>;
@@ -735,7 +774,9 @@ class PackCoverage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(covered, other.covered) && _deepEquals(total, other.total);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(covered, other.covered) &&
+        _deepEquals(total, other.total);
   }
 
   @override
@@ -748,30 +789,30 @@ class PackCoverage {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
+
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PackInfo) {
+    } else if (value is PackInfo) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is BundleInfo) {
+    } else if (value is BundleInfo) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is PackProgress) {
+    } else if (value is PackProgress) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is PackResult) {
+    } else if (value is PackResult) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is PackFeature) {
+    } else if (value is PackFeature) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is PackCoverage) {
+    } else if (value is PackCoverage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else {
@@ -804,9 +845,11 @@ class PackHostApi {
   /// Constructor for [PackHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  PackHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  PackHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -819,7 +862,8 @@ class PackHostApi {
   /// storefront opens instantly and works on a plane. [refreshCatalogue] is the
   /// explicit network call.
   Future<List<PackInfo>> catalogue() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.catalogue$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.catalogue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -829,17 +873,17 @@ class PackHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<PackInfo>();
   }
 
   /// The bundles, with ownership already resolved.
   Future<List<BundleInfo>> bundles() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.bundles$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.bundles$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -849,11 +893,10 @@ class PackHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<BundleInfo>();
   }
 
@@ -863,7 +906,8 @@ class PackHostApi {
   /// Safe to call on every storefront open: it sends an ETag, so the common
   /// case is a 304 with no body.
   Future<bool> refreshCatalogue() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.refreshCatalogue$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.refreshCatalogue$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -873,11 +917,10 @@ class PackHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -888,61 +931,64 @@ class PackHostApi {
   /// of the answer can be stale by minutes and a refund is a worse outcome than
   /// a redundant check.
   Future<PackResult> installPack(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.installPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.installPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as PackResult;
   }
 
   /// Stop an in-flight download. Staging is discarded; nothing partial is kept.
   Future<void> cancelInstall(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.cancelInstall$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.cancelInstall$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Remove an installed pack. Refuses the active theme, which would leave the
   /// home screen resolving a theme that is no longer on disk.
   Future<bool> uninstallPack(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.uninstallPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.uninstallPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -953,21 +999,22 @@ class PackHostApi {
   /// only to answer `unlocked`; it never decides ownership and never persists
   /// it. A restart re-asks Play, which is the only source that can be trusted.
   Future<void> setOwnedSkus(List<String> skus) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.setOwnedSkus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.setOwnedSkus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[skus]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[skus]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Tell native which distro theme is applied right now.
@@ -995,41 +1042,43 @@ class PackHostApi {
   /// state, and a stale copy surviving a restart would grant a pack for a distro
   /// no longer in use.
   Future<void> setActiveTheme(String themeId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.setActiveTheme$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.setActiveTheme$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[themeId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[themeId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// The resolved CDN base URL, written where the headless sync worker can read
   /// it. Called once after Remote Config resolves.
   Future<void> setCdnBaseUrl(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.setCdnBaseUrl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.setCdnBaseUrl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[url]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// The raw `theme.json` of an installed theme pack, or null when the pack is
@@ -1045,21 +1094,22 @@ class PackHostApi {
   /// on the home screen's critical path for no additional guarantee, since the
   /// file lives in app-private storage.
   Future<String?> readInstalledTheme(String themeId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.readInstalledTheme$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.readInstalledTheme$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[themeId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[themeId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -1073,21 +1123,22 @@ class PackHostApi {
   /// Pack files are BARE FILENAMES by construction (`PackPaths.installedFile`
   /// refuses separators), so joining is always one `/` and never a traversal.
   Future<String?> installedPackDir(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.installedPackDir$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.installedPackDir$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -1103,21 +1154,22 @@ class PackHostApi {
   /// field carrying `path` would quietly break it. Appended last, which is the
   /// safe position, and it is a method so not even the codec moves.
   Future<String?> packPreviewUrl(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.packPreviewUrl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.packPreviewUrl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -1134,21 +1186,22 @@ class PackHostApi {
   /// size, and called from a FutureProvider that renders the row when it
   /// arrives, so nothing waits on it.
   Future<PackCoverage?> packCoverage(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.packCoverage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.packCoverage$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as PackCoverage?;
   }
 
@@ -1195,21 +1248,22 @@ class PackHostApi {
   /// APPENDED LAST. A method does not move any codec id, unlike a class or an
   /// enum, but last is the position that stays safe if this ever becomes one.
   Future<String?> peekTheme(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.PackHostApi.peekTheme$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.PackHostApi.peekTheme$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 }
@@ -1223,11 +1277,17 @@ abstract class PackFlutterApi {
   /// Fires after a pack lands, so the storefront can re-read without polling.
   void onPackInstalled(String packId, int version);
 
-  static void setUp(PackFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    PackFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.g_launcher.PackFlutterApi.onPackProgress$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.g_launcher.PackFlutterApi.onPackProgress$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -1240,15 +1300,17 @@ abstract class PackFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.g_launcher.PackFlutterApi.onPackInstalled$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.g_launcher.PackFlutterApi.onPackInstalled$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -1262,8 +1324,9 @@ abstract class PackFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }

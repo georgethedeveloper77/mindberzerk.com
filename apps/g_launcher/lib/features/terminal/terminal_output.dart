@@ -49,6 +49,7 @@ const _yellow = '\x1b[33m';
 const _cyan = '\x1b[36m';
 
 String _head(String s) => '$_dim$s$_reset';
+
 String _err(String s) => '$_red$s$_reset';
 
 /// Everything the printing commands can read.
@@ -177,8 +178,7 @@ List<String> _fetch(TerminalFacts f) {
   final rows = <String>[
     if (f.spec != null) '${_cyan}distro$_reset   ${f.spec!.name}',
     if (f.deviceModel != null) '${_cyan}device$_reset   ${f.deviceModel}',
-    if (f.androidRelease != null)
-      '${_cyan}android$_reset  ${f.androidRelease}',
+    if (f.androidRelease != null) '${_cyan}android$_reset  ${f.androidRelease}',
     if (f.apps.isNotEmpty) '${_cyan}apps$_reset     ${f.apps.length} installed',
     if (f.stats?.uptime != null)
       '${_cyan}uptime$_reset   ${formatUptime(f.stats!.uptime)}',
@@ -193,8 +193,18 @@ List<String> _clock(TerminalFacts f) {
   // types `date` in a Linux launcher knows what it looks like.
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   String two(int n) => n.toString().padLeft(2, '0');
   return [
@@ -213,8 +223,10 @@ List<String> _network(TerminalFacts f) {
     out.add('${_cyan}transport$_reset  ${s.transport}');
   }
   if (s.hasNet) {
-    out.add('${_green}down$_reset       ${SystemStats.rate(s.netDownBytesPerSec)}/s');
-    out.add('${_yellow}up$_reset         ${SystemStats.rate(s.netUpBytesPerSec)}/s');
+    out.add(
+        '${_green}down$_reset       ${SystemStats.rate(s.netDownBytesPerSec)}/s');
+    out.add(
+        '${_yellow}up$_reset         ${SystemStats.rate(s.netUpBytesPerSec)}/s');
   }
   // The SSID is deliberately absent and stays absent: reading the network name
   // needs location permission on Android 10 and above, and this launcher does
@@ -229,9 +241,8 @@ List<String> _battery(TerminalFacts f) {
   }
 
   final charging = s.batteryCharging;
-  final state = charging == null
-      ? 'Unknown'
-      : (charging ? 'Charging' : 'Discharging');
+  final state =
+      charging == null ? 'Unknown' : (charging ? 'Charging' : 'Discharging');
 
   final out = <String>['Battery 0: $state, $_bold${s.batteryPercent}%$_reset'];
   if (s.batteryTempC != null) {
@@ -283,7 +294,10 @@ List<String> _ls(TerminalFacts f, String args) {
     }
   }
   if (bad.isNotEmpty) {
-    return [_err("ls: unknown option -- '${bad.first}'"), _head('try: ls -a -l -1 -s -u')];
+    return [
+      _err("ls: unknown option -- '${bad.first}'"),
+      _head('try: ls -a -l -1 -s -u')
+    ];
   }
 
   final all = flags.contains('a');

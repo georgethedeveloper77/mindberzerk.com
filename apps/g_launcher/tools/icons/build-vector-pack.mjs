@@ -295,6 +295,37 @@ for (const slug of [...neededSlugs].sort()) {
   glyphs[slug] = paths;
 }
 
+// ── PHASE L4: the category buckets ──────────────────────────────────────────
+//
+// Twenty-six drawings for what KIND of app something is, for the long tail no
+// brand set will ever name. They are ORDINARY glyphs from this same set, so
+// they convert through the same path, land in the same `glyphs` map, and
+// inherit tint and stroke in all fourteen derived packs without any of them
+// carrying art.
+//
+// A bucket whose slug is not on disk is REPORTED, not skipped quietly. The
+// device degrades correctly either way (no drawing means that bucket falls to
+// the generator) and that is exactly why it needs saying here: on a phone the
+// difference between a wrong slug and a missing feature is invisible.
+const categories = {};
+const missingCategories = [];
+{
+  const specPath = join(import.meta.dirname, 'categories.json');
+  const raw = existsSync(specPath) ? JSON.parse(readFileSync(specPath, 'utf8')) : {};
+  for (const [bucket, slug] of Object.entries(raw)) {
+    if (bucket.startsWith('_')) continue;
+    if (!onDisk.has(slug)) { missingCategories.push(`${bucket}=${slug}`); continue; }
+    if (!(slug in glyphs)) {
+      const svg = readFileSync(join(iconDir, `${slug}.svg`), 'utf8');
+      if (viewBoxOf(svg) !== spec.viewBox) { missingCategories.push(`${bucket}=${slug}(box)`); continue; }
+      const { paths } = svgToPaths(svg);
+      if (paths.length === 0) { missingCategories.push(`${bucket}=${slug}(empty)`); continue; }
+      glyphs[slug] = paths;
+    }
+    categories[bucket] = slug;
+  }
+}
+
 // ── map, restricted to drawings that survived ───────────────────────────────
 const slugs = Object.keys(glyphs).sort();
 const haveGlyph = new Set(slugs);
@@ -331,6 +362,11 @@ const pack = {
   license: spec.license,
   attribution: spec.attribution,
   icons: map,
+  // BETWEEN `icons` and `glyphs`, and that position is the format. The device
+  // streams in file order and skips every glyph body nothing has asked for, so
+  // a `categories` map written after `glyphs` would have its bodies skipped and
+  // the whole tier would go dark with no error. pack-shape.test.mjs asserts it.
+  categories,
   glyphs,
 };
 
@@ -353,6 +389,16 @@ writeFileSync(join(packDir, 'pack.json'), json);
 // ── report ──────────────────────────────────────────────────────────────────
 const raw = Buffer.byteLength(json);
 const gz = gzipSync(json).length;
+if (missingCategories.length) {
+  process.stdout.write(
+    `\ncategories: ${Object.keys(categories).length} mapped, ` +
+    `${missingCategories.length} MISSING\n  ${missingCategories.join('\n  ')}\n` +
+    `  fix the slugs in tools/icons/categories.json against this set\n`,
+  );
+} else {
+  process.stdout.write(`\ncategories: ${Object.keys(categories).length} mapped\n`);
+}
+
 const pathCount = Object.values(glyphs).reduce((a, p) => a + p.length, 0);
 
 process.stdout.write(

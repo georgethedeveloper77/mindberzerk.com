@@ -44,13 +44,15 @@ class I18nState {
 Future<I18nState> loadInitialI18n() async {
   final prefs = await SharedPreferences.getInstance();
   final saved = prefs.getString(_kLocalePrefKey); // null => follow system
-  final effective = saved ?? systemMatchCode(PlatformDispatcher.instance.locale);
+  final effective =
+      saved ?? systemMatchCode(PlatformDispatcher.instance.locale);
   final translations = await Translations.load(effective);
   return I18nState(selectedCode: saved, translations: translations);
 }
 
 class I18nController extends Notifier<I18nState> {
   I18nController(this._seed);
+
   final I18nState _seed;
 
   @override
@@ -61,7 +63,8 @@ class I18nController extends Notifier<I18nState> {
   /// asset read never leaves the UI in a half-changed state.
   Future<void> select(AppLocale? choice) async {
     final code = choice?.code; // null => follow system
-    final effective = code ?? systemMatchCode(PlatformDispatcher.instance.locale);
+    final effective =
+        code ?? systemMatchCode(PlatformDispatcher.instance.locale);
     final loaded = await Translations.load(effective);
     // Never .update() on a notifier; assign state directly.
     state = I18nState(selectedCode: code, translations: loaded);

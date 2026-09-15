@@ -239,63 +239,62 @@ class PreviewChoice<T> extends StatelessWidget {
     final across = options.length < perRow ? options.length : perRow;
 
     Widget tile(int i) => GestureDetector(
-              // Opaque, so the gap under the label is part of the target.
-              // The picture is the affordance but the whole column is the
-              // tap, which is what makes this usable with a thumb.
-              behavior: HitTestBehavior.opaque,
-              // Null, not an ignored call. A GestureDetector with no callback
-              // registers no recognizer at all, so a disabled row does not
-              // quietly swallow a tap that the scroll underneath it could have
-              // used.
-              onTap: enabled ? () => onSelect(options[i].value) : null,
-              child: Column(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: options[i].value == value ? c.accent : c.line,
-                        width: options[i].value == value ? 2 : 1,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(3),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(7),
-                        child: AspectRatio(
-                          aspectRatio: 10 / 15,
-                          child: options[i].child,
-                        ),
-                      ),
+          // Opaque, so the gap under the label is part of the target.
+          // The picture is the affordance but the whole column is the
+          // tap, which is what makes this usable with a thumb.
+          behavior: HitTestBehavior.opaque,
+          // Null, not an ignored call. A GestureDetector with no callback
+          // registers no recognizer at all, so a disabled row does not
+          // quietly swallow a tap that the scroll underneath it could have
+          // used.
+          onTap: enabled ? () => onSelect(options[i].value) : null,
+          child: Column(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: options[i].value == value ? c.accent : c.line,
+                    width: options[i].value == value ? 2 : 1,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: AspectRatio(
+                      aspectRatio: 10 / 15,
+                      child: options[i].child,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  Text(
-                    options[i].label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: options[i].value == value ? c.accent : c.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Icon(
-                    options[i].value == value
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                    size: 16,
-                    color: options[i].value == value ? c.accent : c.textFaint,
-                  ),
-                ],
+                ),
               ),
-            );
+              const SizedBox(height: 7),
+              Text(
+                options[i].label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: options[i].value == value ? c.accent : c.textMuted,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Icon(
+                options[i].value == value
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: options[i].value == value ? c.accent : c.textFaint,
+              ),
+            ],
+          ),
+        );
 
     final lines = <Widget>[];
     for (var start = 0; start < options.length; start += across) {
-      final end = (start + across) < options.length
-          ? (start + across)
-          : options.length;
+      final end =
+          (start + across) < options.length ? (start + across) : options.length;
       lines.add(
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,

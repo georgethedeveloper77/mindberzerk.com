@@ -53,20 +53,33 @@ class CinnamonDrawer extends ConsumerWidget {
 
   final EffectiveTheme theme;
 
-  /// Wide, for a corner menu.
+  /// The gap left around the menu.
   ///
-  /// `WhiskerDrawer` takes 208 for a single column. Three need more, and this
-  /// is the widest of the compact drawers without becoming a sheet: on a 360dp
-  /// phone it still leaves the wallpaper visible down one side, which is what
-  /// keeps it a menu.
-  static const _width = 246.0;
+  /// ─── IT USED TO BE 246dp WIDE ──────────────────────────────────────────
+  ///
+  /// The argument was that leaving the wallpaper visible down one side is what
+  /// keeps a menu a menu rather than a sheet. True on a desktop, where 246dp is
+  /// a quarter of the screen. On a 360dp phone it is two thirds, and what it
+  /// actually bought was an 80dp category column that could not fit the words
+  /// "Sound and Video", a 17dp app icon, and 10.5pt labels that truncated
+  /// halfway through "ALL Currency Converter".
+  ///
+  /// Three columns need the width. The menu still reads as a menu because it is
+  /// anchored to the button, has a border and a shadow, and stops well short of
+  /// the top of the screen.
+  static const _inset = 6.0;
 
   /// How tall the three columns are, above the foot.
   ///
   /// Fixed rather than shrink-wrapped, for `WhiskerDrawer`'s reason: the app
   /// column changes length when you pick a category, and a menu that grew and
   /// shrank would move the search field you were reaching for.
-  static const _colsHeight = 250.0;
+  ///
+  /// A SHARE of the screen rather than 250dp flat. The rows are 48dp now, so
+  /// 250 showed five apps; the same fraction shows a useful list on a small
+  /// phone and a longer one on a tall device, which is what the space is for.
+  static double _colsHeight(BuildContext context) =>
+      (MediaQuery.of(context).size.height * 0.46).clamp(260.0, 460.0);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -130,17 +143,19 @@ class CinnamonDrawer extends ConsumerWidget {
         ),
         Positioned(
           // Bottom left, against the menu button, which on Cinnamon has been at
-          // the left end of the bottom panel since 2011.
-          left: 3,
-          bottom: 3,
-          width: _width,
+          // the left end of the bottom panel since 2011. It now runs to the
+          // right edge as well, because three columns of readable text do not
+          // fit in two thirds of a phone.
+          left: _inset,
+          right: _inset,
+          bottom: _inset,
           child: _Menu(
             theme: theme,
             favourites: favourites,
             categories: named,
             active: active,
             apps: listed,
-            height: _colsHeight,
+            height: _colsHeight(context),
             onCategory: (n) =>
                 ref.read(_categoryProvider.notifier).state = n,
           ),
@@ -233,7 +248,10 @@ class _Favourites extends ConsumerWidget {
   final List<AppEntry> apps;
   final Color line;
 
-  static const _width = 36.0;
+  /// 36 held a 22dp icon with 7dp either side, which is a 36dp target on a
+  /// surface where everything else is now 48. The icon grows with it: these are
+  /// the apps somebody pinned, so they are the ones most often reached for.
+  static const _width = 52.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -247,7 +265,7 @@ class _Favourites extends ConsumerWidget {
         children: [
           for (final a in apps)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3.5),
+              padding: const EdgeInsets.symmetric(vertical: 5),
               child: Center(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -265,7 +283,7 @@ class _Favourites extends ConsumerWidget {
                     a,
                     anchor: AnchoredMenu.anchorOf(context),
                   ),
-                  child: AppIcon(entry: a, size: 22),
+                  child: AppIcon(entry: a, size: 30),
                 ),
               ),
             ),
@@ -291,7 +309,13 @@ class _Categories extends StatelessWidget {
   final Color line;
   final ValueChanged<String?> onCategory;
 
-  static const _width = 80.0;
+  /// Sized to hold the longest category WHOLE.
+  ///
+  /// 80 truncated "Sound and Video" to "Sound and ...", which is the one thing
+  /// a category column must never do: the label is the only way to tell what is
+  /// in it. 124 fits it at 13pt with room for the padding, and anything longer
+  /// in another language wraps to a second line rather than being cut.
+  static const _width = 124.0;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +331,10 @@ class _Categories extends StatelessWidget {
         },
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+          // 48dp, the floor for anything a thumb aims at. The old row was 22.
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           // A full-width FILL, not a left bar. Cinnamon selects its category by
           // painting the whole row, and Kickoff's rail uses the bar; keeping
           // them apart is most of what stops the two menus reading alike in a
@@ -315,14 +342,18 @@ class _Categories extends StatelessWidget {
           color: on ? palette.accent : Colors.transparent,
           child: Text(
             label,
-            maxLines: 1,
+            // TWO lines before anything is cut. A category name that does not
+            // fit is a category you cannot identify, and German and Portuguese
+            // both have one that will not fit on one line at any width this
+            // column can afford.
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontFamily: theme.typography.display,
-              fontSize: 9.5 * theme.textScale,
+              fontSize: 13 * theme.textScale,
               fontWeight: on ? FontWeight.w600 : FontWeight.w400,
               // The BAR colour on the accent. Mint's green is bright enough
-              // that white on it is unreadable at 9.5pt.
+              // that white on it is unreadable.
               color: on ? palette.bar : palette.onDark.withValues(alpha: 0.66),
             ),
           ),
@@ -361,7 +392,7 @@ class _Apps extends ConsumerWidget {
           context.t('drawer.noApps'),
           style: TextStyle(
             fontFamily: theme.typography.display,
-            fontSize: 10 * theme.textScale,
+            fontSize: 13 * theme.textScale,
             color: theme.palette.onDark.withValues(alpha: 0.4),
           ),
         ),
@@ -386,20 +417,31 @@ class _Apps extends ConsumerWidget {
             a,
             anchor: AnchoredMenu.anchorOf(context),
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+          child: Container(
+            // 52dp, so a 30dp icon and a two-line label both fit and the row
+            // clears the 48dp target floor with a little to spare.
+            constraints: const BoxConstraints(minHeight: 52),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
               children: [
-                AppIcon(entry: a, size: 17),
-                const SizedBox(width: 8),
+                AppIcon(entry: a, size: 30),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     a.label,
-                    maxLines: 1,
+                    // ─── TWO LINES, BECAUSE ONE CUT THE NAME ────────────
+                    //
+                    // At 246dp wide this column had about 130dp for a label and
+                    // showed "ALL Currency C...", which names nothing. Wrapping
+                    // costs a row its second line only when the name needs it,
+                    // and almost every app name fits two lines at this width.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: theme.typography.display,
-                      fontSize: 10.5 * theme.textScale,
+                      fontSize: 13 * theme.textScale,
+                      height: 1.2,
                       color: theme.palette.onDark,
                     ),
                   ),
@@ -444,15 +486,16 @@ class _Foot extends ConsumerWidget {
         // cannot move; this makes the field behave like the setting describes.
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(9, 4, 6, 4),
+            // The foot is a 48dp strip now, matching the rows above it.
+            padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
             child: Row(
               children: [
                 Icon(
                   Icons.search,
-                  size: 14,
+                  size: 20,
                   color: palette.onDark.withValues(alpha: 0.45),
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: 9),
                 Expanded(
                   child: TextField(
                     autocorrect: false,
@@ -466,7 +509,7 @@ class _Foot extends ConsumerWidget {
                     },
                     style: TextStyle(
                       fontFamily: theme.typography.display,
-                      fontSize: 10.5 * theme.textScale,
+                      fontSize: 14 * theme.textScale,
                       color: palette.onDark,
                     ),
                     cursorColor: palette.accent,
@@ -477,7 +520,7 @@ class _Foot extends ConsumerWidget {
                       hintText: context.t('drawer.searchApps'),
                       hintStyle: TextStyle(
                         fontFamily: theme.typography.display,
-                        fontSize: 10.5 * theme.textScale,
+                        fontSize: 14 * theme.textScale,
                         color: palette.onDark.withValues(alpha: 0.45),
                       ),
                     ),
@@ -537,10 +580,13 @@ class _FootButton extends StatelessWidget {
           onTap();
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          // 48dp square. These sit beside the search field at the foot, which
+          // is the densest strip in the menu and the easiest place to hit the
+          // wrong thing.
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: Icon(
             icon,
-            size: 15,
+            size: 20,
             color: theme.palette.onDark.withValues(alpha: 0.6),
           ),
         ),

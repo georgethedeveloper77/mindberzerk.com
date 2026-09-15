@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/usage/usage_repository.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../../data/usage/usage_repository.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../palette/palette_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Pop's launcher: a line you type into.
 ///
@@ -114,8 +114,7 @@ class _QueryDrawerState extends ConsumerState<QueryDrawer> {
       ].take(_limit).toList();
     } else {
       results = [
-        for (final r in ref.watch(paletteResultsProvider(theme)))
-          r.item,
+        for (final r in ref.watch(paletteResultsProvider(theme))) r.item,
       ].take(_limit).toList();
     }
 
@@ -317,10 +316,11 @@ class _Result extends ConsumerWidget {
         color: selected
             ? palette.accent.withValues(alpha: 0.22)
             : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           children: [
-            AppIcon(entry: entry, size: 19),
+            AppIcon(entry: entry, size: 30),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -329,7 +329,7 @@ class _Result extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: theme.typography.display,
-                  fontSize: 11.5 * theme.textScale,
+                  fontSize: 13 * theme.textScale,
                   color: palette.onDark,
                 ),
               ),
@@ -341,7 +341,7 @@ class _Result extends ConsumerWidget {
               '$ordinal',
               style: TextStyle(
                 fontFamily: theme.typography.mono,
-                fontSize: 9 * theme.textScale,
+                fontSize: 12 * theme.textScale,
                 color: palette.onDark.withValues(alpha: 0.32),
               ),
             ),
@@ -373,7 +373,7 @@ class _Empty extends StatelessWidget {
               : context.t('drawer.noMatches'),
           style: TextStyle(
             fontFamily: theme.typography.mono,
-            fontSize: 10.5 * theme.textScale,
+            fontSize: 13 * theme.textScale,
             color: theme.palette.onDark.withValues(alpha: 0.35),
           ),
         ),
@@ -406,7 +406,7 @@ class _Foot extends StatelessWidget {
         : context.t('drawer.mostUsed');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           Expanded(
@@ -416,7 +416,7 @@ class _Foot extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: theme.typography.mono,
-                fontSize: 8.5 * theme.textScale,
+                fontSize: 12 * theme.textScale,
                 color: theme.palette.onDark.withValues(alpha: 0.32),
               ),
             ),
@@ -425,7 +425,7 @@ class _Foot extends StatelessWidget {
             context.t('drawer.enterToRun'),
             style: TextStyle(
               fontFamily: theme.typography.mono,
-              fontSize: 8.5 * theme.textScale,
+              fontSize: 12 * theme.textScale,
               color: theme.palette.onDark.withValues(alpha: 0.32),
             ),
           ),

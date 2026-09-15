@@ -1,19 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics.dart';
 import '../../data/cdn/distro_packs.dart';
+import '../../data/prefs/backup_store.dart';
 import '../../data/prefs/desklet_layout.dart';
-import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/folder_suggestions.dart';
+import '../../data/prefs/launcher_prefs.dart';
+import '../../data/prefs/prefs_backup.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../design/device_stage.dart';
@@ -28,10 +32,11 @@ import '../../i18n/i18n.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
+import '../desklets/desklet_preview.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
-import '../desklets/desklet_preview.dart';
 import '../drawer/folder_glyph.dart';
+import '../settings/backup_restore_screen.dart';
 import 'setup_chrome.dart';
 
 /// **Initial setup, as a distro installer.** T1.
@@ -432,6 +437,69 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
 
     // Third press: their phone, their call.
     return true;
+  }
+
+  // ── RESTORING INSTEAD OF SETTING UP ──────────────────────────────────────
+
+  /// Open a backup file and, if it restores, end setup there.
+  ///
+  /// ─── WHY THIS IS NOT A STEP ──────────────────────────────────────────────
+  ///
+  /// A row in `_stepsFor` would put "Restore" in the rail for every user on
+  /// every install, advertising a path almost nobody takes and making the
+  /// terminal's deliberately short four-step wizard five. It belongs on
+  /// welcome, which is already the step about Android rather than about the
+  /// desktop.
+  ///
+  /// ─── AND WHY A RESTORE ENDS THE WIZARD ───────────────────────────────────
+  ///
+  /// Every remaining step asks a question the backup has already answered.
+  /// Continuing would ask someone to choose a distro they already have and
+  /// arrange a dock they already arranged. So it completes setup and hands off
+  /// through `firstRunBootPendingProvider`, exactly as the install step does,
+  /// and the restored distro's own boot sequence plays on the way in.
+  Future<void> _openRestore() async {
+    // No type filter. Several document providers hand back a display name with
+    // no extension, and `.glbak` is ours alone so there is nothing for a
+    // provider to match on anyway. The bytes are sniffed below, which is the
+    // check that decides.
+    final file = await FilePicker.pickFile(type: FileType.any);
+    if (file == null) return;
+
+    final bytes = Uint8List.fromList(await file.readAsBytes());
+    final summary = PrefsBackup.inspect(bytes);
+    if (!mounted) return;
+    if (summary == null) {
+      context.showMessage(context.t('settings.thatIsNotA'));
+      return;
+    }
+
+    // Copied in BEFORE the restore is offered, and kept either way. A file
+    // opened on a fresh phone should still be in the Backups list afterwards,
+    // and the picker's own path cannot be relied on to find it again.
+    final record =
+        await ref.read(backupsProvider.notifier).adopt(bytes, summary);
+    if (!mounted) return;
+    if (record == null) {
+      context.showMessage(context.t('settings.couldNotReadThat'));
+      return;
+    }
+
+    final restored = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => BackupRestoreScreen(
+          record: record,
+          completesSetup: true,
+        ),
+      ),
+    );
+
+    // False or null is "set up fresh instead", which returns here to welcome
+    // with the language still chosen and the home-role gate still ahead.
+    if (restored != true || !mounted) return;
+
+    ref.read(firstRunBootPendingProvider.notifier).state = true;
+    await ref.read(setupCompletedProvider.notifier).complete();
   }
 
   Future<void> _next() async {
@@ -872,8 +940,16 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                         // the machine is currently doing.
                         status: _packLine(packs, theme),
                         nextEnabled: _mayAdvance(current, packs, theme),
-                        footerNote:
-                            !_isDefault && i > steps.indexOf(_SetupStep.welcome)
+                        // ── TWO THINGS WANT THIS SLOT, NEVER AT ONCE ──
+                        //
+                        // The nag only appears on steps AFTER welcome, and the
+                        // restore offer only on welcome itself, so one switch
+                        // covers both without either needing to know about the
+                        // other.
+                        footerNote: current == _SetupStep.welcome
+                            ? _RestoreLine(onRestore: _openRestore)
+                            : !_isDefault &&
+                                    i > steps.indexOf(_SetupStep.welcome)
                                 ? _NagLine(onFix: _openHomePicker)
                                 : null,
                         onBack: i == 0 || current == _SetupStep.install
@@ -2053,8 +2129,9 @@ String _hexOf(Color c) {
 /// Auto-disposing on purpose: these bitmaps describe a moment of choosing and
 /// must not outlive the wizard. Native caches none of them either, because
 /// `IconCache` keys by the APPLIED style and a previewed colour is not one.
-final _iconPreviewProvider = FutureProvider.family<List<Uint8List?>,
-    ({String tint, int sizePx})>((ref, key) async {
+final _iconPreviewProvider =
+    FutureProvider.family<List<Uint8List?>, ({String tint, int sizePx})>(
+        (ref, key) async {
   final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
   if (apps.isEmpty) return const [];
 
@@ -2330,7 +2407,8 @@ class _Radio extends StatelessWidget {
       height: 15,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: on ? c.accent : c.line, width: on ? 4.5 : 1.5),
+        border:
+            Border.all(color: on ? c.accent : c.line, width: on ? 4.5 : 1.5),
       ),
     );
   }
@@ -2927,6 +3005,32 @@ class _MiniLabel extends StatelessWidget {
 
 /// One quiet line, not a card: by this point the user has already said no twice
 /// and a second full-size plea would be nagging rather than reminding.
+/// The other way through welcome, for someone arriving from another phone.
+///
+/// A text action rather than a second filled button: it is the minority path,
+/// and two equal buttons would make a fresh install look like a decision it is
+/// not. It sits in the same footer slot the home-role nag uses on later steps,
+/// which is the one place on this screen the eye is already going.
+class _RestoreLine extends StatelessWidget {
+  const _RestoreLine({required this.onRestore});
+
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ThemedButton(
+        label: context.t('setup.restore.action'),
+        icon: Icons.settings_backup_restore,
+        kind: ThemedButtonKind.text,
+        expand: true,
+        onPressed: onRestore,
+      ),
+    );
+  }
+}
+
 class _NagLine extends StatelessWidget {
   const _NagLine({required this.onFix});
 

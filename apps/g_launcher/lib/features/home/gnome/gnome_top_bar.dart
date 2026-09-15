@@ -2,14 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../system/system_stats.dart';
-import '../quick_settings.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/ubuntu_tokens.dart';
 import '../../../engine/theme_spec.dart'
     show PanelModule, PanelSpec, ThemePalette, TopBarSide;
-import 'package:g_launcher/i18n/i18n.dart';
+import '../../panel/applets/panel_tray_button.dart';
+import '../../panel/modules/panel_readouts.dart';
+import '../quick_settings.dart';
 
 /// The GNOME top bar, phone-adapted.
 ///
@@ -62,7 +62,6 @@ class GnomeTopBar extends ConsumerWidget {
   /// Android shows both a few pixels away and duplicating them is the opposite
   /// of authentic.
   final PanelSpec panel;
-
 
   /// The active theme's palette. Supplies the on-dark label colour
   /// ([ThemePalette.onDark]). There is no bar fill any more — it is transparent.
@@ -117,7 +116,7 @@ class GnomeTopBar extends ConsumerWidget {
           PanelModule.memory ||
           PanelModule.storage =>
             m == stats.first
-                ? _Modules(
+                ? PanelReadouts(
                     palette: palette,
                     fontFamily: displayFontFamily,
                     stacked: stacked,
@@ -185,7 +184,13 @@ class GnomeTopBar extends ConsumerWidget {
           // that do was this file overriding the author. Ubuntu, KDE and every
           // other pack that never listed these are untouched, because they
           // never asked.
-          PanelModule.tray => _Tray(palette: palette, stacked: stacked),
+          // The widget moved to `features/panel/applets`, unchanged. There
+          // were two trays in the app and the other one was decoration; this
+          // is the one that works, so it is the one both bars now draw.
+          PanelModule.tray => PanelTrayButton(
+              palette: palette,
+              stacked: stacked,
+            ),
           // ─── FOR THE REASON THE CLOCK IS ARGUED ABOUT BELOW ──────────
           //
           // A GNOME top bar sits directly under Android's status bar, which
@@ -199,11 +204,25 @@ class GnomeTopBar extends ConsumerWidget {
           //
           // App buttons likewise: GNOME puts launchers in the dash, not the
           // bar.
+          // Volume joins them: it is the third of the readouts `tray` expands
+          // into on a bottom panel, and a GNOME bar that declines the other two
+          // has no reason to keep this one.
+          //
+          // ── AND ALL THREE ARE THE NEXT THING TO CHANGE ──────────────────
+          //
+          // The argument above is about duplication, and this file has already
+          // met its own counter-argument once: the clock and the tray were
+          // refused on an edge test until Pop!_OS proved the module list was
+          // the opt-in all along. The same is true here, and the reason these
+          // still decline is mechanical rather than principled: the chips that
+          // draw them are private to `plasma_shell`, and lifting them out is
+          // the extraction this comment is a marker for, not a line to add
+          // beside a parse change.
           PanelModule.battery ||
           PanelModule.wifi ||
+          PanelModule.volume ||
           PanelModule.app =>
             const SizedBox.shrink(),
-
           PanelModule.clock => _OpensQuickSettings(
               labelKey: 'gestures.quickSettings',
               child: _Clock(
@@ -235,7 +254,8 @@ class GnomeTopBar extends ConsumerWidget {
       final lead = panel.side == TopBarSide.left ? insets.left : insets.right;
 
       return SizedBox(
-        width: _verticalWidth + lead, // theme-exempt: shell geometry, not a palette value
+        width: _verticalWidth +
+            lead, // theme-exempt: shell geometry, not a palette value
         child: Padding(
           padding: EdgeInsets.only(
             left: panel.side == TopBarSide.left ? lead : 0,
@@ -256,7 +276,8 @@ class GnomeTopBar extends ConsumerWidget {
     final inset = atBottom ? insets.bottom : insets.top;
 
     return SizedBox(
-      height: Ubuntu.topBarHeight + inset, // theme-exempt: GNOME shell geometry, shared across the family, not a palette value
+      height: Ubuntu.topBarHeight + inset,
+      // theme-exempt: GNOME shell geometry, shared across the family, not a palette value
       child: Padding(
         padding: EdgeInsets.only(
           top: atBottom ? 0 : inset,
@@ -324,7 +345,6 @@ class _Activities extends StatelessWidget {
   }
 }
 
-
 /// The readouts, right-aligned, mono, quiet.
 ///
 /// Reads the SAME snapshot every desklet does, so a bar and a conky on the same
@@ -338,98 +358,6 @@ class _Activities extends StatelessWidget {
 /// short readout, narrow enough that it costs the desktop about one column of
 /// the desklet grid rather than two.
 const double _verticalWidth = 40;
-
-class _Modules extends ConsumerWidget {
-  const _Modules({
-    required this.palette,
-    required this.fontFamily,
-    this.stacked = false,
-    this.show = const [],
-  });
-
-  /// One module per line, for a vertical bar.
-  final bool stacked;
-
-  /// Which readouts this panel asked for, in the theme's order. Empty means the
-  /// caller filtered nothing out, which only happens from a legacy path.
-  final List<PanelModule> show;
-
-  final ThemePalette palette;
-  final String? fontFamily;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(systemStatsProvider);
-    final s = async.hasValue ? async.requireValue : null;
-    if (s == null) return const SizedBox.shrink();
-
-    // The theme's order, not this file's. A distro that lists storage before
-    // network gets storage before network; the old bar had one fixed sequence
-    // baked into the literal below.
-    final wanted = show.isEmpty
-        ? const [PanelModule.network, PanelModule.memory, PanelModule.storage]
-        : show;
-
-    String? render(PanelModule m) => switch (m) {
-          PanelModule.network when s.hasNet =>
-            '\u2193 ${SystemStats.rate(s.netDownBytesPerSec)}'
-                '${stacked ? '\n' : '  '}'
-                '\u2191 ${SystemStats.rate(s.netUpBytesPerSec)}',
-          PanelModule.memory when s.hasMemory => s.memLabel,
-          PanelModule.storage when s.hasStorage =>
-            SystemStats.bytes(s.storageTotalBytes! - s.storageUsedBytes!),
-          // A stat this device will not report REMOVES its module rather than
-          // printing a placeholder, which is the rule every stat surface in
-          // this app follows.
-          _ => null,
-        };
-
-    final parts = <String>[
-      for (final m in wanted)
-        if (render(m) case final t?) t,
-    ];
-
-    if (parts.isEmpty) return const SizedBox.shrink();
-
-    final style = TextStyle(
-      fontFamily: fontFamily,
-      // A vertical bar is 40dp wide, so the readouts drop a point to fit
-      // "4.6/7G" without ellipsising the number that matters.
-      fontSize: stacked ? 9 : 11,
-      color: palette.onDark.withValues(alpha: 0.75),
-    );
-
-    if (stacked) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final p in parts)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                p,
-                textAlign: TextAlign.center,
-                // TWO lines, because the network module is a down and an up
-                // reading and a 40dp column cannot hold both side by side. The
-                // horizontal bar keeps them on one line where there is room.
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              ),
-            ),
-        ],
-      );
-    }
-
-    return Text(
-      parts.join('   '),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: style,
-    );
-  }
-}
 
 /// Anything in the panel that opens Quick Settings.
 ///
@@ -468,72 +396,6 @@ class _OpensQuickSettings extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
           child: Center(widthFactor: 1, child: child),
-        ),
-      ),
-    );
-  }
-}
-
-/// The tray cluster, and the way into Quick Settings.
-///
-/// ─── IT SHOWS NO STATE, DELIBERATELY ────────────────────────────────────────
-///
-/// The obvious build paints a live Wi-Fi arc, a volume level and a battery
-/// percentage. Two of those Android is already drawing a few pixels away in its
-/// own status bar, which is the argument this file's header makes for the top
-/// bar and which does not stop being true lower down the screen. And a launcher
-/// cannot read Wi-Fi signal strength without location permission, so the arc
-/// would be a picture of a number nobody measured.
-///
-/// So this is a BUTTON that looks like a tray, which is also what Zorin's own
-/// tray is: three glyphs you press to get the panel. The state lives inside the
-/// panel, where every reading in it is one the launcher genuinely owns.
-class _Tray extends ConsumerWidget {
-  const _Tray({required this.palette, required this.stacked});
-
-  final ThemePalette palette;
-  final bool stacked;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final open = ref.watch(quickSettingsProvider);
-    final ink = open ? palette.bgBottom : palette.onDark.withValues(alpha: 0.85);
-
-    final glyphs = [
-      Icons.wifi,
-      Icons.volume_up_outlined,
-      Icons.battery_std_outlined,
-    ];
-
-    return Semantics(
-      button: true,
-      label: context.t('gestures.quickSettings'),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => ref.read(quickSettingsProvider.notifier).toggle(),
-        child: Container(
-          // 44dp on the cross axis, so the cluster is a real target rather than
-          // three 16dp glyphs with dead space between them.
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          padding: EdgeInsets.symmetric(
-            horizontal: stacked ? 4 : 8,
-            vertical: stacked ? 8 : 4,
-          ),
-          decoration: BoxDecoration(
-            color: open ? palette.accent : null,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Flex(
-            direction: stacked ? Axis.vertical : Axis.horizontal,
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < glyphs.length; i++) ...[
-                if (i > 0) SizedBox(width: stacked ? 0 : 7, height: stacked ? 6 : 0),
-                Icon(glyphs[i], size: 16, color: ink),
-              ],
-            ],
-          ),
         ),
       ),
     );

@@ -456,8 +456,7 @@ class _DrawerPagerState extends State<DrawerPager> {
               (widget.itemCount / math.max(1, rows * widget.columns)).ceil(),
             );
 
-        var strip =
-            DrawerPager.dotsStripFor(withAdd: widget.onAddPage != null);
+        var strip = DrawerPager.dotsStripFor(withAdd: widget.onAddPage != null);
         var rows = deriveRows(strip);
         var pageCount = pagesFor(rows);
 
@@ -550,55 +549,53 @@ class _DrawerPagerState extends State<DrawerPager> {
         _pageCount = pageCount;
 
         final pageView = PageView.builder(
-                controller: _controller,
-                physics:
-                    canPage ? null : const NeverScrollableScrollPhysics(),
-                // No itemCount: unbounded, so the wrap works in both
-                // directions. Every index maps onto a logical page below.
-                itemBuilder: (context, index) {
-                  final page = (index - _wrapBase) % pageCount;
-                  final grid = Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      hPad,
-                      vPad + widget.topPadding + centre,
-                      hPad,
-                      vPad + centre,
-                    ),
-                    child: GridView.builder(
-                      // The PAGE scrolls, not the grid inside it.
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: widget.columns,
-                        childAspectRatio: aspect,
-                        crossAxisSpacing: crossGap,
-                        mainAxisSpacing: spread,
-                      ),
-                      itemCount: math.min(
-                        perPage,
-                        widget.itemCount - page * perPage,
-                      ),
-                      itemBuilder: (context, i) =>
-                          widget.itemBuilder(context, page * perPage + i),
-                    ),
-                  );
+          controller: _controller,
+          physics: canPage ? null : const NeverScrollableScrollPhysics(),
+          // No itemCount: unbounded, so the wrap works in both
+          // directions. Every index maps onto a logical page below.
+          itemBuilder: (context, index) {
+            final page = (index - _wrapBase) % pageCount;
+            final grid = Padding(
+              padding: EdgeInsets.fromLTRB(
+                hPad,
+                vPad + widget.topPadding + centre,
+                hPad,
+                vPad + centre,
+              ),
+              child: GridView.builder(
+                // The PAGE scrolls, not the grid inside it.
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: widget.columns,
+                  childAspectRatio: aspect,
+                  crossAxisSpacing: crossGap,
+                  mainAxisSpacing: spread,
+                ),
+                itemCount: math.min(
+                  perPage,
+                  widget.itemCount - page * perPage,
+                ),
+                itemBuilder: (context, i) =>
+                    widget.itemBuilder(context, page * perPage + i),
+              ),
+            );
 
-                  // The cube hinges on the RAW index, not the logical page:
-                  // the transform needs each face's distance from the live
-                  // scroll position, and two faces showing the same logical
-                  // page (wrapping a two-page drawer) still sit at different
-                  // raw indices.
-                  // ─── EVERY STYLE GOES THROUGH THE SAME BUILDER ───────
-                  //
-                  // Including the plain slide, which needs no matrix at all.
-                  // Branching to return a bare grid for one style is exactly
-                  // the widget-type swap that cost the cube nine dropped
-                  // frames a run; see [_transformed]. `slide` returns an
-                  // identity transform, which is one matrix multiply.
-                  return _transformed(index, grid);
-                },
-              );
+            // The cube hinges on the RAW index, not the logical page:
+            // the transform needs each face's distance from the live
+            // scroll position, and two faces showing the same logical
+            // page (wrapping a two-page drawer) still sit at different
+            // raw indices.
+            // ─── EVERY STYLE GOES THROUGH THE SAME BUILDER ───────
+            //
+            // Including the plain slide, which needs no matrix at all.
+            // Branching to return a bare grid for one style is exactly
+            // the widget-type swap that cost the cube nine dropped
+            // frames a run; see [_transformed]. `slide` returns an
+            // identity transform, which is one matrix multiply.
+            return _transformed(index, grid);
+          },
+        );
 
         return Column(
           children: [
@@ -727,7 +724,6 @@ class _DrawerPagerState extends State<DrawerPager> {
       },
     );
   }
-
 }
 
 class _Dots extends StatelessWidget {
@@ -772,7 +768,7 @@ class _Dots extends StatelessWidget {
                 Text(
                   '${page + 1} / $count',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: color.withValues(alpha: 0.55),
                   ),
                 ),
@@ -793,21 +789,21 @@ class _Dots extends StatelessWidget {
   /// before it can decide whether to call this at all.
   Widget _dots(Color color) {
     return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var i = 0; i < count; i++)
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: i == page ? 0.85 : 0.30),
-              ),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: i == page ? 0.85 : 0.30),
             ),
-          if (onAdd != null) _AddPage(color: color, onAdd: onAdd!),
-        ],
-      );
+          ),
+        if (onAdd != null) _AddPage(color: color, onAdd: onAdd!),
+      ],
+    );
   }
 }
 
@@ -833,10 +829,12 @@ class _AddPage extends StatelessWidget {
       // The dot is 6dp and a 6dp tap target is a miss waiting to happen, so
       // the padding is the hit box rather than decoration.
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        // The add-page button was a 12dp glyph in 8dp of padding, a 28dp
+        // target on the page strip where a miss changes page instead.
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Icon(
           Icons.add,
-          size: 12,
+          size: 20,
           color: color.withValues(alpha: 0.45),
         ),
       ),

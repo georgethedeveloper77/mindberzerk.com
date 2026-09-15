@@ -69,8 +69,7 @@ abstract final class PrefsReset {
   /// Returns an object equal to [p] when there was nothing set, which is what
   /// [canReset] tests, so the UI can hide an affordance that would do nothing
   /// rather than offering a button that appears broken.
-  static LauncherPrefs section(LauncherPrefs p, PrefsSection s) =>
-      switch (s) {
+  static LauncherPrefs section(LauncherPrefs p, PrefsSection s) => switch (s) {
         // Icon look only. The icon PACK is included: it is a choice among
         // installed content, and clearing it uninstalls nothing.
         PrefsSection.icons => p.clearing(
@@ -80,7 +79,6 @@ abstract final class PrefsReset {
             systemIconPack: true,
             iconPackId: true,
           ),
-
         PrefsSection.type => p.clearing(labelLines: true, textScale: true),
 
         // Folder APPEARANCE. The folders themselves are content and are
@@ -104,7 +102,6 @@ abstract final class PrefsReset {
             drawerOpacity: true,
             hiddenAppsSearchable: true,
           ),
-
         PrefsSection.wallpaper => p.clearing(
             wallpaperLock: true,
             wallpaperRotationMinutes: true,
@@ -118,7 +115,6 @@ abstract final class PrefsReset {
         // lets the distro's defaults and then the built-in defaults apply
         // again. See `resolveGestureBinding`.
         PrefsSection.gestures => p.copyWith(gestures: const {}),
-
         PrefsSection.desktop => p.clearing(
             dockSide: true,
             dockGridButton: true,

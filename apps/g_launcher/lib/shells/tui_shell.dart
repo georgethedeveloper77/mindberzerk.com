@@ -206,9 +206,8 @@ class _StatusLine extends ConsumerWidget {
     final device = ref.watch(deviceInfoProvider).asData?.value;
     final battery = device?.batteryPercent;
 
-    final right = battery == null
-        ? formatTime(now)
-        : '${formatTime(now)} · $battery%';
+    final right =
+        battery == null ? formatTime(now) : '${formatTime(now)} · $battery%';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 15, 18, 12),
@@ -238,7 +237,8 @@ class _FastfetchHeader extends ConsumerWidget {
 
   /// The mockup's logo, character for character. Keep the raw string — an
   /// escaped one is unreadable and someone will "fix" the backslashes.
-  static const _logo = '  .--.\n |o_o |\n |:_/ |\n//   \\ \\\n(|     | )\n/\'\\_   _/`\\\n\\___)=(___/';
+  static const _logo =
+      '  .--.\n |o_o |\n |:_/ |\n//   \\ \\\n(|     | )\n/\'\\_   _/`\\\n\\___)=(___/';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -373,8 +373,7 @@ class _Prompt extends ConsumerWidget {
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
             ),
-            onChanged: (v) =>
-                ref.read(paletteQueryProvider.notifier).state = v,
+            onChanged: (v) => ref.read(paletteQueryProvider.notifier).state = v,
             onSubmitted: (_) => onSubmit(),
           ),
         ),

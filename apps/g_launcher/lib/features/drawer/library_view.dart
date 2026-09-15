@@ -300,53 +300,55 @@ class _LibraryViewState extends ConsumerState<LibraryView>
                   // enough to flick through on a phone, and a heading every
                   // few rows on a list that shortens with every keystroke is
                   // chrome that moves more than the content does.
-                  Expanded(child: _AzList(theme: widget.theme, apps: _matches(_allApps())))
+                  Expanded(
+                      child: _AzList(
+                          theme: widget.theme, apps: _matches(_allApps())))
                 else
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.deferToChild,
-                    // Hold the background to edit, tap it to leave. The grid's
-                    // own tiles handle their taps first, so this only fires on
-                    // the gaps between them, which is exactly where "nothing in
-                    // particular" means "get me out of here".
-                    onLongPress: _enterEdit,
-                    onTap: _editing ? _exitEdit : null,
-                    child: CustomScrollView(
-                      // Frozen while editing. A jiggling grid that also scrolls
-                      // makes the X a moving target, and iOS freezes for the
-                      // same reason.
-                      physics: _editing
-                          ? const NeverScrollableScrollPhysics()
-                          : null,
-                      slivers: [
-                        const SliverToBoxAdapter(child: SizedBox(height: 4)),
-                        if (folders.isNotEmpty) _grid(context, folders, cell),
-                        if (rest.isNotEmpty) _grid(context, rest, cell),
-                        // ─── ROOM FOR THE DOCK, WHEN THERE IS A DOCK ─────
-                        //
-                        // This was a literal 96, which was right while every
-                        // distro mounting this view kept its dock. Pocket does
-                        // not: `dockReveal: "desktop"` takes the dock away the
-                        // moment the library arrives, and 96dp of reserved
-                        // nothing under the last shelf reads as the grid having
-                        // stopped short.
-                        //
-                        // `drawerDockInsets` answers both cases from the dock's
-                        // own constants: zero when no dock covers this surface,
-                        // the real band when one does. The system inset stays
-                        // on top of it, because that is the gesture pill and it
-                        // is there either way.
-                        SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: drawerDockInsets(theme).bottom +
-                                MediaQuery.viewPaddingOf(context).bottom +
-                                16,
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.deferToChild,
+                      // Hold the background to edit, tap it to leave. The grid's
+                      // own tiles handle their taps first, so this only fires on
+                      // the gaps between them, which is exactly where "nothing in
+                      // particular" means "get me out of here".
+                      onLongPress: _enterEdit,
+                      onTap: _editing ? _exitEdit : null,
+                      child: CustomScrollView(
+                        // Frozen while editing. A jiggling grid that also scrolls
+                        // makes the X a moving target, and iOS freezes for the
+                        // same reason.
+                        physics: _editing
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        slivers: [
+                          const SliverToBoxAdapter(child: SizedBox(height: 4)),
+                          if (folders.isNotEmpty) _grid(context, folders, cell),
+                          if (rest.isNotEmpty) _grid(context, rest, cell),
+                          // ─── ROOM FOR THE DOCK, WHEN THERE IS A DOCK ─────
+                          //
+                          // This was a literal 96, which was right while every
+                          // distro mounting this view kept its dock. Pocket does
+                          // not: `dockReveal: "desktop"` takes the dock away the
+                          // moment the library arrives, and 96dp of reserved
+                          // nothing under the last shelf reads as the grid having
+                          // stopped short.
+                          //
+                          // `drawerDockInsets` answers both cases from the dock's
+                          // own constants: zero when no dock covers this surface,
+                          // the real band when one does. The system inset stays
+                          // on top of it, because that is the gesture pill and it
+                          // is there either way.
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: drawerDockInsets(theme).bottom +
+                                  MediaQuery.viewPaddingOf(context).bottom +
+                                  16,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             if (_editing)
@@ -523,7 +525,7 @@ class _Cell extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: theme.palette.onDark.withValues(alpha: 0.88),
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: theme.typography.display,
               ),
             ),
@@ -611,7 +613,7 @@ class _SearchField extends StatelessWidget {
         children: [
           Icon(
             Icons.search,
-            size: 17,
+            size: 20,
             color: palette.onDark.withValues(alpha: 0.55),
           ),
           const SizedBox(width: 9),
@@ -769,7 +771,7 @@ class _AzList extends ConsumerWidget {
           // you happened to open the app from.
           onTap: () => launchDrawerApp(ref, entry),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
                 AppIcon(entry: entry, size: 34),

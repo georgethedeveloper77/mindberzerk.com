@@ -64,7 +64,6 @@ const kUpdateRecordKey = 'update.lastCheck.v1';
 enum UpdateStatus {
   /// Nothing has been asked yet. Renders as a plain "Check for updates" row.
   unknown,
-
   checking,
   upToDate,
 
@@ -192,7 +191,8 @@ class AppUpdateNotifier extends Notifier<UpdateState> {
           availableVersionCode: info.availableVersionCode,
           lastCheckedAt: now,
         );
-      } else if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+      } else if (info.updateAvailability ==
+          UpdateAvailability.updateAvailable) {
         state = UpdateState(
           status: UpdateStatus.available,
           availableVersionCode: info.availableVersionCode,
@@ -270,7 +270,8 @@ class AppUpdateNotifier extends Notifier<UpdateState> {
     final market = Uri.parse('market://details?id=$kApplicationId');
     if (!await launchUrl(market, mode: LaunchMode.externalApplication)) {
       await launchUrl(
-        Uri.parse('https://play.google.com/store/apps/details?id=$kApplicationId'),
+        Uri.parse(
+            'https://play.google.com/store/apps/details?id=$kApplicationId'),
         mode: LaunchMode.externalApplication,
       );
     }
@@ -374,8 +375,8 @@ final appUpdateWatchProvider = Provider<void>((ref) {
 /// questions and fail differently: this is a package-manager read that cannot
 /// fail on any device, and the one above is a Play call that fails on plenty.
 /// Folding them together would let a de-Googled ROM hide its own version.
-final appVersionProvider =
-    FutureProvider<String>((ref) => ref.read(launcherHostApiProvider).getVersionName());
+final appVersionProvider = FutureProvider<String>(
+    (ref) => ref.read(launcherHostApiProvider).getVersionName());
 
 /// The applicationId, spelled once.
 ///

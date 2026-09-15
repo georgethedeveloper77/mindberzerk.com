@@ -73,7 +73,8 @@ Uint8List normaliseCoordinate(List<int> raw) {
 
   // Left-pad. A short coordinate is a small number, not a short key.
   final out = Uint8List(kP256CoordinateBytes);
-  out.setRange(kP256CoordinateBytes - bytes.length, kP256CoordinateBytes, bytes);
+  out.setRange(
+      kP256CoordinateBytes - bytes.length, kP256CoordinateBytes, bytes);
   return out;
 }
 
@@ -90,7 +91,8 @@ Uint8List encodeP256Point(List<int> x, List<int> y) {
 }
 
 /// The public key blob: three length-prefixed fields.
-Uint8List encodeP256PublicKeyBlob({required List<int> x, required List<int> y}) {
+Uint8List encodeP256PublicKeyBlob(
+    {required List<int> x, required List<int> y}) {
   final out = BytesBuilder();
   out.add(_sshString(utf8.encode(kEcdsaP256)));
   out.add(_sshString(utf8.encode(kEcdsaP256Curve)));
@@ -110,9 +112,7 @@ String openSshPublicKeyLine({
 }) {
   final blob = base64.encode(encodeP256PublicKeyBlob(x: x, y: y));
   final c = comment?.trim();
-  return c == null || c.isEmpty
-      ? '$kEcdsaP256 $blob'
-      : '$kEcdsaP256 $blob $c';
+  return c == null || c.isEmpty ? '$kEcdsaP256 $blob' : '$kEcdsaP256 $blob $c';
 }
 
 /// An SSH mpint: big-endian, minimal, and zero-prefixed when the top bit is set.

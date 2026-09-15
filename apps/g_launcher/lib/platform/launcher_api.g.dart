@@ -884,6 +884,94 @@ class WidgetProviderInfo {
   }
 }
 
+/// PHASE L6a. One entry from an app's own long-press menu.
+///
+/// ─── APPENDED, AND THAT IS THE WHOLE SAFETY ARGUMENT ────────────────────────
+///
+/// A new class at the TAIL of the declaration order. Pigeon numbers enums
+/// first, then classes in the order they appear, so a class added last takes
+/// the next free id and shifts nothing a shipped APK already agreed on.
+///
+/// No new enum, deliberately. `disabled` below is the obvious candidate for
+/// one, and an enum here would renumber every class in the codec, which is the
+/// trap `brandTreatment` is a String for. A bool costs nothing and cannot.
+///
+/// ─── NO ICON FIELD, EITHER ──────────────────────────────────────────────────
+///
+/// The platform has one, through `getShortcutIconDrawable`, and carrying it
+/// would mean a bitmap per shortcut across the bridge, a cache key for
+/// something that changes whenever the publishing app updates, and a second
+/// icon pipeline beside the one `IconCache` owns. The expanding row shows these
+/// as text, which is what the reference launcher does and what the labels are
+/// written for: "New chat", "Scan a code", "Start a workout" read perfectly
+/// well without a picture, and most publishers ship the same generic glyph for
+/// all of them anyway.
+class AppShortcut {
+  AppShortcut({
+    required this.id,
+    required this.label,
+    required this.disabled,
+  });
+
+  /// The shortcut id, unique within its publishing package. Opaque to Dart:
+  /// it goes back to [LauncherHostApi.launchShortcut] unread, the same
+  /// contract `componentKey` has.
+  String id;
+
+  /// `shortLabel`, which is what a launcher is supposed to show. `longLabel`
+  /// exists and is for places with room to spare; a row in a list is not one.
+  String label;
+
+  /// The publisher has disabled it but not removed it, which is the state a
+  /// chat shortcut lands in when you leave the conversation.
+  ///
+  /// Kept rather than filtered out natively, because the right treatment is a
+  /// UI decision: a greyed row that explains itself beats an entry that
+  /// silently vanishes from a menu the user has learned the shape of.
+  bool disabled;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      label,
+      disabled,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static AppShortcut decode(Object result) {
+    result as List<Object?>;
+    return AppShortcut(
+      id: result[0]! as String,
+      label: result[1]! as String,
+      disabled: result[2]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppShortcut || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(label, other.label) && _deepEquals(disabled, other.disabled);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AppShortcut(id: $id, label: $label, disabled: $disabled)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -916,6 +1004,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is WidgetProviderInfo) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
+    }    else if (value is AppShortcut) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -942,6 +1033,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return StatCapabilities.decode(readValue(buffer)!);
       case 136:
         return WidgetProviderInfo.decode(readValue(buffer)!);
+      case 137:
+        return AppShortcut.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2120,6 +2213,263 @@ class LauncherHostApi {
     )
     ;
     return pigeonVar_replyValue! as int;
+  }
+
+  /// Open Android's folder picker and remember what the user chose.
+  ///
+  /// Returns the folder's display name, or null when they backed out or no
+  /// Activity was attached. The name rather than the URI, because the URI is
+  /// nobody's business up here and the name is what a settings row shows.
+  Future<String?> chooseBackupFolder() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.chooseBackupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// The remembered folder's display name, or null when there is none.
+  ///
+  /// VERIFIED against the persisted grants on every call, not just read back
+  /// from storage. A user can revoke a tree grant from system settings, and a
+  /// launcher that kept showing the folder name would then fail every write
+  /// with no explanation. A revoked grant reports null and the stored string is
+  /// dropped, so the next ask is a fresh pick rather than a silent failure.
+  Future<String?> backupFolder() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.backupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Forget the folder and release the grant.
+  Future<void> forgetBackupFolder() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.forgetBackupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Write one backup into the folder. Returns the new document URI, or null.
+  ///
+  /// The bytes cross the bridge in one piece, which is the cost of not owning
+  /// the write: a SAF document is not a path, so there is nothing for Dart to
+  /// stream into. A backup carrying wallpapers is tens of megabytes and this is
+  /// the moment it is largest in memory.
+  Future<String?> writeBackup(String fileName, Uint8List bytes) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.writeBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName, bytes]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Everything in the folder that looks like one of ours, newest first.
+  ///
+  /// Each entry is a JSON object: `{"uri","name","size","modified"}`. A JSON
+  /// string and not a class for the reason [installedIconPacks] returns a map:
+  /// a class takes a codec id, and an id added here is safe today and a trap
+  /// the first time somebody inserts another one above it.
+  ///
+  /// Filtered by extension only. A file the user renamed is still listed and
+  /// still sniffed by `PrefsBackup.inspect`, which is the check that decides.
+  Future<List<String>> listBackups() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.listBackups$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<String>();
+  }
+
+  /// The bytes of one document from the folder, or null when it has gone.
+  Future<Uint8List?> readBackup(String documentUri) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.readBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[documentUri]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as Uint8List?;
+  }
+
+  /// Delete one document. Used by retention, which prunes the folder the same
+  /// way the local snapshot store prunes itself.
+  Future<bool> deleteBackup(String documentUri) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.deleteBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[documentUri]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Hand a backup to Android's share sheet.
+  ///
+  /// BYTES, not a path, and written natively into the cache rather than shared
+  /// out of the support directory. Two reasons. A `file://` URI pointing into
+  /// our private storage cannot cross to another app at all, so it has to be a
+  /// FileProvider URI over a directory we declare; and declaring the support
+  /// directory would expose every snapshot to anything holding a grant, when
+  /// the user asked to send exactly one.
+  ///
+  /// The cache is the right home for it. This copy is in flight, not kept: the
+  /// OS may reclaim it the moment the receiving app is done, which is the
+  /// correct lifetime for something that has already left.
+  ///
+  /// Returns false when no Activity is attached or nothing on the phone can
+  /// take a file, which is a real state on a stripped ROM.
+  Future<bool> shareBackup(String fileName, Uint8List bytes) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.shareBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName, bytes]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// PHASE L6a. The app's own shortcuts, for the expanding row.
+  ///
+  /// `@async`, and the rule at the top of this block says why: this hits
+  /// `LauncherApps` cold and the shortcut list is not cached anywhere. Marking
+  /// it sync would not fail to compile, it would move the query onto the
+  /// platform thread, which is the failure that doc is warning about.
+  ///
+  /// Empty rather than null on every failure, and there are several real ones:
+  /// a device below API 25, an app that publishes none, or a `SecurityException`
+  /// from having lost the home role between the tap and the query. A row that
+  /// opens to nothing is a correct answer to "this app has no shortcuts"; a
+  /// null would make the caller decide which kind of nothing it was holding.
+  Future<List<AppShortcut>> shortcutsFor(String componentKey) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.shortcutsFor$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<AppShortcut>();
+  }
+
+  /// Start one.
+  ///
+  /// Takes the same four source bounds `launchApp` does, for the same reason:
+  /// Android animates the window out of the rect it is given, and a shortcut
+  /// launched from a row should grow from that row rather than from the corner
+  /// of the screen.
+  ///
+  /// Returns false when the shortcut is gone, disabled, or the launcher no
+  /// longer holds the right to start it. The caller says so rather than
+  /// appearing to work.
+  Future<bool> launchShortcut(String componentKey, String shortcutId, double? sourceLeft, double? sourceTop, double? sourceRight, double? sourceBottom) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.launchShortcut$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey, shortcutId, sourceLeft, sourceTop, sourceRight, sourceBottom]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
   }
 }
 

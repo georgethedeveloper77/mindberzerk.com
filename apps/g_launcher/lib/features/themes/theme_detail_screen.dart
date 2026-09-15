@@ -42,8 +42,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/billing/entitlements.dart';
+import '../../data/cdn/pack_repository.dart';
 import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import 'store_preview.dart';
@@ -51,7 +53,6 @@ import 'theme_actions.dart';
 import 'theme_catalog.dart';
 import 'theme_peek.dart';
 import 'themes_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 class ThemeDetailScreen extends ConsumerWidget {
   const ThemeDetailScreen({super.key, required this.packId});
@@ -78,8 +79,7 @@ class ThemeDetailScreen extends ConsumerWidget {
     // carries the previous value. Every pack install invalidates the catalogue,
     // so mid-refresh this page found no matching card and rendered "no longer
     // in the catalogue" at somebody who was about to pay.
-    final cards =
-        ref.watch(themeCatalogProvider).value ?? const <ThemeCard>[];
+    final cards = ref.watch(themeCatalogProvider).value ?? const <ThemeCard>[];
 
     ThemeCard? found;
     for (final entry in cards) {
@@ -121,29 +121,29 @@ class ThemeDetailScreen extends ConsumerWidget {
                 bottom: 8,
               ),
               children: [
-                  const _BackRow(),
-                  _Hero(card: card),
-                  _Title(card: card),
-                  ..._featureSection(
-                    context,
-                    title: context.t('themes.whatOnlyThisDistro'),
-                    rows: [
-                      for (final f in card.features)
-                        if (f.exclusive) f,
-                    ],
-                    accented: true,
-                  ),
-                  ..._featureSection(
-                    context,
-                    title: context.t('themes.lookAndFeel'),
-                    rows: [
-                      for (final f in card.features)
-                        if (!f.exclusive) f,
-                    ],
-                    accented: false,
-                  ),
-                  _Contents(card: card),
-                  if (card.status == CardStatus.locked) const _Terms(),
+                const _BackRow(),
+                _Hero(card: card),
+                _Title(card: card),
+                ..._featureSection(
+                  context,
+                  title: context.t('themes.whatOnlyThisDistro'),
+                  rows: [
+                    for (final f in card.features)
+                      if (f.exclusive) f,
+                  ],
+                  accented: true,
+                ),
+                ..._featureSection(
+                  context,
+                  title: context.t('themes.lookAndFeel'),
+                  rows: [
+                    for (final f in card.features)
+                      if (!f.exclusive) f,
+                  ],
+                  accented: false,
+                ),
+                _Contents(card: card),
+                if (card.status == CardStatus.locked) const _Terms(),
               ],
             ),
           ),
@@ -308,6 +308,11 @@ class _HeroState extends ConsumerState<_Hero> {
         )
         .value;
 
+    // 0..1 while this pack is downloading, null otherwise. Watched here rather
+    // than in the action button so the bar and the button's disabled state come
+    // from one read and cannot disagree by a frame.
+    final progress = ref.watch(packProgressProvider)[card.packIdOrSpec];
+
     // Half the viewport, floored and capped. The floor stops a landscape or
     // split-screen window collapsing it to a strip; the cap stops a tablet
     // giving it the whole page.
@@ -332,20 +337,47 @@ class _HeroState extends ConsumerState<_Hero> {
             borderRadius: BorderRadius.circular(16),
             child: SizedBox(
               height: height,
-              // The index preview until the peek lands, and for good if it never
-              // does. Same floor the card uses, same reason: a blank picture on
-              // a page asking for money is worse than a less specific one.
-              child: StorePreview(
-                card: card,
-                // ── ONE MODE, WHICH IS THE ONLY THING THIS PAGE CHANGES ────
-                //
-                // A card passes nothing and gets all three panes. This page
-                // has a strip for choosing, so it passes the chosen one and
-                // gets a single large pane through the same widget and the
-                // same resolution. That is what keeps the picture on the card
-                // and the picture on the page it opens from drifting.
-                modes: [_mode],
-                fallback: ThemePreview(card.preview),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // The index preview until the peek lands, and for good if it
+                  // never does. Same floor the card uses, same reason: a blank
+                  // picture on a page asking for money is worse than a less
+                  // specific one.
+                  StorePreview(
+                    card: card,
+                    // ── ONE MODE, THE ONLY THING THIS PAGE CHANGES ────────
+                    //
+                    // A card passes nothing and gets all three panes. This
+                    // page has a strip for choosing, so it passes the chosen
+                    // one and gets a single large pane through the same widget
+                    // and the same resolution. That is what keeps the picture
+                    // on the card and the picture on the page it opens from
+                    // drifting.
+                    modes: [_mode],
+                    fallback: ThemePreview(card.preview),
+                  ),
+                  // ── THE SAME BAR THE STOREFRONT CARD DRAWS ──────────────
+                  //
+                  // This page had none, so a tap on Get did nothing visible
+                  // until a message arrived: the button is the largest thing on
+                  // screen and it neither moved nor relabelled while a download
+                  // ran. Pinned to the preview's bottom edge rather than put
+                  // inside the button, so it sits in the same place on the
+                  // card and on the page the card opens.
+                  //
+                  // Inside the ClipRRect, so the 16dp corners cut it.
+                  if (progress != null)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: ThemedProgress.linear(
+                        value: progress <= 0 ? null : progress,
+                        accent: card.preview.accent,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -357,11 +389,12 @@ class _HeroState extends ConsumerState<_Hero> {
         // rather than disabled: a control that cannot act should not be on the
         // screen at all, which is the same rule the storefront's trailing slot
         // follows for `requiresAppUpdate`.
-        if (peeked != null) _ModeStrip(
-          mode: _mode,
-          modes: _modes,
-          onPick: (m) => setState(() => _mode = m),
-        ),
+        if (peeked != null)
+          _ModeStrip(
+            mode: _mode,
+            modes: _modes,
+            onPick: (m) => setState(() => _mode = m),
+          ),
       ],
     );
   }
@@ -405,8 +438,7 @@ class _ModeStrip extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight:
-                          m == mode ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400,
                       color: m == mode ? c.text : c.textMuted,
                     ),
                   ),
@@ -654,6 +686,19 @@ class _ActionButton extends ConsumerWidget {
     // going blank, exactly as the card's trailing slot does it.
     final price = ref.watch(productPriceProvider(card.sku));
 
+    // ── INERT WHILE ITS OWN DOWNLOAD RUNS ──────────────────────────────────
+    //
+    // A second tap on Get calls `installPack` again for a pack already in
+    // flight, and the label does not change in the meantime, so the only
+    // feedback that anything happened at all is the bar over the preview. That
+    // is easy to miss on a page where the button is the biggest element.
+    //
+    // Keyed on THIS pack rather than on the map being non-empty: downloads are
+    // serialised natively, but a background `PackSyncWorker` pass can hold an
+    // entry for something else entirely, and that must not disable a button
+    // this user is looking at.
+    final busy = ref.watch(packProgressProvider).containsKey(card.packIdOrSpec);
+
     final label = switch (card.status) {
       CardStatus.locked => price == null ? 'Buy' : 'Buy $price',
       CardStatus.available => 'Get',
@@ -661,21 +706,31 @@ class _ActionButton extends ConsumerWidget {
       _ => 'Apply',
     };
 
-    return Material(
-      color: c.accent,
-      borderRadius: BorderRadius.circular(11),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: c.onAccent,
+    return AnimatedOpacity(
+      // Dimmed rather than relabelled. The label is driven by `CardStatus`,
+      // which does not move until the catalogue is re-read at the end of the
+      // install, so anything written here would be this widget guessing at a
+      // state the rest of the page does not share yet.
+      opacity: busy ? 0.55 : 1,
+      duration: const Duration(milliseconds: 140),
+      child: Material(
+        color: c.accent,
+        borderRadius: BorderRadius.circular(11),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          // Null rather than a no-op callback, so the ink response goes away
+          // with the tap instead of splashing on a button that will not act.
+          onTap: busy ? null : onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: c.onAccent,
+                ),
               ),
             ),
           ),

@@ -219,7 +219,7 @@ class FolderTile extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: labelColor ?? theme.palette.onDark,
-            fontSize: 11 * theme.textScale,
+            fontSize: 12 * theme.textScale,
             fontFamily: theme.typography.display,
           ),
         ),

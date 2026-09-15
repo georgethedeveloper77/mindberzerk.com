@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/prefs/drawer_layout.dart';
+import '../../data/prefs/home_layout.dart';
+import '../../data/prefs/prefs_repository.dart';
+import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/anchored_menu.dart';
-import '../../data/usage/usage_repository.dart';
-import '../../data/prefs/home_layout.dart';
-import '../../data/prefs/drawer_layout.dart';
-import '../../data/prefs/prefs_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
 import '../palette/palette_controller.dart';
@@ -16,7 +17,6 @@ import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_drag.dart';
 import 'drawer_items.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Which rail tab Kickoff is showing. Session state, not a preference: Kickoff
 /// opens on Favorites every time, exactly like the real thing.
@@ -32,6 +32,7 @@ class _Slot {
   const _Slot.tab(KickoffTab this.tab)
       : category = null,
         isAdd = false;
+
   const _Slot.category(String this.category)
       : tab = null,
         isAdd = false;
@@ -122,8 +123,8 @@ final _draggingProvider = StateProvider.autoDispose<bool>((ref) => false);
 /// menu should do.
 final _kickoffQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
-final _slotProvider =
-    StateProvider.autoDispose<String>((ref) => 'tab:${KickoffTab.favorites.name}');
+final _slotProvider = StateProvider.autoDispose<String>(
+    (ref) => 'tab:${KickoffTab.favorites.name}');
 
 /// KDE Plasma's Kickoff menu.
 ///
@@ -256,8 +257,24 @@ class KickoffDrawer extends ConsumerWidget {
               AppDrawerItem(r.item),
           ];
 
-    final searchAtBottom =
-        (theme.prefs.drawerSearchPosition ?? 'bottom') != 'top';
+    // ─── THE RESOLVED VALUE, NOT THE RAW PREF ─────────────────────────────
+    //
+    // This read `theme.prefs.drawerSearchPosition ?? 'bottom'`, which is the
+    // same expression `AppDrawer` carried until it cost Deepin its authored
+    // position: the raw pref is only the USER's half of the answer, so a KDE
+    // distro authoring `drawerSearchPosition: "top"` was overruled by a
+    // fallback literal and nothing reported it. `LayoutResolver` owns
+    // user-then-theme-then-engine; this reads the result.
+    //
+    // ─── AND 'off' IS NOW A POSITION, NOT A SYNONYM FOR BOTTOM ────────────
+    //
+    // `!= 'top'` folded 'off' into 'bottom', so one of the row's three values
+    // did nothing here while doing something in the two other drawers that
+    // read this field. Same pair of lines `ToolDrawer` already uses, so the
+    // three widgets that honour the pref now honour all of it.
+    final searchPosition = theme.drawerSearchPosition;
+    final showSearch = searchPosition != 'off';
+    final searchAtBottom = searchPosition != 'top';
     final search = _KickoffSearch(theme: theme);
 
     // Kickoff paints its OWN surface, and deliberately NOT the way GNOME does.
@@ -285,7 +302,7 @@ class KickoffDrawer extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            if (!searchAtBottom) search,
+            if (showSearch && !searchAtBottom) search,
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,19 +320,20 @@ class KickoffDrawer extends ConsumerWidget {
                           _ListHeading(theme: theme, slot: active),
                         Expanded(
                           child: shown.isEmpty
-                        ? _Empty(theme: theme, slot: active)
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            itemCount: shown.length,
-                            itemBuilder: (context, i) => _Row(
-                              // Stable identity so switching tabs or creating a
-                              // folder reuses rows instead of re-requesting
-                              // every icon from native.
-                              key: ValueKey(_idOf(shown[i])),
-                              theme: theme,
-                              item: shown[i],
-                            ),
-                          ),
+                              ? _Empty(theme: theme, slot: active)
+                              : ListView.builder(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  itemCount: shown.length,
+                                  itemBuilder: (context, i) => _Row(
+                                    // Stable identity so switching tabs or creating a
+                                    // folder reuses rows instead of re-requesting
+                                    // every icon from native.
+                                    key: ValueKey(_idOf(shown[i])),
+                                    theme: theme,
+                                    item: shown[i],
+                                  ),
+                                ),
                         ),
                       ],
                     ),
@@ -323,7 +341,7 @@ class KickoffDrawer extends ConsumerWidget {
                 ],
               ),
             ),
-            if (searchAtBottom) search,
+            if (showSearch && searchAtBottom) search,
             _Footer(theme: theme),
           ],
         ),
@@ -545,42 +563,42 @@ class _Rail extends ConsumerWidget {
                     : s.category != null
                         ? (key) => _file(ref, theme, s.category!, key)
                         : s.tab == KickoffTab.favorites
-                    ? (key) {
-                        // ── AGAINST THE CEILING, AND SAY SO WHEN FULL ──
-                        //
-                        // `capacity` is `DockMetrics.maxCapacity`, not what
-                        // the current dock side holds: `drawer_actions` makes
-                        // the same call and explains why. Pinning the
-                        // eleventh on a bottom dock is not lost, it appears
-                        // when the dock moves to the left edge.
-                        //
-                        // And the refusal is SPOKEN. `pinToDock` returns the
-                        // prefs unchanged when it is full, and a drag that
-                        // ends with the app back where it started and no
-                        // explanation reads as a broken gesture rather than a
-                        // full list.
-                        final before = theme.prefs;
-                        final after = HomeLayout.pinToDock(
-                          before,
-                          key,
-                          capacity: DockMetrics.maxCapacity,
-                        );
-                        if (identical(before, after)) {
-                          context.showMessage(
-                            context.t('drawer.dockIsFull'),
-                          );
-                          return;
-                        }
-                        HapticFeedback.mediumImpact();
-                        ref
-                            .read(prefsProvider(theme.spec.id).notifier)
-                            .edit((p) => HomeLayout.pinToDock(
-                                  p,
+                            ? (key) {
+                                // ── AGAINST THE CEILING, AND SAY SO WHEN FULL ──
+                                //
+                                // `capacity` is `DockMetrics.maxCapacity`, not what
+                                // the current dock side holds: `drawer_actions` makes
+                                // the same call and explains why. Pinning the
+                                // eleventh on a bottom dock is not lost, it appears
+                                // when the dock moves to the left edge.
+                                //
+                                // And the refusal is SPOKEN. `pinToDock` returns the
+                                // prefs unchanged when it is full, and a drag that
+                                // ends with the app back where it started and no
+                                // explanation reads as a broken gesture rather than a
+                                // full list.
+                                final before = theme.prefs;
+                                final after = HomeLayout.pinToDock(
+                                  before,
                                   key,
                                   capacity: DockMetrics.maxCapacity,
-                                ));
-                      }
-                    : null,
+                                );
+                                if (identical(before, after)) {
+                                  context.showMessage(
+                                    context.t('drawer.dockIsFull'),
+                                  );
+                                  return;
+                                }
+                                HapticFeedback.mediumImpact();
+                                ref
+                                    .read(prefsProvider(theme.spec.id).notifier)
+                                    .edit((p) => HomeLayout.pinToDock(
+                                          p,
+                                          key,
+                                          capacity: DockMetrics.maxCapacity,
+                                        ));
+                              }
+                            : null,
               ),
             const SizedBox(height: 6),
           ],
@@ -653,7 +671,6 @@ void _newCategory(
   ref.read(_slotProvider.notifier).state = _Slot.category(name).id;
 }
 
-
 /// The active category's name, above the list, in the categories rail only.
 ///
 /// Not a section header inside the ListView: it must not scroll away, because
@@ -671,7 +688,7 @@ class _ListHeading extends StatelessWidget {
       child: Text(
         slot.label,
         style: TextStyle(
-          fontSize: 11.5 * theme.textScale,
+          fontSize: 13 * theme.textScale,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
           color: theme.palette.accent,
@@ -742,47 +759,47 @@ class _RailItem extends StatelessWidget {
     required bool hovering,
   }) {
     return Container(
-        // Tighter when icon-only: the label is what needed the vertical room,
-        // and eleven slots at the labelled spacing would not clear a phone.
-        padding: EdgeInsets.symmetric(vertical: compact ? 11 : 10),
-        decoration: BoxDecoration(
-          // Hovering reads STRONGER than selected, deliberately: while a drag
-          // is over it the question is no longer which tab you are on, it is
-          // where this app is about to land.
-          color: hovering
-              ? accent.withValues(alpha: 0.30)
-              : selected
-                  ? accent.withValues(alpha: 0.14)
-                  : null,
-          border: Border(
-            left: BorderSide(
-              color: (selected || hovering) ? accent : Colors.transparent,
-              width: 3,
-            ),
+      // Tighter when icon-only: the label is what needed the vertical room,
+      // and eleven slots at the labelled spacing would not clear a phone.
+      padding: EdgeInsets.symmetric(vertical: compact ? 11 : 10),
+      decoration: BoxDecoration(
+        // Hovering reads STRONGER than selected, deliberately: while a drag
+        // is over it the question is no longer which tab you are on, it is
+        // where this app is about to land.
+        color: hovering
+            ? accent.withValues(alpha: 0.30)
+            : selected
+                ? accent.withValues(alpha: 0.14)
+                : null,
+        border: Border(
+          left: BorderSide(
+            color: (selected || hovering) ? accent : Colors.transparent,
+            width: 3,
           ),
         ),
-        child: Column(
-          children: [
-            // Semantics, not decoration. An icon-only rail is unreadable to a
-            // screen reader without it, and this is the one mode where the
-            // visible label is gone.
-            Semantics(
-              label: compact ? slot.label : null,
-              child: Icon(slot.icon, size: compact ? 20 : 19, color: ink),
-            ),
-            if (!compact) ...[
-              const SizedBox(height: 3),
-              Text(
-                slot.label,
-                style: TextStyle(
-                  fontSize: 11 * theme.textScale,
-                  color: ink,
-                  fontFamily: theme.typography.display,
-                ),
+      ),
+      child: Column(
+        children: [
+          // Semantics, not decoration. An icon-only rail is unreadable to a
+          // screen reader without it, and this is the one mode where the
+          // visible label is gone.
+          Semantics(
+            label: compact ? slot.label : null,
+            child: Icon(slot.icon, size: compact ? 20 : 19, color: ink),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 3),
+            Text(
+              slot.label,
+              style: TextStyle(
+                fontSize: 12 * theme.textScale,
+                color: ink,
+                fontFamily: theme.typography.display,
               ),
-            ],
+            ),
           ],
-        ),
+        ],
+      ),
     );
   }
 }
@@ -833,12 +850,12 @@ class _RowState extends ConsumerState<_Row> {
     final row = InkWell(
       onTap: () => activateDrawerItem(context, ref, theme, item),
       onLongPress: switch (item) {
-        AppDrawerItem(:final entry) => () =>
-            showDrawerAppMenu(context, ref, theme, entry,
-                anchor: AnchoredMenu.anchorOf(context)),
-        final FolderDrawerItem f => () =>
-            drawerFolderSettings(context, ref, theme, f,
-                anchor: AnchoredMenu.anchorOf(context)),
+        AppDrawerItem(:final entry) => () => showDrawerAppMenu(
+            context, ref, theme, entry,
+            anchor: AnchoredMenu.anchorOf(context)),
+        final FolderDrawerItem f => () => drawerFolderSettings(
+            context, ref, theme, f,
+            anchor: AnchoredMenu.anchorOf(context)),
         // Neither pin nor uninstall nor rename applies to a launcher entry, and
         // an empty sheet is worse than none. The terminal will eventually earn
         // a menu of its own (new session, snippets, hosts); until those exist,
@@ -849,7 +866,7 @@ class _RowState extends ConsumerState<_Row> {
           null,
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: [
             SizedBox(
@@ -893,7 +910,7 @@ class _RowState extends ConsumerState<_Row> {
             if (item is FolderDrawerItem)
               Icon(
                 Icons.chevron_right,
-                size: 18,
+                size: 20,
                 color: onDark.withValues(alpha: 0.4),
               ),
           ],
@@ -1028,77 +1045,82 @@ class _KickoffSearchState extends ConsumerState<_KickoffSearch> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: onDark.withValues(alpha: 0.08),
-            // Breeze corners are tighter than Adwaita's pills.
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: onDark.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.search, size: 18, color: onDark.withValues(alpha: 0.6)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  // NOT autofocused. Kickoff opens on Favourites and most opens
-                  // are a tap on a tile, so raising the keyboard every time
-                  // would cover the list you came to look at. The GNOME page
-                  // focuses because arriving there IS the decision to type.
-                  onChanged: (v) {
-                    ref.read(_kickoffQueryProvider.notifier).state = v;
-                    // AND the shared one, because `paletteResultsProvider`
-                    // reads that. Two providers for one word looks redundant
-                    // and is not: the local one is what this menu clears on
-                    // close, and the shared one is what every ranker in the app
-                    // agrees on.
-                    ref.read(paletteQueryProvider.notifier).state = v;
-                  },
-                  style: TextStyle(
-                    color: onDark,
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: onDark.withValues(alpha: 0.08),
+          // Breeze corners are tighter than Adwaita's pills.
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: onDark.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 20, color: onDark.withValues(alpha: 0.6)),
+            const SizedBox(width: 9),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                autocorrect: false,
+                enableSuggestions: false,
+                // NOT autofocused. Kickoff opens on Favourites and most opens
+                // are a tap on a tile, so raising the keyboard every time
+                // would cover the list you came to look at. The GNOME page
+                // focuses because arriving there IS the decision to type.
+                onChanged: (v) {
+                  ref.read(_kickoffQueryProvider.notifier).state = v;
+                  // AND the shared one, because `paletteResultsProvider`
+                  // reads that. Two providers for one word looks redundant
+                  // and is not: the local one is what this menu clears on
+                  // close, and the shared one is what every ranker in the app
+                  // agrees on.
+                  ref.read(paletteQueryProvider.notifier).state = v;
+                },
+                style: TextStyle(
+                  color: onDark,
+                  fontFamily: theme.typography.display,
+                  fontSize: 13 * theme.textScale,
+                ),
+                cursorColor: theme.palette.accent,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: context.t('drawer.searchApps'),
+                  hintStyle: TextStyle(
+                    color: onDark.withValues(alpha: 0.6),
                     fontFamily: theme.typography.display,
                     fontSize: 13 * theme.textScale,
                   ),
-                  cursorColor: theme.palette.accent,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: context.t('drawer.searchApps'),
-                    hintStyle: TextStyle(
-                      color: onDark.withValues(alpha: 0.6),
-                      fontFamily: theme.typography.display,
-                      fontSize: 13 * theme.textScale,
-                    ),
+                ),
+              ),
+            ),
+            // Only while there is something to clear. A permanent X on an
+            // empty field is a control that does nothing four times out of
+            // five, which is the rule the stat rows follow.
+            if (ref.watch(_kickoffQueryProvider).isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _controller.clear();
+                  ref.read(_kickoffQueryProvider.notifier).state = '';
+                },
+                child: Padding(
+                  // 48dp around a clear button that sits INSIDE the field,
+                  // where a miss puts the cursor somewhere instead.
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 20,
+                    color: onDark.withValues(alpha: 0.55),
                   ),
                 ),
               ),
-              // Only while there is something to clear. A permanent X on an
-              // empty field is a control that does nothing four times out of
-              // five, which is the rule the stat rows follow.
-              if (ref.watch(_kickoffQueryProvider).isNotEmpty)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _controller.clear();
-                    ref.read(_kickoffQueryProvider.notifier).state = '';
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: Icon(
-                      Icons.close,
-                      size: 16,
-                      color: onDark.withValues(alpha: 0.55),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
+      ),
     );
   }
 }
@@ -1136,7 +1158,8 @@ class _Footer extends ConsumerWidget {
                 ),
               ),
             ),
-            Container(width: 1, height: 26, color: onDark.withValues(alpha: 0.10)),
+            Container(
+                width: 1, height: 26, color: onDark.withValues(alpha: 0.10)),
             Expanded(
               child: _FooterButton(
                 theme: theme,
@@ -1184,7 +1207,7 @@ class _FooterButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: ink),
+            Icon(icon, size: 20, color: ink),
             const SizedBox(width: 6),
             Flexible(
               child: Text(

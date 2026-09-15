@@ -61,8 +61,8 @@ class ClockDesklet extends ConsumerWidget {
     final date = formatDateLong(now);
 
     return switch (skin.surface) {
-      DeskletSurface.terminal =>
-        _Terminal(theme: theme, skin: skin, time: time, date: date, show: showDate),
+      DeskletSurface.terminal => _Terminal(
+          theme: theme, skin: skin, time: time, date: date, show: showDate),
       DeskletSurface.panel =>
         _Panel(theme: theme, skin: skin, time: time, now: now, show: showDate),
       DeskletSurface.card =>
@@ -84,9 +84,8 @@ class ClockDesklet extends ConsumerWidget {
     final h = twelve ? (h24 % 12 == 0 ? 12 : h24 % 12) : h24;
     final hh = twelve ? '$h' : h.toString().padLeft(2, '0');
     final mm = t.minute.toString().padLeft(2, '0');
-    final base = seconds
-        ? '$hh:$mm:${t.second.toString().padLeft(2, '0')}'
-        : '$hh:$mm';
+    final base =
+        seconds ? '$hh:$mm:${t.second.toString().padLeft(2, '0')}' : '$hh:$mm';
     return twelve ? '$base ${h24 < 12 ? 'AM' : 'PM'}' : base;
   }
 }
@@ -149,8 +148,8 @@ class _Bare extends StatelessWidget {
         fontSize: skin.num_('timeSize', 56),
         // A hairline weight is most of what makes a GNOME clock read as GNOME,
         // and it only exists because the Ubuntu family ships a Light face.
-        fontWeight: FontWeight.values[
-            (skin.num_('timeWeight', 200) ~/ 100 - 1).clamp(0, 8)],
+        fontWeight: FontWeight
+            .values[(skin.num_('timeWeight', 200) ~/ 100 - 1).clamp(0, 8)],
         color: ink,
         height: 1.0,
         letterSpacing: skin.num_('letterSpacing', -2),

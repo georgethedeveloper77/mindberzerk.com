@@ -47,6 +47,7 @@ final workspaceCountProvider =
 class WorkspaceCount extends Notifier<int> {
   static const min = 1;
   static const max = 5;
+
   /// The engine's answer when neither the user nor the distro has one.
   ///
   /// Was the only answer, with a comment reading "the mockup shows three
@@ -188,6 +189,7 @@ class ActiveWorkspace extends Notifier<int> {
   }
 
   void next() => goTo(state + 1);
+
   void previous() => goTo(state - 1);
 
   /// HOME press. `LauncherActivity.onNewIntent` already sends `"home"` down the

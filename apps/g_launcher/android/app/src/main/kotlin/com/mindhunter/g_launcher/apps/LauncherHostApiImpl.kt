@@ -17,8 +17,10 @@ import java.io.ByteArrayOutputStream
 import com.mindhunter.g_launcher.AppChangeEvent
 import com.mindhunter.g_launcher.AppChangeReason
 import com.mindhunter.g_launcher.AppEntry
+import com.mindhunter.g_launcher.AppShortcut
 import com.mindhunter.g_launcher.LauncherFlutterApi
 import com.mindhunter.g_launcher.LauncherHostApi
+import com.mindhunter.g_launcher.backup.BackupStore
 import com.mindhunter.g_launcher.icons.BrandIconResolver
 import com.mindhunter.g_launcher.icons.BrandTreatment
 import com.mindhunter.g_launcher.icons.IconCache
@@ -84,6 +86,12 @@ class LauncherHostApiImpl(
     private val roles = RoleRequester(appContext)
     private val wallpaper = WallpaperController(appContext)
     private val stats = DeviceStatsReader(appContext)
+
+    /**
+     * The user's backup folder. Holds its own SAF grant and its own request
+     * code; this class only lends it an Activity and routes its result.
+     */
+    private val backups = BackupStore(appContext)
 
     private val iconCache = IconCache(
         context = appContext,
@@ -165,6 +173,67 @@ class LauncherHostApiImpl(
         }
     }
 
+    /**
+     * PHASE L6a. Built eagerly like the repositories above it: the constructor
+     * only resolves two system services, and doing it lazily would move that
+     * cost onto the first row a user expands.
+     */
+    private val shortcutReader = AppShortcutReader(appContext)
+
+    /**
+     * Pixels from dp, for the rect Android animates a launch out of.
+     *
+     * Lifted out of [launchApp], which had it inline, because [launchShortcut]
+     * needs the identical conversion and a second copy would be a second place
+     * for the density to be forgotten. Same four nullable doubles, same rule:
+     * all four or nothing, since three corners is not a rectangle.
+     */
+    private fun sourceRect(
+        left: Double?,
+        top: Double?,
+        right: Double?,
+        bottom: Double?,
+    ): Rect? {
+        if (left == null || top == null || right == null || bottom == null) return null
+        val density = appContext.resources.displayMetrics.density
+        return Rect(
+            (left * density).toInt(),
+            (top * density).toInt(),
+            (right * density).toInt(),
+            (bottom * density).toInt(),
+        )
+    }
+
+    override fun shortcutsFor(
+        componentKey: String,
+        callback: (Result<List<AppShortcut>>) -> Unit,
+    ) {
+        // OFF THE PLATFORM THREAD, which is the whole reason this is `@async`.
+        // `getShortcuts` is a binder call into the system and it is made while
+        // a row is animating open, so the frame it would block is exactly the
+        // one the user is watching.
+        io.execute {
+            val rows = shortcutReader.shortcutsFor(componentKey)
+            val out = rows.map {
+                AppShortcut(id = it.id, label = it.label, disabled = it.disabled)
+            }
+            main.post { callback(Result.success(out)) }
+        }
+    }
+
+    override fun launchShortcut(
+        componentKey: String,
+        shortcutId: String,
+        sourceLeft: Double?,
+        sourceTop: Double?,
+        sourceRight: Double?,
+        sourceBottom: Double?,
+    ): Boolean = shortcutReader.launch(
+        componentKey,
+        shortcutId,
+        sourceRect(sourceLeft, sourceTop, sourceRight, sourceBottom),
+    )
+
     override fun launchApp(
         componentKey: String,
         sourceLeft: Double?,
@@ -172,20 +241,10 @@ class LauncherHostApiImpl(
         sourceRight: Double?,
         sourceBottom: Double?,
     ) {
-        val density = appContext.resources.displayMetrics.density
-        val bounds = if (
-            sourceLeft != null && sourceTop != null &&
-            sourceRight != null && sourceBottom != null
-        ) {
-            Rect(
-                (sourceLeft * density).toInt(),
-                (sourceTop * density).toInt(),
-                (sourceRight * density).toInt(),
-                (sourceBottom * density).toInt(),
-            )
-        } else null
-
-        repository.launch(componentKey, bounds)
+        repository.launch(
+            componentKey,
+            sourceRect(sourceLeft, sourceTop, sourceRight, sourceBottom),
+        )
     }
 
     override fun openAppInfo(componentKey: String) = repository.openAppInfo(componentKey)
@@ -566,6 +625,11 @@ class LauncherHostApiImpl(
         resultCode: Int,
         data: Intent?,
     ): Boolean {
+        // The folder picker owns its own request code and returns false for
+        // anything else, so the order of these two is not load-bearing and
+        // should stay that way.
+        if (backups.onActivityResult(requestCode, resultCode, data)) return true
+
         if (requestCode != REQ_SPEECH) return false
 
         val callback = speechCallback
@@ -919,6 +983,96 @@ class LauncherHostApiImpl(
         brandPack = brandPack,
         brandTreatment = BrandTreatment.parse(brandTreatment),
     )
+
+    // ---- backup folder ---------------------------------------------------
+    //
+    // Every one of these hops to [io] and answers on [main], the same shape
+    // the gallery methods above follow. A DocumentsProvider call is binder IPC
+    // into another process and a write is megabytes through a stream; neither
+    // belongs on the platform thread.
+
+    override fun chooseBackupFolder(callback: (Result<String?>) -> Unit) {
+        // On MAIN, unlike its neighbours: starting an Activity for a result is
+        // a window operation. Same reason `requestGalleryAccess` posts.
+        main.post {
+            backups.choose(activityRef?.get()) { name ->
+                main.post { callback(Result.success(name)) }
+            }
+        }
+    }
+
+    override fun backupFolder(callback: (Result<String?>) -> Unit) {
+        io.execute {
+            val name = runCatching { backups.label() }.getOrNull()
+            main.post { callback(Result.success(name)) }
+        }
+    }
+
+    override fun forgetBackupFolder(callback: (Result<Unit>) -> Unit) {
+        io.execute {
+            runCatching { backups.forget() }
+            main.post { callback(Result.success(Unit)) }
+        }
+    }
+
+    override fun writeBackup(
+        fileName: String,
+        bytes: ByteArray,
+        callback: (Result<String?>) -> Unit,
+    ) {
+        io.execute {
+            val uri = runCatching { backups.write(fileName, bytes) }.getOrNull()
+            main.post { callback(Result.success(uri)) }
+        }
+    }
+
+    override fun listBackups(callback: (Result<List<String>>) -> Unit) {
+        io.execute {
+            val rows = runCatching { backups.list() }.getOrDefault(emptyList())
+            main.post { callback(Result.success(rows)) }
+        }
+    }
+
+    override fun readBackup(
+        documentUri: String,
+        callback: (Result<ByteArray?>) -> Unit,
+    ) {
+        io.execute {
+            val bytes = runCatching { backups.read(documentUri) }.getOrNull()
+            main.post { callback(Result.success(bytes)) }
+        }
+    }
+
+    override fun deleteBackup(
+        documentUri: String,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        io.execute {
+            val ok = runCatching { backups.delete(documentUri) }.getOrDefault(false)
+            main.post { callback(Result.success(ok)) }
+        }
+    }
+
+    override fun shareBackup(
+        fileName: String,
+        bytes: ByteArray,
+        callback: (Result<Boolean>) -> Unit,
+    ) {
+        // The write is IO, the chooser is a window operation, so it hops back
+        // to main between the two rather than doing either on the wrong thread.
+        io.execute {
+            val uri = runCatching { backups.stageForShare(fileName, bytes) }
+                .getOrNull()
+            main.post {
+                if (uri == null) {
+                    callback(Result.success(false))
+                    return@post
+                }
+                val ok = backups.share(activityRef?.get(), uri)
+                callback(Result.success(ok))
+            }
+        }
+    }
 
     private companion object {
         /**

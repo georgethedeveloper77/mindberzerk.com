@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
@@ -11,7 +12,6 @@ import '../search/search_page.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Whisker: Xfce's menu, anchored at the panel.
 ///
@@ -55,7 +55,13 @@ class WhiskerDrawer extends ConsumerWidget {
   /// with the screen would stop being one on a tablet. 208 is wide enough for
   /// an icon, a label and a count, and narrow enough that the wallpaper is
   /// still obviously there beside it.
-  static const _width = 208.0;
+  /// ─── WIDER, BECAUSE THE TEXT GOT BIGGER ───────────────────────────────
+  ///
+  /// 208 held a 17dp icon and an 11.5pt label with about 150dp for the name.
+  /// At 13pt with a 30dp icon that leaves room for roughly twelve characters,
+  /// which turns most of the list into truncation. 300 keeps it a corner menu
+  /// on a 360dp phone while giving the label the width the type now needs.
+  static const _width = 300.0;
 
   /// How many apps stand above the category strip.
   ///
@@ -120,8 +126,7 @@ class WhiskerDrawer extends ConsumerWidget {
             categories: shown,
             active: active,
             rows: _rows,
-            onCategory: (n) =>
-                ref.read(_categoryProvider.notifier).state = n,
+            onCategory: (n) => ref.read(_categoryProvider.notifier).state = n,
           ),
         ),
       ],
@@ -176,8 +181,7 @@ class _Popup extends ConsumerWidget {
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          color:
-              palette.bgBottom.withValues(alpha: 0.97 * theme.drawerOpacity),
+          color: palette.bgBottom.withValues(alpha: 0.97 * theme.drawerOpacity),
           borderRadius: radius,
           border: Border.all(color: palette.onDark.withValues(alpha: 0.14)),
           boxShadow: [
@@ -202,20 +206,20 @@ class _Popup extends ConsumerWidget {
             // under your finger would move the category strip you are aiming
             // at.
             SizedBox(
-              height: rows * 34.0,
+              height: rows * 52.0,
               child: apps.isEmpty
                   ? Center(
                       child: Text(
                         context.t('drawer.noApps'),
                         style: TextStyle(
                           fontFamily: theme.typography.display,
-                          fontSize: 11 * theme.textScale,
+                          fontSize: 13 * theme.textScale,
                           color: palette.onDark.withValues(alpha: 0.4),
                         ),
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       itemCount: apps.length,
                       itemBuilder: (context, i) =>
                           _Row(theme: theme, entry: apps[i]),
@@ -267,7 +271,7 @@ class _Strip extends StatelessWidget {
         },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: on
                 ? palette.accent.withValues(alpha: 0.85)
@@ -278,7 +282,7 @@ class _Strip extends StatelessWidget {
             label,
             style: TextStyle(
               fontFamily: theme.typography.display,
-              fontSize: 9.5 * theme.textScale,
+              fontSize: 13 * theme.textScale,
               fontWeight: on ? FontWeight.w600 : FontWeight.w400,
               // The BAR colour on the accent, not white. The strip is small
               // enough that a white-on-accent chip would read as a badge.
@@ -290,10 +294,10 @@ class _Strip extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 32,
+      height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         children: [
           // Favourites is a category in the strip rather than a tab above it,
           // because in Whisker it IS one: the strip is how you change what the
@@ -331,10 +335,10 @@ class _Row extends ConsumerWidget {
         anchor: AnchoredMenu.anchorOf(context),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           children: [
-            AppIcon(entry: entry, size: theme.iconSizeDp * 0.5),
+            AppIcon(entry: entry, size: theme.iconSizeDp * 0.72),
             const SizedBox(width: 9),
             Expanded(
               child: Text(
@@ -343,7 +347,7 @@ class _Row extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: theme.typography.display,
-                  fontSize: 11.5 * theme.textScale,
+                  fontSize: 13 * theme.textScale,
                   color: theme.palette.onDark,
                 ),
               ),
@@ -371,12 +375,12 @@ class _Search extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Row(
           children: [
             Icon(
               Icons.search,
-              size: 14,
+              size: 20,
               color: theme.palette.onDark.withValues(alpha: 0.45),
             ),
             const SizedBox(width: 8),
@@ -384,7 +388,7 @@ class _Search extends StatelessWidget {
               context.t('drawer.searchApps'),
               style: TextStyle(
                 fontFamily: theme.typography.display,
-                fontSize: 11.5 * theme.textScale,
+                fontSize: 14 * theme.textScale,
                 color: theme.palette.onDark.withValues(alpha: 0.45),
               ),
             ),

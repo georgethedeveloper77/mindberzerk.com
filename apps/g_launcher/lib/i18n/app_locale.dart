@@ -27,7 +27,8 @@ class AppLocale {
       : '${locale.languageCode}_${locale.countryCode}';
 
   @override
-  bool operator ==(Object other) => other is AppLocale && other.locale == locale;
+  bool operator ==(Object other) =>
+      other is AppLocale && other.locale == locale;
 
   @override
   int get hashCode => locale.hashCode;
@@ -45,38 +46,64 @@ class AppLocale {
 /// launcher chrome stays correct, just not in the distro typeface, which is
 /// the right trade.
 const List<AppLocale> kBundledLocales = [
-  AppLocale(locale: Locale('en'), englishName: 'English', nativeName: 'English'),
+  AppLocale(
+      locale: Locale('en'), englishName: 'English', nativeName: 'English'),
 
   // Europe / Americas
-  AppLocale(locale: Locale('es'), englishName: 'Spanish', nativeName: 'Español'),
-  AppLocale(locale: Locale('fr'), englishName: 'French', nativeName: 'Français'),
-  AppLocale(locale: Locale('pt'), englishName: 'Portuguese', nativeName: 'Português'),
+  AppLocale(
+      locale: Locale('es'), englishName: 'Spanish', nativeName: 'Español'),
+  AppLocale(
+      locale: Locale('fr'), englishName: 'French', nativeName: 'Français'),
+  AppLocale(
+      locale: Locale('pt'), englishName: 'Portuguese', nativeName: 'Português'),
   AppLocale(locale: Locale('de'), englishName: 'German', nativeName: 'Deutsch'),
-  AppLocale(locale: Locale('it'), englishName: 'Italian', nativeName: 'Italiano'),
-  AppLocale(locale: Locale('nl'), englishName: 'Dutch', nativeName: 'Nederlands'),
+  AppLocale(
+      locale: Locale('it'), englishName: 'Italian', nativeName: 'Italiano'),
+  AppLocale(
+      locale: Locale('nl'), englishName: 'Dutch', nativeName: 'Nederlands'),
   AppLocale(locale: Locale('pl'), englishName: 'Polish', nativeName: 'Polski'),
   AppLocale(locale: Locale('tr'), englishName: 'Turkish', nativeName: 'Türkçe'),
-  AppLocale(locale: Locale('ru'), englishName: 'Russian', nativeName: 'Русский'),
-  AppLocale(locale: Locale('uk'), englishName: 'Ukrainian', nativeName: 'Українська'),
-  AppLocale(locale: Locale('ro'), englishName: 'Romanian', nativeName: 'Română'),
+  AppLocale(
+      locale: Locale('ru'), englishName: 'Russian', nativeName: 'Русский'),
+  AppLocale(
+      locale: Locale('uk'), englishName: 'Ukrainian', nativeName: 'Українська'),
+  AppLocale(
+      locale: Locale('ro'), englishName: 'Romanian', nativeName: 'Română'),
   AppLocale(locale: Locale('cs'), englishName: 'Czech', nativeName: 'Čeština'),
   AppLocale(locale: Locale('el'), englishName: 'Greek', nativeName: 'Ελληνικά'),
-  AppLocale(locale: Locale('hu'), englishName: 'Hungarian', nativeName: 'Magyar'),
-  AppLocale(locale: Locale('sv'), englishName: 'Swedish', nativeName: 'Svenska'),
+  AppLocale(
+      locale: Locale('hu'), englishName: 'Hungarian', nativeName: 'Magyar'),
+  AppLocale(
+      locale: Locale('sv'), englishName: 'Swedish', nativeName: 'Svenska'),
   AppLocale(locale: Locale('da'), englishName: 'Danish', nativeName: 'Dansk'),
   AppLocale(locale: Locale('fi'), englishName: 'Finnish', nativeName: 'Suomi'),
-  AppLocale(locale: Locale('no'), englishName: 'Norwegian', nativeName: 'Norsk'),
+  AppLocale(
+      locale: Locale('no'), englishName: 'Norwegian', nativeName: 'Norsk'),
 
   // Asia-Pacific
-  AppLocale(locale: Locale('id'), englishName: 'Indonesian', nativeName: 'Bahasa Indonesia'),
-  AppLocale(locale: Locale('ms'), englishName: 'Malay', nativeName: 'Bahasa Melayu'),
-  AppLocale(locale: Locale('vi'), englishName: 'Vietnamese', nativeName: 'Tiếng Việt'),
+  AppLocale(
+      locale: Locale('id'),
+      englishName: 'Indonesian',
+      nativeName: 'Bahasa Indonesia'),
+  AppLocale(
+      locale: Locale('ms'), englishName: 'Malay', nativeName: 'Bahasa Melayu'),
+  AppLocale(
+      locale: Locale('vi'),
+      englishName: 'Vietnamese',
+      nativeName: 'Tiếng Việt'),
   AppLocale(locale: Locale('th'), englishName: 'Thai', nativeName: 'ไทย'),
-  AppLocale(locale: Locale('tl'), englishName: 'Filipino', nativeName: 'Filipino'),
+  AppLocale(
+      locale: Locale('tl'), englishName: 'Filipino', nativeName: 'Filipino'),
   AppLocale(locale: Locale('ja'), englishName: 'Japanese', nativeName: '日本語'),
   AppLocale(locale: Locale('ko'), englishName: 'Korean', nativeName: '한국어'),
-  AppLocale(locale: Locale('zh', 'CN'), englishName: 'Chinese (Simplified)', nativeName: '简体中文'),
-  AppLocale(locale: Locale('zh', 'TW'), englishName: 'Chinese (Traditional)', nativeName: '繁體中文'),
+  AppLocale(
+      locale: Locale('zh', 'CN'),
+      englishName: 'Chinese (Simplified)',
+      nativeName: '简体中文'),
+  AppLocale(
+      locale: Locale('zh', 'TW'),
+      englishName: 'Chinese (Traditional)',
+      nativeName: '繁體中文'),
 
   // South Asia
   AppLocale(locale: Locale('hi'), englishName: 'Hindi', nativeName: 'हिन्दी'),
@@ -84,9 +111,11 @@ const List<AppLocale> kBundledLocales = [
   AppLocale(locale: Locale('ur'), englishName: 'Urdu', nativeName: 'اردو'),
   AppLocale(locale: Locale('ta'), englishName: 'Tamil', nativeName: 'தமிழ்'),
   AppLocale(locale: Locale('te'), englishName: 'Telugu', nativeName: 'తెలుగు'),
-  AppLocale(locale: Locale('ml'), englishName: 'Malayalam', nativeName: 'മലയാളം'),
+  AppLocale(
+      locale: Locale('ml'), englishName: 'Malayalam', nativeName: 'മലയാളം'),
   AppLocale(locale: Locale('mr'), englishName: 'Marathi', nativeName: 'मराठी'),
-  AppLocale(locale: Locale('gu'), englishName: 'Gujarati', nativeName: 'ગુજરાતી'),
+  AppLocale(
+      locale: Locale('gu'), englishName: 'Gujarati', nativeName: 'ગુજરાતી'),
   AppLocale(locale: Locale('pa'), englishName: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ'),
 
   // Middle East
@@ -95,13 +124,15 @@ const List<AppLocale> kBundledLocales = [
   AppLocale(locale: Locale('he'), englishName: 'Hebrew', nativeName: 'עברית'),
 
   // Africa
-  AppLocale(locale: Locale('sw'), englishName: 'Swahili', nativeName: 'Kiswahili'),
+  AppLocale(
+      locale: Locale('sw'), englishName: 'Swahili', nativeName: 'Kiswahili'),
   AppLocale(locale: Locale('am'), englishName: 'Amharic', nativeName: 'አማርኛ'),
   AppLocale(locale: Locale('ha'), englishName: 'Hausa', nativeName: 'Hausa'),
   AppLocale(locale: Locale('yo'), englishName: 'Yoruba', nativeName: 'Yorùbá'),
   AppLocale(locale: Locale('ig'), englishName: 'Igbo', nativeName: 'Igbo'),
   AppLocale(locale: Locale('zu'), englishName: 'Zulu', nativeName: 'isiZulu'),
-  AppLocale(locale: Locale('af'), englishName: 'Afrikaans', nativeName: 'Afrikaans'),
+  AppLocale(
+      locale: Locale('af'), englishName: 'Afrikaans', nativeName: 'Afrikaans'),
 ];
 
 /// Bundled locales sorted by native name for display, the way Ubuntu's
@@ -109,7 +140,8 @@ const List<AppLocale> kBundledLocales = [
 /// display-only.
 List<AppLocale> localesForDisplay() {
   final list = [...kBundledLocales];
-  list.sort((a, b) => a.nativeName.toLowerCase().compareTo(b.nativeName.toLowerCase()));
+  list.sort((a, b) =>
+      a.nativeName.toLowerCase().compareTo(b.nativeName.toLowerCase()));
   return list;
 }
 
@@ -133,5 +165,6 @@ String systemMatchCode(Locale device) {
   return hit?.code ?? 'en';
 }
 
-AppLocale? localeForCode(String? code) =>
-    code == null ? null : kBundledLocales.firstWhereOrNull((l) => l.code == code);
+AppLocale? localeForCode(String? code) => code == null
+    ? null
+    : kBundledLocales.firstWhereOrNull((l) => l.code == code);

@@ -36,6 +36,7 @@ class FilesBridge {
   /// checks it before every storage verb and an await there would make the
   /// gate itself a source of jank.
   bool _granted = false;
+
   bool get granted => _granted;
 
   /// Call once at startup and again after a grant.
@@ -134,7 +135,9 @@ class FilesBridge {
     }
     final bool ok = raw['ok'] as bool? ?? false;
     final String? message = raw['message'] as String?;
-    return ok ? TermOutcome.ok(message) : TermOutcome.failed(message ?? 'failed');
+    return ok
+        ? TermOutcome.ok(message)
+        : TermOutcome.failed(message ?? 'failed');
   }
 
   Future<T?> _call<T>(String method, [Map<String, Object?>? args]) async {

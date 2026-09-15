@@ -109,6 +109,23 @@ class BrandIconResolver(context: Context) {
         /** Stroke weight in viewBox units. Meaningless unless [stroked]. */
         val strokeWidth: Float,
         val glyphs: Map<String, BrandGlyph>,
+        /**
+         * PHASE L4. Bucket key to drawing, for the category tier.
+         *
+         * SEPARATE from [glyphs], not merged into it under pseudo-package keys,
+         * and the reason is `coveredPackages()`. That set is `glyphs.keys` and
+         * it feeds a coverage figure on the icon screen. Twenty-six buckets
+         * folded in would inflate the numerator of a fraction whose denominator
+         * is real installed apps, and the doc on that function already explains
+         * why a numerator larger than its denominator destroys trust in every
+         * other number on the screen.
+         *
+         * Also unfiltered: `icons` entries are dropped when the package is not
+         * installed, which is the whole reason a 26 MB set does not sit
+         * resident. A bucket is not a package and every one of them is wanted
+         * on every device, so it cannot travel through that map.
+         */
+        val categories: Map<String, BrandGlyph>,
     )
 
     private var loadedId: String? = null
@@ -166,7 +183,8 @@ class BrandIconResolver(context: Context) {
             Log.i(
                 TAG,
                 "pack '$packId' loaded: ${p.glyphs.size} glyphs for installed " +
-                    "apps, viewBox ${p.viewBox}, stroked ${p.stroked}",
+                    "apps, ${p.categories.size} category glyphs, viewBox " +
+                    "${p.viewBox}, stroked ${p.stroked}",
             )
         }
     }
@@ -227,6 +245,16 @@ class BrandIconResolver(context: Context) {
      * covers nothing. The caller has the pack id and knows which it asked for,
      * so it reports null rather than zero.
      */
+    /**
+     * The drawing for a category bucket, or null to fall through.
+     *
+     * Null when the loaded pack ships no `categories` map, which every pack
+     * built before L4 does. That is the correct degradation: the tier goes
+     * quiet and the generator keeps answering, exactly as today.
+     */
+    @Synchronized
+    fun resolveCategory(bucketKey: String): BrandGlyph? = pack?.categories?.get(bucketKey)
+
     @Synchronized
     fun coveredPackages(): Set<String> = pack?.glyphs?.keys?.toSet() ?: emptySet()
 
@@ -322,6 +350,11 @@ class BrandIconResolver(context: Context) {
         val bySlug = mutableMapOf<String, MutableList<String>>()
         val inline = mutableMapOf<String, BrandGlyph>()
         val glyphs = mutableMapOf<String, BrandGlyph>()
+        // slug -> bucket keys wanting it. The same indirection `icons` uses,
+        // kept apart so a drawing shared by a package and a bucket lands in
+        // both maps from one body in the file.
+        val byCategorySlug = mutableMapOf<String, MutableList<String>>()
+        val categories = mutableMapOf<String, BrandGlyph>()
 
         stream.use { raw ->
             JsonReader(InputStreamReader(raw, Charsets.UTF_8)).use { reader ->
@@ -356,12 +389,36 @@ class BrandIconResolver(context: Context) {
                             reader.endObject()
                         }
 
+                        // PHASE L4. Must precede `glyphs` in the file for the
+                        // same reason `icons` does: this is read first so the
+                        // bodies below can be skipped without materialising.
+                        // `pack-shape.test.mjs` asserts the ordering, because
+                        // reversing it has no symptom beyond the tier going
+                        // silently dark.
+                        "categories" -> {
+                            reader.beginObject()
+                            while (reader.hasNext()) {
+                                val bucket = reader.nextName()
+                                // No `installed` filter here, unlike `icons`.
+                                // Twenty-six buckets are wanted on every device.
+                                if (reader.peek() == JsonToken.STRING) {
+                                    byCategorySlug
+                                        .getOrPut(reader.nextString()) { mutableListOf() }
+                                        .add(bucket)
+                                } else {
+                                    reader.skipValue()
+                                }
+                            }
+                            reader.endObject()
+                        }
+
                         "glyphs" -> {
                             reader.beginObject()
                             while (reader.hasNext()) {
                                 val slug = reader.nextName()
                                 val wantedBy = bySlug[slug]
-                                if (wantedBy == null) {
+                                val wantedByCategory = byCategorySlug[slug]
+                                if (wantedBy == null && wantedByCategory == null) {
                                     // The 13,000-odd drawings this phone has no
                                     // app for. Skipped without allocating.
                                     reader.skipValue()
@@ -370,7 +427,11 @@ class BrandIconResolver(context: Context) {
                                 val paths = readPathArray(reader)
                                 if (paths.isNotEmpty()) {
                                     val glyph = BrandGlyph(paths = paths, color = null)
-                                    for (pkg in wantedBy) glyphs[pkg] = glyph
+                                    // `wantedBy` is now nullable: a drawing can
+                                    // be wanted by a bucket alone, by packages
+                                    // alone, or by both from this one body.
+                                    wantedBy?.forEach { pkg -> glyphs[pkg] = glyph }
+                                    wantedByCategory?.forEach { b -> categories[b] = glyph }
                                 }
                             }
                             reader.endObject()
@@ -410,10 +471,22 @@ class BrandIconResolver(context: Context) {
                 // `renderBrand` reads `glyph.color` and a second source for the
                 // same fact is the kind of thing that diverges.
                 glyphs = inherited.glyphs.mapValues { (_, g) -> g.copy(color = tint) },
+                // Tinted identically. A category glyph that kept the base
+                // colour would be the one drawing on a Garuda screen still
+                // wearing Arcticons grey, and it would appear on exactly the
+                // apps a buyer has never seen themed before.
+                categories = inherited.categories.mapValues { (_, g) -> g.copy(color = tint) },
             )
         }
 
         glyphs.putAll(inline)
+        // ─── CATEGORIES ALONE ARE NOT A PACK ────────────────────────────────
+        //
+        // The emptiness check still asks about `glyphs` only. A file with 26
+        // buckets and no package drawings has not loaded successfully, it has
+        // failed in a new way, and letting it through would mean a drawer where
+        // every single app wears a category glyph and the log says the pack is
+        // fine.
         if (glyphs.isEmpty()) return null
 
         return Pack(
@@ -422,6 +495,7 @@ class BrandIconResolver(context: Context) {
             stroked = stroked,
             strokeWidth = strokeWidth,
             glyphs = glyphs,
+            categories = categories,
         )
     }
 

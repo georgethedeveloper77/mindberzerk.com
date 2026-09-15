@@ -31,6 +31,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/billing/entitlements.dart';
 import '../../data/billing/pending_apply.dart';
@@ -40,7 +41,6 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import 'theme_catalog.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Is this the distro currently being worn.
 ///
@@ -152,20 +152,24 @@ Future<void> _download(
       // nothing happened is noise.
       break;
     case 'notEntitled':
-      context.showMessage(context.t('themes.needsPurchaseFirst', {'name': card.name}));
+      context.showMessage(
+          context.t('themes.needsPurchaseFirst', {'name': card.name}));
     case 'appTooOld':
       context.showMessage('${card.name} needs a newer version of G Launcher');
     case 'noSpace':
-      context.showMessage(context.t('themes.notEnoughFreeSpace', {'name': card.name}));
+      context.showMessage(
+          context.t('themes.notEnoughFreeSpace', {'name': card.name}));
     case 'cancelled':
       break;
     case 'rejected':
       // A signature or hash check failed. NOT retryable, and worth saying
       // plainly rather than dressing up as a network blip: retrying a bad
       // signature produces the same answer and burns someone's data.
-      context.showMessage(context.t('themes.failedVerification', {'name': card.name}));
+      context.showMessage(
+          context.t('themes.failedVerification', {'name': card.name}));
     default:
-      context.showMessage(context.t('themes.couldNotDownload', {'name': card.name}));
+      context.showMessage(
+          context.t('themes.couldNotDownload', {'name': card.name}));
   }
 }
 
@@ -189,7 +193,8 @@ Future<void> runThemeCardAction(
       await _download(context, ref, card, thenApply: false);
       return;
     }
-    context.showMessage(context.t('themes.isYourCurrentDistro', {'name': card.name}));
+    context.showMessage(
+        context.t('themes.isYourCurrentDistro', {'name': card.name}));
     return;
   }
 
@@ -241,7 +246,8 @@ Future<void> runThemeCardAction(
         // Either Play is unreachable or the product does not exist in the
         // console. Both render as a card with no price, so say something honest
         // rather than nothing.
-        context.showMessage(context.t('themes.notAvailableToBuy', {'name': card.name}));
+        context.showMessage(
+            context.t('themes.notAvailableToBuy', {'name': card.name}));
       }
 
     case CardStatus.requiresAppUpdate:

@@ -43,6 +43,7 @@ class FuzzyMatch {
   final List<int> indices;
 
   static const none = FuzzyMatch(score: -1, indices: []);
+
   bool get matched => score >= 0;
 }
 
@@ -52,7 +53,8 @@ abstract final class Fuzzy {
   static const _bonusConsecutive = 22;
   static const _bonusWordStart = 30;
   static const _bonusPrefix = 40;
-  static const _bonusEarly = 25; // still matching from position qi, i.e. a run from the start
+  static const _bonusEarly =
+      25; // still matching from position qi, i.e. a run from the start
   static const _penaltyLeadingGap = 3; // per char skipped before the first hit
   static const _penaltyGap = 4; // per char skipped between hits
   static const _maxLeadingPenalty = 30;
@@ -192,7 +194,8 @@ abstract final class Fuzzy {
 
     final ch = label[i];
     final isUpper = ch.toUpperCase() == ch && ch.toLowerCase() != ch;
-    final prevIsLower = prev.toLowerCase() == prev && prev.toUpperCase() != prev;
+    final prevIsLower =
+        prev.toLowerCase() == prev && prev.toUpperCase() != prev;
     return isUpper && prevIsLower;
   }
 

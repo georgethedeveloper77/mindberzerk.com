@@ -203,7 +203,8 @@ class BootSpec {
           BootLine(BootLineKind.ok, 'Started udev Kernel Device Manager'),
           BootLine(BootLineKind.ok, 'Started D-Bus System Message Bus'),
           BootLine(BootLineKind.ok, 'Started NetworkManager'),
-          BootLine(BootLineKind.warn, 'Starting Simple Desktop Display Manager ...'),
+          BootLine(
+              BootLineKind.warn, 'Starting Simple Desktop Display Manager ...'),
           BootLine(BootLineKind.ok, 'Started Simple Desktop Display Manager'),
           BootLine(BootLineKind.ok, 'Reached target Graphical Interface'),
         ]);
@@ -212,10 +213,13 @@ class BootSpec {
         return const BootSpec(lines: [
           BootLine(BootLineKind.plain, ':: running early hook [udev]'),
           BootLine(BootLineKind.plain, ':: running hook [keymap]'),
-          BootLine(BootLineKind.plain, ':: mounting \'/dev/sda2\' on real root'),
+          BootLine(
+              BootLineKind.plain, ':: mounting \'/dev/sda2\' on real root'),
           BootLine(BootLineKind.blank, ''),
-          BootLine(BootLineKind.dim, '[    0.000000] Linux version 6.9.7-arch1-1'),
-          BootLine(BootLineKind.dim, '[    0.412001] systemd[1]: systemd 256 running'),
+          BootLine(
+              BootLineKind.dim, '[    0.000000] Linux version 6.9.7-arch1-1'),
+          BootLine(BootLineKind.dim,
+              '[    0.412001] systemd[1]: systemd 256 running'),
           BootLine(BootLineKind.ok, 'Reached target Local Encrypted Volumes'),
           BootLine(BootLineKind.ok, 'Started Journal Service'),
           BootLine(BootLineKind.ok, 'Reached target System Initialization'),
@@ -233,15 +237,21 @@ class BootSpec {
         return const BootSpec(
           tailMs: 650,
           lines: [
-            BootLine(BootLineKind.dim, 'efiboot loaded from device: Acpi(APP0002,0)'),
-            BootLine(BootLineKind.dim, 'boot file path: \\System\\Library\\CoreServices\\boot.efi'),
+            BootLine(BootLineKind.dim,
+                'efiboot loaded from device: Acpi(APP0002,0)'),
+            BootLine(BootLineKind.dim,
+                'boot file path: \\System\\Library\\CoreServices\\boot.efi'),
             BootLine(BootLineKind.blank, ''),
             BootLine(BootLineKind.plain, 'Darwin Kernel Version 24.5.0'),
-            BootLine(BootLineKind.dim, 'AppleACPICPU: ProcessorId=1 LocalApicId=0 Enabled'),
-            BootLine(BootLineKind.ok, 'AppleIntelCPUPowerManagement: initialization complete'),
+            BootLine(BootLineKind.dim,
+                'AppleACPICPU: ProcessorId=1 LocalApicId=0 Enabled'),
+            BootLine(BootLineKind.ok,
+                'AppleIntelCPUPowerManagement: initialization complete'),
             BootLine(BootLineKind.ok, 'Loaded AppleAHCIDiskDriver'),
-            BootLine(BootLineKind.plain, 'BSD root: disk3s1s1, major 1, minor 13'),
-            BootLine(BootLineKind.ok, 'apfs: mounted Macintosh HD on device root_device'),
+            BootLine(
+                BootLineKind.plain, 'BSD root: disk3s1s1, major 1, minor 13'),
+            BootLine(BootLineKind.ok,
+                'apfs: mounted Macintosh HD on device root_device'),
             BootLine(BootLineKind.warn, 'Waiting for DSMOS ...', delayMs: 620),
             BootLine(BootLineKind.ok, 'DSMOS has arrived'),
             BootLine(BootLineKind.ok, 'Started WindowServer'),
@@ -253,7 +263,8 @@ class BootSpec {
         return const BootSpec(
           tailMs: 500,
           lines: [
-            BootLine(BootLineKind.dim, '[    0.000000] booting g_launcher tty ...'),
+            BootLine(
+                BootLineKind.dim, '[    0.000000] booting g_launcher tty ...'),
             BootLine(BootLineKind.ok, 'mounted /proc /sys /dev'),
             BootLine(BootLineKind.ok, 'started device stats collector'),
             BootLine(BootLineKind.ok, 'started battery monitor'),

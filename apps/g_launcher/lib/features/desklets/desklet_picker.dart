@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
@@ -8,15 +9,14 @@ import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_spec.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/widget_span.dart';
 import '../../platform/launcher_api.g.dart' as api;
 import '../drawer/app_icon.dart';
 import 'desklet_cell.dart';
-import 'desklet_preview.dart';
 import 'desklet_edit.dart';
+import 'desklet_preview.dart';
 // DeskletSurfaceView for `gutter` only. The cell itself now arrives through
 // `deskletCellProvider`, measured, rather than being estimated from the window.
 import 'desklet_surface.dart' show DeskletSurfaceView;
@@ -62,6 +62,7 @@ Future<void> showDeskletPicker(
   required int page,
   int? col,
   int? row,
+
   /// When set, whatever is picked joins THIS stack instead of landing on the
   /// desktop. See the note on `_absorb`.
   String? intoStack,
@@ -360,7 +361,8 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(pad, 8, pad, 24),
                 children: [
-                  _SectionHeader(theme: theme, label: context.t('drawer.gLauncher')),
+                  _SectionHeader(
+                      theme: theme, label: context.t('drawer.gLauncher')),
                   const SizedBox(height: 12),
                   if (ours.isEmpty)
                     _EmptyLine(theme: theme, text: 'No widgets match')
@@ -381,7 +383,8 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
                       ],
                     ),
                   const SizedBox(height: 28),
-                  _SectionHeader(theme: theme, label: context.t('desklets.appWidgets')),
+                  _SectionHeader(
+                      theme: theme, label: context.t('desklets.appWidgets')),
                   const SizedBox(height: 12),
                   _AppWidgetSection(
                     theme: theme,

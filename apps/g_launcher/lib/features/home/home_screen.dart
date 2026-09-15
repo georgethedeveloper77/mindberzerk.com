@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
-import '../../engine/boot_spec.dart';
-import '../../engine/splash_spec.dart';
-import '../../engine/effective_theme.dart';
-import '../../engine/theme_source.dart';
-import '../../engine/theme_spec.dart';
 import '../../data/cdn/pack_repository.dart';
 import '../../data/prefs/setup_state.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
+import '../../engine/boot_spec.dart';
+import '../../engine/effective_theme.dart';
+import '../../engine/splash_spec.dart';
+import '../../engine/theme_source.dart';
+import '../../engine/theme_spec.dart';
 import '../../shells/aqua_shell.dart';
 import '../../shells/gnome_shell.dart';
 import '../../shells/plasma_shell.dart';
@@ -20,10 +21,9 @@ import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
 import '../desklets/widget_stage.dart';
-import 'workspaces/workspace_controller.dart';
 import 'quick_settings.dart';
+import 'workspaces/workspace_controller.dart';
 import 'workspaces/workspace_overview.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Resolves the effective theme (distro defaults + user overrides), then hands
 /// off to the shell it names.
@@ -129,14 +129,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // NOT a spinner. A launcher that flashes a progress indicator on every
         // home press feels broken. Black for the few frames it takes to read one
         // bundled JSON file and one prefs blob.
-        loading: () => const ColoredBox(color: Colors.black), // theme-exempt: bootstrap, the theme is what is still loading
+        loading: () => const ColoredBox(color: Colors.black),
+        // theme-exempt: bootstrap, the theme is what is still loading
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
               context.t('home.themeFailedToLoad', {'error': e.toString()}),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70), // theme-exempt: bootstrap, this renders precisely when the theme failed to load
+              style: const TextStyle(
+                  color: Colors
+                      .white70), // theme-exempt: bootstrap, this renders precisely when the theme failed to load
             ),
           ),
         ),
@@ -247,118 +250,118 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: _PackUpdateMessenger(
               name: t.spec.name,
               child: BootGate(
-              colors: BootColors.fromPalette(
-                accent: t.spec.palette.accent,
-                background: t.spec.palette.bgBottom,
-              ),
-              // The splash's half of the same mapping. One wiring point for
-              // both, here, where the EffectiveTheme field names are known.
-              // ─── THE SPLASH IS ALWAYS THE DISTRO'S DARK BASE ──────────
-              //
-              // `t.spec.palette`, not `t.palette`. The resolved palette follows
-              // light mode; the splash must not.
-              //
-              // Two reasons, and the second is a bug I introduced with light
-              // mode. Plymouth does not change with your GTK theme: a boot
-              // splash is the distro's own brand moment and it is dark on every
-              // desktop that ships one, whatever session you log into
-              // afterwards.
-              //
-              // And the logo below is the DARK variant, chosen because a splash
-              // paints on a dark base. The moment `t.palette` started resolving
-              // to a pale surface in light mode, that comment stopped being
-              // true: light-ink artwork on a near-white plate is an invisible
-              // logo over a white flash. Pinning the background to the spec's
-              // own dark palette makes the artwork correct again by
-              // construction rather than by adding a second logo branch.
-              //
-              // BootColors above already reads `t.spec.palette` for exactly
-              // this reason; the splash simply never got the same treatment.
-              splashChrome: SplashChrome(
-                background: t.spec.palette.bgBottom,
-                accent: t.spec.palette.accent,
-                onDark: t.spec.palette.onDark,
-                title: t.spec.name,
-                logoAsset: _splashLogo(t.spec),
-                displayFontFamily: t.typography.display,
-                monoFontFamily: t.typography.mono ?? 'UbuntuMono',
-              ),
-              monoFontFamily: t.spec.typography.mono ?? 'UbuntuMono',
-              // ─── THE ONE BACK OWNER, FOR EVERY SHELL ─────────────────
-              //
-              // There were SIX PopScopes in this tree and they all fired on the
-              // same press, which is the bug gnome_shell's own comment warns
-              // about and then reproduces: this one, gnome_shell's, and one
-              // inside each of Kickoff, the tiling launcher and Launchpad.
-              //
-              // The visible symptom needed two things open at once. Enter edit
-              // mode, then open the drawer, then press back: this scope exited
-              // edit mode and the drawer's scope closed the drawer, so one
-              // press did two things and the user lost a mode they were still
-              // using. Nobody reports that, because it looks like back working
-              // slightly too well.
-              //
-              // Owning it HERE rather than in gnome_shell, which is where the
-              // previous attempt put it. This widget wraps every shell; that
-              // one wraps GNOME. Four of the five shells had no edit-mode
-              // handler of their own at all, and tui_shell has no PopScope
-              // whatsoever, so the shell-level answer was only ever going to be
-              // correct on one desktop out of five.
-              //
-              // canPop is FALSE unconditionally, which is the contract the
-              // shells already documented: back must never leave the launcher.
-              // LauncherActivity.onBackPressed calls super, which only sends
-              // popRoute, so refusing here is what keeps that promise.
-              //
-              // Nothing is watched, so this Consumer never rebuilds and the
-              // shell below is untouched by a back press that does nothing.
-              child: Consumer(
-                child: shell,
-                builder: (context, ref, child) {
-                  return PopScope(
-                    canPop: false,
-                    // TOP DOWN, and the order is the behaviour: the most
-                    // recently entered thing is the one back should leave. Edit
-                    // mode is entered from the desktop and survives the drawer
-                    // opening over it, so a press with both open closes the
-                    // drawer first and leaves edit mode on the second press.
-                    onPopInvokedWithResult: (didPop, _) {
-                      if (didPop) return;
-                      // ─── "IS THE APP LIST UP" HAS TWO ANSWERS NOW ─────
-                      //
-                      // This read `activitiesOpenProvider` directly, which is
-                      // the right question on a distro whose app list is an
-                      // overlay and meaningless on one whose app list is a
-                      // page: there is no flag to be true, so back would have
-                      // fallen through to edit mode while the user was staring
-                      // at their apps.
-                      //
-                      // [appsShowing] and [closeApps] answer for both, so this
-                      // scope keeps owning back for every shell without
-                      // learning which kind of launcher it is looking at.
-                      // TOP DOWN, and the overview is the top. It is entered
-                      // from the desktop and can be entered while the drawer is
-                      // shut, so it is the most recently entered thing whenever
-                      // it is open.
-                      // Above the overview, because it is opened FROM the
-                      // desktop with one tap and the overview is a pinch, so
-                      // whichever is open, this one was entered last whenever
-                      // both could be.
-                      if (ref.read(quickSettingsProvider)) {
-                        ref.read(quickSettingsProvider.notifier).close();
-                      } else if (ref.read(workspaceOverviewProvider)) {
-                        ref.read(workspaceOverviewProvider.notifier).close();
-                      } else if (appsShowing(ref)) {
-                        closeApps(ref);
-                      } else if (ref.read(deskletEditProvider).active) {
-                        ref.read(deskletEditProvider.notifier).exit();
-                      }
-                      // No final else, deliberately. Back on a bare desktop
-                      // does nothing, which is what a launcher's back means.
-                    },
-                    child: child!,
-                  );
-                },
+                colors: BootColors.fromPalette(
+                  accent: t.spec.palette.accent,
+                  background: t.spec.palette.bgBottom,
+                ),
+                // The splash's half of the same mapping. One wiring point for
+                // both, here, where the EffectiveTheme field names are known.
+                // ─── THE SPLASH IS ALWAYS THE DISTRO'S DARK BASE ──────────
+                //
+                // `t.spec.palette`, not `t.palette`. The resolved palette follows
+                // light mode; the splash must not.
+                //
+                // Two reasons, and the second is a bug I introduced with light
+                // mode. Plymouth does not change with your GTK theme: a boot
+                // splash is the distro's own brand moment and it is dark on every
+                // desktop that ships one, whatever session you log into
+                // afterwards.
+                //
+                // And the logo below is the DARK variant, chosen because a splash
+                // paints on a dark base. The moment `t.palette` started resolving
+                // to a pale surface in light mode, that comment stopped being
+                // true: light-ink artwork on a near-white plate is an invisible
+                // logo over a white flash. Pinning the background to the spec's
+                // own dark palette makes the artwork correct again by
+                // construction rather than by adding a second logo branch.
+                //
+                // BootColors above already reads `t.spec.palette` for exactly
+                // this reason; the splash simply never got the same treatment.
+                splashChrome: SplashChrome(
+                  background: t.spec.palette.bgBottom,
+                  accent: t.spec.palette.accent,
+                  onDark: t.spec.palette.onDark,
+                  title: t.spec.name,
+                  logoAsset: _splashLogo(t.spec),
+                  displayFontFamily: t.typography.display,
+                  monoFontFamily: t.typography.mono ?? 'UbuntuMono',
+                ),
+                monoFontFamily: t.spec.typography.mono ?? 'UbuntuMono',
+                // ─── THE ONE BACK OWNER, FOR EVERY SHELL ─────────────────
+                //
+                // There were SIX PopScopes in this tree and they all fired on the
+                // same press, which is the bug gnome_shell's own comment warns
+                // about and then reproduces: this one, gnome_shell's, and one
+                // inside each of Kickoff, the tiling launcher and Launchpad.
+                //
+                // The visible symptom needed two things open at once. Enter edit
+                // mode, then open the drawer, then press back: this scope exited
+                // edit mode and the drawer's scope closed the drawer, so one
+                // press did two things and the user lost a mode they were still
+                // using. Nobody reports that, because it looks like back working
+                // slightly too well.
+                //
+                // Owning it HERE rather than in gnome_shell, which is where the
+                // previous attempt put it. This widget wraps every shell; that
+                // one wraps GNOME. Four of the five shells had no edit-mode
+                // handler of their own at all, and tui_shell has no PopScope
+                // whatsoever, so the shell-level answer was only ever going to be
+                // correct on one desktop out of five.
+                //
+                // canPop is FALSE unconditionally, which is the contract the
+                // shells already documented: back must never leave the launcher.
+                // LauncherActivity.onBackPressed calls super, which only sends
+                // popRoute, so refusing here is what keeps that promise.
+                //
+                // Nothing is watched, so this Consumer never rebuilds and the
+                // shell below is untouched by a back press that does nothing.
+                child: Consumer(
+                  child: shell,
+                  builder: (context, ref, child) {
+                    return PopScope(
+                      canPop: false,
+                      // TOP DOWN, and the order is the behaviour: the most
+                      // recently entered thing is the one back should leave. Edit
+                      // mode is entered from the desktop and survives the drawer
+                      // opening over it, so a press with both open closes the
+                      // drawer first and leaves edit mode on the second press.
+                      onPopInvokedWithResult: (didPop, _) {
+                        if (didPop) return;
+                        // ─── "IS THE APP LIST UP" HAS TWO ANSWERS NOW ─────
+                        //
+                        // This read `activitiesOpenProvider` directly, which is
+                        // the right question on a distro whose app list is an
+                        // overlay and meaningless on one whose app list is a
+                        // page: there is no flag to be true, so back would have
+                        // fallen through to edit mode while the user was staring
+                        // at their apps.
+                        //
+                        // [appsShowing] and [closeApps] answer for both, so this
+                        // scope keeps owning back for every shell without
+                        // learning which kind of launcher it is looking at.
+                        // TOP DOWN, and the overview is the top. It is entered
+                        // from the desktop and can be entered while the drawer is
+                        // shut, so it is the most recently entered thing whenever
+                        // it is open.
+                        // Above the overview, because it is opened FROM the
+                        // desktop with one tap and the overview is a pinch, so
+                        // whichever is open, this one was entered last whenever
+                        // both could be.
+                        if (ref.read(quickSettingsProvider)) {
+                          ref.read(quickSettingsProvider.notifier).close();
+                        } else if (ref.read(workspaceOverviewProvider)) {
+                          ref.read(workspaceOverviewProvider.notifier).close();
+                        } else if (appsShowing(ref)) {
+                          closeApps(ref);
+                        } else if (ref.read(deskletEditProvider).active) {
+                          ref.read(deskletEditProvider.notifier).exit();
+                        }
+                        // No final else, deliberately. Back on a bare desktop
+                        // does nothing, which is what a launcher's back means.
+                      },
+                      child: child!,
+                    );
+                  },
                 ),
               ),
             ),
@@ -409,7 +412,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Resolve before the frame callback so the theme's own block wins over the
     // shell-family default in both cases.
-    final boot = verbose ? (t.spec.boot ?? BootSpec.defaultForShell(t.shell)) : null;
+    final boot =
+        verbose ? (t.spec.boot ?? BootSpec.defaultForShell(t.shell)) : null;
     final splash =
         verbose ? null : (t.spec.splash ?? SplashSpec.defaultForShell(t.shell));
 

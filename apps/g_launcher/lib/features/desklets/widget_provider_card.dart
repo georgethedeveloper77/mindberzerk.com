@@ -170,7 +170,8 @@ class _Preview extends ConsumerWidget {
               colFactor: DeskletLayout.colFactor,
               rowFactor: DeskletLayout.rowFactor,
             );
-            return WidgetSpanResolver.aspectOf(span.spanX, span.spanY, cell: cell);
+            return WidgetSpanResolver.aspectOf(span.spanX, span.spanY,
+                cell: cell);
           }();
 
     // Capped so a 1x4 tower does not turn one widget into a full screen, and
@@ -194,7 +195,8 @@ class _Preview extends ConsumerWidget {
             // contain, never cover: the native side already returned a bitmap
             // at the right shape, so this only absorbs rounding. cover would
             // crop a preview that is correct.
-            : Image.memory(bytes, fit: BoxFit.contain, filterQuality: FilterQuality.medium),
+            : Image.memory(bytes,
+                fit: BoxFit.contain, filterQuality: FilterQuality.medium),
         orElse: () => _fallback(p.onDark),
       ),
     );
@@ -230,7 +232,8 @@ double _aspect(api.WidgetProviderInfo p) {
 /// every widget one cell short.
 String spanLabel(api.WidgetProviderInfo p) {
   final cols = p.targetCellWidth > 0 ? p.targetCellWidth : _cells(p.minWidthDp);
-  final rows = p.targetCellHeight > 0 ? p.targetCellHeight : _cells(p.minHeightDp);
+  final rows =
+      p.targetCellHeight > 0 ? p.targetCellHeight : _cells(p.minHeightDp);
   return '$cols \u00d7 $rows';
 }
 

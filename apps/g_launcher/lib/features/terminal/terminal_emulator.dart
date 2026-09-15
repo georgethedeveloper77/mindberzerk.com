@@ -63,6 +63,7 @@ class TerminalEmulator {
   List<AnsiLine> get scrollback => List.unmodifiable(_scrollback);
 
   int _dropped = 0;
+
   int get droppedLines => _dropped;
 
   _State _state = _State.ground;

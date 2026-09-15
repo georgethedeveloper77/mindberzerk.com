@@ -11,7 +11,9 @@ import 'launcher_prefs.dart';
 /// that requires a device is a test that never gets run.
 abstract class PrefsStore {
   Future<String?> read(String key);
+
   Future<void> write(String key, String value);
+
   Future<void> delete(String key);
 
   /// Every key currently stored.
@@ -26,6 +28,7 @@ abstract class PrefsStore {
 
 class SharedPrefsStore implements PrefsStore {
   SharedPrefsStore(this._prefs);
+
   final SharedPreferences _prefs;
 
   @override
@@ -69,6 +72,7 @@ final prefsStoreProvider = Provider<PrefsStore>((ref) {
 
 class PrefsRepository {
   PrefsRepository(this._store);
+
   final PrefsStore _store;
 
   /// Keyed BY THEME. Ubuntu's grid and KDE's grid are different settings, and
@@ -222,7 +226,9 @@ class PrefsNotifier extends AsyncNotifier<LauncherPrefs> {
 
     if (promotedChanged(current, next)) {
       // Straight to the notifier so every other theme's prefs re-resolve too.
-      await ref.read(globalPrefsProvider.notifier).write(GlobalPrefs.from(next));
+      await ref
+          .read(globalPrefsProvider.notifier)
+          .write(GlobalPrefs.from(next));
     }
   }
 
@@ -368,7 +374,8 @@ const selectedThemeKey = 'selectedThemeId.v1';
 
 class SelectedThemeNotifier extends AsyncNotifier<String?> {
   @override
-  Future<String?> build() => ref.watch(prefsStoreProvider).read(selectedThemeKey);
+  Future<String?> build() =>
+      ref.watch(prefsStoreProvider).read(selectedThemeKey);
 
   /// Optimistic, same contract as [PrefsNotifier.edit]: state moves now, disk
   /// catches up. The shell watches [activeThemeSpecProvider] (which watches

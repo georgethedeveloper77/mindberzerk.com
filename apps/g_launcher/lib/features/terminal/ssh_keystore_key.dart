@@ -112,7 +112,6 @@ class SshKeystoreKeyPair extends SSHKeyPair {
       );
 }
 
-
 /// ─── WHY THESE TWO EXIST ────────────────────────────────────────────────────
 ///
 /// `SSHHostKey` and `SSHSignature` are abstract and declare exactly one method

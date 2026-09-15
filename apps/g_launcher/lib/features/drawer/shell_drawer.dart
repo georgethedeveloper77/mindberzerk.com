@@ -4,16 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/theme_spec.dart';
 import 'app_drawer.dart';
-import 'kickoff_drawer.dart';
 import 'card_drawer.dart';
 import 'cinnamon_drawer.dart';
 import 'drawer_items.dart';
+import 'kickoff_drawer.dart';
 import 'library_view.dart';
 import 'query_drawer.dart';
+import 'tiling_launcher.dart';
 import 'tool_drawer.dart';
 import 'whisker_drawer.dart';
 import 'zorin_drawer.dart';
-import 'tiling_launcher.dart';
 
 /// Which drawer a shell gets.
 ///
@@ -69,35 +69,35 @@ class ShellDrawer extends StatelessWidget {
     if (theme.appDrawer == 'library') return _Library(theme: theme);
 
     return switch (theme.shell) {
-        // GNOME's Activities: full-screen grid, search bar wherever the user
-        // put it. The original drawer, now one presentation among several.
-        ShellKind.gnome => AppDrawer(theme: theme),
+      // GNOME's Activities: full-screen grid, search bar wherever the user
+      // put it. The original drawer, now one presentation among several.
+      ShellKind.gnome => AppDrawer(theme: theme),
 
-        // KDE's Kickoff: category rail + icon-and-name list + system footer.
-        ShellKind.plasma => KickoffDrawer(theme: theme),
+      // KDE's Kickoff: category rail + icon-and-name list + system footer.
+      ShellKind.plasma => KickoffDrawer(theme: theme),
 
-        // A tiling WM launches from a keybind into a centred rofi/wofi prompt
-        // over a fuzzy-ranked list — no dock, no grid. Shares `fuzzy.dart` with
-        // the terminal palette, because "two letters, top hit, enter" should
-        // behave identically in both.
-        ShellKind.tiling => TilingLauncher(theme: theme),
+      // A tiling WM launches from a keybind into a centred rofi/wofi prompt
+      // over a fuzzy-ranked list — no dock, no grid. Shares `fuzzy.dart` with
+      // the terminal palette, because "two letters, top hit, enter" should
+      // behave identically in both.
+      ShellKind.tiling => TilingLauncher(theme: theme),
 
-        // INTERIM: Aqua borrows GNOME's Activities grid.
-        //
-        // Launchpad is genuinely close to it — a full-screen paged grid of app
-        // icons over a blurred desktop — but it differs in ways that are the
-        // whole point of it (paged rather than scrolling, folders opening
-        // in-place, search at the top rather than wherever the user put it).
-        // Borrowing the grid is honest and looks right today; it is not
-        // Launchpad, and this comment is here so nobody mistakes it for done.
-        ShellKind.aqua => AppDrawer(theme: theme),
+      // INTERIM: Aqua borrows GNOME's Activities grid.
+      //
+      // Launchpad is genuinely close to it — a full-screen paged grid of app
+      // icons over a blurred desktop — but it differs in ways that are the
+      // whole point of it (paged rather than scrolling, folders opening
+      // in-place, search at the top rather than wherever the user put it).
+      // Borrowing the grid is honest and looks right today; it is not
+      // Launchpad, and this comment is here so nobody mistakes it for done.
+      ShellKind.aqua => AppDrawer(theme: theme),
 
-        // The terminal shell IS its own drawer: type two letters, press enter.
-        // TuiShell never opens an overlay, so this arm is unreachable in
-        // practice — it exists to keep the switch exhaustive, and the grid is a
-        // safe answer if some future surface does ask a TUI theme for a drawer.
-        ShellKind.tui => AppDrawer(theme: theme),
-      };
+      // The terminal shell IS its own drawer: type two letters, press enter.
+      // TuiShell never opens an overlay, so this arm is unreachable in
+      // practice — it exists to keep the switch exhaustive, and the grid is a
+      // safe answer if some future surface does ask a TUI theme for a drawer.
+      ShellKind.tui => AppDrawer(theme: theme),
+    };
   }
 }
 

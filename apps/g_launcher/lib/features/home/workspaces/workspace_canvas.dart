@@ -115,29 +115,29 @@ class WorkspaceCanvas extends ConsumerWidget {
             if (page == appsPage) return ShellDrawer(theme: theme);
 
             return Stack(
-            children: [
-              // ─── ICONS UNDER, DESKLETS OVER ─────────────────────────────
-              //
-              // Which is what a real desktop does: a Plasma widget floats above
-              // the Folder View, never beneath it. It also matters for touch,
-              // because a desklet is draggable in edit mode and an icon grid
-              // laid on top would take the press before the tile saw it.
-              //
-              // An empty DeskletSurfaceView returns `SizedBox.expand()` with no
-              // child, which does not absorb a hit test, so the grid underneath
-              // stays reachable through the gaps between tiles.
-              //
-              // Gated on the DISTRO, not on the shell. Plasma and Cinnamon carry
-              // an icon grid; the tiling shells and Aqua mount this same canvas
-              // and will not, because their themes say false. GNOME never
-              // reaches here at all, since it inlines its own pager, which is
-              // correct today and is the thing to revisit when Mint arrives.
-              if (theme.desktopIcons)
-                Positioned.fill(child: HomeGrid(theme: theme, page: page)),
-              Positioned.fill(
-                child: DeskletSurfaceView(theme: theme, page: page),
-              ),
-            ],
+              children: [
+                // ─── ICONS UNDER, DESKLETS OVER ─────────────────────────────
+                //
+                // Which is what a real desktop does: a Plasma widget floats above
+                // the Folder View, never beneath it. It also matters for touch,
+                // because a desklet is draggable in edit mode and an icon grid
+                // laid on top would take the press before the tile saw it.
+                //
+                // An empty DeskletSurfaceView returns `SizedBox.expand()` with no
+                // child, which does not absorb a hit test, so the grid underneath
+                // stays reachable through the gaps between tiles.
+                //
+                // Gated on the DISTRO, not on the shell. Plasma and Cinnamon carry
+                // an icon grid; the tiling shells and Aqua mount this same canvas
+                // and will not, because their themes say false. GNOME never
+                // reaches here at all, since it inlines its own pager, which is
+                // correct today and is the thing to revisit when Mint arrives.
+                if (theme.desktopIcons)
+                  Positioned.fill(child: HomeGrid(theme: theme, page: page)),
+                Positioned.fill(
+                  child: DeskletSurfaceView(theme: theme, page: page),
+                ),
+              ],
             );
           },
         ),
@@ -166,9 +166,22 @@ class _Parallax extends StatelessWidget {
       child: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
-          final page = controller.hasClients && controller.page != null
-              ? controller.page!
-              : controller.initialPage.toDouble();
+          // ─── ONE POSITION, NOT JUST ANY CLIENT ──────────────────────
+          //
+          // `hasClients` is true with TWO PageViews attached, and `page`
+          // asserts in exactly that case: it cannot say which view's page it
+          // would be reporting. A second view appears for a frame whenever a
+          // shell rebuilds the subtree holding this one, which the panel's Edge
+          // control does on every change.
+          //
+          // Keying the workspace in the shell stops it happening; this stops it
+          // being fatal when some other rebuild does the same thing, because
+          // the honest answer while two are attached is the initial page rather
+          // than a crash over a background gradient.
+          final page =
+              controller.positions.length == 1 && controller.page != null
+                  ? controller.page!
+                  : controller.initialPage.toDouble();
           final t = page / (pageCount - 1);
 
           return DecoratedBox(

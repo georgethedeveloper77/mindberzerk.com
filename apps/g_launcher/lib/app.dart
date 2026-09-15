@@ -3,13 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/crash_context.dart';
-import 'data/prefs/setup_state.dart';
 import 'data/billing/entitlements.dart';
+import 'data/prefs/setup_state.dart';
 import 'data/update/update_repository.dart';
 import 'design/theme.dart';
 import 'features/desklets/widget_stage.dart';
 import 'features/home/home_intent.dart';
 import 'features/home/home_screen.dart';
+import 'features/settings/backup_schedule_host.dart';
 import 'features/setup/setup_screen.dart';
 import 'i18n/i18n.dart';
 
@@ -192,13 +193,25 @@ class _Root extends ConsumerWidget {
     //
     // A widget rather than another `ref.watch` line, because it needs a
     // Navigator and a WidgetRef. That is argued in the file.
-    return HomeIntent(
-      child: done.when(
-        loading: () => const SizedBox.shrink(),
-        // A failed read must not strand the user in a wizard they cannot leave.
-        // Assume set-up and let them reach Settings.
-        error: (_, __) => const HomeScreen(),
-        data: (complete) => complete ? const HomeScreen() : const SetupScreen(),
+    // ── THE AUTOMATIC BACKUP CHECK ───────────────────────────────────────
+    //
+    // A widget rather than another `ref.watch` line, for the reason HomeIntent
+    // gives below it: this one needs the engine's lifecycle events, which come
+    // to a WidgetsBindingObserver and not to a provider.
+    //
+    // ABOVE the gate, so the check survives setup finishing and HomeScreen
+    // mounting fresh. It costs nothing during setup, where the schedule is off
+    // by default and there is nothing yet to back up.
+    return BackupScheduleHost(
+      child: HomeIntent(
+        child: done.when(
+          loading: () => const SizedBox.shrink(),
+          // A failed read must not strand the user in a wizard they cannot
+          // leave. Assume set-up and let them reach Settings.
+          error: (_, __) => const HomeScreen(),
+          data: (complete) =>
+              complete ? const HomeScreen() : const SetupScreen(),
+        ),
       ),
     );
   }

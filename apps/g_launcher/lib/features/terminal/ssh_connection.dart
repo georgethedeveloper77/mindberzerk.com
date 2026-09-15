@@ -124,6 +124,7 @@ class SshConnection {
   final _decoder = const Utf8Decoder(allowMalformed: true);
 
   SshPhase _phase = SshPhase.idle;
+
   SshPhase get phase => _phase;
 
   String? failure;
@@ -193,8 +194,7 @@ class SshConnection {
             return false;
           }
 
-          final accepted =
-              await onHostKey(host, type, fingerprint, verdict);
+          final accepted = await onHostKey(host, type, fingerprint, verdict);
           if (!accepted) {
             aborted = true;
             failure = 'Host key not accepted. Nothing was sent.';

@@ -33,6 +33,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/chrome_theme.dart';
 import '../../design/components/themed_list_row.dart';
@@ -40,7 +41,6 @@ import '../../design/components/themed_sheet.dart';
 import '../../design/tokens/radii.dart';
 import '../../design/tokens/spacing.dart';
 import 'folder_glyphs.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Open the picker. Null means dismissed, [kFolderGlyphCleared] means "use the
 /// default", anything else is a catalogue id.

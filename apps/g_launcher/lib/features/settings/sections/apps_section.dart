@@ -17,6 +17,7 @@ import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/drawer_transition.dart';
 import '../../../design/setting_previews.dart';
+import '../../drawer/az_rail.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../system/notification_badges.dart';
@@ -42,6 +43,23 @@ List<Widget> applicationsSection(
   // rather than calling native. Kept so the four builders have one shape.
   // ignore: unused_local_variable
   final api = ref.read(launcherHostApiProvider);
+
+  // ── THE INDEX RAIL'S TWO PRECONDITIONS ─────────────────────────────────
+  //
+  // Hoisted because the row below needs them twice each and the list is a
+  // literal with nowhere to put a local. Read off `theme`, resolved, like
+  // every row that follows.
+  final railIsUsable = theme.canChooseIndexRail.available &&
+      theme.drawerScrollStyle == 'vertical' &&
+      theme.drawerGrouping == 'az';
+
+  // Rows need the list layout and nothing else. The index needs the headings
+  // on top of that, which is why these two are separate booleans rather than
+  // one "the list is set up" flag: they grey at different moments and a shared
+  // flag would have the shape row go dark the instant somebody turned headings
+  // off.
+  final rowsAreUsable = theme.canChooseListStyle.available &&
+      theme.drawerScrollStyle == 'vertical';
 
   return [
     // The columns stepper, the scroll style and the grouping all describe this
@@ -179,78 +197,78 @@ List<Widget> applicationsSection(
             // so "what is my drawer doing" is answered without a tap.
             initial: theme.drawerScrollStyle,
             builder: (context, phase, playing, play) => PreviewChoice<String>(
-            title: context.t('settings.drawerScrolls'),
-            // ── DIMMED UNDER LIBRARY ───────────────────────────────
-            //
-            // The library is one vertical run of tiles. Pages and Cube are
-            // motions for a grid of app icons and there is no sensible way to
-            // page a two-column folder list, so the choice has one answer
-            // there and the row says so rather than offering three.
-            subtitle: !theme.canChooseDrawerMotion.available
-                ? context.t(theme.canChooseDrawerMotion.why!)
-                : theme.drawerGrouping == 'library'
-                    ? 'The library is always one list'
-                    : context.t('settings.oneLongListOr'),
-            enabled: theme.drawerGrouping != 'library' &&
-                theme.canChooseDrawerMotion.available,
-            // Shown as List regardless of what the pref holds, because that is
-            // what the drawer is actually doing. Leaving the stored value
-            // selected would put the ring on Cube while the screen renders a
-            // list.
-            value: theme.drawerGrouping == 'library'
-                ? 'vertical'
-                : theme.drawerScrollStyle,
-            onSelect: (v) {
-              notifier.edit((p) => p.copyWith(drawerScrollStyle: v));
-              // PLAYED ON EVERY TAP, including a tap on the style already
-              // selected. Driving this off the selected VALUE instead would
-              // make that tap do nothing, which reads as the control having
-              // stopped working.
-              play(v);
-            },
-            // The third of the three drawer rows, and `PreviewChoice` has
-            // carried this pair since `dockSide` needed it. Mint authors a
-            // list; one tap on Pages ended that everywhere.
-            following: theme.prefs.drawerScrollStyle == null,
-            onFollow: () => notifier.edit(
-              (p) => p.clearing(drawerScrollStyle: true),
-            ),
-            // ── LIST FIRST, THEN THE CATALOGUE ────────────────────────
-            //
-            // `vertical` is prepended rather than living in
-            // [DrawerTransition.catalogue], because it is not a transition:
-            // it selects a different widget and `app_drawer` branches on it
-            // long before the pager is reached. The catalogue is the six
-            // things that ARE transitions, in the order they should read.
-            //
-            // Six names and six blurbs live on the enum, not here. Setup lists
-            // the same six, and two hand-written lists is how one of them ends
-            // up a style short.
-            options: [
-              PreviewOption(
-                value: 'vertical',
-                label: context.t('settings.list'),
-                child: ScrollStyleTile(
-                  style: 'vertical',
-                  palette: theme.palette,
-                ),
+              title: context.t('settings.drawerScrolls'),
+              // ── DIMMED UNDER LIBRARY ───────────────────────────────
+              //
+              // The library is one vertical run of tiles. Pages and Cube are
+              // motions for a grid of app icons and there is no sensible way to
+              // page a two-column folder list, so the choice has one answer
+              // there and the row says so rather than offering three.
+              subtitle: !theme.canChooseDrawerMotion.available
+                  ? context.t(theme.canChooseDrawerMotion.why!)
+                  : theme.drawerGrouping == 'library'
+                      ? 'The library is always one list'
+                      : context.t('settings.oneLongListOr'),
+              enabled: theme.drawerGrouping != 'library' &&
+                  theme.canChooseDrawerMotion.available,
+              // Shown as List regardless of what the pref holds, because that is
+              // what the drawer is actually doing. Leaving the stored value
+              // selected would put the ring on Cube while the screen renders a
+              // list.
+              value: theme.drawerGrouping == 'library'
+                  ? 'vertical'
+                  : theme.drawerScrollStyle,
+              onSelect: (v) {
+                notifier.edit((p) => p.copyWith(drawerScrollStyle: v));
+                // PLAYED ON EVERY TAP, including a tap on the style already
+                // selected. Driving this off the selected VALUE instead would
+                // make that tap do nothing, which reads as the control having
+                // stopped working.
+                play(v);
+              },
+              // The third of the three drawer rows, and `PreviewChoice` has
+              // carried this pair since `dockSide` needed it. Mint authors a
+              // list; one tap on Pages ended that everywhere.
+              following: theme.prefs.drawerScrollStyle == null,
+              onFollow: () => notifier.edit(
+                (p) => p.clearing(drawerScrollStyle: true),
               ),
-              for (final t in DrawerTransition.catalogue)
+              // ── LIST FIRST, THEN THE CATALOGUE ────────────────────────
+              //
+              // `vertical` is prepended rather than living in
+              // [DrawerTransition.catalogue], because it is not a transition:
+              // it selects a different widget and `app_drawer` branches on it
+              // long before the pager is reached. The catalogue is the six
+              // things that ARE transitions, in the order they should read.
+              //
+              // Six names and six blurbs live on the enum, not here. Setup lists
+              // the same six, and two hand-written lists is how one of them ends
+              // up a style short.
+              options: [
                 PreviewOption(
-                  value: t.value,
-                  label: t.copy.$1,
+                  value: 'vertical',
+                  label: context.t('settings.list'),
                   child: ScrollStyleTile(
-                    style: t.value,
+                    style: 'vertical',
                     palette: theme.palette,
-                    // Only the tile being demonstrated moves. The rest hold
-                    // their frozen pose, which is what makes the moving one
-                    // legible.
-                    phase: playing == t.value
-                        ? phase
-                        : ScrollStyleTile.restPhase,
                   ),
                 ),
-            ],
+                for (final t in DrawerTransition.catalogue)
+                  PreviewOption(
+                    value: t.value,
+                    label: t.copy.$1,
+                    child: ScrollStyleTile(
+                      style: t.value,
+                      palette: theme.palette,
+                      // Only the tile being demonstrated moves. The rest hold
+                      // their frozen pose, which is what makes the moving one
+                      // legible.
+                      phase: playing == t.value
+                          ? phase
+                          : ScrollStyleTile.restPhase,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -325,6 +343,100 @@ List<Widget> applicationsSection(
               },
               onChanged: (v) => notifier.edit(
                 (p) => p.copyWith(drawerGrouping: v),
+              ),
+            ),
+          ),
+        ),
+
+        // ── THE SHAPE OF THE LIST ──────────────────────────────────────
+        //
+        // Sits ABOVE the index because it is the bigger of the two decisions
+        // and the index reads as a detail of it. A rail is a way to move
+        // through a list; rows are what the list IS.
+        FilterRow(
+          const [
+            'rows',
+            'list style',
+            'label',
+            'names',
+            'compact',
+            'one column',
+          ],
+          SettingsRow(
+            icon: Icons.view_agenda_outlined,
+            title: 'List shape',
+            subtitle: !theme.canChooseListStyle.available
+                ? context.t(theme.canChooseListStyle.why!)
+                : theme.drawerScrollStyle != 'vertical'
+                    ? 'Rows need the list layout'
+                    : 'Cells in a grid, or names in rows',
+            subtitleTint:
+                rowsAreUsable ? null : SettingsSkin.of(context).warn,
+            trailing: Seg(
+              enabled: rowsAreUsable,
+              value: theme.drawerListStyle,
+              options: const {'grid': 'Grid', 'rows': 'Rows'},
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(drawerListStyle: v),
+              ),
+            ),
+          ),
+        ),
+
+        // ── THE INDEX, AND WHY IT IS GREYED RATHER THAN HIDDEN ─────────
+        //
+        // It needs the list layout AND A to Z headings, because an index
+        // points at sections and neither a page nor a flat run has any. That
+        // is two preconditions, both set by the two rows directly above, and
+        // both nameable in a sentence.
+        //
+        // The grouping row above stays live on every layout and carries its
+        // caveat in the subtitle, because Library genuinely works on a paged
+        // grid. This one does not work at all outside `vertical` + `az`, so it
+        // greys, which is the rule `capabilities.dart` argues for: a control
+        // that is live and inert teaches its own user that settings are
+        // unreliable.
+        //
+        // ── LITERALS, NOT context.t ────────────────────────────────────
+        //
+        // Same call `DrawerTransition.copy` makes and for the same reason: the
+        // i18n sweep has not reached these rows, and `t` against a key that
+        // does not exist renders the key, which is worse on screen than
+        // English is. These four strings go in with P1.
+        FilterRow(
+          const [
+            'index',
+            'rail',
+            'alphabet',
+            'fast scroll',
+            'scrubber',
+            'jump to letter',
+            'a to z',
+          ],
+          SettingsRow(
+            icon: Icons.format_list_numbered,
+            title: 'Index rail',
+            subtitle: !theme.canChooseIndexRail.available
+                ? context.t(theme.canChooseIndexRail.why!)
+                : theme.drawerScrollStyle != 'vertical'
+                    ? 'The index needs the list layout'
+                    : theme.drawerGrouping != 'az'
+                        ? 'The index needs A to Z headings'
+                        : 'Jump to a letter from the edge',
+            subtitleTint:
+                railIsUsable ? null : SettingsSkin.of(context).warn,
+            trailing: Seg(
+              enabled: railIsUsable,
+              value: theme.drawerIndexRail,
+              // No `following` pair, unlike every Seg around it. There is no
+              // distro arm to follow: see `LauncherPrefs.drawerIndexRail` for
+              // why this field stops at the user. A link back to a default
+              // that does not exist would be a control for nothing.
+              options: {
+                for (final r in IndexRail.catalogue) r.value: r.copy.$1,
+              },
+              onChanged: (v) => notifier.edit(
+                (p) => p.copyWith(drawerIndexRail: v),
               ),
             ),
           ),
@@ -697,8 +809,8 @@ void _showRemovedFromDock(
             onTap: () {
               Navigator.pop(sheet);
               notifier.edit((p) => HomeLayout.restoreToDock(p, key));
-              context
-                  .showMessage(context.t('settings.canReturnToDock', {'name': labels[key] ?? key}));
+              context.showMessage(context
+                  .t('settings.canReturnToDock', {'name': labels[key] ?? key}));
             },
           ),
         if (removed.length > 1)

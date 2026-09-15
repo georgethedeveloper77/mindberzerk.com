@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/components/components.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
 // parseColor, for the accent swatches.
@@ -135,7 +135,9 @@ class _Body extends ConsumerWidget {
           ] else ...[
             _Label(text: context.t('desklets.background')),
             _Choices(
-              labels: [for (final b in _backgroundChoices) context.t(b.labelKey)],
+              labels: [
+                for (final b in _backgroundChoices) context.t(b.labelKey)
+              ],
               selected: _nearestBackground(config['opacity']),
               onPick: (i) => write({'opacity': _backgroundChoices[i].opacity}),
             ),
@@ -207,6 +209,7 @@ DeskletSkin skinOverridesFor(Desklet desklet) {
 
 class _Label extends StatelessWidget {
   const _Label({required this.text});
+
   final String text;
 
   @override

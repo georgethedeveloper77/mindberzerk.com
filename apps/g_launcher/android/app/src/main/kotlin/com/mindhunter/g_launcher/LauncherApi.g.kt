@@ -967,6 +967,93 @@ data class WidgetProviderInfo (
     return "WidgetProviderInfo(providerKey=$providerKey, packageName=$packageName, appLabel=$appLabel, label=$label, minWidthDp=$minWidthDp, minHeightDp=$minHeightDp, minResizeWidthDp=$minResizeWidthDp, minResizeHeightDp=$minResizeHeightDp, targetCellWidth=$targetCellWidth, targetCellHeight=$targetCellHeight, resizeMode=$resizeMode, category=$category, configurable=$configurable, hasPreviewImage=$hasPreviewImage, description=$description)"
   }
 }
+
+/**
+ * PHASE L6a. One entry from an app's own long-press menu.
+ *
+ * ─── APPENDED, AND THAT IS THE WHOLE SAFETY ARGUMENT ────────────────────────
+ *
+ * A new class at the TAIL of the declaration order. Pigeon numbers enums
+ * first, then classes in the order they appear, so a class added last takes
+ * the next free id and shifts nothing a shipped APK already agreed on.
+ *
+ * No new enum, deliberately. `disabled` below is the obvious candidate for
+ * one, and an enum here would renumber every class in the codec, which is the
+ * trap `brandTreatment` is a String for. A bool costs nothing and cannot.
+ *
+ * ─── NO ICON FIELD, EITHER ──────────────────────────────────────────────────
+ *
+ * The platform has one, through `getShortcutIconDrawable`, and carrying it
+ * would mean a bitmap per shortcut across the bridge, a cache key for
+ * something that changes whenever the publishing app updates, and a second
+ * icon pipeline beside the one `IconCache` owns. The expanding row shows these
+ * as text, which is what the reference launcher does and what the labels are
+ * written for: "New chat", "Scan a code", "Start a workout" read perfectly
+ * well without a picture, and most publishers ship the same generic glyph for
+ * all of them anyway.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class AppShortcut (
+  /**
+   * The shortcut id, unique within its publishing package. Opaque to Dart:
+   * it goes back to [LauncherHostApi.launchShortcut] unread, the same
+   * contract `componentKey` has.
+   */
+  val id: String,
+  /**
+   * `shortLabel`, which is what a launcher is supposed to show. `longLabel`
+   * exists and is for places with room to spare; a row in a list is not one.
+   */
+  val label: String,
+  /**
+   * The publisher has disabled it but not removed it, which is the state a
+   * chat shortcut lands in when you leave the conversation.
+   *
+   * Kept rather than filtered out natively, because the right treatment is a
+   * UI decision: a greyed row that explains itself beats an entry that
+   * silently vanishes from a menu the user has learned the shape of.
+   */
+  val disabled: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AppShortcut {
+      val id = pigeonVar_list[0] as String
+      val label = pigeonVar_list[1] as String
+      val disabled = pigeonVar_list[2] as Boolean
+      return AppShortcut(id, label, disabled)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      label,
+      disabled,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AppShortcut
+    return LauncherApiPigeonUtils.deepEquals(this.id, other.id) && LauncherApiPigeonUtils.deepEquals(this.label, other.label) && LauncherApiPigeonUtils.deepEquals(this.disabled, other.disabled)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.id)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.label)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.disabled)
+    return result
+  }
+  override fun toString(): String {
+    return "AppShortcut(id=$id, label=$label, disabled=$disabled)"
+  }
+}
 private open class LauncherApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1010,6 +1097,11 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
           WidgetProviderInfo.fromList(it)
         }
       }
+      137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AppShortcut.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1045,6 +1137,10 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
       }
       is WidgetProviderInfo -> {
         stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is AppShortcut -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1577,6 +1673,100 @@ interface LauncherHostApi {
    * that it is NOT a version code. This one is.
    */
   fun getVersionCode(): Long
+  /**
+   * Open Android's folder picker and remember what the user chose.
+   *
+   * Returns the folder's display name, or null when they backed out or no
+   * Activity was attached. The name rather than the URI, because the URI is
+   * nobody's business up here and the name is what a settings row shows.
+   */
+  fun chooseBackupFolder(callback: (Result<String?>) -> Unit)
+  /**
+   * The remembered folder's display name, or null when there is none.
+   *
+   * VERIFIED against the persisted grants on every call, not just read back
+   * from storage. A user can revoke a tree grant from system settings, and a
+   * launcher that kept showing the folder name would then fail every write
+   * with no explanation. A revoked grant reports null and the stored string is
+   * dropped, so the next ask is a fresh pick rather than a silent failure.
+   */
+  fun backupFolder(callback: (Result<String?>) -> Unit)
+  /** Forget the folder and release the grant. */
+  fun forgetBackupFolder(callback: (Result<Unit>) -> Unit)
+  /**
+   * Write one backup into the folder. Returns the new document URI, or null.
+   *
+   * The bytes cross the bridge in one piece, which is the cost of not owning
+   * the write: a SAF document is not a path, so there is nothing for Dart to
+   * stream into. A backup carrying wallpapers is tens of megabytes and this is
+   * the moment it is largest in memory.
+   */
+  fun writeBackup(fileName: String, bytes: ByteArray, callback: (Result<String?>) -> Unit)
+  /**
+   * Everything in the folder that looks like one of ours, newest first.
+   *
+   * Each entry is a JSON object: `{"uri","name","size","modified"}`. A JSON
+   * string and not a class for the reason [installedIconPacks] returns a map:
+   * a class takes a codec id, and an id added here is safe today and a trap
+   * the first time somebody inserts another one above it.
+   *
+   * Filtered by extension only. A file the user renamed is still listed and
+   * still sniffed by `PrefsBackup.inspect`, which is the check that decides.
+   */
+  fun listBackups(callback: (Result<List<String>>) -> Unit)
+  /** The bytes of one document from the folder, or null when it has gone. */
+  fun readBackup(documentUri: String, callback: (Result<ByteArray?>) -> Unit)
+  /**
+   * Delete one document. Used by retention, which prunes the folder the same
+   * way the local snapshot store prunes itself.
+   */
+  fun deleteBackup(documentUri: String, callback: (Result<Boolean>) -> Unit)
+  /**
+   * Hand a backup to Android's share sheet.
+   *
+   * BYTES, not a path, and written natively into the cache rather than shared
+   * out of the support directory. Two reasons. A `file://` URI pointing into
+   * our private storage cannot cross to another app at all, so it has to be a
+   * FileProvider URI over a directory we declare; and declaring the support
+   * directory would expose every snapshot to anything holding a grant, when
+   * the user asked to send exactly one.
+   *
+   * The cache is the right home for it. This copy is in flight, not kept: the
+   * OS may reclaim it the moment the receiving app is done, which is the
+   * correct lifetime for something that has already left.
+   *
+   * Returns false when no Activity is attached or nothing on the phone can
+   * take a file, which is a real state on a stripped ROM.
+   */
+  fun shareBackup(fileName: String, bytes: ByteArray, callback: (Result<Boolean>) -> Unit)
+  /**
+   * PHASE L6a. The app's own shortcuts, for the expanding row.
+   *
+   * `@async`, and the rule at the top of this block says why: this hits
+   * `LauncherApps` cold and the shortcut list is not cached anywhere. Marking
+   * it sync would not fail to compile, it would move the query onto the
+   * platform thread, which is the failure that doc is warning about.
+   *
+   * Empty rather than null on every failure, and there are several real ones:
+   * a device below API 25, an app that publishes none, or a `SecurityException`
+   * from having lost the home role between the tap and the query. A row that
+   * opens to nothing is a correct answer to "this app has no shortcuts"; a
+   * null would make the caller decide which kind of nothing it was holding.
+   */
+  fun shortcutsFor(componentKey: String, callback: (Result<List<AppShortcut>>) -> Unit)
+  /**
+   * Start one.
+   *
+   * Takes the same four source bounds `launchApp` does, for the same reason:
+   * Android animates the window out of the rect it is given, and a shortcut
+   * launched from a row should grow from that row rather than from the corner
+   * of the screen.
+   *
+   * Returns false when the shortcut is gone, disabled, or the launcher no
+   * longer holds the right to start it. The caller says so rather than
+   * appearing to work.
+   */
+  fun launchShortcut(componentKey: String, shortcutId: String, sourceLeft: Double?, sourceTop: Double?, sourceRight: Double?, sourceBottom: Double?): Boolean
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -2323,6 +2513,201 @@ interface LauncherHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.getVersionCode())
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.chooseBackupFolder$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.chooseBackupFolder{ result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.backupFolder$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.backupFolder{ result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.forgetBackupFolder$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.forgetBackupFolder{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(LauncherApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.writeBackup$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val fileNameArg = args[0] as String
+            val bytesArg = args[1] as ByteArray
+            api.writeBackup(fileNameArg, bytesArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.listBackups$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.listBackups{ result: Result<List<String>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.readBackup$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val documentUriArg = args[0] as String
+            api.readBackup(documentUriArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.deleteBackup$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val documentUriArg = args[0] as String
+            api.deleteBackup(documentUriArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.shareBackup$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val fileNameArg = args[0] as String
+            val bytesArg = args[1] as ByteArray
+            api.shareBackup(fileNameArg, bytesArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.shortcutsFor$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val componentKeyArg = args[0] as String
+            api.shortcutsFor(componentKeyArg) { result: Result<List<AppShortcut>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.launchShortcut$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val componentKeyArg = args[0] as String
+            val shortcutIdArg = args[1] as String
+            val sourceLeftArg = args[2] as Double?
+            val sourceTopArg = args[3] as Double?
+            val sourceRightArg = args[4] as Double?
+            val sourceBottomArg = args[5] as Double?
+            val wrapped: List<Any?> = try {
+              listOf(api.launchShortcut(componentKeyArg, shortcutIdArg, sourceLeftArg, sourceTopArg, sourceRightArg, sourceBottomArg))
             } catch (exception: Throwable) {
               LauncherApiPigeonUtils.wrapError(exception)
             }

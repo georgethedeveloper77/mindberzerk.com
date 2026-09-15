@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
@@ -10,7 +11,6 @@ import '../settings/settings_screen.dart';
 import '../terminal/command_registry.dart';
 import '../terminal/terminal_screen.dart';
 import '../themes/themes_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// What the terminal shell understands. PHASE D6, now reading from the shared
 /// registry.

@@ -1228,17 +1228,22 @@ class PanelSpec {
   bool get isEmpty => items.isEmpty;
 
   static PanelSpec? fromJson(Map<String, dynamic> j) {
-    final items = ((j['modules'] as List?) ?? const [])
-        .map((e) => PanelItem.parse(e.toString()))
-        .whereType<PanelItem>()
-        .toList();
+    // The side is read FIRST because the module list depends on it:
+    // `PanelItem.parseAll` expands `tray` differently on a top bar than on any
+    // other edge, and the reason is [PanelItem.parseAll]'s own.
+    final side = TopBarSide.parse(j['side'] as String?);
+
+    final items = PanelItem.parseAll(
+      ((j['modules'] as List?) ?? const []).map((e) => e.toString()),
+      side: side,
+    );
 
     // A panel with nothing in it is a coloured strip. Dropped at parse so
     // nothing downstream has to decide what an empty one means.
     if (items.isEmpty) return null;
 
     return PanelSpec(
-      side: TopBarSide.parse(j['side'] as String?),
+      side: side,
       items: items,
       height: (j['height'] as num?)?.toDouble(),
     );
@@ -1282,6 +1287,65 @@ class PanelItem {
     if (package.isEmpty) return null;
     return PanelItem(kind, package);
   }
+
+  /// Parse a whole authored list, expanding the aliases as it goes.
+  ///
+  /// ─── WHY ONE STRING CAN BECOME THREE ────────────────────────────────────
+  ///
+  /// `tray` was a single slot holding a Wi-Fi glyph, a volume glyph and a
+  /// battery glyph, drawn by the shell and addressable by nobody. It could not
+  /// be tapped and it could not be taken apart, so a Mint user asking to drop
+  /// the battery readout had to drop all three, and the two readouts that DO
+  /// open something ([PanelModule.battery] and [PanelModule.wifi]) were
+  /// separate modules that Mint's panel never listed.
+  ///
+  /// Expanding the alias here means the tray is made of ordinary modules from
+  /// the moment a pack is read: each one removable by index, reorderable, and
+  /// tappable, with no nesting anywhere and `prefs.panelModules` still a flat
+  /// `List<String>`.
+  ///
+  /// ─── EXCEPT ON A TOP BAR, WHERE THE TRAY IS A BUTTON ────────────────────
+  ///
+  /// GNOME's tray is not three readouts. It is one 44dp target that opens
+  /// Quick Settings, and it looks like a tray because Zorin's does too. Three
+  /// separate readouts under Android's own status bar would be the duplication
+  /// `gnome_top_bar` argues against at length, and it would take the only
+  /// affordance that opens the panel.
+  ///
+  /// So the rule is the one this codebase already applies to the clock: on top
+  /// it stays a button, on any other edge it expands. A bottom panel is 700dp
+  /// from the status bar and every desktop that has one puts real readouts on
+  /// it.
+  ///
+  /// Unknown entries are dropped rather than fatal, the same contract
+  /// [PanelModule.parse] keeps.
+  static List<PanelItem> parseAll(
+    Iterable<String> raw, {
+    required TopBarSide side,
+  }) {
+    final out = <PanelItem>[];
+    for (final entry in raw) {
+      final item = parse(entry);
+      if (item == null) continue;
+      if (item.kind == PanelModule.tray && side != TopBarSide.top) {
+        out.addAll(trayExpansion);
+        continue;
+      }
+      out.add(item);
+    }
+    return out;
+  }
+
+  /// What `tray` means on any edge but the top, in the order a desktop tray
+  /// reads: connection, sound, charge.
+  ///
+  /// Public because the Add sheet offers these three individually and has to
+  /// agree with the expansion about which three they are.
+  static const List<PanelItem> trayExpansion = [
+    PanelItem(PanelModule.wifi),
+    PanelItem(PanelModule.volume),
+    PanelItem(PanelModule.battery),
+  ];
 
   /// The form written to prefs and to theme.json.
   String toStorage() =>
@@ -1404,6 +1468,9 @@ class ThemeLayout {
     this.appDrawer,
     this.homeLayout,
     this.dockStyle,
+    this.dockHover,
+    this.dockPress,
+    this.dockEntrance,
     this.dockReveal,
     this.workspaces,
   });
@@ -1778,6 +1845,21 @@ class ThemeLayout {
   /// refused for a separate and older reason.
   final String? dockStyle;
 
+  /// How the dock responds to a finger over it, and what it does when tapped,
+  /// and how it arrives.
+  ///
+  /// ─── AUTHORED, BUT NOT EXCLUSIVE ────────────────────────────────────────
+  ///
+  /// Each has a `prefs` arm, so by the mechanical rule in the feature-row doc
+  /// none of the three is an exclusive feature: a distro choosing an animation
+  /// is choosing a DEFAULT, and the user may choose otherwise.
+  ///
+  /// Unparsed values fall to null and the resolver picks, which is the
+  /// drop-not-fatal contract every free-form read in this file keeps.
+  final String? dockHover;
+  final String? dockPress;
+  final String? dockEntrance;
+
   /// When the dock EXISTS: 'always' | 'apps', or null for always.
   ///
   /// ─── THE FIELD THAT TELLS FEDORA FROM UBUNTU ────────────────────────────
@@ -1998,7 +2080,49 @@ class ThemeLayout {
       dockStyle: switch (j['dockStyle'] as String?) {
         'flat' => 'flat',
         'floating' => 'floating',
+        // ─── KEPT, AND NO LONGER WHAT IT SAYS ───────────────────────────
+        //
+        // `magnified` describes how a dock RESPONDS, while its two siblings
+        // describe how it SITS. Those are different questions and only ever
+        // shared a field because one dock was the only one answering either.
+        //
+        // Parsed rather than dropped, because fourteen packs are published with
+        // it. `LayoutResolver` splits it into `floating` plus `dockHover:
+        // magnify`, so every one of them keeps working and none needs
+        // republishing.
         'magnified' => 'magnified',
+        _ => null,
+      },
+      dockHover: switch (j['dockHover'] as String?) {
+        'none' => 'none',
+        'magnify' => 'magnify',
+        'lift' => 'lift',
+        'tilt' => 'tilt',
+        'part' => 'part',
+        'focus' => 'focus',
+        'arc' => 'arc',
+        _ => null,
+      },
+      dockPress: switch (j['dockPress'] as String?) {
+        'sink' => 'sink',
+        'bounce' => 'bounce',
+        'jelly' => 'jelly',
+        'pop' => 'pop',
+        'flip' => 'flip',
+        'swing' => 'swing',
+        'pulse' => 'pulse',
+        'ripple' => 'ripple',
+        'wave' => 'wave',
+        'launch' => 'launch',
+        _ => null,
+      },
+      dockEntrance: switch (j['dockEntrance'] as String?) {
+        'none' => 'none',
+        'slide' => 'slide',
+        'expand' => 'expand',
+        'blur' => 'blur',
+        'stagger' => 'stagger',
+        'gloss' => 'gloss',
         _ => null,
       },
     );
@@ -2064,7 +2188,12 @@ enum PanelModule {
   /// The workspace squares.
   pager,
 
-  /// Status icons.
+  /// The status cluster, as ONE target that opens Quick Settings.
+  ///
+  /// Reaches a shell only on a top bar. On every other edge
+  /// [PanelItem.parseAll] has already replaced it with the three modules it
+  /// used to draw, so a bottom panel never carries this and a pack does not
+  /// have to know that to author one.
   tray,
 
   /// Charge level, and a tap that opens it.
@@ -2092,6 +2221,21 @@ enum PanelModule {
   /// has any other use for, and asking for them to save one tap into Settings
   /// is a bad trade.
   wifi,
+
+  /// Sound, and a tap that opens the sound settings screen.
+  ///
+  /// ─── READ ONLY, FOR THE REASON WI-FI IS ─────────────────────────────────
+  ///
+  /// A slider on the panel would need `AudioManager` over a new Pigeon call,
+  /// and `quick_settings.dart` already says why that is a separate piece of
+  /// work: the codec's field ordering is load-bearing and volume is the first
+  /// thing to add to that bridge, not something to smuggle in beside a parse
+  /// change.
+  ///
+  /// Until then this is the glyph and the route, which is exactly the trade
+  /// [wifi] makes and is still one tap better than the panel it replaced,
+  /// where the same glyph did nothing at all.
+  volume,
 
   /// One app, launched from the panel.
   ///
@@ -2132,6 +2276,7 @@ enum PanelModule {
         'clock' => PanelModule.clock,
         'battery' => PanelModule.battery,
         'wifi' => PanelModule.wifi,
+        'volume' => PanelModule.volume,
         // The one prefixed form. Anything after the colon is the package and
         // is read by [PanelItem]; this only answers what KIND it is.
         _ when raw.startsWith('app:') => PanelModule.app,

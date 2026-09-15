@@ -17,8 +17,10 @@ class HelpCommand extends TermCommand {
 
   @override
   String get name => 'help';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'every command, grouped';
 
@@ -47,10 +49,13 @@ class ManCommand extends TermCommand {
 
   @override
   String get name => 'man';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'what one command does';
+
   @override
   String? get usage => 'man <command>';
 
@@ -81,10 +86,13 @@ class AliasCommand extends TermCommand {
 
   @override
   String get name => 'alias';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'list or set your own word for a command';
+
   @override
   String? get usage => "alias ll='ls -l'";
 
@@ -134,10 +142,13 @@ class UnaliasCommand extends TermCommand {
 
   @override
   String get name => 'unalias';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'drop one of your words';
+
   @override
   String? get usage => 'unalias <name>';
 
@@ -156,8 +167,10 @@ class HistoryCommand extends TermCommand {
 
   @override
   String get name => 'history';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'what you have run';
 
@@ -169,8 +182,7 @@ class HistoryCommand extends TermCommand {
     // shell's `history` is read for what you just did, and the numbers stay
     // absolute so `history | grep alias` still points at the right line.
     const int window = 40;
-    final int start =
-        history.length > window ? history.length - window : 0;
+    final int start = history.length > window ? history.length - window : 0;
     return TermResult.lines(<TermLine>[
       for (var i = start; i < history.length; i++)
         TermLine(<TermSpan>[
@@ -186,8 +198,10 @@ class ClearCommand extends TermCommand {
 
   @override
   String get name => 'clear';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'empty the scrollback';
 
@@ -201,8 +215,10 @@ class EchoCommand extends TermCommand {
 
   @override
   String get name => 'echo';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'print the argument';
 
@@ -217,10 +233,13 @@ class GrepFilter extends TermFilter {
 
   @override
   String get name => 'grep';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'keep the lines that contain a word';
+
   @override
   String? get usage => 'apps | grep <word>';
 
@@ -243,10 +262,13 @@ class WcFilter extends TermFilter {
 
   @override
   String get name => 'wc';
+
   @override
   TermGroup get group => TermGroup.shell;
+
   @override
   String get help => 'count the lines';
+
   @override
   String? get usage => 'apps | wc -l';
 
@@ -262,6 +284,7 @@ class HeadTailCommand extends TermCommand {
   const HeadTailCommand.head()
       : commandName = 'head',
         fromEnd = false;
+
   const HeadTailCommand.tail()
       : commandName = 'tail',
         fromEnd = true;
@@ -271,11 +294,15 @@ class HeadTailCommand extends TermCommand {
 
   @override
   String get name => commandName;
+
   @override
   TermGroup get group => TermGroup.files;
+
   @override
-  String get help =>
-      fromEnd ? 'the last lines of a file or a pipe' : 'the first lines of a file or a pipe';
+  String get help => fromEnd
+      ? 'the last lines of a file or a pipe'
+      : 'the first lines of a file or a pipe';
+
   @override
   String? get usage => '$commandName [-n] <file>   or   apps | $commandName 10';
 

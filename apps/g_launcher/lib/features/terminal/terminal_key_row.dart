@@ -39,12 +39,14 @@ sealed class TerminalKeyEvent {
 /// Insert this text at the cursor.
 class TerminalKeyText extends TerminalKeyEvent {
   const TerminalKeyText(this.text);
+
   final String text;
 }
 
 /// A named key with no printable form.
 class TerminalKeySpecial extends TerminalKeyEvent {
   const TerminalKeySpecial(this.key);
+
   final TerminalSpecialKey key;
 }
 
@@ -85,12 +87,16 @@ class TerminalKeyRow extends StatelessWidget {
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
-            _key(context, label: 'esc',
+            _key(context,
+                label: 'esc',
                 event: const TerminalKeySpecial(TerminalSpecialKey.escape)),
-            _key(context, label: 'tab',
+            _key(context,
+                label: 'tab',
                 event: const TerminalKeySpecial(TerminalSpecialKey.tab)),
-            _key(context, label: 'ctrl',
-                event: const TerminalKeyCtrl(), active: ctrlActive),
+            _key(context,
+                label: 'ctrl',
+                event: const TerminalKeyCtrl(),
+                active: ctrlActive),
             _key(context, label: '|', event: const TerminalKeyText('|')),
             _key(context, label: '/', event: const TerminalKeyText('/')),
             _key(context, label: '-', event: const TerminalKeyText('-')),

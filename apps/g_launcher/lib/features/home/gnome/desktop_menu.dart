@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/components/components.dart';
 import '../../../design/update_dot.dart';
@@ -111,7 +111,6 @@ Future<void> showDesktopMenu(
   );
 }
 
-
 /// The desktop actions, as data, so more than one surface can wear them.
 ///
 /// ─── WHY THIS IS A FUNCTION AND NOT A LIST IN [showDesktopMenu] ─────────────
@@ -145,95 +144,95 @@ List<DesktopAction> desktopActions({
   }
 
   return [
-            DesktopAction(
-                icon: Icons.image_outlined,
-                label: context.t('settings.wallpaper'),
-                onTap: () => open(WallpaperScreen(theme: theme)),
-              ),
-            DesktopAction(
-                icon: Icons.format_paint_outlined,
-                label: context.t('home.themes'),
-                onTap: () => open(const ThemesScreen()),
-              ),
-              // ─── ICONS, A PEER OF THEMES ────────────────────────────
-              //
-              // It sat three taps inside Settings, which put "change how every
-              // icon looks" below "change how the desktop looks" in a way
-              // nothing about the product supports. Choosing an icon pack is
-              // the same KIND of decision as choosing a theme, and there are
-              // now fourteen packs behind it.
-              //
-              // Between Themes and Widgets: the two appearance actions sit
-              // together and the two content actions sit together, so the bar
-              // reads in pairs rather than as four unrelated glyphs.
-            DesktopAction(
-                icon: Icons.apps_outlined,
-                label: context.t('settings.icons'),
-                onTap: () => open(const IconThemeScreen()),
-              ),
-            DesktopAction(
-                icon: Icons.widgets_outlined,
-                label: context.t('home.widgets'),
-                // ── STRAIGHT TO THE PICKER ──────────────────────────────
-                //
-                // This used to enter desklet edit mode and surface an "Editing
-                // workspace" bar with an Add button on it — two steps and a bar
-                // to reach a screen. Adding a widget is a single intent, so it
-                // now opens the widget picker directly. Resizing an existing
-                // desklet is the OTHER gesture (long-press the tile), and it no
-                // longer needs a bar either.
-                //
-                // Pop the menu FIRST, then push on the shell's Navigator via
-                // the captured shell context — the picker captures ChromeScope
-                // from it, and the menu's own route is dead by the time the
-                // push lands.
-                onTap: () {
-                  dismiss();
-                  showDeskletPicker(
-                    context,
-                    ref,
-                    theme,
-                    page: ref.read(activeWorkspaceProvider),
-                  );
-                },
-              ),
-              // ── ONLY WHERE THERE ARE APPS TO ARRANGE ──────────────────
-              //
-              // A distro with no desktop grid has nothing to jiggle, and an
-              // Arrange glyph on a bare Pantheon desktop would open an edit
-              // mode over an empty screen. The same `desktopIcons` gate the
-              // grid itself uses, asked in the one other place that offers to
-              // edit it.
-              if (theme.desktopIcons)
-                DesktopAction(
-                  icon: Icons.dashboard_customize_outlined,
-                  label: context.t('home.arrange'),
-                  // Pop FIRST, for the reason Widgets gives above: the menu's
-                  // own route is dead by the time anything downstream runs, and
-                  // entering edit mode rebuilds the desktop underneath it.
-                  onTap: () {
-                    dismiss();
-                    ref.read(deskletEditProvider.notifier).enterApps();
-                  },
-                ),
-              // ── THE ONLY MARKED ACTION IN THIS BAR ────────────────────
-              //
-              // A waiting Play update has nowhere else to be seen: the banner
-              // and the About row are both inside Settings, so someone who
-              // never opens Settings never learns there is one. This is the
-              // quietest surface that fixes that, because a long-press menu is
-              // something you opened on purpose.
-              //
-              // `dot: true` is the ONLY place this flag is passed, and
-              // [UpdateDot] takes no condition of its own, so this cannot
-              // become a general badge mechanism without someone deliberately
-              // widening both.
-            DesktopAction(
-                icon: Icons.settings_outlined,
-                label: context.t('settings.settings'),
-                dot: true,
-                onTap: () => open(SettingsScreen(theme: theme)),
-              ),
+    DesktopAction(
+      icon: Icons.image_outlined,
+      label: context.t('settings.wallpaper'),
+      onTap: () => open(WallpaperScreen(theme: theme)),
+    ),
+    DesktopAction(
+      icon: Icons.format_paint_outlined,
+      label: context.t('home.themes'),
+      onTap: () => open(const ThemesScreen()),
+    ),
+    // ─── ICONS, A PEER OF THEMES ────────────────────────────
+    //
+    // It sat three taps inside Settings, which put "change how every
+    // icon looks" below "change how the desktop looks" in a way
+    // nothing about the product supports. Choosing an icon pack is
+    // the same KIND of decision as choosing a theme, and there are
+    // now fourteen packs behind it.
+    //
+    // Between Themes and Widgets: the two appearance actions sit
+    // together and the two content actions sit together, so the bar
+    // reads in pairs rather than as four unrelated glyphs.
+    DesktopAction(
+      icon: Icons.apps_outlined,
+      label: context.t('settings.icons'),
+      onTap: () => open(const IconThemeScreen()),
+    ),
+    DesktopAction(
+      icon: Icons.widgets_outlined,
+      label: context.t('home.widgets'),
+      // ── STRAIGHT TO THE PICKER ──────────────────────────────
+      //
+      // This used to enter desklet edit mode and surface an "Editing
+      // workspace" bar with an Add button on it — two steps and a bar
+      // to reach a screen. Adding a widget is a single intent, so it
+      // now opens the widget picker directly. Resizing an existing
+      // desklet is the OTHER gesture (long-press the tile), and it no
+      // longer needs a bar either.
+      //
+      // Pop the menu FIRST, then push on the shell's Navigator via
+      // the captured shell context — the picker captures ChromeScope
+      // from it, and the menu's own route is dead by the time the
+      // push lands.
+      onTap: () {
+        dismiss();
+        showDeskletPicker(
+          context,
+          ref,
+          theme,
+          page: ref.read(activeWorkspaceProvider),
+        );
+      },
+    ),
+    // ── ONLY WHERE THERE ARE APPS TO ARRANGE ──────────────────
+    //
+    // A distro with no desktop grid has nothing to jiggle, and an
+    // Arrange glyph on a bare Pantheon desktop would open an edit
+    // mode over an empty screen. The same `desktopIcons` gate the
+    // grid itself uses, asked in the one other place that offers to
+    // edit it.
+    if (theme.desktopIcons)
+      DesktopAction(
+        icon: Icons.dashboard_customize_outlined,
+        label: context.t('home.arrange'),
+        // Pop FIRST, for the reason Widgets gives above: the menu's
+        // own route is dead by the time anything downstream runs, and
+        // entering edit mode rebuilds the desktop underneath it.
+        onTap: () {
+          dismiss();
+          ref.read(deskletEditProvider.notifier).enterApps();
+        },
+      ),
+    // ── THE ONLY MARKED ACTION IN THIS BAR ────────────────────
+    //
+    // A waiting Play update has nowhere else to be seen: the banner
+    // and the About row are both inside Settings, so someone who
+    // never opens Settings never learns there is one. This is the
+    // quietest surface that fixes that, because a long-press menu is
+    // something you opened on purpose.
+    //
+    // `dot: true` is the ONLY place this flag is passed, and
+    // [UpdateDot] takes no condition of its own, so this cannot
+    // become a general badge mechanism without someone deliberately
+    // widening both.
+    DesktopAction(
+      icon: Icons.settings_outlined,
+      label: context.t('settings.settings'),
+      dot: true,
+      onTap: () => open(SettingsScreen(theme: theme)),
+    ),
   ];
 }
 
@@ -482,31 +481,31 @@ class DesktopAction extends StatelessWidget {
       button: true,
       label: label,
       child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Wrapped only when asked. UpdateDot returns its child untouched
-            // when there is no update, so the unmarked case costs nothing.
-            dot
-                ? UpdateDot(child: Icon(icon, size: 24, color: d.colors.text))
-                : Icon(icon, size: 24, color: d.colors.text),
-            if (showLabel) ...[
-              const SizedBox(height: 7),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: d.text.caption.copyWith(color: d.colors.text),
-              ),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Wrapped only when asked. UpdateDot returns its child untouched
+              // when there is no update, so the unmarked case costs nothing.
+              dot
+                  ? UpdateDot(child: Icon(icon, size: 24, color: d.colors.text))
+                  : Icon(icon, size: 24, color: d.colors.text),
+              if (showLabel) ...[
+                const SizedBox(height: 7),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: d.text.caption.copyWith(color: d.colors.text),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/hidden_apps.dart';
@@ -13,15 +14,14 @@ import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
 import '../../platform/launcher_api.g.dart';
+import '../home/workspaces/workspace_controller.dart';
 import '../settings/settings_screen.dart';
 import '../terminal/terminal_screen.dart';
 import 'app_icon.dart';
 import 'app_menu_words.dart';
-import '../home/workspaces/workspace_controller.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
 import 'folder_overlay.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// Everything a drawer DOES, independent of how it looks.
 ///
@@ -356,8 +356,8 @@ Future<void> showDrawerAppMenu(
         MenuAction(
           icon: Icons.push_pin_outlined,
           label: context.t(words.unpin),
-          onTap: () =>
-              prefs.edit((p) => HomeLayout.unpinFromDock(p, entry.componentKey)),
+          onTap: () => prefs
+              .edit((p) => HomeLayout.unpinFromDock(p, entry.componentKey)),
         )
       else
         MenuAction(
@@ -491,9 +491,10 @@ Future<void> showDrawerAppMenu(
         // Where it lives NOW, so the menu answers "which shelf is this on"
         // without anything being opened. A user folder shows its own name
         // rather than a shelf, which is honest: that is where the app is.
-        subtitle: DrawerLayout.folderOf(theme.prefs, entry.componentKey)?.name ??
-            CategorySet.forTheme(theme).fallback,
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        subtitle:
+            DrawerLayout.folderOf(theme.prefs, entry.componentKey)?.name ??
+                CategorySet.forTheme(theme).fallback,
+        trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: () {
           Navigator.pop(sheet);
           showMoveToSheet(host, ref, theme, entry);
@@ -513,8 +514,6 @@ Future<void> showDrawerAppMenu(
     ],
   );
 }
-
-
 
 /// Point at [entry] wherever it actually lives, and get the user looking at it.
 ///
@@ -662,39 +661,39 @@ Future<void> drawerFolderSettings(
     title: item.folder.name,
     width: 236,
     rows: (sheet) => [
-        ThemedListRow(
-          icon: Icons.folder_open_outlined,
-          title: context.t('drawer.open'),
-          onTap: () {
-            Navigator.pop(sheet);
-            openDrawerFolder(context, ref, theme, item);
-          },
-        ),
-        ThemedListRow(
-          icon: Icons.drive_file_rename_outline,
-          title: context.t('drawer.renameFolder'),
-          onTap: () {
-            Navigator.pop(sheet);
-            renameDrawerFolder(
-              context,
-              ref,
-              theme,
-              folderId: item.folder.id,
-              currentName: item.folder.name,
-            );
-          },
-        ),
-        ThemedListRow(
-          icon: Icons.folder_off_outlined,
-          title: context.t('drawer.ungroup'),
-          subtitle: context.t('drawer.theAppsReturnTo'),
-          onTap: () {
-            Navigator.pop(sheet);
-            ref.read(prefsProvider(theme.spec.id).notifier).edit(
-                  (p) => DrawerLayout.dissolve(p, item.folder.id),
-                );
-          },
-        ),
+      ThemedListRow(
+        icon: Icons.folder_open_outlined,
+        title: context.t('drawer.open'),
+        onTap: () {
+          Navigator.pop(sheet);
+          openDrawerFolder(context, ref, theme, item);
+        },
+      ),
+      ThemedListRow(
+        icon: Icons.drive_file_rename_outline,
+        title: context.t('drawer.renameFolder'),
+        onTap: () {
+          Navigator.pop(sheet);
+          renameDrawerFolder(
+            context,
+            ref,
+            theme,
+            folderId: item.folder.id,
+            currentName: item.folder.name,
+          );
+        },
+      ),
+      ThemedListRow(
+        icon: Icons.folder_off_outlined,
+        title: context.t('drawer.ungroup'),
+        subtitle: context.t('drawer.theAppsReturnTo'),
+        onTap: () {
+          Navigator.pop(sheet);
+          ref.read(prefsProvider(theme.spec.id).notifier).edit(
+                (p) => DrawerLayout.dissolve(p, item.folder.id),
+              );
+        },
+      ),
     ],
   );
 }
@@ -835,7 +834,6 @@ class _RenameFolderBodyState extends State<_RenameFolderBody> {
     );
   }
 }
-
 
 /// Move [entry] onto one of this distro's shelves, or off all of them.
 ///

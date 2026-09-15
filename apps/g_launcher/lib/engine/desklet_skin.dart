@@ -108,7 +108,9 @@ class DeskletSkin {
 
   /// Did the theme author this key at all? Only [mergedWith] should care.
   bool get hasSurface => _surface != null;
+
   bool get hasFont => _font != null;
+
   bool get hasAccent => _accent != null;
 
   /// Kind-specific skin values: sizes, weights, whether the date shows.
@@ -333,7 +335,8 @@ class DeskletThemeBlock {
           .map((e) => e.toString())
           .toList(),
       starter: ((j['starter'] as List?) ?? const [])
-          .map((e) => StarterDesklet.fromJson((e as Map).cast<String, dynamic>()))
+          .map((e) =>
+              StarterDesklet.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
       skins: {
         for (final e in ((j['skins'] as Map?) ?? const {}).entries)

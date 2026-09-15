@@ -629,19 +629,21 @@ class _Screen extends ConsumerWidget {
           // nothing happened is noise.
           break;
         case 'notEntitled':
-          context.showMessage(context.t('icons.needsPurchaseFirst', {'name': p.title}));
+          context.showMessage(
+              context.t('icons.needsPurchaseFirst', {'name': p.title}));
         case 'appTooOld':
           context.showMessage('${p.title} needs a newer version of G Launcher');
         case 'noSpace':
-          context.showMessage(context.t('icons.notEnoughFreeSpace', {'name': p.title}));
+          context.showMessage(
+              context.t('icons.notEnoughFreeSpace', {'name': p.title}));
         case 'cancelled':
           break;
         case 'rejected':
           // A signature or hash check failed. NOT retryable, and worth saying
           // plainly rather than dressing up as a network blip — retrying a bad
           // signature produces the same answer and burns someone's data.
-          context
-              .showMessage(context.t('icons.failedVerification', {'name': p.title}));
+          context.showMessage(
+              context.t('icons.failedVerification', {'name': p.title}));
         case 'missingDependency':
           // ─── THE ONE STATUS THAT ALREADY KNOWS WHY ────────────────────
           //
@@ -661,7 +663,8 @@ class _Screen extends ConsumerWidget {
                 : '${p.title}: ${result.detail}',
           );
         default:
-          context.showMessage(context.t('icons.couldNotDownload', {'name': p.title}));
+          context.showMessage(
+              context.t('icons.couldNotDownload', {'name': p.title}));
       }
     }
 
@@ -675,7 +678,8 @@ class _Screen extends ConsumerWidget {
           ? appliedId == p.packId
           : selectedHero == p.packId;
       if (already) {
-        context.showMessage(context.t('icons.alreadyYourIconTheme', {'name': p.title}));
+        context.showMessage(
+            context.t('icons.alreadyYourIconTheme', {'name': p.title}));
         return;
       }
 
@@ -706,7 +710,8 @@ class _Screen extends ConsumerWidget {
           // usually lose.
           final started = await ref.read(buyProvider)(p.sku!);
           if (!started && context.mounted) {
-            context.showMessage(context.t('icons.notAvailableToBuy', {'name': p.title}));
+            context.showMessage(
+                context.t('icons.notAvailableToBuy', {'name': p.title}));
           }
 
         case CardStatus.requiresAppUpdate:
@@ -1232,7 +1237,8 @@ class _CoverageRow extends ConsumerWidget {
           Text(
             // Their apps, their number. The pack's own icon count belongs in
             // the store listing and says nothing about this phone.
-            context.t('icons.coveredOfTotalApps', {'covered': covered.toString(), 'total': cov.total.toString()}),
+            context.t('icons.coveredOfTotalApps',
+                {'covered': covered.toString(), 'total': cov.total.toString()}),
             style: d.text.caption,
           ),
           const SizedBox(height: 6),
@@ -1636,6 +1642,7 @@ final _previewProvider =
 @immutable
 class _PreviewKey {
   const _PreviewKey(this.tint, this.sizePx);
+
   final String tint;
   final int sizePx;
 

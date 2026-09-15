@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../data/prefs/desklet_layout.dart';
 import '../../../data/prefs/launcher_prefs.dart';
@@ -10,7 +11,6 @@ import '../../../engine/desklet_spec.dart';
 import '../../../engine/effective_theme.dart';
 import '../../home/workspaces/workspace_controller.dart';
 import '../desklet_frame.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The two kinds that are controls rather than readouts. PHASE D5.
 ///
@@ -84,7 +84,8 @@ class NotesDesklet extends ConsumerWidget {
   /// Uses [ThemedSheet] and [ThemedListRow] and nothing else, because those
   /// are the two chrome primitives with call sites I could verify. A themed
   /// dialog would be the nicer surface; wire it once its signature is to hand.
-  Future<void> _edit(BuildContext context, WidgetRef ref, String current) async {
+  Future<void> _edit(
+      BuildContext context, WidgetRef ref, String current) async {
     final controller = TextEditingController(text: current);
 
     void save(BuildContext sheet) {
@@ -168,8 +169,8 @@ class SearchDesklet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = theme.palette;
-    final hint = DeskletKinds.search
-        .read<String>(desklet.config, 'hint', 'Search apps');
+    final hint =
+        DeskletKinds.search.read<String>(desklet.config, 'hint', 'Search apps');
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

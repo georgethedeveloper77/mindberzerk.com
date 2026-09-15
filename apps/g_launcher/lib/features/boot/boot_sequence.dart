@@ -66,7 +66,9 @@ class BootColors {
       );
 
   Color get resolvedGrubBar => grubBar ?? accent;
+
   Color get resolvedGrubSelectedBar => grubSelectedBar ?? text;
+
   Color get resolvedGrubSelectedText => grubSelectedText ?? background;
 }
 

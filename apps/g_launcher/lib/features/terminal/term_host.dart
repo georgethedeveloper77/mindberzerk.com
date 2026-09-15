@@ -92,6 +92,7 @@ class TermEntry {
 /// `message` is printed as typed, so it is written for the person reading it.
 class TermOutcome {
   const TermOutcome.ok([this.message]) : failed = false;
+
   const TermOutcome.failed(this.message) : failed = true;
 
   final bool failed;
@@ -100,23 +101,31 @@ class TermOutcome {
 
 class TermStorage {
   const TermStorage({required this.totalBytes, required this.usedBytes});
+
   final int totalBytes;
   final int usedBytes;
+
   int get freeBytes => totalBytes - usedBytes;
+
   double get fraction => totalBytes == 0 ? 0 : usedBytes / totalBytes;
 }
 
 class TermMemory {
-  const TermMemory({required this.totalMb, required this.usedMb, this.cachedMb});
+  const TermMemory(
+      {required this.totalMb, required this.usedMb, this.cachedMb});
+
   final int totalMb;
   final int usedMb;
   final int? cachedMb;
+
   int get freeMb => totalMb - usedMb;
+
   double get fraction => totalMb == 0 ? 0 : usedMb / totalMb;
 }
 
 class TermBattery {
   const TermBattery({this.percent, this.celsius, this.health, this.charging});
+
   final int? percent;
   final double? celsius;
   final String? health;
@@ -160,6 +169,7 @@ class TermDevice {
     this.user,
     this.host,
   });
+
   final String? model;
   final String? androidRelease;
   final int? sdkInt;
@@ -213,6 +223,7 @@ abstract class TermHost {
 
   /// Null means the path does not exist or is not readable.
   Future<List<TermEntry>?> list(TermPath path);
+
   Future<TermEntry?> stat(TermPath path);
 
   /// Up to [maxLines] lines. Null for a path that is not readable text, which
@@ -223,9 +234,13 @@ abstract class TermHost {
   Future<int?> sizeOf(TermPath path);
 
   Future<TermOutcome> makeDirectory(TermPath path);
+
   Future<TermOutcome> createFile(TermPath path);
+
   Future<TermOutcome> delete(TermPath path, {required bool recursive});
+
   Future<TermOutcome> copy(TermPath from, TermPath to);
+
   Future<TermOutcome> move(TermPath from, TermPath to);
 
   /// Hands the file to whichever app owns the type.
@@ -233,11 +248,17 @@ abstract class TermHost {
 
   // ── readings ────────────────────────────────────────────────────────
   Future<TermStorage?> storage();
+
   Future<TermMemory?> memory();
+
   Future<TermBattery?> battery();
+
   Future<TermNetwork?> network();
+
   Future<int?> cpuPercent();
+
   Duration? get uptime;
+
   TermDevice get device;
 
   // ── device ──────────────────────────────────────────────────────────
@@ -253,6 +274,7 @@ abstract class TermHost {
   Future<TermOutcome> nudgeVolume(int steps);
 
   Future<TermOutcome> openSystemPanel(TermSystemPanel panel);
+
   Future<TermOutcome> openLauncherPage(TermLauncherPage page);
 
   /// Commands this build genuinely cannot perform.
@@ -276,7 +298,10 @@ abstract class TermHost {
   /// block under an empty prompt stops at eight, and a teaching surface that
   /// forgets is a teaching surface that nags.
   Future<Map<String, String>> loadAliases();
+
   Future<void> saveAliases(Map<String, String> aliases);
+
   Future<int> loadRunCount();
+
   Future<void> saveRunCount(int count);
 }

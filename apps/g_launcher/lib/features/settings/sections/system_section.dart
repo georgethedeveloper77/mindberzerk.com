@@ -16,8 +16,8 @@ import '../../../data/update/update_repository.dart';
 import '../../../design/branded_message.dart';
 import '../../../engine/effective_theme.dart';
 import '../backup_screen.dart';
-import '../restore_screen.dart';
 import '../language_settings.dart';
+import '../restore_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
 
@@ -134,7 +134,14 @@ List<Widget> systemSection(
           ),
         ),
         FilterRow(
-          const ['backup', 'export', 'restore', 'drive', 'transfer', 'new phone'],
+          const [
+            'backup',
+            'export',
+            'restore',
+            'drive',
+            'transfer',
+            'new phone'
+          ],
           SettingsRow(
             icon: Icons.backup_outlined,
             title: context.t('settings.backup'),

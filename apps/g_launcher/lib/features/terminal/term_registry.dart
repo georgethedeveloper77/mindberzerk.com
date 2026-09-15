@@ -115,8 +115,9 @@ class TermRegistry {
       for (final String ch in command.name.split('')) {
         if (matched < needle.length && ch == needle[matched]) matched++;
       }
-      final int longest =
-          command.name.length > needle.length ? command.name.length : needle.length;
+      final int longest = command.name.length > needle.length
+          ? command.name.length
+          : needle.length;
       final double score = longest == 0 ? 0 : matched / longest;
       if (score > bestScore) {
         bestScore = score;
@@ -140,8 +141,7 @@ class TermEngine {
   TermRegistry get _registry => registry ?? TermRegistry.instance;
 
   Future<TermResult> execute(String line, TermContext context) async {
-    final TermParsed parsed =
-        parser.parse(line, aliases: context.aliases);
+    final TermParsed parsed = parser.parse(line, aliases: context.aliases);
     if (parsed.isEmpty) return const TermResult.none();
 
     // One line, one chance to ask for the folder. See TermVfs.beginLine.

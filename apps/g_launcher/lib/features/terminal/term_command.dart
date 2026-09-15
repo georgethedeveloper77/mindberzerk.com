@@ -58,7 +58,9 @@ class TermInvocation {
   final TermContext context;
 
   List<String> get positionals => stage.positionals;
+
   Set<String> get flags => stage.flags;
+
   String? get target => stage.target;
 
   bool has(String flag) => stage.flags.contains(flag);
@@ -72,6 +74,7 @@ abstract class TermCommand {
   const TermCommand();
 
   String get name;
+
   TermGroup get group;
 
   /// One line, lower case, no full stop. It sits inside a match row.
@@ -95,8 +98,7 @@ abstract class TermCommand {
   Future<TermResult> run(TermInvocation invocation);
 
   /// Shared refusal, so every command spells a missing argument the same way.
-  TermResult missing(String what) =>
-      TermResult.error('$name: give $what');
+  TermResult missing(String what) => TermResult.error('$name: give $what');
 }
 
 /// A command that ONLY reads a pipe.

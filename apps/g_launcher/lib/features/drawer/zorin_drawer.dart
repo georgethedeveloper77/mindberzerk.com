@@ -37,6 +37,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
@@ -47,7 +48,6 @@ import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
 import 'folder_glyphs.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// One rail slot: a name and the apps behind it.
 ///
@@ -225,8 +225,8 @@ class _ZorinDrawerState extends ConsumerState<ZorinDrawer> {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(24)),
                 border: Border(
-                  top: BorderSide(
-                      color: palette.onDark.withValues(alpha: 0.16)),
+                  top:
+                      BorderSide(color: palette.onDark.withValues(alpha: 0.16)),
                 ),
               ),
               child: Column(
@@ -325,7 +325,7 @@ class _Rail extends ConsumerWidget {
     final palette = theme.palette;
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       itemCount: buckets.length,
       itemBuilder: (context, i) {
         final b = buckets[i];
@@ -433,7 +433,7 @@ class _Apps extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: theme.typography.display,
-                fontSize: 11 * theme.textScale,
+                fontSize: 13 * theme.textScale,
                 letterSpacing: 0.9,
                 fontWeight: FontWeight.w600,
                 color: palette.accent,
@@ -511,7 +511,7 @@ class _Foot extends ConsumerWidget {
               children: [
                 Icon(
                   icon,
-                  size: 18,
+                  size: 20,
                   color: theme.palette.onDark.withValues(alpha: 0.6),
                 ),
                 const SizedBox(width: 8),

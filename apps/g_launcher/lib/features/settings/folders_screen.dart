@@ -2,24 +2,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
-import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/folder_suggestions.dart';
-import '../../data/prefs/prefs_reset.dart';
+import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/prefs/prefs_reset.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../drawer/drawer_actions.dart';
 import '../drawer/app_icon.dart';
-import '../drawer/folder_glyph.dart';
+import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
+import '../drawer/folder_glyph.dart';
 
 /// Folder settings — its own page, because folders grew past a row.
 ///
@@ -200,7 +200,8 @@ class FoldersScreen extends ConsumerWidget {
                   await notifier
                       .edit((p) => PrefsReset.section(p, PrefsSection.folders));
                   if (context.mounted) {
-                    context.showMessage(context.t('settings.folderAppearanceReset'));
+                    context.showMessage(
+                        context.t('settings.folderAppearanceReset'));
                   }
                 },
               ),
@@ -222,7 +223,8 @@ class FoldersScreen extends ConsumerWidget {
                 if (ok != true) return;
                 await notifier.edit(DrawerLayout.dissolveAll);
                 if (context.mounted) {
-                  context.showMessage(context.t('settings.allFoldersUngrouped'));
+                  context
+                      .showMessage(context.t('settings.allFoldersUngrouped'));
                 }
               },
             ),
@@ -261,7 +263,8 @@ class FoldersScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
               child: ThemedButton(
-                label: context.t('settings.createAllFolders', {'count': suggestions.length.toString()}),
+                label: context.t('settings.createAllFolders',
+                    {'count': suggestions.length.toString()}),
                 icon: Icons.auto_awesome_outlined,
                 expand: true,
                 onPressed: () {
@@ -288,7 +291,8 @@ class FoldersScreen extends ConsumerWidget {
                       newFolderId: newDrawerFolderId,
                     ),
                   );
-                  context.showMessage(context.t('settings.folderCreated', {'name': s.name}));
+                  context.showMessage(
+                      context.t('settings.folderCreated', {'name': s.name}));
                 },
                 onDismiss: () => notifier.edit(
                   (p) => FolderSuggestions.dismiss(p, s),
@@ -300,8 +304,9 @@ class FoldersScreen extends ConsumerWidget {
             ThemedListRow(
               icon: Icons.refresh,
               title: context.t('settings.showDismissedSuggestions'),
-              subtitle:
-                  context.t('settings.hiddenGroups', {'count': theme.prefs.dismissedSuggestions.length.toString()}),
+              subtitle: context.t('settings.hiddenGroups', {
+                'count': theme.prefs.dismissedSuggestions.length.toString()
+              }),
               onTap: () => notifier.edit(FolderSuggestions.clearDismissals),
             ),
 
@@ -506,7 +511,8 @@ class _SuggestionRow extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            context.t('settings.groupAppsIntoFolder', {'count': suggestion.size.toString()}),
+            context.t('settings.groupAppsIntoFolder',
+                {'count': suggestion.size.toString()}),
             style: d.text.caption,
           ),
           const SizedBox(height: 12),

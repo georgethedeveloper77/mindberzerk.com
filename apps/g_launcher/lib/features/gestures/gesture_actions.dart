@@ -20,6 +20,7 @@ enum Gesture {
   twoFingerSwipeDown('twoFingerSwipeDown', 'Two-finger swipe down');
 
   const Gesture(this.id, this.label);
+
   final String id;
   final String label;
 }
@@ -46,6 +47,7 @@ enum GestureAction {
   lockScreen('lockScreen', 'Lock screen', true);
 
   const GestureAction(this.id, this.label, this.needsService);
+
   final String id;
   final String label;
 
@@ -65,6 +67,7 @@ enum GestureAction {
 /// A binding is either a GestureAction or an app to launch ("app:<componentKey>").
 class GestureBinding {
   const GestureBinding.action(this.action) : componentKey = null;
+
   const GestureBinding.app(this.componentKey) : action = GestureAction.none;
 
   final GestureAction action;

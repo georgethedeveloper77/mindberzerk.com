@@ -198,10 +198,12 @@ abstract final class Crash {
     /// Settings, dialogs, sheets and folder popovers, so a report naming only
     /// the shell is naming roughly a third of what was on screen.
     String? chromeFamily,
+
     /// The user's third-party icon pack, or '-' for none. NOT part of the
     /// theme: it names an APK that happens to be installed on one device, and
     /// it is the layer that sits above hero, brand and generator alike.
     String? iconPackId,
+
     /// The installed version of the active distro's pack. NOTHING SETS THIS
     /// YET, and the parameter is kept because the key is worth having: a distro
     /// can be republished over the CDN without an app update, so two devices on
@@ -209,6 +211,7 @@ abstract final class Crash {
     /// the foot of `crash_context.dart` for the source that must NOT be used to
     /// fill it.
     int? packVersion,
+
     /// Which palette is live. A theme with no light block is always dark, so
     /// this is not simply the system setting read back.
     bool? dark,
@@ -253,6 +256,7 @@ abstract final class Crash {
 @immutable
 class _Pending {
   const _Pending(this.error, this.stack, this.reason, this.fatal);
+
   final Object error;
   final StackTrace? stack;
   final String? reason;

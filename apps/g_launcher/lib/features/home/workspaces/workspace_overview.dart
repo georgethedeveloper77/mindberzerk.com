@@ -185,9 +185,8 @@ class _WorkspaceOverviewState extends ConsumerState<WorkspaceOverview> {
     // hand-picked number could never do.
     _pages ??= PageController(
       initialPage: active.clamp(0, count - 1),
-      viewportFraction: horizontal
-          ? _cardWidth + _cardGap * 2
-          : cardHeightPx / bandHeight,
+      viewportFraction:
+          horizontal ? _cardWidth + _cardGap * 2 : cardHeightPx / bandHeight,
     );
 
     return Material(
@@ -250,57 +249,56 @@ class _WorkspaceOverviewState extends ConsumerState<WorkspaceOverview> {
             right: 0,
             height: bandHeight,
             child: PageView.builder(
-                  controller: _pages,
-                  scrollDirection:
-                      horizontal ? Axis.horizontal : Axis.vertical,
-                  // ─── ONE MORE THAN THERE ARE, UNTIL THE CEILING ───────
-                  //
-                  // The extra index is the ADD card: swipe past the last
-                  // workspace and there is a place for the next one, with a
-                  // plus in it. Adding a page happens where the page will be
-                  // rather than at a button somewhere else, which is also why
-                  // the control row can stay as sparse as it is.
-                  //
-                  // It disappears at [WorkspaceCount.max], because a slot you
-                  // can reach and cannot use is worse than no slot.
-                  itemCount: count < WorkspaceCount.max ? count + 1 : count,
-                  // ─── SCROLLING RETARGETS, AND IT DID NOT ──────────────
-                  //
-                  // This had no `onPageChanged`, so the overview's own scroll
-                  // position and `activeWorkspaceProvider` were unrelated:
-                  // the dots stayed on the desktop's page and, worse, the
-                  // trash deleted whatever the DESKTOP was on rather than the
-                  // card in front of you. Swiping two cards along and tapping
-                  // delete took the wrong workspace.
-                  //
-                  // Guarded on the add card, which is not a workspace and has
-                  // no index to go to.
-                  onPageChanged: (page) {
-                    if (page >= count) return;
-                    ref.read(activeWorkspaceProvider.notifier).goTo(page);
-                  },
-                  itemBuilder: (context, page) => page >= count
-                      ? _AddCard(
-                          theme: theme,
-                          height: cardHeightPx,
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            ref
-                                .read(workspaceCountProvider.notifier)
-                                .set(count + 1);
-                          },
-                        )
-                      : _Card(
-                          theme: theme,
-                          page: page,
-                          height: cardHeightPx,
-                          onTap: () {
-                      HapticFeedback.selectionClick();
-                      ref.read(activeWorkspaceProvider.notifier).goTo(page);
-                      ref.read(workspaceOverviewProvider.notifier).close();
-                    },
-                  ),
-                ),
+              controller: _pages,
+              scrollDirection: horizontal ? Axis.horizontal : Axis.vertical,
+              // ─── ONE MORE THAN THERE ARE, UNTIL THE CEILING ───────
+              //
+              // The extra index is the ADD card: swipe past the last
+              // workspace and there is a place for the next one, with a
+              // plus in it. Adding a page happens where the page will be
+              // rather than at a button somewhere else, which is also why
+              // the control row can stay as sparse as it is.
+              //
+              // It disappears at [WorkspaceCount.max], because a slot you
+              // can reach and cannot use is worse than no slot.
+              itemCount: count < WorkspaceCount.max ? count + 1 : count,
+              // ─── SCROLLING RETARGETS, AND IT DID NOT ──────────────
+              //
+              // This had no `onPageChanged`, so the overview's own scroll
+              // position and `activeWorkspaceProvider` were unrelated:
+              // the dots stayed on the desktop's page and, worse, the
+              // trash deleted whatever the DESKTOP was on rather than the
+              // card in front of you. Swiping two cards along and tapping
+              // delete took the wrong workspace.
+              //
+              // Guarded on the add card, which is not a workspace and has
+              // no index to go to.
+              onPageChanged: (page) {
+                if (page >= count) return;
+                ref.read(activeWorkspaceProvider.notifier).goTo(page);
+              },
+              itemBuilder: (context, page) => page >= count
+                  ? _AddCard(
+                      theme: theme,
+                      height: cardHeightPx,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref
+                            .read(workspaceCountProvider.notifier)
+                            .set(count + 1);
+                      },
+                    )
+                  : _Card(
+                      theme: theme,
+                      page: page,
+                      height: cardHeightPx,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref.read(activeWorkspaceProvider.notifier).goTo(page);
+                        ref.read(workspaceOverviewProvider.notifier).close();
+                      },
+                    ),
+            ),
           ),
           Positioned(
             top: screen.height * _rowTop,
@@ -312,42 +310,41 @@ class _WorkspaceOverviewState extends ConsumerState<WorkspaceOverview> {
             top: screen.height * _barTop,
             left: 0,
             right: 0,
-            child:               ChromeScope(
-                data: ChromeData.fromPalette(
-                  palette,
-                  typography: theme.typography,
-                  textScale: theme.textScale,
-                  family: theme.chromeFamily,
-                  opacity: theme.surfaceOpacity,
-                  panelBlur: theme.panelBlur,
-                  panelTint: theme.panelTint,
-                  panelRadius: theme.panelRadius,
-                ),
-                child: DesktopActionBar(
+            child: ChromeScope(
+              data: ChromeData.fromPalette(
+                palette,
+                typography: theme.typography,
+                textScale: theme.textScale,
+                family: theme.chromeFamily,
+                opacity: theme.surfaceOpacity,
+                panelBlur: theme.panelBlur,
+                panelTint: theme.panelTint,
+                panelRadius: theme.panelRadius,
+              ),
+              child: DesktopActionBar(
+                theme: theme,
+                // LABELS STAY. The glyph-only argument was made against a
+                // six-column bar squeezed under a three-card strip; the
+                // reference keeps its words, wraps them to two lines, and
+                // fits five comfortably. Six is the case that will not, and
+                // that is a per-distro answer rather than a global one.
+                showLabels: true,
+                plated: false,
+                actions: desktopActions(
+                  context: context,
+                  ref: ref,
                   theme: theme,
-                  // LABELS STAY. The glyph-only argument was made against a
-                  // six-column bar squeezed under a three-card strip; the
-                  // reference keeps its words, wraps them to two lines, and
-                  // fits five comfortably. Six is the case that will not, and
-                  // that is a per-distro answer rather than a global one.
-                  showLabels: true,
-                  plated: false,
-                  actions: desktopActions(
-                    context: context,
-                    ref: ref,
-                    theme: theme,
-                    navigator: Navigator.of(context),
-                    // THE OVERVIEW IS NOT A ROUTE. There is nothing to pop:
-                    // it is a Stack layer toggled by a provider, so going
-                    // away means closing that. This is the one thing the two
-                    // surfaces do differently and it is why `desktopActions`
-                    // takes a callback at all.
-                    dismiss: () => ref
-                        .read(workspaceOverviewProvider.notifier)
-                        .close(),
-                  ),
+                  navigator: Navigator.of(context),
+                  // THE OVERVIEW IS NOT A ROUTE. There is nothing to pop:
+                  // it is a Stack layer toggled by a provider, so going
+                  // away means closing that. This is the one thing the two
+                  // surfaces do differently and it is why `desktopActions`
+                  // takes a callback at all.
+                  dismiss: () =>
+                      ref.read(workspaceOverviewProvider.notifier).close(),
                 ),
               ),
+            ),
           ),
         ],
       ),

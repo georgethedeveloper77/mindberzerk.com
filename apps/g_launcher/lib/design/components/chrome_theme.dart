@@ -145,7 +145,8 @@ class ChromeColors {
       // `p.bar`, the desktop's system-bar colour, which is a different surface
       // doing a different job.
       bar: _neutral(p.bgBottom, darkChrome ? 0.188 : 0.975, dark: darkChrome),
-      surface: _neutral(p.bgBottom, darkChrome ? 0.188 : 0.975, dark: darkChrome),
+      surface:
+          _neutral(p.bgBottom, darkChrome ? 0.188 : 0.975, dark: darkChrome),
       surfaceAlt:
           _neutral(p.bgBottom, darkChrome ? 0.255 : 0.915, dark: darkChrome),
       text: ink,

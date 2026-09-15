@@ -75,6 +75,7 @@ class DeskletEditState {
   bool get active => mode != EditMode.none;
 
   bool get editingDesklets => mode == EditMode.desklets;
+
   bool get editingPanel => mode == EditMode.panel;
 
   /// Read by `home_grid`, and by nothing else. The same narrowing
@@ -116,7 +117,6 @@ class DeskletEdit extends Notifier<DeskletEditState> {
 
   void exit() => state = const DeskletEditState();
 
-  void select(String? id) => state = id == null
-      ? state.copyWith(clear: true)
-      : state.copyWith(selected: id);
+  void select(String? id) => state =
+      id == null ? state.copyWith(clear: true) : state.copyWith(selected: id);
 }

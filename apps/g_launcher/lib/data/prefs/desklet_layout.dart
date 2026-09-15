@@ -386,9 +386,8 @@ class DeskletLayout {
       d.copyWith(
         spanX: sx,
         spanY: sy,
-        config: marking
-            ? {...d.config, WidgetConfigKeys.userSized: true}
-            : null,
+        config:
+            marking ? {...d.config, WidgetConfigKeys.userSized: true} : null,
       ),
     );
   }
@@ -600,7 +599,10 @@ class DeskletLayout {
     if (d == null || d.kind != 'stack') return const [];
     final raw = d.config['members'];
     if (raw is! List) return const [];
-    return [for (final e in raw) if (e is String) e];
+    return [
+      for (final e in raw)
+        if (e is String) e
+    ];
   }
 
   /// The member desklets, resolved and in order, skipping ids that no longer
@@ -646,7 +648,9 @@ class DeskletLayout {
           row: d.row,
           spanX: d.spanX,
           spanY: d.spanY,
-          config: {'members': [id]},
+          config: {
+            'members': [id]
+          },
         ),
       ],
     );

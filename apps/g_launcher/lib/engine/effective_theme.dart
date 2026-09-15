@@ -62,12 +62,18 @@ class EffectiveTheme {
     required this.drawerCols,
     required this.drawerScrollStyle,
     required this.drawerGrouping,
+    required this.drawerIndexRail,
+    required this.drawerListStyle,
+    required this.dockLayout,
     required this.drawerSearchPosition,
     required this.kickoffRail,
     required this.tilingLauncher,
     required this.appDrawer,
     required this.homeLayout,
     required this.dockStyle,
+    required this.dockHover,
+    required this.dockPress,
+    required this.dockEntrance,
     required this.dockReveal,
     required this.iconSizeDp,
     required this.labelLines,
@@ -146,6 +152,22 @@ class EffectiveTheme {
   /// half the answer now that a distro can carry a default.
   final String drawerScrollStyle;
   final String drawerGrouping;
+
+  /// The drawer's alphabet index: 'off' | 'plain' | 'arc'. Resolved in
+  /// [LayoutResolver] from the user's choice, else the engine default.
+  ///
+  /// Read together with [drawerScrollStyle] and [drawerGrouping], never alone:
+  /// an index with nothing to index is not a rail, it is a decoration with a
+  /// gesture attached. `AppDrawer` owns that check.
+  final String drawerIndexRail;
+
+  /// The vertical drawer's shape: 'grid' | 'rows'. Read with
+  /// [drawerScrollStyle], never alone.
+  final String drawerListStyle;
+
+  /// The dock's presentation: 'bar' | 'list'. Distinct from [dockStyle], which
+  /// is flat versus floating and is a distro's to author.
+  final String dockLayout;
 
   /// Where the drawer's search bar sits: 'top' | 'bottom' | 'off'. Resolved in
   /// [LayoutResolver]: the user's choice, else the distro's authored default,
@@ -226,6 +248,16 @@ class EffectiveTheme {
   /// How the dock sits: 'flat' | 'floating' | 'magnified'. Read by `AquaDock`
   /// and by the shell that positions it. See [ThemeLayout.dockStyle].
   final String dockStyle;
+
+  /// The three dock animations, RESOLVED, from theme then user then default.
+  ///
+  /// A dock that cannot do one ignores it: `GnomeDock` has never magnified and
+  /// a hover mode it does not implement is simply a value it does not read. The
+  /// alternative, gating the setting per shell, would mean the settings row
+  /// knowing which dock each of fourteen distros mounts.
+  final String dockHover;
+  final String dockPress;
+  final String dockEntrance;
 
   /// When the dock exists: 'always' | 'apps'. Read by `gnome_shell` and by
   /// `capabilities.dart`. See [ThemeLayout.dockReveal].
@@ -570,12 +602,18 @@ class EffectiveTheme {
       drawerCols: layout.drawerCols,
       drawerScrollStyle: layout.drawerScrollStyle,
       drawerGrouping: layout.drawerGrouping,
+      drawerIndexRail: layout.drawerIndexRail,
+      drawerListStyle: layout.drawerListStyle,
+      dockLayout: layout.dockLayout,
       drawerSearchPosition: layout.drawerSearchPosition,
       kickoffRail: layout.kickoffRail,
       tilingLauncher: layout.tilingLauncher,
       appDrawer: layout.appDrawer,
       homeLayout: layout.homeLayout,
       dockStyle: layout.dockStyle,
+      dockHover: layout.dockHover,
+      dockPress: layout.dockPress,
+      dockEntrance: layout.dockEntrance,
       dockReveal: layout.dockReveal,
       iconSizeDp: layout.iconSizeDp,
       labelLines: layout.labelLines,
@@ -779,6 +817,9 @@ class EffectiveTheme {
           other.drawerCols == drawerCols &&
           other.drawerScrollStyle == drawerScrollStyle &&
           other.drawerGrouping == drawerGrouping &&
+          other.drawerIndexRail == drawerIndexRail &&
+          other.drawerListStyle == drawerListStyle &&
+          other.dockLayout == dockLayout &&
           other.drawerSearchPosition == drawerSearchPosition &&
           other.iconSizeDp == iconSizeDp &&
           other.labelLines == labelLines &&
@@ -815,6 +856,9 @@ class EffectiveTheme {
         drawerCols,
         drawerScrollStyle,
         drawerGrouping,
+        drawerIndexRail,
+        drawerListStyle,
+        dockLayout,
         drawerSearchPosition,
         iconSizeDp,
         labelLines,

@@ -157,6 +157,7 @@ export const PANEL_MODULES = [
   'clock',
   'battery',
   'wifi',
+  'volume',
 ] as const;
 export type PanelModuleName = (typeof PANEL_MODULES)[number];
 

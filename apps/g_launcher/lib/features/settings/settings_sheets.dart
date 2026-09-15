@@ -10,10 +10,10 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:g_launcher/data/prefs/prefs_repository.dart';
 import 'package:g_launcher/data/update/update_repository.dart';
 import 'package:g_launcher/i18n/i18n.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
@@ -394,11 +394,29 @@ class SheetOption extends StatelessWidget {
     this.selected = false,
     this.previewFamily,
     this.previewText,
+    this.description,
+    this.icon,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
+  /// One line under the name, for sheets whose options are not self-evident.
+  ///
+  /// ─── WHY A SHEET NEEDS ONE AT ALL ──────────────────────────────────────
+  ///
+  /// Most of these sheets list things a name fully describes: a font, a grid
+  /// size, an icon shape. The dock animation sheets do not. "Magnetic part" and
+  /// "Arc rise" are names for motions nobody has seen yet, and a list of ten
+  /// such names is a list of guesses.
+  ///
+  /// Null everywhere else, so no existing sheet changes shape.
+  final String? description;
+
+  /// A glyph before the name. Same reasoning as [description]: it gives a
+  /// motion something to be recognised by in a long list.
+  final IconData? icon;
 
   /// Draw [previewText] in this family instead of drawing [label] in the
   /// interface font. Null for every non-font sheet, which is all of them but
@@ -421,16 +439,34 @@ class SheetOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: selected ? s.acc : s.mut),
+              const SizedBox(width: 14),
+            ],
             Expanded(
               child: family == null
-                  ? Text(
-                      label,
-                      style: TextStyle(
-                        color: colour,
-                        fontSize: 15,
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w400,
-                      ),
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            color: colour,
+                            fontSize: 15,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                        if (description != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              description!,
+                              style: TextStyle(color: s.mut, fontSize: 12.5),
+                            ),
+                          ),
+                      ],
                     )
                   : _FontPreview(
                       family: family,

@@ -61,8 +61,10 @@ import 'pending_apply.dart';
 /// Bundles are included: `bundle_all_distros` is a product a user can own, and
 /// `CdnIndex.isUnlocked` checks entitlement grants against exactly that.
 final productSkusProvider = Provider<String>((ref) {
-  final packs = ref.watch(catalogueProvider).asData?.value ?? const <PackInfo>[];
-  final bundles = ref.watch(bundlesProvider).asData?.value ?? const <BundleInfo>[];
+  final packs =
+      ref.watch(catalogueProvider).asData?.value ?? const <PackInfo>[];
+  final bundles =
+      ref.watch(bundlesProvider).asData?.value ?? const <BundleInfo>[];
 
   final skus = <String>{
     for (final p in packs)
@@ -325,7 +327,10 @@ final packBridgeProvider = Provider<void>((ref) {
       return;
     }
 
-    final mine = [for (final p in packs) if (p.sku == sku) p];
+    final mine = [
+      for (final p in packs)
+        if (p.sku == sku) p
+    ];
     if (mine.isEmpty) return;
 
     // Sequential: each install verifies signatures and writes to disk, and two

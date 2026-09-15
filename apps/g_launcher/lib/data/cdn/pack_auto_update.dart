@@ -90,8 +90,7 @@ class PackAutoUpdater {
   }
 }
 
-final packAutoUpdaterProvider =
-    Provider<PackAutoUpdater>(PackAutoUpdater.new);
+final packAutoUpdaterProvider = Provider<PackAutoUpdater>(PackAutoUpdater.new);
 
 /// Refresh the catalogue, then install anything that went stale.
 ///

@@ -656,8 +656,7 @@ List<Widget> appearanceSection(
             format: (v) => '${v.round()}',
             following: theme.prefs.panelRadius == null,
             onChanged: (v) => notifier.edit((p) => p.copyWith(panelRadius: v)),
-            onFollow: () =>
-                notifier.edit((p) => p.clearing(panelRadius: true)),
+            onFollow: () => notifier.edit((p) => p.clearing(panelRadius: true)),
           ),
         ),
       ],

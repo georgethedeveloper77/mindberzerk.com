@@ -188,6 +188,27 @@ class _AquaShellState extends ConsumerState<AquaShell> {
     );
   }
 
+  /// An app dropped on the dock from the desktop or the drawer.
+  ///
+  /// Pins it and takes it off the home screen: the two surfaces hold ONE
+  /// arrangement between them, and a drag that left a copy behind reads as the
+  /// drag having failed.
+  ///
+  /// [capacity] comes from the build, because it is a function of the screen
+  /// width and this dock is always horizontal. A pin past capacity is refused
+  /// inside `pinToDock`, and the app then stays where it was rather than being
+  /// lost between two surfaces.
+  void _dockPin(String componentKey, int capacity) {
+    ref.read(prefsProvider(widget.theme.spec.id).notifier).edit((p) {
+      final pinned =
+          HomeLayout.pinToDock(p, componentKey, capacity: capacity);
+      final at = HomeLayout.slotOf(pinned, componentKey);
+      return at == null
+          ? pinned
+          : HomeLayout.removeFromHome(pinned, at.page, at.index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
@@ -402,8 +423,17 @@ class _AquaShellState extends ConsumerState<AquaShell> {
               entries: entries,
               palette: theme.palette,
               style: AquaDockStyle.parse(theme.dockStyle),
+              hover: theme.dockHover,
+              press: theme.dockPress,
               opacity: theme.dockOpacity,
               onLaunchpad: _openLaunchpad,
+              // ─── ALWAYS ARMED ────────────────────────────────────────
+              //
+              // Unlike a reorder, a drop here has something to do on any dock:
+              // pinning is how an auto-filled dock stops being automatic, so
+              // refusing it on the docks with no pins would refuse the gesture
+              // that makes pinning possible.
+              onDropApp: (key) => _dockPin(key, capacity),
             ),
           ),
 

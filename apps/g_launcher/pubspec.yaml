@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.0+21
+version: 6.0.0+23
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -16,6 +16,12 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
+  # Pure Dart, no platform code, so nothing to conflict with the win32 pin
+  # that forced file_picker onto a beta. PINNED TO 3.x: archive 4 renamed the
+  # ArchiveFile constructor and content accessors, and PrefsBackup uses the 3.x
+  # spelling.
+  archive: ^3.6.1
+
   battery_plus: ^7.1.0
 
   # Value equality for lists — BootSpec.lines and the LauncherPrefs collections.

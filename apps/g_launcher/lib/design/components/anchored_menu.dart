@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import 'chrome_theme.dart';
 import 'glass_panel.dart';
 import 'themed_list_row.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// A context menu that opens beside the thing it is about.
 ///
@@ -218,7 +218,8 @@ class AnchoredMenu {
       // theme-exempt: a scrim is not chrome. It is a neutral dim over whatever
       // wallpaper is behind, and tinting it with the distro's palette would
       // colour the photograph underneath it.
-      barrierColor: const Color(0x33000000), // theme-exempt: neutral scrim
+      barrierColor: const Color(0x33000000),
+      // theme-exempt: neutral scrim
       transitionDuration: const Duration(milliseconds: 130),
       pageBuilder: (menuContext, _, __) {
         final media = MediaQuery.of(menuContext);
@@ -386,8 +387,7 @@ class _AnchorDelegate extends SingleChildLayoutDelegate {
     // hold is capped rather than laid out past the bottom edge. A caller with
     // genuinely unbounded content wants a sheet, not a context menu.
     final maxW = constraints.maxWidth - _margin * 2;
-    final maxH =
-        constraints.maxHeight - safe.top - safe.bottom - _margin * 2;
+    final maxH = constraints.maxHeight - safe.top - safe.bottom - _margin * 2;
 
     return BoxConstraints(
       minWidth: width > maxW ? maxW : width,
@@ -533,7 +533,8 @@ class _Header extends StatelessWidget {
 /// would be two things to keep in step.
 /// The destructive red. See [MenuAction.danger] for why this is not from the
 /// palette.
-const _danger = Color(0xFFFF6B6B); // theme-exempt: destructive is a meaning, not a distro colour
+const _danger = Color(
+    0xFFFF6B6B); // theme-exempt: destructive is a meaning, not a distro colour
 
 class _Actions extends StatelessWidget {
   const _Actions({

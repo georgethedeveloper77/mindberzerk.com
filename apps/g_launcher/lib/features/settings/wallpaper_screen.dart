@@ -933,7 +933,7 @@ class _MotionHeader extends ConsumerWidget {
               padding: const EdgeInsets.only(right: 8),
               child: Text(
                 context.t('settings.oneVideo'),
-                style: TextStyle(fontSize: 11.5, color: c.textFaint),
+                style: TextStyle(fontSize: 12, color: c.textFaint),
               ),
             ),
           // A SHEET, not a tooltip. Everything else that explains itself on
@@ -1025,7 +1025,10 @@ class _MotionTile extends StatelessWidget {
                   ),
                   child: Text(
                     context.t('settings.live'),
-                    style: const TextStyle(fontSize: 8, color: Colors.white),
+                    // 8 was unreadable rather than merely small. A badge is
+                    // decoration, so it stays quiet at 11 rather than growing
+                    // to body size.
+                    style: const TextStyle(fontSize: 11, color: Colors.white),
                   ),
                 ),
               ),
@@ -1115,7 +1118,7 @@ class _RecentStrip extends ConsumerWidget {
                   ? 'settings.onlyThePhotosYouShared'
                   : 'settings.recentPhotosTapToKeep',
             ),
-            style: TextStyle(fontSize: 11.5, height: 1.4, color: c.textFaint),
+            style: TextStyle(fontSize: 12, height: 1.4, color: c.textFaint),
           ),
         ),
       ],
@@ -1232,7 +1235,7 @@ class _AddTile extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
-                  style: TextStyle(fontSize: 10, color: c.textFaint),
+                  style: TextStyle(fontSize: 12, color: c.textFaint),
                 ),
               ),
             ],
@@ -1414,7 +1417,7 @@ Future<void> showMotionInfo(BuildContext context, VoidCallback onPick) {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Text(
               ctx.t('settings.aLittleWiderBecause'),
-              style: TextStyle(fontSize: 11.5, height: 1.5, color: c.textFaint),
+              style: TextStyle(fontSize: 12, height: 1.5, color: c.textFaint),
             ),
           ),
           Padding(
@@ -2446,12 +2449,20 @@ class _Strip extends StatelessWidget {
             right: 2,
             child: GestureDetector(
               onTap: () => remove != null ? remove(src) : hide!(src, !isHidden),
-              // Bigger than it looks. The visible dot is 20px and the padding
-              // around it brings the target up to what a thumb needs, without
-              // a circle that size covering a third of the thumbnail.
+              // ─── THE TARGET GREW, THE DOT DID NOT ────────────────────
+              //
+              // The reasoning here was already right: a circle big enough to be
+              // a target would cover a third of the thumbnail. What it got
+              // wrong was the arithmetic. A 14dp glyph in 3dp and then 6dp of
+              // padding is a 32dp target, two thirds of the floor.
+              //
+              // A SizedBox around a centred dot separates the two questions.
+              // The visible circle is unchanged; the box it sits in is 48.
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.all(6),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: c.bg.withValues(alpha: 0.72),
@@ -2459,17 +2470,18 @@ class _Strip extends StatelessWidget {
                     border: Border.all(color: c.line),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(3),
+                    padding: const EdgeInsets.all(4),
                     child: Icon(
                       remove != null
                           ? Icons.close
                           : (isHidden
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined),
-                      size: 14,
+                      size: 16,
                       color: c.text,
                     ),
                   ),
+                ),
                 ),
               ),
             ),
@@ -2582,6 +2594,7 @@ class _StripHeader extends StatelessWidget {
 
 class _Missing extends StatelessWidget {
   const _Missing(this.icon);
+
   final IconData icon;
 
   @override

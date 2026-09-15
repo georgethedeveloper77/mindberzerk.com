@@ -59,6 +59,7 @@ class TermPath {
   List<String> get rest => parts.isEmpty ? const <String>[] : parts.sublist(1);
 
   bool get isSlash => parts.isEmpty;
+
   bool get isRootOfNamespace => parts.length == 1 && root != null;
 
   /// The last segment, or null at `/`.

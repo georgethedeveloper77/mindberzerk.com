@@ -77,6 +77,7 @@ class WidgetSpan {
   final int maxSpanY;
 
   bool get resizableX => maxSpanX > minSpanX;
+
   bool get resizableY => maxSpanY > minSpanY;
 
   @override
@@ -106,6 +107,7 @@ abstract final class WidgetResize {
   static const int vertical = 2;
 
   static bool canResizeX(int mode) => mode & horizontal != 0;
+
   static bool canResizeY(int mode) => mode & vertical != 0;
 }
 
@@ -194,10 +196,10 @@ abstract final class WidgetSpanResolver {
     // resizeMode bit is checked anyway: a provider that reports both is not
     // obliged to keep them consistent, and a resize handle that appears on a
     // RESIZE_NONE widget is a visible bug either way.
-    final floorX = _cellsForDp(f.minResizeWidthDp, cell.w, cell.gutter)
-        .clamp(1, spanX);
-    final floorY = _cellsForDp(f.minResizeHeightDp, cell.h, cell.gutter)
-        .clamp(1, spanY);
+    final floorX =
+        _cellsForDp(f.minResizeWidthDp, cell.w, cell.gutter).clamp(1, spanX);
+    final floorY =
+        _cellsForDp(f.minResizeHeightDp, cell.h, cell.gutter).clamp(1, spanY);
 
     final canX = WidgetResize.canResizeX(f.resizeMode);
     final canY = WidgetResize.canResizeY(f.resizeMode);

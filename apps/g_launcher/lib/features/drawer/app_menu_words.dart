@@ -29,8 +29,7 @@
 library;
 
 import '../../engine/effective_theme.dart';
-import '../../engine/theme_spec.dart'
-    show ChromeFamily, DockSide, ShellKind;
+import '../../engine/theme_spec.dart' show ChromeFamily, DockSide, ShellKind;
 
 class AppMenuWords {
   const AppMenuWords({

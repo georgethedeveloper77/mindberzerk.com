@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/billing/entitlements.dart';
 import '../../data/cdn/pack_auto_update.dart';
@@ -14,7 +15,6 @@ import 'store_preview.dart';
 import 'theme_actions.dart';
 import 'theme_catalog.dart';
 import 'theme_detail_screen.dart';
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The theme storefront. A header, a 2-col grid of mini-desktop preview cards,
 /// and a "more" list of themes that arrive over the CDN.
@@ -104,8 +104,7 @@ class ThemesScreen extends ConsumerWidget {
     //
     // So a reload is invisible and the grid only changes when its contents
     // genuinely do.
-    final cards =
-        ref.watch(themeCatalogProvider).value ?? const <ThemeCard>[];
+    final cards = ref.watch(themeCatalogProvider).value ?? const <ThemeCard>[];
     final more = ref.watch(themeMoreProvider);
     final progress = ref.watch(packProgressProvider);
 
@@ -155,8 +154,7 @@ class ThemesScreen extends ConsumerWidget {
     /// distro is already installed, nothing routes to the detail page at all.
     void onCardTap(ThemeCard c) {
       final opensDetail = !isActive(c) &&
-          (c.status == CardStatus.locked ||
-              c.status == CardStatus.available);
+          (c.status == CardStatus.locked || c.status == CardStatus.available);
 
       if (!opensDetail) {
         // Deliberately not awaited: this is a tap handler, and the action
@@ -203,9 +201,9 @@ class ThemesScreen extends ConsumerWidget {
         // launcher deciding for them. Every route to a fetch now has the same
         // consequence, which is also one fewer rule to remember.
         onRefresh: () => refreshAndAutoUpdate(
-              ref.read(packActionsProvider),
-              ref.read(packAutoUpdaterProvider),
-            ),
+          ref.read(packActionsProvider),
+          ref.read(packAutoUpdaterProvider),
+        ),
         // ─── SLIVERS, AND IT WAS A ListView OF A Column ────────────────────
         //
         // A Column builds every child the moment it is laid out. So all thirty
@@ -388,9 +386,7 @@ class _Tabs extends ConsumerWidget {
               label: t.label,
               // No count on All: it is the total, and a number there is the one
               // figure on the strip that tells you nothing you can act on.
-              count: t == ThemeTab.all
-                  ? null
-                  : cards.where(t.matches).length,
+              count: t == ThemeTab.all ? null : cards.where(t.matches).length,
               selected: t == current,
               onTap: () => ref.read(themeTabProvider.notifier).state = t,
             ),
@@ -539,14 +535,15 @@ class _ThemeCard extends StatelessWidget {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      child: LinearProgressIndicator(
+                      child: ThemedProgress.linear(
                         // Indeterminate until the first real chunk arrives.
                         // Showing 0% for the DNS lookup and TLS handshake reads
                         // as stalled, which is when people tap again.
                         value: progress! <= 0 ? null : progress,
-                        minHeight: 3,
-                        backgroundColor: c.line,
-                        valueColor: AlwaysStoppedAnimation(c.accent),
+                        // THE PACK'S COLOUR, not the chrome's. Null for a pack
+                        // published before `previewAccent` existed, which the
+                        // component floors to the chrome accent.
+                        accent: card.preview.accent,
                       ),
                     ),
                 ],
@@ -849,7 +846,8 @@ class _Trailing extends ConsumerWidget {
       // exist in the console. All three render a card with no price, so a
       // fallback word is what stops the trailing slot going blank and reading as
       // a card that failed to load.
-      return _MiniLabel(ref.watch(productPriceProvider(card.sku)) ?? 'Buy', c.accent);
+      return _MiniLabel(
+          ref.watch(productPriceProvider(card.sku)) ?? 'Buy', c.accent);
     }
     if (!active && card.status == CardStatus.available) {
       return _MiniLabel('Get', c.accent);
@@ -925,7 +923,6 @@ class _MiniLabel extends StatelessWidget {
         ),
       );
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The mini-desktop preview. Pure decoration driven by ThemePreviewSpec.
@@ -1408,23 +1405,23 @@ class _MoreRow extends StatelessWidget {
               // getbtn: outlined, transparent. "Get" — active voice, names
               // exactly what tapping does.
               OutlinedButton(
-                  onPressed: onGet,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: c.text,
-                    side: BorderSide(color: c.line),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                  ),
-                  child: const Text(
-                    'Get',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                onPressed: onGet,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: c.text,
+                  side: BorderSide(color: c.line),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
                   ),
                 ),
+                child: const Text(
+                  'Get',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
             ],
           ),
         ),

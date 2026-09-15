@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the FileProvider in AndroidManifest.xml is allowed to hand out.
+
+    ONE ENTRY, deliberately. `cache-path` resolves to getCacheDir(), and the
+    `shared` subfolder is where BackupStore.stageForShare writes the single copy
+    a user asked to send. Nothing else in the app is reachable through the
+    provider: not the snapshot directory, not wallpapers, not prefs.
+
+    Widening this to cache-path with no path, or to files-path, would make every
+    staged and cached file reachable by anything holding a grant. There is no
+    reason to and no way to notice if it happened.
+-->
+<paths>
+    <cache-path name="shared" path="shared/" />
+</paths>

@@ -22,17 +22,17 @@ import '../dock/aqua_dock_metrics.dart';
 import '../dock/dock_metrics.dart' show DockMetrics;
 import 'desklet_cell.dart';
 import 'desklet_edit.dart';
-import 'desklet_settings.dart';
 import 'desklet_editor.dart';
 import 'desklet_picker.dart';
-import 'kinds/clock_desklet.dart';
+import 'desklet_settings.dart';
 import 'kinds/appwidget_desklet.dart';
+import 'kinds/clock_desklet.dart';
 import 'kinds/control_desklets.dart';
 import 'kinds/glance_desklet.dart';
-import 'kinds/welcome_desklet.dart';
 import 'kinds/pane_desklets.dart';
 import 'kinds/stack_desklet.dart';
 import 'kinds/stat_desklets.dart';
+import 'kinds/welcome_desklet.dart';
 
 /// Turn one stored placement into a widget. PHASE D3.
 ///
@@ -61,8 +61,7 @@ Widget? buildDesklet(
       ),
     'glance' => GlanceDesklet(theme: theme, desklet: desklet, skin: skin),
     'welcome' => WelcomeDesklet(theme: theme, desklet: desklet, skin: skin),
-    'appwidget' =>
-      AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
+    'appwidget' => AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
     'clock' => ClockDesklet(theme: theme, desklet: desklet, skin: skin),
     'monitor' => MonitorDesklet(theme: theme, desklet: desklet, skin: skin),
     'fastfetch' => FastfetchDesklet(theme: theme, desklet: desklet, skin: skin),
@@ -249,9 +248,7 @@ class DeskletSurfaceView extends ConsumerWidget {
           // .edit, never .update: `.update` mutates state without writing to
           // disk, so a corrected span would revert on the next cold start and
           // be recomputed on every launch forever.
-          ref
-              .read(prefsProvider(theme.spec.id).notifier)
-              .edit((_) => reflowed);
+          ref.read(prefsProvider(theme.spec.id).notifier).edit((_) => reflowed);
         });
 
         return Padding(
@@ -415,8 +412,7 @@ class _Tile extends StatelessWidget {
   /// Bare desklets hang off the top-left the way a desktop widget does; boxed
   /// ones centre in their cell, because a card with dead space on one side
   /// reads as a layout mistake rather than a choice.
-  static Alignment _alignFor(DeskletSkin skin) =>
-      switch (skin.surface) {
+  static Alignment _alignFor(DeskletSkin skin) => switch (skin.surface) {
         DeskletSurface.bare => Alignment.topLeft,
         DeskletSurface.terminal => Alignment.topLeft,
         DeskletSurface.card => Alignment.center,

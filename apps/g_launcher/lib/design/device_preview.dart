@@ -470,9 +470,8 @@ class DevicePreview extends StatelessWidget {
         // true at this size, and neither can eat the desktop.
         final base = 10.0 * s;
         final authored = panel?.height;
-        final height = authored == null
-            ? base
-            : base * (authored / 36.0).clamp(0.6, 1.8);
+        final height =
+            authored == null ? base : base * (authored / 36.0).clamp(0.6, 1.8);
 
         final modules = panel?.modules ?? const <PanelModule>[];
         if (modules.isEmpty) {
@@ -547,7 +546,6 @@ class DevicePreview extends StatelessWidget {
           _dotModule(unit, s),
           _dotModule(unit, s),
         ],
-
       PanelModule.clock => [block(unit * 1.8)],
 
       // The three readouts. Narrow blocks, because a throughput figure and a
@@ -562,6 +560,7 @@ class DevicePreview extends StatelessWidget {
       // the picture carries.
       PanelModule.battery => [block(unit * 1.2)],
       PanelModule.wifi => [block(unit * 1.2)],
+      PanelModule.volume => [block(unit * 1.2)],
 
       // An app is an icon, so it gets the square the dock icons get rather
       // than a readout's wide block.
@@ -730,7 +729,8 @@ class DevicePreview extends StatelessWidget {
   ///
   /// An empty desktop is a real thing and looks like a wallpaper, a bar and a
   /// dock. That is what it draws now.
-  Widget _grid(int across, {required double radius, int? maxDown, bool placeholders = true}) {
+  Widget _grid(int across,
+      {required double radius, int? maxDown, bool placeholders = true}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // The width the fixed numbers below were authored against, so at 150dp
@@ -1096,8 +1096,7 @@ class _DockStrip extends StatelessWidget {
 
         // A fraction rather than an int: the magnifier's extra 0.42 of a slot
         // is real width.
-        final demand =
-            slots + (style == 'magnified' && !vertical ? 0.42 : 0.0);
+        final demand = slots + (style == 'magnified' && !vertical ? 0.42 : 0.0);
 
         // ── THE MARGIN IS CAPPED BY THE ROW, NOT ONLY BY THE RUN ──────────
         //

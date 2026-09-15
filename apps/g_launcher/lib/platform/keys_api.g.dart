@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -96,7 +96,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// Why a keystore operation failed, in a form the caller can act on.
 ///
 /// An enum rather than a message, because the three cases need three different
@@ -104,18 +103,22 @@ int _deepHash(Object? value) {
 enum KeyFailure {
   /// The person dismissed the biometric prompt. Not an error: a cancel.
   cancelled,
+
   /// A new fingerprint or face was enrolled, so the key was destroyed by the
   /// platform. `setInvalidatedByBiometricEnrollment(true)` is what causes this
   /// and it is the right default; what it needs is copy that explains it and an
   /// offer to regenerate.
   invalidatedByEnrollment,
+
   /// No biometric or device credential is set up at all, so a key that requires
   /// one cannot be created.
   noAuthenticationConfigured,
+
   /// Below API 28, where there is no BiometricPrompt to carry a CryptoObject.
   /// The honest answer on such a device is that it cannot hold this kind of
   /// key, not a silently weaker one.
   unsupportedPlatform,
+
   /// Anything else. [KeyResult.message] carries the detail.
   unknown,
 }
@@ -171,7 +174,8 @@ class KeyInfo {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static KeyInfo decode(Object result) {
     result as List<Object?>;
@@ -194,7 +198,12 @@ class KeyInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(alias, other.alias) && _deepEquals(x, other.x) && _deepEquals(y, other.y) && _deepEquals(hardwareBacked, other.hardwareBacked) && _deepEquals(strongBoxBacked, other.strongBoxBacked) && _deepEquals(createdAtMillis, other.createdAtMillis);
+    return _deepEquals(alias, other.alias) &&
+        _deepEquals(x, other.x) &&
+        _deepEquals(y, other.y) &&
+        _deepEquals(hardwareBacked, other.hardwareBacked) &&
+        _deepEquals(strongBoxBacked, other.strongBoxBacked) &&
+        _deepEquals(createdAtMillis, other.createdAtMillis);
   }
 
   @override
@@ -240,7 +249,8 @@ class KeyResult {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static KeyResult decode(Object result) {
     result as List<Object?>;
@@ -261,7 +271,10 @@ class KeyResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(info, other.info) && _deepEquals(signature, other.signature) && _deepEquals(failure, other.failure) && _deepEquals(message, other.message);
+    return _deepEquals(info, other.info) &&
+        _deepEquals(signature, other.signature) &&
+        _deepEquals(failure, other.failure) &&
+        _deepEquals(message, other.message);
   }
 
   @override
@@ -274,21 +287,21 @@ class KeyResult {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
+
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is KeyFailure) {
+    } else if (value is KeyFailure) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is KeyInfo) {
+    } else if (value is KeyInfo) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is KeyResult) {
+    } else if (value is KeyResult) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
@@ -316,9 +329,11 @@ class KeysHostApi {
   /// Constructor for [KeysHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  KeysHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  KeysHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -327,7 +342,8 @@ class KeysHostApi {
 
   /// Aliases of every key this app holds.
   Future<List<String>> listKeys() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.KeysHostApi.listKeys$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.KeysHostApi.listKeys$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -337,31 +353,31 @@ class KeysHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
   /// The public part of one key, or null when the alias is unknown.
   Future<KeyInfo?> publicKey(String alias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.KeysHostApi.publicKey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.KeysHostApi.publicKey$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[alias]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[alias]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as KeyInfo?;
   }
 
@@ -373,21 +389,22 @@ class KeysHostApi {
   ///
   /// Not async: generation itself needs no prompt. Only signing does.
   Future<KeyResult> generateKey(String alias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.KeysHostApi.generateKey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.KeysHostApi.generateKey$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[alias]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[alias]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as KeyResult;
   }
 
@@ -397,21 +414,22 @@ class KeysHostApi {
   /// the caller should say so before calling this and remind the person to
   /// remove the line from `authorized_keys` afterwards.
   Future<bool> deleteKey(String alias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.KeysHostApi.deleteKey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.KeysHostApi.deleteKey$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[alias]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[alias]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -421,21 +439,22 @@ class KeysHostApi {
   /// prompt takes as long as a person takes, and `SSHKeyPair.sign` was declared
   /// to return synchronously.
   Future<KeyResult> sign(String alias, Uint8List challenge) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.KeysHostApi.sign$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.KeysHostApi.sign$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[alias, challenge]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[alias, challenge]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as KeyResult;
   }
 }

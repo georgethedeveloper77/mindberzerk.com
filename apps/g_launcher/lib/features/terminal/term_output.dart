@@ -124,7 +124,10 @@ class TermResult {
   /// Every text line across every chunk, for the pipe stages.
   List<TermLine> get textLines => <TermLine>[
         for (final TermChunk c in chunks)
-          if (c is TermTextChunk) ...c.lines else if (c is TermLiveChunk) ...c.lines,
+          if (c is TermTextChunk)
+            ...c.lines
+          else if (c is TermLiveChunk)
+            ...c.lines,
       ];
 
   bool get isEmpty => chunks.isEmpty;

@@ -201,8 +201,8 @@ class DrawerSlots {
 
     final stored = [...p.drawerSlots]..sort(
         (a, b) => flatOf(p, a.page, a.index).compareTo(
-              flatOf(p, b.page, b.index),
-            ),
+          flatOf(p, b.page, b.index),
+        ),
       );
 
     final hadDragged =
@@ -466,7 +466,8 @@ class DrawerSlots {
 
   // ── internals ─────────────────────────────────────────────────────────────
 
-  static bool _sameIdentity(DrawerSlot s, String? componentKey, String? folderId) {
+  static bool _sameIdentity(
+      DrawerSlot s, String? componentKey, String? folderId) {
     if (componentKey != null) return s.componentKey == componentKey;
     if (folderId != null) return s.folderId == folderId;
     return false;
@@ -515,7 +516,7 @@ class DrawerSlots {
           if (_isLive(s, liveAppKeys, liveFolderIds)) s,
       ]..sort(
           (a, b) => flatOf(p, a.page, a.index).compareTo(
-                flatOf(p, b.page, b.index),
-              ),
+            flatOf(p, b.page, b.index),
+          ),
         );
 }

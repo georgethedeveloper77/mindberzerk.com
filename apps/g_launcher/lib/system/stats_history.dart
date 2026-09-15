@@ -32,6 +32,7 @@ class StatsSample {
     this.batteryPercent,
     this.batteryTempC,
     this.batteryCurrentMa,
+    this.memUsedGb,
   });
 
   final double? downBytesPerSec;
@@ -40,12 +41,22 @@ class StatsSample {
   final double? batteryTempC;
   final int? batteryCurrentMa;
 
+  /// ─── SAMPLED FOR THE SAME REASON TEMPERATURE IS ─────────────────────────
+  ///
+  /// Memory was the one live figure with no history behind it, so the Memory
+  /// page could print 4.8 of 7G and say nothing about whether that was a
+  /// browser that had just opened or a number that had been climbing all
+  /// morning. A single reading cannot tell those apart, and telling them apart
+  /// is the whole reason somebody opens the page.
+  final double? memUsedGb;
+
   factory StatsSample.of(SystemStats s) => StatsSample(
         downBytesPerSec: s.netDownBytesPerSec,
         upBytesPerSec: s.netUpBytesPerSec,
         batteryPercent: s.batteryPercent,
         batteryTempC: s.batteryTempC,
         batteryCurrentMa: s.batteryCurrentMa,
+        memUsedGb: s.memUsedGb,
       );
 }
 

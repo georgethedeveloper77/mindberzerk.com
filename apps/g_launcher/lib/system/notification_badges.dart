@@ -41,7 +41,8 @@ class BadgeCounts extends Notifier<Map<String, int>> {
       if (raw is! Map) return null;
       state = {
         for (final e in raw.entries)
-          if (e.key is String && e.value is int) e.key as String: e.value as int,
+          if (e.key is String && e.value is int)
+            e.key as String: e.value as int,
       };
       return null;
     });
@@ -67,7 +68,8 @@ class BadgeCounts extends Notifier<Map<String, int>> {
       if (raw == null) return;
       state = {
         for (final e in raw.entries)
-          if (e.key is String && e.value is int) e.key as String: e.value as int,
+          if (e.key is String && e.value is int)
+            e.key as String: e.value as int,
       };
     } on PlatformException {
       // Never granted, or the channel is not up on this build. An absent badge

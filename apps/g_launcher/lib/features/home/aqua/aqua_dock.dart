@@ -1,12 +1,17 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/components/anchored_menu.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/aqua_dock_metrics.dart';
+import '../../dock/dock_extent.dart';
+import '../../dock/dock_motion.dart';
+import '../../drawer/drawer_drag.dart';
 import '../gnome/gnome_dock.dart' show DockEntry;
-import 'package:g_launcher/i18n/i18n.dart';
 
 /// The magnifying dock.
 ///
@@ -67,6 +72,14 @@ enum AquaDockStyle {
   /// Without this the handlers would still run and the slots would still
   /// resize, so a flat plank would shuffle its icons under a finger that was
   /// trying to drag one, and nothing on screen would explain why.
+  /// ─── MOVED TO `AquaDock._swells` ───────────────────────────────────────
+  ///
+  /// Kept as a getter rather than deleted because the answer is still true of
+  /// the VALUE: a pack authoring `magnified` does magnify, since the resolver
+  /// seeds `dockHover` from it. What changed is who asks. The dock reads the
+  /// hover field, so a user who turns magnification off on a Deepin pack gets a
+  /// dock that still sits the way Deepin's does.
+  @Deprecated('Read EffectiveTheme.dockHover; see AquaDock.hover.')
   bool get swells => this == AquaDockStyle.magnified;
 }
 
@@ -76,8 +89,11 @@ class AquaDock extends StatefulWidget {
     required this.entries,
     required this.palette,
     required this.style,
+    required this.hover,
+    required this.press,
     required this.onLaunchpad,
     this.opacity = 1.0,
+    this.onDropApp,
   });
 
   final List<DockEntry> entries;
@@ -85,6 +101,21 @@ class AquaDock extends StatefulWidget {
 
   /// How this dock sits. See [AquaDockStyle].
   final AquaDockStyle style;
+
+  /// How it responds to a finger, from `EffectiveTheme.dockHover`.
+  ///
+  /// ─── THE SWELL LEFT [style] ────────────────────────────────────────────
+  ///
+  /// `AquaDockStyle.magnified` meant two things at once: a corner radius and a
+  /// swell. The radius is a way of SITTING and stays on the style; the swell is
+  /// a RESPONSE and is one of seven now, so it moved to its own field.
+  ///
+  /// A pack that authored `dockStyle: "magnified"` still magnifies, because the
+  /// resolver seeds this from that value. Nothing republishes.
+  final String hover;
+
+  /// What a slot does when it is tapped, from `EffectiveTheme.dockPress`.
+  final String press;
 
   /// How solid the dock is, from `EffectiveTheme.dockOpacity`.
   ///
@@ -98,6 +129,22 @@ class AquaDock extends StatefulWidget {
   /// position a Mac keeps Trash in, and the one place in the dock that is not
   /// an app.
   final VoidCallback onLaunchpad;
+
+  /// An app arriving from another surface, by component key.
+  ///
+  /// ─── THE SAME CONTRACT THE GNOME DOCK USES ─────────────────────────────
+  ///
+  /// Null on a shell that does not accept drops, and that is also how the dock
+  /// refuses one: with no handler the target never accepts, so nothing
+  /// highlights and the drag returns to where it started.
+  ///
+  /// Reorder is deliberately NOT here yet. This dock lays its slots out with
+  /// `AquaDockMetrics.layout`, which positions by index inside a Stack rather
+  /// than by order in a Row, so an insertion caret has nowhere obvious to draw
+  /// and the drop-side test the GNOME slot does on `dx` has no equivalent while
+  /// the row is swelling. Dragging in and out works without it; ordering is its
+  /// own problem.
+  final void Function(String componentKey)? onDropApp;
 
   @override
   State<AquaDock> createState() => _AquaDockState();
@@ -130,6 +177,14 @@ class _AquaDockState extends State<AquaDock> {
   /// Panel padding, subtracted so the metrics see a run starting at zero.
   static const _padding = 8.0;
 
+  /// Does this dock's row swell under the finger?
+  ///
+  /// One reading, used by the layout call and by all four pointer handlers.
+  /// They were five separate `style.swells` tests and a sixth would have been
+  /// easy to forget, which is how a dock ends up tracking a pointer it does not
+  /// animate for.
+  bool get _swells => widget.hover == 'magnify';
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
@@ -146,8 +201,7 @@ class _AquaDockState extends State<AquaDock> {
         // The dock never spans the full width. A Mac's floats, with desktop
         // visible either side, and a phone dock that touches both edges reads as
         // a navigation bar rather than as a dock.
-        final available =
-            (constraints.maxWidth * 0.92) - _padding * 2;
+        final available = (constraints.maxWidth * 0.92) - _padding * 2;
 
         final slots = AquaDockMetrics.layout(
           count: slotCount,
@@ -156,15 +210,14 @@ class _AquaDockState extends State<AquaDock> {
           // back at its resting size. `layout` already takes a nullable focus
           // for the at-rest case, so this is one word rather than a second
           // layout path that would have to stay in step with this one.
-          focus: style.swells ? _focus : null,
+          focus: _swells ? _focus : null,
         );
         if (slots.isEmpty) return const SizedBox.shrink();
 
         // Tallest slot decides the panel height, so the panel grows with the
         // swell instead of clipping the magnified icon's top.
-        final tallest = slots
-            .map((s) => s.size)
-            .reduce((a, b) => a > b ? a : b);
+        final tallest =
+            slots.map((s) => s.size).reduce((a, b) => a > b ? a : b);
 
         // ONE radius, used by the clip AND the decoration below. They were two
         // literals and had to agree; three styles is exactly the number at
@@ -182,18 +235,37 @@ class _AquaDockState extends State<AquaDock> {
           AquaDockStyle.magnified => BorderRadius.circular(tallest * 0.28),
         };
 
-        return Center(
+        // ─── THE SWELL IS WHY THIS ONE HAS TO BE MEASURED ────────────────
+        //
+        // `AquaDockMetrics.reserve` is computed at the BASE slot, and a
+        // magnified dock is taller than that while a finger is on it. The
+        // constant is the only one of the two that can under-reserve, which
+        // puts the desktop's bottom row behind a lifted icon.
+        return DragTarget<DrawerDrag>(
+          // An app from the desktop or the drawer. Not one of this dock's own:
+          // there is no reorder here to accept it into.
+          onWillAcceptWithDetails: (d) =>
+              widget.onDropApp != null &&
+              d.data is AppDrag &&
+              d.data.from != DragOrigin.dock,
+          onAcceptWithDetails: (d) {
+            HapticFeedback.mediumImpact();
+            widget.onDropApp!((d.data as AppDrag).componentKey);
+          },
+          builder: (context, candidate, __) => DockExtentProbe(
+          vertical: false,
+          child: Center(
           child: Listener(
             behavior: HitTestBehavior.opaque,
             // Silent unless this dock swells. A flat plank that still tracked
             // the pointer would resize its slots invisibly and fight every
             // drag that started on it.
             onPointerDown:
-                style.swells ? (e) => _setFocusFrom(e.position) : null,
+                _swells ? (e) => _setFocusFrom(e.position) : null,
             onPointerMove:
-                style.swells ? (e) => _setFocusFrom(e.position) : null,
-            onPointerUp: style.swells ? (_) => _clearFocus() : null,
-            onPointerCancel: style.swells ? (_) => _clearFocus() : null,
+                _swells ? (e) => _setFocusFrom(e.position) : null,
+            onPointerUp: _swells ? (_) => _clearFocus() : null,
+            onPointerCancel: _swells ? (_) => _clearFocus() : null,
             child: ClipRRect(
               borderRadius: radius,
               child: BackdropFilter(
@@ -222,10 +294,49 @@ class _AquaDockState extends State<AquaDock> {
                             slot: slots[i],
                             tallest: tallest,
                             child: i < widget.entries.length
-                                ? _AquaSlotView(
-                                    entry: widget.entries[i],
-                                    size: slots[i].size,
-                                    accent: palette.accent,
+                                ? DockSlotMotion(
+                                    // ─── MAGNIFY IS ALREADY DONE HERE ────
+                                    //
+                                    // `AquaDockMetrics.layout` resizes the SLOT
+                                    // and conserves the run's total width,
+                                    // which is a better magnify than a scale
+                                    // transform and is covered by its own
+                                    // tests. Passing `none` for that mode
+                                    // leaves it alone; the other six have no
+                                    // layout equivalent and come from here.
+                                    mode: _swells ? 'none' : widget.hover,
+                                    focus: _focus == null
+                                        ? null
+                                        : DockFocus(
+                                            position: _focus!,
+                                            spread: AquaDockMetrics.spreadSlots *
+                                                slots[i].size,
+                                          ),
+                                    centre: slots[i].center,
+                                    slotSize: slots[i].size,
+                                    vertical: false,
+                                    child: DockPressMotion(
+                                      mode: widget.press,
+                                      focus: _focus == null
+                                          ? null
+                                          : DockFocus(
+                                              position: _focus!,
+                                              spread:
+                                                  AquaDockMetrics.spreadSlots *
+                                                      slots[i].size,
+                                              // This dock tracks its own
+                                              // pointer, and it only sets
+                                              // `_focus` while one is down.
+                                              pressed: true,
+                                            ),
+                                      centre: slots[i].center,
+                                      vertical: false,
+                                      child: _AquaSlotView(
+                                        entry: widget.entries[i],
+                                        size: slots[i].size,
+                                        accent: palette.accent,
+                                      ),
+                                    ),
                                   )
                                 : _LaunchpadSlot(
                                     size: slots[i].size,
@@ -239,6 +350,8 @@ class _AquaDockState extends State<AquaDock> {
                 ),
               ),
             ),
+          ),
+          ),
           ),
         );
       },
@@ -264,7 +377,7 @@ class _AquaDockState extends State<AquaDock> {
   }
 }
 
-class _AquaSlotView extends StatelessWidget {
+class _AquaSlotView extends ConsumerWidget {
   const _AquaSlotView({
     required this.entry,
     required this.size,
@@ -276,20 +389,8 @@ class _AquaSlotView extends StatelessWidget {
   final Color accent;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: entry.label,
-      child: GestureDetector(
-        onTap: entry.onTap,
-        // Same measured rect as the GNOME slot. A magnified slot is a different
-        // size every frame, and the menu opens beside whatever it is at the
-        // moment of the press, which is the honest answer.
-        onLongPress: entry.onLongPress == null
-            ? null
-            : () => entry.onLongPress!(AnchoredMenu.anchorOf(context)),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final core = Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Expanded(
@@ -323,6 +424,56 @@ class _AquaSlotView extends StatelessWidget {
                   : null,
             ),
           ],
+        );
+
+    // ─── A SOURCE, LIKE EVERY OTHER DOCK ────────────────────────────────
+    //
+    // `entry.id` is the component key, the same string `HomeLayout` matches
+    // against `favourites`, so the payload needs nothing this widget does not
+    // already hold.
+    //
+    // The feedback is the icon at its RESTING size rather than whatever the
+    // magnification made it this frame. A slot lifted mid-swell would leave the
+    // finger holding an icon that is a different size each time, which reads as
+    // the drag being unstable rather than as the dock being alive.
+    return Semantics(
+      button: true,
+      label: entry.label,
+      child: LongPressDraggable<DrawerDrag>(
+        data: AppDrag(entry.id, from: DragOrigin.dock),
+        // The swell carries each icon's drop target with it, so it stands down
+        // for the drag. See `dockDragActiveProvider`.
+        onDragStarted: () {
+          HapticFeedback.mediumImpact();
+          ref.read(dockDragActiveProvider.notifier).set(true);
+        },
+        onDragEnd: (_) =>
+            ref.read(dockDragActiveProvider.notifier).set(false),
+        onDraggableCanceled: (_, __) =>
+            ref.read(dockDragActiveProvider.notifier).set(false),
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Opacity(
+            opacity: 0.9,
+            child: SizedBox(width: size, height: size, child: entry.icon),
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: 0.25, child: core),
+        child: GestureDetector(
+          onTap: entry.onTap,
+          // Same measured rect as the GNOME slot. A magnified slot is a
+          // different size every frame, and the menu opens beside whatever it
+          // is at the moment of the press, which is the honest answer.
+          //
+          // The draggable above consumes the long press, so this fires only on
+          // a hold that never travelled. Same split the GNOME slot and the
+          // drawer tile both document.
+          onLongPress: entry.onLongPress == null
+              ? null
+              : () => entry.onLongPress!(AnchoredMenu.anchorOf(context)),
+          behavior: HitTestBehavior.opaque,
+          child: core,
         ),
       ),
     );
