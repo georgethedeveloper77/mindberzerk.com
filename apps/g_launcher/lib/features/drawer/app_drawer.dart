@@ -2350,6 +2350,26 @@ class _AzList extends StatefulWidget {
 class _AzListState extends State<_AzList> {
   final ScrollController _controller = ScrollController();
 
+  /// ─── THE SECTION UNDER THE FINGER, OR NULL ────────────────────────────
+  ///
+  /// While the rail is held, the list shows ONLY this section. On release it
+  /// goes back to everything, scrolled to where that section starts.
+  ///
+  /// ─── WHY FOCUS RATHER THAN SCROLL ──────────────────────────────────────
+  ///
+  /// The first cut scrolled: drag to G and the list jumps so the G header sits
+  /// at the top. That is what a desktop fast-scroll does and on a phone it is
+  /// noticeably worse. Half the screen under the finger is still F and H, the
+  /// thing being aimed at is a header rather than the apps, and every letter
+  /// crossed on the way relays out a full screen of tiles nobody wanted.
+  ///
+  /// Showing one section answers the actual question. "G" means "the G apps",
+  /// there are usually four of them, and they land alone with nothing to read
+  /// past. It is also far cheaper: four rows rebuild per letter instead of the
+  /// whole drawer, which is most of why the reference launcher's rail feels
+  /// weightless rather than merely fast.
+  String? _focus;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -2411,6 +2431,29 @@ class _AzListState extends State<_AzList> {
     _controller.jumpTo(offset.clamp(0.0, max));
   }
 
+  /// Enter or move within focus mode. Cheap enough to call on every letter.
+  void _setFocus(String label) {
+    if (_focus == label) return;
+    setState(() => _focus = label);
+  }
+
+  /// Leave focus mode and land on the section that was last held.
+  ///
+  /// The jump happens AFTER the frame that restores the full list, because the
+  /// offset it uses only exists once every section is back in the tree. Jumping
+  /// first would clamp against a `maxScrollExtent` measured while four rows
+  /// were on screen, which is to say against nearly zero.
+  void _release(Map<String, double> offsets) {
+    final was = _focus;
+    if (was == null) return;
+    setState(() => _focus = null);
+    final at = offsets[was];
+    if (at == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _jumpTo(at);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
@@ -2442,11 +2485,44 @@ class _AzListState extends State<_AzList> {
     // exactly that height.
     final offsets = <String, double>{};
     var y = 12 + widget.topGap;
-    if (pinned.isNotEmpty) y += _gridHeight(pinned.length);
+
+    // ─── '#' IS THE TOP OF THE LIST, NOT JUST THE ODD LABELS ─────────────
+    //
+    // Folders and the launcher's own entries render above the first letter,
+    // and the rail had no label that reached them: the only way back up was to
+    // land on A and scroll. '#' is exactly the right handle for that, because
+    // it already means "everything that is not a letter" and these are not.
+    //
+    // Registered BEFORE the pinned height is added, so it lands at the very top
+    // rather than at the first section. If an app also files under '#' (a name
+    // starting with a digit or an emoji) that section keeps this same offset,
+    // which is correct: one label, one destination, and the focused view below
+    // shows both halves together.
+    if (pinned.isNotEmpty) {
+      offsets[kIndexOther] = y;
+      y += _gridHeight(pinned.length);
+    }
     for (final e in sections.entries) {
-      offsets[e.key] = y;
+      // `putIfAbsent`, so a '#' app section does not overwrite the pinned block
+      // registered above it. Whichever comes first in the list wins, which is
+      // what a jump target has to mean.
+      offsets.putIfAbsent(e.key, () => y);
       y += _SectionHeader.height + _gridHeight(e.value.length);
     }
+
+    // ─── OFFSETS ARE ALWAYS THE UNFILTERED ONES ──────────────────────────
+    //
+    // Computed above from every section, before the focus filter below, and
+    // that ordering is the whole trick: the number the release lands on has to
+    // describe the list the user is about to see, not the four rows they are
+    // looking at while holding the rail.
+    final focus = _focus;
+    final shown = focus == null
+        ? sections
+        : {
+            for (final e in sections.entries)
+              if (e.key == focus) e.key: e.value,
+          };
 
     final delegate = SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: widget.columns,
@@ -2461,11 +2537,18 @@ class _AzListState extends State<_AzList> {
       slivers: [
         // The empty first row, as padding, exactly as the unsectioned grid
         // does it. Applied once at the top rather than per section.
+        // Kept while focused. The gap is the drawer's own top inset, under the
+        // search bar, and dropping it would make the focused section jump up
+        // under the chrome the moment the finger lands.
         SliverToBoxAdapter(child: SizedBox(height: 12 + widget.topGap)),
 
-        if (pinned.isNotEmpty) _sliverFor(pinned, delegate),
+        // Pinned items are drawer chrome, not a letter section, so they are
+        // dropped while focused for the same reason every other section is:
+        // "G" means the G apps and nothing else.
+        if (pinned.isNotEmpty && (focus == null || focus == kIndexOther))
+          _sliverFor(pinned, delegate),
 
-        for (final e in sections.entries) ...[
+        for (final e in shown.entries) ...[
           SliverToBoxAdapter(
             child: _SectionHeader(letter: e.key, theme: theme),
           ),
@@ -2495,11 +2578,17 @@ class _AzListState extends State<_AzList> {
           child: AzRail(
             style: widget.rail,
             theme: theme,
-            present: sections.keys.toSet(),
-            onJump: (label) {
-              final at = offsets[label];
-              if (at != null) _jumpTo(at);
+            // '#' is present whenever there is a pinned block to reach, even
+            // with no app filed under it. Without this the label draws faint,
+            // `_resolve` sends the finger to A, and the top of the drawer stays
+            // unreachable from the one control built to reach it.
+            present: {
+              ...sections.keys,
+              if (pinned.isNotEmpty) kIndexOther,
             },
+            // FOCUS, not scroll. See `_focus`.
+            onJump: _setFocus,
+            onRelease: () => _release(offsets),
           ),
         ),
       ],

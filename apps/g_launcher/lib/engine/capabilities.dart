@@ -318,6 +318,40 @@ extension ThemeCapabilities on EffectiveTheme {
             const Capability(false, 'why.noDockOnThisDesktop'),
         };
 
+  /// Can this distro file its apps into the Library?
+  ///
+  /// ─── ONLY WHERE THE DISTRO AUTHORS IT, AND THIS IS A REMOVAL ────────────
+  ///
+  /// Library shipped as a universal option and should not have. It is a
+  /// specific desktop's idea: elementary's Applications view and the COSMIC app
+  /// library are where category bubbles come from, and both of those distros
+  /// author `drawerGrouping: "library"` as their own answer. On Ubuntu it is a
+  /// feature from a desktop Ubuntu does not have, offered on a page that is
+  /// otherwise careful to say what each distro does and does not do.
+  ///
+  /// That matters more here than anywhere else on the settings screen, because
+  /// distros are the product. A setting that makes Ubuntu look like elementary
+  /// is the catalogue arguing with itself.
+  ///
+  /// ─── READ FROM spec.layout, WHICH IS USUALLY THE WRONG THING TO DO ──────
+  ///
+  /// `EffectiveTheme` says plainly that a shell must read the RESOLVED value
+  /// and never `spec.layout`, and it is right: reading the authored value is
+  /// how a user's pref gets ignored.
+  ///
+  /// This is the exception the rule allows for, because the question is not
+  /// "what is the grouping" but "did this distro claim the Library as its own".
+  /// Only the authored value can answer that. Resolving first would make the
+  /// capability flip the moment the user picked Library, which would let the
+  /// option authorise itself.
+  ///
+  /// So elementary and Zorin keep it, including for a user who switched away
+  /// and wants it back. Everyone else never offers it again.
+  Capability get canUseLibrary =>
+      spec.layout.drawerGrouping == 'library' || appDrawer == 'library'
+          ? const Capability(true)
+          : const Capability(false, 'why.thisDistroDrawsItsOwnMenu');
+
   /// Can the dock be a list of names instead of a bar of icons?
   ///
   /// ─── GNOME ONLY, AND THAT IS A FIDELITY CALL ────────────────────────────

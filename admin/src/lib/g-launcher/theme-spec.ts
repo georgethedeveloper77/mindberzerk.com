@@ -353,7 +353,7 @@ export type DockStyleName = (typeof DOCK_STYLES)[number];
  * On `apps` the Dock position and Dock opacity rows grey out: there is no dock
  * on the desktop to position or fade.
  */
-export const DOCK_REVEALS = ['always', 'apps'] as const;
+export const DOCK_REVEALS = ['always', 'apps', 'desktop'] as const;
 export type DockRevealName = (typeof DOCK_REVEALS)[number];
 
 export interface ThemeLayoutJson {

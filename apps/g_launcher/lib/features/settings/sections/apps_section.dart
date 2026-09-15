@@ -17,10 +17,10 @@ import '../../../design/components/components.dart';
 import '../../../design/device_preview.dart';
 import '../../../design/drawer_transition.dart';
 import '../../../design/setting_previews.dart';
-import '../../drawer/az_rail.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../system/notification_badges.dart';
+import '../../drawer/az_rail.dart';
 import '../folders_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
@@ -44,22 +44,15 @@ List<Widget> applicationsSection(
   // ignore: unused_local_variable
   final api = ref.read(launcherHostApiProvider);
 
-  // ── THE INDEX RAIL'S TWO PRECONDITIONS ─────────────────────────────────
+  // ─── THE PRECONDITION LOCALS ARE GONE ───────────────────────────────────
   //
-  // Hoisted because the row below needs them twice each and the list is a
-  // literal with nowhere to put a local. Read off `theme`, resolved, like
-  // every row that follows.
-  final railIsUsable = theme.canChooseIndexRail.available &&
-      theme.drawerScrollStyle == 'vertical' &&
-      theme.drawerGrouping == 'az';
-
-  // Rows need the list layout and nothing else. The index needs the headings
-  // on top of that, which is why these two are separate booleans rather than
-  // one "the list is set up" flag: they grey at different moments and a shared
-  // flag would have the shape row go dark the instant somebody turned headings
-  // off.
-  final rowsAreUsable = theme.canChooseListStyle.available &&
-      theme.drawerScrollStyle == 'vertical';
+  // `railIsUsable` and `rowsAreUsable` each folded a capability together with a
+  // precondition on another setting, and both rows then refused on either. That
+  // was one rule doing two jobs, and the second job is now the rows' own: a
+  // setting in the way gets set, not reported.
+  //
+  // What is left is the capability, read inline at each row, which is the only
+  // half a user cannot act on.
 
   return [
     // The columns stepper, the scroll style and the grouping all describe this
@@ -254,7 +247,8 @@ List<Widget> applicationsSection(
                 // alphabetical and so would have looked correct while quietly
                 // putting a value in prefs that no reader matches on.
                 notifier.edit(
-                  (p) => v == 'vertical' && (p.drawerSortMode ?? 'custom') == 'custom'
+                  (p) => v == 'vertical' &&
+                          (p.drawerSortMode ?? 'custom') == 'custom'
                       ? p
                           .copyWith(drawerScrollStyle: v)
                           .clearing(drawerSortMode: true)
@@ -361,9 +355,12 @@ List<Widget> applicationsSection(
                 ? context.t(theme.canChooseDrawerGrouping.why!)
                 : switch (theme.drawerGrouping) {
                     'library' => 'Apps filed into category folders',
-                    'az' => theme.drawerScrollStyle == 'vertical'
-                        ? 'Letter headings down the list'
-                        : 'Headings need the list layout',
+                    // No longer "headings need the list layout". Picking A to Z
+                    // now GIVES them the list layout, by the same rule the two
+                    // rows below follow. A subtitle explaining a prerequisite is
+                    // the launcher knowing the answer and asking the user to go
+                    // and type it in.
+                    'az' => 'Letter headings down the list',
                     _ => 'One flat run of apps',
                   },
             trailing: Seg(
@@ -376,14 +373,41 @@ List<Widget> applicationsSection(
               onFollow: () => notifier.edit(
                 (p) => p.clearing(drawerGrouping: true),
               ),
-              options: const {
+              options: {
                 'none': 'Off',
                 'az': 'A to Z',
-                'library': 'Library',
+                // ─── LIBRARY ONLY WHERE THE DISTRO CLAIMS IT ────────────
+                //
+                // Dropped from the OPTIONS rather than greying the row,
+                // because the row itself still works: Off and A to Z are live
+                // on every distro that gets this far. Greying all three to
+                // refuse one would take away two settings to remove a third.
+                //
+                // The one case the rule has to survive is a user already ON
+                // Library on a distro that never authored it, from before this
+                // gate existed. `canUseLibrary` reads the authored value, so
+                // they keep the option visible until they leave it, and the
+                // `value` below has something to match. Dropping it out from
+                // under them would render a Seg with no selection.
+                if (theme.canUseLibrary.available ||
+                    theme.drawerGrouping == 'library')
+                  'library': 'Library',
               },
-              onChanged: (v) => notifier.edit(
-                (p) => p.copyWith(drawerGrouping: v),
-              ),
+              onChanged: (v) => notifier.edit((p) {
+                // Only 'az' implies anything. 'off' is a flat run, which every
+                // layout can render, and 'library' is category bubbles, which
+                // reach a different widget entirely and would be actively wrong
+                // to drag the scroll style along with.
+                if (v != 'az') return p.copyWith(drawerGrouping: v);
+                var next = p.copyWith(
+                  drawerGrouping: v,
+                  drawerScrollStyle: 'vertical',
+                );
+                if ((p.drawerSortMode ?? 'custom') == 'custom') {
+                  next = next.clearing(drawerSortMode: true);
+                }
+                return next;
+              }),
             ),
           ),
         ),
@@ -405,20 +429,49 @@ List<Widget> applicationsSection(
           SettingsRow(
             icon: Icons.view_agenda_outlined,
             title: 'List shape',
-            subtitle: !theme.canChooseListStyle.available
-                ? context.t(theme.canChooseListStyle.why!)
-                : theme.drawerScrollStyle != 'vertical'
-                    ? 'Rows need the list layout'
-                    : 'Cells in a grid, or names in rows',
-            subtitleTint:
-                rowsAreUsable ? null : SettingsSkin.of(context).warn,
+            // ─── GREY FOR THE DISTRO, RECONFIGURE FOR A SETTING ────────
+            //
+            // The rule, stated once here and followed by the two rows below.
+            //
+            // A DISTRO limit greys, because the user cannot do anything about
+            // it: Kickoff is a list, the terminal has no grid, elementary draws
+            // its own menu. Naming the reason teaches them something true about
+            // the distro they chose.
+            //
+            // Another SETTING in the way reconfigures, because they CAN do
+            // something about it and making them go and do it is just a puzzle.
+            // Picking Rows plainly means "I want a list of names"; refusing
+            // until they have also set the layout above is the launcher knowing
+            // the answer and withholding it.
+            //
+            // Never hide. A control that vanishes teaches nothing and reads as
+            // a bug the next time somebody remembers it existing.
+            subtitle: theme.canChooseListStyle.available
+                ? 'Cells in a grid, or names in rows'
+                : context.t(theme.canChooseListStyle.why!),
+            subtitleTint: theme.canChooseListStyle.available
+                ? null
+                : SettingsSkin.of(context).warn,
             trailing: Seg(
-              enabled: rowsAreUsable,
+              // The CAPABILITY only. `rowsAreUsable` folded the layout
+              // precondition in here, which is now the thing this row fixes
+              // rather than a reason to refuse.
+              enabled: theme.canChooseListStyle.available,
               value: theme.drawerListStyle,
               options: const {'grid': 'Grid', 'rows': 'Rows'},
-              onChanged: (v) => notifier.edit(
-                (p) => p.copyWith(drawerListStyle: v),
-              ),
+              onChanged: (v) => notifier.edit((p) {
+                if (v != 'rows') return p.copyWith(drawerListStyle: v);
+                // Rows imply the list. Both preconditions in one write, so
+                // there is no frame where the drawer is rows-and-paged.
+                var next = p.copyWith(
+                  drawerListStyle: v,
+                  drawerScrollStyle: 'vertical',
+                );
+                if ((p.drawerSortMode ?? 'custom') == 'custom') {
+                  next = next.clearing(drawerSortMode: true);
+                }
+                return next;
+              }),
             ),
           ),
         ),
@@ -456,17 +509,19 @@ List<Widget> applicationsSection(
           SettingsRow(
             icon: Icons.format_list_numbered,
             title: 'Index rail',
-            subtitle: !theme.canChooseIndexRail.available
-                ? context.t(theme.canChooseIndexRail.why!)
-                : theme.drawerScrollStyle != 'vertical'
-                    ? 'The index needs the list layout'
-                    : theme.drawerGrouping != 'az'
-                        ? 'The index needs A to Z headings'
-                        : 'Jump to a letter from the edge',
-            subtitleTint:
-                railIsUsable ? null : SettingsSkin.of(context).warn,
+            // Same rule as List shape above. The index has TWO preconditions,
+            // the layout and the headings, and needing two is the strongest
+            // argument for setting them rather than explaining them: a subtitle
+            // that says "and also turn on headings" is a worse instruction than
+            // just turning them on.
+            subtitle: theme.canChooseIndexRail.available
+                ? 'Jump to a letter from the edge'
+                : context.t(theme.canChooseIndexRail.why!),
+            subtitleTint: theme.canChooseIndexRail.available
+                ? null
+                : SettingsSkin.of(context).warn,
             trailing: Seg(
-              enabled: railIsUsable,
+              enabled: theme.canChooseIndexRail.available,
               value: theme.drawerIndexRail,
               // No `following` pair, unlike every Seg around it. There is no
               // distro arm to follow: see `LauncherPrefs.drawerIndexRail` for
@@ -475,9 +530,18 @@ List<Widget> applicationsSection(
               options: {
                 for (final r in IndexRail.catalogue) r.value: r.copy.$1,
               },
-              onChanged: (v) => notifier.edit(
-                (p) => p.copyWith(drawerIndexRail: v),
-              ),
+              onChanged: (v) => notifier.edit((p) {
+                if (v == 'off') return p.copyWith(drawerIndexRail: v);
+                var next = p.copyWith(
+                  drawerIndexRail: v,
+                  drawerScrollStyle: 'vertical',
+                  drawerGrouping: 'az',
+                );
+                if ((p.drawerSortMode ?? 'custom') == 'custom') {
+                  next = next.clearing(drawerSortMode: true);
+                }
+                return next;
+              }),
             ),
           ),
         ),

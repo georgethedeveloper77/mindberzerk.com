@@ -8,6 +8,8 @@ import {
   APPS_SURFACES,
   CHROMES,
   DOCKS,
+  DOCK_REVEALS,
+  DOCK_STYLES,
   DRAWER_GROUPINGS,
   DRAWER_SCROLLS,
   ICON_TREATMENTS,
@@ -21,6 +23,8 @@ import {
   type AppsSurfaceName,
   type ChromeName,
   type DockName,
+  type DockRevealName,
+  type DockStyleName,
   type IconStyleJson,
   type KickoffRailName,
   type ShellName,
@@ -334,6 +338,24 @@ const SHELL_READS: Record<string, readonly ShellName[]> = {
   // AppDrawer only. Kickoff and the tiling prompt read neither.
   drawerScrollStyle: ['gnome', 'aqua', 'tui'],
   drawerGrouping: ['gnome', 'aqua', 'tui'],
+  // ─── THE TWO DOCK FIELDS, WHICH NO CONTROL HAS EVER OFFERED ─────────────
+  //
+  // Both are read by the device, both survive `canonSpec`, and neither had a
+  // field here. A distro carrying one got it from an import or from a draft
+  // written before this panel existed, and anything authored since has been
+  // publishing without them.
+  //
+  // Pocket is the case that surfaced it: its store page sells "the dock steps
+  // aside" and its pack has no `dockReveal`, so the promise was unkeepable from
+  // the admin. That is the worst version of this bug, because the copy is
+  // written against a field the builder cannot set.
+  //
+  // `dockStyle` is gnome and aqua: `GnomeDockStyle.parse` reads it and
+  // `AquaDock` has its own flat arm. `dockReveal` is those two plus the gnome
+  // dash; plasma puts its launchers on the panel and the tiling and terminal
+  // shells draw no dock at all.
+  dockStyle: ['gnome', 'aqua'],
+  dockReveal: ['gnome', 'aqua'],
 };
 
 const shellList = (names: readonly ShellName[]) =>
@@ -376,6 +398,50 @@ export function LayoutEditor(props: {
           onChange={(v) => setLayout({ dock: v })}
         />
       </Field>
+
+      {/* Both sit under the side, because all three answer questions about the
+          same object and a reader looking for one will look here for the rest.
+
+          Gated on the reading shells like everything else in this editor, and
+          hidden entirely when the dock is off: a distro with no dock has no
+          style to choose and nothing to reveal, and offering either would be
+          two controls that change nothing. */}
+      {layout.dock !== 'off' && reads('dockStyle') ? (
+        <Field
+          label="dock style"
+          hint={`flat meets the edge, floating lifts off it${readBy('dockStyle')}`}
+        >
+          <Segmented<DockStyleName>
+            value={layout.dockStyle ?? 'floating'}
+            options={DOCK_STYLES}
+            // ─── THE DEFAULT WRITES UNDEFINED ────────────────────────────
+            //
+            // `canonSpec` omits a field equal to its default, so writing
+            // 'floating' explicitly would be dropped at publish anyway. Storing
+            // undefined keeps the draft and the published pack saying the same
+            // thing, which is the difference between a field that looks unset
+            // and one that is.
+            onChange={(v) =>
+              setLayout({ dockStyle: v === 'magnified' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
+
+      {layout.dock !== 'off' && reads('dockReveal') ? (
+        <Field
+          label="dock reveal"
+          hint={`always, desktop only, or in the apps overview${readBy('dockReveal')}`}
+        >
+          <Segmented<DockRevealName>
+            value={layout.dockReveal ?? 'always'}
+            options={DOCK_REVEALS}
+            onChange={(v) =>
+              setLayout({ dockReveal: v === 'always' ? undefined : v })
+            }
+          />
+        </Field>
+      ) : null}
       <div style={{ marginBottom: 12 }}>
         <Toggle
           value={layout.topBar}

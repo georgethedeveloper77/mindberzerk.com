@@ -20,6 +20,7 @@ import '../../platform/pack_api.g.dart';
 import '../drawer/app_icon.dart';
 import '../themes/theme_catalog.dart' show CardStatus;
 import 'icon_appearance_rows.dart';
+import 'icon_preview.dart';
 
 /// One native handle for the preview lookup, mirroring theme_engine's rule:
 /// a new Pigeon wrapper per card is a new codec instance for no reason.
@@ -1925,7 +1926,14 @@ class _Swatch extends StatelessWidget {
                   padding: const EdgeInsets.all(9),
                   child: FittedBox(
                     fit: BoxFit.contain,
-                    child: _PackPreview(theme: theme, packId: pack.packId),
+                    child: _PackPreview(
+                      theme: theme,
+                      packId: pack.packId,
+                      // Straight off the catalogue entry this swatch is already
+                      // holding. No second lookup, and no way for the colour
+                      // shown to disagree with the colour sold.
+                      tint: pack.tint,
+                    ),
                   ),
                 ),
                 if (owned)
@@ -2109,13 +2117,99 @@ class _PackCard extends ConsumerWidget {
 /// previews existed, for a dead network, and for the frame before the image
 /// arrives, so a card never shows a broken-image glyph or an empty box.
 class _PackPreview extends ConsumerWidget {
-  const _PackPreview({required this.theme, required this.packId});
+  const _PackPreview({
+    required this.theme,
+    required this.packId,
+    this.tint,
+  });
 
   final EffectiveTheme theme;
   final String packId;
 
+  /// `PackInfo.tint`, when the pack has one.
+  ///
+  /// ─── A TINT MEANS THERE IS NOTHING TO DOWNLOAD A PICTURE OF ─────────────
+  ///
+  /// The catalogue carries this precisely so a derived pack can be previewed
+  /// without installing it, and its own doc says as much: 207 bytes of hex
+  /// pointing at geometry already on the device. Asking the CDN for a
+  /// `preview.png` inside a pack that contains no art is a request that
+  /// resolves, 404s, and lands on the schematic, which is why every colour in
+  /// the strip drew the same grey placeholder.
+  ///
+  /// Null for hero packs, third-party packs and Simple Icons, which carry their
+  /// colours inside the art and therefore DO have a picture worth fetching.
+  /// Those keep the URL path below unchanged.
+  final String? tint;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = tint;
+    if (t != null) {
+      // Rendered at 2x the drawn size: these land in a 34dp swatch under a
+      // `FittedBox`, and a bitmap rasterised at exactly its display size is
+      // soft on a 3x screen.
+      // FOUR, as a constant rather than a parameter. Every caller of this
+      // widget draws a 2x2, and the one place that wants eight is the setup
+      // wizard, which reads the provider directly. A knob no call site turns is
+      // a guess about a future caller, and the analyzer is right to say so.
+      final shot = ref.watch(
+        iconPreviewProvider((tint: t, sizePx: 96, count: 4)),
+      );
+      final drawn = [
+        for (final b in shot.value ?? const <Uint8List?>[])
+          if (b != null) b,
+      ];
+      // Empty is the honest first frame and also the widget-test state. The
+      // schematic is what this drew before, so nothing regresses while native
+      // is still working.
+      if (drawn.isEmpty) return _Schematic(theme: theme, accent: false);
+
+      // ─── A FIXED BOX, NOT A GridView ────────────────────────────────────
+      //
+      // The caller wraps this in a `FittedBox`, which hands its child UNBOUNDED
+      // constraints so it can measure the natural size and scale it. A
+      // shrink-wrapped `GridView` cannot size itself in that: it reported
+      // `size: MISSING` and took the whole Icons screen down through layout and
+      // paint.
+      //
+      // Anything under a FittedBox has to have an intrinsic size of its own.
+      // 96 square with `Expanded` children is bounded from the outside in, so
+      // it measures in one pass and the FittedBox scales it to the 34dp swatch
+      // or the 120px card without either of them knowing the number.
+      //
+      // Padded to four so a pack that rendered three still draws a 2x2 rather
+      // than an L, which would read as a broken tile rather than a partial one.
+      final cells = <Uint8List?>[
+        ...drawn.take(4),
+        for (var i = drawn.length; i < 4; i++) null,
+      ];
+      Widget cell(int i) => cells[i] == null
+          ? const SizedBox.shrink()
+          : Image.memory(cells[i]!, fit: BoxFit.contain);
+      Widget row(int a, int b) => Expanded(
+            child: Row(
+              children: [
+                Expanded(child: cell(a)),
+                const SizedBox(width: 4),
+                Expanded(child: cell(b)),
+              ],
+            ),
+          );
+
+      return SizedBox(
+        width: 96,
+        height: 96,
+        child: Column(
+          children: [
+            row(0, 1),
+            const SizedBox(height: 4),
+            row(2, 3),
+          ],
+        ),
+      );
+    }
+
     final url = ref.watch(packPreviewUrlProvider(packId)).asData?.value;
     if (url == null) return _Schematic(theme: theme, accent: false);
 

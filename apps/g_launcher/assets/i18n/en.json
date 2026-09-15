@@ -1100,5 +1100,6 @@
   "why.theTerminalPaintsItsOwn": "The terminal paints its own background",
   "why.thisDistroDrawsItsOwnMenu": "This distro draws its own menu",
   "why.thisDistroStaysDark": "{name} stays dark",
-  "why.toolMenuIsCategories": "The tool menu files by category"
+  "why.toolMenuIsCategories": "The tool menu files by category",
+  "setup.step.icons": "Setup Icons"
 }

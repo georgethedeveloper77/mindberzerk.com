@@ -30,6 +30,7 @@ import '../../engine/theme_spec.dart';
 import '../../i18n/i18n.dart';
 // AppEntry, for resolving a suggestion's componentKeys into icons.
 import '../../platform/launcher_api.g.dart';
+import '../icons/icon_preview.dart';
 import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
 import '../desklets/desklet_preview.dart';
@@ -2070,9 +2071,14 @@ class _StepIcons extends ConsumerWidget {
     // palette. Read from the palette rather than the catalogue so this works
     // before an index has ever been fetched, which on a fresh device is the
     // only state this step ever runs in.
-    final tint = _hexOf(theme.palette.accent);
+    final tint = previewHexOf(theme.palette.accent);
 
-    final shot = ref.watch(_iconPreviewProvider((tint: tint, sizePx: sizePx)));
+    // Eight, because `_DistroIconGrid` fills an eight-cell grid. The count is
+    // part of the provider key now, so the colour swatches on the Icons screen
+    // can ask for four without rendering four they will not draw.
+    final shot = ref.watch(
+      iconPreviewProvider((tint: tint, sizePx: sizePx, count: 8)),
+    );
     final drawn = [
       for (final b in shot.value ?? const <Uint8List?>[])
         if (b != null) b,
@@ -2125,42 +2131,6 @@ class _StepIcons extends ConsumerWidget {
     );
   }
 }
-
-/// `#RRGGBB` for the native preview bridge, which parses a hex string.
-///
-/// Alpha is dropped rather than passed: a tint is a colour, the pack applies it
-/// at full opacity, and handing native eight hex digits where it expects six is
-/// the kind of thing that fails as a black icon rather than as an error.
-String _hexOf(Color c) {
-  final v = c.toARGB32() & 0x00FFFFFF;
-  return '#${v.toRadixString(16).padLeft(6, '0')}';
-}
-
-/// Eight of the user's real apps, rendered in an arbitrary tint by native.
-///
-/// A RECORD as the family key, for the structural equality a key needs without
-/// a hand-written `==` whose only failure mode is forgetting the next field.
-///
-/// Auto-disposing on purpose: these bitmaps describe a moment of choosing and
-/// must not outlive the wizard. Native caches none of them either, because
-/// `IconCache` keys by the APPLIED style and a previewed colour is not one.
-final _iconPreviewProvider =
-    FutureProvider.family<List<Uint8List?>, ({String tint, int sizePx})>(
-        (ref, key) async {
-  final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
-  if (apps.isEmpty) return const [];
-
-  final keys = [for (final a in apps.take(8)) a.componentKey];
-  try {
-    return await ref
-        .read(launcherHostApiProvider)
-        .previewIcons(keys, key.tint, key.sizePx);
-  } catch (_) {
-    // The pack is not installed, or the bridge is not there at all, which is
-    // exactly the state of a widget test. Empty, and the card draws glyphs.
-    return const [];
-  }
-});
 
 /// What the distro's pack would give you: real bytes when they exist, outline
 /// glyphs in the accent when they do not. See [_StepIcons] for why both.
@@ -2253,7 +2223,7 @@ class _AppIconGrid extends ConsumerWidget {
 }
 
 /// The generator tier for eight of this phone's apps. Sibling of
-/// [_iconPreviewProvider], keyed only by size because there is no colour to
+/// [iconPreviewProvider], keyed only by size because there is no colour to
 /// substitute: the artwork IS the app's own.
 final _appIconPreviewProvider =
     FutureProvider.family<List<Uint8List?>, int>((ref, sizePx) async {
@@ -2655,8 +2625,26 @@ class _StepDrawer extends ConsumerWidget {
                 selected: style == 'vertical',
                 mono: mono,
                 marker: mono ? SetupMarker.chevron : SetupMarker.radio,
-                onTap: () => notifier
-                    .edit((p) => p.copyWith(drawerScrollStyle: 'vertical')),
+                // ─── THE SAME RESET apps_section DOES ────────────────────
+                //
+                // `drawerSortMode` defaults to 'custom', and Custom renders
+                // from the sparse slot arrangement through `DrawerPager`
+                // without ever reading the scroll style. Writing 'vertical'
+                // alone here would put a brand new user into the exact state
+                // this step is asking them to avoid: they pick one long list on
+                // their first run and get a paged drawer.
+                //
+                // Only Custom is cleared, and the arrangement in `drawerSlots`
+                // is untouched. At setup there is rarely one yet, which is
+                // precisely why this is safe to do silently HERE even if it
+                // were arguable later.
+                onTap: () => notifier.edit(
+                  (p) => (p.drawerSortMode ?? 'custom') == 'custom'
+                      ? p
+                          .copyWith(drawerScrollStyle: 'vertical')
+                          .clearing(drawerSortMode: true)
+                      : p.copyWith(drawerScrollStyle: 'vertical'),
+                ),
                 preview: SizedBox(
                   width: 34,
                   height: 46,

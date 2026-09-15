@@ -25,6 +25,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show setEquals;
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -185,6 +186,7 @@ class AzRail extends StatefulWidget {
     required this.theme,
     required this.present,
     required this.onJump,
+    required this.onRelease,
   });
 
   /// [IndexRail.off] never reaches here; the caller omits the widget. Kept in
@@ -200,13 +202,44 @@ class AzRail extends StatefulWidget {
   /// Called with a label from [present], and only when the selection changes.
   final void Function(String label) onJump;
 
+  /// The finger has lifted.
+  ///
+  /// Separate from [onJump] because the list does two different things with a
+  /// drag and its end: while the finger is down it shows ONE section, and when
+  /// it lifts it goes back to showing everything. A single callback taking a
+  /// nullable label would have collapsed those into one message and made the
+  /// list infer the difference from a null, which reads as an absence rather
+  /// than as an event.
+  final VoidCallback onRelease;
+
   @override
   State<AzRail> createState() => _AzRailState();
 }
 
-class _AzRailState extends State<AzRail> with SingleTickerProviderStateMixin {
+class _AzRailState extends State<AzRail> {
   late final _RailMotion _motion = _RailMotion(kIndexLabels.length);
-  late final _ticker = createTicker(_onTick);
+
+  /// ─── A BARE Ticker, NOT SingleTickerProviderStateMixin ──────────────────
+  ///
+  /// The mixin subscribes to `TickerMode` through the ELEMENT TREE, and it
+  /// unsubscribes in its own `dispose`. When this rail goes away as part of a
+  /// larger teardown, the drawer closing or the distro switching, the element
+  /// is already deactivated by then and that lookup throws:
+  ///
+  ///   Looking up a deactivated widget's ancestor is unsafe
+  ///
+  /// Third time this codebase has hit the same shape. `IconCache` captures its
+  /// notifier in `didChangeDependencies` for exactly this reason, and
+  /// `panel_bar` had it with a `ref.read` after an await. The cure there was to
+  /// hold the thing rather than look it up late; here it is better to not
+  /// depend on the tree at all.
+  ///
+  /// What the mixin buys is TickerMode muting, so an animation in an inactive
+  /// route stops burning frames. This ticker is only ever running while a
+  /// finger is on the rail, plus the fraction of a second the springs take to
+  /// settle after it lifts, and it stops itself when idle. There is no state in
+  /// which it is running unwatched, which is the only thing muting protects.
+  late final Ticker _ticker = Ticker(_onTick);
 
   Duration _last = Duration.zero;
 
@@ -234,7 +267,12 @@ class _AzRailState extends State<AzRail> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
-    _ticker.dispose();
+    // Stopped before disposed. `Ticker.dispose` asserts on a live ticker, and
+    // a rail torn down mid-drag, which is exactly what closing the drawer with
+    // a finger down does, is live.
+    _ticker
+      ..stop()
+      ..dispose();
     _motion.dispose();
     super.dispose();
   }
@@ -393,6 +431,7 @@ class _AzRailState extends State<AzRail> with SingleTickerProviderStateMixin {
     _motion.activeIndex = -1;
     _start();
     _motion.tick();
+    widget.onRelease();
   }
 
   @override
