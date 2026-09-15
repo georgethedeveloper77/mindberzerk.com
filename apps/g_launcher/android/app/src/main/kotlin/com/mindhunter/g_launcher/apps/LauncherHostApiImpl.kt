@@ -8,6 +8,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
+import android.media.MediaMetadata
+import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -18,12 +20,14 @@ import com.mindhunter.g_launcher.AppChangeEvent
 import com.mindhunter.g_launcher.AppChangeReason
 import com.mindhunter.g_launcher.AppEntry
 import com.mindhunter.g_launcher.AppShortcut
+import com.mindhunter.g_launcher.NowPlaying
 import com.mindhunter.g_launcher.LauncherFlutterApi
 import com.mindhunter.g_launcher.LauncherHostApi
 import com.mindhunter.g_launcher.backup.BackupStore
 import com.mindhunter.g_launcher.icons.BrandIconResolver
 import com.mindhunter.g_launcher.icons.BrandTreatment
 import com.mindhunter.g_launcher.icons.IconCache
+import com.mindhunter.g_launcher.system.MediaSessions
 import com.mindhunter.g_launcher.icons.HeroIconResolver
 import com.mindhunter.g_launcher.icons.IconExtractor
 import com.mindhunter.g_launcher.icons.IconRenderer
@@ -203,6 +207,50 @@ class LauncherHostApiImpl(
             (bottom * density).toInt(),
         )
     }
+
+    override fun activeSessions(callback: (Result<List<NowPlaying>>) -> Unit) =
+        // OFF THE PLATFORM THREAD. `getActiveSessions` is a binder call into
+        // the media server and this runs while a row animates open, so the
+        // frame it would block is the one being watched.
+        io.execute {
+            val out = runCatching {
+                MediaSessions.active(appContext).map { c ->
+                    val state = c.playbackState
+                    val meta = c.metadata
+                    NowPlaying(
+                        packageName = c.packageName,
+                        // ─── EMPTY RATHER THAN A PLACEHOLDER ──────────────
+                        //
+                        // A player often publishes its session before its
+                        // metadata, so for a beat there is genuinely no title.
+                        // The Dart side draws the app's own name there, which
+                        // is true; "Unknown" invented here would not be.
+                        title = meta
+                            ?.getString(MediaMetadata.METADATA_KEY_TITLE)
+                            .orEmpty(),
+                        // ARTIST, falling back to ALBUM_ARTIST. Podcast apps
+                        // routinely fill only the second, and a show name is a
+                        // better second line than nothing.
+                        artist = (meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                            ?: meta?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST))
+                            .orEmpty(),
+                        playing = MediaSessions.isPlaying(state),
+                        canSkipNext = MediaSessions.can(
+                            state,
+                            PlaybackState.ACTION_SKIP_TO_NEXT,
+                        ),
+                        canSkipPrevious = MediaSessions.can(
+                            state,
+                            PlaybackState.ACTION_SKIP_TO_PREVIOUS,
+                        ),
+                    )
+                }
+            }.getOrDefault(emptyList())
+            main.post { callback(Result.success(out)) }
+        }
+
+    override fun sendMediaCommand(packageName: String, command: String): Boolean =
+        MediaSessions.send(appContext, packageName, command)
 
     override fun shortcutsFor(
         componentKey: String,

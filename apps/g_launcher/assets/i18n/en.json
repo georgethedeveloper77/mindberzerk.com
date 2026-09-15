@@ -467,6 +467,7 @@
   "settings.dockHover.part.hint": "Neighbours slide away to clear space around the focus.",
   "settings.dockHover.tilt": "Parallax tilt",
   "settings.dockHover.tilt.hint": "Icons rotate toward the finger in three dimensions.",
+  "settings.dockLayout": "Dock layout",
   "settings.dockOpacity": "Dock opacity",
   "settings.dockOpacitySub": "The dock or task strip",
   "settings.dockPosition": "Dock position",
@@ -511,6 +512,7 @@
   "settings.everyAppReturnsTo": "Every app returns to the list",
   "settings.everySettingOnThis": "Every setting on this distro returns to its default, including your folders, desklets and arrangements here, and the settings shared across distros. Other distros keep their own setups. Photos, collections and installed packs are not deleted.",
   "settings.everySwipeBackTo": "Every swipe back to its default",
+  "settings.expandingRows": "Expanding rows",
   "settings.family": "Family",
   "settings.findHiddenAppsBy": "Find hidden apps by name",
   "settings.findLargeFilesDuplicates": "Find large files, duplicates and unused apps",
@@ -566,6 +568,7 @@
   "settings.iconsAndBar": "Icons and bar",
   "settings.iconsAndLabelsLive": "Icons and labels, live",
   "settings.ifIconsLookWrong": "If icons look wrong or stale",
+  "settings.indexRail": "Index rail",
   "settings.internalStorageMatchingWhat": "Internal storage, matching what Android reports.",
   "settings.itLeavesTheCollection": "It leaves the collection and this copy is deleted. Your original is not touched, and if it is on screen right now the screen does not change.",
   "settings.keepItUnder": "Keep it under",
@@ -584,6 +587,7 @@
   "settings.light": "Light",
   "settings.lightAndDark": "Light and dark",
   "settings.list": "List",
+  "settings.listShape": "List shape",
   "settings.live": "LIVE",
   "settings.lockScreen": "Lock screen",
   "settings.lockScreenWallpaper": "Lock screen wallpaper",
@@ -877,6 +881,7 @@
   "setup.step.dock": "Dock",
   "setup.step.drawer": "App drawer",
   "setup.step.folders": "Folders",
+  "setup.step.icons": "Setup Icons",
   "setup.step.install": "Install",
   "setup.step.notifications": "Badges",
   "setup.step.welcome": "Welcome",
@@ -1100,6 +1105,5 @@
   "why.theTerminalPaintsItsOwn": "The terminal paints its own background",
   "why.thisDistroDrawsItsOwnMenu": "This distro draws its own menu",
   "why.thisDistroStaysDark": "{name} stays dark",
-  "why.toolMenuIsCategories": "The tool menu files by category",
-  "setup.step.icons": "Setup Icons"
+  "why.toolMenuIsCategories": "The tool menu files by category"
 }

@@ -44,6 +44,44 @@ final appShortcutsProvider =
   },
 );
 
+/// The media session this app owns, or null.
+///
+/// ─── ONE PROVIDER, FILTERED PER APP ─────────────────────────────────────────
+///
+/// `activeSessions` deliberately returns everything, because the bridge has no
+/// business deciding which session matters. This is where the row's own policy
+/// lives: Spotify's row shows Spotify's transport, and WhatsApp's row shows
+/// none even while music is playing. Anything else would put one app's controls
+/// inside another app's row.
+///
+/// The package is matched rather than the component key, because a session
+/// belongs to an app, not to an activity.
+///
+/// ─── READ WHEN THE ROW OPENS, AND NOT AFTER ─────────────────────────────────
+///
+/// No polling and no `addOnActiveSessionsChangedListener`. A registered
+/// callback lives for the whole process and fires on every track change on the
+/// phone, for the few seconds one row happens to be open.
+///
+/// The cost is a stale title if the track changes while the row sits open. The
+/// transport buttons invalidate this themselves, because pressing one is the
+/// moment the state definitely changed, so the only way to see a stale line is
+/// to open a row and wait for a track to end without touching anything.
+final nowPlayingProvider =
+    FutureProvider.autoDispose.family<NowPlaying?, String>(
+  (ref, packageName) async {
+    try {
+      final all = await ref.read(launcherHostApiProvider).activeSessions();
+      for (final s in all) {
+        if (s.packageName == packageName) return s;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  },
+);
+
 /// The payload under an open row.
 ///
 /// ─── IT DRAWS SOMETHING BEFORE NATIVE ANSWERS ───────────────────────────────
@@ -76,12 +114,36 @@ class RowExpansion extends ConsumerWidget {
     final async = ref.watch(appShortcutsProvider(componentKey));
     final shortcuts = async.value;
 
+    // The package, not the component key: a session belongs to an app.
+    final pkg = componentKey.split('/').first;
+    final playing = ref.watch(nowPlayingProvider(pkg)).value;
+
     return Padding(
       // Indented to the label, not to the row. The chips belong to the name
       // above them, and starting them under the icon would read as a second
       // column rather than as this app's own actions.
       padding: const EdgeInsets.fromLTRB(64, 2, 16, 14),
-      child: shortcuts == null
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ABOVE the shortcuts, because it is about right now and they are
+          // about what this app can do. Absent entirely when nothing is
+          // playing, which is almost always: a transport strip that appears
+          // only when it has something to control is the whole reason it can
+          // sit inside a row without crowding it.
+          if (playing != null) ...[
+            _Transport(now: playing, theme: theme, pkg: pkg),
+            const SizedBox(height: 10),
+          ],
+          _chips(shortcuts),
+        ],
+      ),
+    );
+  }
+
+  Widget _chips(List<AppShortcut>? shortcuts) {
+    return shortcuts == null
           ? _Skeleton(theme: theme)
           : shortcuts.isEmpty
               ? const SizedBox(height: 4)
@@ -104,8 +166,7 @@ class RowExpansion extends ConsumerWidget {
                         onTap: s.disabled ? null : (rect) => onLaunch(s.id, rect),
                       ),
                   ],
-                ),
-    );
+                );
   }
 }
 
@@ -198,6 +259,123 @@ class _ChipState extends State<_Chip> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Play, pause and skip for one session.
+///
+/// ─── ONLY THE BUTTONS THE SESSION ADMITS TO ─────────────────────────────────
+///
+/// `canSkipNext` and `canSkipPrevious` come from the session's own declared
+/// actions, and they vary enormously: a podcast app commonly offers neither, an
+/// audiobook offers seek and no skip, a radio stream offers nothing at all.
+/// Drawing three buttons and having two do nothing is the live-and-inert
+/// failure the settings screen spent a whole pass removing.
+///
+/// Play and pause are always drawn. A session that publishes no transport at
+/// all is vanishingly rare and the button reports its own refusal.
+class _Transport extends ConsumerWidget {
+  const _Transport({
+    required this.now,
+    required this.theme,
+    required this.pkg,
+  });
+
+  final NowPlaying now;
+  final EffectiveTheme theme;
+  final String pkg;
+
+  /// Send, then re-read. Pressing a transport button is the one moment the
+  /// session state definitely changed, so it is also the only moment worth
+  /// spending a second binder call on. This is what keeps the strip honest
+  /// without a listener running for the life of the process.
+  Future<void> _send(WidgetRef ref, String command) async {
+    await ref.read(launcherHostApiProvider).sendMediaCommand(pkg, command);
+    ref.invalidate(nowPlayingProvider(pkg));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = theme.palette;
+
+    // ─── THE TITLE FALLS BACK TO NOTHING, NOT TO A PLACEHOLDER ───────────
+    //
+    // A player often publishes its session before its metadata, so for a beat
+    // there genuinely is no title. The row already carries the app's name
+    // directly above this, so an empty line here reads as "starting" rather
+    // than as broken, and "Unknown track" invented here would be a small lie
+    // sitting under a true one.
+    final line = [
+      if (now.title.isNotEmpty) now.title,
+      if (now.artist.isNotEmpty) now.artist,
+    ].join('  ·  ');
+
+    return Row(
+      children: [
+        if (now.canSkipPrevious)
+          _Button(
+            icon: Icons.skip_previous,
+            theme: theme,
+            onTap: () => _send(ref, 'previous'),
+          ),
+        _Button(
+          // The glyph says what pressing it DOES, which is the opposite of
+          // what is happening. A playing session shows pause.
+          icon: now.playing ? Icons.pause : Icons.play_arrow,
+          theme: theme,
+          onTap: () => _send(ref, now.playing ? 'pause' : 'play'),
+        ),
+        if (now.canSkipNext)
+          _Button(
+            icon: Icons.skip_next,
+            theme: theme,
+            onTap: () => _send(ref, 'next'),
+          ),
+        if (line.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              line,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontFamily: theme.typography.display,
+                color: p.onDark.withValues(alpha: 0.72),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// One transport button. 44dp, which is the same reasoning the chips use: they
+/// sit in a cluster inside a surface the user opened deliberately, so the group
+/// is a far larger target than any one of them.
+class _Button extends StatelessWidget {
+  const _Button({
+    required this.icon,
+    required this.theme,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final EffectiveTheme theme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(icon, size: 24, color: theme.palette.accent),
       ),
     );
   }

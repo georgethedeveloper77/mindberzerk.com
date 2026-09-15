@@ -863,18 +863,52 @@ Future<void> showMoveToSheet(
   final cats = CategorySet.forTheme(theme);
   final host = context;
 
-  // ─── THE FALLBACK FIRST, NOT IN ITS AUTHORED POSITION ─────────────────────
+  // ─── THE FOLDERS THE USER MADE, WHICH THIS SHEET COULD NOT SEE ───────────
   //
-  // `CategorySet.order` puts it last, which is right for the rail: it is the
-  // remainder, and a remainder belongs at the end of the thing it remains from.
-  // It is wrong here. On Kali this sheet is nineteen rows and the fallback is
-  // the nineteenth, so the one row that UNDOES a move is the one row nobody
-  // scrolls to. A destination people reach for by name belongs where it can be
-  // reached.
+  // `CategorySet` is the DISTRO's vocabulary: eleven shelves on Pocket,
+  // thirteen tool groups on Kali, the built-in set everywhere else. A folder
+  // somebody made by dragging one app onto another is not in it and never was,
+  // so "Move to" listed every destination except the ones the user created.
+  //
+  // The two halves were already contradicting each other. `current` below reads
+  // `DrawerLayout.folderOf`, which DOES find a user folder, so the sheet would
+  // report an app as living somewhere and then offer a list that did not
+  // contain it: no row checked, and the one destination worth reaching absent.
+  //
+  // ─── AND THE WRITE NEEDED NOTHING ────────────────────────────────────────
+  //
+  // `DrawerLayout.fileInto` matches an existing folder BY NAME before creating
+  // one, so a user folder name has always been a valid destination. Only the
+  // list was missing, which is why this fix is a list and not a code path.
+  final folders = [
+    for (final f in theme.prefs.drawerFolders) f.name,
+  ];
+
+  // ─── THE FALLBACK FIRST, THEN FOLDERS, THEN SHELVES ───────────────────────
+  //
+  // `CategorySet.order` puts the fallback last, which is right for the rail: it
+  // is the remainder, and a remainder belongs at the end of the thing it
+  // remains from. It is wrong here. On Kali this sheet is nineteen rows and the
+  // fallback is the nineteenth, so the one row that UNDOES a move is the one
+  // row nobody scrolls to.
+  //
+  // User folders come SECOND, above the shelves. They are the destinations
+  // somebody made on purpose, so they are the ones being looked for; a shelf is
+  // where an app ends up when nobody chose.
+  //
+  // MERGED rather than sectioned. One list answers the question the title asks.
+  // A heading per kind would be honest about the storage and useless to the
+  // person holding the phone, who is choosing a place rather than a category of
+  // place, and it would turn Kali's nineteen rows into twenty-five.
+  //
+  // A folder whose name collides with a shelf appears once, as a folder, which
+  // is also what `fileInto` resolves it to. The row and the write agree.
   final slots = <String>[
     cats.fallback,
-    for (final name in cats.order)
+    for (final name in folders)
       if (name != cats.fallback) name,
+    for (final name in cats.order)
+      if (name != cats.fallback && !folders.contains(name)) name,
   ];
 
   return ThemedSheet.show<void>(
@@ -900,45 +934,73 @@ Future<void> showMoveToSheet(
             trailing: AppIcon(entry: entry, size: 30),
           ),
           Divider(height: 0.5, thickness: 0.5, color: c.line),
+          // ─── THE LIST IS CAPPED, NOT LET RUN ──────────────────────────
+          //
+          // `isScrollControlled` plus a shrink-wrapped list inside a
+          // `mainAxisSize: min` column means the sheet grows to whatever the
+          // content needs. On a distro with four shelves that is a neat little
+          // panel; on Kali it is nineteen rows and the sheet becomes the
+          // screen, which is a full-page navigation pretending to be a sheet.
+          //
+          // ─── A FRACTION OF THE VIEWPORT, NOT A ROW COUNT ──────────────
+          //
+          // "Show six rows" breaks the moment somebody turns their font up,
+          // because the rows get taller and six of them stop fitting. A
+          // fraction is the same proportion of the same screen at every text
+          // scale, and it is the number the sheet is actually competing for.
+          //
+          // 0.45 rather than a half, so the list is VISIBLY cut when there is
+          // more: a row sliced by the bottom edge is the only affordance a
+          // scrollable list has, and one that ends flush looks finished.
+          //
+          // `Flexible` stays OUTSIDE it. The constraint is the sheet's
+          // preference; the flex is the hard limit when the viewport is
+          // shorter than the preference, which is any phone with the keyboard
+          // up or a small screen in landscape.
           Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: slots.length,
-              itemBuilder: (context, i) {
-                final name = slots[i];
-                final on = name == current;
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(sheet).height * 0.45,
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: slots.length,
+                itemBuilder: (context, i) {
+                  final name = slots[i];
+                  final on = name == current;
 
-                return ThemedListRow(
-                  title: name,
-                  // Named for what it MEANS rather than for what it is. A row
-                  // reading "Usual Applications" does not tell anybody it takes
-                  // the app off its shelf, and this sheet is the only place
-                  // that undo exists.
-                  subtitle: name == cats.fallback
-                      ? host.t('drawer.notOnAShelf')
-                      : null,
-                  // ─── NO COUNTS HERE, UNLIKE THE RAIL ──────────────────
-                  //
-                  // `_Rail` shows how full each shelf is, and should: it is a
-                  // view of what you have. This is a destination picker, where
-                  // the number answers a question nobody is asking, and the
-                  // only honest source for it is the resolved drawer items
-                  // rather than prefs. Reading that here would make a modal
-                  // sheet depend on the whole app list to draw a label.
-                  trailing:
-                      on ? Icon(Icons.check, size: 20, color: c.accent) : null,
-                  // The current shelf is shown and NOT tappable. Moving an app
-                  // to where it already is would be a write that changes
-                  // nothing, and a row that accepts a tap and does nothing is
-                  // the failure this whole codebase keeps naming.
-                  onTap: on
-                      ? null
-                      : () {
-                          Navigator.pop(sheet);
-                          moveAppToShelf(host, ref, theme, entry, name);
-                        },
-                );
-              },
+                  return ThemedListRow(
+                    title: name,
+                    // Named for what it MEANS rather than for what it is. A row
+                    // reading "Usual Applications" does not tell anybody it takes
+                    // the app off its shelf, and this sheet is the only place
+                    // that undo exists.
+                    subtitle: name == cats.fallback
+                        ? host.t('drawer.notOnAShelf')
+                        : null,
+                    // ─── NO COUNTS HERE, UNLIKE THE RAIL ──────────────────
+                    //
+                    // `_Rail` shows how full each shelf is, and should: it is a
+                    // view of what you have. This is a destination picker, where
+                    // the number answers a question nobody is asking, and the
+                    // only honest source for it is the resolved drawer items
+                    // rather than prefs. Reading that here would make a modal
+                    // sheet depend on the whole app list to draw a label.
+                    trailing:
+                        on ? Icon(Icons.check, size: 20, color: c.accent) : null,
+                    // The current shelf is shown and NOT tappable. Moving an app
+                    // to where it already is would be a write that changes
+                    // nothing, and a row that accepts a tap and does nothing is
+                    // the failure this whole codebase keeps naming.
+                    onTap: on
+                        ? null
+                        : () {
+                            Navigator.pop(sheet);
+                            moveAppToShelf(host, ref, theme, entry, name);
+                          },
+                  );
+                },
+              ),
             ),
           ),
         ],

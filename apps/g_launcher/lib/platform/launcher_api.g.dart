@@ -972,6 +972,113 @@ class AppShortcut {
   }
 }
 
+/// PHASE L6c. Whatever is playing, if anything is.
+///
+/// ─── APPENDED, SAME ARGUMENT AS AppShortcut ─────────────────────────────────
+///
+/// Last class in declaration order, so it takes the next free codec id and
+/// shifts nothing a shipped APK has agreed on. No new enum, which is the thing
+/// that would renumber every class.
+///
+/// ─── NOT A NOTIFICATION, AND THE DIFFERENCE MATTERS ─────────────────────────
+///
+/// This comes from `MediaSessionManager`, which is a different API from the one
+/// behind the badges even though both are unlocked by the same grant. A media
+/// session is a live object with transport controls attached; a notification is
+/// a message about one. Reading the notification would give a title and no way
+/// to press pause.
+///
+/// ─── NO ARTWORK FIELD ───────────────────────────────────────────────────────
+///
+/// `MediaMetadata` carries a bitmap and carrying it here would mean a full
+/// album cover crossing the bridge on every metadata change, which is every
+/// track. The row already draws the app's icon, which says which player this
+/// is, and that is the question a launcher needs to answer. A desklet that
+/// genuinely wants the art can ask for it separately when one exists.
+class NowPlaying {
+  NowPlaying({
+    required this.packageName,
+    required this.title,
+    required this.artist,
+    required this.playing,
+    required this.canSkipNext,
+    required this.canSkipPrevious,
+  });
+
+  /// Which app owns the session. The KEY for everything: transport commands
+  /// name it, and a phone can legitimately have several sessions at once.
+  String packageName;
+
+  /// Track title, or empty. Empty is a real state on a player that publishes a
+  /// session before its metadata, and the caller shows the app's own name
+  /// rather than a blank line.
+  String title;
+
+  /// Artist, album artist, or empty. Same rule as [title].
+  String artist;
+
+  /// True when the session is actually playing, as opposed to paused,
+  /// buffering or stopped. Decides which glyph the button wears.
+  bool playing;
+
+  /// ─── WHAT THE SESSION SAYS IT SUPPORTS, NOT WHAT WE HOPE ────────────────
+  ///
+  /// A podcast player commonly offers neither, an audiobook offers seek and no
+  /// skip, and a radio stream offers nothing at all. Drawing three buttons and
+  /// having two do nothing is the live-and-inert failure this codebase keeps
+  /// finding in its own settings; the caller hides what the session refuses.
+  bool canSkipNext;
+
+  bool canSkipPrevious;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      packageName,
+      title,
+      artist,
+      playing,
+      canSkipNext,
+      canSkipPrevious,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static NowPlaying decode(Object result) {
+    result as List<Object?>;
+    return NowPlaying(
+      packageName: result[0]! as String,
+      title: result[1]! as String,
+      artist: result[2]! as String,
+      playing: result[3]! as bool,
+      canSkipNext: result[4]! as bool,
+      canSkipPrevious: result[5]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! NowPlaying || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(packageName, other.packageName) && _deepEquals(title, other.title) && _deepEquals(artist, other.artist) && _deepEquals(playing, other.playing) && _deepEquals(canSkipNext, other.canSkipNext) && _deepEquals(canSkipPrevious, other.canSkipPrevious);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'NowPlaying(packageName: $packageName, title: $title, artist: $artist, playing: $playing, canSkipNext: $canSkipNext, canSkipPrevious: $canSkipPrevious)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1007,6 +1114,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is AppShortcut) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
+    }    else if (value is NowPlaying) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1035,12 +1145,25 @@ class _PigeonCodec extends StandardMessageCodec {
         return WidgetProviderInfo.decode(readValue(buffer)!);
       case 137:
         return AppShortcut.decode(readValue(buffer)!);
+      case 138:
+        return NowPlaying.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
   }
 }
 
+/// A transport command, as the session understands it.
+///
+/// ─── A STRING, NOT AN ENUM, AND THIS IS THE ONE THAT MATTERS ────────────────
+///
+/// Pigeon numbers enums BEFORE classes, so adding one renumbers every class in
+/// a codec that shipped APKs are still speaking. `brandTreatment` is a String
+/// for exactly this reason and says so. Four values are not worth renumbering
+/// fourteen classes for.
+///
+/// Unknown values are ignored natively rather than throwing: a command from a
+/// newer build should do nothing, not take the drawer down.
 /// Implemented by `LauncherHostApiImpl`, constructed in
 /// `LauncherApplication.onCreate` against the warmed engine.
 ///
@@ -2461,6 +2584,69 @@ class LauncherHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey, shortcutId, sourceLeft, sourceTop, sourceRight, sourceBottom]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// PHASE L6c. Every active media session, most recent first.
+  ///
+  /// `@async`, like `shortcutsFor`: this asks a system service and has to stay
+  /// off the platform thread.
+  ///
+  /// ─── A LIST, NOT THE ONE THAT IS PLAYING ────────────────────────────────
+  ///
+  /// A phone really does hold several at once: a podcast paused mid-episode
+  /// while music plays, a video that ended and left its session behind. Picking
+  /// one here would put a policy in the bridge, and different callers want
+  /// different policies. The expanding row wants the session belonging to the
+  /// app whose row is open; a desklet wants whichever is playing.
+  ///
+  /// Empty when the listener grant is absent, which is the normal state for
+  /// anyone who has not enabled badges. That is not an error and the caller
+  /// draws nothing rather than asking for a permission it did not open for.
+  Future<List<NowPlaying>> activeSessions() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.activeSessions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<NowPlaying>();
+  }
+
+  /// Send a transport command to one session.
+  ///
+  /// [command] is one of 'play', 'pause', 'next', 'previous'. See the note on
+  /// [NowPlaying] for why this is a String rather than an enum.
+  ///
+  /// Returns false when the session has gone, the grant has been revoked, or
+  /// the session refuses the command. The caller says so rather than appearing
+  /// to work, and a media button that silently does nothing is the failure
+  /// people describe as the launcher freezing.
+  Future<bool> sendMediaCommand(String packageName, String command) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.sendMediaCommand$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName, command]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

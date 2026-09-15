@@ -432,7 +432,7 @@ List<Widget> applicationsSection(
           ],
           SettingsRow(
             icon: Icons.view_agenda_outlined,
-            title: 'List shape',
+            title: context.t('settings.listShape'),
             // ─── GREY FOR THE DISTRO, RECONFIGURE FOR A SETTING ────────
             //
             // The rule, stated once here and followed by the two rows below.
@@ -496,7 +496,7 @@ List<Widget> applicationsSection(
           ],
           SettingsRow(
             icon: Icons.unfold_more,
-            title: 'Expanding rows',
+            title: context.t('settings.expandingRows'),
             subtitle: theme.canExpandRows.available
                 ? 'Hold a name for its shortcuts'
                 : context.t(theme.canExpandRows.why!),
@@ -558,7 +558,7 @@ List<Widget> applicationsSection(
           ],
           SettingsRow(
             icon: Icons.format_list_numbered,
-            title: 'Index rail',
+            title: context.t('settings.indexRail'),
             // Same rule as List shape above. The index has TWO preconditions,
             // the layout and the headings, and needing two is the strongest
             // argument for setting them rather than explaining them: a subtitle

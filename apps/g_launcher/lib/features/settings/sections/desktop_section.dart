@@ -133,7 +133,7 @@ List<Widget> desktopSection(
           const ['dock', 'list', 'names', 'labels', 'favourites', 'pinned'],
           SettingsRow(
             icon: Icons.view_list_outlined,
-            title: 'Dock layout',
+            title: context.t('settings.dockLayout'),
             subtitle: theme.canListDock.available
                 ? 'Icons on a bar, or names in a list'
                 : context.t(theme.canListDock.why!),

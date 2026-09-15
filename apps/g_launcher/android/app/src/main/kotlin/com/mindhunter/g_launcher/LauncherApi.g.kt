@@ -1054,6 +1054,111 @@ data class AppShortcut (
     return "AppShortcut(id=$id, label=$label, disabled=$disabled)"
   }
 }
+
+/**
+ * PHASE L6c. Whatever is playing, if anything is.
+ *
+ * ─── APPENDED, SAME ARGUMENT AS AppShortcut ─────────────────────────────────
+ *
+ * Last class in declaration order, so it takes the next free codec id and
+ * shifts nothing a shipped APK has agreed on. No new enum, which is the thing
+ * that would renumber every class.
+ *
+ * ─── NOT A NOTIFICATION, AND THE DIFFERENCE MATTERS ─────────────────────────
+ *
+ * This comes from `MediaSessionManager`, which is a different API from the one
+ * behind the badges even though both are unlocked by the same grant. A media
+ * session is a live object with transport controls attached; a notification is
+ * a message about one. Reading the notification would give a title and no way
+ * to press pause.
+ *
+ * ─── NO ARTWORK FIELD ───────────────────────────────────────────────────────
+ *
+ * `MediaMetadata` carries a bitmap and carrying it here would mean a full
+ * album cover crossing the bridge on every metadata change, which is every
+ * track. The row already draws the app's icon, which says which player this
+ * is, and that is the question a launcher needs to answer. A desklet that
+ * genuinely wants the art can ask for it separately when one exists.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class NowPlaying (
+  /**
+   * Which app owns the session. The KEY for everything: transport commands
+   * name it, and a phone can legitimately have several sessions at once.
+   */
+  val packageName: String,
+  /**
+   * Track title, or empty. Empty is a real state on a player that publishes a
+   * session before its metadata, and the caller shows the app's own name
+   * rather than a blank line.
+   */
+  val title: String,
+  /** Artist, album artist, or empty. Same rule as [title]. */
+  val artist: String,
+  /**
+   * True when the session is actually playing, as opposed to paused,
+   * buffering or stopped. Decides which glyph the button wears.
+   */
+  val playing: Boolean,
+  /**
+   * ─── WHAT THE SESSION SAYS IT SUPPORTS, NOT WHAT WE HOPE ────────────────
+   *
+   * A podcast player commonly offers neither, an audiobook offers seek and no
+   * skip, and a radio stream offers nothing at all. Drawing three buttons and
+   * having two do nothing is the live-and-inert failure this codebase keeps
+   * finding in its own settings; the caller hides what the session refuses.
+   */
+  val canSkipNext: Boolean,
+  val canSkipPrevious: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): NowPlaying {
+      val packageName = pigeonVar_list[0] as String
+      val title = pigeonVar_list[1] as String
+      val artist = pigeonVar_list[2] as String
+      val playing = pigeonVar_list[3] as Boolean
+      val canSkipNext = pigeonVar_list[4] as Boolean
+      val canSkipPrevious = pigeonVar_list[5] as Boolean
+      return NowPlaying(packageName, title, artist, playing, canSkipNext, canSkipPrevious)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      packageName,
+      title,
+      artist,
+      playing,
+      canSkipNext,
+      canSkipPrevious,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as NowPlaying
+    return LauncherApiPigeonUtils.deepEquals(this.packageName, other.packageName) && LauncherApiPigeonUtils.deepEquals(this.title, other.title) && LauncherApiPigeonUtils.deepEquals(this.artist, other.artist) && LauncherApiPigeonUtils.deepEquals(this.playing, other.playing) && LauncherApiPigeonUtils.deepEquals(this.canSkipNext, other.canSkipNext) && LauncherApiPigeonUtils.deepEquals(this.canSkipPrevious, other.canSkipPrevious)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.packageName)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.title)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.artist)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.playing)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.canSkipNext)
+    result = 31 * result + LauncherApiPigeonUtils.deepHash(this.canSkipPrevious)
+    return result
+  }
+  override fun toString(): String {
+    return "NowPlaying(packageName=$packageName, title=$title, artist=$artist, playing=$playing, canSkipNext=$canSkipNext, canSkipPrevious=$canSkipPrevious)"
+  }
+}
 private open class LauncherApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1102,6 +1207,11 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
           AppShortcut.fromList(it)
         }
       }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          NowPlaying.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1143,6 +1253,10 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
         stream.write(137)
         writeValue(stream, value.toList())
       }
+      is NowPlaying -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -1150,6 +1264,17 @@ private open class LauncherApiPigeonCodec : StandardMessageCodec() {
 
 
 /**
+ * A transport command, as the session understands it.
+ *
+ * ─── A STRING, NOT AN ENUM, AND THIS IS THE ONE THAT MATTERS ────────────────
+ *
+ * Pigeon numbers enums BEFORE classes, so adding one renumbers every class in
+ * a codec that shipped APKs are still speaking. `brandTreatment` is a String
+ * for exactly this reason and says so. Four values are not worth renumbering
+ * fourteen classes for.
+ *
+ * Unknown values are ignored natively rather than throwing: a command from a
+ * newer build should do nothing, not take the drawer down.
  * Implemented by `LauncherHostApiImpl`, constructed in
  * `LauncherApplication.onCreate` against the warmed engine.
  *
@@ -1767,6 +1892,37 @@ interface LauncherHostApi {
    * appearing to work.
    */
   fun launchShortcut(componentKey: String, shortcutId: String, sourceLeft: Double?, sourceTop: Double?, sourceRight: Double?, sourceBottom: Double?): Boolean
+  /**
+   * PHASE L6c. Every active media session, most recent first.
+   *
+   * `@async`, like `shortcutsFor`: this asks a system service and has to stay
+   * off the platform thread.
+   *
+   * ─── A LIST, NOT THE ONE THAT IS PLAYING ────────────────────────────────
+   *
+   * A phone really does hold several at once: a podcast paused mid-episode
+   * while music plays, a video that ended and left its session behind. Picking
+   * one here would put a policy in the bridge, and different callers want
+   * different policies. The expanding row wants the session belonging to the
+   * app whose row is open; a desklet wants whichever is playing.
+   *
+   * Empty when the listener grant is absent, which is the normal state for
+   * anyone who has not enabled badges. That is not an error and the caller
+   * draws nothing rather than asking for a permission it did not open for.
+   */
+  fun activeSessions(callback: (Result<List<NowPlaying>>) -> Unit)
+  /**
+   * Send a transport command to one session.
+   *
+   * [command] is one of 'play', 'pause', 'next', 'previous'. See the note on
+   * [NowPlaying] for why this is a String rather than an enum.
+   *
+   * Returns false when the session has gone, the grant has been revoked, or
+   * the session refuses the command. The caller says so rather than appearing
+   * to work, and a media button that silently does nothing is the failure
+   * people describe as the launcher freezing.
+   */
+  fun sendMediaCommand(packageName: String, command: String): Boolean
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -2708,6 +2864,42 @@ interface LauncherHostApi {
             val sourceBottomArg = args[5] as Double?
             val wrapped: List<Any?> = try {
               listOf(api.launchShortcut(componentKeyArg, shortcutIdArg, sourceLeftArg, sourceTopArg, sourceRightArg, sourceBottomArg))
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.activeSessions$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.activeSessions{ result: Result<List<NowPlaying>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.sendMediaCommand$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packageNameArg = args[0] as String
+            val commandArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.sendMediaCommand(packageNameArg, commandArg))
             } catch (exception: Throwable) {
               LauncherApiPigeonUtils.wrapError(exception)
             }
