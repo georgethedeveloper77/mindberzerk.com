@@ -219,7 +219,47 @@ List<Widget> applicationsSection(
                   ? 'vertical'
                   : theme.drawerScrollStyle,
               onSelect: (v) {
-                notifier.edit((p) => p.copyWith(drawerScrollStyle: v));
+                // ─── LIST MEANS LIST, SO IT BREAKS CUSTOM ──────────────
+                //
+                // `drawerSortMode` defaults to 'custom', and Custom is paged
+                // before `AppDrawer` ever reads the scroll style: it renders
+                // from the sparse slot arrangement through `DrawerPager`, and
+                // the vertical branch is not on that path at all. So picking
+                // List on a fresh install saved a pref, changed the ring, and
+                // changed nothing on screen.
+                //
+                // ─── ONLY 'custom', NOT EVERY MODE ────────────────────────
+                //
+                // 'mostUsed' and 'recent' are orders, and an order is perfectly
+                // coherent as one long scroll: most-used first, down the page.
+                // Only Custom is a LAYOUT, and a hand-placed grid of pages and
+                // gaps has no meaning poured into a single column. Resetting
+                // the other two would be taking away a choice that still works.
+                //
+                // ─── AND THE ARRANGEMENT SURVIVES ─────────────────────────
+                //
+                // `drawerSlots` is a separate field and is not touched here.
+                // Switching back to Custom finds every app where it was left,
+                // which is what makes this safe to do without asking: it is a
+                // mode change, not a deletion.
+                //
+                // One `edit`, not two. Two writes means two rebuilds and a
+                // frame where the drawer is vertical AND still custom, which is
+                // the state the pager has no branch for.
+                //
+                // CLEARED, not set to 'az'. Alphabetical is `null` here, as
+                // `drawer_items` says at its sort block: 'az' is the NAME of
+                // the default, not a value anything writes. Writing the string
+                // would land on the unknown-value arm, which degrades to
+                // alphabetical and so would have looked correct while quietly
+                // putting a value in prefs that no reader matches on.
+                notifier.edit(
+                  (p) => v == 'vertical' && (p.drawerSortMode ?? 'custom') == 'custom'
+                      ? p
+                          .copyWith(drawerScrollStyle: v)
+                          .clearing(drawerSortMode: true)
+                      : p.copyWith(drawerScrollStyle: v),
+                );
                 // PLAYED ON EVERY TAP, including a tap on the style already
                 // selected. Driving this off the selected VALUE instead would
                 // make that tap do nothing, which reads as the control having

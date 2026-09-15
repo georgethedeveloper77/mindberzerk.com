@@ -2077,23 +2077,38 @@ class _StepIcons extends ConsumerWidget {
       for (final b in shot.value ?? const <Uint8List?>[])
         if (b != null) b,
     ];
-    final haveReal = drawn.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ─── NO SIZES, AND NO EXPLANATION OF THE PLUMBING ──────────────────
+        //
+        // This said "About 10 MB" on one card and "Nothing to download" on the
+        // other, and the note under the first explained that the set is shared
+        // between distros and fetched once.
+        //
+        // All three were answers to questions nobody standing here is asking.
+        // A megabyte figure turns a question about how the phone should LOOK
+        // into a question about whether it is worth the data, and it prices the
+        // better-looking option against the free one on the wrong axis: the
+        // grid above each card already shows exactly what is being chosen, and
+        // that is the comparison this step exists for.
+        //
+        // "Shared by every distro" is worse: it describes the CDN's caching
+        // behaviour to somebody who has not yet seen their home screen. Nobody
+        // installing Ubuntu needs to know that Fedora will reuse the file.
+        //
+        // What is left is one line per card saying what the icons are. The
+        // download still happens, still shows progress where progress belongs,
+        // and if it fails the pack tier degrades to the generator exactly as it
+        // does everywhere else.
         _IconOption(
           mono: mono,
           selected: distroIcons,
           onTap: () => onChanged(true),
           title: '${theme.spec.name} icons',
-          // Absent, not "0 MB", once the pack is already here. A nullable fact
-          // renders as no row rather than as a placeholder.
-          trailing: haveReal ? null : 'About 10 MB',
-          note: haveReal
-              ? 'One outline set across every app, in this distro colour.'
-              : 'One outline set across every app, in this distro colour. '
-                  'Downloaded once and shared by every distro.',
+          trailing: null,
+          note: 'One set, drawn in this distro colour.',
           grid: _DistroIconGrid(theme: theme, drawn: drawn),
         ),
         const SizedBox(height: 10),
@@ -2102,7 +2117,7 @@ class _StepIcons extends ConsumerWidget {
           selected: !distroIcons,
           onTap: () => onChanged(false),
           title: context.t('setup.appIcons'),
-          trailing: 'Nothing to download',
+          trailing: null,
           note: "Each app's own artwork, in this distro shape.",
           grid: _AppIconGrid(sizePx: sizePx),
         ),
