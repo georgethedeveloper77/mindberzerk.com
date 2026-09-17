@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -285,6 +286,32 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
   const pathname = usePathname();
   const router = useRouter();
 
+  const [navOpen, setNavOpen] = React.useState(false);
+
+  /**
+   * CLOSE ON NAVIGATION, keyed on the path rather than on a click handler.
+   *
+   * A handler on every Link would be twenty call sites and would miss the ones
+   * inside `sectionsFor`. The path changing IS the event: it covers the rail,
+   * the browser's back button and any future link added to the tree.
+   */
+  React.useEffect(() => setNavOpen(false), [pathname]);
+
+  // Escape closes it, and the page behind does not scroll while it is open.
+  React.useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [navOpen]);
+
   async function out() {
     await signOut();
     router.replace('/admin');
@@ -308,19 +335,26 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
 
   const meta = app ? appMeta(app) : undefined;
 
-  return (
-    <div
-      data-surface="soft"
-      className="flex min-h-[100dvh] bg-site-page font-site-sans text-site-ink-2"
-    >
-      {/* THE FOOTER IS PINNED AND THE MIDDLE SCROLLS.
-
-          It used to be one scrolling column with `mt-auto` on the footer, which
-          works right up until the list is taller than the viewport. For G
-          Recovery it was: fifteen lines pushed Sign out below the fold, and the
-          notification badge landed on top of what was left of it. A nav you
-          have to scroll to sign out of is a nav with a bug in it. */}
-      <aside className="sticky top-0 hidden h-[100dvh] w-[236px] shrink-0 flex-col border-r border-site-line bg-site-card lg:flex">
+  /**
+   * THE RAIL'S CONTENT, ONCE, RENDERED TWICE.
+   *
+   * ─── THE BUG THIS FIXES IS NOT `not responsive` ─────────────────────────
+   *
+   * Below `lg` the aside was `hidden`, full stop. Not collapsed, not behind a
+   * button: gone. Every link in the studio, the whole per-app section and the
+   * sign-out row simply did not exist on a phone or a narrow window, leaving
+   * a logo that goes to the dashboard and nothing else. The admin was
+   * desktop-only and said so by omission.
+   *
+   * ─── AND WHY IT IS A VARIABLE RATHER THAN A SECOND COPY ─────────────────
+   *
+   * The rail reads `pathname`, `app`, `meta`, `item`, `active` and
+   * `sectionsFor`, and its per-app section is forty lines of nesting. A
+   * duplicate for the drawer would drift on the first nav change, and the
+   * drift would be invisible on the desktop the author is working at.
+   */
+  const rail = (
+    <>
         <Link href="/dashboard" className="flex items-center gap-2.5 px-5 pb-4 pt-4">
           <span
             aria-hidden
@@ -459,10 +493,66 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
             Sign out
           </button>
         </div>
+
+    </>
+  );
+
+  return (
+    <div
+      data-surface="soft"
+      className="flex min-h-[100dvh] bg-site-page font-site-sans text-site-ink-2"
+    >
+      {/* THE FOOTER IS PINNED AND THE MIDDLE SCROLLS.
+
+          It used to be one scrolling column with `mt-auto` on the footer, which
+          works right up until the list is taller than the viewport. For G
+          Recovery it was: fifteen lines pushed Sign out below the fold, and the
+          notification badge landed on top of what was left of it. A nav you
+          have to scroll to sign out of is a nav with a bug in it. */}
+      {/* DOCKED, from lg up. Unchanged behaviour at the width the studio was
+          designed for. */}
+      <aside className="sticky top-0 hidden h-[100dvh] w-[236px] shrink-0 flex-col border-r border-site-line bg-site-card lg:flex">
+        {rail}
       </aside>
+
+      {/* ─── THE DRAWER, BELOW lg ────────────────────────────────────────
+
+          OVER the content, not pushing it. At 390px there is no room to push
+          into, and a rail that reflows the page under your thumb loses your
+          place in whatever you were reading.
+
+          Mounted only while open, so the rail's links are not duplicated in
+          the accessibility tree at desktop widths, where this branch renders
+          nothing at all. */}
+      {navOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setNavOpen(false)}
+            className="absolute inset-0 bg-black/45"
+          />
+          <div className="absolute inset-y-0 left-0 flex w-[min(86vw,300px)] flex-col border-r border-site-line bg-site-card shadow-2xl">
+            {rail}
+          </div>
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5 px-5 py-3.5 sm:px-6">
+          {/* 40dp of tap target, ahead of the wordmark, which is where a
+              phone user's thumb already goes. */}
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={navOpen}
+            className="-ml-1 flex size-10 items-center justify-center rounded-lg text-site-ink-2 transition hover:bg-site-sunk lg:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+            </svg>
+          </button>
           <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
             <span
               aria-hidden
