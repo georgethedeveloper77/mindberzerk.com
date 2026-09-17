@@ -47,6 +47,7 @@ class EffectiveTheme {
     required this.prefs,
     required this.dock,
     required this.topBar,
+    required this.statusBar,
     required this.topBarSide,
     required this.topBarStats,
     required this.panels,
@@ -97,6 +98,10 @@ class EffectiveTheme {
 
   final DockSide dock;
   final bool topBar;
+
+  /// Whether Android's status bar stays visible on this distro. Read by
+  /// `HomeScreen`, which is the one place every shell passes through.
+  final bool statusBar;
 
   /// Which edge the bar sits on, and whether it carries live readouts.
   /// Resolved in [LayoutResolver]; the shells read these and never the spec.
@@ -592,6 +597,7 @@ class EffectiveTheme {
       dark: dark,
       dock: layout.dock,
       topBar: layout.topBar,
+      statusBar: layout.statusBar,
       topBarSide: layout.topBarSide,
       topBarStats: layout.topBarStats,
       panels: layout.panels,
@@ -810,6 +816,7 @@ class EffectiveTheme {
           other.dark == dark &&
           other.dock == dock &&
           other.topBar == topBar &&
+          other.statusBar == statusBar &&
           other.topBarSide == topBarSide &&
           other.topBarStats == topBarStats &&
           other.panels.length == panels.length &&
@@ -850,6 +857,7 @@ class EffectiveTheme {
         dark,
         dock,
         topBar,
+        statusBar,
         topBarSide,
         topBarStats,
         panels.length,

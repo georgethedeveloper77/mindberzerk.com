@@ -359,6 +359,17 @@ export type DockRevealName = (typeof DOCK_REVEALS)[number];
 export interface ThemeLayoutJson {
   dock: DockName;
   topBar: boolean;
+  /** Does ANDROID's status bar stay on screen while this distro runs?
+   *
+   *  Absent means true, which is what every pack published before the field
+   *  existed meant by saying nothing. `topBar` answers whether the LAUNCHER
+   *  draws a bar; this answers whether the system draws one above it.
+   *
+   *  False is for a distro whose whole look is the row it draws: Terminal's
+   *  conky line, Pocket's iOS status line. It is a LOOK rather than a
+   *  guarantee, because pulling the notification shade brings the system bar
+   *  back over whatever the launcher drew there. */
+  statusBar?: boolean;
   /** Absent means `top`, which is what every theme authored before this field
    *  existed gets, and what every GNOME-family desktop does anyway. */
   topBarSide?: TopBarSideName;
@@ -888,6 +899,10 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
     // Emitted only when they differ from the device's own defaults, so a theme
     // that does not care about either stays as small as it was before the
     // fields existed. The device reads an absent key as top / off.
+    // Only the interesting answer is written. Emitting `statusBar: true` would
+    // freeze this theme on today's default forever, which is the rule every
+    // other inherit-shaped key here follows.
+    ...(spec.layout.statusBar === false ? { statusBar: false } : {}),
     ...(spec.layout.topBarSide && spec.layout.topBarSide !== 'top'
       ? { topBarSide: spec.layout.topBarSide }
       : {}),
@@ -1594,6 +1609,12 @@ export function importTheme(
       topBarStats:
         typeof layoutRaw.topBarStats === 'boolean'
           ? layoutRaw.topBarStats
+          : undefined,
+      // Absent stays absent, so a round trip does not write `statusBar: true`
+      // into every pack that never had an opinion.
+      statusBar:
+        typeof layoutRaw.statusBar === 'boolean'
+          ? layoutRaw.statusBar
           : undefined,
       // Round-tripped so importing a theme and republishing it does not quietly
       // flatten a two-panel distro back to one.

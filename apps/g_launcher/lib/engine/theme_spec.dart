@@ -1449,6 +1449,7 @@ class ThemeLayout {
   const ThemeLayout({
     required this.dock,
     required this.topBar,
+    this.statusBar = true,
     this.topBarSide = TopBarSide.top,
     this.topBarStats = false,
     this.panels = const [],
@@ -1477,6 +1478,26 @@ class ThemeLayout {
 
   final DockSide dock;
   final bool topBar;
+
+  /// Does ANDROID's status bar stay on screen while this distro is running?
+  ///
+  /// ─── THE FIELD THAT WAS MISSING, NOT A SECOND topBar ────────────────────
+  ///
+  /// [topBar] answers whether the LAUNCHER draws a bar. This answers whether
+  /// the system draws one above it, and until now nothing in the app asked:
+  /// there is no `SystemChrome` call anywhere, so every distro got whatever
+  /// the device was already doing.
+  ///
+  /// That is why Ubuntu looked duplicated. `gnome_top_bar` already declines
+  /// battery, wifi and volume, so the icons on screen were Android's own, a
+  /// few pixels above a bar carrying Activities. Nothing was drawing them
+  /// twice; two bars were sharing one row.
+  ///
+  /// TRUE BY DEFAULT, which is what every distro has had until now. A desktop
+  /// that wants the whole row, a Kali conky strip or Pocket's iOS status line,
+  /// authors `statusBar: false` and takes responsibility for the clock and the
+  /// charge itself.
+  final bool statusBar;
 
   /// Which edge the shell bar sits on.
   ///
@@ -1977,6 +1998,9 @@ class ThemeLayout {
         _ => DockSide.left,
       },
       topBar: j['topBar'] as bool? ?? true,
+      // Absent means visible, which is what every pack published before this
+      // field existed meant by saying nothing.
+      statusBar: j['statusBar'] as bool? ?? true,
       topBarSide: TopBarSide.parse(j['topBarSide'] as String?),
       topBarStats: j['topBarStats'] as bool? ?? false,
       panels: _panels(j),

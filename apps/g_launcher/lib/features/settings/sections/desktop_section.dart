@@ -15,9 +15,11 @@ import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
-import '../../../engine/theme_spec.dart' show DockSide;
+import '../../../engine/theme_spec.dart' show DockSide, PanelModule;
 import '../../dock/dock_animations.dart';
 import '../../home/workspaces/workspace_controller.dart';
+import '../../panel/panel_edit.dart';
+import '../../panel/panel_module_names.dart';
 import '../../panel/panel_editor_sheet.dart';
 import '../settings_rows.dart';
 
@@ -398,6 +400,68 @@ List<Widget> desktopSection(
             onChanged: (v) => notifier.edit((p) => p.copyWith(topBar: v)),
           ),
         ),
+        // ─── THE OTHER BAR, DIRECTLY UNDER THE FIRST ─────────────────
+        //
+        // Two bars share one row of pixels on this phone, and until this row
+        // existed only one of them was ours to decide. Putting it anywhere
+        // else on the page asks the same question twice in two places.
+        //
+        // NOT gated on a capability, for the reason the switch above is not:
+        // a bar the system owns is not something a theme can lack. What the
+        // theme supplies is the default, which is what the subtitle names.
+        FilterRow(
+          const [
+            'status bar',
+            'system bar',
+            'android bar',
+            'fullscreen',
+            'immersive',
+            'notch',
+            'clock',
+            'battery icon',
+          ],
+          SettingsToggleRow(
+            icon: Icons.smartphone_outlined,
+            accent: true,
+            title: context.t('settings.statusBar'),
+            subtitle: theme.spec.layout.statusBar
+                ? context.t('settings.statusBarShownSub')
+                : context.t('settings.statusBarHiddenSub', {
+                    'name': theme.spec.name,
+                  }),
+            value: theme.statusBar,
+            onChanged: (v) => notifier.edit((p) => p.copyWith(statusBar: v)),
+          ),
+        ),
+        // ─── ONE ROW PER DUPLICATE THE DISTRO AUTHORED ───────────────
+        //
+        // Not the whole module catalogue: adding and reordering is
+        // `panelEdit`, which is a product line rather than an oversight. These
+        // four are the ones that print something Android is already printing
+        // four pixels above them, and declining a duplicate is not arranging a
+        // panel. See `silenceableModules`.
+        //
+        // A row appears only when the DISTRO authored that module, so Kali's
+        // readout bar grows no switches for a clock it never had, and nobody
+        // is offered a control that would add something to their bar.
+        //
+        // The subtitle names the duplication while the system bar is on,
+        // because that is the whole reason the switch is worth finding.
+        for (final m in silenceableModules)
+          if (_authoredOnPanel(theme, m))
+            FilterRow(
+              ['top bar', panelModuleLabel(context, m).toLowerCase()],
+              SettingsToggleRow(
+                icon: panelModuleIcon(m),
+                title: panelModuleLabel(context, m),
+                subtitle: theme.statusBar
+                    ? context.t('settings.alsoInStatusBar')
+                    : null,
+                value: currentPanelItems(theme).any((e) => e.kind == m),
+                onChanged: (v) =>
+                    setPanelModuleEnabled(ref, theme, m, enabled: v),
+              ),
+            ),
         // Directly under the switch that turns the bar on, which is where
         // someone deciding how the bar should look already is.
         FilterRow(
@@ -498,4 +562,17 @@ FilterRow _animationRow({
       ),
     ),
   );
+}
+
+/// Did the DISTRO author this module on the panel we are editing?
+///
+/// Read off the pack rather than off the live panel, so a switch the user has
+/// just turned off does not vanish along with the module and strand them with
+/// no way to turn it back on.
+bool _authoredOnPanel(EffectiveTheme theme, PanelModule kind) {
+  for (final p in theme.spec.layout.panels) {
+    if (p.side != theme.panelSide) continue;
+    if (p.items.any((e) => e.kind == kind)) return true;
+  }
+  return false;
 }

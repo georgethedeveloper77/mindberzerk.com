@@ -4,10 +4,16 @@ import { notFound } from 'next/navigation';
 import { adminGate } from '@/app/components/admin-gate';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SlabButton, SoftButton } from '@/components/studio/ui';
+import { CopyThemeJson } from '@/components/distro-builder/CopyThemeJson';
+import { ThemeJsonEditor } from '@/components/distro-builder/ThemeJsonEditor';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { DuplicateDistro } from '@/components/theme-list/DuplicateDistro';
 import { BulkBar, BulkProvider, RowCheck } from '@/components/studio/bulk';
-import { bulkDeleteDistrosAction, republishDistroAction } from './actions';
+import {
+  applyThemeJsonAction,
+  bulkDeleteDistrosAction,
+  republishDistroAction,
+} from './actions';
 import { ListToggle } from '@/components/theme-list/ListToggle';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
@@ -359,6 +365,20 @@ export default async function DistrosPage({
 
               <div className="mt-3 border-t border-site-line">
                 <KVRow k="shell" v={<span className="font-mono">{selectedSpec?.shell ?? '-'}</span>} />
+                {/* Under shell, because the file IS the shell plus everything
+                    else: the rail names the one thing, this hands over the
+                    whole of it. */}
+                {selectedSpec ? (
+                  <div className="flex flex-wrap items-center gap-2 border-b border-site-line py-2">
+                    <CopyThemeJson spec={selectedSpec} />
+                    <ThemeJsonEditor
+                      app={appId}
+                      id={selected.id}
+                      spec={selectedSpec}
+                      action={applyThemeJsonAction}
+                    />
+                  </div>
+                ) : null}
                 <KVRow
                   k="version"
                   v={

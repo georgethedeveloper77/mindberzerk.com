@@ -16,6 +16,8 @@ import '../../shells/gnome_shell.dart';
 import '../../shells/plasma_shell.dart';
 import '../../shells/tiling_shell.dart';
 import '../../shells/tui_shell.dart';
+import '../../system/battery_history.dart';
+import '../../system/status_bar_mode.dart';
 import '../boot/boot_controller.dart';
 import '../boot/boot_sequence.dart';
 import '../boot/splash_sequence.dart';
@@ -104,6 +106,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = ref.watch(effectiveThemeProvider);
 
+    // ─── THE BATTERY RECORDER, KEPT ALIVE BY THE DESKTOP ─────────────────
+    //
+    // Watched here and nowhere else, for the reason the status bar is applied
+    // here: this is the one widget every shell resolves through. It ticks
+    // every five minutes while the launcher is on screen and stops with the
+    // app, which is what makes a week of level history affordable.
+    //
+    // NOT inside the `data` branch: the recorder must not restart every time
+    // a prefs write re-runs the theme.
+    ref.watch(batteryRecorderProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: theme.when(
@@ -145,6 +158,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         data: (t) {
           _maybeAutoBoot(t);
+
+          // ─── THE ONE PLACE THE SYSTEM BAR IS DECIDED ─────────────────
+          //
+          // Every shell resolves through here, which is the same reason the
+          // widget stage and the single PopScope live in this branch. The
+          // call is a no-op unless the value actually changed, so the prefs
+          // writes that re-run this build do not cross the bridge.
+          StatusBarMode.apply(visible: t.statusBar);
 
           final rawShell = switch (t.shell) {
             ShellKind.gnome => GnomeShell(theme: t),

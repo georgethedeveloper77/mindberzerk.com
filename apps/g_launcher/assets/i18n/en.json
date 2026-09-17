@@ -1105,5 +1105,13 @@
   "why.theTerminalPaintsItsOwn": "The terminal paints its own background",
   "why.thisDistroDrawsItsOwnMenu": "This distro draws its own menu",
   "why.thisDistroStaysDark": "{name} stays dark",
-  "why.toolMenuIsCategories": "The tool menu files by category"
+  "why.toolMenuIsCategories": "The tool menu files by category",
+  "settings.statusBarShownSub": "Shown above the desktop",
+  "settings.statusBarHiddenSub": "{name} draws its own top row",
+  "settings.batteryLevel": "Battery level",
+  "settings.batteryCharging": "Charging",
+  "settings.batteryNoReadings": "No readings for this day yet",
+  "settings.dailyUsage": "Daily usage: {pct}%",
+  "settings.batteryRecordedNote": "Recorded by G Launcher while the desktop is open, so hours spent in other apps leave gaps.",
+  "settings.aboutThisReading": "About this reading"
 }

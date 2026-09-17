@@ -7,6 +7,7 @@ import { Section, Field, TextInput, NumberInput, SelectInput, Segmented, Toggle,
 import { PaletteEditor, LayoutEditor, GesturesEditor, IconStyleEditor, PassthroughEditor } from '@/components/theme-builder/editors';
 import { ThemePreview } from '@/components/theme-builder/ThemePreview';
 import { GeneratedJson } from '@/components/theme-builder/GeneratedJson';
+import { SpecJsonPatch } from '@/components/distro-builder/SpecJsonPatch';
 import { AppGrid, type Assignment } from './AppGrid';
 import { FeatureRowsEditor } from './FeatureRowsEditor';
 import { composeIcon, type ComposeSpec } from '@/lib/g-launcher/icon-compose';
@@ -1496,7 +1497,16 @@ export function DistroWorkspace({
                 ))}
               </div>
             ) : (
-              <GeneratedJson draft={themeDraft} />
+              <>
+                {/* Directly above the canonical preview, because the preview
+                    IS this control's result: paste a patch, read the file it
+                    produces, merge it into the form. */}
+                <SpecJsonPatch
+                  spec={spec}
+                  onApply={(next) => setSpec(next)}
+                />
+                <GeneratedJson draft={themeDraft} />
+              </>
             )}
           </div>
         </div>

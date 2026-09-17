@@ -46,7 +46,15 @@ class GnomeTopBar extends ConsumerWidget {
     required this.onActivities,
     this.displayFontFamily,
     required this.panel,
+    this.systemStatusBar = true,
   });
+
+  /// Is ANDROID's status bar on screen above this one?
+  ///
+  /// The bar's own modules do not change with it, but the tray's face does:
+  /// three glyphs under three identical system glyphs is a second status bar,
+  /// and one control glyph is a button. See [PanelTrayButton.compact].
+  final bool systemStatusBar;
 
   /// What this panel is and what it carries.
   ///
@@ -190,6 +198,7 @@ class GnomeTopBar extends ConsumerWidget {
           PanelModule.tray => PanelTrayButton(
               palette: palette,
               stacked: stacked,
+              compact: systemStatusBar,
             ),
           // ─── FOR THE REASON THE CLOCK IS ARGUED ABOUT BELOW ──────────
           //

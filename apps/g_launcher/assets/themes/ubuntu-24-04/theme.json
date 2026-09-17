@@ -29,10 +29,7 @@
         "side": "top",
         "modules": [
           "activities",
-          "spacer",
-          "clock",
-          "spacer",
-          "tray"
+          "spacer"
         ]
       }
     ],

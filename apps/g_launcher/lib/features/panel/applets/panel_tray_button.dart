@@ -38,7 +38,28 @@ class PanelTrayButton extends ConsumerWidget {
     super.key,
     required this.palette,
     required this.stacked,
+    this.compact = false,
   });
+
+  /// ONE GLYPH INSTEAD OF THREE.
+  ///
+  /// ─── THE THREE WERE THE DUPLICATION ─────────────────────────────────────
+  ///
+  /// A wifi glyph, a speaker glyph and a battery glyph, in that order, four
+  /// pixels under Android's own wifi, speaker and battery. The doc above
+  /// argues this is a BUTTON rather than a readout, and that is true of what
+  /// it does and was never true of what it looked like: on a phone it read as
+  /// a second status bar, because it is shaped like one.
+  ///
+  /// Dropping the module altogether was the alternative, and it costs the only
+  /// visible way into Quick Settings on a GNOME-family bar. A single control
+  /// glyph keeps the door and stops the impersonation, which is the whole
+  /// trade.
+  ///
+  /// Set by the caller from `EffectiveTheme.statusBar`: compact while the
+  /// system bar is on screen, all three when the distro has hidden it and owns
+  /// the row, which is what Terminal and Pocket iOS do.
+  final bool compact;
 
   final ThemePalette palette;
 
@@ -53,11 +74,16 @@ class PanelTrayButton extends ConsumerWidget {
     final ink =
         open ? palette.bgBottom : palette.onDark.withValues(alpha: 0.85);
 
-    final glyphs = [
-      Icons.wifi,
-      Icons.volume_up_outlined,
-      Icons.battery_std_outlined,
-    ];
+    // `tune`, not a chevron or an ellipsis: it says settings rather than
+    // "more", and it is the one glyph in the set that Android's status bar
+    // does not also draw.
+    final glyphs = compact
+        ? const [Icons.tune]
+        : const [
+            Icons.wifi,
+            Icons.volume_up_outlined,
+            Icons.battery_std_outlined,
+          ];
 
     return Semantics(
       button: true,

@@ -5,7 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { NotAuthorised, requireAdmin } from '@/lib/core/auth';
 import { APPS, readLiveIndex, type AppId } from '@/lib/core/catalogue';
 import { publishDistro, type DistroPublishResult } from '@/lib/g-launcher/distro-publish';
-import type { ThemeDraft, ThemeSpecJson } from '@/lib/g-launcher/theme-spec';
+import {
+  canonicalThemeJson,
+  importTheme,
+  validateDraft,
+  type ThemeDraft,
+  type ThemeSpecJson,
+} from '@/lib/g-launcher/theme-spec';
 import {
   copyDraftAssets,
   readDraftAssetBytes,
@@ -18,6 +24,8 @@ import {
 } from '@/lib/g-launcher/icon-drafts';
 import { deleteDraft, distroIconPackIds, fillFeatureRows, readAllDrafts, readDraft, writeDraft } from '@/lib/g-launcher/themes';
 import { suggestFeatures } from '@/lib/g-launcher/suggest-features';
+import { fixPanels, topModules } from '@/lib/g-launcher/panel-audit';
+import { mergeThemeJson, patchPaths } from '@/lib/g-launcher/theme-json-merge';
 import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
 
 interface DistroMeta {
@@ -605,6 +613,241 @@ export async function bulkDeleteDistrosAction(
  * "twelve filled, four of them with nothing exclusive" are different outcomes
  * and only the second one tells you where to go next.
  */
+/**
+ * STRIP THE MODULES ANDROID ALREADY DRAWS, ON EVERY DRAFT.
+ *
+ * ─── WHY A BUTTON AND NOT EIGHT HAND EDITS ─────────────────────────────────
+ *
+ * The audit found the same fault in eight of fifteen packs, which is not eight
+ * mistakes: it is one rule that was never written down, applied by hand
+ * fifteen times. Fixing it by hand fifteen times would leave it unwritten, and
+ * the sixteenth pack would have a clock on it too.
+ *
+ * So the rule lives in `panel-audit.ts`, this applies it, and a pack authored
+ * next month is audited by the same code that fixed these.
+ *
+ * ─── WRITES DRAFTS, PUBLISHES NOTHING ──────────────────────────────────────
+ *
+ * Same contract as `fillFeatureRowsAction` beside it, and for a sharper
+ * reason: republishing re-signs the index and bumps eight versions. That is a
+ * deliberate act with its own button, not a side effect of a repair. Run this,
+ * read the report, then republish the ones you meant to.
+ *
+ * DRY RUN FIRST. `apply: false` reports exactly what `apply: true` would
+ * change and writes nothing, because the only way to know a bulk edit is right
+ * is to read it before it happens.
+ */
+/**
+ * What a whole-file replacement TAKES AWAY, top level only.
+ *
+ * On a replace the interesting report is not "every key you sent", which is
+ * the whole file, but the keys that were there and are not any more. A pasted
+ * file missing `wallpapers` is either a deliberate strip or a bad copy, and
+ * this is the line that tells them apart before the write.
+ */
+function removedKeys(
+  base: Record<string, unknown>,
+  next: Record<string, unknown>,
+): string[] {
+  return Object.keys(base)
+    .filter((k) => !(k in next))
+    .map((k) => `${k} (removed)`);
+}
+
+export interface ThemeJsonResult {
+  ok: boolean;
+  /** The canonical file this patch produces: what publish would sign. */
+  canonical?: string;
+  /** Keys the patch touched, for the report line. */
+  paths?: string[];
+  /** Import notes plus draft validation. Present even on a good apply. */
+  problems?: string[];
+  detail: string;
+}
+
+/**
+ * EDIT A DRAFT BY PASTING PART OF ITS theme.json.
+ *
+ * ─── AN INPUT TO THE PIPELINE, NEVER A SECOND PATH TO R2 ───────────────────
+ *
+ * The text is parsed, merged over the draft, run through `importTheme` exactly
+ * as an uploaded file is, and written with `writeDraft`. Nothing here talks to
+ * the bucket that the form does not already talk to, and `republish` calls the
+ * same action the button on the list calls.
+ *
+ * That matters because `canonicalThemeJson` rebuilds the spec field by field:
+ * what you type is not always what ships. `preview` returns the canonical
+ * result so the difference is on screen BEFORE anything is signed, which is
+ * how a `logo_dark.svg` quietly becoming `logo_dark.webp` gets noticed.
+ *
+ * ─── PREVIEW IS THE SAME CODE PATH ─────────────────────────────────────────
+ *
+ * `apply: false` does every step except the write, rather than a cheaper
+ * approximation of it. A preview that runs different code from the apply is a
+ * preview of something else.
+ */
+export async function applyThemeJsonAction(
+  app: string,
+  id: string,
+  raw: string,
+  opts: { apply: boolean; republish: boolean; replace?: boolean },
+): Promise<ThemeJsonResult> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { ok: false, detail: 'Not authorised' };
+    throw e;
+  }
+
+  if (!APPS.includes(app as AppId)) return { ok: false, detail: `Unknown app '${app}'` };
+  const appId = app as AppId;
+
+  let patch: unknown;
+  try {
+    patch = JSON.parse(raw);
+  } catch (e) {
+    // The parser's own message names the line, which is more use than any
+    // wording this could invent.
+    return { ok: false, detail: `Not JSON: ${(e as Error).message}` };
+  }
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    return { ok: false, detail: 'The patch must be a JSON object.' };
+  }
+
+  const draft = await readDraft(appId, id);
+  if (!draft) return { ok: false, detail: 'No draft on disk to patch' };
+
+  // Merged over the draft's CANONICAL form rather than the stored object, so
+  // the text on the left of the editor and the base being patched are the same
+  // document. Patching the stored shape would mean a key the canonicaliser
+  // omits is invisible in the editor and still present underneath.
+  const base = JSON.parse(canonicalThemeJson(draft.spec)) as Record<string, unknown>;
+
+  // ─── REPLACE AND MERGE ARE THE SAME CALL WITH A DIFFERENT BASE ──────────
+  //
+  // With the editor prefilled from the current file the two modes look alike
+  // until a key is DELETED. Merge keeps what the text does not mention, so
+  // deleting a line changes nothing; replace treats the text as the whole
+  // document, so deleting a line removes the key.
+  //
+  // Which is why the mode is explicit rather than inferred from how complete
+  // the text looks: "did you mean to drop `wallpapers` or did you just not
+  // paste it" is not a question worth guessing at.
+  const merged = opts.replace
+      ? (patch as Record<string, unknown>)
+      : mergeThemeJson(base, patch);
+
+  const paths = opts.replace
+      ? removedKeys(base, patch as Record<string, unknown>)
+      : patchPaths(patch);
+
+  const imported = importTheme(merged);
+  if ('error' in imported) return { ok: false, detail: imported.error, paths };
+
+  const next: ThemeDraft = { ...draft, spec: imported.spec as ThemeSpecJson };
+  const problems = [...imported.notes, ...validateDraft(next)];
+  const canonical = canonicalThemeJson(next.spec);
+
+  if (!opts.apply) {
+    return {
+      ok: true,
+      canonical,
+      paths,
+      problems,
+      detail: `would change ${paths.length} ${paths.length === 1 ? 'key' : 'keys'}`,
+    };
+  }
+
+  // `writeDraft` validates again and throws on a spec that would not load, so
+  // a patch that produces a broken theme fails here rather than on a phone.
+  try {
+    await writeDraft(appId, next);
+  } catch (e) {
+    return { ok: false, canonical, paths, problems, detail: (e as Error).message };
+  }
+
+  if (!opts.republish) {
+    revalidatePath(`/apps/${app}/distros`);
+    return { ok: true, canonical, paths, problems, detail: 'draft written, not published' };
+  }
+
+  // The SAME action the list's republish button calls: it re-reads the draft
+  // just written, passes `distroSku: null` and keeps the entitlement rules
+  // that block documents at length. Reimplementing the publish here is how one
+  // of those rules gets left out.
+  const out = await republishDistroAction(app, id);
+  return {
+    ok: out.ok,
+    canonical,
+    paths,
+    problems,
+    detail: out.ok ? `draft written, published ${out.detail}` : out.detail,
+  };
+}
+
+export async function fixPanelsAction(
+  app: string,
+  apply: boolean,
+): Promise<{ id: string; ok: boolean; detail: string }[]> {
+  await requireAdmin();
+
+  if (!APPS.includes(app as AppId)) {
+    return [{ id: app, ok: false, detail: `Unknown app '${app}'` }];
+  }
+  const appId = app as AppId;
+
+  const drafts = await readAllDrafts(appId);
+  const out: { id: string; ok: boolean; detail: string }[] = [];
+
+  for (const draft of drafts) {
+    const before = topModules(draft.spec);
+    const fix = fixPanels(draft.spec);
+
+    if (!fix.changed) {
+      // Three states read the same in a one-line report and are not the same
+      // fact, so each says which it is: nothing authored, nothing on top, or
+      // authored and already clean.
+      const why = !draft.spec.layout.panels?.length
+        ? 'no panels authored'
+        : draft.spec.layout.statusBar === false
+          ? 'hides the system bar, keeps its own row'
+          : before.length === 0
+            ? 'no top panel'
+            : 'already clean';
+      out.push({ id: draft.id, ok: true, detail: `skipped, ${why}` });
+      continue;
+    }
+
+    const after = fix.panels
+      .filter((p) => p.side === 'top')
+      .flatMap((p) => p.modules as string[]);
+
+    const line =
+      `${apply ? 'fixed' : 'would fix'}, removed ${fix.removed.join(' ')}` +
+      ` -> ${after.join(' ') || '(empty)'}`;
+
+    if (!apply) {
+      out.push({ id: draft.id, ok: true, detail: line });
+      continue;
+    }
+
+    try {
+      // `writeDraft` validates and stamps `updatedAt`, so the repair goes
+      // through the same door as the workspace rather than around it.
+      await writeDraft(appId, {
+        ...draft,
+        spec: { ...draft.spec, layout: { ...draft.spec.layout, panels: fix.panels } },
+      });
+      out.push({ id: draft.id, ok: true, detail: line });
+    } catch (e) {
+      out.push({ id: draft.id, ok: false, detail: (e as Error).message });
+    }
+  }
+
+  if (apply) revalidatePath(`/apps/${app}/distros`);
+  return out;
+}
+
 export async function fillFeatureRowsAction(
   app: string,
 ): Promise<{ id: string; ok: boolean; detail: string }[]> {

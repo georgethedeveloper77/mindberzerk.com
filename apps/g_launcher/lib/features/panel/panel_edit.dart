@@ -161,3 +161,95 @@ void setPanelHeight(WidgetRef ref, EffectiveTheme theme, double dp) {
         ),
       );
 }
+
+/// The modules a user may silence from Settings on ANY distro.
+///
+/// ─── WHY THIS IS NOT PANEL EDITING ─────────────────────────────────────────
+///
+/// `ThemeLayout.panelEdit` gates arranging a panel, and its doc is explicit
+/// that this is a product line: panel editing is what Plasma is sold on, and
+/// Manjaro and Garuda are sold partly on inheriting it. Nothing here touches
+/// that. Order, edge, thickness and the whole add catalogue stay behind the
+/// flag.
+///
+/// What this covers is narrower and is not a feature anyone sells: four
+/// modules that print something the phone's own status bar is already printing
+/// four pixels above them. Declining a duplicate is not arranging a panel, and
+/// a user who cannot turn off a second clock does not experience that as a
+/// paid feature they have not bought.
+///
+/// `tray` is here for the same reason it survived the CDN sweep: it is one
+/// control glyph now rather than three status glyphs, but it is still a thing
+/// on the bar that some people will not want.
+const List<PanelModule> silenceableModules = [
+  PanelModule.clock,
+  PanelModule.tray,
+  PanelModule.battery,
+  PanelModule.wifi,
+  PanelModule.volume,
+];
+
+/// Turn one module off, or put it back where the distro had it.
+///
+/// ─── THE AUTHORED ORDER IS THE ANCHOR ──────────────────────────────────────
+///
+/// Off is easy: drop it. On is the interesting half, because the list has no
+/// memory of where the module used to sit, and appending would put a clock at
+/// the far right of a bar that authored it in the centre.
+///
+/// So ON rebuilds from the DISTRO's own panel, keeping every module that is
+/// currently on the bar plus the one being restored, in the order the pack
+/// wrote them. Anything the user added themselves that the pack never had is
+/// kept at the end, because it has no authored position to return to.
+///
+/// CONSEQUENCE, and it is the reason this is documented rather than obvious: a
+/// user who reordered the bar in the editor and then re-enables a module here
+/// gets the pack's order back. Toggling a module on is a small act and
+/// resetting an arrangement is not, so this is worth knowing; the alternative
+/// is storing a second list of positions that only this control would read.
+void setPanelModuleEnabled(
+  WidgetRef ref,
+  EffectiveTheme theme,
+  PanelModule kind, {
+  required bool enabled,
+}) {
+  HapticFeedback.selectionClick();
+
+  final current = currentPanelItems(theme);
+
+  if (!enabled) {
+    ref.read(prefsProvider(theme.spec.id).notifier).edit(
+          (p) => p.copyWith(
+            panelModules: [
+              for (final item in current)
+                if (item.kind != kind) item.toStorage(),
+            ],
+          ),
+        );
+    return;
+  }
+
+  // The pack's own panel for the resolved edge, NOT `currentPanelItems`, which
+  // is the merged one this is trying to add back into.
+  final authored = <PanelItem>[
+    for (final p in theme.spec.layout.panels)
+      if (p.side == theme.panelSide) ...p.items,
+  ];
+
+  final live = current.map((e) => e.kind).toSet()..add(kind);
+
+  final next = <PanelItem>[
+    for (final item in authored)
+      if (live.contains(item.kind)) item,
+    // Whatever the user added that the pack never authored. Kinds already
+    // placed above are skipped so a module cannot appear twice.
+    for (final item in current)
+      if (!authored.any((a) => a.kind == item.kind)) item,
+  ];
+
+  ref.read(prefsProvider(theme.spec.id).notifier).edit(
+        (p) => p.copyWith(
+          panelModules: [for (final e in next) e.toStorage()],
+        ),
+      );
+}

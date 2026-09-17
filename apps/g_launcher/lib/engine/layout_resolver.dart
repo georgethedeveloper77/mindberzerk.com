@@ -22,6 +22,7 @@ class ResolvedLayout {
   const ResolvedLayout({
     required this.dock,
     required this.topBar,
+    required this.statusBar,
     required this.topBarSide,
     required this.topBarStats,
     required this.panels,
@@ -59,6 +60,10 @@ class ResolvedLayout {
 
   final DockSide dock;
   final bool topBar;
+
+  /// Whether Android's own status bar stays on screen. Theme default, beaten
+  /// by the user's per-distro override, the same shape as [topBar] itself.
+  final bool statusBar;
 
   /// Which edge the bar sits on, and whether it carries live readouts. Both
   /// resolve the same way everything else here does: the distro's default,
@@ -237,6 +242,7 @@ class ResolvedLayout {
       other is ResolvedLayout &&
           other.dock == dock &&
           other.topBar == topBar &&
+          other.statusBar == statusBar &&
           other.topBarSide == topBarSide &&
           other.topBarStats == topBarStats &&
           other.panels.length == panels.length &&
@@ -283,6 +289,7 @@ class ResolvedLayout {
   int get hashCode => Object.hashAll([
         dock,
         topBar,
+        statusBar,
         topBarSide,
         topBarStats,
         panels.length,
@@ -597,6 +604,7 @@ abstract final class LayoutResolver {
         _ => base.dock,
       },
       topBar: prefs.topBar ?? base.topBar,
+      statusBar: prefs.statusBar ?? base.statusBar,
       topBarSide: switch (prefs.topBarSide) {
         'top' => TopBarSide.top,
         'bottom' => TopBarSide.bottom,
@@ -630,7 +638,25 @@ abstract final class LayoutResolver {
       // THE SIDE IS STORED NOW. This said BOTTOM, hardcoded, with a note that
       // a second editable panel would need the side kept alongside the modules.
       // The Edge control is that need arriving, so it is.
-      panels: prefs.panelModules != null
+      // ─── THE SWITCH THAT DID NOTHING ──────────────────────────────────
+      //
+      // `topBar` resolved correctly and was then read by NOBODY: no shell
+      // consults it, and every one of them iterates `panels` directly. So the
+      // Top bar switch in Settings moved a stored value and left the bar on
+      // screen, on every distro whose theme authors a panel.
+      //
+      // `ThemeSpec._panels` has always honoured `topBar: false` when a PACK
+      // says it, by synthesising no panel at all. This is the same rule
+      // applied to the user's answer, at the only point where both are in
+      // hand.
+      //
+      // ALL panels, not the top one. The field answers "is there a bar", the
+      // switch is the only control that turns one off, and a Breeze user who
+      // turns it off and keeps a taskbar has been told no by a switch that
+      // said yes.
+      panels: !(prefs.topBar ?? base.topBar)
+          ? const <PanelSpec>[]
+          : prefs.panelModules != null
           ? [
               PanelSpec(
                 // ── THE THEME'S EDGE, EVEN HERE ─────────────────────────

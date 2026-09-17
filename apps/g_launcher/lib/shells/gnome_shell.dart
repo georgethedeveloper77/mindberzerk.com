@@ -361,6 +361,7 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                     onActivities: _openActivities,
                     displayFontFamily: theme.typography.display,
                     panel: p,
+                    systemStatusBar: theme.statusBar,
                   ),
                 ),
               ),

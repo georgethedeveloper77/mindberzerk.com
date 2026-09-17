@@ -184,13 +184,51 @@ class _Waybar extends ConsumerWidget {
           // placeholder, the same rule as the conky. A hidden module returns
           // null and is dropped, so an authored bar does not carry a gap where
           // a reading was unavailable.
-          PanelModule.network => stats?.cpuPercent == null
-              ? null
-              : _Module('cpu', '${stats!.cpuPercent}%', onDark, mono),
+          // ─── EACH MODULE NOW SHOWS WHAT ITS NAME SAYS ─────────────────
+          //
+          // `network` printed CPU and `storage` printed a BATTERY percentage
+          // here, and nowhere else. Four shells meant one thing by those two
+          // words and this shell meant another, with no error and nothing on
+          // screen to say so.
+          //
+          // The cost was not cosmetic. EndeavourOS authored `storage` on its
+          // bar, so it drew a battery number beside Android's own battery
+          // icon, and neither the CDN audit nor the Settings switches could
+          // see it: both look for a module called `battery`. A vocabulary that
+          // means something different on one shell is a trap for the next
+          // person who authors a waybar, and the audit that cannot read it is
+          // the proof.
+          //
+          // CPU KEEPS A HOME. `cpu` is genuinely the readout a waybar leads
+          // with, and there is no module for it, so it rides on `activities`
+          // below rather than being deleted. A module for it is a Pigeon-free
+          // spec change and belongs in its own pass.
+          // `↓ 4.2M ↑ 0.8M`, the same two figures and the same formatter the
+          // conky and the GNOME readouts use, so one reading cannot be
+          // rendered two ways on two shells.
+          PanelModule.network => stats?.hasNet == true
+              ? _Module(
+                  'net',
+                  '↓${SystemStats.rate(stats!.netDownBytesPerSec)} '
+                      '↑${SystemStats.rate(stats.netUpBytesPerSec)}',
+                  onDark,
+                  mono,
+                )
+              : null,
           PanelModule.memory => (stats != null && stats.hasMemory)
               ? _Module('mem', stats.memLabel, onDark, mono)
               : null,
-          PanelModule.storage => stats?.batteryPercent == null
+          PanelModule.storage => stats?.hasStorage == true
+              ? _Module(
+                  'disk',
+                  SystemStats.bytes(
+                    stats!.storageTotalBytes! - stats.storageUsedBytes!,
+                  ),
+                  onDark,
+                  mono,
+                )
+              : null,
+          PanelModule.battery => stats?.batteryPercent == null
               ? null
               : _Module('bat', '${stats!.batteryPercent}%', onDark, mono),
           PanelModule.clock => _Module(null, formatTime(now), onDark, mono),
@@ -201,11 +239,10 @@ class _Waybar extends ConsumerWidget {
           PanelModule.kickoff ||
           PanelModule.tasks ||
           PanelModule.tray ||
-          // A waybar shows battery and network as TEXT in its own readout run,
-          // which `PanelModule.network` already covers here. A separate tappable
-          // chip is a Plasma affordance, and an app button on a tiling bar is
-          // one too: this desktop launches from a keybind.
-          PanelModule.battery ||
+          // `battery` draws now, as text in the readout run, which is what a
+          // waybar does with it. `wifi` and `volume` stay dropped: those are
+          // tappable Plasma chips, and an app button on a tiling bar is one
+          // too, because this desktop launches from a keybind.
           PanelModule.wifi ||
           PanelModule.volume ||
           PanelModule.app =>

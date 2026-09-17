@@ -59,6 +59,7 @@ class LauncherPrefs {
     this.dockPress,
     this.dockEntrance,
     this.topBar,
+    this.statusBar,
     this.desktopIcons,
     this.panelModules,
     this.panelHeight,
@@ -199,6 +200,13 @@ class LauncherPrefs {
   final String? dockEntrance;
 
   final bool? topBar;
+
+  /// Android's own status bar, kept or hidden. Null inherits the distro.
+  ///
+  /// PER THEME, like [topBar] beside it. A distro that hands its top row to a
+  /// conky strip wants the system bar gone; the next one the user tries does
+  /// not, and a global answer would carry the wrong one across the switch.
+  final bool? statusBar;
 
   /// The user's answer to "icons on my desktop", and ONLY as a way to say no.
   ///
@@ -1067,6 +1075,7 @@ class LauncherPrefs {
     String? dockPress,
     String? dockEntrance,
     bool? topBar,
+    bool? statusBar,
     bool? desktopIcons,
     List<String>? panelModules,
     double? panelHeight,
@@ -1149,6 +1158,7 @@ class LauncherPrefs {
       dockPress: dockPress ?? this.dockPress,
       dockEntrance: dockEntrance ?? this.dockEntrance,
       topBar: topBar ?? this.topBar,
+      statusBar: statusBar ?? this.statusBar,
       desktopIcons: desktopIcons ?? this.desktopIcons,
       panelModules: panelModules ?? this.panelModules,
       panelHeight: panelHeight ?? this.panelHeight,
@@ -1237,6 +1247,7 @@ class LauncherPrefs {
     bool dockPress = false,
     bool dockEntrance = false,
     bool topBar = false,
+    bool statusBar = false,
     bool desktopIcons = false,
     bool panelModules = false,
     bool panelHeight = false,
@@ -1311,6 +1322,7 @@ class LauncherPrefs {
       // "restore defaults" on Icons and bar could turn the bar back ON but
       // could never hand it back to the distro's own answer.
       topBar: topBar ? null : this.topBar,
+      statusBar: statusBar ? null : this.statusBar,
       desktopIcons: desktopIcons ? null : this.desktopIcons,
       panelModules: panelModules ? null : this.panelModules,
       panelHeight: panelHeight ? null : this.panelHeight,
@@ -1433,6 +1445,7 @@ class LauncherPrefs {
         if (dockPress != null) 'dockPress': dockPress,
         if (dockEntrance != null) 'dockEntrance': dockEntrance,
         if (topBar != null) 'topBar': topBar,
+        if (statusBar != null) 'statusBar': statusBar,
         if (desktopIcons != null) 'desktopIcons': desktopIcons,
         if (panelModules != null) 'panelModules': panelModules,
         if (panelHeight != null) 'panelHeight': panelHeight,
@@ -1536,6 +1549,7 @@ class LauncherPrefs {
       dockPress: j['dockPress'] as String?,
       dockEntrance: j['dockEntrance'] as String?,
       topBar: j['topBar'] as bool?,
+      statusBar: j['statusBar'] as bool?,
       desktopIcons: j['desktopIcons'] as bool?,
       panelModules:
           (j['panelModules'] as List?)?.map((e) => e.toString()).toList(),
@@ -1677,6 +1691,7 @@ class LauncherPrefs {
         other.dockPress == dockPress &&
         other.dockEntrance == dockEntrance &&
         other.topBar == topBar &&
+        other.statusBar == statusBar &&
         other.desktopIcons == desktopIcons &&
         const ListEquality<String>().equals(other.panelModules, panelModules) &&
         other.panelHeight == panelHeight &&
@@ -1783,6 +1798,7 @@ class LauncherPrefs {
         dockPress,
         dockEntrance,
         topBar,
+        statusBar,
         desktopIcons,
         const ListEquality<String>().hash(panelModules),
         panelHeight,

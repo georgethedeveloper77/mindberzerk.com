@@ -19,7 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
-import '../../engine/theme_spec.dart' show PanelItem, PanelModule;
+import '../../engine/theme_spec.dart'
+    show PanelItem, PanelModule, TopBarSide;
 import '../home/workspaces/workspace_controller.dart';
 import 'applets/panel_battery.dart';
 import 'applets/panel_network.dart';
@@ -102,6 +103,9 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
     PanelModule.tray => PanelTrayButton(
         palette: theme.palette,
         stacked: host.vertical,
+        // A BOTTOM panel is 700dp from the status bar and duplicates nothing,
+        // so it keeps all three. Only a top bar sits under the system's own.
+        compact: theme.statusBar && theme.panelSide == TopBarSide.top,
       ),
 
     PanelModule.clock => PanelClockModule(

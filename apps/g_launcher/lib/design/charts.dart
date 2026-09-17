@@ -457,3 +457,180 @@ class BarsChart extends StatelessWidget {
     );
   }
 }
+
+/// One day of measured battery level, drawn the way a settings battery screen
+/// draws it: charge down the y axis, midnight to midnight across the x.
+///
+/// ─── fl_chart, LIKE EVERY OTHER CHART IN THIS FILE ─────────────────────────
+///
+/// This was a hand-rolled CustomPainter, which is how it ended up the only
+/// chart in the app with its own axis maths, its own gap rule and no tooltip.
+/// A LineChart with two series says the same thing in a quarter of the code
+/// and inherits the grid, the axis labels and the touch handling that the
+/// wrappers above already agree on.
+///
+/// ─── GAPS ARE DRAWN AS GAPS ────────────────────────────────────────────────
+///
+/// The series is only recorded while the desktop is on screen. Two readings
+/// four hours apart are two facts and not a line between them, so a gap wider
+/// than [_maxBridge] starts a NEW bar group rather than being bridged. Same
+/// rule the conky keeps by hiding a module with no reading instead of printing
+/// a placeholder.
+///
+/// ─── AND WHY THERE IS NO PROJECTION ────────────────────────────────────────
+///
+/// The system screen draws a wedge from now to empty. It is an estimate, and
+/// the house rule is that every figure shown is measured, so this chart stops
+/// where the readings stop.
+///
+/// ─── TOUCH IS ON HERE, AND ONLY HERE ───────────────────────────────────────
+///
+/// The file header turns touch off everywhere: a tooltip that appears when you
+/// meant to scroll is worse than no tooltip. This chart is the exception the
+/// rule was not written for. Its x axis is TIME, so "what was the charge at
+/// four" is a question the chart invites and cannot otherwise answer, and the
+/// day it belongs to is chosen by a control directly above it.
+class BatteryDayChart extends StatelessWidget {
+  const BatteryDayChart({
+    super.key,
+    required this.day,
+    required this.points,
+    this.height = 132,
+  });
+
+  /// The calendar day being drawn. Midnight of this date is x = 0.
+  final DateTime day;
+
+  /// Oldest first: time, charge 0-100, and whether it was on a cable.
+  final List<({DateTime at, int percent, bool charging})> points;
+
+  final double height;
+
+  /// The widest gap between two readings that still draws as one stretch.
+  ///
+  /// Twenty minutes: the recorder ticks every five and writes at least every
+  /// fifteen, so anything wider means the launcher was not on screen.
+  static const Duration _maxBridge = Duration(minutes: 20);
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+    final midnight = DateTime(day.year, day.month, day.day);
+
+    double hourOf(DateTime at) =>
+        at.difference(midnight).inSeconds / Duration.secondsPerHour;
+
+    // TWO SERIES, NOT ONE COLOURED LINE. fl_chart colours a bar or a line per
+    // series, so charging and discharging have to be separate sets; a point is
+    // in both at a handover so the fill has no notch in it.
+    final drain = <FlSpot>[];
+    final charge = <FlSpot>[];
+    final bars = <LineChartBarData>[];
+
+    void flush() {
+      if (drain.length > 1) bars.add(_line(List.of(drain), c.textMuted));
+      if (charge.length > 1) bars.add(_line(List.of(charge), ChartColors.good));
+      drain.clear();
+      charge.clear();
+    }
+
+    for (var i = 0; i < points.length; i++) {
+      final p = points[i];
+      if (i > 0 && p.at.difference(points[i - 1].at) > _maxBridge) flush();
+
+      final spot = FlSpot(hourOf(p.at), p.percent.toDouble());
+      // The EARLIER sample's state owns the stretch that follows it: the flag
+      // describes the period just measured, not the instant it was read.
+      final chargingRun = i > 0 ? points[i - 1].charging : p.charging;
+      (chargingRun ? charge : drain).add(spot);
+      if (i > 0 && points[i - 1].charging != p.charging) {
+        (chargingRun ? drain : charge).add(spot);
+      }
+    }
+    flush();
+
+    return SizedBox(
+      height: height,
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: 24,
+          minY: 0,
+          maxY: 100,
+          lineBarsData: bars,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: true,
+            // Every six hours and every quarter charge. Denser than that on a
+            // 360dp card is texture rather than a grid.
+            verticalInterval: 6,
+            horizontalInterval: 25,
+            getDrawingVerticalLine: (_) =>
+                FlLine(color: c.surfaceAlt, strokeWidth: 1),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: c.surfaceAlt, strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(),
+            rightTitles: const AxisTitles(),
+            leftTitles: const AxisTitles(),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 6,
+                reservedSize: 18,
+                getTitlesWidget: (v, _) => Text(
+                  // 24 is the same instant as 0 on the next day, so it is left
+                  // off rather than printed as a second midnight.
+                  v >= 24 ? '' : '${v.toInt()}',
+                  style: TextStyle(color: c.textFaint, fontSize: 10),
+                ),
+              ),
+            ),
+          ),
+          lineTouchData: LineTouchData(
+            getTouchedSpotIndicator: (bar, indexes) => [
+              for (final _ in indexes)
+                TouchedSpotIndicatorData(
+                  FlLine(color: c.textFaint, strokeWidth: 1),
+                  FlDotData(show: false),
+                ),
+            ],
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => c.surfaceAlt,
+              getTooltipItems: (spots) => [
+                for (final s in spots)
+                  LineTooltipItem(
+                    '${s.y.round()}%  ${_clock(s.x)}',
+                    TextStyle(color: c.text, fontSize: 11),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static LineChartBarData _line(List<FlSpot> spots, Color color) =>
+      LineChartBarData(
+        spots: spots,
+        isCurved: false,
+        color: color,
+        barWidth: 1.5,
+        dotData: const FlDotData(show: false),
+        belowBarData: BarAreaData(
+          show: true,
+          color: color.withValues(alpha: 0.18),
+        ),
+      );
+
+  /// `14:35` from an hours-since-midnight x value.
+  static String _clock(double hours) {
+    final h = hours.floor().clamp(0, 23);
+    final m = ((hours - h) * 60).round().clamp(0, 59);
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+}

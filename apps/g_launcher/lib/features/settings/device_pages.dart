@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/charts.dart';
 import '../../design/components/components.dart';
+import '../../system/battery_history.dart';
 import '../../system/stats_history.dart';
 import '../../system/system_stats.dart';
 
@@ -260,54 +261,154 @@ class NetworkPage extends ConsumerWidget {
 
 // ─── power ───────────────────────────────────────────────────────────────────
 
-class PowerPage extends ConsumerWidget {
+/// Power, rebuilt to the shape of the system battery screen.
+///
+/// ─── WHAT CHANGED AND WHY ──────────────────────────────────────────────────
+///
+/// The page used to be a ring and a temperature trend, both drawn from
+/// [StatsHistory], which is six minutes of memory. That answers "how is the
+/// battery right now" and cannot answer "where did today go", which is the
+/// only question anybody opens a battery screen to ask.
+///
+/// So the headline is the level and the draw, the chart under it is the day,
+/// and the bars under that are the week, all from [BatteryHistory]. The ring
+/// is gone: it said the same thing as the number beside it.
+///
+/// ─── STATEFUL, FOR ONE FIELD ───────────────────────────────────────────────
+///
+/// The selected day. A provider for it would outlive the page and put the user
+/// back on Tuesday a week later; a settings page's own scroll position is not
+/// app state and neither is this.
+class PowerPage extends ConsumerStatefulWidget {
   const PowerPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PowerPage> createState() => _PowerPageState();
+}
+
+class _PowerPageState extends ConsumerState<PowerPage> {
+  /// Midnight of the day being charted. Null means today, RE-EVALUATED on
+  /// every build rather than captured in initState: a launcher sits open
+  /// across midnight and a captured date would keep charting yesterday.
+  DateTime? _selected;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(systemStatsProvider);
     final s = async.hasValue ? async.requireValue : null;
-    final history = ref.watch(statsHistoryProvider);
+
+    // The page's own ticker is already running for the rows below, so every
+    // sample it produces is offered to the history for free. The recorder in
+    // `HomeScreen` covers the hours this page is closed.
+    ref.listen(systemStatsProvider, (_, next) {
+      if (!next.hasValue) return;
+      ref.read(batteryHistoryProvider.notifier).offer(next.requireValue);
+    });
+
+    final history = ref.watch(batteryHistoryProvider);
+    final notifier = ref.read(batteryHistoryProvider.notifier);
 
     final c = ChromeScope.of(context).colors;
     final pct = s?.batteryPercent;
-    final temps = history.series((x) => x.batteryTempC);
 
-    // Below 15% the ring turns, because that is the point where the number
-    // stops being trivia. Charging overrides it: a phone at 8% on a cable is
-    // not a warning, it is a phone charging.
-    final lowBattery = pct != null && pct <= 15 && s?.batteryCharging != true;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = _selected ?? today;
+    final week = history.hasValue ? notifier.dailyUsage() : const <BatteryDay>[];
+    final samples =
+        history.hasValue ? notifier.samplesOn(day) : const <BatterySample>[];
+    final usedToday = week.isEmpty ? null : week.last.dischargePercent;
 
     return _DevicePage(
       title: context.t('settings.power'),
       header: pct == null
           ? null
-          : _ChartHeader(
-              legend:
-                  temps.length >= 2 ? {'Temperature': ChartColors.warm} : null,
-              centre: RingGauge(
-                fraction: pct / 100,
-                label: '$pct%',
-                caption: s?.batteryCharging == true ? 'Charging' : null,
-                color: lowBattery ? c.danger : ChartColors.good,
-              ),
-              // Temperature over time is the one battery figure worth a trend:
-              // a number climbing steadily while charging is the thing you
-              // would want to notice, and a single reading cannot show it.
-              child: temps.length >= 2
-                  ? TrendChart(
-                      series: temps,
-                      color: ChartColors.warm,
-                      height: 84,
-                      labelFor: (v) => '${v.toStringAsFixed(0)} C',
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ─── THE HEADLINE, AS ONE LINE ───────────────────────
+                  //
+                  // Charge, state and draw read together or not at all: 78%
+                  // means something different at plus 1200 mA than at minus
+                  // 300, and three separate rows made the reader assemble it.
+                  Text(
+                    '$pct%',
+                    style: TextStyle(
+                      color: (pct <= 15 && s?.batteryCharging != true)
+                          ? c.danger
+                          : c.text,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _headline(context, s),
+                    style: TextStyle(color: c.textMuted, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  _DayStrip(
+                    days: [for (var i = 6; i >= 0; i--)
+                      today.subtract(Duration(days: i))],
+                    selected: day,
+                    onSelect: (d) => setState(() => _selected = d),
+                  ),
+                  const SizedBox(height: 8),
+                  if (samples.isEmpty)
+                    // Absent, not a flat line at zero. Nothing was measured,
+                    // and a chart that draws that as empty battery is a lie
+                    // the same size as a placeholder string.
+                    Text(
+                      context.t('settings.batteryNoReadings'),
+                      style: TextStyle(color: c.textFaint, fontSize: 12),
                     )
-                  : null,
+                  else ...[
+                    BatteryDayChart(
+                      day: day,
+                      points: [
+                        for (final x in samples)
+                          (at: x.at, percent: x.percent, charging: x.charging),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ChartLegend(entries: {
+                      context.t('settings.batteryLevel'): c.textMuted,
+                      context.t('settings.batteryCharging'): ChartColors.good,
+                    }),
+                  ],
+                  if (usedToday != null && usedToday > 0) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      context.t('settings.dailyUsage', {'pct': '$usedToday'}),
+                      style: TextStyle(
+                        color: c.text,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    BarsChart(
+                      height: 110,
+                      bars: [
+                        for (final d in week)
+                          (
+                            label: _weekdayLetter(d.date),
+                            value: d.dischargePercent.toDouble(),
+                            color: d.date == day ? c.accent : ChartColors.cool,
+                          ),
+                      ],
+                      labelFor: (v) => v <= 0 ? '' : '${v.toStringAsFixed(0)}%',
+                    ),
+                  ],
+                ],
+              ),
             ),
+      // The honesty line, in the place every device page puts its caveat.
+      note: context.t('settings.batteryRecordedNote'),
       action: _AndroidSettings.battery,
       actionLabel: 'Battery usage',
       rows: [
-        if (s?.batteryPercent != null)
-          _StatRow('Charge', '${s!.batteryPercent}%'),
         if (s?.batteryCharging != null)
           _StatRow('State', s!.batteryCharging! ? 'Charging' : 'Discharging'),
         // Direction from the CHARGING FLAG, never the platform's sign, which is
@@ -323,6 +424,74 @@ class PowerPage extends ConsumerWidget {
         if (thermalLabel(s?.thermalStatus) != null)
           _StatRow('Thermal state', thermalLabel(s!.thermalStatus)!),
         if (s?.uptime != null) _StatRow('Uptime', formatUptime(s!.uptime)),
+      ],
+    );
+  }
+
+  /// State, draw and temperature on one line, each part dropped when the
+  /// device will not answer for it rather than printed as a dash.
+  String _headline(BuildContext context, SystemStats? s) {
+    final parts = <String>[
+      if (s?.batteryCharging != null)
+        s!.batteryCharging! ? 'Charging' : 'Discharging',
+      if (s?.batteryCurrentMa != null)
+        '${s!.batteryCharging == true ? '+' : '-'}${s.batteryCurrentMa} mA',
+      if (s?.batteryTempC != null) '${s!.batteryTempC!.toStringAsFixed(1)} C',
+    ];
+    return parts.join(' \u00B7 ');
+  }
+}
+
+String _weekdayLetter(DateTime d) =>
+    const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][d.weekday - 1];
+
+/// The seven day chips above the chart.
+///
+/// Day of the month, not the weekday letter: the bars below already carry the
+/// letters, and two rows of the same seven labels reads as one control drawn
+/// twice.
+class _DayStrip extends StatelessWidget {
+  const _DayStrip({
+    required this.days,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<DateTime> days;
+  final DateTime selected;
+  final ValueChanged<DateTime> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return Row(
+      children: [
+        for (final d in days)
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onSelect(d),
+              child: Container(
+                // 44dp, so a chip in a row of seven is still a tap target on a
+                // 360dp screen.
+                height: 44,
+                alignment: Alignment.center,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: d == selected ? c.surfaceAlt : null,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '${d.day}',
+                  style: TextStyle(
+                    color: d == selected ? c.text : c.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -669,6 +838,76 @@ class _StatRow extends StatelessWidget {
   }
 }
 
+/// The caveat under a page's readings, FOLDED AWAY until asked for.
+///
+/// ─── WHY IT IS NOT A PARAGRAPH ANY MORE ────────────────────────────────────
+///
+/// Every one of these pages carried two or three lines of small print
+/// permanently on screen: where the number comes from, what it excludes, why a
+/// figure looks high. All of it true, all of it read once, and after that it is
+/// a block of grey text between the data and the hand-off that the eye has to
+/// step over every single visit.
+///
+/// A disclosure keeps the sentence available to the person who wants it and
+/// gives the page back to the numbers. The glyph and the label are the
+/// affordance; the text appears under them and folds away again.
+class _PageNote extends StatefulWidget {
+  const _PageNote(this.text);
+
+  final String text;
+
+  @override
+  State<_PageNote> createState() => _PageNoteState();
+}
+
+class _PageNoteState extends State<_PageNote> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ChromeScope.of(context).colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            // 48dp of height including the padding, so a 16dp glyph is still a
+            // real tap target.
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: c.textFaint),
+                const SizedBox(width: 8),
+                Text(
+                  context.t('settings.aboutThisReading'),
+                  style: TextStyle(color: c.textFaint, fontSize: 12),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _open ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: c.textFaint,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_open)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              widget.text,
+              style: TextStyle(color: c.textFaint, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// The shape every device page shares: live rows, then the hand-off.
 class _DevicePage extends ConsumerWidget {
   const _DevicePage({
@@ -724,14 +963,7 @@ class _DevicePage extends ConsumerWidget {
             ThemedSectionHeader(context.t('settings.rightNow')),
             ...rows,
           ],
-          if (note != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                note!,
-                style: TextStyle(color: c.textFaint, fontSize: 12),
-              ),
-            ),
+          if (note != null) _PageNote(note!),
           ThemedSectionHeader(context.t('settings.android')),
           ThemedListRow(
             icon: Icons.open_in_new,
