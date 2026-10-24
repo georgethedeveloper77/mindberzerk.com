@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/components/anchored_menu.dart';
+import '../../../design/components/chrome_theme.dart';
 import '../../../engine/theme_spec.dart' show ThemePalette;
 import '../../dock/dock_extent.dart';
 import '../../dock/dock_metrics.dart';
@@ -391,6 +393,23 @@ class GnomeDock extends StatelessWidget {
     // has no opinion about WHERE in the dock it goes. Asking the user to hit a
     // 9dp gap between two icons to express something they were not thinking
     // about is how a drop becomes a game.
+    // ─── THE BLUR IS NOW THE USER'S SETTING, AND IT CAN REACH ZERO ────────
+    //
+    // This was a hardcoded sigma 12 that ran on every frame the desktop drew,
+    // while `ChromeData.panelBlur` (the setting a person reaches for when the
+    // launcher stutters) turned off the blur on sheets and menus only. The one
+    // permanently on screen ignored it.
+    //
+    // Capped at the authored 12 rather than taking the chrome's default of 18:
+    // the dock's value was chosen for the dock, and a setting raised for sheets
+    // should not make the desktop heavier.
+    //
+    // Worth knowing before raising it again: the window is transparent and the
+    // wallpaper is drawn by WindowManager UNDERNEATH Flutter, so what this
+    // filter rasterises is Flutter's own layer, which behind a bottom dock is
+    // usually nothing. It costs a full offscreen pass per frame either way.
+    final blurSigma = math.min(ChromeScope.of(context).panelBlur, 12.0);
+
     return DragTarget<DrawerDrag>(
       onWillAcceptWithDetails: (d) =>
           onDropApp != null &&
@@ -416,12 +435,9 @@ class GnomeDock extends StatelessWidget {
         ),
         child: ClipRRect(
       borderRadius: radius,
-      child: BackdropFilter(
-        // The blur earns its keep — the dock sits on an arbitrary photograph —
-        // but it is also the single most expensive thing on the desktop. If the
-        // launcher ever janks on a Tecno, measure this first.
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
+      child: _maybeBlur(
+        blurSigma,
+        Container(
           padding: vertical
               ? const EdgeInsets.symmetric(horizontal: 7, vertical: 9)
               : const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
@@ -451,6 +467,18 @@ class GnomeDock extends StatelessWidget {
       ),
     );
   }
+
+  /// The blur, or nothing at all.
+  ///
+  /// Zero has to mean skipping the widget rather than passing zero to it: a
+  /// BackdropFilter rasterises its backdrop whatever the sigma, so a zero blur
+  /// costs the entire effect and draws none of it. Same rule as [GlassPanel].
+  static Widget _maybeBlur(double sigma, Widget child) => sigma > 0
+      ? BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+          child: child,
+        )
+      : child;
 
   /// The Flex the dock's children sit in, built in one place so the motion
   /// branch and the plain branch cannot drift on `mainAxisSize`.

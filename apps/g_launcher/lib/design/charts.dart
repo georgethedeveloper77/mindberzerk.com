@@ -595,7 +595,7 @@ class BatteryDayChart extends StatelessWidget {
               for (final _ in indexes)
                 TouchedSpotIndicatorData(
                   FlLine(color: c.textFaint, strokeWidth: 1),
-                  FlDotData(show: false),
+                  const FlDotData(show: false),
                 ),
             ],
             touchTooltipData: LineTouchTooltipData(

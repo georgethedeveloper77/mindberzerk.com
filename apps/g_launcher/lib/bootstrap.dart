@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import 'core/crash.dart';
 
-/// Runs before the first frame. Keep it FAST — every millisecond here is a
+/// Runs before the first frame. Keep it FAST: every millisecond here is a
 /// millisecond between the user pressing home and seeing their desktop.
 ///
 /// Anything slow (app list, icon cache warm-up) belongs on the Kotlin side, on
@@ -12,7 +12,7 @@ import 'core/crash.dart';
 /// ## What is deliberately NOT here: the pack bridge
 ///
 /// `PackFlutterApi.setUp` needs a Riverpod `Ref` and there is no container yet
-/// at this point — `runApp(ProviderScope(...))` has not been called. So the
+/// at this point, since `runApp(ProviderScope(...))` has not been called. So the
 /// registration lives in `packBridgeProvider`, watched once at the app root.
 ///
 /// That is the better home anyway. Pigeon's `setUp` REPLACES any previous
@@ -38,9 +38,7 @@ void bootstrap() {
   Crash.installEarly();
 
   // A launcher draws its own wallpaper. Let it run under the system bars.
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-  );
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Color(0x00000000),

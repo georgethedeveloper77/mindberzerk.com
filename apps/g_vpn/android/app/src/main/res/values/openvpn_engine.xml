@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- G VPN overrides for the embedded OpenVPN engine's notification. App
+     resources replace a library's resources of the same name. -->
+<resources>
+    <string name="notifcation_title">%s</string>
+    <string name="notifcation_title_notconnect">Not protected</string>
+    <drawable name="ic_stat_vpn">@drawable/ic_stat_gvpn</drawable>
+</resources>

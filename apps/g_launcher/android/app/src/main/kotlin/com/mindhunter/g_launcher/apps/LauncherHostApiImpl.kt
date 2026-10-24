@@ -249,8 +249,23 @@ class LauncherHostApiImpl(
             main.post { callback(Result.success(out)) }
         }
 
+    /**
+     * False on refusal, which is the same answer the caller already handles for
+     * a session that has gone.
+     *
+     * ─── WHY THIS IS NOT A BARE CALL ANY MORE ───────────────────────────────
+     *
+     * Reaching a session goes through MediaSessionManager, which requires
+     * notification access, and the check is made per call rather than once. The
+     * companion [activeSessions] has had a `runCatching` around it all along;
+     * this one was bare, so a revoked or never-granted permission threw
+     * SecurityException across a SYNC Pigeon method and surfaced in Dart as the
+     * `launcher_api.g.dart` `_extractReplyValueOrThrow` crash, on a media
+     * button press.
+     */
     override fun sendMediaCommand(packageName: String, command: String): Boolean =
-        MediaSessions.send(appContext, packageName, command)
+        runCatching { MediaSessions.send(appContext, packageName, command) }
+            .getOrDefault(false)
 
     override fun shortcutsFor(
         componentKey: String,

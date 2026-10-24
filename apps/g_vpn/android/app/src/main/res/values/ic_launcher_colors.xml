@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Meridian: the blue shield on a pale brand tint, so the white "G" stays visible. -->
+    <color name="ic_launcher_background">#EEF3FF</color>
+</resources>

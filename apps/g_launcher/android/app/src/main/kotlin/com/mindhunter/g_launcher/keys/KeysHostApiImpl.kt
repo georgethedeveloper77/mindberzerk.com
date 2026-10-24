@@ -232,6 +232,10 @@ class KeysHostApiImpl(private val executor: Executor) : KeysHostApi {
 
         val cancellation = CancellationSignal()
 
+        // Authored copy, in the launcher's own words rather than the platform's
+        // default, which does not exist for this button on API 28.
+        val cancelLabel = activity.getString(android.R.string.cancel)
+
         val prompt = BiometricPrompt.Builder(activity)
             .setTitle("Unlock SSH key")
             .setSubtitle(alias)
@@ -239,14 +243,31 @@ class KeysHostApiImpl(private val executor: Executor) : KeysHostApi {
             // not reading can still get in with their PIN. Without it a wet
             // thumb locks someone out of their own server.
             .apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    setAllowedAuthenticators(
-                        android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                            android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                    )
-                } else {
-                    @Suppress("DEPRECATION")
-                    setDeviceCredentialAllowed(true)
+                when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
+                        setAllowedAuthenticators(
+                            android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                        )
+
+                    // ─── Q, NOT P ───────────────────────────────────────────
+                    //
+                    // setDeviceCredentialAllowed arrived in API 29, and the
+                    // guard above it only excluded R and newer, so on Android 9
+                    // this was a NoSuchMethodError: an SSH key unlock that
+                    // killed the process on the exact devices the else branch
+                    // was written for.
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                        @Suppress("DEPRECATION")
+                        setDeviceCredentialAllowed(true)
+                    }
+
+                    // Android 9 has no credential fallback at all, and build()
+                    // THROWS unless a negative button is set. Cancelling here
+                    // arrives as ERROR_NEGATIVE_BUTTON in onAuthenticationError
+                    // below, which already replies CANCELLED, so the button
+                    // needs no listener of its own.
+                    else -> setNegativeButton(cancelLabel, executor) { _, _ -> }
                 }
             }
             .build()

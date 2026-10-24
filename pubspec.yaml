@@ -26,6 +26,8 @@ environment:
 # and listing them fails the bootstrap.
 workspace:
   - apps/g_launcher
+  - apps/g_vpn
+  - packages/g_network
   - packages/g_content
   - packages/g_account
 

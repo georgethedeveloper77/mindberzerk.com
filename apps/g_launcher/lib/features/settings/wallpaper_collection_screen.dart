@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../../core/single_flight_picker.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/wallpaper_collections.dart';
 import '../../design/branded_message.dart';
@@ -73,7 +73,7 @@ class WallpaperCollectionScreen extends ConsumerWidget {
     }
 
     Future<void> addPhotos() async {
-      final picked = await ImagePicker().pickMultiImage();
+      final picked = await SingleFlightPicker.pickMultiImage();
       if (picked.isEmpty) return;
 
       final added = await notifier.addImages(

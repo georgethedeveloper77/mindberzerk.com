@@ -116,6 +116,18 @@
     -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
+    <!--
+      Biometric unlock for an SSH key held in the keystore (Terminal). The key
+      is generated with setUserAuthenticationRequired, so signing WILL raise a
+      prompt, and BiometricPrompt.authenticate requires this permission from
+      API 28: without it the call throws rather than showing a prompt.
+
+      Normal permission, auto-granted, no runtime request and no Play
+      declaration. Not USE_FINGERPRINT, which is the deprecated API 23 one and
+      does not cover face or iris.
+    -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
 
     <queries>
         <!--

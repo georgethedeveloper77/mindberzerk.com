@@ -68,9 +68,30 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
 
+  /// Clears the shared palette query. Bound in [initState], used in [dispose].
+  ///
+  /// ─── ref IS DEAD BY THE TIME THE MICROTASK RUNS ──────────────────────────
+  ///
+  /// dispose() used to schedule `ref.read(paletteQueryProvider.notifier)` in a
+  /// microtask, and the element is unmounted before any microtask runs, so it
+  /// threw "Using ref when a widget is unmounted" every time the launcher
+  /// closed: the `_TilingLauncherState.dispose.<fn>` crash. The notifier is
+  /// captured while the widget is alive; the deferral stays, because writing a
+  /// provider synchronously during dispose is its own error.
+  late final void Function() _clearQuery;
+
   @override
   void initState() {
     super.initState();
+    final query = ref.read(paletteQueryProvider.notifier);
+    _clearQuery = () {
+      // The provider can be torn down in the same frame as this widget when
+      // nothing else listens, and a reset nobody will read is not worth a
+      // report.
+      try {
+        query.state = '';
+      } catch (_) {}
+    };
     // The prompt IS the surface. A launcher you have to tap to focus wastes the
     // keystroke that opened it.
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
@@ -81,9 +102,7 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
     _controller.dispose();
     _focus.dispose();
     // Leave no query behind: reopening should start empty, not mid-search.
-    Future.microtask(
-      () => ref.read(paletteQueryProvider.notifier).state = '',
-    );
+    Future.microtask(_clearQuery);
     super.dispose();
   }
 

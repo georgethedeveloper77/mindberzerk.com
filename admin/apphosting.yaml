@@ -53,6 +53,15 @@ env:
     availability:
       - RUNTIME
 
+  # G VPN: the gvpn-servers Worker's REFRESH_TOKEN, so the panel can read the
+  # full server list and publish overrides. Create the secret BEFORE deploying:
+  # a reference to a missing secret fails the whole rollout.
+  #   firebase apphosting:secrets:set gvpn-admin-token
+  - variable: GVPN_ADMIN_TOKEN
+    secret: gvpn-admin-token
+    availability:
+      - RUNTIME
+
   # ── non-secret config ────────────────────────────────────────────────────
   - variable: R2_ENDPOINT
     value: https://2df6df2e2ed97a0affaa1d17e48ebb3a.r2.cloudflarestorage.com

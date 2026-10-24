@@ -1,0 +1,31 @@
+name: g_network
+description: Network tools shared across Mindberzerk apps. Speed test, latency, public identity, Wi-Fi safety and network info.
+publish_to: "none"
+version: 0.1.0
+
+# Workspace member. G VPN owns the full toolkit; G Recovery shows a summary
+# card from the same package rather than a second implementation.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  # Regenerate from packages/g_network:
+  #   dart run pigeon --input pigeons/network_api.dart
+  pigeon: ^27.1.2
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.mindberzerk.g_network
+        pluginClass: GNetworkPlugin

@@ -7,6 +7,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.UserManager
+import androidx.annotation.RequiresApi
 import com.mindhunter.g_launcher.apps.ComponentKey
 
 /**
@@ -80,18 +81,22 @@ class IconExtractor(context: Context) {
             .firstOrNull { it.componentName.className == key.className }
     }
 
+    /**
+     * ─── THE API CHECK IS NOT PEDANTRY ──────────────────────────────────────
+     *
+     * `AdaptiveIconDrawable` is API 26 and `minSdk` is 24, so on Android 7 the
+     * type test alone reached for a class that is not on the device. Every icon
+     * in the drawer goes through here, so the failure is not an edge case on
+     * those builds: it is the launcher, on the hardware this app is aimed at.
+     *
+     * The layer read stays in its own method so the API 26 members are never
+     * verified on a device that lacks them.
+     */
     private fun classify(drawable: Drawable): ExtractedIcon {
-        if (drawable is AdaptiveIconDrawable) {
-            return ExtractedIcon(
-                foreground = drawable.foreground,
-                background = drawable.background,
-                monochrome = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    drawable.monochrome
-                } else {
-                    null
-                },
-                isAdaptive = true,
-            )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            drawable is AdaptiveIconDrawable
+        ) {
+            return adaptive(drawable)
         }
 
         return ExtractedIcon(
@@ -101,4 +106,16 @@ class IconExtractor(context: Context) {
             isAdaptive = false,
         )
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun adaptive(drawable: AdaptiveIconDrawable) = ExtractedIcon(
+        foreground = drawable.foreground,
+        background = drawable.background,
+        monochrome = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            drawable.monochrome
+        } else {
+            null
+        },
+        isAdaptive = true,
+    )
 }

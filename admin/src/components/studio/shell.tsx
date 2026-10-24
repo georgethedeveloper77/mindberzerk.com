@@ -218,6 +218,28 @@ interface Section {
  * stays ungrouped above both, because it is where you land.
  */
 function sectionsFor(app: string): { label: string; items: Section[] }[] {
+  // G VPN'S CONTENT IS ITS SERVER LIST, which lives in a Worker rather than
+  // the bucket, so the bucket screens (CDN objects, upload, commerce) have
+  // nothing to show for it and are left out rather than shown empty.
+  if (app === 'g-vpn') {
+    return [
+      { label: '', items: [{ label: 'Overview', href: `/apps/${app}`, icon: 'overview' }] },
+      {
+        label: 'Servers',
+        items: [
+          { label: 'Servers', href: `/apps/${app}/servers`, icon: 'cdn' },
+          { label: 'Sources', href: `/apps/${app}/sources`, icon: 'config' },
+        ],
+      },
+      {
+        label: 'Manage',
+        items: [
+          { label: 'Analytics', href: `/apps/${app}/analytics`, icon: 'analytics' },
+          { label: 'Legal', href: `/apps/${app}/legal`, icon: 'legal' },
+        ],
+      },
+    ];
+  }
   return [
     { label: '', items: [{ label: 'Overview', href: `/apps/${app}`, icon: 'overview' }] },
     {
@@ -331,7 +353,10 @@ export function StudioShell({ app, children }: { app?: string; children: React.R
    * one moment you most want to know where you are is two levels deep. The
    * trailing slash matters, or `/packs` would light for `/packs-archive`.
    */
-  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // An app's Overview is the PARENT of every other app page, so it lights
+  // only on an exact match; otherwise it stayed lit beside the real page.
+  const active = (href: string) =>
+    pathname === href || (!/^\/apps\/[^/]+$/.test(href) && pathname.startsWith(`${href}/`));
 
   const meta = app ? appMeta(app) : undefined;
 

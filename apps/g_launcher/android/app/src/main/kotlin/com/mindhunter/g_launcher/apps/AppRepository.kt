@@ -1,7 +1,12 @@
 package com.mindhunter.g_launcher.apps
 
+import android.app.ActivityOptions
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
@@ -138,7 +143,66 @@ class AppRepository(context: Context) {
 
         // startMainActivity handles suspended apps by showing the system's
         // "app is paused" dialog for us. Don't pre-empt that with our own.
-        launcherApps.startMainActivity(component, user, bounds, null)
+        //
+        // ─── AND THE START ITSELF CAN BE REFUSED ────────────────────────────
+        //
+        // `launchApp` is a sync Pigeon method, so a throw here crosses the
+        // bridge and lands in Dart as PlatformException(SecurityException),
+        // which nothing catches: the `launcher_api.g.dart`
+        // `_extractReplyValueOrThrow` crash. Two real causes, both outside the
+        // launcher's control: the component in the cached entry no longer
+        // exists or is no longer exported after an update, and a work-profile
+        // component whose profile stopped between the tap and the start.
+        //
+        // The fallback is not cosmetic. When an app renames its launcher
+        // activity, every cached key is stale until the next refresh, and
+        // `getLaunchIntentForPackage` resolves the CURRENT one, so the tap
+        // works instead of doing nothing.
+        try {
+            launcherApps.startMainActivity(component, user, bounds, null)
+        } catch (e: SecurityException) {
+            if (!launchByPackage(key.packageName, user, bounds)) {
+                Log.w(TAG, "launch denied for $componentKey: $e")
+            }
+        } catch (e: ActivityNotFoundException) {
+            if (!launchByPackage(key.packageName, user, bounds)) {
+                Log.w(TAG, "launch target gone for $componentKey: $e")
+            }
+        }
+    }
+
+    /**
+     * Start [packageName]'s current launcher activity, ignoring the component
+     * the caller asked for.
+     *
+     * Only for this user: a cross-profile start needs LauncherApps, which is
+     * what just failed. False when there is nothing to start, so the caller
+     * can log rather than assume the tap worked.
+     */
+    private fun launchByPackage(
+        packageName: String,
+        user: UserHandle,
+        bounds: Rect?,
+    ): Boolean {
+        if (user != Process.myUserHandle()) return false
+
+        val intent = appContext.packageManager.getLaunchIntentForPackage(packageName)
+            ?: return false
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        val options = bounds?.let {
+            ActivityOptions.makeScaleUpAnimation(null, it.left, it.top, it.width(), it.height())
+        }
+        return try {
+            // `options` may be null; startActivity accepts that and animates
+            // with the system default, which is the same thing a launch with
+            // no source rect already does.
+            appContext.startActivity(intent, options?.toBundle())
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "package launch failed for $packageName: $e")
+            false
+        }
     }
 
     fun openAppInfo(componentKey: String) {
@@ -150,12 +214,39 @@ class AppRepository(context: Context) {
 
         val key = ComponentKey.parse(componentKey) ?: return
         val user = userManager.getUserForSerialNumber(key.userSerial) ?: return
-        launcherApps.startAppDetailsActivity(
-            ComponentName(key.packageName, key.className),
-            user,
-            null,
-            null,
-        )
+
+        // Same bridge, same crash shape as [launch]: a sync Pigeon method whose
+        // throw becomes an uncaught PlatformException in Dart. The details
+        // screen is also refused on some OEM builds for a component the caller
+        // is allowed to launch, so the plain settings Intent is the fallback.
+        try {
+            launcherApps.startAppDetailsActivity(
+                ComponentName(key.packageName, key.className),
+                user,
+                null,
+                null,
+            )
+        } catch (e: Exception) {
+            if (!openSettingsDetails(key.packageName, user)) {
+                Log.w(TAG, "app info refused for $componentKey: $e")
+            }
+        }
+    }
+
+    /** The public App info screen, for this user only. See [launchByPackage]. */
+    private fun openSettingsDetails(packageName: String, user: UserHandle): Boolean {
+        if (user != Process.myUserHandle()) return false
+
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", packageName, null))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            appContext.startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            Log.w(TAG, "settings details missing for $packageName: $e")
+            false
+        }
     }
 
     /**

@@ -34,6 +34,7 @@ import 'dart:async';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 abstract final class Crash {
   /// True once Firebase is up AND Crashlytics has accepted its handlers.
@@ -75,8 +76,16 @@ abstract final class Crash {
     // that in a guarded zone means the binding and the app can end up in
     // different zones, which breaks platform channel completion in ways that
     // look exactly like a freeze.
+    //
+    // ─── A PlatformException HERE IS NOT A CRASH ────────────────────────────
+    //
+    // It is a plugin call that failed with no catch above it, and returning
+    // true below means the process carries on. Recording it as fatal is why
+    // Crashlytics listed billing, picker and launcher_api failures as crashes
+    // while Play vitals held at 0.00%. Still recorded, so the stacks keep
+    // arriving; just not counted against crash-free users.
     PlatformDispatcher.instance.onError = (error, stack) {
-      _capture(error, stack, 'PlatformDispatcher', true);
+      _capture(error, stack, 'PlatformDispatcher', error is! PlatformException);
       return true;
     };
   }

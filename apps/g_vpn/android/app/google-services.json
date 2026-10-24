@@ -1,0 +1,81 @@
+{
+  "project_info": {
+    "project_number": "1085386314104",
+    "firebase_url": "https://gvpn-9bc4c-default-rtdb.firebaseio.com",
+    "project_id": "gvpn-9bc4c",
+    "storage_bucket": "gvpn-9bc4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1085386314104:android:303544383bcb926b2eb88d",
+        "android_client_info": {
+          "package_name": "com.mindberzerk.gvpn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1085386314104-2ta8ejuakbsb7c0f36rptvka449p7alc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindberzerk.gvpn",
+            "certificate_hash": "8e445fad584ce3e9509cf777c2303ece7a740f23"
+          }
+        },
+        {
+          "client_id": "1085386314104-6nne82tn3sd8p3bkba46nevk9619g0sb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindberzerk.gvpn",
+            "certificate_hash": "39a628dcec4076574627ae5e57c144ef3cf0b143"
+          }
+        },
+        {
+          "client_id": "1085386314104-7c35gf1qvpvilf5mka88shn95173hmbj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindberzerk.gvpn",
+            "certificate_hash": "ac436c6f2077eefea65253e8cb0dcdcf21973144"
+          }
+        },
+        {
+          "client_id": "1085386314104-ak1putfa18ipj7c7ormqfuimi2i4luo5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindberzerk.gvpn",
+            "certificate_hash": "ef20bfbb22035851e68d3f2032fb078363454c62"
+          }
+        },
+        {
+          "client_id": "1085386314104-ouv6ftqiv4rt2u56gag97hgpqe7j72l1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindberzerk.gvpn",
+            "certificate_hash": "62366c9f784c9c7ad3481521fd54631fdb5ddaa1"
+          }
+        },
+        {
+          "client_id": "1085386314104-6t3lf8vs4qnr75j50g2v5s1n3u4ck49f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5hofyb6l85XPniTRSR3Zd6Z9TVmq_bm0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085386314104-6t3lf8vs4qnr75j50g2v5s1n3u4ck49f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      },
+      "admob_app_id": "ca-app-pub-7657066096391604~6283177053"
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -50,6 +50,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../core/asset_index.dart';
 import '../engine/theme_source.dart';
 
 class ThemeMark extends StatelessWidget {
@@ -84,24 +85,33 @@ class ThemeMark extends StatelessWidget {
     // ─── THE SVG BRANCH HAD NO WAY TO FAIL SOFTLY ───────────────────────
     //
     // The raster branch below has an `errorBuilder`, so a missing `.webp`
-    // lands on the fallback. `SvgPicture` takes no such callback: a missing
-    // asset key logs once and paints nothing, with the fallback never
-    // considered. Ubuntu's theme.json named `logo_dark.svg` while the file on
+    // lands on the fallback. The SVG branch now has one too, but for a
+    // missing ASSET it is not enough; see the manifest check below. Ubuntu's theme.json named `logo_dark.svg` while the file on
     // disk was `logo_dark.webp`, so the mark on the first screen of setup was
     // not the Mindhunter fallback, it was a hole.
     //
     // The extension is fixed in the theme, but the class of failure is not the
     // theme's to prevent. `existsSync` is the check that already exists for
     // this: false for a remote peek and for a swept pack, and true for a
-    // bundled asset, which cannot be probed synchronously and whose absence is
-    // a build-time problem. So this catches everything the errorBuilder caught
-    // and extends it to the branch that had none.
+    // bundled asset, which cannot be probed synchronously. The SVG branch
+    // closes that last gap with [AssetIndex].
     if (!a.existsSync) return fallback ?? const SizedBox.shrink();
+
+    final fallbackWidget = fallback ?? const SizedBox.shrink();
 
     // Read off the RESOLVED path, which for an installed pack is absolute and
     // for a bundled theme is the authored asset path. Both end in the same
     // filename, so this is the same answer either way.
     if (a.path.toLowerCase().endsWith('.svg')) {
+      // ─── existsSync IS TRUE FOR EVERY BUNDLED PATH, SO ASK THE MANIFEST ──
+      //
+      // A bundled SVG that is not in the APK still reached SvgPicture.asset,
+      // and vector_graphics reports that miss as an uncaught async error no
+      // errorBuilder can intercept (see asset_index.dart). The 6.0.0 Ubuntu
+      // theme naming `logo_dark.svg` over a `.webp` file was this exact path,
+      // on the first screen of setup. Checked here, the load never starts.
+      if (!a.isFile && !AssetIndex.has(a.path)) return fallbackWidget;
+
       final filter =
           tint == null ? null : ColorFilter.mode(tint!, BlendMode.srcIn);
 
@@ -116,12 +126,17 @@ class ThemeMark extends StatelessWidget {
                 width: size,
                 height: size,
                 colorFilter: filter,
+                // A file that exists but does not decode (truncated download,
+                // hand-edited pack) lands on the fallback, like the raster
+                // branch. flutter_svg has taken this callback since 2.0.17.
+                errorBuilder: (_, __, ___) => fallbackWidget,
               )
             : SvgPicture.asset(
                 a.path,
                 width: size,
                 height: size,
                 colorFilter: filter,
+                errorBuilder: (_, __, ___) => fallbackWidget,
               ),
       );
     }
@@ -141,7 +156,7 @@ class ThemeMark extends StatelessWidget {
       // A pack whose files were swept, or a bundled path that no longer
       // exists. Landing on the fallback means the worst case is a plainer
       // surface rather than an empty one.
-      errorBuilder: (_, __, ___) => fallback ?? const SizedBox.shrink(),
+      errorBuilder: (_, __, ___) => fallbackWidget,
     );
   }
 }

@@ -139,7 +139,7 @@ class EntitlementService {
     // permanent false on the first miss would leave the storefront unbuyable
     // for the life of the process. A true answer does not go back.
     if (!_connected) {
-      _available = await _iap.isAvailable();
+      _available = await _checkAvailable();
       if (_disposed) return;
       _connected = _available;
     }
@@ -268,7 +268,7 @@ class EntitlementService {
     // storefront on a cold cache and goes straight for a distro. Connect here
     // rather than assuming `start` got there first.
     if (!_connected) {
-      _available = await _iap.isAvailable();
+      _available = await _checkAvailable();
       if (_disposed) return false;
       _connected = _available;
     }
@@ -295,9 +295,41 @@ class EntitlementService {
     // buyNonConsumable, never buyConsumable. A distro pack is owned forever; a
     // consumable would let Play sell it twice and would make restore return
     // nothing.
-    return _iap.buyNonConsumable(
-      purchaseParam: PurchaseParam(productDetails: product),
-    );
+    try {
+      return await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
+    } catch (e) {
+      // Same PlatformException as [_checkAvailable]: the connection dropped
+      // between the product load and the tap. False is the caller's
+      // "not available right now", which is exactly what happened.
+      _emitError(e.toString());
+      return false;
+    }
+  }
+
+  /// `isAvailable`, without the throw.
+  ///
+  /// ─── WHY THIS IS NOT A PLAIN AWAIT ─────────────────────────────────────
+  ///
+  /// The plugin does not always answer false when Play is unreachable. Before
+  /// the launcher has an Activity (the warm-on-resume path in the app), or
+  /// while Play Services is updating, it throws
+  /// `PlatformException(UNAVAILABLE, Billing...)` instead. Every caller of
+  /// [start] is `unawaited`, so that throw had no catch anywhere above it and
+  /// reached PlatformDispatcher.onError, which records it as FATAL: 42 events
+  /// in Crashlytics on 6.0.0 for a launcher that never actually died.
+  ///
+  /// False is the right answer either way. It leaves `_connected` unset, so the
+  /// next [start] or [buy] asks again, which is the recovery this class
+  /// already relies on for Play Services arriving late.
+  Future<bool> _checkAvailable() async {
+    try {
+      return await _iap.isAvailable();
+    } catch (e) {
+      _emitError(e.toString());
+      return false;
+    }
   }
 
   void dispose() {
@@ -337,8 +369,18 @@ class EntitlementService {
       // NOT GUARDED BY `_disposed`, deliberately, and it is the one thing here
       // that is not. A disposed service is a screen that closed; the money is
       // still real and the clock is still running.
+      //
+      // CAUGHT, NOT SKIPPED. This runs inside a stream listener, so a throw
+      // here escapes to the zone as a fatal and abandons the rest of the
+      // batch, including purchases that did acknowledge. A failed acknowledge
+      // is not lost: Play redelivers an unacknowledged purchase on the next
+      // restore, which re-enters this loop and tries again inside the window.
       if (purchase.pendingCompletePurchase) {
-        await _iap.completePurchase(purchase);
+        try {
+          await _iap.completePurchase(purchase);
+        } catch (e) {
+          _emitError(e.toString());
+        }
       }
 
       switch (purchase.status) {

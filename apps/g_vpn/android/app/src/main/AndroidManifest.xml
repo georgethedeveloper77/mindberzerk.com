@@ -1,0 +1,118 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      firebase_analytics pulls in AD_ID through play-services-measurement. A
+      privacy app has no use for the advertising ID, and declaring it forces an
+      advertising-ID answer in Play's Data Safety form. Same call as G Recovery.
+    -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+
+    <!-- Auto-connect: the "tap to protect" fallback, and re-arming the network
+         watch after a reboot (PendingIntent callbacks do not survive one). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Wi-Fi NAME only. Android ties the SSID to location permission; G VPN
+         asks only when the user taps "Show name", after an in-app disclosure,
+         and never reads or stores a location. -->
+    <!-- Wi-Fi scanner tool: read and trigger scans of nearby networks. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+      allowBackup OFF, deliberately. Saved tunnels hold WireGuard PRIVATE KEYS,
+      and Android's auto backup would copy them to the user's Google Drive.
+    -->
+    <application
+        android:label="G VPN"
+        android:name=".GVpnApplication"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          WireGuard's own VpnService. The tunnel library declares it too; this
+          copy merges with it and keeps the declaration visible here, next to
+          the permission that Play's VpnService policy review looks for.
+        -->
+        <service
+            android:name="com.wireguard.android.backend.GoBackend$VpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <!-- Auto-connect. Not exported: the network callback is a PendingIntent
+             we own, and the two system broadcasts are delivered to
+             non-exported receivers by the platform. -->
+        <receiver
+            android:name=".AutoConnectReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!-- Analytics keeps app-level usage only: no ad ID, no ad personalisation. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+            <!-- The OpenVPN engine's notification opens
+             "<package>.activities.MainActivity". Route it to G VPN. -->
+        <activity-alias
+            android:name=".activities.MainActivity"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
+
+    </application>
+
+    <queries>
+        <!-- App rules list launchable apps only. This narrow query avoids
+             QUERY_ALL_PACKAGES, a restricted permission on Play. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

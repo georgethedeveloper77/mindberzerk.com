@@ -49,12 +49,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 import 'crash.dart';
 
 abstract final class FreezeWatchdog {
   static Timer? _timer;
   static bool _running = false;
+  static AppLifecycleListener? _lifecycle;
 
   /// How often the heartbeat fires. Short enough to catch a two second stall,
   /// long enough that the timer itself is free.
@@ -93,15 +95,42 @@ abstract final class FreezeWatchdog {
     if (_running) return;
     _running = true;
 
-    _expected = DateTime.now().add(_beat);
-    _timer = Timer.periodic(_beat, _onBeat);
+    // ─── THE BEAT STOPS WITH THE SCREEN ─────────────────────────────────
+    //
+    // [_onBeat] already discards a late beat while the app is not resumed, but
+    // discarding it is not the same as not waking for it. A launcher is the
+    // resumed activity when the screen goes off, so Android does not freeze
+    // this process the way it freezes an ordinary backgrounded app: a
+    // one-second timer kept firing all night, 3,600 wakeups an hour on a phone
+    // in a pocket, for readings that were thrown away on arrival. The stats
+    // ticker and the battery recorder both pause on this same signal; this was
+    // the one repeating timer in the app that did not.
+    _lifecycle = AppLifecycleListener(
+      onPause: _stopBeat,
+      onHide: _stopBeat,
+      onResume: _startBeat,
+    );
 
+    _startBeat();
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
   }
 
-  static void stop() {
+  static void _startBeat() {
+    _timer?.cancel();
+    // Rebased, so the gap across a paused screen is never read as lateness.
+    _expected = DateTime.now().add(_beat);
+    _timer = Timer.periodic(_beat, _onBeat);
+  }
+
+  static void _stopBeat() {
     _timer?.cancel();
     _timer = null;
+  }
+
+  static void stop() {
+    _stopBeat();
+    _lifecycle?.dispose();
+    _lifecycle = null;
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     _running = false;
   }

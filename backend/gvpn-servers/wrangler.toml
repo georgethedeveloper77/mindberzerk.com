@@ -1,0 +1,17 @@
+name = "gvpn-servers"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# Refresh the Community list every two hours. VPN Gate's own list changes
+# constantly; two hours keeps it fresh without hammering a volunteer project.
+[triggers]
+crons = ["17 */2 * * *"]
+
+# The ranked list and each server's config live here.
+[[kv_namespaces]]
+binding = "SERVERS"
+id = "447505dc0c7e431e8f2017d96ccb6214"
+
+# Same rule as gvpn-whoami: no request logs, so no IP addresses stored.
+[observability]
+enabled = false

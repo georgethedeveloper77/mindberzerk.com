@@ -1,0 +1,85 @@
+name: g_vpn
+description: G VPN, a WireGuard VPN and network toolkit by Mindberzerk.
+publish_to: "none"
+
+# versionCode MUST exceed the live G VPN build (1.0.19 on Play). Check the
+# console for its exact code before the first upload; 100 leaves headroom.
+version: 2.0.0+100
+
+# Pub workspace member, same as g_launcher.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Same versions as g_launcher, so the workspace resolves one copy of each.
+  # Project is gvpn-9bc4c, G VPN's own, which keeps its existing analytics
+  # history; see firebase_options.dart.
+  firebase_core: ^4.12.1
+  firebase_analytics: ^12.4.6
+  firebase_crashlytics: ^5.2.7
+
+  # Plain Riverpod 3, no codegen, matching g_launcher.
+  flutter_riverpod: ^3.3.2
+
+  # Speed test, latency, public identity, Wi-Fi and network state. Shared
+  # with G Recovery through the workspace.
+  g_network:
+    path: ../../packages/g_network
+
+  # Play Billing for G VPN Pro (one subscription, gvpn_pro, with monthly and
+  # yearly base plans). The Android add-on is imported directly for the
+  # subscription offer details, so it is a direct dependency too.
+  in_app_purchase: ^3.3.1
+  in_app_purchase_android: ^0.5.2
+
+  # Saved tunnels. Phase 1 only; private keys move to Keystore-backed
+  # encryption before the first public release.
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  # Native bridge codegen. Dev-only, never in the APK.
+  #   dart run pigeon --input pigeons/vpn_api.dart
+  pigeon: ^27.1.2
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # The shield mark, for the branded message component and splash.
+    - assets/brand/
+    # OFL texts, shown in the licence page.
+    - assets/fonts/licences/
+    # Country flags (flag-icons, MIT), 4:3 PNGs named by ISO code.
+    - assets/flags/
+
+  # MERIDIAN typefaces, BUNDLED rather than fetched with google_fonts: a VPN
+  # app should make no network calls of its own before the user connects.
+  # Family names are load-bearing: they must match Meridian.sans / .mono.
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/GeistMono-SemiBold.ttf
+          weight: 600

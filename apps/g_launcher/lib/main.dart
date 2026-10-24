@@ -9,8 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'bootstrap.dart';
+import 'core/asset_index.dart';
 import 'core/crash.dart';
 import 'core/exit_info.dart';
+import 'core/frame_probe.dart';
 import 'core/freeze_watchdog.dart';
 import 'data/prefs/prefs_repository.dart';
 import 'engine/font_catalogue.dart';
@@ -19,6 +21,11 @@ import 'i18n/i18n.dart';
 
 Future<void> main() async {
   bootstrap();
+
+  // Started before Firebase and awaited just before runApp, so the manifest
+  // read overlaps init rather than adding to the blank screen after a home
+  // press. Must be complete before the first ThemeMark builds.
+  final assetIndex = AssetIndex.warm();
 
   await _initFirebase();
 
@@ -33,6 +40,8 @@ Future<void> main() async {
   // installer's first screen is already in the right language rather than
   // flashing English and then swapping.
   final initialI18n = await loadInitialI18n();
+
+  await assetIndex;
 
   runApp(
     ProviderScope(
@@ -91,6 +100,10 @@ Future<void> _initFirebase() async {
     // Only once there is somewhere to send its findings. Started earlier it
     // would just buffer reports about a startup that has not finished.
     FreezeWatchdog.start();
+
+    // TEMPORARY, debug and profile only. Counts idle frames while bisecting the
+    // on-screen battery cost. Remove with frame_probe.dart.
+    FrameProbe.start();
   } catch (e) {
     debugPrint('Firebase init failed; analytics disabled for this run ($e)');
   }

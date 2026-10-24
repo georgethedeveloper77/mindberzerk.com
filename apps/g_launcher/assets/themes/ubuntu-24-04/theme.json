@@ -12,31 +12,26 @@
     "accent": "#E95420",
     "onDark": "#FFFFFF"
   },
+  "paletteLight": {
+    "bgTop": "#F3E7EE",
+    "bgBottom": "#E4CFDB",
+    "bar": "#FAFAFA",
+    "dock": "#E6F2F2F2",
+    "accent": "#E95420",
+    "onDark": "#3D3D3D"
+  },
   "typography": {
     "display": "Ubuntu",
     "mono": "UbuntuMono"
   },
-  "surfaces": {
-    "opacity": 0.9,
-    "blur": 16,
-    "tint": 0.7,
-    "radius": 14
-  },
   "layout": {
     "dock": "left",
+    "topBar": true,
+    "desktopIcons": true,
     "panels": [
-      {
-        "side": "top",
-        "modules": [
-          "activities",
-          "spacer"
-        ]
-      }
+      { "side": "top", "modules": ["activities"] }
     ],
-    "grid": {
-      "rows": 5,
-      "cols": 4
-    }
+    "grid": { "rows": 5, "cols": 4 }
   },
   "icons": {
     "treatment": "roundedSquare",
@@ -47,7 +42,7 @@
     "brandPack": "ubuntu-24-04-line"
   },
   "logo": {
-    "light": "logo_light.svg",
+    "light": "logo_light.webp",
     "dark": "logo_dark.webp"
   },
   "wallpapers": [
@@ -59,139 +54,58 @@
     "ubuntu_logo.webp",
     "ubuntu.webp"
   ],
+  "wallpapersLight": ["noble_light.webp"],
+  "accents": [
+    { "id": "orange", "name": "Orange", "value": "#E95420" },
+    { "id": "bark", "name": "Bark", "value": "#787859" },
+    { "id": "sage", "name": "Sage", "value": "#657B69" },
+    { "id": "olive", "name": "Olive", "value": "#4B8501" },
+    { "id": "viridian", "name": "Viridian", "value": "#03875B" },
+    { "id": "prussiangreen", "name": "Prussian green", "value": "#308280" },
+    { "id": "blue", "name": "Blue", "value": "#0073E5" },
+    { "id": "purple", "name": "Purple", "value": "#7764D8" },
+    { "id": "magenta", "name": "Magenta", "value": "#B34CB3" },
+    { "id": "red", "name": "Red", "value": "#DA3450" }
+  ],
   "minAppVersion": 6,
   "boot": {
     "tailMs": 700,
     "lines": [
-      {
-        "kind": "grub",
-        "text": "GNU GRUB  version 2.12"
-      },
-      {
-        "kind": "grubSelected",
-        "text": "*Ubuntu",
-        "delayMs": 520
-      },
-      {
-        "kind": "blank",
-        "text": ""
-      },
-      {
-        "kind": "plain",
-        "text": "Loading Linux 6.8.0-31-generic ..."
-      },
-      {
-        "kind": "plain",
-        "text": "Loading initial ramdisk ..."
-      },
-      {
-        "kind": "blank",
-        "text": ""
-      },
-      {
-        "kind": "ok",
-        "text": "Started Load Kernel Modules"
-      },
-      {
-        "kind": "ok",
-        "text": "Mounted /boot/efi"
-      },
-      {
-        "kind": "ok",
-        "text": "Reached target Local File Systems"
-      },
-      {
-        "kind": "ok",
-        "text": "Started udev Kernel Device Manager"
-      },
-      {
-        "kind": "ok",
-        "text": "Started D-Bus System Message Bus"
-      },
-      {
-        "kind": "ok",
-        "text": "Started Network Manager"
-      },
-      {
-        "kind": "warn",
-        "text": "Starting Snap Daemon ...",
-        "delayMs": 520
-      },
-      {
-        "kind": "ok",
-        "text": "Started Snap Daemon"
-      },
-      {
-        "kind": "ok",
-        "text": "Started User Login Management"
-      },
-      {
-        "kind": "ok",
-        "text": "Started GNOME Display Manager"
-      },
-      {
-        "kind": "ok",
-        "text": "Reached target Graphical Interface"
-      }
+      { "kind": "grub", "text": "GNU GRUB  version 2.12" },
+      { "kind": "grubSelected", "text": "*Ubuntu", "delayMs": 520 },
+      { "kind": "blank", "text": "" },
+      { "kind": "plain", "text": "Loading Linux 6.8.0-31-generic ..." },
+      { "kind": "plain", "text": "Loading initial ramdisk ..." },
+      { "kind": "blank", "text": "" },
+      { "kind": "ok", "text": "Started Load Kernel Modules" },
+      { "kind": "ok", "text": "Mounted /boot/efi" },
+      { "kind": "ok", "text": "Reached target Local File Systems" },
+      { "kind": "ok", "text": "Started udev Kernel Device Manager" },
+      { "kind": "ok", "text": "Started D-Bus System Message Bus" },
+      { "kind": "ok", "text": "Started Network Manager" },
+      { "kind": "warn", "text": "Starting Snap Daemon ...", "delayMs": 520 },
+      { "kind": "ok", "text": "Started Snap Daemon" },
+      { "kind": "ok", "text": "Started User Login Management" },
+      { "kind": "ok", "text": "Started GNOME Display Manager" },
+      { "kind": "ok", "text": "Reached target Graphical Interface" }
     ]
   },
-  "splash": {
-    "style": "dots",
-    "durationMs": 1100
-  },
+  "splash": { "style": "dots", "durationMs": 1100 },
   "desklets": {
-    "offers": [
-      "clock",
-      "monitor",
-      "fastfetch",
-      "network",
-      "storage",
-      "battery",
-      "notes",
-      "search"
-    ],
+    "offers": ["clock", "monitor", "fastfetch", "network", "storage", "battery", "notes", "search"],
     "starter": [
-      {
-        "kind": "clock",
-        "page": 0,
-        "col": 4,
-        "row": 0
-      },
-      {
-        "kind": "monitor",
-        "page": 0,
-        "col": 4,
-        "row": 2
-      }
+      { "kind": "clock", "page": 0, "col": 4, "row": 0 },
+      { "kind": "monitor", "page": 0, "col": 4, "row": 2 }
     ],
     "skins": {
-      "monitor": {
-        "surface": "bare",
-        "font": "mono",
-        "showTitle": true
-      }
+      "monitor": { "surface": "bare", "font": "mono", "showTitle": true }
     }
   },
+  "surfaces": { "opacity": 0.9, "blur": 16, "tint": 0.7, "radius": 14 },
   "features": [
-    {
-      "title": "Activities overview",
-      "body": "Windows, workspaces and search on one surface.",
-      "exclusive": true
-    },
-    {
-      "title": "Left vertical dock",
-      "body": "Always visible, show-apps button at the foot.",
-      "exclusive": false
-    },
-    {
-      "title": "GRUB to desktop",
-      "body": "Seventeen lines, from the boot menu through to the login manager.",
-      "exclusive": true
-    },
-    {
-      "title": "Aubergine and orange",
-      "body": "Deep purple wallpapers with the Ubuntu orange on every accent.",
-      "exclusive": false
-    }
+    { "title": "Activities overview", "body": "Windows, workspaces and search on one surface.", "exclusive": true },
+    { "title": "Left vertical dock", "body": "Always visible, show-apps button at the foot.", "exclusive": false },
+    { "title": "GRUB to desktop", "body": "Seventeen lines, from the boot menu through to the login manager.", "exclusive": true },
+    { "title": "Aubergine and orange", "body": "Deep purple wallpapers, Yaru light and dark, and all ten Ubuntu accents.", "exclusive": false }
   ]
 }

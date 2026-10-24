@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
 import { RecoveryOverview } from '@/components/g-recovery/Overview';
+import { VpnOverview } from '@/components/g-vpn/Overview';
 import { StudioShell } from '@/components/studio/shell';
 import {
   AppSlab,
@@ -82,6 +83,7 @@ export default async function AppOverviewPage({
    * A third app would justify a registry of overview components. Two do not.
    */
   if (appId === 'g-recovery') return <RecoveryOverview />;
+  if (appId === 'g-vpn') return <VpnOverview />;
 
   const [live, commerce, seeded, orphans] = await Promise.all([
     readLiveIndex(appId),

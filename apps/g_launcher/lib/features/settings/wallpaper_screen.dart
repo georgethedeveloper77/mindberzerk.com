@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../../core/single_flight_picker.dart';
 import '../../data/cdn/pack_repository.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/prefs_reset.dart';
@@ -839,7 +839,7 @@ final otherDistroWallpapersProvider =
 /// Top-level so the header's info sheet and the strip's add tile call the same
 /// thing. Two entry points to one action is how they drift.
 Future<void> pickMotion(BuildContext context, WidgetRef ref) async {
-  final picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+  final picked = await SingleFlightPicker.pickVideo();
   if (picked == null) return;
   // The picker is a whole activity, so the launcher can be torn down while it
   // is up. Everything below reads the context, starting with `MediaQuery`.
@@ -1596,9 +1596,7 @@ class WallpaperScreen extends ConsumerWidget {
     // Extracted from the list row it used to be, so the Gallery strip can
     // carry its own add tile like every other source on this page.
     Future<void> addPhoto() async {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-      );
+      final picked = await SingleFlightPicker.pickImage();
       if (picked == null) return;
 
       // ── COPIED, NOT REFERENCED ────────────────────────────────

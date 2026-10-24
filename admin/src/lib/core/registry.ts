@@ -26,7 +26,7 @@
  */
 
 /** Apps this panel administers. A route segment must be one of these. */
-export const APPS = ['g-launcher', 'g-recovery'] as const;
+export const APPS = ['g-launcher', 'g-recovery', 'g-vpn'] as const;
 export type AppId = (typeof APPS)[number];
 
 export type AppState = 'live' | 'build' | 'planned' | 'external';
@@ -124,6 +124,20 @@ export const REGISTRY: AppMeta[] = [
     state: 'build',
     blurb:
       'Storage audit, permission review, and scheduled backup to your own home server.',
+  },
+  {
+    // MANAGED, BUT NOT THROUGH THE BUCKET. Its content is the server list,
+    // which lives in the gvpn-servers Worker; the panel reads and steers it
+    // there (lib/g-vpn). Screens that read an R2 index treat its absence as
+    // normal, as they do for any app that has not published a pack.
+    id: 'g-vpn',
+    name: 'G VPN',
+    pkg: 'com.mindberzerk.gvpn',
+    mark: 'V',
+    tint: '#2457F5',
+    managed: true,
+    state: 'live',
+    blurb: 'WireGuard and OpenVPN, your own servers or ours, and the network tools to check either.',
   },
   {
     id: 'g-music',

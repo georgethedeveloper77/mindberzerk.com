@@ -1,0 +1,12 @@
+name = "gvpn-whoami"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# A privacy check must not keep its own log of who checked.
+[observability]
+enabled = false
+
+# Pick ONE of these, then `npx wrangler deploy`:
+#   a) Custom domain on a zone you already have on Cloudflare:
+# routes = [{ pattern = "whoami.mindberzerk.com", custom_domain = true }]
+#   b) Or leave routes out and use the free workers.dev URL wrangler prints.
