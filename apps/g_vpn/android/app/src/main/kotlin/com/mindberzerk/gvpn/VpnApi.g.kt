@@ -894,6 +894,16 @@ interface VpnHostApi {
    * the image holds no QR code.
    */
   fun scanQrFromImage(callback: (Result<String?>) -> Unit)
+  /**
+   * Encrypts a secret for storage with the phone's Keystore key
+   * ("gv1:..."). Private keys and configs are stored only this way.
+   */
+  fun seal(plain: String): String
+  /**
+   * Decrypts [seal]'s output. Text saved before encryption is returned
+   * unchanged; null when it cannot be decrypted.
+   */
+  fun unseal(stored: String): String?
   /** A new WireGuard key pair, generated on the phone. */
   fun generateWgKeyPair(): WgKeyPair
   /** The phone's maker and model, to tell phones apart in Your devices. */
@@ -1316,6 +1326,40 @@ interface VpnHostApi {
                 reply.reply(VpnApiPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.seal$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val plainArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.seal(plainArg))
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.unseal$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val storedArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.unseal(storedArg))
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

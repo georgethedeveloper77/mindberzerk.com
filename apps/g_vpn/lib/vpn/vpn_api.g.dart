@@ -1221,6 +1221,48 @@ class VpnHostApi {
     return pigeonVar_replyValue as String?;
   }
 
+  /// Encrypts a secret for storage with the phone's Keystore key
+  /// ("gv1:..."). Private keys and configs are stored only this way.
+  Future<String> seal(String plain) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.seal$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[plain]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Decrypts [seal]'s output. Text saved before encryption is returned
+  /// unchanged; null when it cannot be decrypted.
+  Future<String?> unseal(String stored) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.unseal$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[stored]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
   /// A new WireGuard key pair, generated on the phone.
   Future<WgKeyPair> generateWgKeyPair() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.generateWgKeyPair$pigeonVar_messageChannelSuffix';

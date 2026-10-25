@@ -62,7 +62,13 @@
       "downloaded": "DIUNDUH",
       "uploaded": "DIUNGGAH",
       "wireguard": "WireGuard",
-      "openvpn": "OpenVPN {proto}"
+      "openvpn": "OpenVPN {proto}",
+      "selected": "DIPILIH",
+      "browsingFrom": "MENJELAJAH DARI",
+      "disconnect": "Putuskan",
+      "change": "Ganti",
+      "enabled": "Aktif",
+      "shield": "PERISAI"
     },
     "tiles": {
       "shield": "Perisai",
@@ -76,6 +82,25 @@
       "speed": "Kecepatan",
       "speedTap": "Ketuk untuk tes",
       "speedDirect": "Langsung {mbps} Mbps"
+    },
+    "fastest": {
+      "title": "Server gratis tercepat",
+      "pickedFrom": "Dipilih dari",
+      "more": "+{n}",
+      "finding": "Mencari server tercepat",
+      "failed": "Server gratis tidak dapat dimuat",
+      "how": "Cara server dipilih",
+      "sheetBody": "G VPN menghubungkan Anda ke server gratis dengan peringkat terbaik saat ini, berdasarkan kecepatan, beban, dan lama server menyala. Peringkat berubah saat server datang dan pergi."
+    },
+    "ip": {
+      "title": "Yang dilihat situs",
+      "real": "Lokasi asli Anda",
+      "vpn": "Lokasi VPN",
+      "address": "Alamat IP",
+      "coordinates": "Koordinat",
+      "note": "Perkiraan dari IP Anda. Tidak pernah disimpan.",
+      "hide": "Sembunyikan lokasi saya",
+      "near": "Dekat {place}"
     }
   },
   "servers": {
@@ -698,6 +723,14 @@
     "idle": "Ponsel yang tidak terhubung selama {n} hari dihapus otomatis dari G Servers, jadi ponsel lama atau yang dipasang ulang tidak memakan tempat.",
     "limitNote": "Hingga {n} ponsel per paket.",
     "fullTitle": "Ke-{n} tempat sudah terpakai",
-    "fullBody": "Hapus ponsel yang tidak lagi Anda pakai, dan ponsel ini langsung terhubung."
+    "fullBody": "Hapus ponsel yang tidak lagi Anda pakai, dan ponsel ini langsung terhubung.",
+    "busyNow": "Terlalu banyak ponsel baru saat ini. Coba lagi sebentar lagi.",
+    "serverFull": "Server ini penuh. Coba G Server lain.",
+    "ping": "PING",
+    "last24": "Kesibukan, 24 jam terakhir",
+    "noHistory": "Grafik terisi seiring server dipakai sepanjang hari.",
+    "chartLabel": "Kesibukan 24 jam terakhir, paling tinggi {max} persen",
+    "hoursAgo": "24 jam lalu",
+    "now": "Sekarang"
   }
 }

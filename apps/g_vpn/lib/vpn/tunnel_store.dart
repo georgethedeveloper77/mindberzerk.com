@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../design/countries.dart';
 import 'community_server.dart';
+import 'secrets.dart';
 import 'wg_config.dart';
 
 /// A WireGuard config the user imported ("Your Server").
@@ -22,9 +23,9 @@ class SavedTunnel {
   /// When the user last chose this server; null until first use.
   final DateTime? lastUsed;
 
-  /// The raw wg-quick text, private key included. Phase 1 keeps it in app
-  /// preferences with cloud backup disabled in the manifest; it moves to
-  /// Keystore-backed encryption before public release.
+  /// The raw wg-quick text, private key included. In memory only as plain
+  /// text: stored encrypted with the phone's Keystore key (see Secrets), and
+  /// cloud backup is off in the manifest.
   final String configText;
 
   WgSummary get summary => parseWgConfig(configText);
@@ -162,7 +163,7 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
   @override
   Future<TunnelsState> build() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_tunnelsKey);
+    final raw = await Secrets.read(prefs, _tunnelsKey);
     final tunnels = <SavedTunnel>[];
     if (raw != null) {
       // A corrupt entry is skipped, not fatal: losing one server beats losing
@@ -186,7 +187,7 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
       }
     }
     SavedTunnel? gserver;
-    final rawG = prefs.getString(_gserverKey);
+    final rawG = await Secrets.read(prefs, _gserverKey);
     if (rawG != null) {
       try {
         gserver = SavedTunnel.fromJson(jsonDecode(rawG));
@@ -282,14 +283,12 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
 
   Future<void> _persist(TunnelsState next) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _tunnelsKey,
-      jsonEncode(next.tunnels.map((t) => t.toJson()).toList()),
-    );
+    // Configs hold private keys: stored encrypted (Keystore), never plain.
+    await Secrets.write(prefs, _tunnelsKey, jsonEncode(next.tunnels.map((t) => t.toJson()).toList()));
     final community = next.community;
     if (community != null) await prefs.setString(_communityKey, jsonEncode(community.toJson()));
     final gserver = next.gserver;
-    if (gserver != null) await prefs.setString(_gserverKey, jsonEncode(gserver.toJson()));
+    if (gserver != null) await Secrets.write(prefs, _gserverKey, jsonEncode(gserver.toJson()));
     final selectedId = next.selectedId;
     if (selectedId == null) {
       await prefs.remove(_selectedKey);

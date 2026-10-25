@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
+import '../i18n/strings.g.dart';
 import '../vpn/tunnel_store.dart';
 import '../vpn/vpn_controller.dart';
 import 'probe.dart';

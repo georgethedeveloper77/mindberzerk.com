@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../design/meridian_widgets.dart';
 import '../design/wifi_name_prompt.dart';
 import '../home/home_scan.dart';
+import '../i18n/strings.g.dart';
 import '../vpn/vpn_controller.dart';
 import 'tool_widgets.dart';
 import 'tools_providers.dart';

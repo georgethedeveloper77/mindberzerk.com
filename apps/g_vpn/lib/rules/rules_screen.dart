@@ -39,8 +39,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final rules = ref.watch(rulesProvider).value;
     final connected =
         ref.watch(vpnProvider.select((s) => s.phase)) == VpnPhase.on;
-    if (rules == null)
+    if (rules == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final notifier = ref.read(rulesProvider.notifier);
 
     Widget radio(AutoConnectChoice c, String title, String sub) => ListItem(
@@ -186,6 +187,12 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   Icon(Icons.open_in_new_rounded, size: 18, color: m.muted),
               onTap: () => Legal.open(Legal.terms),
             ),
+            /*ListItem(
+              leading: Icon(Icons.article_outlined, color: m.brand),
+              title: t.legal.licences,
+              trailing: Icon(Icons.chevron_right_rounded, color: m.muted),
+              onTap: () => showLicensePage(context: context, applicationName: 'G VPN'),
+            ),*/
           ]),
         ],
       ),

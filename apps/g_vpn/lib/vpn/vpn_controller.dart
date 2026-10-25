@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
+import '../analytics/events.dart';
+import '../i18n/strings.g.dart';
 import '../rules/rules_store.dart';
 import '../servers/community.dart';
 import 'config_rules.dart';
@@ -114,10 +115,16 @@ class VpnController extends Notifier<VpnState> {
       return;
     }
     state = VpnState(phase: VpnPhase.connecting, tunnelId: choice.id);
+    // For the admin's analytics: what kind of connection, never where to.
+    final (kind, protocol, country) = switch (choice) {
+      OwnServer(:final tunnel) => (tunnel.id.startsWith(gserverPrefix) ? 'gserver' : 'own', 'wireguard', null),
+      CommunityChoice(:final server) => ('free', server.sstpHost != null ? 'sstp' : 'openvpn', server.countryCode),
+    };
     try {
       final allowed = await _api.prepare();
       if (!allowed) {
         state = VpnState(error: t.errors.notAuthorized);
+        Events.connectFailed(kind: kind, protocol: protocol, code: 'not_authorized');
         return;
       }
       // App rules and Shield DNS are layered on here, the same for both
@@ -146,6 +153,7 @@ class VpnController extends Notifier<VpnState> {
             config = await fetchCommunityConfig(server.id);
           } on Exception {
             state = VpnState(error: t.errors.downloadFailed);
+            Events.connectFailed(kind: kind, protocol: protocol, code: 'download');
             return;
           }
           await _api.connectOpenVpn(
@@ -163,8 +171,10 @@ class VpnController extends Notifier<VpnState> {
         tunnelId: choice.id,
       );
       _syncPolling();
+      Events.connected(kind: kind, protocol: protocol, serverCountry: country);
     } on PlatformException catch (e) {
       state = VpnState(error: _describe(e, community: choice is CommunityChoice));
+      Events.connectFailed(kind: kind, protocol: protocol, code: e.code);
     }
   }
 

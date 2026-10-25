@@ -62,7 +62,13 @@
       "downloaded": "DESCARGADO",
       "uploaded": "SUBIDO",
       "wireguard": "WireGuard",
-      "openvpn": "OpenVPN {proto}"
+      "openvpn": "OpenVPN {proto}",
+      "selected": "SELECCIONADO",
+      "browsingFrom": "NAVEGANDO DESDE",
+      "disconnect": "Desconectar",
+      "change": "Cambiar",
+      "enabled": "Activado",
+      "shield": "ESCUDO"
     },
     "tiles": {
       "shield": "Escudo",
@@ -76,6 +82,25 @@
       "speed": "Velocidad",
       "speedTap": "Toca para medir",
       "speedDirect": "Directa {mbps} Mbps"
+    },
+    "fastest": {
+      "title": "Servidor gratis más rápido",
+      "pickedFrom": "Elegido entre",
+      "more": "+{n}",
+      "finding": "Buscando el servidor más rápido",
+      "failed": "No se pudieron cargar los servidores gratis",
+      "how": "Cómo se elige el servidor",
+      "sheetBody": "G VPN te conecta al servidor gratis mejor clasificado en este momento, según velocidad, carga y tiempo sin reinicios. La clasificación cambia a medida que los servidores aparecen y desaparecen."
+    },
+    "ip": {
+      "title": "Lo que ven los sitios",
+      "real": "Tu ubicación real",
+      "vpn": "Ubicación de la VPN",
+      "address": "Dirección IP",
+      "coordinates": "Coordenadas",
+      "note": "Estimada a partir de tu IP. Nunca se guarda.",
+      "hide": "Ocultar mi ubicación",
+      "near": "Cerca de {place}"
     }
   },
   "servers": {
@@ -698,6 +723,14 @@
     "idle": "Un teléfono que no se conecta en {n} días se quita de G Servers solo, así que un teléfono viejo o reinstalado nunca ocupa un hueco.",
     "limitNote": "Hasta {n} teléfonos por plan.",
     "fullTitle": "Los {n} huecos están en uso",
-    "fullBody": "Quita un teléfono que ya no uses y este se conectará al momento."
+    "fullBody": "Quita un teléfono que ya no uses y este se conectará al momento.",
+    "busyNow": "Demasiados teléfonos nuevos ahora mismo. Inténtalo de nuevo en un rato.",
+    "serverFull": "Este servidor está lleno. Prueba otro G Server.",
+    "ping": "PING",
+    "last24": "Ocupación, últimas 24 horas",
+    "noHistory": "El gráfico se llena a medida que el servidor se usa durante el día.",
+    "chartLabel": "Ocupación en las últimas 24 horas, como máximo {max} por ciento",
+    "hoursAgo": "hace 24 h",
+    "now": "Ahora"
   }
 }

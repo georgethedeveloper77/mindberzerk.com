@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
+import '../i18n/strings.g.dart';
 import 'tool_widgets.dart';
 
 /// Builds the Wake-on-LAN "magic packet": six 0xFF bytes, then the target's

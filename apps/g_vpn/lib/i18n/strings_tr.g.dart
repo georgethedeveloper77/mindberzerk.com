@@ -130,6 +130,8 @@ class _Translations$home$tr extends Translations$home$en {
 	@override late final _Translations$home$network$tr network = _Translations$home$network$tr._(_root);
 	@override late final _Translations$home$card$tr card = _Translations$home$card$tr._(_root);
 	@override late final _Translations$home$tiles$tr tiles = _Translations$home$tiles$tr._(_root);
+	@override late final _Translations$home$fastest$tr fastest = _Translations$home$fastest$tr._(_root);
+	@override late final _Translations$home$ip$tr ip = _Translations$home$ip$tr._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$tr extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'Plan başına en fazla ${n} telefon.';
 	@override String fullTitle({required Object n}) => '${n} yerin hepsi kullanımda';
 	@override String get fullBody => 'Artık kullanmadığınız bir telefonu kaldırın, bu telefon hemen bağlansın.';
+	@override String get busyNow => 'Şu anda çok fazla yeni telefon var. Biraz sonra tekrar deneyin.';
+	@override String get serverFull => 'Bu sunucu dolu. Başka bir G Server deneyin.';
+	@override String get ping => 'PING';
+	@override String get last24 => 'Meşguliyet, son 24 saat';
+	@override String get noHistory => 'Grafik, sunucu gün içinde kullanıldıkça dolar.';
+	@override String chartLabel({required Object max}) => 'Son 24 saatteki meşguliyet, en fazla yüzde ${max}';
+	@override String get hoursAgo => '24 sa önce';
+	@override String get now => 'Şimdi';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$tr extends Translations$home$card$en {
 	@override String get uploaded => 'YÜKLENEN';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'SEÇİLİ';
+	@override String get browsingFrom => 'BURADAN GEZİNİYORSUNUZ';
+	@override String get disconnect => 'Bağlantıyı kes';
+	@override String get change => 'Değiştir';
+	@override String get enabled => 'Açık';
+	@override String get shield => 'KALKAN';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$tr extends Translations$home$tiles$en {
 	@override String get speed => 'Hız';
 	@override String get speedTap => 'Test için dokunun';
 	@override String speedDirect({required Object mbps}) => 'Doğrudan ${mbps} Mbps';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$tr extends Translations$home$fastest$en {
+	_Translations$home$fastest$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'En hızlı ücretsiz sunucu';
+	@override String get pickedFrom => 'Şunlardan seçildi';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'En hızlı sunucu aranıyor';
+	@override String get failed => 'Ücretsiz sunucular yüklenemedi';
+	@override String get how => 'Sunucu nasıl seçilir';
+	@override String get sheetBody => 'G VPN sizi şu anda hız, yük ve kesintisiz çalışma süresine göre en iyi sıradaki ücretsiz sunucuya bağlar. Sunucular gelip gittikçe sıralama değişir.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$tr extends Translations$home$ip$en {
+	_Translations$home$ip$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Sitelerin gördüğü';
+	@override String get real => 'Gerçek konumunuz';
+	@override String get vpn => 'VPN konumu';
+	@override String get address => 'IP adresi';
+	@override String get coordinates => 'Koordinatlar';
+	@override String get note => 'IP adresinizden tahmin edilir. Asla saklanmaz.';
+	@override String get hide => 'Konumumu gizle';
+	@override String near({required Object place}) => '${place} yakınında';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsTr {
 			'home.card.uploaded' => 'YÜKLENEN',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'SEÇİLİ',
+			'home.card.browsingFrom' => 'BURADAN GEZİNİYORSUNUZ',
+			'home.card.disconnect' => 'Bağlantıyı kes',
+			'home.card.change' => 'Değiştir',
+			'home.card.enabled' => 'Açık',
+			'home.card.shield' => 'KALKAN',
 			'home.tiles.shield' => 'Kalkan',
 			'home.tiles.shieldOn' => 'Zararlı siteleri engeller',
 			'home.tiles.appsDirect' => 'Doğrudan uygulamalar',
@@ -1149,6 +1204,21 @@ extension on TranslationsTr {
 			'home.tiles.speed' => 'Hız',
 			'home.tiles.speedTap' => 'Test için dokunun',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'Doğrudan ${mbps} Mbps',
+			'home.fastest.title' => 'En hızlı ücretsiz sunucu',
+			'home.fastest.pickedFrom' => 'Şunlardan seçildi',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'En hızlı sunucu aranıyor',
+			'home.fastest.failed' => 'Ücretsiz sunucular yüklenemedi',
+			'home.fastest.how' => 'Sunucu nasıl seçilir',
+			'home.fastest.sheetBody' => 'G VPN sizi şu anda hız, yük ve kesintisiz çalışma süresine göre en iyi sıradaki ücretsiz sunucuya bağlar. Sunucular gelip gittikçe sıralama değişir.',
+			'home.ip.title' => 'Sitelerin gördüğü',
+			'home.ip.real' => 'Gerçek konumunuz',
+			'home.ip.vpn' => 'VPN konumu',
+			'home.ip.address' => 'IP adresi',
+			'home.ip.coordinates' => 'Koordinatlar',
+			'home.ip.note' => 'IP adresinizden tahmin edilir. Asla saklanmaz.',
+			'home.ip.hide' => 'Konumumu gizle',
+			'home.ip.near' => ({required Object place}) => '${place} yakınında',
 			'servers.title' => 'Sunucular',
 			'servers.aboutServers' => 'Sunucular hakkında',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsTr {
 			'ports.address' => 'Cihaz veya sunucu adresi',
 			'ports.risky' => 'RİSKLİ',
 			'ports.review' => 'İNCELE',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Ev modemleri ve cihazlarında önemli olan ${n} portu kontrol eder ve açık olan her birini açıklar.\n\nYalnızca sahibi olduğunuz veya yönettiğiniz cihazları ve sunucuları kontrol edin.',
 			'ports.checking' => ({required Object n}) => '${n} port kontrol ediliyor',
@@ -1598,8 +1670,6 @@ extension on TranslationsTr {
 			'wifi.info' => 'Telefonun son taramasındaki ağları listeler. Android dakikada yalnızca birkaç taramaya izin verir, bu yüzden hızlı tekrar tarama aynı listeyi gösterebilir. Önerilen kanal, birbiriyle çakışmayan üç kanal olan 1, 6 ve 11 arasında en az kalabalık olanıdır.',
 			'errors.notAuthorized' => 'VPN izni verilmedi.',
 			'errors.turnedOff' => 'VPN sistem veya başka bir uygulama tarafından kapatıldı.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'Zaten açık bir izin isteği var.',
 			'errors.cancelled' => 'Bağlantı iptal edildi.',
 			'errors.badConfig' => ({required Object error}) => 'Bu sunucunun yapılandırması geçersiz: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsTr {
 			'gs.limitNote' => ({required Object n}) => 'Plan başına en fazla ${n} telefon.',
 			'gs.fullTitle' => ({required Object n}) => '${n} yerin hepsi kullanımda',
 			'gs.fullBody' => 'Artık kullanmadığınız bir telefonu kaldırın, bu telefon hemen bağlansın.',
+			'gs.busyNow' => 'Şu anda çok fazla yeni telefon var. Biraz sonra tekrar deneyin.',
+			'gs.serverFull' => 'Bu sunucu dolu. Başka bir G Server deneyin.',
+			'gs.ping' => 'PING',
+			'gs.last24' => 'Meşguliyet, son 24 saat',
+			'gs.noHistory' => 'Grafik, sunucu gün içinde kullanıldıkça dolar.',
+			'gs.chartLabel' => ({required Object max}) => 'Son 24 saatteki meşguliyet, en fazla yüzde ${max}',
+			'gs.hoursAgo' => '24 sa önce',
+			'gs.now' => 'Şimdi',
 			_ => null,
 		};
 	}

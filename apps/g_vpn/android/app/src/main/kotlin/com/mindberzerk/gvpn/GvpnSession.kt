@@ -56,11 +56,12 @@ sealed class LastSession {
                     .put("excluded", JSONArray(session.excludedApps))
                     .put("dns", JSONArray(session.dnsServers))
             }
-            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, json.toString()).apply()
+            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, SecretBox.seal(json.toString())).apply()
         }
 
         fun load(ctx: Context): LastSession? {
-            val raw = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null) ?: return null
+            val stored = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null) ?: return null
+            val raw = SecretBox.open(stored) ?: return null
             return runCatching {
                 val j = JSONObject(raw)
                 fun list(key: String): List<String> {

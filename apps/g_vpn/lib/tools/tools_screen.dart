@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
+import '../analytics/events.dart';
+import '../i18n/strings.g.dart';
 import 'devices_screen.dart';
 import 'network_screen.dart';
 import 'ping_screen.dart';
@@ -33,7 +34,11 @@ class ToolsScreen extends ConsumerWidget {
       null => t.tools.checking,
       _ => t.tools.offline,
     };
-    void open(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    // Named explicitly: class names are not stable across release builds.
+    void open(String tool, Widget screen) {
+      Events.tool(tool);
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
     const utility = Color(0xFF6B7280);
 
     return Scaffold(
@@ -46,7 +51,7 @@ class ToolsScreen extends ConsumerWidget {
             color: m.brand,
             title: networkName,
             description: t.tools.networkDesc,
-            onTap: () => open(const NetworkScreen()),
+            onTap: () => open('network', const NetworkScreen()),
           ),
           ToolSection(t.tools.internet),
           ToolRow(
@@ -54,28 +59,28 @@ class ToolsScreen extends ConsumerWidget {
             color: m.brand,
             title: t.tools.speed,
             description: t.tools.speedDesc,
-            onTap: () => open(const SpeedScreen()),
+            onTap: () => open('speed', const SpeedScreen()),
           ),
           ToolRow(
             icon: Icons.show_chart_rounded,
             color: m.brand,
             title: t.tools.ping,
             description: t.tools.pingDesc,
-            onTap: () => open(const PingScreen()),
+            onTap: () => open('ping', const PingScreen()),
           ),
           ToolRow(
             icon: Icons.fact_check_outlined,
             color: m.brand,
             title: t.tools.status,
             description: t.tools.statusDesc,
-            onTap: () => open(const StatusScreen()),
+            onTap: () => open('status', const StatusScreen()),
           ),
           ToolRow(
             icon: Icons.route_rounded,
             color: m.brand,
             title: t.tools.trace,
             description: t.tools.traceDesc,
-            onTap: () => open(const TraceScreen()),
+            onTap: () => open('traceroute', const TraceScreen()),
           ),
           ToolSection(t.tools.security),
           ToolRow(
@@ -83,21 +88,21 @@ class ToolsScreen extends ConsumerWidget {
             color: m.good,
             title: t.tools.devices,
             description: t.tools.devicesDesc,
-            onTap: () => open(const DevicesScreen()),
+            onTap: () => open('devices', const DevicesScreen()),
           ),
           ToolRow(
             icon: Icons.router_outlined,
             color: m.good,
             title: t.tools.router,
             description: t.tools.routerDesc,
-            onTap: () => open(const RouterScreen()),
+            onTap: () => open('router', const RouterScreen()),
           ),
           ToolRow(
             icon: Icons.lock_outline_rounded,
             color: m.good,
             title: t.tools.ports,
             description: t.tools.portsDesc,
-            onTap: () => open(const PortsScreen()),
+            onTap: () => open('ports', const PortsScreen()),
           ),
           ToolSection(t.tools.utilities),
           ToolRow(
@@ -105,14 +110,14 @@ class ToolsScreen extends ConsumerWidget {
             color: utility,
             title: t.tools.wifiScanner,
             description: t.tools.wifiDesc,
-            onTap: () => open(const WifiScreen()),
+            onTap: () => open('wifi', const WifiScreen()),
           ),
           ToolRow(
             icon: Icons.power_settings_new_rounded,
             color: utility,
             title: t.tools.wol,
             description: t.tools.wolDesc,
-            onTap: () => open(const WolScreen()),
+            onTap: () => open('wake_on_lan', const WolScreen()),
           ),
         ],
       ),

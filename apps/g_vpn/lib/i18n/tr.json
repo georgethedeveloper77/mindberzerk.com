@@ -62,7 +62,13 @@
       "downloaded": "İNDİRİLEN",
       "uploaded": "YÜKLENEN",
       "wireguard": "WireGuard",
-      "openvpn": "OpenVPN {proto}"
+      "openvpn": "OpenVPN {proto}",
+      "selected": "SEÇİLİ",
+      "browsingFrom": "BURADAN GEZİNİYORSUNUZ",
+      "disconnect": "Bağlantıyı kes",
+      "change": "Değiştir",
+      "enabled": "Açık",
+      "shield": "KALKAN"
     },
     "tiles": {
       "shield": "Kalkan",
@@ -76,6 +82,25 @@
       "speed": "Hız",
       "speedTap": "Test için dokunun",
       "speedDirect": "Doğrudan {mbps} Mbps"
+    },
+    "fastest": {
+      "title": "En hızlı ücretsiz sunucu",
+      "pickedFrom": "Şunlardan seçildi",
+      "more": "+{n}",
+      "finding": "En hızlı sunucu aranıyor",
+      "failed": "Ücretsiz sunucular yüklenemedi",
+      "how": "Sunucu nasıl seçilir",
+      "sheetBody": "G VPN sizi şu anda hız, yük ve kesintisiz çalışma süresine göre en iyi sıradaki ücretsiz sunucuya bağlar. Sunucular gelip gittikçe sıralama değişir."
+    },
+    "ip": {
+      "title": "Sitelerin gördüğü",
+      "real": "Gerçek konumunuz",
+      "vpn": "VPN konumu",
+      "address": "IP adresi",
+      "coordinates": "Koordinatlar",
+      "note": "IP adresinizden tahmin edilir. Asla saklanmaz.",
+      "hide": "Konumumu gizle",
+      "near": "{place} yakınında"
     }
   },
   "servers": {
@@ -698,6 +723,14 @@
     "idle": "{n} gün bağlanmayan telefon G Servers'dan kendiliğinden kaldırılır; böylece eski ya da yeniden kurulan telefon yer kaplamaz.",
     "limitNote": "Plan başına en fazla {n} telefon.",
     "fullTitle": "{n} yerin hepsi kullanımda",
-    "fullBody": "Artık kullanmadığınız bir telefonu kaldırın, bu telefon hemen bağlansın."
+    "fullBody": "Artık kullanmadığınız bir telefonu kaldırın, bu telefon hemen bağlansın.",
+    "busyNow": "Şu anda çok fazla yeni telefon var. Biraz sonra tekrar deneyin.",
+    "serverFull": "Bu sunucu dolu. Başka bir G Server deneyin.",
+    "ping": "PING",
+    "last24": "Meşguliyet, son 24 saat",
+    "noHistory": "Grafik, sunucu gün içinde kullanıldıkça dolar.",
+    "chartLabel": "Son 24 saatteki meşguliyet, en fazla yüzde {max}",
+    "hoursAgo": "24 sa önce",
+    "now": "Şimdi"
   }
 }

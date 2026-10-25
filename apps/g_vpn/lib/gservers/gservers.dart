@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../vpn/secrets.dart';
 import '../vpn/tunnel_store.dart';
 import '../vpn/vpn_api.g.dart';
 
@@ -12,7 +14,17 @@ import '../vpn/vpn_api.g.dart';
 const _base = String.fromEnvironment('GSERVERS_URL', defaultValue: 'https://gvpn-gservers.mindberzerk.workers.dev');
 
 class GServer {
-  const GServer({required this.id, required this.name, required this.city, required this.country, required this.online, this.busy});
+  const GServer({
+    required this.id,
+    required this.name,
+    required this.city,
+    required this.country,
+    required this.online,
+    this.busy,
+    this.history = const [],
+    this.host,
+    this.pingPort,
+  });
 
   final String id;
   final String name;
@@ -23,6 +35,13 @@ class GServer {
   /// 0 to 100, from the server's load; null when it cannot be read.
   final int? busy;
 
+  /// Busy every 15 minutes for the last 24 hours, oldest first.
+  final List<int> history;
+
+  /// Where the phone times a connection to show ping.
+  final String? host;
+  final int? pingPort;
+
   factory GServer.fromJson(Map<String, dynamic> j) => GServer(
         id: j['id'] as String,
         name: j['name'] as String? ?? j['id'] as String,
@@ -30,6 +49,9 @@ class GServer {
         country: j['country'] as String? ?? '',
         online: j['online'] == true,
         busy: (j['busy'] as num?)?.toInt(),
+        history: [for (final v in (j['history'] as List? ?? const [])) (v as num).toInt()],
+        host: j['host'] as String?,
+        pingPort: (j['pingPort'] as num?)?.toInt(),
       );
 }
 
@@ -77,7 +99,7 @@ final gServersProvider = FutureProvider<GServersInfo>((ref) async {
 class GServerException implements Exception {
   const GServerException(this.code, {this.devices = const [], this.limit});
 
-  /// limit, pro_required, off, network
+  /// limit, full, busy, pro_required, off, network
   final String code;
   final List<GDevice> devices;
   final int? limit;
@@ -102,32 +124,32 @@ class GDevice {
 }
 
 /// This phone's G Servers identity: its key pair (made here; only the public
-/// half is ever sent) and the broker's device token. Kept in app storage,
-/// like the user's own server configs.
+/// half is ever sent) and the broker's device token. Stored encrypted with
+/// the phone's Keystore key, like the user's own server configs.
 class _Identity {
   static const _key = 'gvpn.gidentity.v1';
 
   static Future<({String privateKey, String publicKey, String? token})> load(VpnHostApi api) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
+    final raw = await Secrets.read(prefs, _key);
     if (raw != null) {
       final j = jsonDecode(raw) as Map<String, dynamic>;
       return (privateKey: j['private'] as String, publicKey: j['public'] as String, token: j['token'] as String?);
     }
     final pair = await api.generateWgKeyPair();
-    await prefs.setString(_key, jsonEncode({'private': pair.privateKey, 'public': pair.publicKey}));
+    await Secrets.write(prefs, _key, jsonEncode({'private': pair.privateKey, 'public': pair.publicKey}));
     return (privateKey: pair.privateKey, publicKey: pair.publicKey, token: null);
   }
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    final j = jsonDecode(prefs.getString(_key)!) as Map<String, dynamic>;
+    final j = jsonDecode((await Secrets.read(prefs, _key))!) as Map<String, dynamic>;
     j['token'] = token;
-    await prefs.setString(_key, jsonEncode(j));
+    await Secrets.write(prefs, _key, jsonEncode(j));
   }
 
   static Future<String?> token() async {
-    final raw = (await SharedPreferences.getInstance()).getString(_key);
+    final raw = await Secrets.read(await SharedPreferences.getInstance(), _key);
     return raw == null ? null : (jsonDecode(raw) as Map<String, dynamic>)['token'] as String?;
   }
 }
@@ -157,6 +179,8 @@ Future<SavedTunnel> registerGServer(VpnHostApi api, GServer server, {String? pur
     throw const GServerException('network');
   }
   final j = jsonDecode(res.body) as Map<String, dynamic>;
+  if (res.statusCode == 429) throw const GServerException('busy');
+  if (res.statusCode == 409 && j['error'] == 'server_full') throw const GServerException('full');
   if (res.statusCode == 409) {
     throw GServerException(
       'limit',
@@ -219,3 +243,26 @@ Future<bool> removeGDevice(String key) async {
     return false;
   }
 }
+
+/// Round trip from this phone to a G Server, in ms: the quickest of three
+/// TCP connections (Android apps cannot send classic pings). Null when the
+/// server does not answer.
+final gPingProvider = FutureProvider.autoDispose.family<int?, String>((ref, id) async {
+  final info = await ref.watch(gServersProvider.future);
+  final server = info.servers.where((s) => s.id == id).firstOrNull;
+  if (server?.host == null || server?.pingPort == null) return null;
+  int? best;
+  for (var i = 0; i < 3; i++) {
+    final watch = Stopwatch()..start();
+    try {
+      final socket = await Socket.connect(server!.host!, server.pingPort!, timeout: const Duration(seconds: 3));
+      watch.stop();
+      socket.destroy();
+      final ms = watch.elapsedMilliseconds;
+      if (best == null || ms < best) best = ms;
+    } on Exception {
+      // A lost probe; the others decide.
+    }
+  }
+  return best;
+});

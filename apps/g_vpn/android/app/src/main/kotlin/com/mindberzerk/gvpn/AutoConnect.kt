@@ -50,7 +50,7 @@ object AutoConnect {
             return
         }
         prefs(ctx).edit()
-            .putString(KEY_CONFIG, settings.configText)
+            .putString(KEY_CONFIG, SecretBox.seal(settings.configText))
             .putString(KEY_MODE, settings.mode.name)
             .apply()
         register(ctx)
@@ -96,7 +96,7 @@ object AutoConnect {
      */
     fun configFor(ctx: Context, network: Network): String? {
         val p = prefs(ctx)
-        val config = p.getString(KEY_CONFIG, null) ?: return null
+        val config = p.getString(KEY_CONFIG, null)?.let(SecretBox::open) ?: return null
         if (WireGuard.backend(ctx).getState(GTunnel) == Tunnel.State.UP) return null
         if (p.getLong(KEY_PAUSED, -1L) == network.networkHandle) return null
 

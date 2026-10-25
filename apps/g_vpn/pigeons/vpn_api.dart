@@ -250,6 +250,14 @@ abstract class VpnHostApi {
   @async
   String? scanQrFromImage();
 
+  /// Encrypts a secret for storage with the phone's Keystore key
+  /// ("gv1:..."). Private keys and configs are stored only this way.
+  String seal(String plain);
+
+  /// Decrypts [seal]'s output. Text saved before encryption is returned
+  /// unchanged; null when it cannot be decrypted.
+  String? unseal(String stored);
+
   /// A new WireGuard key pair, generated on the phone.
   WgKeyPair generateWgKeyPair();
 

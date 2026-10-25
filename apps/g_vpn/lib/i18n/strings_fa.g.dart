@@ -130,6 +130,8 @@ class _Translations$home$fa extends Translations$home$en {
 	@override late final _Translations$home$network$fa network = _Translations$home$network$fa._(_root);
 	@override late final _Translations$home$card$fa card = _Translations$home$card$fa._(_root);
 	@override late final _Translations$home$tiles$fa tiles = _Translations$home$tiles$fa._(_root);
+	@override late final _Translations$home$fastest$fa fastest = _Translations$home$fastest$fa._(_root);
+	@override late final _Translations$home$ip$fa ip = _Translations$home$ip$fa._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$fa extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'تا ${n} گوشی برای هر طرح.';
 	@override String fullTitle({required Object n}) => 'هر ${n} جا پر است';
 	@override String get fullBody => 'گوشی‌ای را که دیگر استفاده نمی‌کنید حذف کنید تا این گوشی فوراً وصل شود.';
+	@override String get busyNow => 'در حال حاضر گوشی‌های جدید زیادی اضافه می‌شوند. کمی بعد دوباره امتحان کنید.';
+	@override String get serverFull => 'این سرور پر است. G Server دیگری را امتحان کنید.';
+	@override String get ping => 'پینگ';
+	@override String get last24 => 'مشغولی، ۲۴ ساعت گذشته';
+	@override String get noHistory => 'نمودار با استفاده از سرور در طول روز پر می‌شود.';
+	@override String chartLabel({required Object max}) => 'مشغولی در ۲۴ ساعت گذشته، حداکثر ${max} درصد';
+	@override String get hoursAgo => '۲۴ ساعت پیش';
+	@override String get now => 'اکنون';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$fa extends Translations$home$card$en {
 	@override String get uploaded => 'ارسال‌شده';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'انتخاب‌شده';
+	@override String get browsingFrom => 'در حال گشت‌وگذار از';
+	@override String get disconnect => 'قطع اتصال';
+	@override String get change => 'تغییر';
+	@override String get enabled => 'روشن';
+	@override String get shield => 'سپر';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$fa extends Translations$home$tiles$en {
 	@override String get speed => 'سرعت';
 	@override String get speedTap => 'برای آزمایش ضربه بزنید';
 	@override String speedDirect({required Object mbps}) => 'مستقیم ${mbps} Mbps';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$fa extends Translations$home$fastest$en {
+	_Translations$home$fastest$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'سریع‌ترین سرور رایگان';
+	@override String get pickedFrom => 'انتخاب‌شده از';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'در حال یافتن سریع‌ترین سرور';
+	@override String get failed => 'سرورهای رایگان بارگیری نشدند';
+	@override String get how => 'سرور چگونه انتخاب می‌شود';
+	@override String get sheetBody => 'G VPN شما را به سرور رایگانی وصل می‌کند که در این لحظه از نظر سرعت، بار و مدت روشن ماندن بهترین رتبه را دارد. با آمدن و رفتن سرورها، رتبه‌بندی تغییر می‌کند.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$fa extends Translations$home$ip$en {
+	_Translations$home$ip$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'آنچه سایت‌ها می‌بینند';
+	@override String get real => 'موقعیت واقعی شما';
+	@override String get vpn => 'موقعیت VPN';
+	@override String get address => 'نشانی IP';
+	@override String get coordinates => 'مختصات';
+	@override String get note => 'برآورد از روی IP شما. هرگز ذخیره نمی‌شود.';
+	@override String get hide => 'پنهان کردن موقعیت من';
+	@override String near({required Object place}) => 'حدود ${place}';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsFa {
 			'home.card.uploaded' => 'ارسال‌شده',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'انتخاب‌شده',
+			'home.card.browsingFrom' => 'در حال گشت‌وگذار از',
+			'home.card.disconnect' => 'قطع اتصال',
+			'home.card.change' => 'تغییر',
+			'home.card.enabled' => 'روشن',
+			'home.card.shield' => 'سپر',
 			'home.tiles.shield' => 'سپر',
 			'home.tiles.shieldOn' => 'سایت‌های مخرب را مسدود می‌کند',
 			'home.tiles.appsDirect' => 'برنامه‌های مستقیم',
@@ -1149,6 +1204,21 @@ extension on TranslationsFa {
 			'home.tiles.speed' => 'سرعت',
 			'home.tiles.speedTap' => 'برای آزمایش ضربه بزنید',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'مستقیم ${mbps} Mbps',
+			'home.fastest.title' => 'سریع‌ترین سرور رایگان',
+			'home.fastest.pickedFrom' => 'انتخاب‌شده از',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'در حال یافتن سریع‌ترین سرور',
+			'home.fastest.failed' => 'سرورهای رایگان بارگیری نشدند',
+			'home.fastest.how' => 'سرور چگونه انتخاب می‌شود',
+			'home.fastest.sheetBody' => 'G VPN شما را به سرور رایگانی وصل می‌کند که در این لحظه از نظر سرعت، بار و مدت روشن ماندن بهترین رتبه را دارد. با آمدن و رفتن سرورها، رتبه‌بندی تغییر می‌کند.',
+			'home.ip.title' => 'آنچه سایت‌ها می‌بینند',
+			'home.ip.real' => 'موقعیت واقعی شما',
+			'home.ip.vpn' => 'موقعیت VPN',
+			'home.ip.address' => 'نشانی IP',
+			'home.ip.coordinates' => 'مختصات',
+			'home.ip.note' => 'برآورد از روی IP شما. هرگز ذخیره نمی‌شود.',
+			'home.ip.hide' => 'پنهان کردن موقعیت من',
+			'home.ip.near' => ({required Object place}) => 'حدود ${place}',
 			'servers.title' => 'سرورها',
 			'servers.aboutServers' => 'درباره سرورها',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsFa {
 			'ports.address' => 'آدرس دستگاه یا سرور',
 			'ports.risky' => 'پرخطر',
 			'ports.review' => 'بررسی شود',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'عادی',
 			'ports.info' => ({required Object n}) => '${n} پورت مهم روی روترها و دستگاه‌های خانگی را بررسی می‌کند و هر پورت باز را توضیح می‌دهد.\n\nفقط دستگاه‌ها و سرورهایی را بررسی کنید که مالک یا مدیر آن‌ها هستید.',
 			'ports.checking' => ({required Object n}) => 'در حال بررسی ${n} پورت',
@@ -1598,8 +1670,6 @@ extension on TranslationsFa {
 			'wifi.info' => 'شبکه‌ها را از آخرین اسکن گوشی فهرست می‌کند. اندروید فقط چند اسکن در دقیقه اجازه می‌دهد، پس اسکن دوباره سریع ممکن است همان فهرست را نشان دهد. کانال پیشنهادی خلوت‌ترین از میان ۱، ۶ و ۱۱ است، سه کانالی که هم‌پوشانی ندارند.',
 			'errors.notAuthorized' => 'اجازه VPN داده نشد.',
 			'errors.turnedOff' => 'VPN توسط سیستم یا برنامه دیگری خاموش شد.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'یک درخواست اجازه از قبل باز است.',
 			'errors.cancelled' => 'اتصال لغو شد.',
 			'errors.badConfig' => ({required Object error}) => 'پیکربندی این سرور نامعتبر است: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsFa {
 			'gs.limitNote' => ({required Object n}) => 'تا ${n} گوشی برای هر طرح.',
 			'gs.fullTitle' => ({required Object n}) => 'هر ${n} جا پر است',
 			'gs.fullBody' => 'گوشی‌ای را که دیگر استفاده نمی‌کنید حذف کنید تا این گوشی فوراً وصل شود.',
+			'gs.busyNow' => 'در حال حاضر گوشی‌های جدید زیادی اضافه می‌شوند. کمی بعد دوباره امتحان کنید.',
+			'gs.serverFull' => 'این سرور پر است. G Server دیگری را امتحان کنید.',
+			'gs.ping' => 'پینگ',
+			'gs.last24' => 'مشغولی، ۲۴ ساعت گذشته',
+			'gs.noHistory' => 'نمودار با استفاده از سرور در طول روز پر می‌شود.',
+			'gs.chartLabel' => ({required Object max}) => 'مشغولی در ۲۴ ساعت گذشته، حداکثر ${max} درصد',
+			'gs.hoursAgo' => '۲۴ ساعت پیش',
+			'gs.now' => 'اکنون',
 			_ => null,
 		};
 	}

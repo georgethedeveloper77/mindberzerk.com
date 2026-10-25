@@ -130,6 +130,8 @@ class _Translations$home$ar extends Translations$home$en {
 	@override late final _Translations$home$network$ar network = _Translations$home$network$ar._(_root);
 	@override late final _Translations$home$card$ar card = _Translations$home$card$ar._(_root);
 	@override late final _Translations$home$tiles$ar tiles = _Translations$home$tiles$ar._(_root);
+	@override late final _Translations$home$fastest$ar fastest = _Translations$home$fastest$ar._(_root);
+	@override late final _Translations$home$ip$ar ip = _Translations$home$ip$ar._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$ar extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'حتى ${n} هواتف لكل خطة.';
 	@override String fullTitle({required Object n}) => 'كل الأماكن الـ ${n} مستخدمة';
 	@override String get fullBody => 'أزل هاتفًا لم تعد تستخدمه، وسيتصل هذا الهاتف فورًا.';
+	@override String get busyNow => 'هناك هواتف جديدة كثيرة الآن. حاول مجددًا بعد قليل.';
+	@override String get serverFull => 'هذا الخادم ممتلئ. جرّب خادم G Server آخر.';
+	@override String get ping => 'PING';
+	@override String get last24 => 'الانشغال، آخر 24 ساعة';
+	@override String get noHistory => 'يمتلئ الرسم مع استخدام الخادم خلال اليوم.';
+	@override String chartLabel({required Object max}) => 'الانشغال خلال آخر 24 ساعة، بحد أقصى ${max} بالمئة';
+	@override String get hoursAgo => 'قبل 24 س';
+	@override String get now => 'الآن';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$ar extends Translations$home$card$en {
 	@override String get uploaded => 'تم رفعه';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'المحدد';
+	@override String get browsingFrom => 'تتصفح من';
+	@override String get disconnect => 'قطع الاتصال';
+	@override String get change => 'تغيير';
+	@override String get enabled => 'مفعّل';
+	@override String get shield => 'الدرع';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$ar extends Translations$home$tiles$en {
 	@override String get speed => 'السرعة';
 	@override String get speedTap => 'اضغط للاختبار';
 	@override String speedDirect({required Object mbps}) => 'مباشر ${mbps} ميغابت/ث';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$ar extends Translations$home$fastest$en {
+	_Translations$home$fastest$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'أسرع خادم مجاني';
+	@override String get pickedFrom => 'مختار من';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'جارٍ البحث عن أسرع خادم';
+	@override String get failed => 'تعذّر تحميل الخوادم المجانية';
+	@override String get how => 'كيف يتم اختيار الخادم';
+	@override String get sheetBody => 'يوصلك G VPN بالخادم المجاني الأعلى تقييمًا الآن، حسب السرعة والحمل ومدة التشغيل دون انقطاع. يتغير الترتيب مع ظهور الخوادم واختفائها.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$ar extends Translations$home$ip$en {
+	_Translations$home$ip$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ما تراه المواقع';
+	@override String get real => 'موقعك الحقيقي';
+	@override String get vpn => 'موقع VPN';
+	@override String get address => 'عنوان IP';
+	@override String get coordinates => 'الإحداثيات';
+	@override String get note => 'تقدير من عنوان IP. لا يُخزَّن أبدًا.';
+	@override String get hide => 'إخفاء موقعي';
+	@override String near({required Object place}) => 'بالقرب من ${place}';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsAr {
 			'home.card.uploaded' => 'تم رفعه',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'المحدد',
+			'home.card.browsingFrom' => 'تتصفح من',
+			'home.card.disconnect' => 'قطع الاتصال',
+			'home.card.change' => 'تغيير',
+			'home.card.enabled' => 'مفعّل',
+			'home.card.shield' => 'الدرع',
 			'home.tiles.shield' => 'الدرع',
 			'home.tiles.shieldOn' => 'يحظر المواقع الضارة',
 			'home.tiles.appsDirect' => 'تطبيقات مباشرة',
@@ -1149,6 +1204,21 @@ extension on TranslationsAr {
 			'home.tiles.speed' => 'السرعة',
 			'home.tiles.speedTap' => 'اضغط للاختبار',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'مباشر ${mbps} ميغابت/ث',
+			'home.fastest.title' => 'أسرع خادم مجاني',
+			'home.fastest.pickedFrom' => 'مختار من',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'جارٍ البحث عن أسرع خادم',
+			'home.fastest.failed' => 'تعذّر تحميل الخوادم المجانية',
+			'home.fastest.how' => 'كيف يتم اختيار الخادم',
+			'home.fastest.sheetBody' => 'يوصلك G VPN بالخادم المجاني الأعلى تقييمًا الآن، حسب السرعة والحمل ومدة التشغيل دون انقطاع. يتغير الترتيب مع ظهور الخوادم واختفائها.',
+			'home.ip.title' => 'ما تراه المواقع',
+			'home.ip.real' => 'موقعك الحقيقي',
+			'home.ip.vpn' => 'موقع VPN',
+			'home.ip.address' => 'عنوان IP',
+			'home.ip.coordinates' => 'الإحداثيات',
+			'home.ip.note' => 'تقدير من عنوان IP. لا يُخزَّن أبدًا.',
+			'home.ip.hide' => 'إخفاء موقعي',
+			'home.ip.near' => ({required Object place}) => 'بالقرب من ${place}',
 			'servers.title' => 'الخوادم',
 			'servers.aboutServers' => 'حول الخوادم',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsAr {
 			'ports.address' => 'عنوان الجهاز أو الخادم',
 			'ports.risky' => 'خطر',
 			'ports.review' => 'راجِع',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'طبيعي',
 			'ports.info' => ({required Object n}) => 'يفحص ${n} منفذًا مهمًا على أجهزة الراوتر والأجهزة المنزلية، ويشرح كل منفذ مفتوح.\n\nافحص فقط الأجهزة والخوادم التي تملكها أو تديرها.',
 			'ports.checking' => ({required Object n}) => 'جارٍ فحص ${n} منفذًا',
@@ -1598,8 +1670,6 @@ extension on TranslationsAr {
 			'wifi.info' => 'يعرض الشبكات من آخر فحص للهاتف. يسمح Android بعدد قليل من الفحوصات في الدقيقة، لذا قد يُظهر الفحص السريع القائمة نفسها. القناة المقترحة هي الأقل ازدحامًا بين 1 و6 و11، وهي القنوات الثلاث غير المتداخلة.',
 			'errors.notAuthorized' => 'لم يُمنح إذن VPN.',
 			'errors.turnedOff' => 'أوقف النظام أو تطبيق آخر VPN.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'طلب إذن مفتوح بالفعل.',
 			'errors.cancelled' => 'أُلغي الاتصال.',
 			'errors.badConfig' => ({required Object error}) => 'إعدادات هذا الخادم غير صالحة: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsAr {
 			'gs.limitNote' => ({required Object n}) => 'حتى ${n} هواتف لكل خطة.',
 			'gs.fullTitle' => ({required Object n}) => 'كل الأماكن الـ ${n} مستخدمة',
 			'gs.fullBody' => 'أزل هاتفًا لم تعد تستخدمه، وسيتصل هذا الهاتف فورًا.',
+			'gs.busyNow' => 'هناك هواتف جديدة كثيرة الآن. حاول مجددًا بعد قليل.',
+			'gs.serverFull' => 'هذا الخادم ممتلئ. جرّب خادم G Server آخر.',
+			'gs.ping' => 'PING',
+			'gs.last24' => 'الانشغال، آخر 24 ساعة',
+			'gs.noHistory' => 'يمتلئ الرسم مع استخدام الخادم خلال اليوم.',
+			'gs.chartLabel' => ({required Object max}) => 'الانشغال خلال آخر 24 ساعة، بحد أقصى ${max} بالمئة',
+			'gs.hoursAgo' => 'قبل 24 س',
+			'gs.now' => 'الآن',
 			_ => null,
 		};
 	}

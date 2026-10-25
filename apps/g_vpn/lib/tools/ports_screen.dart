@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
+import '../i18n/strings.g.dart';
 import 'network_screen.dart';
 import 'probe.dart';
 import 'tool_widgets.dart';

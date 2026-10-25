@@ -4,27 +4,29 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../design/connect_button.dart';
 import '../design/countries.dart';
-import '../design/flag.dart';
+import '../design/country_map.dart';
 import '../design/meridian.dart';
 import '../design/theme_mode.dart';
-import '../design/waves.dart';
 import '../design/wifi_name_prompt.dart';
-import '../design/world_map.dart';
+import '../design/world_map.dart' show LatLon;
 import '../i18n/strings.g.dart';
 import '../rules/apps_screen.dart';
 import '../rules/rules_store.dart';
+import '../servers/community.dart';
 import '../tools/speed_screen.dart';
 import '../tools/tools_providers.dart' show directSpeedProvider;
 import '../vpn/tunnel_store.dart';
 import '../vpn/vpn_controller.dart';
+import 'connect_card.dart';
 import 'home_scan.dart';
+import 'ip_sheet.dart';
 
-/// Meridian home. The dotted world fills the whole page and the connect
-/// button sits on the user's own location: raw traffic waves in from the
-/// left, tunnel output leaves to the right.
-class MeridianHome extends ConsumerStatefulWidget {
+/// Meridian home. A country map heads the page: exposed, it spotlights
+/// where you are in red; protected, it flies to the server's region in
+/// green with nearby free servers marked. The connection card overlaps the
+/// map's lower edge, and everything below scrolls with it.
+class MeridianHome extends ConsumerWidget {
   const MeridianHome({
     super.key,
     required this.openServers,
@@ -38,63 +40,25 @@ class MeridianHome extends ConsumerStatefulWidget {
   final VoidCallback openRules;
   final VoidCallback openPro;
 
-  @override
-  ConsumerState<MeridianHome> createState() => _MeridianHomeState();
-}
+  /// How far the connection card rises into the map.
+  static const _overlap = 56.0;
 
-class _MeridianHomeState extends ConsumerState<MeridianHome> {
-  final _scroll = ScrollController();
-
-  /// Header 56 + server chip 44 + gap 4 + half the hero. The map is pinned
-  /// to this point, so the button always sits on "you".
-  static const _buttonY = 56 + 44 + 4 + _Hero.height / 2;
+  /// Header 56, status line, clock and IP chip: the band at the top of the
+  /// map that the camera keeps clear.
+  static const _overlayBand = 56.0 + 112.0;
 
   @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final m = context.mer;
     final vpn = ref.watch(vpnProvider);
-    final tunnels = ref.watch(tunnelsProvider).value;
-    final choice = tunnels?.choice;
-    final identity = ref.watch(identityProvider);
-    final home = ref.watch(homeLocationProvider);
     final on = vpn.phase == VpnPhase.on;
     final busy = vpn.phase == VpnPhase.connecting || vpn.phase == VpnPhase.disconnecting;
-    final top = MediaQuery.paddingOf(context).top;
-
-    // Once protected, the lookup answers from the server, so its position is
-    // the second pin. Before that there is only "you".
-    final id = identity.value;
-    // Community servers: their country's centre, known the moment we connect.
-    // Your own servers: wherever the IP lookup places them.
-    final centre = choice?.countryCode == null ? null : countryCentres[choice!.countryCode!.toUpperCase()];
-    final server = !on
-        ? null
-        : centre != null
-            ? LatLon(centre.$1, centre.$2)
-            : id?.latitude != null && id?.longitude != null
-                ? LatLon(id!.latitude!, id.longitude!)
-                : null;
-
-    void tapConnect() {
-      final controller = ref.read(vpnProvider.notifier);
-      if (vpn.pausedUntil != null) {
-        controller.resume();
-      } else if (on) {
-        controller.disconnect();
-      } else if (choice == null) {
-        widget.openServers();
-      } else if (!busy) {
-        controller.connect(choice);
-      }
-    }
-
     final paused = vpn.pausedUntil != null;
+    final top = MediaQuery.paddingOf(context).top;
+    final mapHeight = (MediaQuery.sizeOf(context).height * .52).clamp(380.0, 480.0) + top;
+
+    Future<void> connect() => connectFromHome(ref, openServers: openServers);
+
     final statusColor = on && (vpn.reconnecting || paused) ? m.warn : on ? m.good : busy ? m.warn : m.bad;
     final status = switch (vpn.phase) {
       VpnPhase.on => paused
@@ -106,76 +70,191 @@ class _MeridianHomeState extends ConsumerState<MeridianHome> {
       VpnPhase.disconnecting => t.home.status.stopping,
       VpnPhase.off => t.home.status.notProtected,
     };
+    final statusIcon = on ? Icons.lock_rounded : busy ? Icons.sync_rounded : Icons.lock_open_rounded;
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: LayoutBuilder(
-            builder: (context, box) => AnimatedBuilder(
-              animation: _scroll,
-              builder: (context, child) => MeridianWorldMap(
-                anchor: Offset(
-                  box.maxWidth / 2,
-                  top + _buttonY - (_scroll.hasClients ? _scroll.offset : 0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: mapHeight,
+            child: _HomeMap(
+              framePadding: EdgeInsets.fromLTRB(24, top + _overlayBand, 24, _overlap + 12),
+            ),
+          ),
+          // Fades the map into the page so the card sits on calm ground.
+          Positioned(
+            top: mapHeight - 120,
+            left: 0,
+            right: 0,
+            height: 120,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [m.bg.withValues(alpha: 0), m.bg],
+                  ),
                 ),
-                scrolling: busy,
-                user: home,
-                server: server,
-                userColor: on ? m.brand : m.bad,
               ),
             ),
           ),
-        ),
-        SafeArea(
-          bottom: false,
-          child: SingleChildScrollView(
-            controller: _scroll,
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Column(
-              children: [
-                _Header(onPro: widget.openPro),
-                _ServerChip(choice: choice, onTap: widget.openServers),
-                const SizedBox(height: 4),
-                _Hero(phase: vpn.phase, onTap: tapConnect),
-                Text(status, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -.5, color: statusColor)),
-                if (paused)
-                  Text(
-                    t.home.resumesAt(time: TimeOfDay.fromDateTime(vpn.pausedUntil!).format(context)),
-                    style: TextStyle(fontSize: 13, color: m.muted),
-                  )
-                else
-                  _Clock(since: on ? vpn.connectedAt : null),
-                const SizedBox(height: 6),
-                _IpPill(
-                  text: switch (identity) {
-                    AsyncData(:final value) => value.org == null
-                        ? t.home.sitesSee(ip: value.ip)
-                        : t.home.sitesSeeOrg(ip: value.ip, org: value.org!),
-                    AsyncError() => t.home.ipFailed,
-                    _ => t.home.ipChecking,
-                  },
-                  color: on ? m.good : m.bad,
-                ),
-                if (vpn.error != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-                    child: Text(vpn.error!, textAlign: TextAlign.center, style: TextStyle(color: m.bad, fontSize: 13)),
+          Column(
+            children: [
+              SizedBox(
+                height: mapHeight - _overlap,
+                child: Padding(
+                  padding: EdgeInsets.only(top: top),
+                  child: Column(
+                    children: [
+                      _Header(onPro: openPro),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(statusIcon, size: 20, color: statusColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            status,
+                            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -.4, color: statusColor),
+                          ),
+                        ],
+                      ),
+                      if (paused)
+                        TextButton(
+                          onPressed: () => ref.read(vpnProvider.notifier).resume(),
+                          style: TextButton.styleFrom(foregroundColor: m.muted, minimumSize: const Size(48, 36)),
+                          child: Text(
+                            t.home.resumesAt(time: TimeOfDay.fromDateTime(vpn.pausedUntil!).format(context)),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        )
+                      else if (on)
+                        _Clock(since: vpn.connectedAt),
+                      const SizedBox(height: 8),
+                      _IpChip(onTap: () => showIpSheet(context, onHide: connect)),
+                      if (vpn.error != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                          child: Text(vpn.error!, textAlign: TextAlign.center, style: TextStyle(color: m.bad, fontSize: 13)),
+                        ),
+                    ],
                   ),
-                const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: on && choice != null ? _ConnectionCard(choice: choice, vpn: vpn) : const _ScanCard(),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: HomeConnectCard(openServers: openServers),
+              ),
+              if (!on) ...[
                 const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _Tiles(openRules: widget.openRules, openTools: widget.openTools),
-                ),
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _ScanCard()),
+              ],
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _Tiles(openRules: openRules, openTools: openTools),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The map, fed from the VPN state, the IP lookups and the free list.
+class _HomeMap extends ConsumerWidget {
+  const _HomeMap({required this.framePadding});
+
+  final EdgeInsets framePadding;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phase = ref.watch(vpnProvider.select((s) => s.phase));
+    final choice = ref.watch(tunnelsProvider).value?.choice;
+    final id = ref.watch(identityProvider).value;
+    final home = ref.watch(homeLocationProvider);
+    final servers = ref.watch(communityProvider).value?.servers ?? const [];
+    final on = phase == VpnPhase.on;
+    final idCountry = id?.country != null && id!.country!.length == 2 ? id.country!.toUpperCase() : null;
+
+    // Community servers sit at their country's centre the moment we
+    // connect; your own servers wherever the lookup through them lands.
+    final centre = choice?.countryCode == null ? null : countryCentres[choice!.countryCode!.toUpperCase()];
+    final server = !on
+        ? null
+        : centre != null
+            ? LatLon(centre.$1, centre.$2)
+            : id?.latitude != null && id?.longitude != null
+                ? LatLon(id!.latitude!, id.longitude!)
+                : null;
+
+    // One dot per country with a free server.
+    final dots = <LatLon>[
+      for (final code in {for (final s in servers) s.countryCode.toUpperCase()})
+        if (countryCentres[code] case final c?) LatLon(c.$1, c.$2),
+    ];
+
+    return CountryMap(
+      mood: switch (phase) {
+        VpnPhase.on => MapMood.protected,
+        VpnPhase.connecting || VpnPhase.disconnecting => MapMood.connecting,
+        VpnPhase.off => MapMood.exposed,
+      },
+      you: home,
+      // Exposed, the lookup is the user's own; protected, it is the server's.
+      youCountry: on ? null : idCountry,
+      server: server,
+      serverCountry: choice?.countryCode ?? (on ? idCountry : null),
+      dots: dots,
+      framePadding: framePadding,
+    );
+  }
+}
+
+/// Country and IP that sites see; opens the IP sheet.
+class _IpChip extends ConsumerWidget {
+  const _IpChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = context.mer;
+    final identity = ref.watch(identityProvider);
+    final (name, ip) = switch (identity) {
+      AsyncData(:final value) => (approximatePlace(value.city, value.country), value.ip),
+      AsyncError() => (t.home.ipFailed, null),
+      _ => (t.home.ipChecking, null),
+    };
+    return Material(
+      color: m.surface.withValues(alpha: .92),
+      shape: StadiumBorder(side: BorderSide(color: m.line)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (name != null) Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: m.text)),
+                if (name != null && ip != null) const SizedBox(width: 8),
+                if (ip != null) Text(ip, style: m.monoStyle(size: 13, color: m.muted)),
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right_rounded, size: 18, color: m.muted),
               ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -229,111 +308,6 @@ class _Header extends ConsumerWidget {
   }
 }
 
-class _ServerChip extends StatelessWidget {
-  const _ServerChip({required this.choice, required this.onTap});
-
-  final ServerChoice? choice;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final c = choice;
-    return Material(
-      color: m.surface,
-      shape: StadiumBorder(side: BorderSide(color: m.line)),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (c?.countryCode != null) ...[CountryFlag(c!.countryCode!, width: 22), const SizedBox(width: 8)],
-                Text(
-                  c == null ? t.home.pickServer : c.name,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: m.text),
-                ),
-                const SizedBox(width: 6),
-                Icon(Icons.expand_more_rounded, size: 18, color: m.muted),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Hero extends StatelessWidget {
-  const _Hero({required this.phase, required this.onTap});
-
-  final VpnPhase phase;
-  final VoidCallback onTap;
-
-  static const height = 200.0;
-  static const _button = 128.0;
-  static const _buttonOn = 96.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final on = phase == VpnPhase.on;
-    final busy = phase == VpnPhase.connecting || phase == VpnPhase.disconnecting;
-    final rightMood = on ? WaveMood.secure : busy ? WaveMood.securing : WaveMood.exposed;
-    final rightLabel = on ? t.home.waves.encrypted : busy ? t.home.waves.securing : t.home.waves.exposed;
-    final rightColor = on ? m.good : busy ? m.warn : m.bad;
-    final labelStyle = TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .8, color: m.bad);
-
-    // FULL WIDTH, explicitly. A Stack sizes itself to its non-positioned
-    // children, so without this the hero shrank to the button's 128 dp and
-    // the waves and labels were laid out underneath the button.
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: LayoutBuilder(
-        builder: (context, box) {
-          // Each wave runs from the screen edge to just under the button.
-          final side = (box.maxWidth - _button) / 2 + 10;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                left: 0,
-                width: side,
-                top: height / 2 - 36,
-                child: const MeridianWaves(mood: WaveMood.exposed, fadeFromLeft: true),
-              ),
-              Positioned(
-                right: 0,
-                width: side,
-                top: height / 2 - 36,
-                child: MeridianWaves(mood: rightMood, fadeFromLeft: false),
-              ),
-              Positioned(left: 14, top: height / 2 + 40, child: Text(t.home.waves.exposed, style: labelStyle)),
-              Positioned(
-                right: 14,
-                top: height / 2 + 40,
-                child: Text(rightLabel, style: labelStyle.copyWith(color: rightColor)),
-              ),
-              // Smaller once protected, so the server's country reads
-              // around it on the zoomed map.
-              TweenAnimationBuilder<double>(
-                tween: Tween(end: on ? _buttonOn : _button),
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeInOutCubic,
-                builder: (_, size, __) => ConnectButton(phase: phase, onTap: onTap, size: size),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
 
 /// Ticks once a second, and only while connected and visible.
 class _Clock extends StatefulWidget {
@@ -387,26 +361,6 @@ class _ClockState extends State<_Clock> {
   }
 }
 
-class _IpPill extends StatelessWidget {
-  const _IpPill({required this.text, required this.color});
-
-  final String text;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: m.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: m.line),
-      ),
-      child: Text(text, style: m.monoStyle(size: 12, color: color)),
-    );
-  }
-}
 
 class _ScanCard extends ConsumerWidget {
   const _ScanCard();
@@ -470,72 +424,6 @@ class _ScanCard extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-/// Replaces "This network" while protected: what the connection IS now,
-/// rather than the local network it is hiding.
-class _ConnectionCard extends ConsumerWidget {
-  const _ConnectionCard({required this.choice, required this.vpn});
-
-  final ServerChoice choice;
-  final VpnState vpn;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final m = context.mer;
-    final shield = ref.watch(rulesProvider.select((r) => r.value?.shield ?? true));
-    final protocol = switch (choice) {
-      OwnServer() => t.home.card.wireguard,
-      CommunityChoice(:final server) =>
-        server.sstpHost != null ? 'SSTP' : t.home.card.openvpn(proto: server.proto.toUpperCase()),
-    };
-    Widget pair(ScanChip a, ScanChip b) => Row(
-          children: [
-            Expanded(child: _Chip(chip: a, good: true)),
-            const SizedBox(width: 6),
-            Expanded(child: _Chip(chip: b, good: true)),
-          ],
-        );
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: m.surface,
-        borderRadius: BorderRadius.circular(Meridian.rCard),
-        border: Border.all(color: m.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(t.home.card.connectedVia, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .6, color: m.muted)),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              if (choice.countryCode != null) ...[CountryFlag(choice.countryCode!, width: 24), const SizedBox(width: 8)],
-              Expanded(
-                child: Text(choice.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: m.text)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          pair(
-            ScanChip(t.home.card.protocol, protocol, Tone.ok),
-            ScanChip(t.home.card.dns, shield ? t.home.card.dnsQuad9 : t.home.card.dnsServer, Tone.ok),
-          ),
-          const SizedBox(height: 6),
-          pair(
-            ScanChip(t.home.card.downloaded, _bytes(vpn.rxBytes), Tone.ok),
-            ScanChip(t.home.card.uploaded, _bytes(vpn.txBytes), Tone.ok),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _bytes(int b) {
-    if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
-    if (b < 1024 * 1024 * 1024) return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(b / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 }
 

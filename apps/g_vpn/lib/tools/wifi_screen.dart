@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../design/wifi_name_prompt.dart';
+import '../i18n/strings.g.dart';
 import '../vpn/vpn_api.g.dart';
 import '../vpn/vpn_controller.dart';
 import 'network_screen.dart';

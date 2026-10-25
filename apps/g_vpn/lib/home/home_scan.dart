@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
 import '../design/world_map.dart';
+import '../i18n/strings.g.dart';
 import '../rules/rules_store.dart';
 import '../tools/tools_providers.dart';
 import '../vpn/vpn_controller.dart';

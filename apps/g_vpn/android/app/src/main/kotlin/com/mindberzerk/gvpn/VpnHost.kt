@@ -129,6 +129,10 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
         host.startActivityForResult(intent, REQUEST_IMAGE)
     }
 
+    override fun seal(plain: String): String = SecretBox.seal(plain)
+
+    override fun unseal(stored: String): String? = SecretBox.open(stored)
+
     override fun generateWgKeyPair(): WgKeyPair {
         val pair = com.wireguard.crypto.KeyPair()
         return WgKeyPair(pair.privateKey.toBase64(), pair.publicKey.toBase64())

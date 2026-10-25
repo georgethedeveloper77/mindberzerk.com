@@ -62,7 +62,13 @@
       "downloaded": "DOWNLOADED",
       "uploaded": "UPLOADED",
       "wireguard": "WireGuard",
-      "openvpn": "OpenVPN {proto}"
+      "openvpn": "OpenVPN {proto}",
+      "selected": "SELECTED",
+      "browsingFrom": "BROWSING FROM",
+      "disconnect": "Disconnect",
+      "change": "Change",
+      "enabled": "On",
+      "shield": "SHIELD"
     },
     "tiles": {
       "shield": "Shield",
@@ -76,6 +82,25 @@
       "speed": "Speed",
       "speedTap": "Tap to test",
       "speedDirect": "Direct {mbps} Mbps"
+    },
+    "fastest": {
+      "title": "Fastest free server",
+      "pickedFrom": "Picked from",
+      "more": "+{n}",
+      "finding": "Finding the fastest server",
+      "failed": "Free servers could not load",
+      "how": "How the server is picked",
+      "sheetBody": "G VPN connects you to the free server ranked best right now, by speed, load and how long it has stayed up. The ranking changes as servers come and go."
+    },
+    "ip": {
+      "title": "What sites see",
+      "real": "Your real location",
+      "vpn": "VPN location",
+      "address": "IP address",
+      "coordinates": "Coordinates",
+      "note": "Estimated from your IP. Never stored.",
+      "hide": "Hide my location",
+      "near": "Near {place}"
     }
   },
   "servers": {
@@ -698,6 +723,14 @@
     "idle": "A phone that has not connected for {n} days is removed from G Servers by itself, so an old or reinstalled phone never uses up a place.",
     "limitNote": "Up to {n} phones per plan.",
     "fullTitle": "All {n} places are in use",
-    "fullBody": "Remove a phone you no longer use, and this one connects straight away."
+    "fullBody": "Remove a phone you no longer use, and this one connects straight away.",
+    "busyNow": "Too many new phones right now. Try again in a little while.",
+    "serverFull": "This server is full. Try another G Server.",
+    "ping": "PING",
+    "last24": "Busy, last 24 hours",
+    "noHistory": "The chart fills in as the server is used over the day.",
+    "chartLabel": "Busy over the last 24 hours, at most {max} percent",
+    "hoursAgo": "24 h ago",
+    "now": "Now"
   }
 }

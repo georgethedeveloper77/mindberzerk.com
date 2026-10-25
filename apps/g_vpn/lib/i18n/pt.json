@@ -62,7 +62,13 @@
       "downloaded": "BAIXADO",
       "uploaded": "ENVIADO",
       "wireguard": "WireGuard",
-      "openvpn": "OpenVPN {proto}"
+      "openvpn": "OpenVPN {proto}",
+      "selected": "SELECIONADO",
+      "browsingFrom": "NAVEGANDO DE",
+      "disconnect": "Desconectar",
+      "change": "Trocar",
+      "enabled": "Ativado",
+      "shield": "ESCUDO"
     },
     "tiles": {
       "shield": "Escudo",
@@ -76,6 +82,25 @@
       "speed": "Velocidade",
       "speedTap": "Toque para testar",
       "speedDirect": "Direto {mbps} Mbps"
+    },
+    "fastest": {
+      "title": "Servidor gratuito mais rápido",
+      "pickedFrom": "Escolhido entre",
+      "more": "+{n}",
+      "finding": "Procurando o servidor mais rápido",
+      "failed": "Não foi possível carregar os servidores gratuitos",
+      "how": "Como o servidor é escolhido",
+      "sheetBody": "O G VPN conecta você ao servidor gratuito mais bem classificado agora, por velocidade, carga e tempo sem reiniciar. A classificação muda conforme os servidores entram e saem."
+    },
+    "ip": {
+      "title": "O que os sites veem",
+      "real": "Sua localização real",
+      "vpn": "Localização da VPN",
+      "address": "Endereço IP",
+      "coordinates": "Coordenadas",
+      "note": "Estimada pelo seu IP. Nunca é guardada.",
+      "hide": "Ocultar minha localização",
+      "near": "Perto de {place}"
     }
   },
   "servers": {
@@ -698,6 +723,14 @@
     "idle": "Um celular que não se conecta há {n} dias é removido dos G Servers sozinho, então um celular antigo ou reinstalado nunca ocupa vaga.",
     "limitNote": "Até {n} celulares por plano.",
     "fullTitle": "As {n} vagas estão em uso",
-    "fullBody": "Remova um celular que você não usa mais e este conecta na hora."
+    "fullBody": "Remova um celular que você não usa mais e este conecta na hora.",
+    "busyNow": "Muitos celulares novos agora. Tente de novo daqui a pouco.",
+    "serverFull": "Este servidor está cheio. Tente outro G Server.",
+    "ping": "PING",
+    "last24": "Ocupação, últimas 24 horas",
+    "noHistory": "O gráfico se preenche conforme o servidor é usado ao longo do dia.",
+    "chartLabel": "Ocupação nas últimas 24 horas, no máximo {max} por cento",
+    "hoursAgo": "há 24 h",
+    "now": "Agora"
   }
 }

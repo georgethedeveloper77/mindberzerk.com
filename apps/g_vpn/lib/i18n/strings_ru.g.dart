@@ -130,6 +130,8 @@ class _Translations$home$ru extends Translations$home$en {
 	@override late final _Translations$home$network$ru network = _Translations$home$network$ru._(_root);
 	@override late final _Translations$home$card$ru card = _Translations$home$card$ru._(_root);
 	@override late final _Translations$home$tiles$ru tiles = _Translations$home$tiles$ru._(_root);
+	@override late final _Translations$home$fastest$ru fastest = _Translations$home$fastest$ru._(_root);
+	@override late final _Translations$home$ip$ru ip = _Translations$home$ip$ru._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$ru extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'До ${n} телефонов на план.';
 	@override String fullTitle({required Object n}) => 'Все ${n} мест заняты';
 	@override String get fullBody => 'Удалите телефон, которым больше не пользуетесь, и этот сразу подключится.';
+	@override String get busyNow => 'Сейчас слишком много новых телефонов. Попробуйте чуть позже.';
+	@override String get serverFull => 'Этот сервер заполнен. Попробуйте другой G Server.';
+	@override String get ping => 'ПИНГ';
+	@override String get last24 => 'Загрузка за 24 часа';
+	@override String get noHistory => 'График заполняется по мере работы сервера в течение дня.';
+	@override String chartLabel({required Object max}) => 'Загрузка за последние 24 часа, максимум ${max} процентов';
+	@override String get hoursAgo => '24 ч назад';
+	@override String get now => 'Сейчас';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$ru extends Translations$home$card$en {
 	@override String get uploaded => 'ОТПРАВЛЕНО';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'ВЫБРАН';
+	@override String get browsingFrom => 'ВЫХОД В СЕТЬ ИЗ';
+	@override String get disconnect => 'Отключить';
+	@override String get change => 'Сменить';
+	@override String get enabled => 'Вкл.';
+	@override String get shield => 'ЩИТ';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$ru extends Translations$home$tiles$en {
 	@override String get speed => 'Скорость';
 	@override String get speedTap => 'Нажмите для теста';
 	@override String speedDirect({required Object mbps}) => 'Напрямую ${mbps} Мбит/с';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$ru extends Translations$home$fastest$en {
+	_Translations$home$fastest$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Самый быстрый бесплатный сервер';
+	@override String get pickedFrom => 'Выбран из';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'Ищем самый быстрый сервер';
+	@override String get failed => 'Не удалось загрузить бесплатные серверы';
+	@override String get how => 'Как выбирается сервер';
+	@override String get sheetBody => 'G VPN подключает вас к бесплатному серверу с лучшим рейтингом на данный момент: по скорости, нагрузке и времени непрерывной работы. Рейтинг меняется по мере появления и исчезновения серверов.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$ru extends Translations$home$ip$en {
+	_Translations$home$ip$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Что видят сайты';
+	@override String get real => 'Ваше реальное местоположение';
+	@override String get vpn => 'Местоположение VPN';
+	@override String get address => 'IP-адрес';
+	@override String get coordinates => 'Координаты';
+	@override String get note => 'Определено по IP. Не сохраняется.';
+	@override String get hide => 'Скрыть моё местоположение';
+	@override String near({required Object place}) => 'Примерно: ${place}';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsRu {
 			'home.card.uploaded' => 'ОТПРАВЛЕНО',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'ВЫБРАН',
+			'home.card.browsingFrom' => 'ВЫХОД В СЕТЬ ИЗ',
+			'home.card.disconnect' => 'Отключить',
+			'home.card.change' => 'Сменить',
+			'home.card.enabled' => 'Вкл.',
+			'home.card.shield' => 'ЩИТ',
 			'home.tiles.shield' => 'Щит',
 			'home.tiles.shieldOn' => 'Блокирует вредоносные сайты',
 			'home.tiles.appsDirect' => 'Приложения напрямую',
@@ -1149,6 +1204,21 @@ extension on TranslationsRu {
 			'home.tiles.speed' => 'Скорость',
 			'home.tiles.speedTap' => 'Нажмите для теста',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'Напрямую ${mbps} Мбит/с',
+			'home.fastest.title' => 'Самый быстрый бесплатный сервер',
+			'home.fastest.pickedFrom' => 'Выбран из',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'Ищем самый быстрый сервер',
+			'home.fastest.failed' => 'Не удалось загрузить бесплатные серверы',
+			'home.fastest.how' => 'Как выбирается сервер',
+			'home.fastest.sheetBody' => 'G VPN подключает вас к бесплатному серверу с лучшим рейтингом на данный момент: по скорости, нагрузке и времени непрерывной работы. Рейтинг меняется по мере появления и исчезновения серверов.',
+			'home.ip.title' => 'Что видят сайты',
+			'home.ip.real' => 'Ваше реальное местоположение',
+			'home.ip.vpn' => 'Местоположение VPN',
+			'home.ip.address' => 'IP-адрес',
+			'home.ip.coordinates' => 'Координаты',
+			'home.ip.note' => 'Определено по IP. Не сохраняется.',
+			'home.ip.hide' => 'Скрыть моё местоположение',
+			'home.ip.near' => ({required Object place}) => 'Примерно: ${place}',
 			'servers.title' => 'Серверы',
 			'servers.aboutServers' => 'О серверах',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsRu {
 			'ports.address' => 'Адрес устройства или сервера',
 			'ports.risky' => 'ОПАСНО',
 			'ports.review' => 'ПРОВЕРИТЬ',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'НОРМА',
 			'ports.info' => ({required Object n}) => 'Проверяет ${n} портов, важных для домашних роутеров и устройств, и объясняет каждый открытый.\n\nПроверяйте только устройства и серверы, которыми вы владеете или управляете.',
 			'ports.checking' => ({required Object n}) => 'Проверка портов: ${n}',
@@ -1598,8 +1670,6 @@ extension on TranslationsRu {
 			'wifi.info' => 'Показывает сети из последнего сканирования телефона. Android разрешает лишь несколько сканирований в минуту, поэтому быстрое повторное может показать тот же список. Рекомендуемый канал: наименее загруженный из 1, 6 и 11, трёх неперекрывающихся.',
 			'errors.notAuthorized' => 'Разрешение на VPN не выдано.',
 			'errors.turnedOff' => 'VPN был выключен системой или другим приложением.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'Запрос разрешения уже открыт.',
 			'errors.cancelled' => 'Подключение отменено.',
 			'errors.badConfig' => ({required Object error}) => 'Неверная конфигурация сервера: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsRu {
 			'gs.limitNote' => ({required Object n}) => 'До ${n} телефонов на план.',
 			'gs.fullTitle' => ({required Object n}) => 'Все ${n} мест заняты',
 			'gs.fullBody' => 'Удалите телефон, которым больше не пользуетесь, и этот сразу подключится.',
+			'gs.busyNow' => 'Сейчас слишком много новых телефонов. Попробуйте чуть позже.',
+			'gs.serverFull' => 'Этот сервер заполнен. Попробуйте другой G Server.',
+			'gs.ping' => 'ПИНГ',
+			'gs.last24' => 'Загрузка за 24 часа',
+			'gs.noHistory' => 'График заполняется по мере работы сервера в течение дня.',
+			'gs.chartLabel' => ({required Object max}) => 'Загрузка за последние 24 часа, максимум ${max} процентов',
+			'gs.hoursAgo' => '24 ч назад',
+			'gs.now' => 'Сейчас',
 			_ => null,
 		};
 	}

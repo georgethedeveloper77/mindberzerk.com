@@ -130,6 +130,8 @@ class _Translations$home$id extends Translations$home$en {
 	@override late final _Translations$home$network$id network = _Translations$home$network$id._(_root);
 	@override late final _Translations$home$card$id card = _Translations$home$card$id._(_root);
 	@override late final _Translations$home$tiles$id tiles = _Translations$home$tiles$id._(_root);
+	@override late final _Translations$home$fastest$id fastest = _Translations$home$fastest$id._(_root);
+	@override late final _Translations$home$ip$id ip = _Translations$home$ip$id._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$id extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'Hingga ${n} ponsel per paket.';
 	@override String fullTitle({required Object n}) => 'Ke-${n} tempat sudah terpakai';
 	@override String get fullBody => 'Hapus ponsel yang tidak lagi Anda pakai, dan ponsel ini langsung terhubung.';
+	@override String get busyNow => 'Terlalu banyak ponsel baru saat ini. Coba lagi sebentar lagi.';
+	@override String get serverFull => 'Server ini penuh. Coba G Server lain.';
+	@override String get ping => 'PING';
+	@override String get last24 => 'Kesibukan, 24 jam terakhir';
+	@override String get noHistory => 'Grafik terisi seiring server dipakai sepanjang hari.';
+	@override String chartLabel({required Object max}) => 'Kesibukan 24 jam terakhir, paling tinggi ${max} persen';
+	@override String get hoursAgo => '24 jam lalu';
+	@override String get now => 'Sekarang';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$id extends Translations$home$card$en {
 	@override String get uploaded => 'DIUNGGAH';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'DIPILIH';
+	@override String get browsingFrom => 'MENJELAJAH DARI';
+	@override String get disconnect => 'Putuskan';
+	@override String get change => 'Ganti';
+	@override String get enabled => 'Aktif';
+	@override String get shield => 'PERISAI';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$id extends Translations$home$tiles$en {
 	@override String get speed => 'Kecepatan';
 	@override String get speedTap => 'Ketuk untuk tes';
 	@override String speedDirect({required Object mbps}) => 'Langsung ${mbps} Mbps';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$id extends Translations$home$fastest$en {
+	_Translations$home$fastest$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Server gratis tercepat';
+	@override String get pickedFrom => 'Dipilih dari';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'Mencari server tercepat';
+	@override String get failed => 'Server gratis tidak dapat dimuat';
+	@override String get how => 'Cara server dipilih';
+	@override String get sheetBody => 'G VPN menghubungkan Anda ke server gratis dengan peringkat terbaik saat ini, berdasarkan kecepatan, beban, dan lama server menyala. Peringkat berubah saat server datang dan pergi.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$id extends Translations$home$ip$en {
+	_Translations$home$ip$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Yang dilihat situs';
+	@override String get real => 'Lokasi asli Anda';
+	@override String get vpn => 'Lokasi VPN';
+	@override String get address => 'Alamat IP';
+	@override String get coordinates => 'Koordinat';
+	@override String get note => 'Perkiraan dari IP Anda. Tidak pernah disimpan.';
+	@override String get hide => 'Sembunyikan lokasi saya';
+	@override String near({required Object place}) => 'Dekat ${place}';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsId {
 			'home.card.uploaded' => 'DIUNGGAH',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'DIPILIH',
+			'home.card.browsingFrom' => 'MENJELAJAH DARI',
+			'home.card.disconnect' => 'Putuskan',
+			'home.card.change' => 'Ganti',
+			'home.card.enabled' => 'Aktif',
+			'home.card.shield' => 'PERISAI',
 			'home.tiles.shield' => 'Perisai',
 			'home.tiles.shieldOn' => 'Memblokir situs berbahaya',
 			'home.tiles.appsDirect' => 'Aplikasi langsung',
@@ -1149,6 +1204,21 @@ extension on TranslationsId {
 			'home.tiles.speed' => 'Kecepatan',
 			'home.tiles.speedTap' => 'Ketuk untuk tes',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'Langsung ${mbps} Mbps',
+			'home.fastest.title' => 'Server gratis tercepat',
+			'home.fastest.pickedFrom' => 'Dipilih dari',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'Mencari server tercepat',
+			'home.fastest.failed' => 'Server gratis tidak dapat dimuat',
+			'home.fastest.how' => 'Cara server dipilih',
+			'home.fastest.sheetBody' => 'G VPN menghubungkan Anda ke server gratis dengan peringkat terbaik saat ini, berdasarkan kecepatan, beban, dan lama server menyala. Peringkat berubah saat server datang dan pergi.',
+			'home.ip.title' => 'Yang dilihat situs',
+			'home.ip.real' => 'Lokasi asli Anda',
+			'home.ip.vpn' => 'Lokasi VPN',
+			'home.ip.address' => 'Alamat IP',
+			'home.ip.coordinates' => 'Koordinat',
+			'home.ip.note' => 'Perkiraan dari IP Anda. Tidak pernah disimpan.',
+			'home.ip.hide' => 'Sembunyikan lokasi saya',
+			'home.ip.near' => ({required Object place}) => 'Dekat ${place}',
 			'servers.title' => 'Server',
 			'servers.aboutServers' => 'Tentang server',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsId {
 			'ports.address' => 'Alamat perangkat atau server',
 			'ports.risky' => 'BERISIKO',
 			'ports.review' => 'TINJAU',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Memeriksa ${n} port yang penting di router dan perangkat rumah, dan menjelaskan setiap port yang terbuka.\n\nHanya periksa perangkat dan server yang Anda miliki atau kelola.',
 			'ports.checking' => ({required Object n}) => 'Memeriksa ${n} port',
@@ -1598,8 +1670,6 @@ extension on TranslationsId {
 			'wifi.info' => 'Menampilkan jaringan dari pemindaian terakhir ponsel. Android hanya mengizinkan beberapa pemindaian per menit, jadi pemindaian ulang yang cepat bisa menampilkan daftar yang sama. Kanal yang disarankan adalah yang paling sepi di antara 1, 6, dan 11, tiga kanal yang tidak tumpang tindih.',
 			'errors.notAuthorized' => 'Izin VPN tidak diberikan.',
 			'errors.turnedOff' => 'VPN dimatikan oleh sistem atau aplikasi lain.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'Permintaan izin sudah terbuka.',
 			'errors.cancelled' => 'Koneksi dibatalkan.',
 			'errors.badConfig' => ({required Object error}) => 'Konfigurasi server ini tidak valid: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsId {
 			'gs.limitNote' => ({required Object n}) => 'Hingga ${n} ponsel per paket.',
 			'gs.fullTitle' => ({required Object n}) => 'Ke-${n} tempat sudah terpakai',
 			'gs.fullBody' => 'Hapus ponsel yang tidak lagi Anda pakai, dan ponsel ini langsung terhubung.',
+			'gs.busyNow' => 'Terlalu banyak ponsel baru saat ini. Coba lagi sebentar lagi.',
+			'gs.serverFull' => 'Server ini penuh. Coba G Server lain.',
+			'gs.ping' => 'PING',
+			'gs.last24' => 'Kesibukan, 24 jam terakhir',
+			'gs.noHistory' => 'Grafik terisi seiring server dipakai sepanjang hari.',
+			'gs.chartLabel' => ({required Object max}) => 'Kesibukan 24 jam terakhir, paling tinggi ${max} persen',
+			'gs.hoursAgo' => '24 jam lalu',
+			'gs.now' => 'Sekarang',
 			_ => null,
 		};
 	}

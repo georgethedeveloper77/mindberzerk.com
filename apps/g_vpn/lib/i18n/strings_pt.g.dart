@@ -130,6 +130,8 @@ class _Translations$home$pt extends Translations$home$en {
 	@override late final _Translations$home$network$pt network = _Translations$home$network$pt._(_root);
 	@override late final _Translations$home$card$pt card = _Translations$home$card$pt._(_root);
 	@override late final _Translations$home$tiles$pt tiles = _Translations$home$tiles$pt._(_root);
+	@override late final _Translations$home$fastest$pt fastest = _Translations$home$fastest$pt._(_root);
+	@override late final _Translations$home$ip$pt ip = _Translations$home$ip$pt._(_root);
 }
 
 // Path: servers
@@ -886,6 +888,14 @@ class _Translations$gs$pt extends Translations$gs$en {
 	@override String limitNote({required Object n}) => 'Até ${n} celulares por plano.';
 	@override String fullTitle({required Object n}) => 'As ${n} vagas estão em uso';
 	@override String get fullBody => 'Remova um celular que você não usa mais e este conecta na hora.';
+	@override String get busyNow => 'Muitos celulares novos agora. Tente de novo daqui a pouco.';
+	@override String get serverFull => 'Este servidor está cheio. Tente outro G Server.';
+	@override String get ping => 'PING';
+	@override String get last24 => 'Ocupação, últimas 24 horas';
+	@override String get noHistory => 'O gráfico se preenche conforme o servidor é usado ao longo do dia.';
+	@override String chartLabel({required Object max}) => 'Ocupação nas últimas 24 horas, no máximo ${max} por cento';
+	@override String get hoursAgo => 'há 24 h';
+	@override String get now => 'Agora';
 }
 
 // Path: home.status
@@ -945,6 +955,12 @@ class _Translations$home$card$pt extends Translations$home$card$en {
 	@override String get uploaded => 'ENVIADO';
 	@override String get wireguard => 'WireGuard';
 	@override String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+	@override String get selected => 'SELECIONADO';
+	@override String get browsingFrom => 'NAVEGANDO DE';
+	@override String get disconnect => 'Desconectar';
+	@override String get change => 'Trocar';
+	@override String get enabled => 'Ativado';
+	@override String get shield => 'ESCUDO';
 }
 
 // Path: home.tiles
@@ -965,6 +981,39 @@ class _Translations$home$tiles$pt extends Translations$home$tiles$en {
 	@override String get speed => 'Velocidade';
 	@override String get speedTap => 'Toque para testar';
 	@override String speedDirect({required Object mbps}) => 'Direto ${mbps} Mbps';
+}
+
+// Path: home.fastest
+class _Translations$home$fastest$pt extends Translations$home$fastest$en {
+	_Translations$home$fastest$pt._(TranslationsPt root) : this._root = root, super.internal(root);
+
+	final TranslationsPt _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Servidor gratuito mais rápido';
+	@override String get pickedFrom => 'Escolhido entre';
+	@override String more({required Object n}) => '+${n}';
+	@override String get finding => 'Procurando o servidor mais rápido';
+	@override String get failed => 'Não foi possível carregar os servidores gratuitos';
+	@override String get how => 'Como o servidor é escolhido';
+	@override String get sheetBody => 'O G VPN conecta você ao servidor gratuito mais bem classificado agora, por velocidade, carga e tempo sem reiniciar. A classificação muda conforme os servidores entram e saem.';
+}
+
+// Path: home.ip
+class _Translations$home$ip$pt extends Translations$home$ip$en {
+	_Translations$home$ip$pt._(TranslationsPt root) : this._root = root, super.internal(root);
+
+	final TranslationsPt _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'O que os sites veem';
+	@override String get real => 'Sua localização real';
+	@override String get vpn => 'Localização da VPN';
+	@override String get address => 'Endereço IP';
+	@override String get coordinates => 'Coordenadas';
+	@override String get note => 'Estimada pelo seu IP. Nunca é guardada.';
+	@override String get hide => 'Ocultar minha localização';
+	@override String near({required Object place}) => 'Perto de ${place}';
 }
 
 // Path: servers.tabs
@@ -1138,6 +1187,12 @@ extension on TranslationsPt {
 			'home.card.uploaded' => 'ENVIADO',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'SELECIONADO',
+			'home.card.browsingFrom' => 'NAVEGANDO DE',
+			'home.card.disconnect' => 'Desconectar',
+			'home.card.change' => 'Trocar',
+			'home.card.enabled' => 'Ativado',
+			'home.card.shield' => 'ESCUDO',
 			'home.tiles.shield' => 'Escudo',
 			'home.tiles.shieldOn' => 'Bloqueia sites maliciosos',
 			'home.tiles.appsDirect' => 'Apps diretos',
@@ -1149,6 +1204,21 @@ extension on TranslationsPt {
 			'home.tiles.speed' => 'Velocidade',
 			'home.tiles.speedTap' => 'Toque para testar',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'Direto ${mbps} Mbps',
+			'home.fastest.title' => 'Servidor gratuito mais rápido',
+			'home.fastest.pickedFrom' => 'Escolhido entre',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'Procurando o servidor mais rápido',
+			'home.fastest.failed' => 'Não foi possível carregar os servidores gratuitos',
+			'home.fastest.how' => 'Como o servidor é escolhido',
+			'home.fastest.sheetBody' => 'O G VPN conecta você ao servidor gratuito mais bem classificado agora, por velocidade, carga e tempo sem reiniciar. A classificação muda conforme os servidores entram e saem.',
+			'home.ip.title' => 'O que os sites veem',
+			'home.ip.real' => 'Sua localização real',
+			'home.ip.vpn' => 'Localização da VPN',
+			'home.ip.address' => 'Endereço IP',
+			'home.ip.coordinates' => 'Coordenadas',
+			'home.ip.note' => 'Estimada pelo seu IP. Nunca é guardada.',
+			'home.ip.hide' => 'Ocultar minha localização',
+			'home.ip.near' => ({required Object place}) => 'Perto de ${place}',
 			'servers.title' => 'Servidores',
 			'servers.aboutServers' => 'Sobre os servidores',
 			'servers.tabs.pro' => 'Pro',
@@ -1577,6 +1647,8 @@ extension on TranslationsPt {
 			'ports.address' => 'Endereço do dispositivo ou servidor',
 			'ports.risky' => 'RISCO',
 			'ports.review' => 'REVISAR',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Verifica as ${n} portas que importam em roteadores e dispositivos domésticos e explica cada uma que estiver aberta.\n\nVerifique apenas dispositivos e servidores que sejam seus ou que você administre.',
 			'ports.checking' => ({required Object n}) => 'Verificando ${n} portas',
@@ -1598,8 +1670,6 @@ extension on TranslationsPt {
 			'wifi.info' => 'Lista as redes da última verificação do celular. O Android permite poucas verificações por minuto, então repetir rápido pode mostrar a mesma lista. O canal sugerido é o menos congestionado entre 1, 6 e 11, os três que não se sobrepõem.',
 			'errors.notAuthorized' => 'A permissão de VPN não foi concedida.',
 			'errors.turnedOff' => 'A VPN foi desligada pelo sistema ou por outro app.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'Já existe um pedido de permissão aberto.',
 			'errors.cancelled' => 'Conexão cancelada.',
 			'errors.badConfig' => ({required Object error}) => 'A configuração deste servidor é inválida: ${error}',
@@ -1705,6 +1775,14 @@ extension on TranslationsPt {
 			'gs.limitNote' => ({required Object n}) => 'Até ${n} celulares por plano.',
 			'gs.fullTitle' => ({required Object n}) => 'As ${n} vagas estão em uso',
 			'gs.fullBody' => 'Remova um celular que você não usa mais e este conecta na hora.',
+			'gs.busyNow' => 'Muitos celulares novos agora. Tente de novo daqui a pouco.',
+			'gs.serverFull' => 'Este servidor está cheio. Tente outro G Server.',
+			'gs.ping' => 'PING',
+			'gs.last24' => 'Ocupação, últimas 24 horas',
+			'gs.noHistory' => 'O gráfico se preenche conforme o servidor é usado ao longo do dia.',
+			'gs.chartLabel' => ({required Object max}) => 'Ocupação nas últimas 24 horas, no máximo ${max} por cento',
+			'gs.hoursAgo' => 'há 24 h',
+			'gs.now' => 'Agora',
 			_ => null,
 		};
 	}

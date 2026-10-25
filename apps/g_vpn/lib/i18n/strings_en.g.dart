@@ -191,6 +191,8 @@ class Translations$home$en {
 	late final Translations$home$network$en network = Translations$home$network$en.internal(_root);
 	late final Translations$home$card$en card = Translations$home$card$en.internal(_root);
 	late final Translations$home$tiles$en tiles = Translations$home$tiles$en.internal(_root);
+	late final Translations$home$fastest$en fastest = Translations$home$fastest$en.internal(_root);
+	late final Translations$home$ip$en ip = Translations$home$ip$en.internal(_root);
 }
 
 // Path: servers
@@ -1963,6 +1965,30 @@ class Translations$gs$en {
 
 	/// en: 'Remove a phone you no longer use, and this one connects straight away.'
 	String get fullBody => 'Remove a phone you no longer use, and this one connects straight away.';
+
+	/// en: 'Too many new phones right now. Try again in a little while.'
+	String get busyNow => 'Too many new phones right now. Try again in a little while.';
+
+	/// en: 'This server is full. Try another G Server.'
+	String get serverFull => 'This server is full. Try another G Server.';
+
+	/// en: 'PING'
+	String get ping => 'PING';
+
+	/// en: 'Busy, last 24 hours'
+	String get last24 => 'Busy, last 24 hours';
+
+	/// en: 'The chart fills in as the server is used over the day.'
+	String get noHistory => 'The chart fills in as the server is used over the day.';
+
+	/// en: 'Busy over the last 24 hours, at most {max} percent'
+	String chartLabel({required Object max}) => 'Busy over the last 24 hours, at most ${max} percent';
+
+	/// en: '24 h ago'
+	String get hoursAgo => '24 h ago';
+
+	/// en: 'Now'
+	String get now => 'Now';
 }
 
 // Path: home.status
@@ -2068,6 +2094,24 @@ class Translations$home$card$en {
 
 	/// en: 'OpenVPN {proto}'
 	String openvpn({required Object proto}) => 'OpenVPN ${proto}';
+
+	/// en: 'SELECTED'
+	String get selected => 'SELECTED';
+
+	/// en: 'BROWSING FROM'
+	String get browsingFrom => 'BROWSING FROM';
+
+	/// en: 'Disconnect'
+	String get disconnect => 'Disconnect';
+
+	/// en: 'Change'
+	String get change => 'Change';
+
+	/// en: 'On'
+	String get enabled => 'On';
+
+	/// en: 'SHIELD'
+	String get shield => 'SHIELD';
 }
 
 // Path: home.tiles
@@ -2110,6 +2154,69 @@ class Translations$home$tiles$en {
 
 	/// en: 'Direct {mbps} Mbps'
 	String speedDirect({required Object mbps}) => 'Direct ${mbps} Mbps';
+}
+
+// Path: home.fastest
+class Translations$home$fastest$en {
+	Translations$home$fastest$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Fastest free server'
+	String get title => 'Fastest free server';
+
+	/// en: 'Picked from'
+	String get pickedFrom => 'Picked from';
+
+	/// en: '+{n}'
+	String more({required Object n}) => '+${n}';
+
+	/// en: 'Finding the fastest server'
+	String get finding => 'Finding the fastest server';
+
+	/// en: 'Free servers could not load'
+	String get failed => 'Free servers could not load';
+
+	/// en: 'How the server is picked'
+	String get how => 'How the server is picked';
+
+	/// en: 'G VPN connects you to the free server ranked best right now, by speed, load and how long it has stayed up. The ranking changes as servers come and go.'
+	String get sheetBody => 'G VPN connects you to the free server ranked best right now, by speed, load and how long it has stayed up. The ranking changes as servers come and go.';
+}
+
+// Path: home.ip
+class Translations$home$ip$en {
+	Translations$home$ip$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'What sites see'
+	String get title => 'What sites see';
+
+	/// en: 'Your real location'
+	String get real => 'Your real location';
+
+	/// en: 'VPN location'
+	String get vpn => 'VPN location';
+
+	/// en: 'IP address'
+	String get address => 'IP address';
+
+	/// en: 'Coordinates'
+	String get coordinates => 'Coordinates';
+
+	/// en: 'Estimated from your IP. Never stored.'
+	String get note => 'Estimated from your IP. Never stored.';
+
+	/// en: 'Hide my location'
+	String get hide => 'Hide my location';
+
+	/// en: 'Near {place}'
+	String near({required Object place}) => 'Near ${place}';
 }
 
 // Path: servers.tabs
@@ -2379,6 +2486,12 @@ extension on Translations {
 			'home.card.uploaded' => 'UPLOADED',
 			'home.card.wireguard' => 'WireGuard',
 			'home.card.openvpn' => ({required Object proto}) => 'OpenVPN ${proto}',
+			'home.card.selected' => 'SELECTED',
+			'home.card.browsingFrom' => 'BROWSING FROM',
+			'home.card.disconnect' => 'Disconnect',
+			'home.card.change' => 'Change',
+			'home.card.enabled' => 'On',
+			'home.card.shield' => 'SHIELD',
 			'home.tiles.shield' => 'Shield',
 			'home.tiles.shieldOn' => 'Blocks malware sites',
 			'home.tiles.appsDirect' => 'Apps direct',
@@ -2390,6 +2503,21 @@ extension on Translations {
 			'home.tiles.speed' => 'Speed',
 			'home.tiles.speedTap' => 'Tap to test',
 			'home.tiles.speedDirect' => ({required Object mbps}) => 'Direct ${mbps} Mbps',
+			'home.fastest.title' => 'Fastest free server',
+			'home.fastest.pickedFrom' => 'Picked from',
+			'home.fastest.more' => ({required Object n}) => '+${n}',
+			'home.fastest.finding' => 'Finding the fastest server',
+			'home.fastest.failed' => 'Free servers could not load',
+			'home.fastest.how' => 'How the server is picked',
+			'home.fastest.sheetBody' => 'G VPN connects you to the free server ranked best right now, by speed, load and how long it has stayed up. The ranking changes as servers come and go.',
+			'home.ip.title' => 'What sites see',
+			'home.ip.real' => 'Your real location',
+			'home.ip.vpn' => 'VPN location',
+			'home.ip.address' => 'IP address',
+			'home.ip.coordinates' => 'Coordinates',
+			'home.ip.note' => 'Estimated from your IP. Never stored.',
+			'home.ip.hide' => 'Hide my location',
+			'home.ip.near' => ({required Object place}) => 'Near ${place}',
 			'servers.title' => 'Servers',
 			'servers.aboutServers' => 'About servers',
 			'servers.tabs.pro' => 'Pro',
@@ -2818,6 +2946,8 @@ extension on Translations {
 			'ports.address' => 'Device or server address',
 			'ports.risky' => 'RISKY',
 			'ports.review' => 'REVIEW',
+			_ => null,
+		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Checks the ${n} ports that matter on home routers and devices, and explains each open one.\n\nOnly check devices and servers you own or manage.',
 			'ports.checking' => ({required Object n}) => 'Checking ${n} ports',
@@ -2839,8 +2969,6 @@ extension on Translations {
 			'wifi.info' => 'Lists networks from the phone\'s last scan. Android allows only a few scans a minute, so a quick re-scan may show the same list. The suggested channel is the least crowded of 1, 6 and 11, the three that do not overlap.',
 			'errors.notAuthorized' => 'VPN permission was not granted.',
 			'errors.turnedOff' => 'The VPN was turned off by the system or another app.',
-			_ => null,
-		} ?? switch (path) {
 			'errors.busy' => 'A permission request is already open.',
 			'errors.cancelled' => 'Connection cancelled.',
 			'errors.badConfig' => ({required Object error}) => 'This server config is invalid: ${error}',
@@ -2946,6 +3074,14 @@ extension on Translations {
 			'gs.limitNote' => ({required Object n}) => 'Up to ${n} phones per plan.',
 			'gs.fullTitle' => ({required Object n}) => 'All ${n} places are in use',
 			'gs.fullBody' => 'Remove a phone you no longer use, and this one connects straight away.',
+			'gs.busyNow' => 'Too many new phones right now. Try again in a little while.',
+			'gs.serverFull' => 'This server is full. Try another G Server.',
+			'gs.ping' => 'PING',
+			'gs.last24' => 'Busy, last 24 hours',
+			'gs.noHistory' => 'The chart fills in as the server is used over the day.',
+			'gs.chartLabel' => ({required Object max}) => 'Busy over the last 24 hours, at most ${max} percent',
+			'gs.hoursAgo' => '24 h ago',
+			'gs.now' => 'Now',
 			_ => null,
 		};
 	}

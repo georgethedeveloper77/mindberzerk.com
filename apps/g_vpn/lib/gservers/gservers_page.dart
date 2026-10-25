@@ -32,6 +32,8 @@ Future<void> connectGServer(BuildContext context, WidgetRef ref, GServer server)
     }
     final message = switch (e.code) {
       'pro_required' => t.gs.proRequired,
+      'busy' => t.gs.busyNow,
+      'full' => t.gs.serverFull,
       'off' => t.gs.off,
       _ => t.gs.network,
     };
@@ -277,11 +279,23 @@ class GServerScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
+              Expanded(
+                child: _Tile(
+                  t.gs.ping,
+                  switch (ref.watch(gPingProvider(server.id))) {
+                    AsyncData(:final value) => value == null ? '·' : '$value ms',
+                    _ => '…',
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(child: _Tile(t.gs.busyLabel, server.busy == null ? '·' : '${server.busy}%')),
               const SizedBox(width: 10),
               Expanded(child: _Tile(t.gs.status, server.online ? t.gs.online : t.gs.offline)),
             ],
           ),
+          SectionTitle(t.gs.last24),
+          _LoadChart(history: server.history),
           SectionTitle(t.gs.onThisServer),
           ListGroup(children: [
             ListItem(title: t.gs.thisPhone, trailing: _Value(onThis ? t.gs.added : t.gs.notAdded)),
@@ -501,6 +515,69 @@ class _Value extends StatelessWidget {
             ? m.monoStyle(size: 13, color: color ?? m.text)
             : TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color ?? m.text),
       ),
+    );
+  }
+}
+
+/// Busy over the last 24 hours, one bar per 15 minutes; the newest in the
+/// brand colour. Bars rise in when the page opens.
+class _LoadChart extends StatelessWidget {
+  const _LoadChart({required this.history});
+
+  final List<int> history;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return Container(
+      height: 110,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(color: m.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: m.line)),
+      child: history.isEmpty
+          ? Center(child: Text(t.gs.noHistory, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: m.muted)))
+          : Column(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    label: t.gs.chartLabel(max: history.reduce((a, b) => a > b ? a : b)),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, grow, __) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final (i, v) in history.indexed)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: .8),
+                                child: FractionallySizedBox(
+                                  heightFactor: ((v.clamp(2, 100)) / 100) * grow,
+                                  alignment: Alignment.bottomCenter,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: i == history.length - 1 ? m.brand : m.brand.withValues(alpha: .35),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(t.gs.hoursAgo, style: TextStyle(fontSize: 11, color: m.muted)),
+                    Text(t.gs.now, style: TextStyle(fontSize: 11, color: m.muted)),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

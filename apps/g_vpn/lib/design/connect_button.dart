@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
+import '../i18n/strings.g.dart';
 import '../vpn/vpn_controller.dart';
 import 'meridian.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../../../i18n/strings.g.dart';
+import '../i18n/strings.g.dart';
 import 'meridian.dart';
 import 'sheet.dart';
 
