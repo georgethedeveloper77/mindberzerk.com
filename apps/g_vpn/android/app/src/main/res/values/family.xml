@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Mindberzerk apps allowed to read G VPN's status and control it.
+
+  SHA-256 of each app's signing certificate, without colons, lower case,
+  from Play Console > the app > Test and release > App integrity > App
+  signing. These are public certificate fingerprints, not secrets.
+
+  Play signs each app with its OWN key, so each app is listed; the shared
+  upload key covers builds signed locally with key.jks. To test with debug
+  builds, add your debug key's SHA-256 (./gradlew signingReport).
+-->
+<resources>
+    <string-array name="gvpn_family_certs">
+        <!-- G Launcher (com.mindhunter.g_launcher), Play app signing key -->
+        <item>b87a3fef2f8f62bcd7575740e3b42f61ebc703f64823dc2f92fffcde6613ae8b</item>
+        <!-- G Launcher, second key Play lists for it -->
+        <item>b1079c67cbd1ce660e2a17d4a6928abc983fe209dffcedaefebc858671c67b09</item>
+        <!-- G Recovery (com.mindhunter.g_recovery), Play app signing key -->
+        <item>59bd8cf04a3df30272aa689c551af4f1c3230f22d490826f11592fb52cb075f4</item>
+        <!-- Shared upload key (key.jks): local release builds of any of the three -->
+        <item>c1ac2cf276d14fcd901370a5bb34c63805e6d5fc726a689b88c9fbadac990fd3</item>
+    </string-array>
+    <string name="gvpn_family_permission_label">control G VPN</string>
+    <string name="gvpn_family_permission_desc">Lets other Mindberzerk apps show G VPN\'s status and connect or disconnect it.</string>
+</resources>

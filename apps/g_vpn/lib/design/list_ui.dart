@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import 'meridian.dart';
+import 'sheet.dart';
 
 /// The one list language every screen uses: section titles, grouped rows,
 /// and an info button whose sheet holds the explanations, so screens stay
@@ -132,32 +134,31 @@ class InfoAction extends StatelessWidget {
   final String title;
   final String body;
 
+  /// Paragraphs become text sections. A paragraph opening "Heading: rest"
+  /// takes that heading; the first paragraph without one becomes the
+  /// sheet's subtitle, so nothing repeats the title.
   static Future<void> show(BuildContext context, String title, String body) {
-    final m = context.mer;
-    return showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: m.surface,
-      builder: (c) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: m.text)),
-              const SizedBox(height: 10),
-              Text(body, style: TextStyle(fontSize: 14, height: 1.5, color: m.muted)),
-            ],
-          ),
-        ),
-      ),
-    );
+    final sections = <SheetSection>[];
+    String? lead;
+    for (final para in body.split(RegExp(r'\n\s*\n'))) {
+      final text = para.trim();
+      if (text.isEmpty) continue;
+      final colon = text.indexOf(': ');
+      final hasHead = colon > 0 && colon < 28 && !text.substring(0, colon).contains('.');
+      if (hasHead) {
+        sections.add(SheetSection.text(text.substring(0, colon), text.substring(colon + 2)));
+      } else if (lead == null && sections.isEmpty) {
+        lead = text;
+      } else {
+        sections.add(SheetSection.text('', text));
+      }
+    }
+    return showInfoSheet(context, title: title, subtitle: lead, sections: sections);
   }
 
   @override
   Widget build(BuildContext context) => IconButton(
-        tooltip: 'About',
+        tooltip: t.common.about,
         icon: const Icon(Icons.info_outline_rounded),
         onPressed: () => show(context, title, body),
       );

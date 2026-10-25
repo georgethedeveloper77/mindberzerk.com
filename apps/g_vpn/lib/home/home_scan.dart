@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/world_map.dart';
 import '../rules/rules_store.dart';
 import '../tools/tools_providers.dart';
@@ -56,41 +57,49 @@ final networkScanProvider = FutureProvider<NetworkScan>((ref) async {
   final wifi = snap.transport == Transport.wifi;
   return NetworkScan(
     at: DateTime.now(),
-    name: wifi ? snap.ssid : snap.transport == Transport.cellular ? (snap.carrierName ?? 'Mobile data') : null,
+    name: wifi ? snap.ssid : snap.transport == Transport.cellular ? (snap.carrierName ?? t.scan.mobile) : null,
     nameHidden: wifi && snap.ssid == null,
     chips: [
       _wifiChip(snap),
       ScanChip(
-        'PING',
-        lat.medianMs == null ? 'No reply' : '${lat.medianMs!.round()} ms',
+        t.scan.ping,
+        lat.medianMs == null ? t.scan.noReply : t.scan.ms(n: lat.medianMs!.round()),
         lat.medianMs == null || lat.lossPercent > 20 ? Tone.warn : Tone.ok,
       ),
       if (on)
-        ScanChip('DNS', shield ? 'Quad9, tunnel' : 'In the tunnel', Tone.ok)
+        ScanChip(t.scan.dns, shield ? t.scan.dnsQuad9 : t.scan.dnsTunnel, Tone.ok)
       else if (snap.privateDnsActive)
-        const ScanChip('DNS', 'Private DNS', Tone.ok)
+        ScanChip(t.scan.dns, t.scan.privateDns, Tone.ok)
       else
-        const ScanChip('DNS', 'ISP, visible', Tone.warn),
+        ScanChip(t.scan.dns, t.scan.dnsIsp, Tone.warn),
     ],
   );
 });
 
 ScanChip _wifiChip(NetworkSnapshot s) {
-  if (s.transport == Transport.cellular) return const ScanChip('NETWORK', 'Mobile data', Tone.ok);
-  if (s.transport != Transport.wifi) return const ScanChip('NETWORK', 'Offline', Tone.warn);
+  if (s.transport == Transport.cellular) {
+    return ScanChip(t.scan.network, t.scan.mobile, Tone.ok);
+  }
+  if (s.transport != Transport.wifi) {
+    return ScanChip(t.scan.network, t.scan.offline, Tone.warn);
+  }
   final covered = s.vpnActive;
   final (value, tone) = switch (s.wifiSecurity) {
-    WifiSecurity.open => ('Open, no password', Tone.bad),
-    WifiSecurity.wep => ('WEP, broken', Tone.bad),
-    WifiSecurity.owe => ('Open, encrypted', Tone.warn),
+    WifiSecurity.open => (t.scan.open, Tone.bad),
+    WifiSecurity.wep => (t.scan.wep, Tone.bad),
+    WifiSecurity.owe => (t.scan.owe, Tone.warn),
     WifiSecurity.wpa2 => ('WPA2', Tone.ok),
     WifiSecurity.wpa3 => ('WPA3', Tone.ok),
-    WifiSecurity.enterprise => ('Enterprise', Tone.ok),
-    WifiSecurity.unknown => ('Unknown', Tone.warn),
+    WifiSecurity.enterprise => (t.scan.enterprise, Tone.ok),
+    WifiSecurity.unknown => (t.scan.unknown, Tone.warn),
   };
-  if (s.captivePortal && tone == Tone.ok) return ScanChip('WI-FI', 'Sign-in page', covered ? Tone.ok : Tone.warn);
-  if (covered && tone != Tone.ok) return ScanChip('WI-FI', '${value.split(',').first}, covered', Tone.ok);
-  return ScanChip('WI-FI', value, tone);
+  if (s.captivePortal && tone == Tone.ok) {
+    return ScanChip(t.scan.wifi, t.scan.signIn, covered ? Tone.ok : Tone.warn);
+  }
+  if (covered && tone != Tone.ok) {
+    return ScanChip(t.scan.wifi, t.scan.covered(what: value.split(',').first), Tone.ok);
+  }
+  return ScanChip(t.scan.wifi, value, tone);
 }
 
 /// What sites see: refreshed on network change and on connect / disconnect.

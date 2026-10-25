@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed the live G VPN build (1.0.19 on Play). Check the
 # console for its exact code before the first upload; 100 leaves headroom.
-version: 2.0.0+100
+version: 2.0.0+101
 
 # Pub workspace member, same as g_launcher.
 resolution: workspace
@@ -40,6 +40,15 @@ dependencies:
   # Saved tunnels. Phase 1 only; private keys move to Keystore-backed
   # encryption before the first public release.
   shared_preferences: ^2.5.5
+  slang: ^4.19.2
+  slang_flutter: ^4.19.0
+  flutter_localizations:
+    sdk: flutter
+  url_launcher: ^6.3.3
+  in_app_update: ^5.0.0
+  qr_flutter: ^4.1.0
+  share_plus: ^13.3.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +69,8 @@ flutter:
     - assets/fonts/licences/
     # Country flags (flag-icons, MIT), 4:3 PNGs named by ISO code.
     - assets/flags/
+    # Speed test video preview: an original picture shown at each resolution.
+    - assets/preview/
 
   # MERIDIAN typefaces, BUNDLED rather than fetched with google_fonts: a VPN
   # app should make no network calls of its own before the user connects.

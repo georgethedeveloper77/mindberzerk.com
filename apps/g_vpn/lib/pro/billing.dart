@@ -100,7 +100,7 @@ class BillingUnavailable implements Exception {
 }
 
 class BillingState {
-  const BillingState({this.owned = false, this.pending = false, this.error});
+  const BillingState({this.owned = false, this.pending = false, this.error, this.purchaseToken});
 
   /// Play says this phone's account holds an active gvpn_pro. CLIENT-SIDE
   /// ONLY for now: when G Servers launch, the backend verifies the purchase
@@ -109,6 +109,10 @@ class BillingState {
   final bool owned;
   final bool pending;
   final String? error;
+
+  /// Play's token for the owned subscription. The G Servers broker checks
+  /// it with Google when G Servers are set to Pro only.
+  final String? purchaseToken;
 }
 
 /// App-wide purchase listener. Play can deliver a purchase at ANY launch (a
@@ -123,7 +127,7 @@ class BillingController extends Notifier<BillingState> {
   BillingState build() {
     _sub = InAppPurchase.instance.purchaseStream.listen(
       _onPurchases,
-      onError: (Object e) => state = BillingState(owned: state.owned, error: '$e'),
+      onError: (Object e) => state = BillingState(owned: state.owned, purchaseToken: state.purchaseToken, error: '$e'),
     );
     ref.onDispose(() => _sub?.cancel());
     // Re-derives ownership from Play on every launch: nothing local to forge.
@@ -133,7 +137,7 @@ class BillingController extends Notifier<BillingState> {
 
   Future<void> buy(ProPlan plan) async {
     if (!proSalesOpen) return;
-    state = BillingState(owned: state.owned, pending: true);
+    state = BillingState(owned: state.owned, purchaseToken: state.purchaseToken, pending: true);
     try {
       // Subscriptions go through buyNonConsumable; the offer is carried by
       // the product details' subscriptionIndex.
@@ -141,7 +145,7 @@ class BillingController extends Notifier<BillingState> {
         purchaseParam: GooglePlayPurchaseParam(productDetails: plan.details),
       );
     } on Exception catch (e) {
-      state = BillingState(owned: state.owned, error: '$e');
+      state = BillingState(owned: state.owned, purchaseToken: state.purchaseToken, error: '$e');
     }
   }
 
@@ -149,6 +153,7 @@ class BillingController extends Notifier<BillingState> {
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     var owned = state.owned;
+    var token = state.purchaseToken;
     String? error;
     var pending = false;
     for (final p in purchases) {
@@ -158,6 +163,7 @@ class BillingController extends Notifier<BillingState> {
           pending = true;
         case PurchaseStatus.purchased || PurchaseStatus.restored:
           owned = true;
+          token = p.verificationData.serverVerificationData;
         case PurchaseStatus.error:
           error = p.error?.message ?? 'The purchase did not go through.';
         case PurchaseStatus.canceled:
@@ -166,6 +172,6 @@ class BillingController extends Notifier<BillingState> {
       // Play REFUNDS any purchase not acknowledged within three days.
       if (p.pendingCompletePurchase) await InAppPurchase.instance.completePurchase(p);
     }
-    state = BillingState(owned: owned, pending: pending, error: error);
+    state = BillingState(owned: owned, pending: pending, error: error, purchaseToken: token);
   }
 }

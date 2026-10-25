@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import 'network_screen.dart';
 import 'probe.dart';
@@ -20,25 +21,25 @@ enum PortRisk { normal, review, risky }
 
 /// The ports that matter on home routers and devices, not a full scan:
 /// fast, and every result comes with a plain explanation.
-const knownPorts = [
-  KnownPort(21, 'FTP', PortRisk.risky, note: 'Sends passwords unencrypted.'),
-  KnownPort(22, 'SSH', PortRisk.review, note: 'Remote login. Fine if you set it up.'),
-  KnownPort(23, 'Telnet', PortRisk.risky, note: 'Unencrypted remote login; a favourite of botnets.'),
-  KnownPort(25, 'SMTP', PortRisk.review),
-  KnownPort(53, 'DNS', PortRisk.normal, note: 'Normal on a router.'),
-  KnownPort(80, 'Web (HTTP)', PortRisk.normal, note: 'Usually the router admin page.'),
-  KnownPort(139, 'NetBIOS', PortRisk.review),
-  KnownPort(443, 'Web (HTTPS)', PortRisk.normal),
-  KnownPort(445, 'Windows file sharing', PortRisk.risky, note: 'Should never face the internet.'),
-  KnownPort(554, 'RTSP camera stream', PortRisk.review, note: 'A camera may be streaming here.'),
-  KnownPort(1900, 'UPnP', PortRisk.review, note: 'Lets devices open router ports on their own.'),
-  KnownPort(3389, 'Remote Desktop', PortRisk.risky, note: 'A common break-in route.'),
-  KnownPort(5000, 'UPnP / NAS', PortRisk.review),
-  KnownPort(5900, 'VNC', PortRisk.risky, note: 'Screen sharing, often without a password.'),
-  KnownPort(7547, 'TR-069', PortRisk.review, note: 'ISP remote management.'),
-  KnownPort(8080, 'Web (alt)', PortRisk.review),
-  KnownPort(8443, 'Web (alt HTTPS)', PortRisk.review),
-  KnownPort(8888, 'Web (alt)', PortRisk.review),
+final knownPorts = [
+  KnownPort(21, 'FTP', PortRisk.risky, note: t.ports.ftpNote),
+  KnownPort(22, 'SSH', PortRisk.review, note: t.ports.sshNote),
+  KnownPort(23, 'Telnet', PortRisk.risky, note: t.ports.telnetNote),
+  const KnownPort(25, 'SMTP', PortRisk.review),
+  KnownPort(53, 'DNS', PortRisk.normal, note: t.ports.dnsNote),
+  KnownPort(80, t.ports.web, PortRisk.normal, note: t.ports.webNote),
+  const KnownPort(139, 'NetBIOS', PortRisk.review),
+  KnownPort(443, t.ports.webTls, PortRisk.normal),
+  KnownPort(445, t.ports.smb, PortRisk.risky, note: t.ports.smbNote),
+  KnownPort(554, t.ports.rtsp, PortRisk.review, note: t.ports.rtspNote),
+  KnownPort(1900, 'UPnP', PortRisk.review, note: t.ports.upnpNote),
+  KnownPort(3389, t.ports.rdp, PortRisk.risky, note: t.ports.rdpNote),
+  const KnownPort(5000, 'UPnP / NAS', PortRisk.review),
+  KnownPort(5900, 'VNC', PortRisk.risky, note: t.ports.vncNote),
+  KnownPort(7547, 'TR-069', PortRisk.review, note: t.ports.tr069Note),
+  KnownPort(8080, t.ports.webAlt, PortRisk.review),
+  KnownPort(8443, t.ports.webAltTls, PortRisk.review),
+  KnownPort(8888, t.ports.webAlt, PortRisk.review),
 ];
 
 class PortScanState {
@@ -94,13 +95,12 @@ class _PortsScreenState extends ConsumerState<PortsScreen> {
     }
 
     return ToolPage(
-      title: 'Open ports',
-      info: 'Checks the ${knownPorts.length} ports that matter on home routers and devices, and explains each open one. '
-          'Only check devices and servers you own or manage.',
+      title: t.ports.title,
+      info: t.ports.info(n: knownPorts.length),
       action: FilledButton(
         onPressed: scan.running ? null : () => ref.read(portScanProvider.notifier).scan(_host.text.trim()),
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        child: Text(scan.running ? 'Checking ${knownPorts.length} ports' : 'Check ports'),
+        child: Text(scan.running ? t.ports.checking(n: knownPorts.length) : t.ports.check),
       ),
       children: [
         TextField(
@@ -108,8 +108,8 @@ class _PortsScreenState extends ConsumerState<PortsScreen> {
           keyboardType: TextInputType.url,
           style: m.monoStyle(size: 15),
           decoration: InputDecoration(
-            labelText: 'Device or server address',
-            helperText: gateway == null ? null : 'Your router is $gateway',
+            labelText: t.ports.address,
+            helperText: gateway == null ? null : t.ports.yourRouter(ip: gateway),
             filled: true,
             fillColor: m.surface2,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(Meridian.rChip), borderSide: BorderSide.none),
@@ -119,7 +119,7 @@ class _PortsScreenState extends ConsumerState<PortsScreen> {
         if (scan.running) const LinearProgressIndicator(minHeight: 2),
         if (scan.done && scan.open.isEmpty)
           ToolCard(
-            child: Text('No common ports open on ${scan.host}.', style: TextStyle(fontSize: 15, color: m.text)),
+            child: Text(t.ports.noneOpen(host: scan.host ?? ''), style: TextStyle(fontSize: 15, color: m.text)),
           ),
         if (scan.done && scan.open.isNotEmpty)
           ToolCard(
@@ -147,9 +147,9 @@ class _PortRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = context.mer;
     final (tag, color) = switch (port.risk) {
-      PortRisk.risky => ('RISKY', m.bad),
-      PortRisk.review => ('REVIEW', m.warn),
-      PortRisk.normal => ('NORMAL', m.good),
+      PortRisk.risky => (t.ports.risky, m.bad),
+      PortRisk.review => (t.ports.review, m.warn),
+      PortRisk.normal => (t.ports.normal, m.good),
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),

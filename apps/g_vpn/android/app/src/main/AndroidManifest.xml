@@ -1,6 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- G VPN's session service: the notification with Pause / Disconnect,
+         and the countdown that reconnects after a pause. -->
+    <!-- Lets G Launcher and G Recovery read G VPN's status and control it.
+         "knownSigner": granted only to apps signed with a certificate in
+         res/values/family.xml (Android 12+). Never to anything else. -->
+    <permission
+        android:name="com.mindberzerk.permission.VPN_CONTROL"
+        android:description="@string/gvpn_family_permission_desc"
+        android:knownCerts="@array/gvpn_family_certs"
+        android:label="@string/gvpn_family_permission_label"
+        android:protectionLevel="signature|knownSigner" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -32,6 +46,8 @@
       and Android's auto backup would copy them to the user's Google Drive.
     -->
     <application
+        android:enableOnBackInvokedCallback="true"
+        android:localeConfig="@xml/locales_config"
         android:label="G VPN"
         android:name=".GVpnApplication"
         android:icon="@mipmap/ic_launcher"
@@ -54,6 +70,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Share to G VPN": a QR image, or WireGuard settings as text. -->
+            <intent-filter android:label="@string/gvpn_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter android:label="@string/gvpn_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
 
@@ -82,6 +109,70 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- Pause, resume and disconnect from the notification. "specialUse"
+             is the type Android 14 assigns to VPN session controls; the
+             property is the explanation Play reviews. -->
+        <service
+            android:name=".GvpnSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the user's VPN session controls (pause countdown, resume, disconnect) in the notification." />
+        </service>
+
+        <!-- Quick Settings tile: connect to the last server, or disconnect. -->
+        <service
+            android:name=".GvpnTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_gvpn"
+            android:label="G VPN"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- G VPN family: status for G Launcher / G Recovery, and their
+             connect / disconnect / pause requests. -->
+        <provider
+            android:name=".GvpnFamilyProvider"
+            android:authorities="com.mindberzerk.gvpn.family"
+            android:exported="true"
+            android:readPermission="com.mindberzerk.permission.VPN_CONTROL"
+            android:writePermission="com.mindberzerk.permission.VPN_CONTROL" />
+
+        <activity
+            android:name=".GvpnControlActivity"
+            android:exported="true"
+            android:permission="com.mindberzerk.permission.VPN_CONTROL"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="com.mindberzerk.gvpn.action.CONNECT" />
+                <action android:name="com.mindberzerk.gvpn.action.DISCONNECT" />
+                <action android:name="com.mindberzerk.gvpn.action.PAUSE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- SSTP engine (Open SSTP Client, MIT): free VPN Gate servers over
+             SSTP. Started only by G VPN; Android binds it as the VPN. -->
+        <service
+            android:name="kittoku.osc.service.SstpVpnService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="VPN connection to the server the user chose." />
+        </service>
 
         <meta-data
             android:name="flutterEmbedding"
@@ -113,6 +204,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
+        </intent>
+        <!-- Legal pages and the source code open in a browser tab. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 </manifest>

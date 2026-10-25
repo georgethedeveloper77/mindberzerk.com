@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification and Quick Settings text. Mirrors values/strings_session.xml. -->
+<resources>
+    <string name="gvpn_pause_15">توقف ۱۵ دقیقه</string>
+    <string name="gvpn_pause_60">توقف ۱ ساعت</string>
+    <string name="gvpn_disconnect">قطع اتصال</string>
+    <string name="gvpn_resume_now">ادامه همین حالا</string>
+    <string name="gvpn_paused_title">متوقف تا %1$s</string>
+    <string name="gvpn_paused_text">اینترنت شما محافظت‌شده نیست</string>
+    <string name="gvpn_channel_session">اتصال VPN</string>
+    <string name="notifcation_title_notconnect">محافظت‌نشده</string>
+</resources>

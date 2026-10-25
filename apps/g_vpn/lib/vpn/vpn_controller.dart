@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../rules/rules_store.dart';
 import '../servers/community.dart';
 import 'config_rules.dart';
@@ -22,6 +23,7 @@ class VpnState {
     this.tunnelId,
     this.error,
     this.reconnecting = false,
+    this.pausedUntil,
   });
 
   final VpnPhase phase;
@@ -38,6 +40,10 @@ class VpnState {
 
   /// On, but re-establishing after a network change or sleep.
   final bool reconnecting;
+
+  /// Paused from the notification: the tunnel is stopped until this time,
+  /// then reconnects to the same server. The session still counts as "on".
+  final DateTime? pausedUntil;
 
   VpnState copyWith({
     VpnPhase? phase,
@@ -111,7 +117,7 @@ class VpnController extends Notifier<VpnState> {
     try {
       final allowed = await _api.prepare();
       if (!allowed) {
-        state = const VpnState(error: 'VPN permission was not granted.');
+        state = VpnState(error: t.errors.notAuthorized);
         return;
       }
       // App rules and Shield DNS are layered on here, the same for both
@@ -119,15 +125,27 @@ class VpnController extends Notifier<VpnState> {
       final rules = await ref.read(rulesProvider.future);
       switch (choice) {
         case OwnServer(:final tunnel):
-          await _api.connect(rules.render(tunnel));
+          await _api.connect(rules.render(tunnel), choice.name);
+        // SSTP when the server offers it: no config download, VPN Gate's
+        // public login. OpenVPN remains for servers without SSTP.
+        case CommunityChoice(:final server) when server.sstpHost != null:
+          await _api.connectSstp(
+            SstpOptions(
+              host: server.sstpHost!,
+              port: server.sstpPort ?? 443,
+              username: 'vpn',
+              password: 'vpn',
+              name: choice.name,
+              excludedApps: rules.excluded.toList(),
+              dnsServers: rules.shield ? shieldResolvers : const [],
+            ),
+          );
         case CommunityChoice(:final server):
           final String config;
           try {
             config = await fetchCommunityConfig(server.id);
           } on Exception {
-            state = const VpnState(
-              error: "Could not download this server's settings. Check your connection, or pick another server.",
-            );
+            state = VpnState(error: t.errors.downloadFailed);
             return;
           }
           await _api.connectOpenVpn(
@@ -148,6 +166,20 @@ class VpnController extends Notifier<VpnState> {
     } on PlatformException catch (e) {
       state = VpnState(error: _describe(e, community: choice is CommunityChoice));
     }
+  }
+
+  /// Stops the tunnel for [minutes]; it reconnects to the same server after.
+  Future<void> pause(int minutes) async {
+    if (state.phase != VpnPhase.on) return;
+    await _api.pause(minutes);
+    await Future<void>.delayed(const Duration(milliseconds: 600), _refresh);
+  }
+
+  /// Ends a pause now.
+  Future<void> resume() async {
+    if (state.pausedUntil == null) return;
+    await _api.resume();
+    await Future<void>.delayed(const Duration(seconds: 2), _refresh);
   }
 
   Future<void> disconnect() async {
@@ -180,23 +212,29 @@ class VpnController extends Notifier<VpnState> {
     } on PlatformException {
       return;
     }
-    final up = status.phase == TunnelPhase.up || status.phase == TunnelPhase.reconnecting;
+    final paused = status.phase == TunnelPhase.paused;
+    final up = status.phase == TunnelPhase.up || status.phase == TunnelPhase.reconnecting || paused;
     final reconnecting = status.phase == TunnelPhase.reconnecting;
     final busy = state.phase == VpnPhase.connecting || state.phase == VpnPhase.disconnecting;
     if (busy) return;
 
     if (up) {
-      state = state.copyWith(
+      state = VpnState(
         phase: VpnPhase.on,
-        rxBytes: status.rxBytes,
-        txBytes: status.txBytes,
+        rxBytes: paused ? state.rxBytes : status.rxBytes,
+        txBytes: paused ? state.txBytes : status.txBytes,
         connectedAt: state.connectedAt ?? DateTime.now(),
+        tunnelId: state.tunnelId,
         reconnecting: reconnecting,
+        pausedUntil: paused ? DateTime.fromMillisecondsSinceEpoch(status.pausedUntilMs) : null,
       );
     } else if (state.phase == VpnPhase.on) {
-      // Dropped underneath us: another VPN app took over, or the system
-      // revoked consent. Say so rather than silently flipping to off.
-      state = const VpnState(error: 'The VPN was turned off by the system or another app.');
+      // Stopped from the notification or Quick Settings: the user's choice.
+      // Otherwise it dropped underneath us (another VPN app, revoked
+      // consent), and that is worth saying.
+      state = status.stoppedByUser
+          ? const VpnState()
+          : VpnState(error: t.errors.turnedOff);
     }
     _syncPolling();
   }
@@ -214,20 +252,20 @@ class VpnController extends Notifier<VpnState> {
   static String _describe(PlatformException e, {bool community = false}) {
     // Community servers are volunteers' machines that come and go, so their
     // failures point the user at another server rather than at their phone.
-    final tryAnother = community ? ' Community servers come and go; try another one.' : '';
+    final tryAnother = community ? ' ${t.errors.tryAnother}' : '';
     return switch (e.code) {
-      'bad_config' => 'This server config is invalid: ${e.message ?? 'unknown error'}',
-      'not_authorized' => 'VPN permission was not granted.',
-      'busy' => 'A permission request is already open.',
-      'timeout' => 'The server did not answer.$tryAnother',
-      'auth_failed' => 'The server refused the connection.$tryAnother',
-      'cancelled' || 'replaced' => 'Connection cancelled.',
-      _ => 'Could not connect: ${_sentence(e.message ?? e.code)}$tryAnother',
+      'bad_config' => t.errors.badConfig(error: e.message ?? ''),
+      'not_authorized' => t.errors.notAuthorized,
+      'busy' => t.errors.busy,
+      'timeout' => t.errors.timeout + tryAnother,
+      'auth_failed' => t.errors.refused + tryAnother,
+      'cancelled' || 'replaced' => t.errors.cancelled,
+      _ => t.errors.failed(error: _sentence(e.message ?? e.code)) + tryAnother,
     };
   }
 
   static String _sentence(String s) {
-    final t = s.trim();
-    return t.endsWith('.') ? t : '$t.';
+    final trimmed = s.trim();
+    return trimmed.endsWith('.') ? trimmed : '$trimmed.';
   }
 }

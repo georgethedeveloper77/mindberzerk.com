@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../vpn/vpn_controller.dart';
 import 'tool_widgets.dart';
@@ -12,28 +13,7 @@ import 'tools_providers.dart';
 class SpeedScreen extends ConsumerWidget {
   const SpeedScreen({super.key});
 
-  Future<void> _start(BuildContext context, WidgetRef ref) async {
-    final consent = ref.read(mlabConsentProvider).value ?? false;
-    if (!consent) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('Before your first test'),
-          content: const Text(
-            'Speed tests run on M-Lab, a research platform. M-Lab publishes every result, '
-            'including your IP address, as open data. A test uses roughly 50 to 100 MB.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Not now')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Run test')),
-          ],
-        ),
-      );
-      if (ok != true) return;
-      await ref.read(mlabConsentProvider.notifier).accept();
-    }
-    ref.read(speedTestProvider.notifier).start();
-  }
+  void _start(WidgetRef ref) => ref.read(speedTestProvider.notifier).start();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,95 +22,605 @@ class SpeedScreen extends ConsumerWidget {
     final p = test.progress;
     final viaVpn = ref.watch(vpnProvider.select((s) => s.phase)) == VpnPhase.on;
     final down = p?.downloadMbps;
+    final up = p?.uploadMbps;
     final direct = ref.watch(directSpeedProvider).value;
+    final history = ref.watch(speedHistoryProvider).value ?? const <SpeedResult>[];
+    // The ISP is only meaningful for a direct test; through the VPN the
+    // "provider" is the VPN server's host.
+    final isp = viaVpn ? null : ref.watch(publicIdentityProvider).value?.org;
+    final comparison = viaVpn ? null : ref.watch(ispComparisonProvider).value;
+    final sharing = ref.watch(shareResultsProvider).value ?? true;
 
-    // A finished direct test becomes the baseline for VPN comparisons.
+    // A finished test is saved, and a direct one becomes the VPN baseline.
     ref.listen(speedTestProvider, (prev, next) {
       final done = next.progress?.phase == SpeedPhase.done && prev?.progress?.phase != SpeedPhase.done;
-      final mbps = next.progress?.downloadMbps;
-      if (done && mbps != null && !viaVpn) ref.read(directSpeedProvider.notifier).record(mbps);
+      final r = next.progress;
+      if (!done || r?.downloadMbps == null) return;
+      if (!viaVpn) {
+        ref.read(directSpeedProvider.notifier).record(r!.downloadMbps!);
+        if (ref.read(shareResultsProvider).value ?? true) {
+          shareResult(down: r.downloadMbps!, up: r.uploadMbps ?? 0, ping: r.minRttMs ?? 0)
+              .then((_) => ref.invalidate(ispComparisonProvider));
+        }
+      }
+      ref.read(speedHistoryProvider.notifier).add(SpeedResult(
+            at: DateTime.now(),
+            down: r!.downloadMbps!,
+            up: r.uploadMbps ?? 0,
+            pingMs: r.minRttMs,
+            viaVpn: viaVpn,
+            isp: isp,
+          ));
     });
 
-    final (value, caption, color) = switch (p?.phase) {
-      SpeedPhase.download => (p!.mbps, 'Download', m.brand),
-      SpeedPhase.upload => (p!.mbps, 'Upload', m.good),
-      SpeedPhase.done => (down ?? 0.0, 'Download', m.brand),
-      SpeedPhase.locating => (0.0, 'Finding a server', m.muted),
-      null => (0.0, viaVpn ? 'Through the VPN' : 'Direct, no VPN', m.muted),
+    final phase = p?.phase;
+    final (value, caption, color) = switch (phase) {
+      SpeedPhase.download => (p!.mbps, t.speed.download, m.brand),
+      SpeedPhase.upload => (p!.mbps, t.speed.upload, m.good),
+      SpeedPhase.done => (down ?? 0.0, t.speed.download, m.brand),
+      SpeedPhase.locating => (0.0, t.speed.finding, m.muted),
+      null => (0.0, viaVpn ? t.speed.throughVpn : t.speed.directNoVpn, m.muted),
     };
+    // The preview follows the download as it is measured, then settles.
+    final previewMbps = phase == SpeedPhase.download ? p!.mbps : down;
     final where = p?.server == null ? null : [p!.server!.city, p.server!.country].whereType<String>().join(', ');
 
     return ToolPage(
-      title: 'Speed test',
-      info: 'Measured by M-Lab, a research platform that publishes every result, including your IP address, '
-          'as open data. A test uses about 50 to 100 MB. With the VPN on, it measures the speed through the tunnel. '
-          'Video quality uses the bitrates streaming services publish for each resolution. '
-          'Run one test without the VPN first: tests through the VPN are then compared with it.',
+      title: t.speed.title,
+      info: t.speed.info,
       action: test.running
           ? OutlinedButton(
               onPressed: () => ref.read(speedTestProvider.notifier).cancel(),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: const Text('Stop'),
+              child: Text(t.speed.stop),
             )
           : FilledButton(
-              onPressed: () => _start(context, ref),
+              onPressed: () => _start(ref),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: Text(p == null ? 'Start test' : 'Test again'),
+              child: Text(p == null ? t.speed.start : t.speed.again),
             ),
       children: [
-        StatStrip(stats: [
-          ('Latency', p?.minRttMs == null ? 'none' : '${p!.minRttMs!.round()} ms', null),
-          ('Server', where ?? 'M-Lab', null),
-          ('Path', viaVpn ? 'VPN' : 'Direct', viaVpn ? m.good : null),
-        ]),
-        const SizedBox(height: 24),
-        Center(
-          child: SizedBox(
-            width: 260,
-            height: 230,
-            child: CustomPaint(
-              painter: _Dial(value: value, color: color, m: m),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(value.toStringAsFixed(value >= 100 ? 0 : 1), style: m.monoStyle(size: 48, weight: FontWeight.w600)),
-                    Text('Mbps', style: TextStyle(fontSize: 16, color: m.muted)),
-                    const SizedBox(height: 4),
-                    Text(caption, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
-                  ],
+        ToolCard(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _Chip(text: viaVpn ? t.speed.viaVpn : t.speed.direct, color: viaVpn ? m.good : m.muted),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isp ?? where ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: m.text),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 250,
+                height: 200,
+                child: CustomPaint(
+                  painter: _Dial(value: value, color: color, m: m),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(value.toStringAsFixed(value >= 100 ? 0 : 1), style: m.monoStyle(size: 46, weight: FontWeight.w600)),
+                        Text(t.speed.mbps, style: TextStyle(fontSize: 15, color: m.muted)),
+                        const SizedBox(height: 2),
+                        Text(caption, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+              Row(
+                children: [
+                  Expanded(child: _Mini(label: t.speed.ping, value: p?.minRttMs == null ? null : t.speed.ms(n: p!.minRttMs!.round()))),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _Mini(
+                      label: t.speed.vsDirect,
+                      value: viaVpn && down != null && direct != null && direct > 0
+                          ? '${(down / direct * 100).round()}%'
+                          : null,
+                      color: m.good,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
-        LineChartView(series: [
-          (test.downSamples, m.brand),
-          (test.upSamples, m.good),
-        ], unit: ''),
-        const SizedBox(height: 16),
-        ToolCard(
-          child: StatStrip(stats: [
-            ('Download', down?.toStringAsFixed(1) ?? 'none', m.brand),
-            ('Upload', p?.uploadMbps?.toStringAsFixed(1) ?? 'none', m.good),
-          ]),
+        Row(
+          children: [
+            Expanded(
+              child: _PhaseChart(
+                label: t.speed.download,
+                samples: test.downSamples,
+                value: phase == SpeedPhase.download ? p!.mbps : down,
+                color: m.brand,
+                active: phase == SpeedPhase.download,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _PhaseChart(
+                label: t.speed.upload,
+                samples: test.upSamples,
+                value: phase == SpeedPhase.upload ? p!.mbps : up,
+                color: m.good,
+                active: phase == SpeedPhase.upload,
+              ),
+            ),
+          ],
         ),
         if (test.error != null) ...[
           const SizedBox(height: 10),
           Text(test.error!, style: TextStyle(color: m.bad, fontSize: 13)),
         ],
-        if (p?.phase == SpeedPhase.done && down != null) ...[
-          if (viaVpn && direct != null && direct > 0) ...[
-            const SizedBox(height: 12),
-            _VpnCost(vpn: down, direct: direct),
-          ],
+        if (phase == SpeedPhase.done && down != null) ...[
           const SizedBox(height: 12),
-          _VideoQuality(mbps: down),
+          _GradeCard(down: down, up: up ?? 0, pingMs: p?.minRttMs, isp: isp, viaVpn: viaVpn),
         ],
+        if (phase == SpeedPhase.done && down != null && viaVpn && direct != null && direct > 0) ...[
+          const SizedBox(height: 12),
+          _VpnCost(vpn: down, direct: direct),
+        ],
+        const SizedBox(height: 12),
+        _VideoPreview(mbps: previewMbps, live: phase == SpeedPhase.download),
+        if (comparison != null && comparison.providers.length >= 2) ...[
+          const SizedBox(height: 12),
+          _Comparison(data: comparison),
+        ],
+        if (history.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _History(results: history, onClear: () => ref.read(speedHistoryProvider.notifier).clear()),
+        ],
+        const SizedBox(height: 12),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: sharing,
+          onChanged: (v) => ref.read(shareResultsProvider.notifier).set(v),
+          title: Text(t.speed.compare, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text)),
+          subtitle: Text(t.speed.compareSub, style: TextStyle(fontSize: 13, color: m.muted)),
+        ),
       ],
     );
   }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.text, required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(color: color.withValues(alpha: .13), borderRadius: BorderRadius.circular(999)),
+        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+      );
+}
+
+class _Mini extends StatelessWidget {
+  const _Mini({required this.label, required this.value, this.color});
+
+  final String label;
+  final String? value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final c = value == null ? m.muted : (color ?? m.text);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: m.muted)),
+          Text(value ?? t.speed.none, style: m.monoStyle(size: 16, color: c)),
+        ],
+      ),
+    );
+  }
+}
+
+/// One phase's own graph: its live samples, its figure, lit while running.
+class _PhaseChart extends StatelessWidget {
+  const _PhaseChart({required this.label, required this.samples, required this.value, required this.color, required this.active});
+
+  final String label;
+  final List<double?> samples;
+  final double? value;
+  final Color color;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
+      decoration: BoxDecoration(
+        color: m.surface,
+        borderRadius: BorderRadius.circular(Meridian.rCard),
+        border: Border.all(color: active ? color : m.line, width: active ? 2 : 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(label == t.speed.download ? Icons.south_rounded : Icons.north_rounded, size: 16, color: color),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: m.text)),
+            ],
+          ),
+          Text(
+            value == null ? t.speed.none : t.speed.mbpsValue(v: value!.toStringAsFixed(value! >= 100 ? 0 : 1)),
+            style: m.monoStyle(size: 17, weight: FontWeight.w600, color: value == null ? m.muted : m.text),
+          ),
+          const SizedBox(height: 6),
+          LineChartView(series: [(samples, color)], height: 80),
+        ],
+      ),
+    );
+  }
+}
+
+/// The same picture at the resolution this speed can stream. Decoding the
+/// photo at a small width and scaling it up with no smoothing gives the
+/// honest blockiness of a low-resolution stream; no video is fetched.
+class _VideoPreview extends StatelessWidget {
+  const _VideoPreview({required this.mbps, required this.live});
+
+  final double? mbps;
+  final bool live;
+
+  // (minimum Mbps, label, decode width, who it suits)
+  static final _tiers = [
+    (25.0, '4K', 1280, t.speed.tierTv),
+    (15.0, '1440p', 640, t.speed.tierLaptopLarge),
+    (8.0, '1080p', 400, t.speed.tierTablet),
+    (5.0, '720p', 220, t.speed.tierPhone),
+    (2.5, '480p', 130, t.speed.tierSmallPhone),
+    (1.0, '360p', 84, t.speed.tierCalls),
+    (0.0, '240p', 52, t.speed.messagingOnly),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final tier = mbps == null ? null : _tiers.firstWhere((x) => mbps! >= x.$1);
+    final width = tier?.$3 ?? 40;
+    return ToolCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(t.speed.videoQuality, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: m.text)),
+              const Spacer(),
+              if (live) Text('measuring', style: TextStyle(fontSize: 12, color: m.muted)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/preview/city.jpg',
+                    cacheWidth: width,
+                    filterQuality: FilterQuality.none,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  ),
+                  Positioned(
+                    left: 10,
+                    top: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: .55), borderRadius: BorderRadius.circular(8)),
+                      child: Text(
+                        tier == null ? t.speed.preview : t.speed.previewTier(tier: tier.$2),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .5, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              for (final tr in _tiers.reversed)
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tier != null && mbps! >= tr.$1 ? m.good.withValues(alpha: .14) : m.surface2,
+                      borderRadius: BorderRadius.circular(8),
+                      border: tier == tr ? Border.all(color: m.good, width: 1.5) : null,
+                    ),
+                    child: Text(
+                      tr.$2,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: tier != null && mbps! >= tr.$1 ? m.good : m.muted,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (tier != null && !live) ...[
+            const SizedBox(height: 8),
+            Text(t.speed.streamsUpTo(tier: tier.$2, who: tier.$4), style: TextStyle(fontSize: 13, color: m.muted)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _History extends StatelessWidget {
+  const _History({required this.results, required this.onClear});
+
+  final List<SpeedResult> results;
+  final VoidCallback onClear;
+
+  String _when(BuildContext context, DateTime at) {
+    final now = DateTime.now();
+    final time = TimeOfDay.fromDateTime(at).format(context);
+    if (now.year == at.year && now.month == at.month && now.day == at.day) return t.speed.today(time: time);
+    return '${at.day}/${at.month}, $time';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(t.speed.history, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
+            const Spacer(),
+            TextButton(onPressed: onClear, child: Text(t.speed.clear)),
+          ],
+        ),
+        ToolCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Oldest on the left, like any timeline.
+              LineChartView(
+                series: [
+                  ([for (final r in results.reversed) r.down], m.brand),
+                  ([for (final r in results.reversed) r.up], m.good),
+                ],
+                height: 120,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _Legend(color: m.brand, text: t.speed.download),
+                  const SizedBox(width: 14),
+                  _Legend(color: m.good, text: t.speed.upload),
+                  const Spacer(),
+                  Text(t.speed.tests(n: results.length), style: TextStyle(fontSize: 11, color: m.muted)),
+                ],
+              ),
+              for (final r in results.take(5)) ...[
+                Divider(height: 20, color: m.line),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_when(context, r.at), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: m.text)),
+                          Text(
+                            r.viaVpn ? t.speed.viaVpnLower : (r.isp ?? t.speed.directLower),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: m.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _GradeBadge(letter: speedGrade(r.down, r.up, r.pingMs).$1, small: true),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('↓ ${r.down.toStringAsFixed(1)}', style: m.monoStyle(size: 13, color: m.text)),
+                        Text('↑ ${r.up.toStringAsFixed(1)}', style: m.monoStyle(size: 13, color: m.muted)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The headline verdict: one letter and one word, plus what it means.
+class _GradeCard extends StatelessWidget {
+  const _GradeCard({required this.down, required this.up, required this.pingMs, required this.isp, required this.viaVpn});
+
+  final double down;
+  final double up;
+  final double? pingMs;
+  final String? isp;
+  final bool viaVpn;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final (letter, label) = speedGrade(down, up, pingMs);
+    final good = letter.startsWith('A') || letter == 'B';
+    final meaning = switch (letter) {
+      'A+' || 'A' => t.speed.gradeA,
+      'B' => t.speed.gradeB,
+      'C' => t.speed.gradeC,
+      'D' => t.speed.gradeD,
+      _ => t.speed.messagingOnly,
+    };
+    return ToolCard(
+      child: Row(
+        children: [
+          _GradeBadge(letter: letter),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  viaVpn ? t.speed.gradeVpn(label: label) : (isp == null ? label : t.speed.gradeIsp(label: label, isp: isp!)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: good ? m.text : m.warn),
+                ),
+                const SizedBox(height: 2),
+                Text(meaning, style: TextStyle(fontSize: 13, height: 1.4, color: m.muted)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GradeBadge extends StatelessWidget {
+  const _GradeBadge({required this.letter, this.small = false});
+
+  final String letter;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final color = switch (letter) {
+      'A+' || 'A' => m.good,
+      'B' => m.brand,
+      'C' => m.warn,
+      _ => m.bad,
+    };
+    final size = small ? 34.0 : 56.0;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color.withValues(alpha: .14), borderRadius: BorderRadius.circular(small ? 10 : 16)),
+      child: Text(letter, style: TextStyle(fontSize: small ? 14 : 22, fontWeight: FontWeight.w800, color: color)),
+    );
+  }
+}
+
+/// "Safaricom in Nairobi: 2nd of 5 providers", and the ranking itself.
+class _Comparison extends StatelessWidget {
+  const _Comparison({required this.data});
+
+  final IspComparison data;
+
+  static String _ordinal(int n) {
+    final s = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : const {1: 'st', 2: 'nd', 3: 'rd'}[n % 10] ?? 'th';
+    return '$n$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final where = data.scope == 'city' && (data.city?.isNotEmpty ?? false) ? data.city! : (data.country ?? t.speed.yourCountry);
+    final top = data.providers.map((p) => p.down).fold<double>(1, math.max);
+    final headline = data.rank == null
+        ? t.speed.notEnough(isp: data.isp ?? t.speed.yourProvider)
+        : t.speed.rankLine(isp: data.isp ?? '', where: where, rank: _ordinal(data.rank!), of: data.of);
+    return ToolCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(headline, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: m.text)),
+          Text(t.speed.median, style: TextStyle(fontSize: 12, color: m.muted)),
+          const SizedBox(height: 12),
+          for (final p in data.providers.take(6)) ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: Text(
+                    p.isp,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: p.isp == data.isp ? FontWeight.w800 : FontWeight.w600,
+                      color: p.isp == data.isp ? m.brand : m.text,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: p.down / top,
+                      minHeight: 10,
+                      backgroundColor: m.surface2,
+                      color: p.isp == data.isp ? m.brand : m.muted.withValues(alpha: .5),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 56,
+                  child: Text(p.down.toStringAsFixed(p.down >= 100 ? 0 : 1),
+                      textAlign: TextAlign.right, style: m.monoStyle(size: 13, color: m.text)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(t.speed.fromUsers, style: TextStyle(fontSize: 11, color: m.muted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.text});
+
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(width: 9, height: 9, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 5),
+          Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mer.muted)),
+        ],
+      );
 }
 
 /// What the VPN costs, against the last direct test.
@@ -145,10 +635,10 @@ class _VpnCost extends StatelessWidget {
     final m = context.mer;
     final pct = (vpn / direct * 100).clamp(0, 999).round();
     final (color, note) = pct >= 70
-        ? (m.good, 'Little speed lost to the VPN')
+        ? (m.good, t.speed.costLittle)
         : pct >= 40
-            ? (m.warn, 'Noticeably slower than direct')
-            : (m.bad, 'Much slower. Try another server');
+            ? (m.warn, t.speed.costNoticeable)
+            : (m.bad, t.speed.costMuch);
     return ToolCard(
       child: Row(
         children: [
@@ -158,8 +648,8 @@ class _VpnCost extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('of your direct speed', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text)),
-                Text('$note · direct ${direct.toStringAsFixed(1)} Mbps', style: TextStyle(fontSize: 12, color: m.muted)),
+                Text(t.speed.ofDirect, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text)),
+                Text(t.speed.costLine(note: note, mbps: direct.toStringAsFixed(1)), style: TextStyle(fontSize: 12, color: m.muted)),
               ],
             ),
           ),
@@ -169,53 +659,6 @@ class _VpnCost extends StatelessWidget {
   }
 }
 
-/// What this download speed can stream, using the bitrates streaming
-/// services publish for each resolution.
-class _VideoQuality extends StatelessWidget {
-  const _VideoQuality({required this.mbps});
-
-  final double mbps;
-
-  static const _tiers = [
-    (25.0, '4K', '2160p', 'Large TVs'),
-    (15.0, '1440p', 'QHD', 'Large laptops'),
-    (8.0, '1080p', 'Full HD', 'Tablets and laptops'),
-    (5.0, '720p', 'HD', 'Phones'),
-    (2.5, '480p', 'SD', 'Small phones'),
-    (1.0, '360p', 'Low', 'Audio and calls'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final tier = _tiers.firstWhere((t) => mbps >= t.$1, orElse: () => (0.0, 'Below 360p', 'Very low', 'Messaging'));
-    return ToolCard(
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: m.brandSoft, borderRadius: BorderRadius.circular(12)),
-            child: Icon(Icons.smart_display_outlined, color: m.brand),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Video up to ${tier.$2}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: m.text)),
-                Text('${tier.$3}. Good for ${tier.$4.toLowerCase()}.', style: TextStyle(fontSize: 13, color: m.muted)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A 270-degree dial. The scale steps up (50, 100, 250, 500, 1000) so a slow
-/// link still fills a visible arc and a fast one never overflows.
 class _Dial extends CustomPainter {
   _Dial({required this.value, required this.color, required this.m});
 

@@ -93,10 +93,84 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
                 }
                 onWorker(callback) { readConfig(uri) }
             }
+            REQUEST_IMAGE -> {
+                val callback = pendingImage ?: return true
+                pendingImage = null
+                val uri = data?.data
+                if (resultCode != Activity.RESULT_OK || uri == null) {
+                    callback(Result.success(null))
+                    return true
+                }
+                decodeQr(uri, callback)
+            }
             else -> return false
         }
         return true
     }
+
+    private var pendingImage: ((Result<String?>) -> Unit)? = null
+
+    override fun scanQrFromImage(callback: (Result<String?>) -> Unit) {
+        val host = activity ?: return callback(Result.failure(FlutterError("detached", "No activity", null)))
+        if (pendingImage != null) {
+            callback(Result.failure(FlutterError("busy", "Picker already open", null)))
+            return
+        }
+        pendingImage = callback
+        // Android's photo picker where available: no storage permission.
+        val intent = if (Build.VERSION.SDK_INT >= 33 ||
+            (Build.VERSION.SDK_INT >= 30 && android.os.ext.SdkExtensions.getExtensionVersion(Build.VERSION_CODES.R) >= 2)
+        ) {
+            Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
+        } else {
+            Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        @Suppress("DEPRECATION")
+        host.startActivityForResult(intent, REQUEST_IMAGE)
+    }
+
+    override fun generateWgKeyPair(): WgKeyPair {
+        val pair = com.wireguard.crypto.KeyPair()
+        return WgKeyPair(pair.privateKey.toBase64(), pair.publicKey.toBase64())
+    }
+
+    override fun deviceName(): String {
+        val maker = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+        return if (Build.MODEL.startsWith(Build.MANUFACTURER, ignoreCase = true)) Build.MODEL else "$maker ${Build.MODEL}"
+    }
+
+    override fun takeSharedServer(callback: (Result<String?>) -> Unit) {
+        when (val shared = SharedServer.take()) {
+            null -> callback(Result.success(null))
+            is SharedServer.Text -> callback(Result.success(shared.text))
+            is SharedServer.Image -> decodeQr(shared.uri, callback)
+        }
+    }
+
+    /** Reads a QR code from an image on the phone (Play services ML Kit). */
+    private fun decodeQr(uri: android.net.Uri, callback: (Result<String?>) -> Unit) {
+        val image = try {
+            com.google.mlkit.vision.common.InputImage.fromFilePath(app, uri)
+        } catch (e: Exception) {
+            return callback(Result.failure(FlutterError("no_qr", "That image could not be opened.", null)))
+        }
+        val options = com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .build()
+        com.google.mlkit.vision.barcode.BarcodeScanning.getClient(options).process(image)
+            .addOnSuccessListener { codes ->
+                val text = codes.firstNotNullOfOrNull { it.rawValue }
+                if (text == null) {
+                    callback(Result.failure(FlutterError("no_qr", "No QR code found in that image.", null)))
+                } else {
+                    callback(Result.success(text))
+                }
+            }
+            .addOnFailureListener { e ->
+                callback(Result.failure(FlutterError("no_qr", e.message ?: "No QR code found in that image.", null)))
+            }
+    }
+
 
     override fun scanQr(callback: (Result<String?>) -> Unit) {
         val host = activity ?: return callback(Result.failure(FlutterError("detached", "No activity", null)))
@@ -152,7 +226,7 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
         return PickedConfig(name.substringBeforeLast('.'), out.toString(Charsets.UTF_8.name()))
     }
 
-    override fun connect(configText: String, callback: (Result<Unit>) -> Unit) =
+    override fun connect(configText: String, label: String, callback: (Result<Unit>) -> Unit) =
         onWorker(callback) {
             stopOpenVpnAndWait()
             val config = try {
@@ -169,23 +243,64 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
             // A deliberate connect lifts any "paused on this Wi-Fi" from an
             // earlier manual disconnect.
             AutoConnect.clearUserPause(app)
+            // The notification (with Pause / Disconnect) and the Quick
+            // Settings tile both work from this record.
+            LastSession.save(app, LastSession.WireGuard(label, configText))
+            main.post { GvpnSessionService.send(app, GvpnSessionService.ACTION_CONNECTED) }
+            GvpnFamily.changed(app)
         }
+
+    override fun appIcon(packageName: String, sizePx: Long, callback: (Result<ByteArray?>) -> Unit) =
+        onWorker(callback) {
+            val drawable = try {
+                app.packageManager.getApplicationIcon(packageName)
+            } catch (e: PackageManager.NameNotFoundException) {
+                return@onWorker null
+            }
+            val size = sizePx.toInt().coerceIn(24, 192)
+            val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+            drawable.setBounds(0, 0, size, size)
+            drawable.draw(android.graphics.Canvas(bitmap))
+            java.io.ByteArrayOutputStream().use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                bitmap.recycle()
+                out.toByteArray()
+            }
+        }
+
+    override fun pause(minutes: Long) {
+        GvpnSessionService.send(app, GvpnSessionService.ACTION_PAUSE, minutes.toInt())
+    }
+
+    override fun resume() {
+        GvpnSessionService.send(app, GvpnSessionService.ACTION_RESUME)
+    }
 
     override fun disconnect(callback: (Result<Unit>) -> Unit) =
         onWorker(callback) {
             // Remember the network so auto-connect does not undo the user's
             // choice the moment the tunnel drops.
             AutoConnect.markUserPaused(app)
+            GvpnSessionService.end(app)
             backend().setState(GTunnel, Tunnel.State.DOWN, null)
             stopOpenVpnAndWait()
+            stopSstpAndWait()
+            GvpnFamily.changed(app)
         }
 
     override fun connectOpenVpn(configText: String, options: OpenVpnOptions, callback: (Result<Unit>) -> Unit) {
         // WireGuard down first (on the worker, it blocks), then hand over.
         worker.execute {
             runCatching { backend().setState(GTunnel, Tunnel.State.DOWN, null) }
+            GvpnSessionService.end(app)
             OpenVpnEngine.connect(app, configText, options.name, options.excludedApps, options.dnsServers) { result ->
-                if (result.isSuccess) AutoConnect.clearUserPause(app)
+                if (result.isSuccess) {
+                    AutoConnect.clearUserPause(app)
+                    LastSession.save(
+                        app,
+                        LastSession.OpenVpn(options.name, configText, options.excludedApps, options.dnsServers),
+                    )
+                }
                 callback(result)
             }
         }
@@ -199,20 +314,93 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
         latch.await(10, java.util.concurrent.TimeUnit.SECONDS)
     }
 
+    @Volatile
+    private var sstpConnecting = false
+
+    override fun connectSstp(options: SstpOptions, callback: (Result<Unit>) -> Unit) =
+        onWorker(callback) {
+            // One engine at a time: the others down first.
+            runCatching { backend().setState(GTunnel, Tunnel.State.DOWN, null) }
+            stopOpenVpnAndWait()
+            stopSstpAndWait()
+            GvpnSessionService.end(app)
+
+            val o = SstpEngine.Options(
+                options.host, options.port.toInt(), options.username, options.password,
+                options.excludedApps, options.dnsServers,
+            )
+            LastSession.save(
+                app,
+                LastSession.Sstp(options.name, o.host, o.port, o.username, o.password, o.excludedApps, o.dnsServers),
+            )
+            sstpConnecting = true
+            try {
+                SstpEngine.connect(app, o)
+                // Up to 30 s for TLS, SSTP, PPP and the tunnel. The engine
+                // stops its service on any failure, which ends the wait early.
+                val deadline = System.currentTimeMillis() + 30_000
+                Thread.sleep(400)
+                while (!SstpEngine.isConnected(app)) {
+                    if (!SstpEngine.isActive(app)) {
+                        throw FlutterError("timeout", "The server did not answer.", null)
+                    }
+                    if (System.currentTimeMillis() > deadline) {
+                        SstpEngine.disconnect(app)
+                        throw FlutterError("timeout", "The server did not answer.", null)
+                    }
+                    Thread.sleep(250)
+                }
+                AutoConnect.clearUserPause(app)
+                GvpnFamily.changed(app)
+            } finally {
+                sstpConnecting = false
+            }
+        }
+
+    /** Runs on the worker: stops the SSTP engine and waits until it has. */
+    private fun stopSstpAndWait() {
+        if (!SstpEngine.isActive(app)) return
+        SstpEngine.disconnect(app)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (SstpEngine.isActive(app) && System.currentTimeMillis() < deadline) Thread.sleep(100)
+    }
+
+    /** Pigeon's Kotlin class has no defaults; this supplies them. */
+    private fun status(
+        phase: TunnelPhase,
+        rx: Long = 0L,
+        tx: Long = 0L,
+        stoppedByUser: Boolean = false,
+        pausedUntilMs: Long = 0L,
+    ) = TunnelStatus(phase, rx, tx, stoppedByUser, pausedUntilMs)
+
     override fun status(): TunnelStatus {
+        val pausedUntil = GvpnSessionService.pausedUntil
+        if (pausedUntil > System.currentTimeMillis()) {
+            return status(TunnelPhase.PAUSED, 0L, 0L, pausedUntilMs = pausedUntil)
+        }
         if (OpenVpnEngine.isConnected) {
-            return TunnelStatus(TunnelPhase.UP, OpenVpnEngine.rxBytes, OpenVpnEngine.txBytes)
+            return status(TunnelPhase.UP, OpenVpnEngine.rxBytes, OpenVpnEngine.txBytes)
         }
         if (OpenVpnEngine.isReconnecting) {
-            return TunnelStatus(TunnelPhase.RECONNECTING, OpenVpnEngine.rxBytes, OpenVpnEngine.txBytes)
+            return status(TunnelPhase.RECONNECTING, OpenVpnEngine.rxBytes, OpenVpnEngine.txBytes)
         }
+        if (SstpEngine.isConnected(app)) return status(TunnelPhase.UP)
+        // Running but not passing traffic, and not a connect of ours in
+        // flight: the engine is retrying after a drop.
+        if (SstpEngine.isActive(app) && !sstpConnecting) return status(TunnelPhase.RECONNECTING)
         val backend = backend()
-        if (backend.getState(GTunnel) != Tunnel.State.UP) return TunnelStatus(TunnelPhase.DOWN, 0L, 0L)
+        if (backend.getState(GTunnel) != Tunnel.State.UP) {
+            // Reported once, so a later drop is judged on its own.
+            val byUser = GvpnSessionService.userStoppedAt > 0
+            GvpnSessionService.userStoppedAt = 0
+            return status(TunnelPhase.DOWN, 0L, 0L, stoppedByUser = byUser)
+        }
         return try {
             val stats = backend.getStatistics(GTunnel)
-            TunnelStatus(TunnelPhase.UP, stats.totalRx(), stats.totalTx())
+            status(TunnelPhase.UP, stats.totalRx(), stats.totalTx())
         } catch (e: Exception) {
-            TunnelStatus(TunnelPhase.UP, 0L, 0L)
+            status(TunnelPhase.UP, 0L, 0L)
         }
     }
 
@@ -446,6 +634,7 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
         const val REQUEST_NOTIFICATIONS = 0x6772
         const val REQUEST_LOCATION = 0x6773
         const val REQUEST_FILE = 0x6774
+        const val REQUEST_IMAGE = 0x6775
         const val MAX_CONFIG_BYTES = 64 * 1024
     }
 }

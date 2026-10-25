@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../home/home_scan.dart';
+import '../i18n/strings.g.dart';
 import '../tools/tools_providers.dart';
 import '../vpn/vpn_controller.dart';
 import 'meridian.dart';
@@ -17,13 +18,13 @@ Future<bool> askForWifiNames(BuildContext context, WidgetRef ref) async {
     final go = await _sheet(
       context,
       icon: Icons.wifi_rounded,
-      title: 'Allow location for Wi-Fi',
-      items: const [
-        (Icons.home_outlined, 'Show your Wi-Fi name on Home'),
-        (Icons.wifi_find_rounded, 'Scan nearby networks and channels'),
-        (Icons.phonelink_lock_outlined, 'Stays on this phone. Your location is never collected.'),
+      title: t.location.title,
+      items: [
+        (Icons.home_outlined, t.location.useHome),
+        (Icons.wifi_find_rounded, t.location.useScan),
+        (Icons.phonelink_lock_outlined, t.location.private),
       ],
-      confirm: 'Continue',
+      confirm: t.common.continueLabel,
     );
     if (!go) return false;
     if (!await api.requestWifiNames()) return false;
@@ -33,11 +34,11 @@ Future<bool> askForWifiNames(BuildContext context, WidgetRef ref) async {
     final open = await _sheet(
       context,
       icon: Icons.location_off_outlined,
-      title: 'Turn on Location',
-      items: const [
-        (Icons.toggle_on_outlined, 'Android hides Wi-Fi names while the Location switch is off'),
+      title: t.location.switchTitle,
+      items: [
+        (Icons.toggle_on_outlined, t.location.switchBody),
       ],
-      confirm: 'Open settings',
+      confirm: t.common.openSettings,
     );
     if (open) await api.openLocationSettings();
   }
@@ -94,7 +95,7 @@ Future<bool> _sheet(
                 child: Text(confirm),
               ),
             ),
-            Center(child: TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Not now'))),
+            Center(child: TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t.common.notNow))),
           ],
         ),
       ),

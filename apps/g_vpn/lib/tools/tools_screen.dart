@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import 'devices_screen.dart';
 import 'network_screen.dart';
@@ -10,8 +11,8 @@ import 'ports_screen.dart';
 import 'router_screen.dart';
 import 'speed_screen.dart';
 import 'status_screen.dart';
-import 'trace_screen.dart';
 import 'tool_widgets.dart';
+import 'trace_screen.dart';
 import 'wifi_screen.dart';
 import 'wol_screen.dart';
 
@@ -26,17 +27,17 @@ class ToolsScreen extends ConsumerWidget {
     final m = context.mer;
     final snap = ref.watch(liveSnapshotProvider).value;
     final networkName = switch (snap?.transport) {
-      Transport.wifi => snap?.ssid ?? 'Wi-Fi',
-      Transport.cellular => snap?.carrierName ?? 'Mobile data',
-      Transport.ethernet => 'Ethernet',
-      null => 'Checking',
-      _ => 'Offline',
+      Transport.wifi => snap?.ssid ?? t.tools.wifi,
+      Transport.cellular => snap?.carrierName ?? t.tools.mobile,
+      Transport.ethernet => t.tools.ethernet,
+      null => t.tools.checking,
+      _ => t.tools.offline,
     };
     void open(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
     const utility = Color(0xFF6B7280);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tools'), centerTitle: false),
+      appBar: AppBar(title: Text(t.tools.title), centerTitle: false),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
         children: [
@@ -44,73 +45,73 @@ class ToolsScreen extends ConsumerWidget {
             icon: Icons.wifi_rounded,
             color: m.brand,
             title: networkName,
-            description: 'Safety check, what sites see, signal, router and DNS.',
+            description: t.tools.networkDesc,
             onTap: () => open(const NetworkScreen()),
           ),
-          const ToolSection('Internet connectivity'),
+          ToolSection(t.tools.internet),
           ToolRow(
             icon: Icons.speed_rounded,
             color: m.brand,
-            title: 'Speed test',
-            description: 'Download and upload speed, and the video quality it supports.',
+            title: t.tools.speed,
+            description: t.tools.speedDesc,
             onTap: () => open(const SpeedScreen()),
           ),
           ToolRow(
             icon: Icons.show_chart_rounded,
             color: m.brand,
-            title: 'Ping',
-            description: 'Live response time and jitter to any server or your router.',
+            title: t.tools.ping,
+            description: t.tools.pingDesc,
             onTap: () => open(const PingScreen()),
           ),
           ToolRow(
             icon: Icons.fact_check_outlined,
             color: m.brand,
-            title: 'Service status',
-            description: 'Is WhatsApp, YouTube or Google reachable from here, or blocked?',
+            title: t.tools.status,
+            description: t.tools.statusDesc,
             onTap: () => open(const StatusScreen()),
           ),
           ToolRow(
             icon: Icons.route_rounded,
             color: m.brand,
-            title: 'Traceroute',
-            description: 'Every router between you and a site, and how long each takes.',
+            title: t.tools.trace,
+            description: t.tools.traceDesc,
             onTap: () => open(const TraceScreen()),
           ),
-          const ToolSection('Network security'),
+          ToolSection(t.tools.security),
           ToolRow(
             icon: Icons.devices_other_rounded,
             color: m.good,
-            title: 'Devices on this network',
-            description: 'Who else is on your Wi-Fi: phones, TVs, cameras and computers.',
+            title: t.tools.devices,
+            description: t.tools.devicesDesc,
             onTap: () => open(const DevicesScreen()),
           ),
           ToolRow(
             icon: Icons.router_outlined,
             color: m.good,
-            title: 'Router check',
-            description: 'Whether devices can open ports on your router by themselves (UPnP).',
+            title: t.tools.router,
+            description: t.tools.routerDesc,
             onTap: () => open(const RouterScreen()),
           ),
           ToolRow(
             icon: Icons.lock_outline_rounded,
             color: m.good,
-            title: 'Open ports',
-            description: 'Check your router or a server for risky open ports.',
+            title: t.tools.ports,
+            description: t.tools.portsDesc,
             onTap: () => open(const PortsScreen()),
           ),
-          const ToolSection('Utilities'),
+          ToolSection(t.tools.utilities),
           ToolRow(
             icon: Icons.wifi_find_rounded,
             color: utility,
-            title: 'Wi-Fi scanner',
-            description: 'Nearby networks, their security, and the least crowded channel.',
+            title: t.tools.wifiScanner,
+            description: t.tools.wifiDesc,
             onTap: () => open(const WifiScreen()),
           ),
           ToolRow(
             icon: Icons.power_settings_new_rounded,
             color: utility,
-            title: 'Wake on LAN',
-            description: 'Turn on a computer or NAS on this network.',
+            title: t.tools.wol,
+            description: t.tools.wolDesc,
             onTap: () => open(const WolScreen()),
           ),
         ],

@@ -23,7 +23,10 @@ android {
     // update to the existing listing.
     namespace = "com.mindberzerk.gvpn"
 
-    compileSdk = flutter.compileSdkVersion
+    // Android 16 (API 36): what Play requires of every update since
+    // 31 August 2026. Pinned rather than taken from Flutter's defaults so a
+    // Flutter upgrade cannot quietly move it.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -34,8 +37,9 @@ android {
 
     defaultConfig {
         applicationId = "com.mindberzerk.gvpn"
-        targetSdk = flutter.targetSdkVersion
-        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        // Android 7.0. WireGuard and the OpenVPN engine both run from here.
+        minSdk = 24
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -108,6 +112,9 @@ dependencies {
     // back only the decoded text, so this app needs no CAMERA permission and
     // ships no camera code. The scanner module downloads on first use.
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    // QR codes in saved images ("From an image", shares from other apps),
+    // read on the phone. The Play services build keeps the APK small.
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 
     // OpenVPN engine: OpenVPN for Android (GPLv2), built from source by
     // android/openvpn/build-aar.sh. The .aar carries no dependency metadata,
@@ -115,4 +122,10 @@ dependencies {
     implementation(files("libs/ics-openvpn.aar"))
     implementation("androidx.annotation:annotation:1.9.1")
     implementation("androidx.core:core:1.15.0")
+
+    // SSTP engine (Open SSTP Client, MIT), compiled from source in
+    // src/main/kotlin/kittoku/osc. Its three runtime needs:
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation("androidx.documentfile:documentfile:1.1.0")
 }

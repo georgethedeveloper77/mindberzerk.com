@@ -12,6 +12,10 @@ class CommunityServer {
     required this.sessions,
     required this.quality,
     required this.grade,
+    this.uptimeDays = 0,
+    this.source = 'vpngate',
+    this.sstpHost,
+    this.sstpPort,
   });
 
   final String id;
@@ -26,6 +30,16 @@ class CommunityServer {
 
   /// fast, good or slow; decided server-side so every phone agrees.
   final String grade;
+
+  /// Days the server has been up without restarting (VPN Gate reports it).
+  final double uptimeDays;
+
+  /// vpngate or oneconnect.
+  final String source;
+
+  /// Where the server takes SSTP, when it does (VPN Gate lists it).
+  final String? sstpHost;
+  final int? sstpPort;
 
   /// Regional-indicator letters: "JP" becomes the Japanese flag.
   String get flag {
@@ -45,6 +59,10 @@ class CommunityServer {
         'sessions': sessions,
         'quality': quality,
         'grade': grade,
+        'uptimeDays': uptimeDays,
+        'source': source,
+        if (sstpHost != null) 'sstpHost': sstpHost!,
+        if (sstpPort != null) 'sstpPort': sstpPort!,
       };
 
   static CommunityServer? fromJson(Object? json) {
@@ -63,6 +81,10 @@ class CommunityServer {
       sessions: n('sessions').toInt(),
       quality: n('quality').toInt(),
       grade: json['grade'] is String ? json['grade'] as String : 'good',
+      uptimeDays: n('uptimeDays').toDouble(),
+      source: json['source'] is String ? json['source'] as String : 'vpngate',
+      sstpHost: json['sstpHost'] is String ? json['sstpHost'] as String : null,
+      sstpPort: json['sstpPort'] is num ? (json['sstpPort'] as num).toInt() : null,
     );
   }
 }

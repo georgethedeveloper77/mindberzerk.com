@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification and Quick Settings text. Translations go in values-<lang>/
+     copies of this file. The OpenVPN engine reads the same names. -->
+<resources>
+    <string name="gvpn_pause_15">Pause 15m</string>
+    <string name="gvpn_pause_60">Pause 1h</string>
+    <string name="gvpn_disconnect">Disconnect</string>
+    <string name="gvpn_resume_now">Resume now</string>
+    <string name="gvpn_paused_title">Paused until %1$s</string>
+    <string name="gvpn_paused_text">Your internet is not protected</string>
+    <string name="gvpn_channel_session">VPN connection</string>
+</resources>

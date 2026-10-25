@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../vpn/vpn_controller.dart';
 import 'meridian.dart';
 
@@ -57,15 +58,15 @@ class _ConnectButtonState extends State<ConnectButton> with SingleTickerProvider
     final busy = widget.phase == VpnPhase.connecting || widget.phase == VpnPhase.disconnecting;
     final fg = on ? m.onButtonOn : busy ? m.warn : m.brand;
     final label = switch (widget.phase) {
-      VpnPhase.on => 'Stop',
-      VpnPhase.connecting => 'Connecting',
-      VpnPhase.disconnecting => 'Stopping',
-      VpnPhase.off => 'Connect',
+      VpnPhase.on => t.button.stop,
+      VpnPhase.connecting => t.button.connecting,
+      VpnPhase.disconnecting => t.button.stopping,
+      VpnPhase.off => t.button.connect,
     };
 
     return Semantics(
       button: true,
-      label: on ? 'Disconnect' : 'Connect',
+      label: on ? t.button.disconnect : t.button.connect,
       child: SizedBox.square(
         dimension: widget.size,
         child: AnimatedBuilder(

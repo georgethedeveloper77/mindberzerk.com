@@ -104,6 +104,7 @@ enum TunnelPhase {
   down,
   up,
   reconnecting,
+  paused,
 }
 
 /// When auto-connect fires. `open`: password-less, WEP or sign-in-page Wi-Fi.
@@ -118,6 +119,8 @@ class TunnelStatus {
     required this.phase,
     required this.rxBytes,
     required this.txBytes,
+    this.stoppedByUser = false,
+    this.pausedUntilMs = 0,
   });
 
   TunnelPhase phase;
@@ -126,11 +129,20 @@ class TunnelStatus {
 
   int txBytes;
 
+  /// The user stopped it outside the app (notification, Quick Settings), so
+  /// a drop to "down" is their choice, not the system's. Reported once.
+  bool stoppedByUser;
+
+  /// Epoch ms a pause ends; 0 unless [phase] is paused.
+  int pausedUntilMs;
+
   List<Object?> _toList() {
     return <Object?>[
       phase,
       rxBytes,
       txBytes,
+      stoppedByUser,
+      pausedUntilMs,
     ];
   }
 
@@ -143,6 +155,8 @@ class TunnelStatus {
       phase: result[0]! as TunnelPhase,
       rxBytes: result[1]! as int,
       txBytes: result[2]! as int,
+      stoppedByUser: result[3]! as bool,
+      pausedUntilMs: result[4]! as int,
     );
   }
 
@@ -155,7 +169,7 @@ class TunnelStatus {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(phase, other.phase) && _deepEquals(rxBytes, other.rxBytes) && _deepEquals(txBytes, other.txBytes);
+    return _deepEquals(phase, other.phase) && _deepEquals(rxBytes, other.rxBytes) && _deepEquals(txBytes, other.txBytes) && _deepEquals(stoppedByUser, other.stoppedByUser) && _deepEquals(pausedUntilMs, other.pausedUntilMs);
   }
 
   @override
@@ -164,7 +178,7 @@ class TunnelStatus {
 
   @override
   String toString() {
-    return 'TunnelStatus(phase: $phase, rxBytes: $rxBytes, txBytes: $txBytes)';
+    return 'TunnelStatus(phase: $phase, rxBytes: $rxBytes, txBytes: $txBytes, stoppedByUser: $stoppedByUser, pausedUntilMs: $pausedUntilMs)';
   }
 }
 
@@ -530,6 +544,136 @@ class WifiAccessPoint {
   }
 }
 
+/// A free server reached over SSTP (VPN Gate). The login is VPN Gate's
+/// public one; the server certificate is self-signed.
+class SstpOptions {
+  SstpOptions({
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.password,
+    required this.name,
+    required this.excludedApps,
+    required this.dnsServers,
+  });
+
+  String host;
+
+  int port;
+
+  String username;
+
+  String password;
+
+  /// Shown in the notification and Quick Settings.
+  String name;
+
+  List<String> excludedApps;
+
+  List<String> dnsServers;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      host,
+      port,
+      username,
+      password,
+      name,
+      excludedApps,
+      dnsServers,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SstpOptions decode(Object result) {
+    result as List<Object?>;
+    return SstpOptions(
+      host: result[0]! as String,
+      port: result[1]! as int,
+      username: result[2]! as String,
+      password: result[3]! as String,
+      name: result[4]! as String,
+      excludedApps: (result[5]! as List<Object?>).cast<String>(),
+      dnsServers: (result[6]! as List<Object?>).cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SstpOptions || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(host, other.host) && _deepEquals(port, other.port) && _deepEquals(username, other.username) && _deepEquals(password, other.password) && _deepEquals(name, other.name) && _deepEquals(excludedApps, other.excludedApps) && _deepEquals(dnsServers, other.dnsServers);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SstpOptions(host: $host, port: $port, username: $username, password: $password, name: $name, excludedApps: $excludedApps, dnsServers: $dnsServers)';
+  }
+}
+
+/// A WireGuard key pair made on the phone. Only the public half ever
+/// leaves it.
+class WgKeyPair {
+  WgKeyPair({
+    required this.privateKey,
+    required this.publicKey,
+  });
+
+  String privateKey;
+
+  String publicKey;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      privateKey,
+      publicKey,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static WgKeyPair decode(Object result) {
+    result as List<Object?>;
+    return WgKeyPair(
+      privateKey: result[0]! as String,
+      publicKey: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! WgKeyPair || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(privateKey, other.privateKey) && _deepEquals(publicKey, other.publicKey);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'WgKeyPair(privateKey: $privateKey, publicKey: $publicKey)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -565,6 +709,12 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is WifiAccessPoint) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
+    }    else if (value is SstpOptions) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is WgKeyPair) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -593,6 +743,10 @@ class _PigeonCodec extends StandardMessageCodec {
         return TraceHop.decode(readValue(buffer)!);
       case 137:
         return WifiAccessPoint.decode(readValue(buffer)!);
+      case 138:
+        return SstpOptions.decode(readValue(buffer)!);
+      case 139:
+        return WgKeyPair.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -633,14 +787,15 @@ class VpnHostApi {
   }
 
   /// Errors: `bad_config`, `not_authorized`, `connect_failed`.
-  Future<void> connect(String configText) async {
+  /// [label] names the session in the notification and Quick Settings.
+  Future<void> connect(String configText, String label) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[configText]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[configText, label]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -649,6 +804,65 @@ class VpnHostApi {
         isNullValid: true,
     )
     ;
+  }
+
+  /// Stops the tunnel for [minutes], then reconnects to the same server.
+  Future<void> pause(int minutes) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.pause$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minutes]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Ends a pause now.
+  Future<void> resume() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.resume$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// An app's launcher icon as PNG bytes, [sizePx] square; null when the app
+  /// is gone. For the app rules list.
+  Future<Uint8List?> appIcon(String packageName, int sizePx) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.appIcon$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName, sizePx]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as Uint8List?;
   }
 
   /// OpenVPN (.ovpn) tunnel, for Community and provider servers. Stops any
@@ -661,6 +875,25 @@ class VpnHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[configText, options]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Connects to a free server over SSTP. Completes once traffic flows.
+  Future<void> connectSstp(SstpOptions options) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.connectSstp$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[options]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -964,6 +1197,89 @@ class VpnHostApi {
     )
     ;
     return pigeonVar_replyValue as PickedConfig?;
+  }
+
+  /// Picks an image (photo picker, no permission) and reads the QR code in
+  /// it on the phone. Null when the user backs out; error code no_qr when
+  /// the image holds no QR code.
+  Future<String?> scanQrFromImage() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.scanQrFromImage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// A new WireGuard key pair, generated on the phone.
+  Future<WgKeyPair> generateWgKeyPair() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.generateWgKeyPair$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as WgKeyPair;
+  }
+
+  /// The phone's maker and model, to tell phones apart in Your devices.
+  Future<String> deviceName() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.deviceName$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// A server shared to G VPN from another app (a QR image or the settings
+  /// as text), taken once. Null when nothing was shared.
+  Future<String?> takeSharedServer() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.g_vpn.VpnHostApi.takeSharedServer$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
   }
 
   /// One traceroute step, using the system ping with a TTL limit (apps

@@ -1,0 +1,10 @@
+# Translations: lib/i18n/<locale>.json -> lib/i18n/strings.g.dart
+# Regenerate after editing any JSON file:
+#   dart run slang
+base_locale: en
+fallback_strategy: base_locale
+input_directory: lib/i18n
+input_file_pattern: .json
+output_directory: lib/i18n
+output_file_name: strings.g.dart
+string_interpolation: braces

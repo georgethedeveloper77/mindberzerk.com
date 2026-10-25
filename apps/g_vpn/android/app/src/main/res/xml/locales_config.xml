@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages G VPN ships, for Android 13+'s per-app language setting.
+     Keep in step with lib/i18n/*.json. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="ar" />
+    <locale android:name="es" />
+    <locale android:name="fa" />
+    <locale android:name="id" />
+    <locale android:name="pt" />
+    <locale android:name="ru" />
+    <locale android:name="tr" />
+</locale-config>

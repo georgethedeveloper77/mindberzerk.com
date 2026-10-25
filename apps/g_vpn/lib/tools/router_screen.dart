@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../vpn/vpn_controller.dart';
 import 'tool_widgets.dart';
@@ -25,10 +26,8 @@ class _RouterScreenState extends ConsumerState<RouterScreen> {
     final report = _started ? ref.watch(upnpProvider) : null;
 
     return ToolPage(
-      title: 'Router check',
-      info: 'Asks your router, over UPnP, whether devices may open ports to the internet on their own, '
-          'and lists any they have opened. It only reads and changes nothing. If nothing needs UPnP '
-          '(some game consoles do), turning it off in the router settings is safer.',
+      title: t.router.title,
+      info: t.router.info,
       action: FilledButton(
         onPressed: report?.isLoading == true
             ? null
@@ -37,7 +36,7 @@ class _RouterScreenState extends ConsumerState<RouterScreen> {
                 setState(() => _started = true);
               },
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        child: Text(report?.isLoading == true ? 'Asking the router' : (_started ? 'Check again' : 'Check router')),
+        child: Text(report?.isLoading == true ? t.router.asking : (_started ? t.router.again : t.router.check)),
       ),
       children: [
         LanVpnNotice(vpnOn: vpnOn),
@@ -61,10 +60,10 @@ class _Report extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = context.mer;
     final (headline, detail, color) = !report.enabled
-        ? ('UPnP is off', 'Devices cannot open ports by themselves.', m.good)
+        ? (t.router.off, t.router.offBody, m.good)
         : report.mappings.isEmpty
-            ? ('UPnP is on', 'No ports open through it right now.', m.warn)
-            : ('${report.mappings.length} ports opened by devices', 'Check you recognise each one.', m.bad);
+            ? (t.router.upnpOn, t.router.onBody, m.warn)
+            : (t.router.opened(n: report.mappings.length), t.router.checkEach, m.bad);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,13 +77,13 @@ class _Report extends StatelessWidget {
               Text(detail, style: TextStyle(fontSize: 13, height: 1.4, color: m.muted)),
               if (report.routerName != null) ...[
                 const SizedBox(height: 10),
-                Text('Router: ${report.routerName}', style: TextStyle(fontSize: 13, color: m.text)),
+                Text(t.router.routerName(name: report.routerName ?? ''), style: TextStyle(fontSize: 13, color: m.text)),
               ],
               if (report.externalIp != null)
-                Text('Internet address: ${report.externalIp}', style: m.monoStyle(size: 12, color: m.muted)),
+                Text(t.router.externalIp(ip: report.externalIp ?? ''), style: m.monoStyle(size: 12, color: m.muted)),
               if (report.behindCarrierNat) ...[
                 const SizedBox(height: 6),
-                Text('Shared provider address: not reachable from the internet.', style: TextStyle(fontSize: 12, color: m.good)),
+                Text(t.router.cgnat, style: TextStyle(fontSize: 12, color: m.good)),
               ],
             ],
           ),
@@ -109,9 +108,9 @@ class _Report extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.description.isEmpty ? 'No description' : p.description,
+                              Text(p.description.isEmpty ? t.router.noDescription : p.description,
                                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: m.text)),
-                              Text('${p.protocol} to ${p.internalClient}:${p.internalPort}',
+                              Text(t.router.mapping(proto: p.protocol, host: '${p.internalClient}:${p.internalPort}'),
                                   style: m.monoStyle(size: 12, color: m.muted)),
                             ],
                           ),

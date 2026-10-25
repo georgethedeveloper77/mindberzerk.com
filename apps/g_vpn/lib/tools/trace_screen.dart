@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../vpn/vpn_api.g.dart';
 import '../vpn/vpn_controller.dart' show vpnApiProvider;
@@ -83,89 +84,257 @@ class _TraceScreenState extends ConsumerState<TraceScreen> {
     final m = context.mer;
     final trace = ref.watch(traceProvider);
     final gateway = ref.watch(liveSnapshotProvider).value?.gateway;
+    final steps = _Step.fromHops(trace.hops);
+    final total = trace.hops.lastWhere((h) => h.rttMs != null, orElse: () => TraceHop(ttl: 0, reached: false)).rttMs;
+    final slowest = _Step.slowestJump(steps);
 
     return ToolPage(
-      title: 'Traceroute',
-      info: 'Each line is one router your traffic passes through. It uses Android\'s own ping tool with a hop limit, '
-          'since apps cannot send these packets directly. With the VPN on, the path starts inside the tunnel, '
-          'so your own network and provider are hidden.',
+      title: t.trace.title,
+      info: t.trace.info,
       action: trace.running
           ? OutlinedButton(
               onPressed: () => ref.read(traceProvider.notifier).stop(),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: const Text('Stop'),
+              child: Text(t.trace.stop),
             )
           : FilledButton(
-              onPressed: () => ref.read(traceProvider.notifier).run(_host.text.trim()),
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+                ref.read(traceProvider.notifier).run(_host.text.trim());
+              },
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: Text(trace.hops.isEmpty ? 'Trace' : 'Trace again'),
+              child: Text(trace.hops.isEmpty ? t.trace.trace : t.trace.again),
             ),
       children: [
         TextField(
           controller: _host,
           keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.go,
+          onSubmitted: (v) => ref.read(traceProvider.notifier).run(v.trim()),
           style: m.monoStyle(size: 15),
           decoration: InputDecoration(
-            labelText: 'Destination',
+            labelText: t.trace.destination,
             filled: true,
-            fillColor: m.surface2,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(Meridian.rChip), borderSide: BorderSide.none),
+            fillColor: m.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: m.line)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: m.line)),
           ),
         ),
-        const SizedBox(height: 14),
-        if (trace.error != null) Text(trace.error!, style: TextStyle(color: m.bad)),
-        if (trace.hops.isNotEmpty)
+        if (trace.hops.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _Stat(label: t.trace.hops, value: '${trace.hops.length}')),
+              const SizedBox(width: 8),
+              Expanded(child: _Stat(label: t.trace.answered, value: '${trace.hops.where((h) => h.address != null).length}')),
+              const SizedBox(width: 8),
+              Expanded(child: _Stat(label: t.trace.total, value: total == null ? '--' : t.trace.ms(n: total.round()))),
+            ],
+          ),
+          const SizedBox(height: 14),
           ToolCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             child: Column(
               children: [
-                for (final (i, hop) in trace.hops.indexed) ...[
-                  if (i > 0) Divider(height: 1, color: m.line),
-                  _HopRow(hop: hop, isRouter: hop.address != null && hop.address == gateway),
-                ],
+                _Node(kind: _NodeKind.start, title: t.trace.thisPhone, last: false),
+                for (final (i, s) in steps.indexed)
+                  _Node(
+                    kind: s.silent > 0
+                        ? _NodeKind.silent
+                        : s.hop!.reached
+                            ? _NodeKind.end
+                            : identical(s, slowest)
+                                ? _NodeKind.slow
+                                : _NodeKind.hop,
+                    title: s.silent > 0
+                        ? (s.silent == 1 ? t.trace.silentOne : t.trace.silentMany(n: s.silent))
+                        : s.hop!.reached
+                            ? _host.text.trim()
+                            : s.hop!.address == gateway
+                                ? t.trace.yourRouter
+                                : t.trace.hop(n: s.hop!.ttl),
+                    address: s.hop?.address,
+                    ms: s.hop?.rttMs,
+                    jump: identical(s, slowest) ? s.jump : null,
+                    last: i == steps.length - 1,
+                  ),
               ],
             ),
           ),
-        if (trace.running) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator(minHeight: 2)),
-        if (trace.reached)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text('Reached in ${trace.hops.length} hops.', style: TextStyle(fontWeight: FontWeight.w700, color: m.good)),
-          ),
+          if (trace.running) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator(minHeight: 2)),
+          if (slowest != null && !trace.running && slowest.jump! >= 30) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: m.warnSoft, borderRadius: BorderRadius.circular(16)),
+              child: Text(
+                t.trace.slowest(ms: slowest.jump!.round(), hop: slowest.hop!.ttl),
+                style: TextStyle(fontSize: 14, height: 1.45, fontWeight: FontWeight.w600, color: m.warn),
+              ),
+            ),
+          ],
+        ],
+        if (trace.error != null) ...[
+          const SizedBox(height: 10),
+          Text(trace.error!, style: TextStyle(color: m.bad)),
+        ],
       ],
     );
   }
 }
 
-class _HopRow extends StatelessWidget {
-  const _HopRow({required this.hop, required this.isRouter});
+/// A hop that answered, or a run of silent hops folded into one line.
+class _Step {
+  _Step.hop(this.hop, this.jump) : silent = 0;
+  _Step.silent(this.silent)
+      : hop = null,
+        jump = null;
 
-  final TraceHop hop;
-  final bool isRouter;
+  final TraceHop? hop;
+  final int silent;
+
+  /// Delay added since the previous answering hop.
+  final double? jump;
+
+  static List<_Step> fromHops(List<TraceHop> hops) {
+    final out = <_Step>[];
+    double? prev;
+    var silent = 0;
+    for (final h in hops) {
+      if (h.address == null) {
+        silent++;
+        continue;
+      }
+      if (silent > 0) out.add(_Step.silent(silent));
+      silent = 0;
+      final ms = h.rttMs;
+      out.add(_Step.hop(h, ms != null && prev != null ? ms - prev : null));
+      if (ms != null) prev = ms;
+    }
+    if (silent > 0) out.add(_Step.silent(silent));
+    return out;
+  }
+
+  static _Step? slowestJump(List<_Step> steps) {
+    _Step? best;
+    for (final s in steps) {
+      if (s.jump != null && (best == null || s.jump! > best.jump!)) best = s;
+    }
+    return best;
+  }
+}
+
+enum _NodeKind { start, hop, slow, silent, end }
+
+class _Node extends StatelessWidget {
+  const _Node({required this.kind, required this.title, this.address, this.ms, this.jump, required this.last});
+
+  final _NodeKind kind;
+  final String title;
+  final String? address;
+  final double? ms;
+  final double? jump;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    final label = hop.reached
-        ? 'Destination'
-        : isRouter
-            ? 'Your router'
-            : null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    final color = switch (kind) {
+      _NodeKind.slow => m.warn,
+      _NodeKind.end => m.good,
+      _NodeKind.silent => m.muted,
+      _ => m.brand,
+    };
+    final dot = switch (kind) {
+      _NodeKind.start => Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(color: m.brand, shape: BoxShape.circle),
+          child: Icon(Icons.smartphone_rounded, size: 13, color: m.onBrand),
+        ),
+      _NodeKind.end => Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(color: m.good, shape: BoxShape.circle),
+          child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+        ),
+      _ => Container(
+          width: 14,
+          height: 14,
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: m.surface,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: kind == _NodeKind.silent ? 2 : 3),
+          ),
+        ),
+    };
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(width: 32, child: Text('${hop.ttl}', style: m.monoStyle(size: 13, color: m.muted))),
-          Expanded(
+          SizedBox(
+            width: 22,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(hop.address ?? 'No reply', style: m.monoStyle(size: 14, color: hop.address == null ? m.muted : m.text)),
-                if (label != null) Text(label, style: TextStyle(fontSize: 12, color: hop.reached ? m.good : m.brand)),
+                dot,
+                if (!last) Expanded(child: Container(width: 2, color: m.brandSoft)),
               ],
             ),
           ),
-          Text(hop.rttMs == null ? '' : '${hop.rttMs!.round()} ms', style: m.monoStyle(size: 13, color: m.muted)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: last ? 0 : 14, top: 1),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: kind == _NodeKind.end ? FontWeight.w800 : FontWeight.w700,
+                            color: kind == _NodeKind.silent ? m.muted : kind == _NodeKind.end ? m.good : m.text,
+                          ),
+                        ),
+                        if (address != null && kind != _NodeKind.silent)
+                          Text(address!, style: m.monoStyle(size: 12, color: m.muted)),
+                      ],
+                    ),
+                  ),
+                  if (jump != null)
+                    Text('+${jump!.round()} ms', style: m.monoStyle(size: 13, color: m.warn))
+                  else if (ms != null)
+                    Text('${ms!.round()} ms', style: m.monoStyle(size: 13, color: m.text)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return ToolCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: m.muted)),
+          Text(value, style: m.monoStyle(size: 17)),
         ],
       ),
     );

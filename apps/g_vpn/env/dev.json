@@ -1,3 +1,5 @@
 {
-  "WHOAMI_URL": "https://gvpn-whoami.mindberzerk.workers.dev"
+  "WHOAMI_URL": "https://gvpn-whoami.mindberzerk.workers.dev",
+  "COMMUNITY_URL": "https://gvpn-servers.mindberzerk.workers.dev",
+  "ISPS_URL": "https://gvpn-isps.mindberzerk.workers.dev"
 }

@@ -7,6 +7,17 @@ import io.flutter.embedding.engine.FlutterEngine
 class MainActivity : FlutterActivity() {
     private var host: VpnHost? = null
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        SharedServer.record(intent)
+        super.onCreate(savedInstanceState)
+    }
+
+    // singleTop: a share while G VPN is open arrives here.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        SharedServer.record(intent)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val vpnHost = VpnHost(this)

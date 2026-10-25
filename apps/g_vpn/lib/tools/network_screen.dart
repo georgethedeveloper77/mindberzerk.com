@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../design/meridian_widgets.dart';
 import '../design/wifi_name_prompt.dart';
@@ -24,7 +25,7 @@ class NetworkScreen extends StatelessWidget {
   const NetworkScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => const ToolPage(title: 'This network', children: [_NetworkCard()]);
+  Widget build(BuildContext context) => ToolPage(title: t.network.title, children: const [_NetworkCard()]);
 }
 
 class _NetworkCard extends ConsumerWidget {
@@ -39,7 +40,7 @@ class _NetworkCard extends ConsumerWidget {
     return MerCard(
       child: switch (snap) {
         AsyncData(:final value) => _networkBody(context, ref, m, value, id),
-        AsyncError(:final error) => Text('Could not read the network: $error', style: TextStyle(color: m.bad)),
+        AsyncError(:final error) => Text(t.network.readFailed(error: '$error'), style: TextStyle(color: m.bad)),
         _ => const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator(minHeight: 2)),
       },
     );
@@ -48,17 +49,17 @@ class _NetworkCard extends ConsumerWidget {
   Widget _networkBody(BuildContext context, WidgetRef ref, Meridian m, NetworkSnapshot s, AsyncValue<PublicIdentity> id) {
     final wifi = s.transport == Transport.wifi;
     final name = switch (s.transport) {
-      Transport.wifi => s.ssid ?? 'Wi-Fi',
-      Transport.cellular => s.carrierName ?? 'Mobile data',
-      Transport.ethernet => 'Ethernet',
-      _ => 'Offline',
+      Transport.wifi => s.ssid ?? t.network.wifi,
+      Transport.cellular => s.carrierName ?? t.network.mobile,
+      Transport.ethernet => t.network.ethernet,
+      _ => t.network.offline,
     };
     final verdict = assessWifi(s);
     final (bannerBg, bannerFg, headline) = switch (verdict.level) {
-      SafetyLevel.risk => (m.badSoft, m.bad, 'Risky network. Connect the VPN here.'),
-      SafetyLevel.caution => (m.warnSoft, m.warn, 'Worth a look before you trust it.'),
-      SafetyLevel.safe => (m.surface2, m.good, s.vpnActive ? 'Covered by the VPN.' : 'This network looks safe.'),
-      SafetyLevel.notApplicable => (m.surface2, m.text, s.transport == Transport.cellular ? 'Mobile data.' : 'Not connected.'),
+      SafetyLevel.risk => (m.badSoft, m.bad, t.network.risky),
+      SafetyLevel.caution => (m.warnSoft, m.warn, t.network.review),
+      SafetyLevel.safe => (m.surface2, m.good, s.vpnActive ? t.network.covered : t.network.safe),
+      SafetyLevel.notApplicable => (m.surface2, m.text, s.transport == Transport.cellular ? t.network.mobileSentence : t.network.notConnected),
     };
     final band = switch (s.frequencyMhz) {
       null => null,
@@ -72,7 +73,7 @@ class _NetworkCard extends ConsumerWidget {
       children: [
         MerCardTitle(
           name,
-          trailing: wifi && s.ssid == null ? MerAction('Show name', onPressed: () => askForWifiNames(context, ref)) : null,
+          trailing: wifi && s.ssid == null ? MerAction(t.network.showName, onPressed: () => askForWifiNames(context, ref)) : null,
         ),
         const SizedBox(height: 12),
         Container(
@@ -94,25 +95,25 @@ class _NetworkCard extends ConsumerWidget {
         switch (id) {
           AsyncData(:final value) => Column(
               children: [
-                MerRow('Sites see', value.ip, mono: true, color: s.vpnActive ? m.good : m.bad),
-                if (value.org != null) MerRow('Provider', value.org!),
+                MerRow(t.network.sitesSee, value.ip, mono: true, color: s.vpnActive ? m.good : m.bad),
+                if (value.org != null) MerRow(t.network.provider, value.org!),
                 if (value.city != null || value.country != null)
-                  MerRow('Location', [value.city, value.country].whereType<String>().join(', ')),
+                  MerRow(t.network.location, [value.city, value.country].whereType<String>().join(', ')),
               ],
             ),
-          AsyncError() => MerRow('Sites see', 'Could not check', color: m.warn),
-          _ => const MerRow('Sites see', 'Checking'),
+          AsyncError() => MerRow(t.network.sitesSee, t.network.couldNotCheck, color: m.warn),
+          _ => MerRow(t.network.sitesSee, t.network.checking),
         },
-        if (s.rssi != null) MerRow('Signal', '${s.rssi} dBm${band == null ? '' : ' · $band'}'),
-        if (s.linkSpeedMbps != null) MerRow('Link speed', '${s.linkSpeedMbps} Mbps'),
-        MerRow('Gateway', s.gateway ?? 'None', mono: true),
-        MerRow('DNS', s.dnsServers.isEmpty ? 'None' : s.dnsServers.join('\n'), mono: true),
+        if (s.rssi != null) MerRow(t.network.signal, '${s.rssi} dBm${band == null ? '' : ' · $band'}'),
+        if (s.linkSpeedMbps != null) MerRow(t.network.linkSpeed, '${s.linkSpeedMbps} Mbps'),
+        MerRow(t.network.gateway, s.gateway ?? t.network.none, mono: true),
+        MerRow('DNS', s.dnsServers.isEmpty ? t.network.none : s.dnsServers.join('\n'), mono: true),
         MerRow(
-          'Private DNS',
-          s.privateDnsActive ? (s.privateDnsServer ?? 'Automatic') : 'Off',
+          t.network.privateDns,
+          s.privateDnsActive ? (s.privateDnsServer ?? t.network.automatic) : t.network.off,
           color: s.privateDnsActive ? m.good : m.text,
         ),
-        MerRow('Metered', s.metered ? 'Yes' : 'No'),
+        MerRow(t.network.metered, s.metered ? t.network.yes : t.network.no),
       ],
     );
   }

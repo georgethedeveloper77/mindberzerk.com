@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
-import '../vpn/wg_config.dart';
 import '../vpn/tunnel_store.dart';
+import '../vpn/wg_config.dart';
 
 /// "Your Server" import: paste a wg-quick config. QR scan follows once the
 /// camera permission is justified by it.
@@ -48,7 +49,7 @@ class _AddServerSheetState extends ConsumerState<AddServerSheet> {
       try {
         parseWgConfig(config);
       } on WgConfigException catch (e) {
-        _error = 'This is not a WireGuard config: ${e.message}';
+        _error = t.addServer.notWireguard(error: e.message);
       }
     }
   }
@@ -64,7 +65,7 @@ class _AddServerSheetState extends ConsumerState<AddServerSheet> {
     final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
     if (!mounted) return;
     if (text == null || text.trim().isEmpty) {
-      setState(() => _error = 'The clipboard is empty.');
+      setState(() => _error = t.addServer.clipboardEmpty);
       return;
     }
     setState(() {
@@ -112,14 +113,14 @@ class _AddServerSheetState extends ConsumerState<AddServerSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Add your server', style: TextStyle(color: m.text, fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(t.addServer.title, style: TextStyle(color: m.text, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
-            'Paste a WireGuard config from your router, VPS or home server.',
+            t.addServer.body,
             style: TextStyle(color: m.muted, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          TextField(controller: _name, style: TextStyle(color: m.text), decoration: _input(m, 'Name, for example Home router')),
+          TextField(controller: _name, style: TextStyle(color: m.text), decoration: _input(m, t.addServer.nameHint)),
           const SizedBox(height: 10),
           TextField(
             controller: _config,
@@ -144,11 +145,11 @@ class _AddServerSheetState extends ConsumerState<AddServerSheet> {
                     side: BorderSide(color: m.line),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Paste'),
+                  child: Text(t.addServer.paste),
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: FilledButton(onPressed: _saving ? null : _save, child: const Text('Save server'))),
+              Expanded(child: FilledButton(onPressed: _saving ? null : _save, child: Text(t.addServer.save))),
             ],
           ),
         ],

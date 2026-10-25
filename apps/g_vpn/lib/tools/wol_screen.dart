@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import 'tool_widgets.dart';
 
@@ -47,7 +48,7 @@ class _WolScreenState extends State<WolScreen> {
     if (packet == null) {
       setState(() {
         _ok = false;
-        _result = 'That is not a MAC address. It looks like AA:BB:CC:DD:EE:FF.';
+        _result = t.wol.badMac;
       });
       return;
     }
@@ -62,12 +63,12 @@ class _WolScreenState extends State<WolScreen> {
       await (await SharedPreferences.getInstance()).setString(_macKey, _mac.text.trim());
       setState(() {
         _ok = true;
-        _result = 'Wake signal sent. The device should start within a minute.';
+        _result = t.wol.sent;
       });
     } on SocketException catch (e) {
       setState(() {
         _ok = false;
-        _result = 'Could not send: ${e.message}';
+        _result = t.wol.failed(error: e.message);
       });
     }
   }
@@ -76,13 +77,12 @@ class _WolScreenState extends State<WolScreen> {
   Widget build(BuildContext context) {
     final m = context.mer;
     return ToolPage(
-      title: 'Wake on LAN',
-      info: 'Turns on a computer or NAS on this Wi-Fi, if Wake on LAN is enabled in its settings. '
-          'Your phone must be on the same network; turn the VPN off first.',
+      title: t.wol.title,
+      info: t.wol.info,
       action: FilledButton(
         onPressed: _send,
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        child: const Text('Wake device'),
+        child: Text(t.wol.wake),
       ),
       children: [
         TextField(
@@ -90,7 +90,7 @@ class _WolScreenState extends State<WolScreen> {
           style: m.monoStyle(size: 15),
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
-            labelText: 'MAC address',
+            labelText: t.wol.mac,
             hintText: 'AA:BB:CC:DD:EE:FF',
             filled: true,
             fillColor: m.surface2,

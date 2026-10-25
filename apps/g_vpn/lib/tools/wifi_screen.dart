@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import '../design/wifi_name_prompt.dart';
 import '../vpn/vpn_api.g.dart';
@@ -24,10 +25,10 @@ class WifiScreen extends ConsumerWidget {
     final allowed = ref.watch(_wifiAllowedProvider).value;
     final current = ref.watch(liveSnapshotProvider).value?.ssid;
 
-    if (allowed == null) return const ToolPage(title: 'Wi-Fi scanner', children: []);
+    if (allowed == null) return ToolPage(title: t.wifi.title, children: const []);
     if (!allowed) {
       return ToolPage(
-        title: 'Wi-Fi scanner',
+        title: t.wifi.title,
         action: FilledButton(
           onPressed: () async {
             await askForWifiNames(context, ref);
@@ -35,31 +36,29 @@ class WifiScreen extends ConsumerWidget {
             ref.invalidate(wifiScanProvider);
           },
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-          child: const Text('Allow Wi-Fi scanning'),
+          child: Text(t.wifi.allow),
         ),
-        info: 'Android only shows nearby Wi-Fi networks to apps with location permission. '
-            'G VPN uses it to list networks on this phone and nothing else.',
+        info: t.wifi.permissionInfo,
         children: [
-          Text('Needs location permission.', style: TextStyle(fontSize: 14, color: m.muted)),
+          Text(t.wifi.needsPermission, style: TextStyle(fontSize: 14, color: m.muted)),
         ],
       );
     }
 
     final scan = ref.watch(wifiScanProvider);
     return ToolPage(
-      title: 'Wi-Fi scanner',
-      info: 'Lists networks from the phone\'s last scan. Android allows only a few scans a minute, so a quick re-scan '
-          'may show the same list. The suggested channel is the least crowded of 1, 6 and 11, the three that do not overlap.',
+      title: t.wifi.title,
+      info: t.wifi.info,
       action: FilledButton(
         onPressed: scan.isLoading ? null : () => ref.invalidate(wifiScanProvider),
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        child: Text(scan.isLoading ? 'Scanning' : 'Scan again'),
+        child: Text(scan.isLoading ? t.wifi.scanning : t.wifi.again),
       ),
       children: [
         switch (scan) {
           AsyncData(:final value) => _Results(networks: value, current: current),
           AsyncError(:final error) => Text(
-              error is PlatformException ? (error.message ?? 'Scan failed') : '$error',
+              error is PlatformException ? (error.message ?? t.wifi.failed) : '$error',
               style: TextStyle(color: m.bad),
             ),
           _ => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
@@ -95,18 +94,18 @@ class _Results extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = context.mer;
     if (networks.isEmpty) {
-      return Text('No networks found. Location services may be off.', style: TextStyle(color: m.muted));
+      return Text(t.wifi.none, style: TextStyle(color: m.muted));
     }
     final best = bestChannel(networks);
     final open = networks.where((n) => n.security == 'Open' || n.security == 'WEP').length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${networks.length} networks nearby', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: m.text)),
+        Text(t.wifi.nearby(n: networks.length), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: m.text)),
         Text(
           [
-            if (best != null) 'Least crowded 2.4 GHz channel: $best',
-            if (open > 0) '$open open or weak',
+            if (best != null) t.wifi.bestChannel(n: best),
+            if (open > 0) t.wifi.weak(n: open),
           ].join(' · '),
           style: TextStyle(fontSize: 13, color: m.muted),
         ),
@@ -154,11 +153,11 @@ class _NetworkRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  net.ssid.isEmpty ? 'Hidden network' : net.ssid,
+                  net.ssid.isEmpty ? t.wifi.hidden : net.ssid,
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: net.ssid.isEmpty ? m.muted : m.text),
                 ),
                 Text(
-                  '${isCurrent ? 'Connected · ' : ''}$band · ch ${net.channel} · ${net.widthMhz} MHz · ${net.level} dBm',
+                  '${isCurrent ? t.wifi.connectedPrefix : ''}$band · ch ${net.channel} · ${net.widthMhz} MHz · ${net.level} dBm',
                   style: m.monoStyle(size: 11, color: isCurrent ? m.brand : m.muted),
                 ),
               ],

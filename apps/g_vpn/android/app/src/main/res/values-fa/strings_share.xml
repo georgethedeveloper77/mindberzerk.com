@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The name G VPN shows in other apps' share menus. -->
+<resources>
+    <string name="gvpn_share_label">افزودن به G VPN</string>
+</resources>

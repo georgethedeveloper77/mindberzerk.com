@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification and Quick Settings text. Mirrors values/strings_session.xml. -->
+<resources>
+    <string name="gvpn_pause_15">15 dk duraklat</string>
+    <string name="gvpn_pause_60">1 sa duraklat</string>
+    <string name="gvpn_disconnect">Bağlantıyı kes</string>
+    <string name="gvpn_resume_now">Şimdi devam et</string>
+    <string name="gvpn_paused_title">%1$s saatine kadar duraklatıldı</string>
+    <string name="gvpn_paused_text">İnternetiniz korunmuyor</string>
+    <string name="gvpn_channel_session">VPN bağlantısı</string>
+    <string name="notifcation_title_notconnect">Korunmuyor</string>
+</resources>

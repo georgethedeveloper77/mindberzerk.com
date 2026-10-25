@@ -143,12 +143,24 @@ object OpenVpnEngine : VpnStatus.StateListener, VpnStatus.ByteCountListener, Vpn
     fun disconnect(context: Context, done: (Result<Unit>) -> Unit) {
         main.post {
             finish(Result.failure(error("cancelled", "Disconnected")))
-            stopEngine(context, done)
+            stopEngine(context, done = done)
         }
     }
 
-    private fun stopEngine(context: Context, done: (Result<Unit>) -> Unit) {
-        if (!isActive) {
+    /**
+     * Stops the engine even when this process has not heard its status yet:
+     * a notification button can start the app's process cold, while the
+     * engine's own process is still running the tunnel.
+     */
+    fun forceStop(context: Context, done: (Result<Unit>) -> Unit) {
+        main.post {
+            finish(Result.failure(error("cancelled", "Disconnected")))
+            stopEngine(context, force = true, done = done)
+        }
+    }
+
+    private fun stopEngine(context: Context, force: Boolean = false, done: (Result<Unit>) -> Unit) {
+        if (!isActive && !force) {
             done(Result.success(Unit))
             return
         }
@@ -167,7 +179,9 @@ object OpenVpnEngine : VpnStatus.StateListener, VpnStatus.ByteCountListener, Vpn
     }
 
     override fun updateState(state: String?, logmessage: String?, localizedResId: Int, level: ConnectionStatus, intent: Intent?) {
+        val moved = this.level != level
         this.level = level
+        if (moved) appContext?.let(GvpnFamily::changed)
         main.post {
             when (level) {
                 ConnectionStatus.LEVEL_CONNECTED -> finish(Result.success(Unit))

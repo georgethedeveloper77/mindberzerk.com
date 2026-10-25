@@ -145,16 +145,45 @@ manifest.write_text('''<?xml version="1.0" encoding="utf-8"?>
 </manifest>
 ''')
 
-# Notification: G VPN offers Disconnect only. Upstream's "Pause VPN" leaves
-# the user unprotected with no visible state in G VPN's own screens.
+# Notification buttons: Pause 15m, Pause 1h, Disconnect, all handled by the
+# app's GvpnSessionService. Upstream's own pause keeps the tunnel half-open
+# with no countdown; G VPN's pause fully stops it, shows when it resumes, and
+# reconnects on time. Disconnect skips upstream's confirmation screen.
 service = root / "main/src/main/java/de/blinkt/openvpn/core/OpenVPNService.java"
-edit(service,
-     "        /* do not allow to pause the VPN is force connection is enabled */\n"
-     "        if (GlobalPreferences.getForceConnected())\n"
-     "            return;",
-     "        // G VPN: no pause action.\n"
-     "        if (true)\n"
-     "            return;")
+text = service.read_text()
+start = text.index("    private void addVpnActionsToNotification(Notification.Builder nbuilder) {")
+end = text.index("    PendingIntent getUserInputIntent(String needed) {")
+service.write_text(text[:start] + """    private void addVpnActionsToNotification(Notification.Builder nbuilder) {
+        // G VPN: buttons handled by the app's session service.
+        nbuilder.addAction(R.drawable.ic_menu_pause, getString(R.string.gvpn_pause_15),
+                gvpnAction("com.mindberzerk.gvpn.PAUSE", 15, 0x6701));
+        nbuilder.addAction(R.drawable.ic_menu_pause, getString(R.string.gvpn_pause_60),
+                gvpnAction("com.mindberzerk.gvpn.PAUSE", 60, 0x6702));
+        nbuilder.addAction(R.drawable.ic_menu_close_clear_cancel, getString(R.string.gvpn_disconnect),
+                gvpnAction("com.mindberzerk.gvpn.STOP", 0, 0x6703));
+    }
+
+    private PendingIntent gvpnAction(String action, int minutes, int requestCode) {
+        Intent intent = new Intent(action)
+                .setClassName(getPackageName(), "com.mindberzerk.gvpn.GvpnSessionService")
+                .putExtra("minutes", minutes);
+        int flags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                ? PendingIntent.getForegroundService(this, requestCode, intent, flags)
+                : PendingIntent.getService(this, requestCode, intent, flags);
+    }
+
+""" + text[end:])
+
+# The button labels, in the engine's own resources so it compiles alone; the
+# app's copies (same names) win at merge time and carry the translations.
+(root / "main/src/main/res/values/gvpn_strings.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gvpn_pause_15">Pause 15m</string>
+    <string name="gvpn_pause_60">Pause 1h</string>
+    <string name="gvpn_disconnect">Disconnect</string>
+</resources>
+""")
 
 # The skeleton flavour's manifest exports a placeholder activity; not needed.
 (root / "main/src/skeleton/AndroidManifest.xml").write_text(

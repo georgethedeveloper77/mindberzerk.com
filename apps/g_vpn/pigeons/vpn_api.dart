@@ -20,18 +20,31 @@ import 'package:pigeon/pigeon.dart';
 /// What the WireGuard backend reports. "Connecting" is a Dart-side phase.
 /// [reconnecting]: the tunnel is re-establishing after a network change or
 /// sleep. Still the user's VPN, not "off".
-enum TunnelPhase { down, up, reconnecting }
+enum TunnelPhase { down, up, reconnecting, paused }
 
 /// When auto-connect fires. `open`: password-less, WEP or sign-in-page Wi-Fi.
 /// `any`: every Wi-Fi network.
 enum AutoConnectMode { open, any }
 
 class TunnelStatus {
-  TunnelStatus({required this.phase, required this.rxBytes, required this.txBytes});
+  TunnelStatus({
+    required this.phase,
+    required this.rxBytes,
+    required this.txBytes,
+    this.stoppedByUser = false,
+    this.pausedUntilMs = 0,
+  });
 
   TunnelPhase phase;
   int rxBytes;
   int txBytes;
+
+  /// The user stopped it outside the app (notification, Quick Settings), so
+  /// a drop to "down" is their choice, not the system's. Reported once.
+  bool stoppedByUser;
+
+  /// Epoch ms a pause ends; 0 unless [phase] is paused.
+  int pausedUntilMs;
 }
 
 /// A launchable app, for app rules. Only launcher apps are visible, which is
@@ -116,6 +129,39 @@ class WifiAccessPoint {
   String security;
 }
 
+/// A free server reached over SSTP (VPN Gate). The login is VPN Gate's
+/// public one; the server certificate is self-signed.
+class SstpOptions {
+  SstpOptions({
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.password,
+    required this.name,
+    required this.excludedApps,
+    required this.dnsServers,
+  });
+
+  String host;
+  int port;
+  String username;
+  String password;
+
+  /// Shown in the notification and Quick Settings.
+  String name;
+  List<String> excludedApps;
+  List<String> dnsServers;
+}
+
+/// A WireGuard key pair made on the phone. Only the public half ever
+/// leaves it.
+class WgKeyPair {
+  WgKeyPair({required this.privateKey, required this.publicKey});
+
+  String privateKey;
+  String publicKey;
+}
+
 @HostApi()
 abstract class VpnHostApi {
   /// Shows the system VPN consent dialog if needed. True when consent exists.
@@ -123,13 +169,29 @@ abstract class VpnHostApi {
   bool prepare();
 
   /// Errors: `bad_config`, `not_authorized`, `connect_failed`.
+  /// [label] names the session in the notification and Quick Settings.
   @async
-  void connect(String configText);
+  void connect(String configText, String label);
+
+  /// Stops the tunnel for [minutes], then reconnects to the same server.
+  void pause(int minutes);
+
+  /// Ends a pause now.
+  void resume();
+
+  /// An app's launcher icon as PNG bytes, [sizePx] square; null when the app
+  /// is gone. For the app rules list.
+  @async
+  Uint8List? appIcon(String packageName, int sizePx);
 
   /// OpenVPN (.ovpn) tunnel, for Community and provider servers. Stops any
   /// WireGuard tunnel first; resolves once traffic flows.
   @async
   void connectOpenVpn(String configText, OpenVpnOptions options);
+
+  /// Connects to a free server over SSTP. Completes once traffic flows.
+  @async
+  void connectSstp(SstpOptions options);
 
   /// Stops whichever engine is running.
   @async
@@ -181,6 +243,23 @@ abstract class VpnHostApi {
   /// The system file picker. Null when the user backs out.
   @async
   PickedConfig? pickConfigFile();
+
+  /// Picks an image (photo picker, no permission) and reads the QR code in
+  /// it on the phone. Null when the user backs out; error code no_qr when
+  /// the image holds no QR code.
+  @async
+  String? scanQrFromImage();
+
+  /// A new WireGuard key pair, generated on the phone.
+  WgKeyPair generateWgKeyPair();
+
+  /// The phone's maker and model, to tell phones apart in Your devices.
+  String deviceName();
+
+  /// A server shared to G VPN from another app (a QR image or the settings
+  /// as text), taken once. Null when nothing was shared.
+  @async
+  String? takeSharedServer();
 
   /// One traceroute step, using the system ping with a TTL limit (apps
   /// cannot send raw ICMP; the system tool can).

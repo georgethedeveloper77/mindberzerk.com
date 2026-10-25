@@ -200,7 +200,8 @@ class FlutterError (
 enum class TunnelPhase(val raw: Int) {
   DOWN(0),
   UP(1),
-  RECONNECTING(2);
+  RECONNECTING(2),
+  PAUSED(3);
 
   companion object {
     fun ofRaw(raw: Int): TunnelPhase? {
@@ -228,7 +229,14 @@ enum class AutoConnectMode(val raw: Int) {
 data class TunnelStatus (
   val phase: TunnelPhase,
   val rxBytes: Long,
-  val txBytes: Long
+  val txBytes: Long,
+  /**
+   * The user stopped it outside the app (notification, Quick Settings), so
+   * a drop to "down" is their choice, not the system's. Reported once.
+   */
+  val stoppedByUser: Boolean,
+  /** Epoch ms a pause ends; 0 unless [phase] is paused. */
+  val pausedUntilMs: Long
 )
  {
   companion object {
@@ -236,7 +244,9 @@ data class TunnelStatus (
       val phase = pigeonVar_list[0] as TunnelPhase
       val rxBytes = pigeonVar_list[1] as Long
       val txBytes = pigeonVar_list[2] as Long
-      return TunnelStatus(phase, rxBytes, txBytes)
+      val stoppedByUser = pigeonVar_list[3] as Boolean
+      val pausedUntilMs = pigeonVar_list[4] as Long
+      return TunnelStatus(phase, rxBytes, txBytes, stoppedByUser, pausedUntilMs)
     }
   }
   fun toList(): List<Any?> {
@@ -244,6 +254,8 @@ data class TunnelStatus (
       phase,
       rxBytes,
       txBytes,
+      stoppedByUser,
+      pausedUntilMs,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -254,7 +266,7 @@ data class TunnelStatus (
       return true
     }
     val other = other as TunnelStatus
-    return VpnApiPigeonUtils.deepEquals(this.phase, other.phase) && VpnApiPigeonUtils.deepEquals(this.rxBytes, other.rxBytes) && VpnApiPigeonUtils.deepEquals(this.txBytes, other.txBytes)
+    return VpnApiPigeonUtils.deepEquals(this.phase, other.phase) && VpnApiPigeonUtils.deepEquals(this.rxBytes, other.rxBytes) && VpnApiPigeonUtils.deepEquals(this.txBytes, other.txBytes) && VpnApiPigeonUtils.deepEquals(this.stoppedByUser, other.stoppedByUser) && VpnApiPigeonUtils.deepEquals(this.pausedUntilMs, other.pausedUntilMs)
   }
 
   override fun hashCode(): Int {
@@ -262,10 +274,12 @@ data class TunnelStatus (
     result = 31 * result + VpnApiPigeonUtils.deepHash(this.phase)
     result = 31 * result + VpnApiPigeonUtils.deepHash(this.rxBytes)
     result = 31 * result + VpnApiPigeonUtils.deepHash(this.txBytes)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.stoppedByUser)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.pausedUntilMs)
     return result
   }
   override fun toString(): String {
-    return "TunnelStatus(phase=$phase, rxBytes=$rxBytes, txBytes=$txBytes)"
+    return "TunnelStatus(phase=$phase, rxBytes=$rxBytes, txBytes=$txBytes, stoppedByUser=$stoppedByUser, pausedUntilMs=$pausedUntilMs)"
   }
 }
 
@@ -585,6 +599,119 @@ data class WifiAccessPoint (
     return "WifiAccessPoint(ssid=$ssid, bssid=$bssid, level=$level, frequencyMhz=$frequencyMhz, channel=$channel, widthMhz=$widthMhz, security=$security)"
   }
 }
+
+/**
+ * A free server reached over SSTP (VPN Gate). The login is VPN Gate's
+ * public one; the server certificate is self-signed.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SstpOptions (
+  val host: String,
+  val port: Long,
+  val username: String,
+  val password: String,
+  /** Shown in the notification and Quick Settings. */
+  val name: String,
+  val excludedApps: List<String>,
+  val dnsServers: List<String>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SstpOptions {
+      val host = pigeonVar_list[0] as String
+      val port = pigeonVar_list[1] as Long
+      val username = pigeonVar_list[2] as String
+      val password = pigeonVar_list[3] as String
+      val name = pigeonVar_list[4] as String
+      val excludedApps = pigeonVar_list[5] as List<String>
+      val dnsServers = pigeonVar_list[6] as List<String>
+      return SstpOptions(host, port, username, password, name, excludedApps, dnsServers)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      host,
+      port,
+      username,
+      password,
+      name,
+      excludedApps,
+      dnsServers,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SstpOptions
+    return VpnApiPigeonUtils.deepEquals(this.host, other.host) && VpnApiPigeonUtils.deepEquals(this.port, other.port) && VpnApiPigeonUtils.deepEquals(this.username, other.username) && VpnApiPigeonUtils.deepEquals(this.password, other.password) && VpnApiPigeonUtils.deepEquals(this.name, other.name) && VpnApiPigeonUtils.deepEquals(this.excludedApps, other.excludedApps) && VpnApiPigeonUtils.deepEquals(this.dnsServers, other.dnsServers)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.host)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.port)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.username)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.password)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.name)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.excludedApps)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.dnsServers)
+    return result
+  }
+  override fun toString(): String {
+    return "SstpOptions(host=$host, port=$port, username=$username, password=$password, name=$name, excludedApps=$excludedApps, dnsServers=$dnsServers)"
+  }
+}
+
+/**
+ * A WireGuard key pair made on the phone. Only the public half ever
+ * leaves it.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class WgKeyPair (
+  val privateKey: String,
+  val publicKey: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): WgKeyPair {
+      val privateKey = pigeonVar_list[0] as String
+      val publicKey = pigeonVar_list[1] as String
+      return WgKeyPair(privateKey, publicKey)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      privateKey,
+      publicKey,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as WgKeyPair
+    return VpnApiPigeonUtils.deepEquals(this.privateKey, other.privateKey) && VpnApiPigeonUtils.deepEquals(this.publicKey, other.publicKey)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.privateKey)
+    result = 31 * result + VpnApiPigeonUtils.deepHash(this.publicKey)
+    return result
+  }
+  override fun toString(): String {
+    return "WgKeyPair(privateKey=$privateKey, publicKey=$publicKey)"
+  }
+}
 private open class VpnApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -633,6 +760,16 @@ private open class VpnApiPigeonCodec : StandardMessageCodec() {
           WifiAccessPoint.fromList(it)
         }
       }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SstpOptions.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          WgKeyPair.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -674,6 +811,14 @@ private open class VpnApiPigeonCodec : StandardMessageCodec() {
         stream.write(137)
         writeValue(stream, value.toList())
       }
+      is SstpOptions -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is WgKeyPair -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -684,13 +829,27 @@ private open class VpnApiPigeonCodec : StandardMessageCodec() {
 interface VpnHostApi {
   /** Shows the system VPN consent dialog if needed. True when consent exists. */
   fun prepare(callback: (Result<Boolean>) -> Unit)
-  /** Errors: `bad_config`, `not_authorized`, `connect_failed`. */
-  fun connect(configText: String, callback: (Result<Unit>) -> Unit)
+  /**
+   * Errors: `bad_config`, `not_authorized`, `connect_failed`.
+   * [label] names the session in the notification and Quick Settings.
+   */
+  fun connect(configText: String, label: String, callback: (Result<Unit>) -> Unit)
+  /** Stops the tunnel for [minutes], then reconnects to the same server. */
+  fun pause(minutes: Long)
+  /** Ends a pause now. */
+  fun resume()
+  /**
+   * An app's launcher icon as PNG bytes, [sizePx] square; null when the app
+   * is gone. For the app rules list.
+   */
+  fun appIcon(packageName: String, sizePx: Long, callback: (Result<ByteArray?>) -> Unit)
   /**
    * OpenVPN (.ovpn) tunnel, for Community and provider servers. Stops any
    * WireGuard tunnel first; resolves once traffic flows.
    */
   fun connectOpenVpn(configText: String, options: OpenVpnOptions, callback: (Result<Unit>) -> Unit)
+  /** Connects to a free server over SSTP. Completes once traffic flows. */
+  fun connectSstp(options: SstpOptions, callback: (Result<Unit>) -> Unit)
   /** Stops whichever engine is running. */
   fun disconnect(callback: (Result<Unit>) -> Unit)
   fun status(): TunnelStatus
@@ -729,6 +888,21 @@ interface VpnHostApi {
   fun scanQr(callback: (Result<String?>) -> Unit)
   /** The system file picker. Null when the user backs out. */
   fun pickConfigFile(callback: (Result<PickedConfig?>) -> Unit)
+  /**
+   * Picks an image (photo picker, no permission) and reads the QR code in
+   * it on the phone. Null when the user backs out; error code no_qr when
+   * the image holds no QR code.
+   */
+  fun scanQrFromImage(callback: (Result<String?>) -> Unit)
+  /** A new WireGuard key pair, generated on the phone. */
+  fun generateWgKeyPair(): WgKeyPair
+  /** The phone's maker and model, to tell phones apart in Your devices. */
+  fun deviceName(): String
+  /**
+   * A server shared to G VPN from another app (a QR image or the settings
+   * as text), taken once. Null when nothing was shared.
+   */
+  fun takeSharedServer(callback: (Result<String?>) -> Unit)
   /**
    * One traceroute step, using the system ping with a TTL limit (apps
    * cannot send raw ICMP; the system tool can).
@@ -773,12 +947,68 @@ interface VpnHostApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val configTextArg = args[0] as String
-            api.connect(configTextArg) { result: Result<Unit> ->
+            val labelArg = args[1] as String
+            api.connect(configTextArg, labelArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VpnApiPigeonUtils.wrapError(error))
               } else {
                 reply.reply(VpnApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.pause$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val minutesArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              api.pause(minutesArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.resume$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.resume()
+              listOf(null)
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.appIcon$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packageNameArg = args[0] as String
+            val sizePxArg = args[1] as Long
+            api.appIcon(packageNameArg, sizePxArg) { result: Result<ByteArray?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(VpnApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(VpnApiPigeonUtils.wrapResult(data))
               }
             }
           }
@@ -794,6 +1024,25 @@ interface VpnHostApi {
             val configTextArg = args[0] as String
             val optionsArg = args[1] as OpenVpnOptions
             api.connectOpenVpn(configTextArg, optionsArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(VpnApiPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(VpnApiPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.connectSstp$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val optionsArg = args[0] as SstpOptions
+            api.connectSstp(optionsArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VpnApiPigeonUtils.wrapError(error))
@@ -1041,6 +1290,72 @@ interface VpnHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.pickConfigFile{ result: Result<PickedConfig?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(VpnApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(VpnApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.scanQrFromImage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.scanQrFromImage{ result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(VpnApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(VpnApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.generateWgKeyPair$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.generateWgKeyPair())
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.deviceName$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.deviceName())
+            } catch (exception: Throwable) {
+              VpnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_vpn.VpnHostApi.takeSharedServer$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.takeSharedServer{ result: Result<String?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VpnApiPigeonUtils.wrapError(error))

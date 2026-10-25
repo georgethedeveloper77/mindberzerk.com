@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../../../../i18n/strings.g.dart';
 import '../design/meridian.dart';
 import 'network_screen.dart';
 import 'probe.dart';
@@ -76,12 +77,44 @@ class PingScreen extends ConsumerStatefulWidget {
 }
 
 class _PingScreenState extends ConsumerState<PingScreen> {
-  final _host = TextEditingController(text: '1.1.1.1');
+  String _target = 'google.com';
+  String? _custom;
 
   @override
-  void dispose() {
-    _host.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // Starts measuring the moment the page opens: the page IS the answer.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run(_target));
+  }
+
+  void _run(String host) {
+    setState(() => _target = host);
+    ref.read(pingProvider.notifier).start(host, 443);
+  }
+
+  Future<void> _askHost() async {
+    final controller = TextEditingController(text: _custom ?? '');
+    final host = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(t.ping.askTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(hintText: t.ping.askHint),
+          onSubmitted: (v) => Navigator.pop(c, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(t.ping.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: Text(t.ping.title)),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (host == null || host.isEmpty) return;
+    _custom = host;
+    _run(host);
   }
 
   @override
@@ -89,74 +122,186 @@ class _PingScreenState extends ConsumerState<PingScreen> {
     final m = context.mer;
     final ping = ref.watch(pingProvider);
     final gateway = ref.watch(liveSnapshotProvider).value?.gateway;
-    String ms(double? v) => v == null ? 'none' : '${v.toStringAsFixed(v < 10 ? 1 : 0)} ms';
-
-    final verdict = switch ((ping.avg, ping.loss, ping.jitter ?? 0)) {
-      (null, _, _) => null,
-      (_, final loss, _) when loss > 10 => ('Unstable: calls will break up', m.bad),
-      (final avg?, _, final jitter) when avg > 150 || jitter > 30 => ('Fair: fine for browsing', m.warn),
-      _ => ('Good: calls and games are fine', m.good),
-    };
-
-    void preset(String host) {
-      _host.text = host;
-      ref.read(pingProvider.notifier).start(host, 443);
-    }
+    final last = ping.samples.isEmpty ? null : ping.samples.last;
+    final targets = [
+      ('Google', 'google.com'),
+      if (gateway != null) (t.ping.router, gateway),
+      ('Cloudflare', '1.1.1.1'),
+      if (_custom != null) (_custom!, _custom!),
+    ];
 
     return ToolPage(
-      title: 'Ping',
-      info: 'Times a TCP handshake once a second over the last minute. Android apps cannot send classic ICMP pings; '
-          'a handshake is the same single round trip. Jitter is how much each answer differs from the one before, '
-          'which is what breaks up calls. With the VPN on, it measures through the tunnel.',
+      title: t.ping.title,
+      info: t.ping.info,
       action: ping.running
           ? OutlinedButton(
               onPressed: () => ref.read(pingProvider.notifier).stop(),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: const Text('Stop'),
+              child: Text(t.ping.pause),
             )
           : FilledButton(
-              onPressed: () => ref.read(pingProvider.notifier).start(_host.text.trim(), 443),
+              onPressed: () => _run(_target),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: const Text('Start'),
+              child: Text(t.ping.start),
             ),
       children: [
-        TextField(
-          controller: _host,
-          keyboardType: TextInputType.url,
-          style: m.monoStyle(size: 15),
-          decoration: InputDecoration(
-            labelText: 'Host or IP address',
-            filled: true,
-            fillColor: m.surface2,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(Meridian.rChip), borderSide: BorderSide.none),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final (label, host) in targets)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: _target == host,
+                    onSelected: (_) => _run(host),
+                    showCheckmark: false,
+                    selectedColor: m.text,
+                    backgroundColor: m.surface,
+                    labelStyle: TextStyle(fontWeight: FontWeight.w700, color: _target == host ? m.bg : m.text),
+                    shape: StadiumBorder(side: BorderSide(color: _target == host ? m.text : m.line)),
+                  ),
+                ),
+              ActionChip(
+                avatar: Icon(Icons.add_rounded, size: 18, color: m.text),
+                label: Text(t.ping.host),
+                onPressed: _askHost,
+                backgroundColor: m.surface,
+                labelStyle: TextStyle(fontWeight: FontWeight.w700, color: m.text),
+                shape: StadiumBorder(side: BorderSide(color: m.line)),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
+        const SizedBox(height: 12),
+        ToolCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    last == null ? (ping.samples.isEmpty ? '--' : t.ping.lost) : last.round().toString(),
+                    style: m.monoStyle(size: 52, weight: FontWeight.w600, color: last == null && ping.samples.isNotEmpty ? m.bad : m.text),
+                  ),
+                  const SizedBox(width: 6),
+                  if (last != null) Text('ms', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: m.muted)),
+                  const Spacer(),
+                  if (ping.running)
+                    Row(
+                      children: [
+                        Container(width: 8, height: 8, decoration: BoxDecoration(color: m.good, shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        Text(t.ping.live, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: m.good)),
+                      ],
+                    ),
+                ],
+              ),
+              Text(_target, style: m.monoStyle(size: 12, color: m.muted)),
+              const SizedBox(height: 10),
+              LineChartView(series: [(ping.samples, m.brand)], height: 130, unit: ''),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(t.ping.ago, style: TextStyle(fontSize: 11, color: m.muted)),
+                  Text(t.ping.now, style: TextStyle(fontSize: 11, color: m.muted)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
           children: [
-            ActionChip(label: const Text('Cloudflare'), onPressed: () => preset('1.1.1.1')),
-            ActionChip(label: const Text('Google'), onPressed: () => preset('8.8.8.8')),
-            if (gateway != null) ActionChip(label: const Text('Your router'), onPressed: () => preset(gateway)),
+            for (final (i, (label, value)) in [
+              (t.ping.min, ping.min),
+              (t.ping.avg, ping.avg),
+              (t.ping.jitter, ping.jitter),
+              (t.ping.loss, ping.samples.isEmpty ? null : ping.loss),
+            ].indexed) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: ToolCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: m.muted)),
+                      Text(
+                        value == null ? '--' : label == t.ping.loss ? '${value.round()}%' : value.toStringAsFixed(label == t.ping.jitter ? 1 : 0),
+                        style: m.monoStyle(size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 18),
-        StatStrip(stats: [
-          ('Average', ms(ping.avg), null),
-          ('Jitter', ms(ping.jitter), null),
-          ('Loss', '${ping.loss.toStringAsFixed(0)}%', ping.loss > 0 ? m.warn : null),
-        ]),
-        const SizedBox(height: 16),
-        LineChartView(series: [(ping.samples, m.brand)], height: 180),
-        const SizedBox(height: 12),
-        if (verdict != null)
-          Text(verdict.$1, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: verdict.$2)),
-        if (ping.min != null) ...[
-          const SizedBox(height: 8),
-          Text('Fastest ${ms(ping.min)}, slowest ${ms(ping.max)}, ${ping.samples.length} probes',
-              style: m.monoStyle(size: 12, color: m.muted)),
+        if (ping.samples.length >= 5) ...[
+          const SizedBox(height: 20),
+          Text(t.ping.goodFor, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
+          const SizedBox(height: 10),
+          ToolCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                for (final (i, (icon, use, verdict)) in _verdicts(ping).indexed) ...[
+                  if (i > 0) Divider(height: 1, color: m.line),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      children: [
+                        Icon(icon, color: m.text),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(use, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text))),
+                        _Verdict(verdict),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ],
+    );
+  }
+
+  /// Thresholds from what each use tolerates: games need low, steady
+  /// latency; calls tolerate more delay but not jitter; streaming buffers
+  /// and mostly cares about loss.
+  static List<(IconData, String, int)> _verdicts(PingState p) {
+    final avg = p.avg ?? 999, jitter = p.jitter ?? 99, loss = p.loss;
+    int grade(bool great, bool ok) => great ? 2 : ok ? 1 : 0;
+    return [
+      (Icons.videocam_outlined, t.ping.calls, grade(avg < 100 && jitter < 15 && loss < 1, avg < 200 && jitter < 40 && loss < 3)),
+      (Icons.sports_esports_outlined, t.ping.games, grade(avg < 50 && jitter < 8 && loss == 0, avg < 100 && jitter < 20 && loss < 2)),
+      (Icons.live_tv_rounded, t.ping.streaming, grade(loss < 1 && avg < 300, loss < 5)),
+    ];
+  }
+}
+
+class _Verdict extends StatelessWidget {
+  const _Verdict(this.level);
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final (text, color) = switch (level) {
+      2 => (t.ping.great, m.good),
+      1 => (t.ping.okay, m.warn),
+      _ => (t.ping.poor, m.bad),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: color.withValues(alpha: .13), borderRadius: BorderRadius.circular(999)),
+      child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color)),
     );
   }
 }

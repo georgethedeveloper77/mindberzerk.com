@@ -13,10 +13,14 @@ class SavedTunnel {
     required this.id,
     required this.name,
     required this.configText,
+    this.lastUsed,
   });
 
   final String id;
   final String name;
+
+  /// When the user last chose this server; null until first use.
+  final DateTime? lastUsed;
 
   /// The raw wg-quick text, private key included. Phase 1 keeps it in app
   /// preferences with cloud backup disabled in the manifest; it moves to
@@ -25,13 +29,41 @@ class SavedTunnel {
 
   WgSummary get summary => parseWgConfig(configText);
 
-  Map<String, Object> toJson() => {'id': id, 'name': name, 'config': configText};
+  Map<String, Object> toJson() => {
+        'id': id,
+        'name': name,
+        'config': configText,
+        if (lastUsed != null) 'lastUsed': lastUsed!.millisecondsSinceEpoch,
+      };
+
+  SavedTunnel copyWith({String? name, DateTime? lastUsed}) =>
+      SavedTunnel(id: id, name: name ?? this.name, configText: configText, lastUsed: lastUsed ?? this.lastUsed);
 
   static SavedTunnel? fromJson(Object? json) {
     if (json is! Map) return null;
     final id = json['id'], name = json['name'], config = json['config'];
     if (id is! String || name is! String || config is! String) return null;
-    return SavedTunnel(id: id, name: name, configText: config);
+    final used = json['lastUsed'];
+    return SavedTunnel(
+      id: id,
+      name: name,
+      configText: config,
+      lastUsed: used is int ? DateTime.fromMillisecondsSinceEpoch(used) : null,
+    );
+  }
+}
+
+/// A name for an imported config: its "# Name = ..." line (G Servers write
+/// one), else the server's address. Null when neither is readable.
+String? suggestServerName(String configText) {
+  final named = RegExp(r'^\s*#\s*Name\s*=\s*(.+?)\s*$', multiLine: true).firstMatch(configText)?.group(1);
+  if (named != null && named.isNotEmpty) return named;
+  try {
+    final endpoint = parseWgConfig(configText.trim()).endpoint;
+    final host = endpoint.contains(']') ? endpoint.split(']').first.replaceFirst('[', '') : endpoint.split(':').first;
+    return host.isEmpty ? null : host;
+  } on Object {
+    return null;
   }
 }
 
@@ -77,8 +109,12 @@ final class CommunityChoice extends ServerChoice {
 
 const communityPrefix = 'c:';
 
+/// G Server connections: a WireGuard config made for this phone by the
+/// G Servers broker, kept apart from the user's own servers.
+const gserverPrefix = 'g:';
+
 class TunnelsState {
-  const TunnelsState({required this.tunnels, required this.selectedId, this.community});
+  const TunnelsState({required this.tunnels, required this.selectedId, this.community, this.gserver});
 
   final List<SavedTunnel> tunnels;
   final String? selectedId;
@@ -87,11 +123,17 @@ class TunnelsState {
   /// it without the network.
   final CommunityServer? community;
 
+  /// The G Server last connected to (its config was made for this phone).
+  final SavedTunnel? gserver;
+
+  bool get _gserverSelected => gserver != null && selectedId == gserver!.id;
+
   bool get _communitySelected =>
       community != null && selectedId == '$communityPrefix${community!.id}';
 
   ServerChoice? get choice {
     if (_communitySelected) return CommunityChoice(community!);
+    if (_gserverSelected) return OwnServer(gserver!);
     final t = selected;
     return t == null ? null : OwnServer(t);
   }
@@ -100,6 +142,7 @@ class TunnelsState {
   /// selected. Auto-connect runs on WireGuard servers only.
   SavedTunnel? get selected {
     if (_communitySelected) return null;
+    if (_gserverSelected) return gserver;
     for (final t in tunnels) {
       if (t.id == selectedId) return t;
     }
@@ -114,6 +157,7 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
   static const _tunnelsKey = 'gvpn.tunnels.v1';
   static const _selectedKey = 'gvpn.selected.v1';
   static const _communityKey = 'gvpn.community.v1';
+  static const _gserverKey = 'gvpn.gserver.v1';
 
   @override
   Future<TunnelsState> build() async {
@@ -141,10 +185,20 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
         community = null;
       }
     }
+    SavedTunnel? gserver;
+    final rawG = prefs.getString(_gserverKey);
+    if (rawG != null) {
+      try {
+        gserver = SavedTunnel.fromJson(jsonDecode(rawG));
+      } on FormatException {
+        gserver = null;
+      }
+    }
     return TunnelsState(
       tunnels: tunnels,
       selectedId: prefs.getString(_selectedKey),
       community: community,
+      gserver: gserver,
     );
   }
 
@@ -166,6 +220,7 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
       tunnels: [...current.tunnels, tunnel],
       selectedId: tunnel.id,
       community: current.community,
+      gserver: current.gserver,
     ));
     return null;
   }
@@ -177,12 +232,32 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
       tunnels: remaining,
       selectedId: current.selectedId == id ? null : current.selectedId,
       community: current.community,
+      gserver: current.gserver,
     ));
   }
 
+  /// Selecting is choosing to use it, so it also stamps "last used".
   Future<void> select(String id) async {
     final current = await future;
-    await _persist(TunnelsState(tunnels: current.tunnels, selectedId: id, community: current.community));
+    final now = DateTime.now();
+    await _persist(TunnelsState(
+      tunnels: [for (final t in current.tunnels) t.id == id ? t.copyWith(lastUsed: now) : t],
+      selectedId: id,
+      community: current.community,
+      gserver: current.gserver,
+    ));
+  }
+
+  Future<void> rename(String id, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final current = await future;
+    await _persist(TunnelsState(
+      tunnels: [for (final t in current.tunnels) t.id == id ? t.copyWith(name: trimmed) : t],
+      selectedId: current.selectedId,
+      community: current.community,
+      gserver: current.gserver,
+    ));
   }
 
   Future<void> selectCommunity(CommunityServer server) async {
@@ -194,6 +269,17 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
     ));
   }
 
+  /// Selects a G Server connection made for this phone.
+  Future<void> selectGServer(SavedTunnel tunnel) async {
+    final current = await future;
+    await _persist(TunnelsState(
+      tunnels: current.tunnels,
+      selectedId: tunnel.id,
+      community: current.community,
+      gserver: tunnel.copyWith(lastUsed: DateTime.now()),
+    ));
+  }
+
   Future<void> _persist(TunnelsState next) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -202,6 +288,8 @@ class TunnelsController extends AsyncNotifier<TunnelsState> {
     );
     final community = next.community;
     if (community != null) await prefs.setString(_communityKey, jsonEncode(community.toJson()));
+    final gserver = next.gserver;
+    if (gserver != null) await prefs.setString(_gserverKey, jsonEncode(gserver.toJson()));
     final selectedId = next.selectedId;
     if (selectedId == null) {
       await prefs.remove(_selectedKey);

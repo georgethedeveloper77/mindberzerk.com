@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification and Quick Settings text. Mirrors values/strings_session.xml. -->
+<resources>
+    <string name="gvpn_pause_15">Jeda 15 mnt</string>
+    <string name="gvpn_pause_60">Jeda 1 jam</string>
+    <string name="gvpn_disconnect">Putuskan</string>
+    <string name="gvpn_resume_now">Lanjutkan sekarang</string>
+    <string name="gvpn_paused_title">Dijeda hingga %1$s</string>
+    <string name="gvpn_paused_text">Internet Anda tidak terlindungi</string>
+    <string name="gvpn_channel_session">Koneksi VPN</string>
+    <string name="notifcation_title_notconnect">Tidak terlindungi</string>
+</resources>
