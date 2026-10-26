@@ -6,8 +6,20 @@
 library;
 
 /// Quad9: blocks known malware and phishing domains, never ads, and keeps no
-/// IP logs. Blocking ads would break Play's VPN policy.
+/// IP logs. Blocking ads would break Play's VPN policy, so no level does.
 const shieldResolvers = ['9.9.9.9', '149.112.112.112'];
+
+/// Cloudflare for Families: malware plus adult content. Content filtering,
+/// not ad blocking, so it stays within Play's VPN policy.
+const familyResolvers = ['1.1.1.3', '1.0.0.3'];
+
+/// True for a plain IPv4 or IPv6 address, as DNS lines need.
+bool isIpAddress(String value) {
+  final v = value.trim();
+  final v4 = RegExp(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$').firstMatch(v);
+  if (v4 != null) return [for (var i = 1; i <= 4; i++) int.parse(v4.group(i)!)].every((n) => n <= 255);
+  return v.contains(':') && RegExp(r'^[0-9a-fA-F:]+$').hasMatch(v) && v.length <= 39;
+}
 
 String applyRules(
   String configText, {

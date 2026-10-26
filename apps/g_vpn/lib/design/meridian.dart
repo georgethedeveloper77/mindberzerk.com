@@ -35,6 +35,9 @@ class Meridian extends ThemeExtension<Meridian> {
     required this.onButtonOn,
     required this.shadow,
     required this.globeShade,
+    required this.violet,
+    required this.teal,
+    required this.pink,
   });
 
   final Color bg;
@@ -73,6 +76,12 @@ class Meridian extends ThemeExtension<Meridian> {
   /// The rim shading that turns a flat panning map into a globe.
   final Color globeShade;
 
+  /// Extra accents for things the user tells apart by colour (presets).
+  /// Never used to mean protected or exposed.
+  final Color violet;
+  final Color teal;
+  final Color pink;
+
   static const soft = Meridian(
     bg: Color(0xFFF3F5FA),
     surface: Color(0xFFFFFFFF),
@@ -96,6 +105,9 @@ class Meridian extends ThemeExtension<Meridian> {
     onButtonOn: Color(0xFFFFFFFF),
     shadow: Color(0x2E0F172A),
     globeShade: Color(0xD9F3F5FA),
+    violet: Color(0xFF7A3FD1),
+    teal: Color(0xFF0B7F86),
+    pink: Color(0xFFC0306B),
   );
 
   static const bento = Meridian(
@@ -121,6 +133,9 @@ class Meridian extends ThemeExtension<Meridian> {
     onButtonOn: Color(0xFF04140D),
     shadow: Color(0x99000000),
     globeShade: Color(0xE60A0B0F),
+    violet: Color(0xFFB794F6),
+    teal: Color(0xFF2DD4BF),
+    pink: Color(0xFFF472B6),
   );
 
   /// Corner radii: cards, tiles, pills. Generous everywhere, per Soft.
@@ -166,6 +181,9 @@ class Meridian extends ThemeExtension<Meridian> {
       onButtonOn: c(onButtonOn, other.onButtonOn),
       shadow: c(shadow, other.shadow),
       globeShade: c(globeShade, other.globeShade),
+      violet: c(violet, other.violet),
+      teal: c(teal, other.teal),
+      pink: c(pink, other.pink),
     );
   }
 }

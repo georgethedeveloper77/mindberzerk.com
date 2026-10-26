@@ -22,20 +22,26 @@ class SheetSection {
 
 /// The one bottom-sheet style used across the app.
 ///
-/// Built to read like a short article, not a form: a plain title, sections
-/// separated by space rather than boxes, body text at a comfortable measure
-/// and line height, and one quiet button.
+/// A header with the screen's own mark and colour, the title and one lead
+/// line; then each section as a soft card, its heading in that colour; and
+/// one button in the same colour.
 Future<void> showInfoSheet(
   BuildContext context, {
   IconData? icon,
+  Color? color,
   required String title,
   String? subtitle,
   required List<SheetSection> sections,
   String? linkLabel,
   VoidCallback? onLink,
   String? button,
+
+  /// Runs when the button is pressed, before the sheet closes; dragging the
+  /// sheet away does not run it.
+  VoidCallback? onButton,
 }) {
   final m = context.mer;
+  final tone = color ?? m.brand;
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -51,27 +57,41 @@ Future<void> showInfoSheet(
         children: [
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 22, height: 1.2, fontWeight: FontWeight.w800, letterSpacing: -.4, color: m.text)),
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(color: tone.withValues(alpha: .16), borderRadius: BorderRadius.circular(15)),
+                        child: Icon(icon ?? Icons.info_outline_rounded, size: 24, color: tone),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(title,
+                            style: TextStyle(fontSize: 21, height: 1.2, fontWeight: FontWeight.w800, letterSpacing: -.4, color: m.text)),
+                      ),
+                    ],
+                  ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(fontSize: 15, height: 1.4, color: m.muted)),
+                    const SizedBox(height: 12),
+                    Text(subtitle, style: TextStyle(fontSize: 15, height: 1.5, color: m.text)),
                   ],
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   for (final (i, s) in sections.indexed) ...[
-                    if (i > 0) const SizedBox(height: 18),
-                    _Section(section: s),
+                    if (i > 0) const SizedBox(height: 8),
+                    _Section(section: s, tone: tone),
                   ],
                   if (linkLabel != null && onLink != null) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     InkWell(
                       onTap: onLink,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(linkLabel, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.brand)),
+                        child: Text(linkLabel, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tone)),
                       ),
                     ),
                   ],
@@ -80,17 +100,20 @@ Future<void> showInfoSheet(
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: SizedBox(
-              height: 50,
-              child: FilledButton.tonal(
-                onPressed: () => Navigator.pop(c),
+              height: 52,
+              child: FilledButton(
+                onPressed: () {
+                  onButton?.call();
+                  Navigator.pop(c);
+                },
                 style: FilledButton.styleFrom(
-                  backgroundColor: m.surface2,
-                  foregroundColor: m.text,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  backgroundColor: tone,
+                  foregroundColor: m.bg,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: Text(button ?? t.common.gotIt, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                child: Text(button ?? t.common.gotIt, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
               ),
             ),
           ),
@@ -101,41 +124,57 @@ Future<void> showInfoSheet(
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.section});
+  const _Section({required this.section, required this.tone});
 
   final SheetSection section;
+  final Color tone;
 
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    final text = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (section.title.isNotEmpty) ...[
-          Text(section.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: m.text)),
-          const SizedBox(height: 4),
+    final accent = section.tone ?? tone;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+      decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (section.icon != null) ...[
+            Padding(padding: const EdgeInsets.only(top: 1), child: Icon(section.icon, size: 20, color: accent)),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (section.title.isNotEmpty) ...[
+                  Text(section.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accent)),
+                  const SizedBox(height: 3),
+                ],
+                Text(section.body, style: TextStyle(fontSize: 14.5, height: 1.5, color: m.text.withValues(alpha: .82))),
+              ],
+            ),
+          ),
         ],
-        // About 60 characters a line at this size: easy to read.
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Text(section.body, style: TextStyle(fontSize: 15, height: 1.55, color: m.muted)),
-        ),
-      ],
-    );
-    if (section.icon == null) return text;
-    final tone = section.tone ?? m.brand;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(section.icon, size: 20, color: tone),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: text),
-      ],
+      ),
     );
   }
+}
+
+/// The app bar's "i", drawn like every other app bar icon: the text colour,
+/// the standard size, nothing around it.
+class InfoIcon extends StatelessWidget {
+  const InfoIcon({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: t.common.about,
+        icon: Icon(Icons.info_outline_rounded, size: 22, color: context.mer.text),
+        onPressed: onPressed,
+      );
 }
 
 /// App-bar "i" that opens a sectioned sheet.
@@ -147,9 +186,6 @@ class InfoButton extends StatelessWidget {
   final List<SheetSection> sections;
 
   @override
-  Widget build(BuildContext context) => IconButton(
-        tooltip: t.common.about,
-        icon: const Icon(Icons.info_outline_rounded),
-        onPressed: () => showInfoSheet(context, title: title, subtitle: subtitle, sections: sections),
-      );
+  Widget build(BuildContext context) =>
+      InfoIcon(onPressed: () => showInfoSheet(context, title: title, subtitle: subtitle, sections: sections));
 }

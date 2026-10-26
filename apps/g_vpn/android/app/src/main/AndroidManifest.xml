@@ -84,6 +84,13 @@
             </intent-filter>
         </activity>
 
+        <!-- ML Kit's QR scanner locks itself to portrait. Android 16 ignores
+     that on tablets and foldables, so it is removed here and the
+     scanner turns with the screen like the rest of the app. -->
+        <activity
+            android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity"
+            tools:remove="android:screenOrientation" />
+
         <!--
           WireGuard's own VpnService. The tunnel library declares it too; this
           copy merges with it and keeps the declaration visible here, next to

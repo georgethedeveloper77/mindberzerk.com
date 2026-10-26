@@ -11,6 +11,16 @@ import 'i18n/strings.g.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge to edge on every Android version, as Android 15 does by default:
+  // the app draws behind clear system bars and every screen keeps its
+  // content clear of them with SafeArea.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+  ));
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Debug crashes stay local; only release builds report.
@@ -34,6 +44,22 @@ Future<void> main() async {
     ]) {
       yield LicenseEntryWithLineBreaks([name], await rootBundle.loadString('assets/fonts/licences/$file'));
     }
+    // Credits for the data behind the maps and checks, kept here rather
+    // than on the screens themselves.
+    yield const LicenseEntryWithLineBreaks(
+      ['Have I Been Pwned'],
+      'Password checks use Pwned Passwords by Troy Hunt (haveibeenpwned.com). Data breaches come from the '
+          'Have I Been Pwned breach catalogue (haveibeenpwned.com), licensed under CC BY 4.0.',
+    );
+    yield const LicenseEntryWithLineBreaks(
+      ['OONI'],
+      "What's blocked shows, for the user's country, results from the Open Observatory of Network Interference "
+          '(ooni.org), published as open data under its terms.',
+    );
+    yield const LicenseEntryWithLineBreaks(
+      ['Natural Earth'],
+      'Country outlines from Natural Earth (naturalearthdata.com), in the public domain.',
+    );
   });
 
   // Strings follow the phone's language; English when it has no file.

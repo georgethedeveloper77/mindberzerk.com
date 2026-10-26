@@ -1,6 +1,7 @@
 package com.mindberzerk.gvpn
 
 import android.content.Intent
+import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -9,6 +10,11 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         SharedServer.record(intent)
+        Alerts.record(intent)
+        // Edge to edge on every Android version, before the window is shown,
+        // as Android 15 does by default. FlutterActivity is not a
+        // ComponentActivity, so this stands in for enableEdgeToEdge().
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
     }
 
@@ -16,6 +22,7 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         SharedServer.record(intent)
+        Alerts.record(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -23,6 +30,7 @@ class MainActivity : FlutterActivity() {
         val vpnHost = VpnHost(this)
         host = vpnHost
         VpnHostApi.setUp(flutterEngine.dartExecutor.binaryMessenger, vpnHost)
+        Alerts.setUp(flutterEngine.dartExecutor.binaryMessenger, this)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {

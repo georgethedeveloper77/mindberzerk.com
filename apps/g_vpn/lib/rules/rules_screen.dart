@@ -10,6 +10,7 @@ import '../legal.dart';
 import '../vpn/vpn_controller.dart';
 import 'apps_screen.dart';
 import 'rules_store.dart';
+import 'shield_screen.dart';
 
 final _batteryProvider = FutureProvider.autoDispose<bool>(
     (ref) => ref.read(vpnApiProvider).batteryUnrestricted());
@@ -42,7 +43,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     if (rules == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final notifier = ref.read(rulesProvider.notifier);
 
     Widget radio(AutoConnectChoice c, String title, String sub) => ListItem(
           title: title,
@@ -87,10 +87,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             ListItem(
               leading: Icon(Icons.shield_outlined, color: m.brand),
               title: t.rules.shield,
-              subtitle: t.rules.shieldSub,
-              trailing:
-                  Switch(value: rules.shield, onChanged: notifier.setShield),
-              onTap: () => notifier.setShield(!rules.shield),
+              subtitle: shieldLevelName(rules.shieldLevel),
+              trailing: Icon(Icons.chevron_right_rounded, color: m.muted),
+              onTap: () => ShieldScreen.open(context),
             ),
             ListItem(
               leading: Icon(Icons.dns_outlined, color: m.muted),

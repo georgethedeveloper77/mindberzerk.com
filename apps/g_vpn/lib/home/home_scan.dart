@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_network/g_network.dart';
 
-import '../design/world_map.dart';
 import '../i18n/strings.g.dart';
 import '../rules/rules_store.dart';
 import '../tools/tools_providers.dart';
@@ -45,7 +44,7 @@ class NetworkScan {
 final networkScanProvider = FutureProvider<NetworkScan>((ref) async {
   ref.watch(networkChangesProvider);
   final phase = ref.watch(_phaseProvider);
-  final shield = (await ref.watch(rulesProvider.future)).shield;
+  final level = (await ref.watch(rulesProvider.future)).shieldLevel;
   final results = await Future.wait([
     ref.read(networkProbeProvider).snapshot(),
     measureLatency(count: 5),
@@ -67,7 +66,7 @@ final networkScanProvider = FutureProvider<NetworkScan>((ref) async {
         lat.medianMs == null || lat.lossPercent > 20 ? Tone.warn : Tone.ok,
       ),
       if (on)
-        ScanChip(t.scan.dns, shield ? t.scan.dnsQuad9 : t.scan.dnsTunnel, Tone.ok)
+        ScanChip(t.scan.dns, level == ShieldLevel.malware ? t.scan.dnsQuad9 : t.scan.dnsTunnel, Tone.ok)
       else if (snap.privateDnsActive)
         ScanChip(t.scan.dns, t.scan.privateDns, Tone.ok)
       else
@@ -108,22 +107,3 @@ final identityProvider = FutureProvider<PublicIdentity>((ref) async {
   ref.watch(_phaseProvider);
   return lookupIdentity();
 });
-
-/// The user's REAL location, remembered from the last lookup made without
-/// the tunnel. Once connected, the lookup returns the server's location,
-/// which becomes the second pin.
-final homeLocationProvider = NotifierProvider<HomeLocation, LatLon?>(HomeLocation.new);
-
-class HomeLocation extends Notifier<LatLon?> {
-  @override
-  LatLon? build() {
-    ref.listen(identityProvider, (_, next) {
-      final id = next.value;
-      final exposed = ref.read(vpnProvider).phase == VpnPhase.off;
-      if (id != null && exposed && id.latitude != null && id.longitude != null) {
-        state = LatLon(id.latitude!, id.longitude!);
-      }
-    });
-    return null;
-  }
-}

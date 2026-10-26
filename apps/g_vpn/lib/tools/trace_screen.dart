@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,16 +9,24 @@ import '../i18n/strings.g.dart';
 import '../vpn/vpn_api.g.dart';
 import '../vpn/vpn_controller.dart' show vpnApiProvider;
 import 'network_screen.dart';
+import 'recent_hosts.dart';
+import 'tool_settings.dart';
 import 'tool_widgets.dart';
 
 class TraceState {
-  const TraceState({this.hops = const [], this.running = false, this.reached = false, this.error});
+  const TraceState({this.hops = const [], this.running = false, this.reached = false, this.error, this.names = const {}});
 
   final List<TraceHop> hops;
   final bool running;
   final bool reached;
   final String? error;
+
+  /// Names for hop addresses, from reverse DNS, as they arrive.
+  final Map<String, String> names;
 }
+
+/// Places people trace to most, one tap each.
+const _popular = ['google.com', 'cloudflare.com', 'whatsapp.com', 'youtube.com', '1.1.1.1'];
 
 final traceProvider = NotifierProvider.autoDispose<TraceController, TraceState>(TraceController.new);
 
@@ -35,31 +45,65 @@ class TraceController extends Notifier<TraceState> {
     _stop = false;
     state = const TraceState(running: true);
     final api = ref.read(vpnApiProvider);
+    final lookUp = (await ref.read(toolSettingsProvider.future)).names;
     var silentRun = 0;
     for (var ttl = 1; ttl <= _maxHops && !_stop; ttl++) {
       final TraceHop hop;
       try {
         hop = await api.traceHop(host, ttl);
       } on PlatformException catch (e) {
-        if (ref.mounted) state = TraceState(hops: state.hops, error: e.message);
+        if (ref.mounted) state = TraceState(hops: state.hops, error: e.message, names: state.names);
         return;
       }
       if (!ref.mounted || _stop) return;
-      state = TraceState(hops: [...state.hops, hop], running: true);
+      state = TraceState(hops: [...state.hops, hop], running: true, names: state.names);
+      final address = hop.address;
+      if (lookUp && address != null) _name(address);
       if (hop.reached) {
-        state = TraceState(hops: state.hops, reached: true);
+        state = TraceState(hops: state.hops, reached: true, names: state.names);
+        _remember(host);
         return;
       }
       // Eight silent hops in a row: the rest of the path is not answering.
       silentRun = hop.address == null ? silentRun + 1 : 0;
       if (silentRun >= 8) break;
     }
-    if (ref.mounted) state = TraceState(hops: state.hops);
+    if (ref.mounted) {
+      state = TraceState(hops: state.hops, names: state.names);
+      _remember(host);
+    }
+  }
+
+  /// Asks the resolver what [address] is called, without holding up the
+  /// trace; the name appears when it comes.
+  Future<void> _name(String address) async {
+    try {
+      final found = await InternetAddress(address).reverse().timeout(const Duration(seconds: 2));
+      if (!ref.mounted || found.host == address) return;
+      state = TraceState(
+        hops: state.hops,
+        running: state.running,
+        reached: state.reached,
+        error: state.error,
+        names: {...state.names, address: found.host},
+      );
+    } on Object {
+      // No name published: the address stays as it is.
+    }
+  }
+
+  void _remember(String host) {
+    final answered = state.hops.lastWhere((h) => h.rttMs != null, orElse: () => TraceHop(ttl: 0, reached: false)).rttMs;
+    final summary = [
+      t.trace.hopsCount(n: state.hops.length),
+      if (answered != null) t.trace.ms(n: answered.round()),
+    ].join(' · ');
+    ref.read(recentHostsProvider.notifier).add('trace', host, summary);
   }
 
   void stop() {
     _stop = true;
-    state = TraceState(hops: state.hops);
+    state = TraceState(hops: state.hops, names: state.names);
   }
 }
 
@@ -79,6 +123,12 @@ class _TraceScreenState extends ConsumerState<TraceScreen> {
     super.dispose();
   }
 
+  void _go(String host) {
+    _host.text = host;
+    FocusScope.of(context).unfocus();
+    ref.read(traceProvider.notifier).run(host);
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
@@ -90,6 +140,8 @@ class _TraceScreenState extends ConsumerState<TraceScreen> {
 
     return ToolPage(
       title: t.trace.title,
+      icon: Icons.route_rounded,
+      color: m.pink,
       info: t.trace.info,
       action: trace.running
           ? OutlinedButton(
@@ -120,6 +172,7 @@ class _TraceScreenState extends ConsumerState<TraceScreen> {
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: m.line)),
           ),
         ),
+        if (trace.hops.isEmpty && !trace.running) _Start(onPick: _go),
         if (trace.hops.isNotEmpty) ...[
           const SizedBox(height: 14),
           Row(
@@ -152,7 +205,8 @@ class _TraceScreenState extends ConsumerState<TraceScreen> {
                             : s.hop!.address == gateway
                                 ? t.trace.yourRouter
                                 : t.trace.hop(n: s.hop!.ttl),
-                    address: s.hop?.address,
+                    address: s.hop?.address == null ? null : trace.names[s.hop!.address] ?? s.hop!.address,
+                    badge: s.silent > 0 || s.hop!.reached ? null : s.hop!.ttl,
                     ms: s.hop?.rttMs,
                     jump: identical(s, slowest) ? s.jump : null,
                     last: i == steps.length - 1,
@@ -226,11 +280,16 @@ class _Step {
 enum _NodeKind { start, hop, slow, silent, end }
 
 class _Node extends StatelessWidget {
-  const _Node({required this.kind, required this.title, this.address, this.ms, this.jump, required this.last});
+  const _Node({required this.kind, required this.title, this.address, this.badge, this.ms, this.jump, required this.last});
 
   final _NodeKind kind;
   final String title;
+
+  /// The hop's name, or its address when it has none.
   final String? address;
+
+  /// The hop's number, shown beside its title.
+  final int? badge;
   final double? ms;
   final double? jump;
   final bool last;
@@ -292,13 +351,27 @@ class _Node extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: kind == _NodeKind.end ? FontWeight.w800 : FontWeight.w700,
-                            color: kind == _NodeKind.silent ? m.muted : kind == _NodeKind.end ? m.good : m.text,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: kind == _NodeKind.end ? FontWeight.w800 : FontWeight.w700,
+                                  color: kind == _NodeKind.silent ? m.muted : kind == _NodeKind.end ? m.good : m.text,
+                                ),
+                              ),
+                            ),
+                            if (badge != null) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(7)),
+                                child: Text('#$badge', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: m.muted)),
+                              ),
+                            ],
+                          ],
                         ),
                         if (address != null && kind != _NodeKind.silent)
                           Text(address!, style: m.monoStyle(size: 12, color: m.muted)),
@@ -337,6 +410,79 @@ class _Stat extends StatelessWidget {
           Text(value, style: m.monoStyle(size: 17)),
         ],
       ),
+    );
+  }
+}
+
+
+/// Before a trace: popular places and the user's recent ones.
+class _Start extends ConsumerWidget {
+  const _Start({required this.onPick});
+
+  final ValueChanged<String> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = context.mer;
+    final recent = ref.watch(recentHostsProvider).value?['trace'] ?? const <RecentHost>[];
+    Widget heading(String text, {Widget? trailing}) => Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: .8, color: m.muted)),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        heading(t.trace.popular),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final host in _popular)
+              ActionChip(
+                label: Text(host),
+                onPressed: () => onPick(host),
+                labelStyle: TextStyle(fontWeight: FontWeight.w700, color: m.pink),
+                backgroundColor: m.pink.withValues(alpha: .10),
+                side: BorderSide(color: m.pink.withValues(alpha: .35)),
+                shape: const StadiumBorder(),
+              ),
+          ],
+        ),
+        if (recent.isNotEmpty) ...[
+          heading(
+            t.trace.recent,
+            trailing: IconButton(
+              tooltip: t.trace.clearRecent,
+              onPressed: () => ref.read(recentHostsProvider.notifier).clear('trace'),
+              icon: Icon(Icons.delete_outline_rounded, color: m.muted),
+            ),
+          ),
+          ToolCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final (i, r) in recent.indexed) ...[
+                  if (i > 0) Divider(height: 1, color: m.line),
+                  ListTile(
+                    leading: Icon(Icons.history_rounded, color: m.muted),
+                    title: Text(r.host, style: m.monoStyle(size: 14, weight: FontWeight.w600, color: m.text)),
+                    subtitle: Text(r.summary, style: TextStyle(fontSize: 12, color: m.muted)),
+                    trailing: Icon(Icons.chevron_right_rounded, color: m.muted),
+                    onTap: () => onPick(r.host),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

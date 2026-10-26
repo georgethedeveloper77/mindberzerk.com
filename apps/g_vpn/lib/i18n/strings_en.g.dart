@@ -71,6 +71,19 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$add$en add = Translations$add$en.internal(_root);
 	late final Translations$backup$en backup = Translations$backup$en.internal(_root);
 	late final Translations$gs$en gs = Translations$gs$en.internal(_root);
+	late final Translations$map$en map = Translations$map$en.internal(_root);
+	late final Translations$stats$en stats = Translations$stats$en.internal(_root);
+	late final Translations$recents$en recents = Translations$recents$en.internal(_root);
+	late final Translations$presets$en presets = Translations$presets$en.internal(_root);
+	late final Translations$shield$en shield = Translations$shield$en.internal(_root);
+	late final Translations$checks$en checks = Translations$checks$en.internal(_root);
+	late final Translations$toolSettings$en toolSettings = Translations$toolSettings$en.internal(_root);
+	late final Translations$security$en security = Translations$security$en.internal(_root);
+	late final Translations$providers$en providers = Translations$providers$en.internal(_root);
+	late final Translations$alerts$en alerts = Translations$alerts$en.internal(_root);
+	late final Translations$report$en report = Translations$report$en.internal(_root);
+	late final Translations$breaches$en breaches = Translations$breaches$en.internal(_root);
+	late final Translations$blocked$en blocked = Translations$blocked$en.internal(_root);
 }
 
 // Path: common
@@ -160,12 +173,6 @@ class Translations$home$en {
 	/// en: 'Resumes at {time} · tap to resume now'
 	String resumesAt({required Object time}) => 'Resumes at ${time} · tap to resume now';
 
-	/// en: 'Sites see {ip}'
-	String sitesSee({required Object ip}) => 'Sites see ${ip}';
-
-	/// en: 'Sites see {ip} · {org}'
-	String sitesSeeOrg({required Object ip, required Object org}) => 'Sites see ${ip} · ${org}';
-
 	/// en: 'Could not check your IP'
 	String get ipFailed => 'Could not check your IP';
 
@@ -187,7 +194,6 @@ class Translations$home$en {
 	/// en: 'Pick a server'
 	String get pickServer => 'Pick a server';
 
-	late final Translations$home$waves$en waves = Translations$home$waves$en.internal(_root);
 	late final Translations$home$network$en network = Translations$home$network$en.internal(_root);
 	late final Translations$home$card$en card = Translations$home$card$en.internal(_root);
 	late final Translations$home$tiles$en tiles = Translations$home$tiles$en.internal(_root);
@@ -302,6 +308,45 @@ class Translations$servers$en {
 
 	/// en: 'Remove this server from G VPN? Its settings are deleted from this phone; the server itself is not changed.'
 	String get removeConfirm => 'Remove this server from G VPN? Its settings are deleted from this phone; the server itself is not changed.';
+
+	/// en: 'G Servers'
+	String get gTab => 'G Servers';
+
+	/// en: 'Search countries'
+	String get search => 'Search countries';
+
+	/// en: 'No servers match.'
+	String get noMatch => 'No servers match.';
+
+	/// en: 'best {ms} ms'
+	String bestPing({required Object ms}) => 'best ${ms} ms';
+
+	/// en: 'BEST'
+	String get bestTag => 'BEST';
+
+	/// en: 'Our own servers'
+	String get ownHero => 'Our own servers';
+
+	/// en: 'Faster, private, each phone with its own key'
+	String get ownHeroSub => 'Faster, private, each phone with its own key';
+
+	/// en: '(one) {{n} server} (other) {{n} servers}'
+	String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} server',
+		other: '${n} servers',
+	);
+
+	/// en: 'Show all {n}'
+	String showAll({required Object n}) => 'Show all ${n}';
+
+	/// en: 'Show fewer'
+	String get showFewer => 'Show fewer';
+
+	/// en: 'Fast'
+	String get fastTab => 'Fast';
+
+	/// en: 'Fastest free'
+	String get fastestFree => 'Fastest free';
 }
 
 // Path: pro
@@ -321,35 +366,8 @@ class Translations$pro$en {
 	/// en: 'Start {days}-day free trial'
 	String startTrial({required Object days}) => 'Start ${days}-day free trial';
 
-	/// en: 'Then {price} a year. Cancel anytime in Google Play.'
-	String thenYearly({required Object price}) => 'Then ${price} a year. Cancel anytime in Google Play.';
-
-	/// en: 'Then {price} a month. Cancel anytime in Google Play.'
-	String thenMonthly({required Object price}) => 'Then ${price} a month. Cancel anytime in Google Play.';
-
-	/// en: '{price} a year. Cancel anytime in Google Play.'
-	String yearlyPrice({required Object price}) => '${price} a year. Cancel anytime in Google Play.';
-
-	/// en: '{price} a month. Cancel anytime in Google Play.'
-	String monthlyPrice({required Object price}) => '${price} a month. Cancel anytime in Google Play.';
-
 	/// en: 'Restore'
 	String get restore => 'Restore';
-
-	/// en: 'Faster servers, run by us'
-	String get heroTitle => 'Faster servers,\nrun by us';
-
-	/// en: 'WireGuard. No activity logs. No account.'
-	String get heroSubtitle => 'WireGuard. No activity logs. No account.';
-
-	/// en: 'Full speed, no volunteer limits'
-	String get benefitSpeed => 'Full speed, no volunteer limits';
-
-	/// en: 'Key made on your phone, never shared'
-	String get benefitKey => 'Key made on your phone, never shared';
-
-	/// en: 'Everything free stays free'
-	String get benefitFree => 'Everything free stays free';
 
 	/// en: 'SAVE {pct}%'
 	String save({required Object pct}) => 'SAVE ${pct}%';
@@ -372,18 +390,6 @@ class Translations$pro$en {
 	/// en: 'G VPN Pro'
 	String get title => 'G VPN Pro';
 
-	/// en: 'Faster servers, run by us'
-	String get heroTitleOneLine => 'Faster servers, run by us';
-
-	/// en: 'Included'
-	String get includes => 'Included';
-
-	/// en: 'No activity logs on our servers'
-	String get benefitLogs => 'No activity logs on our servers';
-
-	/// en: 'Choose a plan'
-	String get plan => 'Choose a plan';
-
 	/// en: 'Subscriptions renew automatically until cancelled. Cancel anytime in Google Play.'
 	String get renewGeneric => 'Subscriptions renew automatically until cancelled. Cancel anytime in Google Play.';
 
@@ -403,6 +409,36 @@ class Translations$pro$en {
 	String get manage => 'Manage subscription';
 
 	late final Translations$pro$free$en free = Translations$pro$free$en.internal(_root);
+
+	/// en: 'Our own fast servers, and every check unlimited'
+	String get heroLine => 'Our own fast servers, and every check unlimited';
+
+	/// en: 'Start Pro'
+	String get start => 'Start Pro';
+
+	/// en: 'FREE'
+	String get compareFree => 'FREE';
+
+	/// en: 'PRO'
+	String get comparePro => 'PRO';
+
+	/// en: 'Free servers'
+	String get rowFreeServers => 'Free servers';
+
+	/// en: 'Speed test, tools, Wi-Fi checks'
+	String get rowTools => 'Speed test, tools, Wi-Fi checks';
+
+	/// en: 'G Servers, no logs'
+	String get rowGServers => 'G Servers, no logs';
+
+	/// en: 'Link checks'
+	String get rowLinks => 'Link checks';
+
+	/// en: '{n} a month'
+	String linksFree({required Object n}) => '${n} a month';
+
+	/// en: 'Unlimited'
+	String get unlimited => 'Unlimited';
 }
 
 // Path: rules
@@ -423,9 +459,6 @@ class Translations$rules$en {
 
 	/// en: 'Shield'
 	String get shield => 'Shield';
-
-	/// en: 'Blocks malware and phishing sites'
-	String get shieldSub => 'Blocks malware and phishing sites';
 
 	/// en: 'Shield without the VPN'
 	String get privateDns => 'Shield without the VPN';
@@ -682,14 +715,38 @@ class Translations$wol$en {
 	/// en: 'Wake on LAN'
 	String get title => 'Wake on LAN';
 
-	/// en: 'Wake device'
-	String get wake => 'Wake device';
-
 	/// en: 'MAC address'
 	String get mac => 'MAC address';
 
 	/// en: 'Could not send: {error}'
 	String failed({required Object error}) => 'Could not send: ${error}';
+
+	/// en: 'Computer'
+	String get computer => 'Computer';
+
+	/// en: 'Pick a device to wake'
+	String get pick => 'Pick a device to wake';
+
+	/// en: 'Waking {name}'
+	String waking({required Object name}) => 'Waking ${name}';
+
+	/// en: 'YOUR DEVICES'
+	String get yours => 'YOUR DEVICES';
+
+	/// en: 'Wake {name}'
+	String wakeNamed({required Object name}) => 'Wake ${name}';
+
+	/// en: 'Hold a device to remove it'
+	String get removeHint => 'Hold a device to remove it';
+
+	/// en: 'ADD A DEVICE'
+	String get add => 'ADD A DEVICE';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'Save and wake'
+	String get saveWake => 'Save and wake';
 }
 
 // Path: speed
@@ -699,9 +756,6 @@ class Translations$speed$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
-
-	/// en: 'Measured by M-Lab, an open research platform. A test uses about 50 to 100 MB. Public results: M-Lab publishes every test, including the IP address it came from, as open research data. Provider comparison: after a test without the VPN, G VPN sends only the three speeds. The comparison service reads your provider and city from the connection and stores no IP address. Turn it off with the switch at the bottom of this page. Through the VPN: with the VPN on, it measures the speed through the tunnel and compares it with your last test without it. Video preview: the same picture shown at the resolution this speed can stream, using the bitrates streaming services publish. No video is downloaded.'
-	String get info => 'Measured by M-Lab, an open research platform. A test uses about 50 to 100 MB.\n\nPublic results: M-Lab publishes every test, including the IP address it came from, as open research data.\n\nProvider comparison: after a test without the VPN, G VPN sends only the three speeds. The comparison service reads your provider and city from the connection and stores no IP address. Turn it off with the switch at the bottom of this page.\n\nThrough the VPN: with the VPN on, it measures the speed through the tunnel and compares it with your last test without it.\n\nVideo preview: the same picture shown at the resolution this speed can stream, using the bitrates streaming services publish. No video is downloaded.';
 
 	/// en: 'Download'
 	String get download => 'Download';
@@ -925,17 +979,20 @@ class Translations$router$en {
 	/// en: '{n} ports opened by devices'
 	String opened({required Object n}) => '${n} ports opened by devices';
 
-	/// en: 'Router: {name}'
-	String routerName({required Object name}) => 'Router: ${name}';
-
-	/// en: 'Internet address: {ip}'
-	String externalIp({required Object ip}) => 'Internet address: ${ip}';
-
 	/// en: '{proto} to {host}'
 	String mapping({required Object proto, required Object host}) => '${proto} to ${host}';
 
 	/// en: 'UPnP is on'
 	String get upnpOn => 'UPnP is on';
+
+	/// en: 'Router'
+	String get routerLabel => 'Router';
+
+	/// en: 'Internet address'
+	String get internetAddress => 'Internet address';
+
+	/// en: 'Opened by devices'
+	String get openedBy => 'Opened by devices';
 }
 
 // Path: network
@@ -1054,12 +1111,6 @@ class Translations$devices$en {
 	/// en: 'Looking for devices'
 	String get looking => 'Looking for devices';
 
-	/// en: 'Nothing new since the last scan'
-	String get nothingNew => 'Nothing new since the last scan';
-
-	/// en: 'Takes about 30 seconds'
-	String get takes => 'Takes about 30 seconds';
-
 	/// en: 'All'
 	String get all => 'All';
 
@@ -1093,29 +1144,121 @@ class Translations$devices$en {
 	/// en: 'Type'
 	String get type => 'Type';
 
-	/// en: 'Not announced. Your router's device list can name it.'
-	String get notAnnounced => 'Not announced. Your router\'s device list can name it.';
-
 	/// en: 'NEW'
 	String get newBadge => 'NEW';
 
 	/// en: 'Scanning {n} of 254'
 	String scanning({required Object n}) => 'Scanning ${n} of 254';
 
-	/// en: 'this network'
-	String get thisNetwork => 'this network';
-
 	/// en: '{n} new since the last scan'
 	String newSince({required Object n}) => '${n} new since the last scan';
-
-	/// en: 'Show {n} more'
-	String showMore({required Object n}) => 'Show ${n} more';
 
 	/// en: '{n} ms'
 	String ms({required Object n}) => '${n} ms';
 
-	/// en: 'devices on {network}'
-	String onNetwork({required Object network}) => 'devices on ${network}';
+	/// en: 'Cameras'
+	String get cameras => 'Cameras';
+
+	/// en: 'Device'
+	String get device => 'Device';
+
+	/// en: 'Online'
+	String get online => 'Online';
+
+	/// en: 'Model'
+	String get model => 'Model';
+
+	/// en: 'Announces itself as'
+	String get announced => 'Announces itself as';
+
+	/// en: 'OPEN SERVICES'
+	String get services => 'OPEN SERVICES';
+
+	/// en: 'Checking services'
+	String get checkingServices => 'Checking services';
+
+	/// en: 'No common services answer'
+	String get noServices => 'No common services answer';
+
+	/// en: 'Rename'
+	String get rename => 'Rename';
+
+	/// en: 'Save'
+	String get save => 'Save';
+
+	late final Translations$devices$kinds$en kinds = Translations$devices$kinds$en.internal(_root);
+
+	/// en: 'Network details'
+	String get details => 'Network details';
+
+	/// en: 'List'
+	String get listView => 'List';
+
+	/// en: 'Mesh'
+	String get meshView => 'Mesh';
+
+	/// en: 'Offline'
+	String get offlineHeading => 'Offline';
+
+	/// en: 'Seen {when}'
+	String seen({required Object when}) => 'Seen ${when}';
+
+	/// en: '{n} min ago'
+	String agoMinutes({required Object n}) => '${n} min ago';
+
+	/// en: '{n} h ago'
+	String agoHours({required Object n}) => '${n} h ago';
+
+	/// en: '{n} d ago'
+	String agoDays({required Object n}) => '${n} d ago';
+
+	/// en: 'Through the VPN'
+	String get throughVpn => 'Through the VPN';
+
+	/// en: 'Closer = answers faster'
+	String get closer => 'Closer = answers faster';
+
+	/// en: 'Is this yours?'
+	String get yours => 'Is this yours?';
+
+	/// en: 'Mine'
+	String get mine => 'Mine';
+
+	/// en: 'Not mine'
+	String get notMine => 'Not mine';
+
+	/// en: 'What is it?'
+	String get whatIsIt => 'What is it?';
+
+	/// en: 'Our guess: {kind}'
+	String ourGuess({required Object kind}) => 'Our guess: ${kind}';
+
+	/// en: 'Phones and computers'
+	String get groupPersonal => 'Phones and computers';
+
+	/// en: 'Home and media'
+	String get groupHome => 'Home and media';
+
+	/// en: 'Network and smart home'
+	String get groupNetwork => 'Network and smart home';
+
+	/// en: '(one) {{n} online} (other) {{n} online}'
+	String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} online',
+		other: '${n} online',
+	);
+
+	/// en: '(one) {{n} offline} (other) {{n} offline}'
+	String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} offline',
+		other: '${n} offline',
+	);
+
+	/// en: '(one) {{n} to confirm} (other) {{n} to confirm}'
+	String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} to confirm',
+		other: '${n} to confirm',
+	);
 }
 
 // Path: ping
@@ -1126,17 +1269,11 @@ class Translations$ping$en {
 
 	// Translations
 
-	/// en: 'How long one round trip to a server takes, measured once a second over the last minute. Jitter: how much each answer differs from the one before. High jitter is what breaks up calls. Loss: answers that never came back. How: Android apps cannot send classic pings, so each probe times a connection handshake, which is the same single round trip.'
-	String get info => 'How long one round trip to a server takes, measured once a second over the last minute.\n\nJitter: how much each answer differs from the one before. High jitter is what breaks up calls.\n\nLoss: answers that never came back.\n\nHow: Android apps cannot send classic pings, so each probe times a connection handshake, which is the same single round trip.';
-
 	/// en: 'Ping a host'
 	String get askTitle => 'Ping a host';
 
 	/// en: 'example.com or 192.168.1.10'
 	String get askHint => 'example.com or 192.168.1.10';
-
-	/// en: 'Cancel'
-	String get cancel => 'Cancel';
 
 	/// en: 'Ping'
 	String get title => 'Ping';
@@ -1255,9 +1392,6 @@ class Translations$status$en {
 	/// en: 'Blocked'
 	String get blockedShort => 'Blocked';
 
-	/// en: 'Unreachable'
-	String get unreachable => 'Unreachable';
-
 	/// en: 'now'
 	String get now => 'now';
 
@@ -1300,53 +1434,53 @@ class Translations$tools$en {
 	/// en: 'Safety check, what sites see, signal, router and DNS.'
 	String get networkDesc => 'Safety check, what sites see, signal, router and DNS.';
 
-	/// en: 'Internet connectivity'
-	String get internet => 'Internet connectivity';
+	/// en: 'Internet'
+	String get internet => 'Internet';
 
 	/// en: 'Speed test'
 	String get speed => 'Speed test';
 
-	/// en: 'Download and upload speed, and the video quality it supports.'
-	String get speedDesc => 'Download and upload speed, and the video quality it supports.';
+	/// en: 'Download, upload and video quality'
+	String get speedDesc => 'Download, upload and video quality';
 
 	/// en: 'Ping'
 	String get ping => 'Ping';
 
-	/// en: 'Live response time and jitter to any server or your router.'
-	String get pingDesc => 'Live response time and jitter to any server or your router.';
+	/// en: 'Live response time and jitter'
+	String get pingDesc => 'Live response time and jitter';
 
 	/// en: 'Service status'
 	String get status => 'Service status';
 
-	/// en: 'Is WhatsApp, YouTube or Google reachable from here, or blocked?'
-	String get statusDesc => 'Is WhatsApp, YouTube or Google reachable from here, or blocked?';
+	/// en: 'Is an app reachable or blocked here?'
+	String get statusDesc => 'Is an app reachable or blocked here?';
 
 	/// en: 'Traceroute'
 	String get trace => 'Traceroute';
 
-	/// en: 'Every router between you and a site, and how long each takes.'
-	String get traceDesc => 'Every router between you and a site, and how long each takes.';
+	/// en: 'Every stop on the way to a site'
+	String get traceDesc => 'Every stop on the way to a site';
 
-	/// en: 'Network security'
-	String get security => 'Network security';
+	/// en: 'This network'
+	String get security => 'This network';
 
 	/// en: 'Devices on this network'
 	String get devices => 'Devices on this network';
 
-	/// en: 'Who else is on your Wi-Fi: phones, TVs, cameras and computers.'
-	String get devicesDesc => 'Who else is on your Wi-Fi: phones, TVs, cameras and computers.';
+	/// en: 'Who is on your Wi-Fi'
+	String get devicesDesc => 'Who is on your Wi-Fi';
 
 	/// en: 'Router check'
 	String get router => 'Router check';
 
-	/// en: 'Whether devices can open ports on your router by themselves (UPnP).'
-	String get routerDesc => 'Whether devices can open ports on your router by themselves (UPnP).';
+	/// en: 'Ports your devices opened'
+	String get routerDesc => 'Ports your devices opened';
 
 	/// en: 'Open ports'
 	String get ports => 'Open ports';
 
-	/// en: 'Check your router or a server for risky open ports.'
-	String get portsDesc => 'Check your router or a server for risky open ports.';
+	/// en: 'Risky ports on a device or server'
+	String get portsDesc => 'Risky ports on a device or server';
 
 	/// en: 'Utilities'
 	String get utilities => 'Utilities';
@@ -1354,14 +1488,38 @@ class Translations$tools$en {
 	/// en: 'Wi-Fi scanner'
 	String get wifiScanner => 'Wi-Fi scanner';
 
-	/// en: 'Nearby networks, their security, and the least crowded channel.'
-	String get wifiDesc => 'Nearby networks, their security, and the least crowded channel.';
+	/// en: 'Networks around you and the clearest channel'
+	String get wifiDesc => 'Networks around you and the clearest channel';
 
 	/// en: 'Wake on LAN'
 	String get wol => 'Wake on LAN';
 
-	/// en: 'Turn on a computer or NAS on this network.'
-	String get wolDesc => 'Turn on a computer or NAS on this network.';
+	/// en: 'Turn on a computer on this network'
+	String get wolDesc => 'Turn on a computer on this network';
+
+	/// en: 'Password check'
+	String get passwordCheck => 'Password check';
+
+	/// en: 'Has it been leaked?'
+	String get passwordCheckDesc => 'Has it been leaked?';
+
+	/// en: 'Link check'
+	String get linkCheck => 'Link check';
+
+	/// en: 'Is it safe to open?'
+	String get linkCheckDesc => 'Is it safe to open?';
+
+	/// en: 'Data breaches'
+	String get breaches => 'Data breaches';
+
+	/// en: 'What leaked lately'
+	String get breachesDesc => 'What leaked lately';
+
+	/// en: 'What's blocked'
+	String get blocked => 'What\'s blocked';
+
+	/// en: 'Sites blocked on this network'
+	String get blockedDesc => 'Sites blocked on this network';
 }
 
 // Path: trace
@@ -1419,6 +1577,21 @@ class Translations$trace$en {
 
 	/// en: 'Most of the delay, {ms} ms, is added at hop {hop}: usually a long cable between countries, or a busy link.'
 	String slowest({required Object ms, required Object hop}) => 'Most of the delay, ${ms} ms, is added at hop ${hop}: usually a long cable between countries, or a busy link.';
+
+	/// en: 'POPULAR'
+	String get popular => 'POPULAR';
+
+	/// en: 'RECENT'
+	String get recent => 'RECENT';
+
+	/// en: 'Clear recent'
+	String get clearRecent => 'Clear recent';
+
+	/// en: '(one) {{n} hop} (other) {{n} hops}'
+	String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} hop',
+		other: '${n} hops',
+	);
 }
 
 // Path: ports
@@ -1512,6 +1685,18 @@ class Translations$ports$en {
 
 	/// en: 'No common ports open on {host}.'
 	String noneOpen({required Object host}) => 'No common ports open on ${host}.';
+
+	/// en: '{open} open of {n} checked'
+	String summary({required Object open, required Object n}) => '${open} open of ${n} checked';
+
+	/// en: '(one) {{n} risky} (other) {{n} risky}'
+	String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} risky',
+		other: '${n} risky',
+	);
+
+	/// en: 'Nothing risky'
+	String get noneRisky => 'Nothing risky';
 }
 
 // Path: wifi
@@ -1549,20 +1734,98 @@ class Translations$wifi$en {
 	/// en: '{n} networks nearby'
 	String nearby({required Object n}) => '${n} networks nearby';
 
-	/// en: 'Least crowded 2.4 GHz channel: {n}'
-	String bestChannel({required Object n}) => 'Least crowded 2.4 GHz channel: ${n}';
-
-	/// en: '{n} open or weak'
-	String weak({required Object n}) => '${n} open or weak';
-
-	/// en: 'Connected · '
-	String get connectedPrefix => 'Connected · ';
-
 	/// en: 'Android only shows nearby Wi-Fi networks to apps with location permission. G VPN uses it to list networks on this phone and nothing else.'
 	String get permissionInfo => 'Android only shows nearby Wi-Fi networks to apps with location permission. G VPN uses it to list networks on this phone and nothing else.';
 
 	/// en: 'Lists networks from the phone's last scan. Android allows only a few scans a minute, so a quick re-scan may show the same list. The suggested channel is the least crowded of 1, 6 and 11, the three that do not overlap.'
 	String get info => 'Lists networks from the phone\'s last scan. Android allows only a few scans a minute, so a quick re-scan may show the same list. The suggested channel is the least crowded of 1, 6 and 11, the three that do not overlap.';
+
+	/// en: 'Air map'
+	String get airMap => 'Air map';
+
+	/// en: 'Channels'
+	String get channels => 'Channels';
+
+	/// en: 'List'
+	String get list => 'List';
+
+	/// en: 'Secure'
+	String get secure => 'Secure';
+
+	/// en: 'Weak'
+	String get weakLabel => 'Weak';
+
+	/// en: 'Open'
+	String get openLabel => 'Open';
+
+	/// en: 'Size = channel width'
+	String get sizeIsWidth => 'Size = channel width';
+
+	/// en: 'STRONGEST'
+	String get strongest => 'STRONGEST';
+
+	/// en: 'OPEN NEARBY'
+	String get openNearby => 'OPEN NEARBY';
+
+	/// en: 'ON YOUR CHANNEL'
+	String get onYourChannel => 'ON YOUR CHANNEL';
+
+	/// en: 'None'
+	String get noneNearby => 'None';
+
+	/// en: 'Anyone nearby can read what is sent'
+	String get verdictOpen => 'Anyone nearby can read what is sent';
+
+	/// en: 'Old security, easy to break'
+	String get verdictWep => 'Old security, easy to break';
+
+	/// en: 'Older security'
+	String get verdictWpa => 'Older security';
+
+	/// en: 'WPS is on: easier to break into'
+	String get verdictWps => 'WPS is on: easier to break into';
+
+	/// en: 'Well protected'
+	String get verdictGood => 'Well protected';
+
+	/// en: 'Maker'
+	String get maker => 'Maker';
+
+	/// en: 'Hardware address'
+	String get address => 'Hardware address';
+
+	/// en: 'Made up by the router for privacy'
+	String get privateAddress => 'Made up by the router for privacy';
+
+	/// en: 'You'
+	String get you => 'You';
+
+	/// en: '{name} is on a clear channel'
+	String onClear({required Object name}) => '${name} is on a clear channel';
+
+	/// en: 'Move {name} to channel {n}'
+	String move({required Object name, required Object n}) => 'Move ${name} to channel ${n}';
+
+	/// en: 'Clear'
+	String get clear => 'Clear';
+
+	/// en: 'Busy'
+	String get busy => 'Busy';
+
+	/// en: 'Crowded'
+	String get crowded => 'Crowded';
+
+	/// en: 'All bands'
+	String get allBands => 'All bands';
+
+	/// en: 'Open only'
+	String get openOnly => 'Open only';
+
+	/// en: '(one) {{n} network} (other) {{n} networks}'
+	String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} network',
+		other: '${n} networks',
+	);
 }
 
 // Path: errors
@@ -1876,18 +2139,6 @@ class Translations$gs$en {
 	/// en: 'Your devices'
 	String get devices => 'Your devices';
 
-	/// en: 'Up to {n} phones, each with its own key'
-	String devicesSub({required Object n}) => 'Up to ${n} phones, each with its own key';
-
-	/// en: 'Each phone gets its own key, made on the phone. G Servers keep no activity logs.'
-	String get footnote => 'Each phone gets its own key, made on the phone. G Servers keep no activity logs.';
-
-	/// en: 'LEAST BUSY NOW'
-	String get leastBusy => 'LEAST BUSY NOW';
-
-	/// en: '{n}% busy · no logs'
-	String busyNoLogs({required Object n}) => '${n}% busy · no logs';
-
 	/// en: 'G Server · {country} · WireGuard'
 	String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 
@@ -1989,6 +2240,1214 @@ class Translations$gs$en {
 
 	/// en: 'Now'
 	String get now => 'Now';
+
+	/// en: 'Included'
+	String get included => 'Included';
+
+	/// en: 'Fast, private servers'
+	String get perkServers => 'Fast, private servers';
+
+	/// en: 'WireGuard, run by us, no activity logs'
+	String get perkServersSub => 'WireGuard, run by us, no activity logs';
+
+	/// en: 'Unlimited link checks'
+	String get perkLinks => 'Unlimited link checks';
+
+	/// en: 'Check every link you are sent'
+	String get perkLinksSub => 'Check every link you are sent';
+
+	/// en: 'Your devices · {used} of {limit}'
+	String devicesOf({required Object used, required Object limit}) => 'Your devices · ${used} of ${limit}';
+
+	/// en: 'Each phone has its own key'
+	String get eachKey => 'Each phone has its own key';
+
+	/// en: 'Connected'
+	String get connected => 'Connected';
+
+	/// en: 'BEST FOR YOU NOW'
+	String get bestNow => 'BEST FOR YOU NOW';
+
+	/// en: 'LOGS'
+	String get logsShort => 'LOGS';
+}
+
+// Path: map
+class Translations$map$en {
+	Translations$map$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Open the map'
+	String get open => 'Open the map';
+
+	/// en: 'Search countries'
+	String get searchCountries => 'Search countries';
+
+	/// en: 'No country matches'
+	String get noMatch => 'No country matches';
+
+	/// en: 'My location'
+	String get locate => 'My location';
+
+	/// en: 'List'
+	String get list => 'List';
+
+	/// en: 'Map'
+	String get map => 'Map';
+
+	/// en: '(one) {{n} free server} (other) {{n} free servers}'
+	String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} free server',
+		other: '${n} free servers',
+	);
+
+	late final Translations$map$grade$en grade = Translations$map$grade$en.internal(_root);
+
+	/// en: 'Switch'
+	String get switchTo => 'Switch';
+
+	/// en: 'Free server {n}'
+	String freeServer({required Object n}) => 'Free server ${n}';
+
+	/// en: 'BEST'
+	String get best => 'BEST';
+
+	/// en: '(one) {{n} G Server} (other) {{n} G Servers}'
+	String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} G Server',
+		other: '${n} G Servers',
+	);
+}
+
+// Path: stats
+class Translations$stats$en {
+	Translations$stats$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'This week'
+	String get thisWeek => 'This week';
+
+	/// en: 'Time'
+	String get time => 'Time';
+
+	/// en: 'Data'
+	String get data => 'Data';
+
+	/// en: 'protected'
+	String get protected => 'protected';
+
+	/// en: 'through the VPN'
+	String get throughVpn => 'through the VPN';
+
+	/// en: 'See details'
+	String get seeDetails => 'See details';
+
+	/// en: 'Stats'
+	String get title => 'Stats';
+
+	/// en: 'Week'
+	String get week => 'Week';
+
+	/// en: 'Month'
+	String get month => 'Month';
+
+	/// en: 'PROTECTED'
+	String get protectedLabel => 'PROTECTED';
+
+	/// en: 'DATA USED'
+	String get dataUsed => 'DATA USED';
+
+	/// en: 'BY SERVER'
+	String get byServer => 'BY SERVER';
+
+	/// en: 'Kept on this phone only'
+	String get onPhone => 'Kept on this phone only';
+
+	/// en: 'Reset'
+	String get reset => 'Reset';
+
+	/// en: 'Reset stats?'
+	String get resetTitle => 'Reset stats?';
+
+	/// en: 'Clears protected time and data on this phone. This cannot be undone.'
+	String get resetBody => 'Clears protected time and data on this phone. This cannot be undone.';
+
+	/// en: '{h} h {m} m'
+	String hm({required Object h, required Object m}) => '${h} h ${m} m';
+
+	/// en: '{m} m'
+	String m({required Object m}) => '${m} m';
+
+	/// en: 'Connect to start counting.'
+	String get empty => 'Connect to start counting.';
+}
+
+// Path: recents
+class Translations$recents$en {
+	Translations$recents$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Recent'
+	String get title => 'Recent';
+
+	/// en: 'All servers'
+	String get allServers => 'All servers';
+
+	/// en: 'Free server'
+	String get free => 'Free server';
+
+	/// en: 'Your server'
+	String get yours => 'Your server';
+
+	/// en: 'G Server'
+	String get gserver => 'G Server';
+}
+
+// Path: presets
+class Translations$presets$en {
+	Translations$presets$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Presets'
+	String get title => 'Presets';
+
+	/// en: 'All'
+	String get all => 'All';
+
+	/// en: 'New preset'
+	String get newPreset => 'New preset';
+
+	/// en: 'Edit preset'
+	String get edit => 'Edit preset';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'My preset'
+	String get namePlaceholder => 'My preset';
+
+	/// en: 'SERVER'
+	String get server => 'SERVER';
+
+	/// en: 'Fastest'
+	String get fastestOption => 'Fastest';
+
+	/// en: 'Country'
+	String get countryOption => 'Country';
+
+	/// en: 'Pick a country'
+	String get pickCountry => 'Pick a country';
+
+	/// en: 'Skip my country'
+	String get skipMyCountry => 'Skip my country';
+
+	/// en: 'not my country'
+	String get notMine => 'not my country';
+
+	/// en: 'PROTOCOL'
+	String get protocol => 'PROTOCOL';
+
+	/// en: 'Auto'
+	String get auto => 'Auto';
+
+	/// en: 'If blocked, try the next server'
+	String get tryNext => 'If blocked, try the next server';
+
+	/// en: 'SHIELD'
+	String get shield => 'SHIELD';
+
+	/// en: 'As in Rules'
+	String get followRules => 'As in Rules';
+
+	/// en: 'Every app through the VPN'
+	String get allApps => 'Every app through the VPN';
+
+	/// en: 'all apps'
+	String get allAppsShort => 'all apps';
+
+	/// en: 'Save'
+	String get save => 'Save';
+
+	/// en: 'Delete'
+	String get delete => 'Delete';
+
+	/// en: 'Reset to default'
+	String get reset => 'Reset to default';
+
+	/// en: 'No free server fits this preset right now.'
+	String get none => 'No free server fits this preset right now.';
+
+	late final Translations$presets$names$en names = Translations$presets$names$en.internal(_root);
+}
+
+// Path: shield
+class Translations$shield$en {
+	Translations$shield$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Shield'
+	String get title => 'Shield';
+
+	/// en: 'Works while you are connected'
+	String get sub => 'Works while you are connected';
+
+	/// en: 'Off'
+	String get off => 'Off';
+
+	/// en: 'The server's own DNS'
+	String get offSub => 'The server\'s own DNS';
+
+	/// en: 'Malware'
+	String get malware => 'Malware';
+
+	/// en: 'Blocks harmful and phishing sites'
+	String get malwareSub => 'Blocks harmful and phishing sites';
+
+	/// en: 'Malware and adult sites'
+	String get family => 'Malware and adult sites';
+
+	/// en: 'Also blocks adult content'
+	String get familySub => 'Also blocks adult content';
+
+	/// en: 'Custom DNS'
+	String get custom => 'Custom DNS';
+
+	/// en: 'Your own DNS servers'
+	String get customSub => 'Your own DNS servers';
+
+	/// en: 'IP address, for example 1.1.1.1'
+	String get customHint => 'IP address, for example 1.1.1.1';
+
+	/// en: 'Enter one or two IP addresses.'
+	String get invalid => 'Enter one or two IP addresses.';
+}
+
+// Path: checks
+class Translations$checks$en {
+	Translations$checks$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Safety checks'
+	String get title => 'Safety checks';
+
+	/// en: 'Password'
+	String get password => 'Password';
+
+	/// en: 'Link'
+	String get link => 'Link';
+
+	/// en: 'Was it leaked?'
+	String get pwTitle => 'Was it leaked?';
+
+	/// en: 'Password to check'
+	String get pwHint => 'Password to check';
+
+	/// en: 'Show password'
+	String get showPassword => 'Show password';
+
+	/// en: 'Hide password'
+	String get hidePassword => 'Hide password';
+
+	/// en: 'Check'
+	String get check => 'Check';
+
+	/// en: 'Found in leaks'
+	String get leaked => 'Found in leaks';
+
+	/// en: 'Seen {n} times'
+	String seen({required Object n}) => 'Seen ${n} times';
+
+	/// en: 'Change it everywhere you use it, starting with email and banking.'
+	String get leakedAdvice => 'Change it everywhere you use it, starting with email and banking.';
+
+	/// en: 'Not in known leaks'
+	String get notFound => 'Not in known leaks';
+
+	/// en: 'A good sign, not a guarantee. Use a different password for every account.'
+	String get notFoundAdvice => 'A good sign, not a guarantee. Use a different password for every account.';
+
+	/// en: 'Could not check. Try again.'
+	String get failed => 'Could not check. Try again.';
+
+	/// en: 'Your password never leaves this phone'
+	String get private => 'Your password never leaves this phone';
+
+	/// en: 'Is this link safe?'
+	String get linkTitle => 'Is this link safe?';
+
+	/// en: 'Link to check'
+	String get linkHint => 'Link to check';
+
+	/// en: 'Paste'
+	String get paste => 'Paste';
+
+	/// en: 'Dangerous link'
+	String get danger => 'Dangerous link';
+
+	/// en: 'Do not open it or enter any details.'
+	String get dangerAdvice => 'Do not open it or enter any details.';
+
+	/// en: 'Not on known malware or phishing lists'
+	String get clear => 'Not on known malware or phishing lists';
+
+	/// en: 'Still look at the address before you sign in anywhere.'
+	String get clearAdvice => 'Still look at the address before you sign in anywhere.';
+
+	/// en: 'Goes to'
+	String get goesTo => 'Goes to';
+
+	/// en: 'Redirects'
+	String get redirects => 'Redirects';
+
+	/// en: 'That does not look like a web address.'
+	String get invalid => 'That does not look like a web address.';
+
+	/// en: 'Too many checks. Try again in a while.'
+	String get busy => 'Too many checks. Try again in a while.';
+
+	/// en: 'Link check is not available right now.'
+	String get unavailable => 'Link check is not available right now.';
+
+	/// en: 'Known for malware or phishing'
+	String get listed => 'Known for malware or phishing';
+
+	/// en: 'No website at this address'
+	String get missing => 'No website at this address';
+
+	/// en: 'Check the spelling: scams often use look-alike addresses.'
+	String get missingAdvice => 'Check the spelling: scams often use look-alike addresses.';
+
+	/// en: '{n} of {total} free checks left this month'
+	String left({required Object n, required Object total}) => '${n} of ${total} free checks left this month';
+
+	/// en: 'You have used this month's free link checks'
+	String get usedUp => 'You have used this month\'s free link checks';
+
+	/// en: 'Pro has unlimited link checks. Your free checks come back on the 1st.'
+	String get usedUpSub => 'Pro has unlimited link checks. Your free checks come back on the 1st.';
+
+	/// en: 'Get Pro'
+	String get getPro => 'Get Pro';
+}
+
+// Path: toolSettings
+class Translations$toolSettings$en {
+	Translations$toolSettings$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Tool settings'
+	String get title => 'Tool settings';
+
+	/// en: 'Ask before speed tests on mobile data'
+	String get askMobile => 'Ask before speed tests on mobile data';
+
+	/// en: 'A test can use over 100 MB on a fast connection'
+	String get askMobileSub => 'A test can use over 100 MB on a fast connection';
+
+	/// en: 'Use mobile data?'
+	String get mobileTitle => 'Use mobile data?';
+
+	/// en: 'A speed test can use over 100 MB on a fast connection.'
+	String get mobileBody => 'A speed test can use over 100 MB on a fast connection.';
+
+	/// en: 'Test'
+	String get mobileGo => 'Test';
+
+	/// en: 'Safe'
+	String get safe => 'Safe';
+
+	/// en: 'Unsafe'
+	String get unsafe => 'Unsafe';
+
+	/// en: '(one) {{n} device} (other) {{n} devices}'
+	String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} device',
+		other: '${n} devices',
+	);
+
+	/// en: 'Hide hardware addresses'
+	String get hideMac => 'Hide hardware addresses';
+
+	/// en: 'Shows only the maker part of MAC addresses'
+	String get hideMacSub => 'Shows only the maker part of MAC addresses';
+
+	/// en: 'Show names of routers and servers'
+	String get names => 'Show names of routers and servers';
+
+	/// en: 'Looks up names for addresses in Traceroute'
+	String get namesSub => 'Looks up names for addresses in Traceroute';
+
+	/// en: 'Remember recent hosts'
+	String get remember => 'Remember recent hosts';
+
+	/// en: 'For Traceroute'
+	String get rememberSub => 'For Traceroute';
+
+	/// en: 'Clear tool history'
+	String get clear => 'Clear tool history';
+
+	/// en: 'Forgets recent hosts and which devices each network had'
+	String get clearSub => 'Forgets recent hosts and which devices each network had';
+
+	/// en: 'Clear'
+	String get clearGo => 'Clear';
+}
+
+// Path: security
+class Translations$security$en {
+	Translations$security$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Security'
+	String get tab => 'Security';
+
+	/// en: 'Good'
+	String get good => 'Good';
+
+	/// en: 'Fair'
+	String get fair => 'Fair';
+
+	/// en: 'At risk'
+	String get atRisk => 'At risk';
+
+	/// en: 'Nothing to fix'
+	String get allClear => 'Nothing to fix';
+
+	/// en: 'Checked {time}'
+	String checked({required Object time}) => 'Checked ${time}';
+
+	/// en: 'LAST TWO WEEKS'
+	String get trend => 'LAST TWO WEEKS';
+
+	/// en: 'Checking this network'
+	String get checking => 'Checking this network';
+
+	/// en: 'Snoozed'
+	String get snoozed => 'Snoozed';
+
+	/// en: 'Remind me later'
+	String get remindLater => 'Remind me later';
+
+	/// en: 'Remind me now'
+	String get unsnooze => 'Remind me now';
+
+	/// en: 'Review'
+	String get review => 'Review';
+
+	/// en: 'Confirm'
+	String get confirmGo => 'Confirm';
+
+	/// en: 'Scan'
+	String get scanGo => 'Scan';
+
+	/// en: 'Look'
+	String get look => 'Look';
+
+	/// en: 'Connect'
+	String get connectGo => 'Connect';
+
+	/// en: 'Check again'
+	String get checkAgain => 'Check again';
+
+	/// en: 'Wi-Fi is open'
+	String get wifiOpen => 'Wi-Fi is open';
+
+	/// en: 'Anyone nearby can see what is sent'
+	String get wifiOpenDetail => 'Anyone nearby can see what is sent';
+
+	/// en: 'Wi-Fi uses WEP'
+	String get wifiWep => 'Wi-Fi uses WEP';
+
+	/// en: 'Old security, easy to break'
+	String get wifiWepDetail => 'Old security, easy to break';
+
+	/// en: 'Wi-Fi uses Enhanced Open'
+	String get wifiOwe => 'Wi-Fi uses Enhanced Open';
+
+	/// en: 'Encrypted, but anyone can join'
+	String get wifiOweDetail => 'Encrypted, but anyone can join';
+
+	/// en: 'Wi-Fi encryption'
+	String get wifiSecure => 'Wi-Fi encryption';
+
+	/// en: 'Wi-Fi security unknown'
+	String get wifiUnknown => 'Wi-Fi security unknown';
+
+	/// en: 'Android did not say how it is protected'
+	String get wifiUnknownDetail => 'Android did not say how it is protected';
+
+	/// en: 'WPS is on'
+	String get wps => 'WPS is on';
+
+	/// en: 'Turn it off in the router's settings'
+	String get wpsDetail => 'Turn it off in the router\'s settings';
+
+	/// en: 'Router keeps ports closed'
+	String get upnpOff => 'Router keeps ports closed';
+
+	/// en: 'UPnP is off'
+	String get upnpOffDetail => 'UPnP is off';
+
+	/// en: 'Router lets devices open ports'
+	String get upnpOn => 'Router lets devices open ports';
+
+	/// en: 'UPnP is on'
+	String get upnpOnDetail => 'UPnP is on';
+
+	/// en: 'No risky ports on the router'
+	String get portsOk => 'No risky ports on the router';
+
+	/// en: 'Risky ports open on the router'
+	String get portsRisky => 'Risky ports open on the router';
+
+	/// en: 'Scan to see who is here'
+	String get scanFirst => 'Scan to see who is here';
+
+	/// en: 'Unknown devices count against the score'
+	String get scanFirstDetail => 'Unknown devices count against the score';
+
+	/// en: 'Check your router's device list'
+	String get notMineDetail => 'Check your router\'s device list';
+
+	/// en: 'Mark the ones that are yours'
+	String get confirmDetail => 'Mark the ones that are yours';
+
+	/// en: 'Every device is known'
+	String get devicesOk => 'Every device is known';
+
+	/// en: 'You confirmed each one'
+	String get devicesOkDetail => 'You confirmed each one';
+
+	/// en: 'A camera is on this network'
+	String get camera => 'A camera is on this network';
+
+	/// en: 'Unknown names are redirected'
+	String get dnsHijack => 'Unknown names are redirected';
+
+	/// en: 'Your provider or router rewrites lookups'
+	String get dnsHijackDetail => 'Your provider or router rewrites lookups';
+
+	/// en: 'DNS answers normally'
+	String get dnsOk => 'DNS answers normally';
+
+	/// en: 'No sign of redirection'
+	String get dnsOkDetail => 'No sign of redirection';
+
+	/// en: 'VPN is on'
+	String get vpnOn => 'VPN is on';
+
+	/// en: 'Traffic leaves through the tunnel'
+	String get vpnOnDetail => 'Traffic leaves through the tunnel';
+
+	/// en: 'VPN is off'
+	String get vpnOff => 'VPN is off';
+
+	/// en: 'Your provider sees every site'
+	String get vpnOffDetail => 'Your provider sees every site';
+
+	/// en: '(one) {{n} thing to fix} (other) {{n} things to fix}'
+	String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} thing to fix',
+		other: '${n} things to fix',
+	);
+
+	/// en: '(one) {{n} port opened by devices} (other) {{n} ports opened by devices}'
+	String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} port opened by devices',
+		other: '${n} ports opened by devices',
+	);
+
+	/// en: '(one) {{n} port checked} (other) {{n} ports checked}'
+	String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} port checked',
+		other: '${n} ports checked',
+	);
+
+	/// en: '(one) {{n} device is not yours} (other) {{n} devices are not yours}'
+	String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} device is not yours',
+		other: '${n} devices are not yours',
+	);
+
+	/// en: '(one) {{n} device to confirm} (other) {{n} devices to confirm}'
+	String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} device to confirm',
+		other: '${n} devices to confirm',
+	);
+}
+
+// Path: providers
+class Translations$providers$en {
+	Translations$providers$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Internet'
+	String get tab => 'Internet';
+
+	/// en: 'Could not reach the provider list. Check your connection.'
+	String get unavailable => 'Could not reach the provider list. Check your connection.';
+
+	/// en: 'As of your last check without the VPN'
+	String get cached => 'As of your last check without the VPN';
+
+	/// en: 'Not enough ratings yet'
+	String get notEnough => 'Not enough ratings yet';
+
+	/// en: 'Your rating this month'
+	String get yourRating => 'Your rating this month';
+
+	/// en: 'YOUR SPEED'
+	String get yourSpeed => 'YOUR SPEED';
+
+	/// en: 'Run a speed test'
+	String get runTest => 'Run a speed test';
+
+	/// en: 'About average here'
+	String get aboutAverage => 'About average here';
+
+	/// en: '{pct}% above the local average'
+	String aboveAverage({required Object pct}) => '${pct}% above the local average';
+
+	/// en: '{pct}% below the local average'
+	String belowAverage({required Object pct}) => '${pct}% below the local average';
+
+	/// en: 'Call'
+	String get call => 'Call';
+
+	/// en: 'Website'
+	String get website => 'Website';
+
+	/// en: 'Outages'
+	String get outages => 'Outages';
+
+	/// en: 'Rate'
+	String get rate => 'Rate';
+
+	/// en: 'Change rating'
+	String get changeRating => 'Change rating';
+
+	/// en: 'Compare'
+	String get compare => 'Compare';
+
+	/// en: 'Rate {name}'
+	String rateTitle({required Object name}) => 'Rate ${name}';
+
+	/// en: 'One rating a month'
+	String get oncePerMonth => 'One rating a month';
+
+	/// en: 'Tap the stars'
+	String get tapStars => 'Tap the stars';
+
+	/// en: 'Verified by your speed test: {mbps} Mbps'
+	String verified({required Object mbps}) => 'Verified by your speed test: ${mbps} Mbps';
+
+	/// en: 'Too many ratings from here. Try later.'
+	String get busy => 'Too many ratings from here. Try later.';
+
+	/// en: 'Could not post. Try again.'
+	String get failed => 'Could not post. Try again.';
+
+	/// en: 'Post rating'
+	String get post => 'Post rating';
+
+	/// en: 'Providers near you'
+	String get nearTitle => 'Providers near you';
+
+	/// en: 'Your download is {pct}% below your provider's average here'
+	String slower({required Object pct}) => 'Your download is ${pct}% below your provider\'s average here';
+
+	/// en: 'Home internet in {place}'
+	String inPlace({required Object place}) => 'Home internet in ${place}';
+
+	/// en: 'Rating'
+	String get byRating => 'Rating';
+
+	/// en: 'Speed'
+	String get bySpeed => 'Speed';
+
+	/// en: 'Speeds are averages of G VPN speed tests'
+	String get footnote => 'Speeds are averages of G VPN speed tests';
+
+	/// en: 'No ratings near you yet. Be the first.'
+	String get noneNearby => 'No ratings near you yet. Be the first.';
+
+	/// en: 'You'
+	String get you => 'You';
+
+	/// en: 'Top rated'
+	String get topRated => 'Top rated';
+
+	/// en: '{n} out of 5'
+	String starsOf({required Object n}) => '${n} out of 5';
+
+	late final Translations$providers$tags$en tags = Translations$providers$tags$en.internal(_root);
+	late final Translations$providers$words$en words = Translations$providers$words$en.internal(_root);
+
+	/// en: '(one) {{n} rating} (other) {{n} ratings}'
+	String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} rating',
+		other: '${n} ratings',
+	);
+}
+
+// Path: alerts
+class Translations$alerts$en {
+	Translations$alerts$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Alerts'
+	String get channel => 'Alerts';
+
+	/// en: 'Alerts'
+	String get title => 'Alerts';
+
+	/// en: 'Mark all read'
+	String get markAllRead => 'Mark all read';
+
+	/// en: 'Clear all'
+	String get clearAll => 'Clear all';
+
+	/// en: 'this network'
+	String get thisNetwork => 'this network';
+
+	/// en: 'You joined an open Wi-Fi: {name}'
+	String openWifiTitle({required Object name}) => 'You joined an open Wi-Fi: ${name}';
+
+	/// en: 'Anyone nearby can see what is sent. Turn on G VPN.'
+	String get openWifiBody => 'Anyone nearby can see what is sent. Turn on G VPN.';
+
+	/// en: 'Your weekly report is ready'
+	String get reportTitle => 'Your weekly report is ready';
+
+	/// en: '{hours} hours protected last week'
+	String reportBody({required Object hours}) => '${hours} hours protected last week';
+
+	/// en: '{name} is blocked here'
+	String blockedTitle({required Object name}) => '${name} is blocked here';
+
+	/// en: 'It answers through the VPN'
+	String get blockedBody => 'It answers through the VPN';
+
+	late final Translations$alerts$kinds$en kinds = Translations$alerts$kinds$en.internal(_root);
+
+	/// en: '(one) {New device on {network}} (other) {{n} new devices on {network}}'
+	String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'New device on ${network}',
+		other: '${n} new devices on ${network}',
+	);
+
+	/// en: 'Alert settings'
+	String get settings => 'Alert settings';
+
+	/// en: 'Look'
+	String get look => 'Look';
+
+	/// en: 'Read'
+	String get read => 'Read';
+
+	/// en: 'Open'
+	String get open => 'Open';
+
+	/// en: 'Check'
+	String get check => 'Check';
+
+	/// en: 'TODAY'
+	String get today => 'TODAY';
+
+	/// en: 'THIS WEEK'
+	String get thisWeek => 'THIS WEEK';
+
+	/// en: 'EARLIER'
+	String get earlier => 'EARLIER';
+
+	/// en: 'All'
+	String get all => 'All';
+
+	/// en: 'All quiet'
+	String get quiet => 'All quiet';
+
+	/// en: 'Nothing needed you lately'
+	String get quietSub => 'Nothing needed you lately';
+
+	/// en: 'New breach: {name}'
+	String breachTitle({required Object name}) => 'New breach: ${name}';
+
+	late final Translations$alerts$status$en status = Translations$alerts$status$en.internal(_root);
+}
+
+// Path: report
+class Translations$report$en {
+	Translations$report$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Weekly report'
+	String get title => 'Weekly report';
+
+	/// en: 'Share as image'
+	String get share => 'Share as image';
+
+	/// en: 'My week with G VPN'
+	String get shareText => 'My week with G VPN';
+
+	/// en: 'A safer week'
+	String get safer => 'A safer week';
+
+	/// en: 'More protected than last week'
+	String get moreProtected => 'More protected than last week';
+
+	/// en: 'Your week'
+	String get yourWeek => 'Your week';
+
+	/// en: '{range}, so far'
+	String soFar({required Object range}) => '${range}, so far';
+
+	/// en: 'Protected'
+	String get protected => 'Protected';
+
+	/// en: 'Data'
+	String get data => 'Data';
+
+	/// en: 'Security'
+	String get security => 'Security';
+
+	/// en: 'Best speed'
+	String get speed => 'Best speed';
+
+	/// en: 'Not checked'
+	String get noScore => 'Not checked';
+
+	/// en: 'No test'
+	String get noTest => 'No test';
+
+	/// en: 'Direct test'
+	String get bestDirect => 'Direct test';
+
+	/// en: '{d} more than last week'
+	String moreThan({required Object d}) => '${d} more than last week';
+
+	/// en: '{d} less than last week'
+	String lessThan({required Object d}) => '${d} less than last week';
+
+	/// en: 'PROTECTED TIME'
+	String get protectedTime => 'PROTECTED TIME';
+
+	/// en: 'Most used: {name}'
+	String mostUsed({required Object name}) => 'Most used: ${name}';
+
+	/// en: 'A quiet week: nothing needed you'
+	String get quiet => 'A quiet week: nothing needed you';
+
+	/// en: '(one) {{n} new device joined} (other) {{n} new devices joined}'
+	String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} new device joined',
+		other: '${n} new devices joined',
+	);
+
+	/// en: '(one) {Joined {n} open Wi-Fi} (other) {Joined {n} open Wi-Fi networks}'
+	String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Joined ${n} open Wi-Fi',
+		other: 'Joined ${n} open Wi-Fi networks',
+	);
+
+	/// en: '(one) {{n} app blocked} (other) {{n} apps blocked}'
+	String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} app blocked',
+		other: '${n} apps blocked',
+	);
+
+	/// en: '(one) {{n} big new breach} (other) {{n} big new breaches}'
+	String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} big new breach',
+		other: '${n} big new breaches',
+	);
+}
+
+// Path: breaches
+class Translations$breaches$en {
+	Translations$breaches$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Data breaches'
+	String get title => 'Data breaches';
+
+	/// en: 'The latest data breaches, from Have I Been Pwned's public list. Nothing about you is sent: the list is the same for everyone. If you had an account with a breached site, change that password, and anywhere you reused it.'
+	String get info => 'The latest data breaches, from Have I Been Pwned\'s public list. Nothing about you is sent: the list is the same for everyone.\n\nIf you had an account with a breached site, change that password, and anywhere you reused it.';
+
+	/// en: 'Could not load the breach list. Check your connection.'
+	String get unavailable => 'Could not load the breach list. Check your connection.';
+
+	/// en: 'BIGGEST THIS MONTH'
+	String get biggest => 'BIGGEST THIS MONTH';
+
+	/// en: 'Newest'
+	String get newest => 'Newest';
+
+	/// en: 'Biggest'
+	String get biggestSort => 'Biggest';
+
+	/// en: 'With passwords'
+	String get withPasswords => 'With passwords';
+
+	/// en: 'PASSWORDS'
+	String get passwordsMark => 'PASSWORDS';
+
+	/// en: 'Breach'
+	String get one => 'Breach';
+
+	/// en: 'Check a password'
+	String get checkPassword => 'Check a password';
+
+	/// en: 'Verified'
+	String get verified => 'Verified';
+
+	/// en: 'Has passwords'
+	String get hasPasswords => 'Has passwords';
+
+	/// en: 'Accounts'
+	String get accountsLabel => 'Accounts';
+
+	/// en: 'Happened'
+	String get happened => 'Happened';
+
+	/// en: 'Published'
+	String get published => 'Published';
+
+	/// en: 'Website'
+	String get website => 'Website';
+
+	/// en: 'WHAT LEAKED'
+	String get leaked => 'WHAT LEAKED';
+
+	/// en: 'IF YOU USED IT'
+	String get ifUsed => 'IF YOU USED IT';
+
+	/// en: 'Change the password you used there'
+	String get stepPassword => 'Change the password you used there';
+
+	/// en: 'Change it anywhere you used the same one'
+	String get stepReuse => 'Change it anywhere you used the same one';
+
+	/// en: 'Turn on two-step sign-in where you can'
+	String get stepTwoStep => 'Turn on two-step sign-in where you can';
+
+	/// en: 'Expect scam calls and texts'
+	String get stepScams => 'Expect scam calls and texts';
+
+	/// en: '(one) {{count} account} (other) {{count} accounts}'
+	String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} account',
+		other: '${count} accounts',
+	);
+
+	/// en: 'Worldwide · {n}'
+	String worldwide({required Object n}) => 'Worldwide · ${n}';
+
+	/// en: 'No breaches from here in the recent list.'
+	String get noneHere => 'No breaches from here in the recent list.';
+
+	/// en: 'Bigger map'
+	String get bigMap => 'Bigger map';
+
+	/// en: 'Show in list'
+	String get showInList => 'Show in list';
+
+	/// en: 'Breach map'
+	String get mapTitle => 'Breach map';
+
+	/// en: 'Zoom in'
+	String get zoomIn => 'Zoom in';
+
+	/// en: 'Zoom out'
+	String get zoomOut => 'Zoom out';
+
+	/// en: 'Whole world'
+	String get wholeWorld => 'Whole world';
+
+	/// en: '(one) {{n} breach} (other) {{n} breaches}'
+	String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} breach',
+		other: '${n} breaches',
+	);
+
+	/// en: 'Find a country'
+	String get findCountry => 'Find a country';
+
+	/// en: 'See all'
+	String get seeAll => 'See all';
+
+	/// en: 'Search breaches'
+	String get search => 'Search breaches';
+}
+
+// Path: blocked
+class Translations$blocked$en {
+	Translations$blocked$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'What's blocked'
+	String get title => 'What\'s blocked';
+
+	/// en: 'Tests well-known sites from this phone, without the VPN, and shows which ones this network blocks and how. Wrong address: the network's name lookup gives a false answer. Cut off: the connection is reset as it starts. No answer: nothing comes back. Block page: something else answers in the site's place. The test shows where a site is blocked, not who blocked it. Nothing is stored or sent anywhere.'
+	String get info => 'Tests well-known sites from this phone, without the VPN, and shows which ones this network blocks and how.\n\nWrong address: the network\'s name lookup gives a false answer.\n\nCut off: the connection is reset as it starts.\n\nNo answer: nothing comes back.\n\nBlock page: something else answers in the site\'s place.\n\nThe test shows where a site is blocked, not who blocked it. Nothing is stored or sent anywhere.';
+
+	/// en: 'This network'
+	String get thisNetwork => 'This network';
+
+	/// en: 'Your country'
+	String get country => 'Your country';
+
+	/// en: 'What's blocked here?'
+	String get question => 'What\'s blocked here?';
+
+	/// en: 'TESTING ON'
+	String get testingOn => 'TESTING ON';
+
+	/// en: 'VPN ON'
+	String get vpnOn => 'VPN ON';
+
+	/// en: 'Turn off G VPN to test'
+	String get turnOff => 'Turn off G VPN to test';
+
+	/// en: 'Test this network'
+	String get test => 'Test this network';
+
+	/// en: 'Stop'
+	String get stop => 'Stop';
+
+	/// en: 'SITES TO TEST · {n}'
+	String sitesToTest({required Object n}) => 'SITES TO TEST · ${n}';
+
+	/// en: 'of {n} sites'
+	String ofSites({required Object n}) => 'of ${n} sites';
+
+	/// en: '{n} BLOCKED'
+	String blockedCount({required Object n}) => '${n} BLOCKED';
+
+	/// en: '{n} OPEN'
+	String openCount({required Object n}) => '${n} OPEN';
+
+	/// en: 'Nothing blocked on {network}'
+	String noneBlocked({required Object network}) => 'Nothing blocked on ${network}';
+
+	/// en: '{open} of {total} open'
+	String openOf({required Object open, required Object total}) => '${open} of ${total} open';
+
+	/// en: 'ALL WORK WITH G VPN'
+	String get allWork => 'ALL WORK WITH G VPN';
+
+	/// en: 'BLOCKED'
+	String get blockedHeading => 'BLOCKED';
+
+	/// en: 'BY KIND'
+	String get byKind => 'BY KIND';
+
+	/// en: 'Works with VPN'
+	String get worksVpn => 'Works with VPN';
+
+	/// en: 'Blocked through VPN too'
+	String get failsVpn => 'Blocked through VPN too';
+
+	/// en: 'Check through G VPN'
+	String get checkVpn => 'Check through G VPN';
+
+	/// en: 'Connect G VPN'
+	String get connect => 'Connect G VPN';
+
+	/// en: 'Test again'
+	String get again => 'Test again';
+
+	/// en: 'WITHOUT VPN'
+	String get withoutVpn => 'WITHOUT VPN';
+
+	/// en: 'THROUGH G VPN'
+	String get throughVpn => 'THROUGH G VPN';
+
+	/// en: 'Not checked'
+	String get notChecked => 'Not checked';
+
+	/// en: 'Opens'
+	String get opens => 'Opens';
+
+	/// en: 'Blocked'
+	String get stillBlocked => 'Blocked';
+
+	/// en: 'WHAT HAPPENED'
+	String get whatHappened => 'WHAT HAPPENED';
+
+	/// en: 'sites blocked in {country}'
+	String countryBlocked({required Object country}) => 'sites blocked in ${country}';
+
+	/// en: 'Found by volunteers' tests in the last 30 days'
+	String get countrySub => 'Found by volunteers\' tests in the last 30 days';
+
+	/// en: 'No blocked sites reported in the last 30 days.'
+	String get countryNone => 'No blocked sites reported in the last 30 days.';
+
+	/// en: 'Could not load the country's results. Check your connection.'
+	String get countryUnavailable => 'Could not load the country\'s results. Check your connection.';
+
+	/// en: 'BLOCKED'
+	String get confirmed => 'BLOCKED';
+
+	/// en: 'OFTEN FAILS'
+	String get oftenFails => 'OFTEN FAILS';
+
+	late final Translations$blocked$kinds$en kinds = Translations$blocked$kinds$en.internal(_root);
+	late final Translations$blocked$how$en how = Translations$blocked$how$en.internal(_root);
+	late final Translations$blocked$fail$en fail = Translations$blocked$fail$en.internal(_root);
+	late final Translations$blocked$steps$en steps = Translations$blocked$steps$en.internal(_root);
+	late final Translations$blocked$consent$en consent = Translations$blocked$consent$en.internal(_root);
+
+	/// en: '(one) {{n} site blocked on {network}} (other) {{n} sites blocked on {network}}'
+	String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} site blocked on ${network}',
+		other: '${n} sites blocked on ${network}',
+	);
+
+	/// en: '(one) {{n} test} (other) {{n} tests}'
+	String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} test',
+		other: '${n} tests',
+	);
 }
 
 // Path: home.status
@@ -2016,24 +3475,6 @@ class Translations$home$status$en {
 
 	/// en: 'Not protected'
 	String get notProtected => 'Not protected';
-}
-
-// Path: home.waves
-class Translations$home$waves$en {
-	Translations$home$waves$en.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// en: 'ENCRYPTED'
-	String get encrypted => 'ENCRYPTED';
-
-	/// en: 'SECURING'
-	String get securing => 'SECURING';
-
-	/// en: 'EXPOSED'
-	String get exposed => 'EXPOSED';
 }
 
 // Path: home.network
@@ -2067,21 +3508,6 @@ class Translations$home$card$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
-
-	/// en: 'CONNECTED VIA'
-	String get connectedVia => 'CONNECTED VIA';
-
-	/// en: 'PROTOCOL'
-	String get protocol => 'PROTOCOL';
-
-	/// en: 'DNS'
-	String get dns => 'DNS';
-
-	/// en: 'Quad9, in tunnel'
-	String get dnsQuad9 => 'Quad9, in tunnel';
-
-	/// en: 'Server, in tunnel'
-	String get dnsServer => 'Server, in tunnel';
 
 	/// en: 'DOWNLOADED'
 	String get downloaded => 'DOWNLOADED';
@@ -2124,9 +3550,6 @@ class Translations$home$tiles$en {
 
 	/// en: 'Shield'
 	String get shield => 'Shield';
-
-	/// en: 'Blocks malware sites'
-	String get shieldOn => 'Blocks malware sites';
 
 	/// en: 'Apps direct'
 	String get appsDirect => 'Apps direct';
@@ -2410,8 +3833,8 @@ class Translations$rules$info$en {
 
 	// Translations
 
-	/// en: 'Shield sends lookups to Quad9, which refuses known malware and phishing sites. It does not block ads, and it replaces the server's DNS while on.'
-	String get shield => 'Shield sends lookups to Quad9, which refuses known malware and phishing sites. It does not block ads, and it replaces the server\'s DNS while on.';
+	/// en: 'Shield filters lookups while you are connected: Quad9 blocks malware and phishing, Cloudflare for Families also blocks adult sites, or use your own DNS. It never blocks ads.'
+	String get shield => 'Shield filters lookups while you are connected: Quad9 blocks malware and phishing, Cloudflare for Families also blocks adult sites, or use your own DNS. It never blocks ads.';
 
 	/// en: 'Auto-connect: uses your selected WireGuard server. Disconnecting by hand pauses it until you join another network.'
 	String get autoConnect => 'Auto-connect: uses your selected WireGuard server. Disconnecting by hand pauses it until you join another network.';
@@ -2424,6 +3847,297 @@ class Translations$rules$info$en {
 
 	/// en: 'Stay connected: some phones stop apps in the background to save battery. Always-on VPN and an unrestricted battery setting keep G VPN running.'
 	String get stay => 'Stay connected: some phones stop apps in the background to save battery. Always-on VPN and an unrestricted battery setting keep G VPN running.';
+}
+
+// Path: devices.kinds
+class Translations$devices$kinds$en {
+	Translations$devices$kinds$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Phone'
+	String get phone => 'Phone';
+
+	/// en: 'Computer'
+	String get computer => 'Computer';
+
+	/// en: 'TV'
+	String get tv => 'TV';
+
+	/// en: 'Speaker'
+	String get speaker => 'Speaker';
+
+	/// en: 'Printer'
+	String get printer => 'Printer';
+
+	/// en: 'Camera'
+	String get camera => 'Camera';
+
+	/// en: 'Smart home'
+	String get smartHome => 'Smart home';
+
+	/// en: 'Router'
+	String get router => 'Router';
+
+	/// en: 'Not announced'
+	String get unknown => 'Not announced';
+}
+
+// Path: map.grade
+class Translations$map$grade$en {
+	Translations$map$grade$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Fast'
+	String get fast => 'Fast';
+
+	/// en: 'Good'
+	String get good => 'Good';
+
+	/// en: 'Slow'
+	String get slow => 'Slow';
+}
+
+// Path: presets.names
+class Translations$presets$names$en {
+	Translations$presets$names$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Fastest'
+	String get fastest => 'Fastest';
+
+	/// en: 'Unblock'
+	String get unblock => 'Unblock';
+
+	/// en: 'Streaming'
+	String get streaming => 'Streaming';
+
+	/// en: 'Privacy max'
+	String get privacy => 'Privacy max';
+}
+
+// Path: providers.tags
+class Translations$providers$tags$en {
+	Translations$providers$tags$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Fast'
+	String get fast => 'Fast';
+
+	/// en: 'Reliable'
+	String get reliable => 'Reliable';
+
+	/// en: 'Good support'
+	String get support => 'Good support';
+
+	/// en: 'Fair price'
+	String get price => 'Fair price';
+
+	/// en: 'Slow evenings'
+	String get slowEvenings => 'Slow evenings';
+
+	/// en: 'Drops often'
+	String get drops => 'Drops often';
+
+	/// en: 'Poor support'
+	String get poorSupport => 'Poor support';
+
+	/// en: 'Pricey'
+	String get pricey => 'Pricey';
+}
+
+// Path: providers.words
+class Translations$providers$words$en {
+	Translations$providers$words$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Bad'
+	String get bad => 'Bad';
+
+	/// en: 'Poor'
+	String get poor => 'Poor';
+
+	/// en: 'Okay'
+	String get okay => 'Okay';
+
+	/// en: 'Good'
+	String get good => 'Good';
+
+	/// en: 'Great'
+	String get great => 'Great';
+}
+
+// Path: alerts.kinds
+class Translations$alerts$kinds$en {
+	Translations$alerts$kinds$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New devices on my Wi-Fi'
+	String get newDevice => 'New devices on my Wi-Fi';
+
+	/// en: 'Open or weak Wi-Fi'
+	String get openWifi => 'Open or weak Wi-Fi';
+
+	/// en: 'Blocked apps'
+	String get blocked => 'Blocked apps';
+
+	/// en: 'Weekly report'
+	String get report => 'Weekly report';
+
+	/// en: 'Breaches'
+	String get breach => 'Breaches';
+}
+
+// Path: alerts.status
+class Translations$alerts$status$en {
+	Translations$alerts$status$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Every few hours'
+	String get background => 'Every few hours';
+
+	/// en: 'Last checked {time}'
+	String checked({required Object time}) => 'Last checked ${time}';
+
+	/// en: 'Every network you join'
+	String get wifi => 'Every network you join';
+
+	/// en: 'When Service status runs'
+	String get blocked => 'When Service status runs';
+
+	/// en: 'Every Monday'
+	String get report => 'Every Monday';
+}
+
+// Path: blocked.kinds
+class Translations$blocked$kinds$en {
+	Translations$blocked$kinds$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Social'
+	String get social => 'Social';
+
+	/// en: 'Messaging'
+	String get messaging => 'Messaging';
+
+	/// en: 'News'
+	String get news => 'News';
+
+	/// en: 'Video and music'
+	String get video => 'Video and music';
+
+	/// en: 'Privacy tools'
+	String get privacy => 'Privacy tools';
+}
+
+// Path: blocked.how
+class Translations$blocked$how$en {
+	Translations$blocked$how$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Wrong address'
+	String get dns => 'Wrong address';
+
+	/// en: 'Cut off'
+	String get reset => 'Cut off';
+
+	/// en: 'No answer'
+	String get timeout => 'No answer';
+
+	/// en: 'Block page'
+	String get page => 'Block page';
+
+	/// en: 'Open'
+	String get open => 'Open';
+}
+
+// Path: blocked.fail
+class Translations$blocked$fail$en {
+	Translations$blocked$fail$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'no answer'
+	String get noAnswer => 'no answer';
+
+	/// en: 'refused'
+	String get refused => 'refused';
+
+	/// en: 'cut off after {s} s'
+	String cutOff({required Object s}) => 'cut off after ${s} s';
+
+	/// en: 'wrong certificate'
+	String get wrongCert => 'wrong certificate';
+}
+
+// Path: blocked.steps
+class Translations$blocked$steps$en {
+	Translations$blocked$steps$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Name lookup'
+	String get lookup => 'Name lookup';
+
+	/// en: 'Connect'
+	String get connect => 'Connect';
+
+	/// en: 'Secure handshake'
+	String get handshake => 'Secure handshake';
+}
+
+// Path: blocked.consent
+class Translations$blocked$consent$en {
+	Translations$blocked$consent$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Before the first test'
+	String get title => 'Before the first test';
+
+	/// en: 'The test opens each site from this phone, without the VPN, the way a browser would.'
+	String get body => 'The test opens each site from this phone, without the VPN, the way a browser would.';
+
+	/// en: 'It can be noticed'
+	String get noticeTitle => 'It can be noticed';
+
+	/// en: 'Your provider sees these sites being opened. In some countries visiting them, even to test, can draw attention. Only test where you feel safe to.'
+	String get notice => 'Your provider sees these sites being opened. In some countries visiting them, even to test, can draw attention. Only test where you feel safe to.';
+
+	/// en: 'I understand, test'
+	String get ok => 'I understand, test';
 }
 
 /// The flat map containing all translations for locale <en>.
@@ -2460,8 +4174,6 @@ extension on Translations {
 			'home.status.stopping' => 'Stopping',
 			'home.status.notProtected' => 'Not protected',
 			'home.resumesAt' => ({required Object time}) => 'Resumes at ${time} · tap to resume now',
-			'home.sitesSee' => ({required Object ip}) => 'Sites see ${ip}',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'Sites see ${ip} · ${org}',
 			'home.ipFailed' => 'Could not check your IP',
 			'home.ipChecking' => 'Checking your IP',
 			'home.themeSystem' => 'Theme: follows phone',
@@ -2469,19 +4181,11 @@ extension on Translations {
 			'home.themeDark' => 'Theme: dark',
 			'home.free' => 'Free',
 			'home.pickServer' => 'Pick a server',
-			'home.waves.encrypted' => 'ENCRYPTED',
-			'home.waves.securing' => 'SECURING',
-			'home.waves.exposed' => 'EXPOSED',
 			'home.network.title' => 'THIS NETWORK',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'Offline',
 			'home.network.showName' => 'Show name',
 			'home.network.scanFailed' => 'Scan failed. It runs again when the network changes.',
-			'home.card.connectedVia' => 'CONNECTED VIA',
-			'home.card.protocol' => 'PROTOCOL',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9, in tunnel',
-			'home.card.dnsServer' => 'Server, in tunnel',
 			'home.card.downloaded' => 'DOWNLOADED',
 			'home.card.uploaded' => 'UPLOADED',
 			'home.card.wireguard' => 'WireGuard',
@@ -2493,7 +4197,6 @@ extension on Translations {
 			'home.card.enabled' => 'On',
 			'home.card.shield' => 'SHIELD',
 			'home.tiles.shield' => 'Shield',
-			'home.tiles.shieldOn' => 'Blocks malware sites',
 			'home.tiles.appsDirect' => 'Apps direct',
 			'home.tiles.appsAll' => 'All apps protected',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} skip the VPN',
@@ -2575,19 +4278,22 @@ extension on Translations {
 			'servers.lastUsed' => ({required Object when}) => 'Last used ${when}',
 			'servers.disconnectFirst' => 'Disconnect first to remove it',
 			'servers.removeConfirm' => 'Remove this server from G VPN? Its settings are deleted from this phone; the server itself is not changed.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'Search countries',
+			'servers.noMatch' => 'No servers match.',
+			'servers.bestPing' => ({required Object ms}) => 'best ${ms} ms',
+			'servers.bestTag' => 'BEST',
+			'servers.ownHero' => 'Our own servers',
+			'servers.ownHeroSub' => 'Faster, private, each phone with its own key',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} server', other: '${n} servers', ), 
+			'servers.showAll' => ({required Object n}) => 'Show all ${n}',
+			'servers.showFewer' => 'Show fewer',
+			'servers.fastTab' => 'Fast',
+			'servers.fastestFree' => 'Fastest free',
 			'pro.owned' => 'You have Pro',
 			'pro.waitingPlay' => 'Waiting for Google Play',
 			'pro.startTrial' => ({required Object days}) => 'Start ${days}-day free trial',
-			'pro.thenYearly' => ({required Object price}) => 'Then ${price} a year. Cancel anytime in Google Play.',
-			'pro.thenMonthly' => ({required Object price}) => 'Then ${price} a month. Cancel anytime in Google Play.',
-			'pro.yearlyPrice' => ({required Object price}) => '${price} a year. Cancel anytime in Google Play.',
-			'pro.monthlyPrice' => ({required Object price}) => '${price} a month. Cancel anytime in Google Play.',
 			'pro.restore' => 'Restore',
-			'pro.heroTitle' => 'Faster servers,\nrun by us',
-			'pro.heroSubtitle' => 'WireGuard. No activity logs. No account.',
-			'pro.benefitSpeed' => 'Full speed, no volunteer limits',
-			'pro.benefitKey' => 'Key made on your phone, never shared',
-			'pro.benefitFree' => 'Everything free stays free',
 			'pro.save' => ({required Object pct}) => 'SAVE ${pct}%',
 			'pro.yearly' => 'Yearly',
 			'pro.monthly' => 'Monthly',
@@ -2595,10 +4301,6 @@ extension on Translations {
 			'pro.daysFree' => ({required Object days}) => '${days} days free',
 			'pro.perMonth' => ({required Object price}) => '${price} a month',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'Faster servers, run by us',
-			'pro.includes' => 'Included',
-			'pro.benefitLogs' => 'No activity logs on our servers',
-			'pro.plan' => 'Choose a plan',
 			'pro.renewGeneric' => 'Subscriptions renew automatically until cancelled. Cancel anytime in Google Play.',
 			'pro.renewTrial' => ({required Object days, required Object price, required Object period}) => '${days} days free, then ${price} a ${period}. Renews automatically until cancelled; cancel anytime in Google Play, at least a day before the trial ends to avoid being charged.',
 			'pro.renew' => ({required Object price, required Object period}) => '${price} a ${period}. Renews automatically until cancelled; cancel anytime in Google Play.',
@@ -2622,15 +4324,24 @@ extension on Translations {
 			'pro.free.tools' => 'Every network tool',
 			'pro.free.toolsSub' => 'Speed test, ping, service status, traceroute, devices and more',
 			'pro.free.later' => 'G VPN Pro will add faster servers run by us. Everything above stays free.',
+			'pro.heroLine' => 'Our own fast servers, and every check unlimited',
+			'pro.start' => 'Start Pro',
+			'pro.compareFree' => 'FREE',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'Free servers',
+			'pro.rowTools' => 'Speed test, tools, Wi-Fi checks',
+			'pro.rowGServers' => 'G Servers, no logs',
+			'pro.rowLinks' => 'Link checks',
+			'pro.linksFree' => ({required Object n}) => '${n} a month',
+			'pro.unlimited' => 'Unlimited',
 			'rules.title' => 'Rules',
-			'rules.info.shield' => 'Shield sends lookups to Quad9, which refuses known malware and phishing sites. It does not block ads, and it replaces the server\'s DNS while on.',
+			'rules.info.shield' => 'Shield filters lookups while you are connected: Quad9 blocks malware and phishing, Cloudflare for Families also blocks adult sites, or use your own DNS. It never blocks ads.',
 			'rules.info.autoConnect' => 'Auto-connect: uses your selected WireGuard server. Disconnecting by hand pauses it until you join another network.',
 			'rules.info.apps' => 'Apps direct: apps that skip the VPN connect directly. Banks often block VPN addresses, so payments can fail through a VPN.',
 			'rules.info.reconnect' => 'Changing Shield or apps reconnects the VPN for a moment.',
 			'rules.info.stay' => 'Stay connected: some phones stop apps in the background to save battery. Always-on VPN and an unrestricted battery setting keep G VPN running.',
 			'rules.protection' => 'Protection',
 			'rules.shield' => 'Shield',
-			'rules.shieldSub' => 'Blocks malware and phishing sites',
 			'rules.privateDns' => 'Shield without the VPN',
 			'rules.privateDnsSub' => 'Copy dns.quad9.net for Private DNS',
 			'rules.privateDnsCopied' => 'Copied dns.quad9.net',
@@ -2701,10 +4412,17 @@ extension on Translations {
 			'wol.badMac' => 'That is not a MAC address. It looks like AA:BB:CC:DD:EE:FF.',
 			'wol.sent' => 'Wake signal sent. The device should start within a minute.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'Wake device',
 			'wol.mac' => 'MAC address',
 			'wol.failed' => ({required Object error}) => 'Could not send: ${error}',
-			'speed.info' => 'Measured by M-Lab, an open research platform. A test uses about 50 to 100 MB.\n\nPublic results: M-Lab publishes every test, including the IP address it came from, as open research data.\n\nProvider comparison: after a test without the VPN, G VPN sends only the three speeds. The comparison service reads your provider and city from the connection and stores no IP address. Turn it off with the switch at the bottom of this page.\n\nThrough the VPN: with the VPN on, it measures the speed through the tunnel and compares it with your last test without it.\n\nVideo preview: the same picture shown at the resolution this speed can stream, using the bitrates streaming services publish. No video is downloaded.',
+			'wol.computer' => 'Computer',
+			'wol.pick' => 'Pick a device to wake',
+			'wol.waking' => ({required Object name}) => 'Waking ${name}',
+			'wol.yours' => 'YOUR DEVICES',
+			'wol.wakeNamed' => ({required Object name}) => 'Wake ${name}',
+			'wol.removeHint' => 'Hold a device to remove it',
+			'wol.add' => 'ADD A DEVICE',
+			'wol.name' => 'Name',
+			'wol.saveWake' => 'Save and wake',
 			'speed.download' => 'Download',
 			'speed.upload' => 'Upload',
 			'speed.finding' => 'Finding a server',
@@ -2776,10 +4494,11 @@ extension on Translations {
 			'router.cgnat' => 'Shared provider address: not reachable from the internet.',
 			'router.noDescription' => 'No description',
 			'router.opened' => ({required Object n}) => '${n} ports opened by devices',
-			'router.routerName' => ({required Object name}) => 'Router: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'Internet address: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} to ${host}',
 			'router.upnpOn' => 'UPnP is on',
+			'router.routerLabel' => 'Router',
+			'router.internetAddress' => 'Internet address',
+			'router.openedBy' => 'Opened by devices',
 			'network.title' => 'This network',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'Mobile data',
@@ -2813,8 +4532,6 @@ extension on Translations {
 			'devices.title' => 'Devices',
 			'devices.again' => 'Scan again',
 			'devices.looking' => 'Looking for devices',
-			'devices.nothingNew' => 'Nothing new since the last scan',
-			'devices.takes' => 'Takes about 30 seconds',
 			'devices.all' => 'All',
 			'devices.phones' => 'Phones',
 			'devices.tvs' => 'TVs',
@@ -2826,18 +4543,52 @@ extension on Translations {
 			'devices.address' => 'Address',
 			'devices.answersIn' => 'Answers in',
 			'devices.type' => 'Type',
-			'devices.notAnnounced' => 'Not announced. Your router\'s device list can name it.',
 			'devices.newBadge' => 'NEW',
 			'devices.scanning' => ({required Object n}) => 'Scanning ${n} of 254',
-			'devices.thisNetwork' => 'this network',
 			'devices.newSince' => ({required Object n}) => '${n} new since the last scan',
-			'devices.showMore' => ({required Object n}) => 'Show ${n} more',
 			'devices.ms' => ({required Object n}) => '${n} ms',
-			'devices.onNetwork' => ({required Object network}) => 'devices on ${network}',
-			'ping.info' => 'How long one round trip to a server takes, measured once a second over the last minute.\n\nJitter: how much each answer differs from the one before. High jitter is what breaks up calls.\n\nLoss: answers that never came back.\n\nHow: Android apps cannot send classic pings, so each probe times a connection handshake, which is the same single round trip.',
+			'devices.cameras' => 'Cameras',
+			'devices.device' => 'Device',
+			'devices.online' => 'Online',
+			'devices.model' => 'Model',
+			'devices.announced' => 'Announces itself as',
+			'devices.services' => 'OPEN SERVICES',
+			'devices.checkingServices' => 'Checking services',
+			'devices.noServices' => 'No common services answer',
+			'devices.rename' => 'Rename',
+			'devices.save' => 'Save',
+			'devices.kinds.phone' => 'Phone',
+			'devices.kinds.computer' => 'Computer',
+			'devices.kinds.tv' => 'TV',
+			'devices.kinds.speaker' => 'Speaker',
+			'devices.kinds.printer' => 'Printer',
+			'devices.kinds.camera' => 'Camera',
+			'devices.kinds.smartHome' => 'Smart home',
+			'devices.kinds.router' => 'Router',
+			'devices.kinds.unknown' => 'Not announced',
+			'devices.details' => 'Network details',
+			'devices.listView' => 'List',
+			'devices.meshView' => 'Mesh',
+			'devices.offlineHeading' => 'Offline',
+			'devices.seen' => ({required Object when}) => 'Seen ${when}',
+			'devices.agoMinutes' => ({required Object n}) => '${n} min ago',
+			'devices.agoHours' => ({required Object n}) => '${n} h ago',
+			'devices.agoDays' => ({required Object n}) => '${n} d ago',
+			'devices.throughVpn' => 'Through the VPN',
+			'devices.closer' => 'Closer = answers faster',
+			'devices.yours' => 'Is this yours?',
+			'devices.mine' => 'Mine',
+			'devices.notMine' => 'Not mine',
+			'devices.whatIsIt' => 'What is it?',
+			'devices.ourGuess' => ({required Object kind}) => 'Our guess: ${kind}',
+			'devices.groupPersonal' => 'Phones and computers',
+			'devices.groupHome' => 'Home and media',
+			'devices.groupNetwork' => 'Network and smart home',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} online', other: '${n} online', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} offline', other: '${n} offline', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} to confirm', other: '${n} to confirm', ), 
 			'ping.askTitle' => 'Ping a host',
 			'ping.askHint' => 'example.com or 192.168.1.10',
-			'ping.cancel' => 'Cancel',
 			'ping.title' => 'Ping',
 			'ping.router' => 'Router',
 			'ping.pause' => 'Pause',
@@ -2874,7 +4625,6 @@ extension on Translations {
 			'status.blocked' => 'May be blocked on this network',
 			'status.connect' => 'Connect',
 			'status.blockedShort' => 'Blocked',
-			'status.unreachable' => 'Unreachable',
 			'status.now' => 'now',
 			'status.checks' => ({required Object n}) => '${n} checks',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} and ${n} more',
@@ -2886,27 +4636,37 @@ extension on Translations {
 			'tools.offline' => 'Offline',
 			'tools.title' => 'Tools',
 			'tools.networkDesc' => 'Safety check, what sites see, signal, router and DNS.',
-			'tools.internet' => 'Internet connectivity',
+			'tools.internet' => 'Internet',
 			'tools.speed' => 'Speed test',
-			'tools.speedDesc' => 'Download and upload speed, and the video quality it supports.',
+			'tools.speedDesc' => 'Download, upload and video quality',
 			'tools.ping' => 'Ping',
-			'tools.pingDesc' => 'Live response time and jitter to any server or your router.',
+			'tools.pingDesc' => 'Live response time and jitter',
 			'tools.status' => 'Service status',
-			'tools.statusDesc' => 'Is WhatsApp, YouTube or Google reachable from here, or blocked?',
+			'tools.statusDesc' => 'Is an app reachable or blocked here?',
 			'tools.trace' => 'Traceroute',
-			'tools.traceDesc' => 'Every router between you and a site, and how long each takes.',
-			'tools.security' => 'Network security',
+			'tools.traceDesc' => 'Every stop on the way to a site',
+			'tools.security' => 'This network',
 			'tools.devices' => 'Devices on this network',
-			'tools.devicesDesc' => 'Who else is on your Wi-Fi: phones, TVs, cameras and computers.',
+			'tools.devicesDesc' => 'Who is on your Wi-Fi',
 			'tools.router' => 'Router check',
-			'tools.routerDesc' => 'Whether devices can open ports on your router by themselves (UPnP).',
+			'tools.routerDesc' => 'Ports your devices opened',
 			'tools.ports' => 'Open ports',
-			'tools.portsDesc' => 'Check your router or a server for risky open ports.',
+			'tools.portsDesc' => 'Risky ports on a device or server',
 			'tools.utilities' => 'Utilities',
 			'tools.wifiScanner' => 'Wi-Fi scanner',
-			'tools.wifiDesc' => 'Nearby networks, their security, and the least crowded channel.',
+			'tools.wifiDesc' => 'Networks around you and the clearest channel',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'Turn on a computer or NAS on this network.',
+			'tools.wolDesc' => 'Turn on a computer on this network',
+			'tools.passwordCheck' => 'Password check',
+			'tools.passwordCheckDesc' => 'Has it been leaked?',
+			'tools.linkCheck' => 'Link check',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'Is it safe to open?',
+			'tools.breaches' => 'Data breaches',
+			'tools.breachesDesc' => 'What leaked lately',
+			'tools.blocked' => 'What\'s blocked',
+			'tools.blockedDesc' => 'Sites blocked on this network',
 			'trace.info' => 'Each stop is one router your traffic passes through on the way to the site.\n\nSilent hops: many routers never answer these probes. That is normal and not a fault.\n\nWith the VPN on: the path starts inside the tunnel, so your own network and provider are hidden.\n\nHow: it uses Android\'s own ping tool with a hop limit, since apps cannot send these packets directly.',
 			'trace.title' => 'Traceroute',
 			'trace.stop' => 'Stop',
@@ -2923,6 +4683,10 @@ extension on Translations {
 			'trace.silentMany' => ({required Object n}) => '${n} silent hops',
 			'trace.hop' => ({required Object n}) => 'Hop ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'Most of the delay, ${ms} ms, is added at hop ${hop}: usually a long cable between countries, or a busy link.',
+			'trace.popular' => 'POPULAR',
+			'trace.recent' => 'RECENT',
+			'trace.clearRecent' => 'Clear recent',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} hop', other: '${n} hops', ), 
 			'ports.ftpNote' => 'Sends passwords unencrypted.',
 			'ports.sshNote' => 'Remote login. Fine if you set it up.',
 			'ports.telnetNote' => 'Unencrypted remote login; a favourite of botnets.',
@@ -2946,13 +4710,14 @@ extension on Translations {
 			'ports.address' => 'Device or server address',
 			'ports.risky' => 'RISKY',
 			'ports.review' => 'REVIEW',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Checks the ${n} ports that matter on home routers and devices, and explains each open one.\n\nOnly check devices and servers you own or manage.',
 			'ports.checking' => ({required Object n}) => 'Checking ${n} ports',
 			'ports.yourRouter' => ({required Object ip}) => 'Your router is ${ip}',
 			'ports.noneOpen' => ({required Object host}) => 'No common ports open on ${host}.',
+			'ports.summary' => ({required Object open, required Object n}) => '${open} open of ${n} checked',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} risky', other: '${n} risky', ), 
+			'ports.noneRisky' => 'Nothing risky',
 			'wifi.title' => 'Wi-Fi scanner',
 			'wifi.allow' => 'Allow Wi-Fi scanning',
 			'wifi.needsPermission' => 'Needs location permission.',
@@ -2962,11 +4727,36 @@ extension on Translations {
 			'wifi.none' => 'No networks found. Location services may be off.',
 			'wifi.hidden' => 'Hidden network',
 			'wifi.nearby' => ({required Object n}) => '${n} networks nearby',
-			'wifi.bestChannel' => ({required Object n}) => 'Least crowded 2.4 GHz channel: ${n}',
-			'wifi.weak' => ({required Object n}) => '${n} open or weak',
-			'wifi.connectedPrefix' => 'Connected · ',
 			'wifi.permissionInfo' => 'Android only shows nearby Wi-Fi networks to apps with location permission. G VPN uses it to list networks on this phone and nothing else.',
 			'wifi.info' => 'Lists networks from the phone\'s last scan. Android allows only a few scans a minute, so a quick re-scan may show the same list. The suggested channel is the least crowded of 1, 6 and 11, the three that do not overlap.',
+			'wifi.airMap' => 'Air map',
+			'wifi.channels' => 'Channels',
+			'wifi.list' => 'List',
+			'wifi.secure' => 'Secure',
+			'wifi.weakLabel' => 'Weak',
+			'wifi.openLabel' => 'Open',
+			'wifi.sizeIsWidth' => 'Size = channel width',
+			'wifi.strongest' => 'STRONGEST',
+			'wifi.openNearby' => 'OPEN NEARBY',
+			'wifi.onYourChannel' => 'ON YOUR CHANNEL',
+			'wifi.noneNearby' => 'None',
+			'wifi.verdictOpen' => 'Anyone nearby can read what is sent',
+			'wifi.verdictWep' => 'Old security, easy to break',
+			'wifi.verdictWpa' => 'Older security',
+			'wifi.verdictWps' => 'WPS is on: easier to break into',
+			'wifi.verdictGood' => 'Well protected',
+			'wifi.maker' => 'Maker',
+			'wifi.address' => 'Hardware address',
+			'wifi.privateAddress' => 'Made up by the router for privacy',
+			'wifi.you' => 'You',
+			'wifi.onClear' => ({required Object name}) => '${name} is on a clear channel',
+			'wifi.move' => ({required Object name, required Object n}) => 'Move ${name} to channel ${n}',
+			'wifi.clear' => 'Clear',
+			'wifi.busy' => 'Busy',
+			'wifi.crowded' => 'Crowded',
+			'wifi.allBands' => 'All bands',
+			'wifi.openOnly' => 'Open only',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} network', other: '${n} networks', ), 
 			'errors.notAuthorized' => 'VPN permission was not granted.',
 			'errors.turnedOff' => 'The VPN was turned off by the system or another app.',
 			'errors.busy' => 'A permission request is already open.',
@@ -3044,10 +4834,6 @@ extension on Translations {
 			'gs.busy' => ({required Object n}) => '${n}% busy',
 			'gs.offline' => 'Offline',
 			'gs.devices' => 'Your devices',
-			'gs.devicesSub' => ({required Object n}) => 'Up to ${n} phones, each with its own key',
-			'gs.footnote' => 'Each phone gets its own key, made on the phone. G Servers keep no activity logs.',
-			'gs.leastBusy' => 'LEAST BUSY NOW',
-			'gs.busyNoLogs' => ({required Object n}) => '${n}% busy · no logs',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'BUSY',
 			'gs.status' => 'STATUS',
@@ -3082,6 +4868,400 @@ extension on Translations {
 			'gs.chartLabel' => ({required Object max}) => 'Busy over the last 24 hours, at most ${max} percent',
 			'gs.hoursAgo' => '24 h ago',
 			'gs.now' => 'Now',
+			'gs.included' => 'Included',
+			'gs.perkServers' => 'Fast, private servers',
+			'gs.perkServersSub' => 'WireGuard, run by us, no activity logs',
+			'gs.perkLinks' => 'Unlimited link checks',
+			'gs.perkLinksSub' => 'Check every link you are sent',
+			'gs.devicesOf' => ({required Object used, required Object limit}) => 'Your devices · ${used} of ${limit}',
+			'gs.eachKey' => 'Each phone has its own key',
+			'gs.connected' => 'Connected',
+			'gs.bestNow' => 'BEST FOR YOU NOW',
+			'gs.logsShort' => 'LOGS',
+			'map.open' => 'Open the map',
+			'map.searchCountries' => 'Search countries',
+			'map.noMatch' => 'No country matches',
+			'map.locate' => 'My location',
+			'map.list' => 'List',
+			'map.map' => 'Map',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} free server', other: '${n} free servers', ), 
+			'map.grade.fast' => 'Fast',
+			'map.grade.good' => 'Good',
+			'map.grade.slow' => 'Slow',
+			'map.switchTo' => 'Switch',
+			'map.freeServer' => ({required Object n}) => 'Free server ${n}',
+			'map.best' => 'BEST',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} G Server', other: '${n} G Servers', ), 
+			'stats.thisWeek' => 'This week',
+			'stats.time' => 'Time',
+			'stats.data' => 'Data',
+			'stats.protected' => 'protected',
+			'stats.throughVpn' => 'through the VPN',
+			'stats.seeDetails' => 'See details',
+			'stats.title' => 'Stats',
+			'stats.week' => 'Week',
+			'stats.month' => 'Month',
+			'stats.protectedLabel' => 'PROTECTED',
+			'stats.dataUsed' => 'DATA USED',
+			'stats.byServer' => 'BY SERVER',
+			'stats.onPhone' => 'Kept on this phone only',
+			'stats.reset' => 'Reset',
+			'stats.resetTitle' => 'Reset stats?',
+			'stats.resetBody' => 'Clears protected time and data on this phone. This cannot be undone.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} h ${m} m',
+			'stats.m' => ({required Object m}) => '${m} m',
+			'stats.empty' => 'Connect to start counting.',
+			'recents.title' => 'Recent',
+			'recents.allServers' => 'All servers',
+			'recents.free' => 'Free server',
+			'recents.yours' => 'Your server',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'Presets',
+			'presets.all' => 'All',
+			'presets.newPreset' => 'New preset',
+			'presets.edit' => 'Edit preset',
+			'presets.name' => 'Name',
+			'presets.namePlaceholder' => 'My preset',
+			'presets.server' => 'SERVER',
+			'presets.fastestOption' => 'Fastest',
+			'presets.countryOption' => 'Country',
+			'presets.pickCountry' => 'Pick a country',
+			'presets.skipMyCountry' => 'Skip my country',
+			'presets.notMine' => 'not my country',
+			'presets.protocol' => 'PROTOCOL',
+			'presets.auto' => 'Auto',
+			'presets.tryNext' => 'If blocked, try the next server',
+			'presets.shield' => 'SHIELD',
+			'presets.followRules' => 'As in Rules',
+			'presets.allApps' => 'Every app through the VPN',
+			'presets.allAppsShort' => 'all apps',
+			'presets.save' => 'Save',
+			'presets.delete' => 'Delete',
+			'presets.reset' => 'Reset to default',
+			'presets.none' => 'No free server fits this preset right now.',
+			'presets.names.fastest' => 'Fastest',
+			'presets.names.unblock' => 'Unblock',
+			'presets.names.streaming' => 'Streaming',
+			'presets.names.privacy' => 'Privacy max',
+			'shield.title' => 'Shield',
+			'shield.sub' => 'Works while you are connected',
+			'shield.off' => 'Off',
+			'shield.offSub' => 'The server\'s own DNS',
+			'shield.malware' => 'Malware',
+			'shield.malwareSub' => 'Blocks harmful and phishing sites',
+			'shield.family' => 'Malware and adult sites',
+			'shield.familySub' => 'Also blocks adult content',
+			'shield.custom' => 'Custom DNS',
+			'shield.customSub' => 'Your own DNS servers',
+			'shield.customHint' => 'IP address, for example 1.1.1.1',
+			'shield.invalid' => 'Enter one or two IP addresses.',
+			'checks.title' => 'Safety checks',
+			'checks.password' => 'Password',
+			'checks.link' => 'Link',
+			'checks.pwTitle' => 'Was it leaked?',
+			'checks.pwHint' => 'Password to check',
+			'checks.showPassword' => 'Show password',
+			'checks.hidePassword' => 'Hide password',
+			'checks.check' => 'Check',
+			'checks.leaked' => 'Found in leaks',
+			'checks.seen' => ({required Object n}) => 'Seen ${n} times',
+			'checks.leakedAdvice' => 'Change it everywhere you use it, starting with email and banking.',
+			'checks.notFound' => 'Not in known leaks',
+			'checks.notFoundAdvice' => 'A good sign, not a guarantee. Use a different password for every account.',
+			'checks.failed' => 'Could not check. Try again.',
+			'checks.private' => 'Your password never leaves this phone',
+			'checks.linkTitle' => 'Is this link safe?',
+			'checks.linkHint' => 'Link to check',
+			'checks.paste' => 'Paste',
+			'checks.danger' => 'Dangerous link',
+			'checks.dangerAdvice' => 'Do not open it or enter any details.',
+			'checks.clear' => 'Not on known malware or phishing lists',
+			'checks.clearAdvice' => 'Still look at the address before you sign in anywhere.',
+			'checks.goesTo' => 'Goes to',
+			'checks.redirects' => 'Redirects',
+			'checks.invalid' => 'That does not look like a web address.',
+			'checks.busy' => 'Too many checks. Try again in a while.',
+			'checks.unavailable' => 'Link check is not available right now.',
+			'checks.listed' => 'Known for malware or phishing',
+			'checks.missing' => 'No website at this address',
+			'checks.missingAdvice' => 'Check the spelling: scams often use look-alike addresses.',
+			'checks.left' => ({required Object n, required Object total}) => '${n} of ${total} free checks left this month',
+			'checks.usedUp' => 'You have used this month\'s free link checks',
+			'checks.usedUpSub' => 'Pro has unlimited link checks. Your free checks come back on the 1st.',
+			'checks.getPro' => 'Get Pro',
+			'toolSettings.title' => 'Tool settings',
+			'toolSettings.askMobile' => 'Ask before speed tests on mobile data',
+			'toolSettings.askMobileSub' => 'A test can use over 100 MB on a fast connection',
+			'toolSettings.mobileTitle' => 'Use mobile data?',
+			'toolSettings.mobileBody' => 'A speed test can use over 100 MB on a fast connection.',
+			'toolSettings.mobileGo' => 'Test',
+			'toolSettings.safe' => 'Safe',
+			'toolSettings.unsafe' => 'Unsafe',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} device', other: '${n} devices', ), 
+			'toolSettings.hideMac' => 'Hide hardware addresses',
+			'toolSettings.hideMacSub' => 'Shows only the maker part of MAC addresses',
+			'toolSettings.names' => 'Show names of routers and servers',
+			'toolSettings.namesSub' => 'Looks up names for addresses in Traceroute',
+			'toolSettings.remember' => 'Remember recent hosts',
+			'toolSettings.rememberSub' => 'For Traceroute',
+			'toolSettings.clear' => 'Clear tool history',
+			'toolSettings.clearSub' => 'Forgets recent hosts and which devices each network had',
+			'toolSettings.clearGo' => 'Clear',
+			'security.tab' => 'Security',
+			'security.good' => 'Good',
+			'security.fair' => 'Fair',
+			'security.atRisk' => 'At risk',
+			'security.allClear' => 'Nothing to fix',
+			'security.checked' => ({required Object time}) => 'Checked ${time}',
+			'security.trend' => 'LAST TWO WEEKS',
+			'security.checking' => 'Checking this network',
+			'security.snoozed' => 'Snoozed',
+			'security.remindLater' => 'Remind me later',
+			'security.unsnooze' => 'Remind me now',
+			'security.review' => 'Review',
+			'security.confirmGo' => 'Confirm',
+			'security.scanGo' => 'Scan',
+			'security.look' => 'Look',
+			'security.connectGo' => 'Connect',
+			'security.checkAgain' => 'Check again',
+			'security.wifiOpen' => 'Wi-Fi is open',
+			'security.wifiOpenDetail' => 'Anyone nearby can see what is sent',
+			'security.wifiWep' => 'Wi-Fi uses WEP',
+			'security.wifiWepDetail' => 'Old security, easy to break',
+			'security.wifiOwe' => 'Wi-Fi uses Enhanced Open',
+			'security.wifiOweDetail' => 'Encrypted, but anyone can join',
+			'security.wifiSecure' => 'Wi-Fi encryption',
+			'security.wifiUnknown' => 'Wi-Fi security unknown',
+			'security.wifiUnknownDetail' => 'Android did not say how it is protected',
+			'security.wps' => 'WPS is on',
+			'security.wpsDetail' => 'Turn it off in the router\'s settings',
+			'security.upnpOff' => 'Router keeps ports closed',
+			'security.upnpOffDetail' => 'UPnP is off',
+			'security.upnpOn' => 'Router lets devices open ports',
+			'security.upnpOnDetail' => 'UPnP is on',
+			'security.portsOk' => 'No risky ports on the router',
+			'security.portsRisky' => 'Risky ports open on the router',
+			'security.scanFirst' => 'Scan to see who is here',
+			'security.scanFirstDetail' => 'Unknown devices count against the score',
+			'security.notMineDetail' => 'Check your router\'s device list',
+			'security.confirmDetail' => 'Mark the ones that are yours',
+			'security.devicesOk' => 'Every device is known',
+			'security.devicesOkDetail' => 'You confirmed each one',
+			'security.camera' => 'A camera is on this network',
+			'security.dnsHijack' => 'Unknown names are redirected',
+			'security.dnsHijackDetail' => 'Your provider or router rewrites lookups',
+			'security.dnsOk' => 'DNS answers normally',
+			'security.dnsOkDetail' => 'No sign of redirection',
+			'security.vpnOn' => 'VPN is on',
+			'security.vpnOnDetail' => 'Traffic leaves through the tunnel',
+			'security.vpnOff' => 'VPN is off',
+			'security.vpnOffDetail' => 'Your provider sees every site',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} thing to fix', other: '${n} things to fix', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} port opened by devices', other: '${n} ports opened by devices', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} port checked', other: '${n} ports checked', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} device is not yours', other: '${n} devices are not yours', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} device to confirm', other: '${n} devices to confirm', ), 
+			'providers.tab' => 'Internet',
+			'providers.unavailable' => 'Could not reach the provider list. Check your connection.',
+			'providers.cached' => 'As of your last check without the VPN',
+			'providers.notEnough' => 'Not enough ratings yet',
+			'providers.yourRating' => 'Your rating this month',
+			'providers.yourSpeed' => 'YOUR SPEED',
+			'providers.runTest' => 'Run a speed test',
+			'providers.aboutAverage' => 'About average here',
+			'providers.aboveAverage' => ({required Object pct}) => '${pct}% above the local average',
+			'providers.belowAverage' => ({required Object pct}) => '${pct}% below the local average',
+			'providers.call' => 'Call',
+			'providers.website' => 'Website',
+			'providers.outages' => 'Outages',
+			'providers.rate' => 'Rate',
+			'providers.changeRating' => 'Change rating',
+			'providers.compare' => 'Compare',
+			'providers.rateTitle' => ({required Object name}) => 'Rate ${name}',
+			'providers.oncePerMonth' => 'One rating a month',
+			'providers.tapStars' => 'Tap the stars',
+			'providers.verified' => ({required Object mbps}) => 'Verified by your speed test: ${mbps} Mbps',
+			'providers.busy' => 'Too many ratings from here. Try later.',
+			'providers.failed' => 'Could not post. Try again.',
+			'providers.post' => 'Post rating',
+			'providers.nearTitle' => 'Providers near you',
+			'providers.slower' => ({required Object pct}) => 'Your download is ${pct}% below your provider\'s average here',
+			'providers.inPlace' => ({required Object place}) => 'Home internet in ${place}',
+			'providers.byRating' => 'Rating',
+			'providers.bySpeed' => 'Speed',
+			'providers.footnote' => 'Speeds are averages of G VPN speed tests',
+			'providers.noneNearby' => 'No ratings near you yet. Be the first.',
+			'providers.you' => 'You',
+			'providers.topRated' => 'Top rated',
+			'providers.starsOf' => ({required Object n}) => '${n} out of 5',
+			'providers.tags.fast' => 'Fast',
+			'providers.tags.reliable' => 'Reliable',
+			'providers.tags.support' => 'Good support',
+			'providers.tags.price' => 'Fair price',
+			'providers.tags.slowEvenings' => 'Slow evenings',
+			'providers.tags.drops' => 'Drops often',
+			'providers.tags.poorSupport' => 'Poor support',
+			'providers.tags.pricey' => 'Pricey',
+			'providers.words.bad' => 'Bad',
+			'providers.words.poor' => 'Poor',
+			'providers.words.okay' => 'Okay',
+			'providers.words.good' => 'Good',
+			'providers.words.great' => 'Great',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} rating', other: '${n} ratings', ), 
+			'alerts.channel' => 'Alerts',
+			'alerts.title' => 'Alerts',
+			'alerts.markAllRead' => 'Mark all read',
+			'alerts.clearAll' => 'Clear all',
+			'alerts.thisNetwork' => 'this network',
+			'alerts.openWifiTitle' => ({required Object name}) => 'You joined an open Wi-Fi: ${name}',
+			'alerts.openWifiBody' => 'Anyone nearby can see what is sent. Turn on G VPN.',
+			'alerts.reportTitle' => 'Your weekly report is ready',
+			'alerts.reportBody' => ({required Object hours}) => '${hours} hours protected last week',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} is blocked here',
+			'alerts.blockedBody' => 'It answers through the VPN',
+			'alerts.kinds.newDevice' => 'New devices on my Wi-Fi',
+			'alerts.kinds.openWifi' => 'Open or weak Wi-Fi',
+			'alerts.kinds.blocked' => 'Blocked apps',
+			'alerts.kinds.report' => 'Weekly report',
+			'alerts.kinds.breach' => 'Breaches',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'New device on ${network}', other: '${n} new devices on ${network}', ), 
+			'alerts.settings' => 'Alert settings',
+			'alerts.look' => 'Look',
+			'alerts.read' => 'Read',
+			'alerts.open' => 'Open',
+			'alerts.check' => 'Check',
+			'alerts.today' => 'TODAY',
+			'alerts.thisWeek' => 'THIS WEEK',
+			'alerts.earlier' => 'EARLIER',
+			'alerts.all' => 'All',
+			'alerts.quiet' => 'All quiet',
+			'alerts.quietSub' => 'Nothing needed you lately',
+			'alerts.breachTitle' => ({required Object name}) => 'New breach: ${name}',
+			'alerts.status.background' => 'Every few hours',
+			'alerts.status.checked' => ({required Object time}) => 'Last checked ${time}',
+			'alerts.status.wifi' => 'Every network you join',
+			'alerts.status.blocked' => 'When Service status runs',
+			'alerts.status.report' => 'Every Monday',
+			'report.title' => 'Weekly report',
+			'report.share' => 'Share as image',
+			'report.shareText' => 'My week with G VPN',
+			'report.safer' => 'A safer week',
+			'report.moreProtected' => 'More protected than last week',
+			'report.yourWeek' => 'Your week',
+			'report.soFar' => ({required Object range}) => '${range}, so far',
+			'report.protected' => 'Protected',
+			'report.data' => 'Data',
+			'report.security' => 'Security',
+			'report.speed' => 'Best speed',
+			'report.noScore' => 'Not checked',
+			'report.noTest' => 'No test',
+			'report.bestDirect' => 'Direct test',
+			'report.moreThan' => ({required Object d}) => '${d} more than last week',
+			'report.lessThan' => ({required Object d}) => '${d} less than last week',
+			'report.protectedTime' => 'PROTECTED TIME',
+			'report.mostUsed' => ({required Object name}) => 'Most used: ${name}',
+			'report.quiet' => 'A quiet week: nothing needed you',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} new device joined', other: '${n} new devices joined', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Joined ${n} open Wi-Fi', other: 'Joined ${n} open Wi-Fi networks', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} app blocked', other: '${n} apps blocked', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} big new breach', other: '${n} big new breaches', ), 
+			'breaches.title' => 'Data breaches',
+			'breaches.info' => 'The latest data breaches, from Have I Been Pwned\'s public list. Nothing about you is sent: the list is the same for everyone.\n\nIf you had an account with a breached site, change that password, and anywhere you reused it.',
+			'breaches.unavailable' => 'Could not load the breach list. Check your connection.',
+			'breaches.biggest' => 'BIGGEST THIS MONTH',
+			'breaches.newest' => 'Newest',
+			'breaches.biggestSort' => 'Biggest',
+			'breaches.withPasswords' => 'With passwords',
+			'breaches.passwordsMark' => 'PASSWORDS',
+			'breaches.one' => 'Breach',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'Check a password',
+			'breaches.verified' => 'Verified',
+			'breaches.hasPasswords' => 'Has passwords',
+			'breaches.accountsLabel' => 'Accounts',
+			'breaches.happened' => 'Happened',
+			'breaches.published' => 'Published',
+			'breaches.website' => 'Website',
+			'breaches.leaked' => 'WHAT LEAKED',
+			'breaches.ifUsed' => 'IF YOU USED IT',
+			'breaches.stepPassword' => 'Change the password you used there',
+			'breaches.stepReuse' => 'Change it anywhere you used the same one',
+			'breaches.stepTwoStep' => 'Turn on two-step sign-in where you can',
+			'breaches.stepScams' => 'Expect scam calls and texts',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} account', other: '${count} accounts', ), 
+			'breaches.worldwide' => ({required Object n}) => 'Worldwide · ${n}',
+			'breaches.noneHere' => 'No breaches from here in the recent list.',
+			'breaches.bigMap' => 'Bigger map',
+			'breaches.showInList' => 'Show in list',
+			'breaches.mapTitle' => 'Breach map',
+			'breaches.zoomIn' => 'Zoom in',
+			'breaches.zoomOut' => 'Zoom out',
+			'breaches.wholeWorld' => 'Whole world',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} breach', other: '${n} breaches', ), 
+			'breaches.findCountry' => 'Find a country',
+			'breaches.seeAll' => 'See all',
+			'breaches.search' => 'Search breaches',
+			'blocked.title' => 'What\'s blocked',
+			'blocked.info' => 'Tests well-known sites from this phone, without the VPN, and shows which ones this network blocks and how.\n\nWrong address: the network\'s name lookup gives a false answer.\n\nCut off: the connection is reset as it starts.\n\nNo answer: nothing comes back.\n\nBlock page: something else answers in the site\'s place.\n\nThe test shows where a site is blocked, not who blocked it. Nothing is stored or sent anywhere.',
+			'blocked.thisNetwork' => 'This network',
+			'blocked.country' => 'Your country',
+			'blocked.question' => 'What\'s blocked here?',
+			'blocked.testingOn' => 'TESTING ON',
+			'blocked.vpnOn' => 'VPN ON',
+			'blocked.turnOff' => 'Turn off G VPN to test',
+			'blocked.test' => 'Test this network',
+			'blocked.stop' => 'Stop',
+			'blocked.sitesToTest' => ({required Object n}) => 'SITES TO TEST · ${n}',
+			'blocked.ofSites' => ({required Object n}) => 'of ${n} sites',
+			'blocked.blockedCount' => ({required Object n}) => '${n} BLOCKED',
+			'blocked.openCount' => ({required Object n}) => '${n} OPEN',
+			'blocked.noneBlocked' => ({required Object network}) => 'Nothing blocked on ${network}',
+			'blocked.openOf' => ({required Object open, required Object total}) => '${open} of ${total} open',
+			'blocked.allWork' => 'ALL WORK WITH G VPN',
+			'blocked.blockedHeading' => 'BLOCKED',
+			'blocked.byKind' => 'BY KIND',
+			'blocked.worksVpn' => 'Works with VPN',
+			'blocked.failsVpn' => 'Blocked through VPN too',
+			'blocked.checkVpn' => 'Check through G VPN',
+			'blocked.connect' => 'Connect G VPN',
+			'blocked.again' => 'Test again',
+			'blocked.withoutVpn' => 'WITHOUT VPN',
+			'blocked.throughVpn' => 'THROUGH G VPN',
+			'blocked.notChecked' => 'Not checked',
+			'blocked.opens' => 'Opens',
+			'blocked.stillBlocked' => 'Blocked',
+			'blocked.whatHappened' => 'WHAT HAPPENED',
+			'blocked.countryBlocked' => ({required Object country}) => 'sites blocked in ${country}',
+			'blocked.countrySub' => 'Found by volunteers\' tests in the last 30 days',
+			'blocked.countryNone' => 'No blocked sites reported in the last 30 days.',
+			'blocked.countryUnavailable' => 'Could not load the country\'s results. Check your connection.',
+			'blocked.confirmed' => 'BLOCKED',
+			'blocked.oftenFails' => 'OFTEN FAILS',
+			'blocked.kinds.social' => 'Social',
+			'blocked.kinds.messaging' => 'Messaging',
+			'blocked.kinds.news' => 'News',
+			'blocked.kinds.video' => 'Video and music',
+			'blocked.kinds.privacy' => 'Privacy tools',
+			'blocked.how.dns' => 'Wrong address',
+			'blocked.how.reset' => 'Cut off',
+			'blocked.how.timeout' => 'No answer',
+			'blocked.how.page' => 'Block page',
+			'blocked.how.open' => 'Open',
+			'blocked.fail.noAnswer' => 'no answer',
+			'blocked.fail.refused' => 'refused',
+			'blocked.fail.cutOff' => ({required Object s}) => 'cut off after ${s} s',
+			'blocked.fail.wrongCert' => 'wrong certificate',
+			'blocked.steps.lookup' => 'Name lookup',
+			'blocked.steps.connect' => 'Connect',
+			'blocked.steps.handshake' => 'Secure handshake',
+			'blocked.consent.title' => 'Before the first test',
+			'blocked.consent.body' => 'The test opens each site from this phone, without the VPN, the way a browser would.',
+			'blocked.consent.noticeTitle' => 'It can be noticed',
+			'blocked.consent.notice' => 'Your provider sees these sites being opened. In some countries visiting them, even to test, can draw attention. Only test where you feel safe to.',
+			'blocked.consent.ok' => 'I understand, test',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} site blocked on ${network}', other: '${n} sites blocked on ${network}', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} test', other: '${n} tests', ), 
 			_ => null,
 		};
 	}

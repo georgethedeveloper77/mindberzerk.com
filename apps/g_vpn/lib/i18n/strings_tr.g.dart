@@ -69,6 +69,19 @@ class TranslationsTr extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$add$tr add = _Translations$add$tr._(_root);
 	@override late final _Translations$backup$tr backup = _Translations$backup$tr._(_root);
 	@override late final _Translations$gs$tr gs = _Translations$gs$tr._(_root);
+	@override late final _Translations$map$tr map = _Translations$map$tr._(_root);
+	@override late final _Translations$stats$tr stats = _Translations$stats$tr._(_root);
+	@override late final _Translations$recents$tr recents = _Translations$recents$tr._(_root);
+	@override late final _Translations$presets$tr presets = _Translations$presets$tr._(_root);
+	@override late final _Translations$shield$tr shield = _Translations$shield$tr._(_root);
+	@override late final _Translations$checks$tr checks = _Translations$checks$tr._(_root);
+	@override late final _Translations$toolSettings$tr toolSettings = _Translations$toolSettings$tr._(_root);
+	@override late final _Translations$security$tr security = _Translations$security$tr._(_root);
+	@override late final _Translations$providers$tr providers = _Translations$providers$tr._(_root);
+	@override late final _Translations$alerts$tr alerts = _Translations$alerts$tr._(_root);
+	@override late final _Translations$report$tr report = _Translations$report$tr._(_root);
+	@override late final _Translations$breaches$tr breaches = _Translations$breaches$tr._(_root);
+	@override late final _Translations$blocked$tr blocked = _Translations$blocked$tr._(_root);
 }
 
 // Path: common
@@ -117,8 +130,6 @@ class _Translations$home$tr extends Translations$home$en {
 	// Translations
 	@override late final _Translations$home$status$tr status = _Translations$home$status$tr._(_root);
 	@override String resumesAt({required Object time}) => '${time} itibarıyla devam eder · şimdi devam etmek için dokunun';
-	@override String sitesSee({required Object ip}) => 'Siteler ${ip} adresini görüyor';
-	@override String sitesSeeOrg({required Object ip, required Object org}) => 'Siteler ${ip} adresini görüyor · ${org}';
 	@override String get ipFailed => 'IP adresiniz kontrol edilemedi';
 	@override String get ipChecking => 'IP adresiniz kontrol ediliyor';
 	@override String get themeSystem => 'Tema: telefonu izle';
@@ -126,7 +137,6 @@ class _Translations$home$tr extends Translations$home$en {
 	@override String get themeDark => 'Tema: koyu';
 	@override String get free => 'Ücretsiz';
 	@override String get pickServer => 'Bir sunucu seçin';
-	@override late final _Translations$home$waves$tr waves = _Translations$home$waves$tr._(_root);
 	@override late final _Translations$home$network$tr network = _Translations$home$network$tr._(_root);
 	@override late final _Translations$home$card$tr card = _Translations$home$card$tr._(_root);
 	@override late final _Translations$home$tiles$tr tiles = _Translations$home$tiles$tr._(_root);
@@ -177,6 +187,20 @@ class _Translations$servers$tr extends Translations$servers$en {
 	@override String lastUsed({required Object when}) => 'Son kullanım ${when}';
 	@override String get disconnectFirst => 'Kaldırmak için önce bağlantıyı kesin';
 	@override String get removeConfirm => 'Bu sunucu G VPN\'den kaldırılsın mı? Ayarları bu telefondan silinir; sunucunun kendisi değişmez.';
+	@override String get gTab => 'G Servers';
+	@override String get search => 'Ülke ara';
+	@override String get noMatch => 'Eşleşen sunucu yok.';
+	@override String bestPing({required Object ms}) => 'en iyi ${ms} ms';
+	@override String get bestTag => 'EN İYİ';
+	@override String get ownHero => 'Kendi sunucularımız';
+	@override String get ownHeroSub => 'Daha hızlı, özel, her telefonun kendi anahtarı var';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} sunucu',
+	);
+	@override String showAll({required Object n}) => '${n} sunucunun tümü';
+	@override String get showFewer => 'Daha az göster';
+	@override String get fastTab => 'Hızlı';
+	@override String get fastestFree => 'En hızlı ücretsiz';
 }
 
 // Path: pro
@@ -189,16 +213,7 @@ class _Translations$pro$tr extends Translations$pro$en {
 	@override String get owned => 'Pro\'nuz var';
 	@override String get waitingPlay => 'Google Play bekleniyor';
 	@override String startTrial({required Object days}) => '${days} günlük ücretsiz denemeyi başlat';
-	@override String thenYearly({required Object price}) => 'Ardından yılda ${price}. Google Play\'den istediğiniz zaman iptal edin.';
-	@override String thenMonthly({required Object price}) => 'Ardından ayda ${price}. Google Play\'den istediğiniz zaman iptal edin.';
-	@override String yearlyPrice({required Object price}) => 'Yılda ${price}. Google Play\'den istediğiniz zaman iptal edin.';
-	@override String monthlyPrice({required Object price}) => 'Ayda ${price}. Google Play\'den istediğiniz zaman iptal edin.';
 	@override String get restore => 'Geri yükle';
-	@override String get heroTitle => 'Daha hızlı sunucular,\nbizim işlettiğimiz';
-	@override String get heroSubtitle => 'WireGuard. Etkinlik kaydı yok. Hesap yok.';
-	@override String get benefitSpeed => 'Tam hız, gönüllü sunucu sınırları yok';
-	@override String get benefitKey => 'Anahtar telefonunuzda oluşturulur, asla paylaşılmaz';
-	@override String get benefitFree => 'Ücretsiz olan her şey ücretsiz kalır';
 	@override String save({required Object pct}) => '%${pct} TASARRUF';
 	@override String get yearly => 'Yıllık';
 	@override String get monthly => 'Aylık';
@@ -206,10 +221,6 @@ class _Translations$pro$tr extends Translations$pro$en {
 	@override String daysFree({required Object days}) => '${days} gün ücretsiz';
 	@override String perMonth({required Object price}) => 'Ayda ${price}';
 	@override String get title => 'G VPN Pro';
-	@override String get heroTitleOneLine => 'Bizim işlettiğimiz daha hızlı sunucular';
-	@override String get includes => 'İçerik';
-	@override String get benefitLogs => 'Sunucularımızda etkinlik kaydı yok';
-	@override String get plan => 'Bir plan seçin';
 	@override String get renewGeneric => 'Abonelikler iptal edilene kadar otomatik yenilenir. Google Play\'den istediğiniz zaman iptal edin.';
 	@override String renewTrial({required Object days, required Object period, required Object price}) => '${days} gün ücretsiz, ardından her ${period} için ${price}. İptal edilene kadar otomatik yenilenir; ücret alınmaması için deneme bitmeden en az bir gün önce Google Play\'den iptal edin.';
 	@override String renew({required Object period, required Object price}) => 'Her ${period} için ${price}. İptal edilene kadar otomatik yenilenir; Google Play\'den istediğiniz zaman iptal edin.';
@@ -217,6 +228,16 @@ class _Translations$pro$tr extends Translations$pro$en {
 	@override String get month => 'ay';
 	@override String get manage => 'Aboneliği yönet';
 	@override late final _Translations$pro$free$tr free = _Translations$pro$free$tr._(_root);
+	@override String get heroLine => 'Kendi hızlı sunucularımız ve sınırsız her kontrol';
+	@override String get start => 'Pro\'yu başlat';
+	@override String get compareFree => 'ÜCRETSİZ';
+	@override String get comparePro => 'PRO';
+	@override String get rowFreeServers => 'Ücretsiz sunucular';
+	@override String get rowTools => 'Hız testi, araçlar, Wi-Fi kontrolleri';
+	@override String get rowGServers => 'G Servers, kayıt yok';
+	@override String get rowLinks => 'Bağlantı kontrolü';
+	@override String linksFree({required Object n}) => 'Ayda ${n}';
+	@override String get unlimited => 'Sınırsız';
 }
 
 // Path: rules
@@ -230,7 +251,6 @@ class _Translations$rules$tr extends Translations$rules$en {
 	@override late final _Translations$rules$info$tr info = _Translations$rules$info$tr._(_root);
 	@override String get protection => 'Koruma';
 	@override String get shield => 'Kalkan';
-	@override String get shieldSub => 'Zararlı yazılım ve kimlik avı sitelerini engeller';
 	@override String get privateDns => 'VPN olmadan Kalkan';
 	@override String get privateDnsSub => 'Özel DNS için dns.quad9.net\'i kopyala';
 	@override String get privateDnsCopied => 'dns.quad9.net kopyalandı';
@@ -346,9 +366,17 @@ class _Translations$wol$tr extends Translations$wol$en {
 	@override String get badMac => 'Bu bir MAC adresi değil. Şuna benzer: AA:BB:CC:DD:EE:FF.';
 	@override String get sent => 'Uyandırma sinyali gönderildi. Cihaz bir dakika içinde açılmalı.';
 	@override String get title => 'Wake on LAN';
-	@override String get wake => 'Cihazı uyandır';
 	@override String get mac => 'MAC adresi';
 	@override String failed({required Object error}) => 'Gönderilemedi: ${error}';
+	@override String get computer => 'Bilgisayar';
+	@override String get pick => 'Uyandırmak için bir cihaz seçin';
+	@override String waking({required Object name}) => '${name} uyandırılıyor';
+	@override String get yours => 'CİHAZLARINIZ';
+	@override String wakeNamed({required Object name}) => '${name} uyandır';
+	@override String get removeHint => 'Kaldırmak için cihaza basılı tutun';
+	@override String get add => 'CİHAZ EKLE';
+	@override String get name => 'Ad';
+	@override String get saveWake => 'Kaydet ve uyandır';
 }
 
 // Path: speed
@@ -358,7 +386,6 @@ class _Translations$speed$tr extends Translations$speed$en {
 	final TranslationsTr _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Açık bir araştırma platformu olan M-Lab tarafından ölçülür. Bir test yaklaşık 50 ila 100 MB kullanır.\n\nHerkese açık sonuçlar: M-Lab her testi, geldiği IP adresi dahil, açık araştırma verisi olarak yayımlar.\n\nSağlayıcı karşılaştırması: VPN olmadan yapılan testten sonra G VPN yalnızca üç hız değerini gönderir. Karşılaştırma hizmeti sağlayıcınızı ve şehrinizi bağlantının kendisinden okur ve hiçbir IP adresi saklamaz. Bu sayfanın altındaki anahtarla kapatın.\n\nVPN üzerinden: VPN açıkken tünel üzerinden hızı ölçer ve VPN\'siz son testinizle karşılaştırır.\n\nVideo önizleme: aynı resim, yayın hizmetlerinin açıkladığı bit hızlarına göre bu hızın oynatabileceği çözünürlükte gösterilir. Hiçbir video indirilmez.';
 	@override String get download => 'İndirme';
 	@override String get upload => 'Yükleme';
 	@override String get finding => 'Sunucu aranıyor';
@@ -439,10 +466,11 @@ class _Translations$router$tr extends Translations$router$en {
 	@override String get cgnat => 'Paylaşılan sağlayıcı adresi: internetten erişilemez.';
 	@override String get noDescription => 'Açıklama yok';
 	@override String opened({required Object n}) => 'Cihazların açtığı ${n} port';
-	@override String routerName({required Object name}) => 'Modem: ${name}';
-	@override String externalIp({required Object ip}) => 'İnternet adresi: ${ip}';
 	@override String mapping({required Object proto, required Object host}) => '${proto} → ${host}';
 	@override String get upnpOn => 'UPnP açık';
+	@override String get routerLabel => 'Yönlendirici';
+	@override String get internetAddress => 'İnternet adresi';
+	@override String get openedBy => 'Cihazların açtıkları';
 }
 
 // Path: network
@@ -494,8 +522,6 @@ class _Translations$devices$tr extends Translations$devices$en {
 	@override String get title => 'Cihazlar';
 	@override String get again => 'Tekrar tara';
 	@override String get looking => 'Cihazlar aranıyor';
-	@override String get nothingNew => 'Son taramadan bu yana yeni bir şey yok';
-	@override String get takes => 'Yaklaşık 30 saniye sürer';
 	@override String get all => 'Tümü';
 	@override String get phones => 'Telefonlar';
 	@override String get tvs => 'TV\'ler';
@@ -507,14 +533,48 @@ class _Translations$devices$tr extends Translations$devices$en {
 	@override String get address => 'Adres';
 	@override String get answersIn => 'Yanıt süresi';
 	@override String get type => 'Tür';
-	@override String get notAnnounced => 'Kendini tanıtmadı. Modeminizin cihaz listesi adını gösterebilir.';
 	@override String get newBadge => 'YENİ';
 	@override String scanning({required Object n}) => '254 adresin ${n} tanesi tarandı';
-	@override String get thisNetwork => 'bu ağ';
 	@override String newSince({required Object n}) => 'Son taramadan bu yana ${n} yeni';
-	@override String showMore({required Object n}) => '${n} tane daha göster';
 	@override String ms({required Object n}) => '${n} ms';
-	@override String onNetwork({required Object network}) => '${network} ağındaki cihaz';
+	@override String get cameras => 'Kameralar';
+	@override String get device => 'Cihaz';
+	@override String get online => 'Çevrimiçi';
+	@override String get model => 'Model';
+	@override String get announced => 'Kendini şöyle tanıtıyor';
+	@override String get services => 'AÇIK HİZMETLER';
+	@override String get checkingServices => 'Hizmetler kontrol ediliyor';
+	@override String get noServices => 'Yaygın hizmetlerden hiçbiri yanıt vermiyor';
+	@override String get rename => 'Yeniden adlandır';
+	@override String get save => 'Kaydet';
+	@override late final _Translations$devices$kinds$tr kinds = _Translations$devices$kinds$tr._(_root);
+	@override String get details => 'Ağ ayrıntıları';
+	@override String get listView => 'Liste';
+	@override String get meshView => 'Ağ örgüsü';
+	@override String get offlineHeading => 'Çevrimdışı';
+	@override String seen({required Object when}) => '${when} görüldü';
+	@override String agoMinutes({required Object n}) => '${n} dk önce';
+	@override String agoHours({required Object n}) => '${n} sa önce';
+	@override String agoDays({required Object n}) => '${n} gün önce';
+	@override String get throughVpn => 'VPN üzerinden';
+	@override String get closer => 'Daha yakın = daha hızlı yanıt';
+	@override String get yours => 'Bu sizin mi?';
+	@override String get mine => 'Benim';
+	@override String get notMine => 'Benim değil';
+	@override String get whatIsIt => 'Bu ne?';
+	@override String ourGuess({required Object kind}) => 'Tahminimiz: ${kind}';
+	@override String get groupPersonal => 'Telefonlar ve bilgisayarlar';
+	@override String get groupHome => 'Ev ve medya';
+	@override String get groupNetwork => 'Ağ ve akıllı ev';
+	@override String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} çevrimiçi',
+	);
+	@override String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} çevrimdışı',
+	);
+	@override String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} onay bekliyor',
+	);
 }
 
 // Path: ping
@@ -524,10 +584,8 @@ class _Translations$ping$tr extends Translations$ping$en {
 	final TranslationsTr _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Bir sunucuya gidip dönmenin ne kadar sürdüğü; son bir dakika boyunca her saniye ölçülür.\n\nJitter: her yanıtın bir öncekinden ne kadar farklı olduğu. Yüksek jitter aramaları böler.\n\nKayıp: hiç geri dönmeyen yanıtlar.\n\nNasıl: Android uygulamaları klasik ping gönderemez, bu yüzden her deneme bir bağlantı el sıkışmasını ölçer; bu da aynı gidiş-dönüştür.';
 	@override String get askTitle => 'Bir sunucuya ping at';
 	@override String get askHint => 'example.com veya 192.168.1.10';
-	@override String get cancel => 'İptal';
 	@override String get title => 'Ping';
 	@override String get router => 'Modem';
 	@override String get pause => 'Duraklat';
@@ -573,7 +631,6 @@ class _Translations$status$tr extends Translations$status$en {
 	@override String get blocked => 'Bu ağda engellenmiş olabilir';
 	@override String get connect => 'Bağlan';
 	@override String get blockedShort => 'Engelli';
-	@override String get unreachable => 'Erişilemiyor';
 	@override String get now => 'şimdi';
 	@override String checks({required Object n}) => '${n} kontrol';
 	@override String andMore({required Object first, required Object n}) => '${first} ve ${n} tane daha';
@@ -594,27 +651,35 @@ class _Translations$tools$tr extends Translations$tools$en {
 	@override String get offline => 'Çevrimdışı';
 	@override String get title => 'Araçlar';
 	@override String get networkDesc => 'Güvenlik kontrolü, sitelerin gördükleri, sinyal, modem ve DNS.';
-	@override String get internet => 'İnternet bağlantısı';
+	@override String get internet => 'İnternet';
 	@override String get speed => 'Hız testi';
-	@override String get speedDesc => 'İndirme ve yükleme hızı, desteklediği video kalitesi.';
+	@override String get speedDesc => 'İndirme, yükleme ve video kalitesi';
 	@override String get ping => 'Ping';
-	@override String get pingDesc => 'Herhangi bir sunucuya veya modeminize canlı yanıt süresi ve jitter.';
+	@override String get pingDesc => 'Canlı yanıt süresi ve dalgalanma';
 	@override String get status => 'Hizmet durumu';
-	@override String get statusDesc => 'WhatsApp, YouTube veya Google buradan erişilebilir mi, yoksa engelli mi?';
+	@override String get statusDesc => 'Bir uygulama burada çalışıyor mu, engelli mi?';
 	@override String get trace => 'Traceroute';
-	@override String get traceDesc => 'Sizinle bir site arasındaki her modem ve her birinin süresi.';
-	@override String get security => 'Ağ güvenliği';
+	@override String get traceDesc => 'Bir siteye giden yoldaki her durak';
+	@override String get security => 'Bu ağ';
 	@override String get devices => 'Bu ağdaki cihazlar';
-	@override String get devicesDesc => 'Wi-Fi\'nizde başka kimler var: telefonlar, TV\'ler, kameralar ve bilgisayarlar.';
+	@override String get devicesDesc => 'Wi-Fi\'nizde kimler var';
 	@override String get router => 'Modem kontrolü';
-	@override String get routerDesc => 'Cihazlar modeminizde kendi başlarına port açabiliyor mu (UPnP).';
+	@override String get routerDesc => 'Cihazlarınızın açtığı portlar';
 	@override String get ports => 'Açık portlar';
-	@override String get portsDesc => 'Modeminizi veya bir sunucuyu riskli açık portlar için kontrol edin.';
-	@override String get utilities => 'Yardımcı araçlar';
+	@override String get portsDesc => 'Bir cihaz veya sunucudaki riskli portlar';
+	@override String get utilities => 'Araçlar';
 	@override String get wifiScanner => 'Wi-Fi tarayıcı';
-	@override String get wifiDesc => 'Yakındaki ağlar, güvenlikleri ve en az kalabalık kanal.';
+	@override String get wifiDesc => 'Çevrenizdeki ağlar ve en boş kanal';
 	@override String get wol => 'Wake on LAN';
-	@override String get wolDesc => 'Bu ağdaki bir bilgisayarı veya NAS\'ı açın.';
+	@override String get wolDesc => 'Bu ağdaki bir bilgisayarı açın';
+	@override String get passwordCheck => 'Parola kontrolü';
+	@override String get passwordCheckDesc => 'Sızdırılmış mı?';
+	@override String get linkCheck => 'Bağlantı kontrolü';
+	@override String get linkCheckDesc => 'Açmak güvenli mi?';
+	@override String get breaches => 'Veri sızıntıları';
+	@override String get breachesDesc => 'Son zamanlarda ne sızdı';
+	@override String get blocked => 'Ne engelli';
+	@override String get blockedDesc => 'Bu ağda engellenen siteler';
 }
 
 // Path: trace
@@ -640,6 +705,12 @@ class _Translations$trace$tr extends Translations$trace$en {
 	@override String silentMany({required Object n}) => '${n} sessiz atlama';
 	@override String hop({required Object n}) => 'Atlama ${n}';
 	@override String slowest({required Object ms, required Object hop}) => 'Gecikmenin çoğu, ${ms} ms, ${hop}. atlamada ekleniyor: genellikle ülkeler arası uzun bir kablo ya da yoğun bir bağlantı.';
+	@override String get popular => 'POPÜLER';
+	@override String get recent => 'SON KULLANILANLAR';
+	@override String get clearRecent => 'Sonları temizle';
+	@override String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} atlama',
+	);
 }
 
 // Path: ports
@@ -677,6 +748,11 @@ class _Translations$ports$tr extends Translations$ports$en {
 	@override String checking({required Object n}) => '${n} port kontrol ediliyor';
 	@override String yourRouter({required Object ip}) => 'Modeminiz: ${ip}';
 	@override String noneOpen({required Object host}) => '${host} üzerinde açık yaygın port yok.';
+	@override String summary({required Object n, required Object open}) => '${n} port içinde ${open} açık';
+	@override String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} riskli',
+	);
+	@override String get noneRisky => 'Riskli bir şey yok';
 }
 
 // Path: wifi
@@ -695,11 +771,38 @@ class _Translations$wifi$tr extends Translations$wifi$en {
 	@override String get none => 'Ağ bulunamadı. Konum kapalı olabilir.';
 	@override String get hidden => 'Gizli ağ';
 	@override String nearby({required Object n}) => 'Yakında ${n} ağ';
-	@override String bestChannel({required Object n}) => 'En az kalabalık 2,4 GHz kanalı: ${n}';
-	@override String weak({required Object n}) => '${n} açık veya zayıf';
-	@override String get connectedPrefix => 'Bağlı · ';
 	@override String get permissionInfo => 'Android, yakındaki Wi-Fi ağlarını yalnızca konum izni olan uygulamalara gösterir. G VPN bunu yalnızca bu telefondaki ağları listelemek için kullanır.';
 	@override String get info => 'Telefonun son taramasındaki ağları listeler. Android dakikada yalnızca birkaç taramaya izin verir, bu yüzden hızlı tekrar tarama aynı listeyi gösterebilir. Önerilen kanal, birbiriyle çakışmayan üç kanal olan 1, 6 ve 11 arasında en az kalabalık olanıdır.';
+	@override String get airMap => 'Hava haritası';
+	@override String get channels => 'Kanallar';
+	@override String get list => 'Liste';
+	@override String get secure => 'Güvenli';
+	@override String get weakLabel => 'Zayıf';
+	@override String get openLabel => 'Açık';
+	@override String get sizeIsWidth => 'Boyut = kanal genişliği';
+	@override String get strongest => 'EN GÜÇLÜ';
+	@override String get openNearby => 'YAKINDAKİ AÇIK AĞLAR';
+	@override String get onYourChannel => 'KANALINIZDA';
+	@override String get noneNearby => 'Yok';
+	@override String get verdictOpen => 'Yakındaki herkes gönderilenleri okuyabilir';
+	@override String get verdictWep => 'Eski güvenlik, kolay kırılır';
+	@override String get verdictWpa => 'Eski güvenlik';
+	@override String get verdictWps => 'WPS açık: kırılması daha kolay';
+	@override String get verdictGood => 'İyi korunuyor';
+	@override String get maker => 'Üretici';
+	@override String get address => 'Donanım adresi';
+	@override String get privateAddress => 'Gizlilik için yönlendirici uydurdu';
+	@override String get you => 'Siz';
+	@override String onClear({required Object name}) => '${name} boş bir kanalda';
+	@override String move({required Object name, required Object n}) => '${name} ağını ${n}. kanala taşıyın';
+	@override String get clear => 'Boş';
+	@override String get busy => 'Yoğun';
+	@override String get crowded => 'Kalabalık';
+	@override String get allBands => 'Tüm bantlar';
+	@override String get openOnly => 'Yalnızca açık';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} ağ',
+	);
 }
 
 // Path: errors
@@ -858,10 +961,6 @@ class _Translations$gs$tr extends Translations$gs$en {
 	@override String busy({required Object n}) => '%${n} meşgul';
 	@override String get offline => 'Çevrimdışı';
 	@override String get devices => 'Cihazlarınız';
-	@override String devicesSub({required Object n}) => 'En fazla ${n} telefon, her biri kendi anahtarıyla';
-	@override String get footnote => 'Her telefon, telefonda oluşturulan kendi anahtarını alır. G Servers etkinlik kaydı tutmaz.';
-	@override String get leastBusy => 'ŞU AN EN AZ MEŞGUL';
-	@override String busyNoLogs({required Object n}) => '%${n} meşgul · kayıt yok';
 	@override String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 	@override String get busyLabel => 'MEŞGUL';
 	@override String get status => 'DURUM';
@@ -896,6 +995,510 @@ class _Translations$gs$tr extends Translations$gs$en {
 	@override String chartLabel({required Object max}) => 'Son 24 saatteki meşguliyet, en fazla yüzde ${max}';
 	@override String get hoursAgo => '24 sa önce';
 	@override String get now => 'Şimdi';
+	@override String get included => 'Dahil';
+	@override String get perkServers => 'Hızlı, özel sunucular';
+	@override String get perkServersSub => 'WireGuard, bizim işlettiğimiz, etkinlik kaydı yok';
+	@override String get perkLinks => 'Sınırsız bağlantı kontrolü';
+	@override String get perkLinksSub => 'Size gönderilen her bağlantıyı kontrol edin';
+	@override String devicesOf({required Object limit, required Object used}) => 'Cihazlarınız · ${limit} içinde ${used}';
+	@override String get eachKey => 'Her telefonun kendi anahtarı var';
+	@override String get connected => 'Bağlı';
+	@override String get bestNow => 'ŞU AN SİZİN İÇİN EN İYİSİ';
+	@override String get logsShort => 'KAYIT';
+}
+
+// Path: map
+class _Translations$map$tr extends Translations$map$en {
+	_Translations$map$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get open => 'Haritayı aç';
+	@override String get searchCountries => 'Ülke ara';
+	@override String get noMatch => 'Eşleşen ülke yok';
+	@override String get locate => 'Konumum';
+	@override String get list => 'Liste';
+	@override String get map => 'Harita';
+	@override String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} ücretsiz sunucu',
+	);
+	@override late final _Translations$map$grade$tr grade = _Translations$map$grade$tr._(_root);
+	@override String get switchTo => 'Geç';
+	@override String freeServer({required Object n}) => 'Ücretsiz sunucu ${n}';
+	@override String get best => 'EN İYİ';
+	@override String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} G Server',
+	);
+}
+
+// Path: stats
+class _Translations$stats$tr extends Translations$stats$en {
+	_Translations$stats$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get thisWeek => 'Bu hafta';
+	@override String get time => 'Süre';
+	@override String get data => 'Veri';
+	@override String get protected => 'korumalı';
+	@override String get throughVpn => 'VPN üzerinden';
+	@override String get seeDetails => 'Ayrıntılar';
+	@override String get title => 'İstatistikler';
+	@override String get week => 'Hafta';
+	@override String get month => 'Ay';
+	@override String get protectedLabel => 'KORUMALI';
+	@override String get dataUsed => 'KULLANILAN VERİ';
+	@override String get byServer => 'SUNUCUYA GÖRE';
+	@override String get onPhone => 'Yalnızca bu telefonda';
+	@override String get reset => 'Sıfırla';
+	@override String get resetTitle => 'İstatistikler sıfırlansın mı?';
+	@override String get resetBody => 'Bu telefondaki korumalı süre ve veri silinir. Geri alınamaz.';
+	@override String hm({required Object h, required Object m}) => '${h} sa ${m} dk';
+	@override String m({required Object m}) => '${m} dk';
+	@override String get empty => 'Saymaya başlamak için bağlanın.';
+}
+
+// Path: recents
+class _Translations$recents$tr extends Translations$recents$en {
+	_Translations$recents$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Son kullanılanlar';
+	@override String get allServers => 'Tüm sunucular';
+	@override String get free => 'Ücretsiz sunucu';
+	@override String get yours => 'Sunucunuz';
+	@override String get gserver => 'G Server';
+}
+
+// Path: presets
+class _Translations$presets$tr extends Translations$presets$en {
+	_Translations$presets$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Hazır ayarlar';
+	@override String get all => 'Tümü';
+	@override String get newPreset => 'Yeni ayar';
+	@override String get edit => 'Ayarı düzenle';
+	@override String get name => 'Ad';
+	@override String get namePlaceholder => 'Ayarım';
+	@override String get server => 'SUNUCU';
+	@override String get fastestOption => 'En hızlı';
+	@override String get countryOption => 'Ülke';
+	@override String get pickCountry => 'Ülke seçin';
+	@override String get skipMyCountry => 'Ülkemi atla';
+	@override String get notMine => 'ülkem hariç';
+	@override String get protocol => 'PROTOKOL';
+	@override String get auto => 'Otomatik';
+	@override String get tryNext => 'Engellenirse sonrakini dene';
+	@override String get shield => 'KALKAN';
+	@override String get followRules => 'Kurallardaki gibi';
+	@override String get allApps => 'Tüm uygulamalar VPN\'den';
+	@override String get allAppsShort => 'tüm uygulamalar';
+	@override String get save => 'Kaydet';
+	@override String get delete => 'Sil';
+	@override String get reset => 'Varsayılana dön';
+	@override String get none => 'Şu an bu ayara uyan ücretsiz sunucu yok.';
+	@override late final _Translations$presets$names$tr names = _Translations$presets$names$tr._(_root);
+}
+
+// Path: shield
+class _Translations$shield$tr extends Translations$shield$en {
+	_Translations$shield$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Kalkan';
+	@override String get sub => 'Bağlıyken çalışır';
+	@override String get off => 'Kapalı';
+	@override String get offSub => 'Sunucunun kendi DNS\'i';
+	@override String get malware => 'Kötü amaçlı yazılım';
+	@override String get malwareSub => 'Zararlı ve oltalama sitelerini engeller';
+	@override String get family => 'Kötü amaçlı ve yetişkin siteleri';
+	@override String get familySub => 'Yetişkin içeriği de engeller';
+	@override String get custom => 'Özel DNS';
+	@override String get customSub => 'Kendi DNS sunucularınız';
+	@override String get customHint => 'IP adresi, örneğin 1.1.1.1';
+	@override String get invalid => 'Bir veya iki IP adresi girin.';
+}
+
+// Path: checks
+class _Translations$checks$tr extends Translations$checks$en {
+	_Translations$checks$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Güvenlik kontrolleri';
+	@override String get password => 'Parola';
+	@override String get link => 'Bağlantı';
+	@override String get pwTitle => 'Sızdırıldı mı?';
+	@override String get pwHint => 'Kontrol edilecek parola';
+	@override String get showPassword => 'Parolayı göster';
+	@override String get hidePassword => 'Parolayı gizle';
+	@override String get check => 'Kontrol et';
+	@override String get leaked => 'Sızıntılarda bulundu';
+	@override String seen({required Object n}) => '${n} kez görüldü';
+	@override String get leakedAdvice => 'Kullandığınız her yerde değiştirin; e-posta ve bankadan başlayın.';
+	@override String get notFound => 'Bilinen sızıntılarda yok';
+	@override String get notFoundAdvice => 'İyi bir işaret, garanti değil. Her hesapta farklı parola kullanın.';
+	@override String get failed => 'Kontrol edilemedi. Tekrar deneyin.';
+	@override String get private => 'Parolanız bu telefondan hiç çıkmaz';
+	@override String get linkTitle => 'Bu bağlantı güvenli mi?';
+	@override String get linkHint => 'Kontrol edilecek bağlantı';
+	@override String get paste => 'Yapıştır';
+	@override String get danger => 'Tehlikeli bağlantı';
+	@override String get dangerAdvice => 'Açmayın ve hiçbir bilgi girmeyin.';
+	@override String get clear => 'Bilinen kötü amaçlı yazılım veya oltalama listelerinde yok';
+	@override String get clearAdvice => 'Yine de giriş yapmadan önce adrese bakın.';
+	@override String get goesTo => 'Gittiği yer';
+	@override String get redirects => 'Yönlendirmeler';
+	@override String get invalid => 'Bu bir web adresine benzemiyor.';
+	@override String get busy => 'Çok fazla kontrol. Biraz sonra tekrar deneyin.';
+	@override String get unavailable => 'Bağlantı kontrolü şu an kullanılamıyor.';
+	@override String get listed => 'Kötü amaçlı yazılım veya oltalamayla bilinen';
+	@override String get missing => 'Bu adreste site yok';
+	@override String get missingAdvice => 'Yazımı kontrol edin: dolandırıcılar benzer adresler kullanır.';
+	@override String left({required Object total, required Object n}) => 'Bu ay ${total} ücretsiz kontrolden ${n} kaldı';
+	@override String get usedUp => 'Bu ayın ücretsiz bağlantı kontrollerini kullandınız';
+	@override String get usedUpSub => 'Pro\'da sınırsız kontrol var. Ücretsiz kontroller ayın 1\'inde yenilenir.';
+	@override String get getPro => 'Pro\'yu al';
+}
+
+// Path: toolSettings
+class _Translations$toolSettings$tr extends Translations$toolSettings$en {
+	_Translations$toolSettings$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Araç ayarları';
+	@override String get askMobile => 'Mobil veride hız testinden önce sor';
+	@override String get askMobileSub => 'Hızlı bağlantıda bir test 100 MB\'tan fazla kullanabilir';
+	@override String get mobileTitle => 'Mobil veri kullanılsın mı?';
+	@override String get mobileBody => 'Hızlı bağlantıda bir hız testi 100 MB\'tan fazla kullanabilir.';
+	@override String get mobileGo => 'Test et';
+	@override String get safe => 'Güvenli';
+	@override String get unsafe => 'Güvensiz';
+	@override String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} cihaz',
+	);
+	@override String get hideMac => 'Donanım adreslerini gizle';
+	@override String get hideMacSub => 'MAC adreslerinin yalnızca üretici kısmını gösterir';
+	@override String get names => 'Yönlendirici ve sunucu adlarını göster';
+	@override String get namesSub => 'Traceroute\'ta adresler için ad arar';
+	@override String get remember => 'Son kullanılan adresleri hatırla';
+	@override String get rememberSub => 'Traceroute için';
+	@override String get clear => 'Araç geçmişini temizle';
+	@override String get clearSub => 'Son adresleri ve her ağdaki cihazları unutur';
+	@override String get clearGo => 'Temizle';
+}
+
+// Path: security
+class _Translations$security$tr extends Translations$security$en {
+	_Translations$security$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'Güvenlik';
+	@override String get good => 'İyi';
+	@override String get fair => 'Orta';
+	@override String get atRisk => 'Riskli';
+	@override String get allClear => 'Düzeltilecek bir şey yok';
+	@override String checked({required Object time}) => '${time} itibarıyla kontrol edildi';
+	@override String get trend => 'SON İKİ HAFTA';
+	@override String get checking => 'Bu ağ kontrol ediliyor';
+	@override String get snoozed => 'Ertelenenler';
+	@override String get remindLater => 'Sonra hatırlat';
+	@override String get unsnooze => 'Şimdi hatırlat';
+	@override String get review => 'İncele';
+	@override String get confirmGo => 'Onayla';
+	@override String get scanGo => 'Tara';
+	@override String get look => 'Bak';
+	@override String get connectGo => 'Bağlan';
+	@override String get checkAgain => 'Tekrar kontrol et';
+	@override String get wifiOpen => 'Wi-Fi açık';
+	@override String get wifiOpenDetail => 'Yakındaki herkes gönderilenleri görebilir';
+	@override String get wifiWep => 'Wi-Fi WEP kullanıyor';
+	@override String get wifiWepDetail => 'Eski güvenlik, kolay kırılır';
+	@override String get wifiOwe => 'Wi-Fi Enhanced Open kullanıyor';
+	@override String get wifiOweDetail => 'Şifreli ama herkes katılabilir';
+	@override String get wifiSecure => 'Wi-Fi şifrelemesi';
+	@override String get wifiUnknown => 'Wi-Fi güvenliği bilinmiyor';
+	@override String get wifiUnknownDetail => 'Android nasıl korunduğunu bildirmedi';
+	@override String get wps => 'WPS açık';
+	@override String get wpsDetail => 'Yönlendirici ayarlarından kapatın';
+	@override String get upnpOff => 'Yönlendirici portları kapalı tutuyor';
+	@override String get upnpOffDetail => 'UPnP kapalı';
+	@override String get upnpOn => 'Yönlendirici cihazların port açmasına izin veriyor';
+	@override String get upnpOnDetail => 'UPnP açık';
+	@override String get portsOk => 'Yönlendiricide riskli port yok';
+	@override String get portsRisky => 'Yönlendiricide riskli portlar açık';
+	@override String get scanFirst => 'Burada kimler var görmek için tarayın';
+	@override String get scanFirstDetail => 'Bilinmeyen cihazlar puanı düşürür';
+	@override String get notMineDetail => 'Yönlendiricinin cihaz listesine bakın';
+	@override String get confirmDetail => 'Sizin olanları işaretleyin';
+	@override String get devicesOk => 'Tüm cihazlar biliniyor';
+	@override String get devicesOkDetail => 'Hepsini onayladınız';
+	@override String get camera => 'Bu ağda bir kamera var';
+	@override String get dnsHijack => 'Bilinmeyen adlar yönlendiriliyor';
+	@override String get dnsHijackDetail => 'Sağlayıcınız veya yönlendiriciniz sorguları değiştiriyor';
+	@override String get dnsOk => 'DNS normal yanıt veriyor';
+	@override String get dnsOkDetail => 'Yönlendirme belirtisi yok';
+	@override String get vpnOn => 'VPN açık';
+	@override String get vpnOnDetail => 'Trafik tünelden çıkıyor';
+	@override String get vpnOff => 'VPN kapalı';
+	@override String get vpnOffDetail => 'Sağlayıcınız her siteyi görüyor';
+	@override String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: 'Düzeltilecek ${n} şey',
+	);
+	@override String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: 'Cihazların açtığı ${n} port',
+	);
+	@override String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} port kontrol edildi',
+	);
+	@override String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} cihaz sizin değil',
+	);
+	@override String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: 'Onaylanacak ${n} cihaz',
+	);
+}
+
+// Path: providers
+class _Translations$providers$tr extends Translations$providers$en {
+	_Translations$providers$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'İnternet';
+	@override String get unavailable => 'Sağlayıcı listesi yüklenemedi. Bağlantınızı kontrol edin.';
+	@override String get cached => 'VPN\'siz son kontrolünüze göre';
+	@override String get notEnough => 'Henüz yeterli puan yok';
+	@override String get yourRating => 'Bu ayki puanınız';
+	@override String get yourSpeed => 'HIZINIZ';
+	@override String get runTest => 'Hız testi yap';
+	@override String get aboutAverage => 'Buradaki ortalama civarında';
+	@override String aboveAverage({required Object pct}) => 'Yerel ortalamanın %${pct} üstünde';
+	@override String belowAverage({required Object pct}) => 'Yerel ortalamanın %${pct} altında';
+	@override String get call => 'Ara';
+	@override String get website => 'Web sitesi';
+	@override String get outages => 'Kesintiler';
+	@override String get rate => 'Puanla';
+	@override String get changeRating => 'Puanı değiştir';
+	@override String get compare => 'Karşılaştır';
+	@override String rateTitle({required Object name}) => '${name} sağlayıcısını puanla';
+	@override String get oncePerMonth => 'Ayda bir puan';
+	@override String get tapStars => 'Yıldızlara dokunun';
+	@override String verified({required Object mbps}) => 'Hız testinizle doğrulandı: ${mbps} Mbps';
+	@override String get busy => 'Buradan çok fazla puan geldi. Sonra deneyin.';
+	@override String get failed => 'Gönderilemedi. Tekrar deneyin.';
+	@override String get post => 'Puanı gönder';
+	@override String get nearTitle => 'Yakınınızdaki sağlayıcılar';
+	@override String slower({required Object pct}) => 'İndirme hızınız sağlayıcınızın buradaki ortalamasının %${pct} altında';
+	@override String inPlace({required Object place}) => '${place} ev interneti';
+	@override String get byRating => 'Puan';
+	@override String get bySpeed => 'Hız';
+	@override String get footnote => 'Hızlar G VPN hız testlerinin ortalamasıdır';
+	@override String get noneNearby => 'Yakında henüz puan yok. İlk siz olun.';
+	@override String get you => 'Siz';
+	@override String get topRated => 'En yüksek puanlı';
+	@override String starsOf({required Object n}) => '5 üzerinden ${n}';
+	@override late final _Translations$providers$tags$tr tags = _Translations$providers$tags$tr._(_root);
+	@override late final _Translations$providers$words$tr words = _Translations$providers$words$tr._(_root);
+	@override String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} puan',
+	);
+}
+
+// Path: alerts
+class _Translations$alerts$tr extends Translations$alerts$en {
+	_Translations$alerts$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get channel => 'Uyarılar';
+	@override String get title => 'Uyarılar';
+	@override String get markAllRead => 'Tümünü okundu yap';
+	@override String get clearAll => 'Tümünü temizle';
+	@override String get thisNetwork => 'bu ağ';
+	@override String openWifiTitle({required Object name}) => 'Açık bir Wi-Fi\'ye bağlandınız: ${name}';
+	@override String get openWifiBody => 'Yakındaki herkes gönderilenleri görebilir. G VPN\'i açın.';
+	@override String get reportTitle => 'Haftalık raporunuz hazır';
+	@override String reportBody({required Object hours}) => 'Geçen hafta ${hours} saat korundunuz';
+	@override String blockedTitle({required Object name}) => '${name} burada engelli';
+	@override String get blockedBody => 'VPN üzerinden yanıt veriyor';
+	@override late final _Translations$alerts$kinds$tr kinds = _Translations$alerts$kinds$tr._(_root);
+	@override String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${network} ağında ${n} yeni cihaz',
+	);
+	@override String get settings => 'Uyarı ayarları';
+	@override String get look => 'Bak';
+	@override String get read => 'Oku';
+	@override String get open => 'Aç';
+	@override String get check => 'Kontrol et';
+	@override String get today => 'BUGÜN';
+	@override String get thisWeek => 'BU HAFTA';
+	@override String get earlier => 'DAHA ÖNCE';
+	@override String get all => 'Tümü';
+	@override String get quiet => 'Her şey sakin';
+	@override String get quietSub => 'Son zamanlarda hiçbir şey size ihtiyaç duymadı';
+	@override String breachTitle({required Object name}) => 'Yeni sızıntı: ${name}';
+	@override late final _Translations$alerts$status$tr status = _Translations$alerts$status$tr._(_root);
+}
+
+// Path: report
+class _Translations$report$tr extends Translations$report$en {
+	_Translations$report$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Haftalık rapor';
+	@override String get share => 'Görsel olarak paylaş';
+	@override String get shareText => 'G VPN ile haftam';
+	@override String get safer => 'Daha güvenli bir hafta';
+	@override String get moreProtected => 'Geçen haftadan daha korunaklı';
+	@override String get yourWeek => 'Haftanız';
+	@override String soFar({required Object range}) => '${range}, şu ana kadar';
+	@override String get protected => 'Korunan';
+	@override String get data => 'Veri';
+	@override String get security => 'Güvenlik';
+	@override String get speed => 'En iyi hız';
+	@override String get noScore => 'Kontrol edilmedi';
+	@override String get noTest => 'Test yok';
+	@override String get bestDirect => 'Doğrudan test';
+	@override String moreThan({required Object d}) => 'Geçen haftadan ${d} fazla';
+	@override String lessThan({required Object d}) => 'Geçen haftadan ${d} az';
+	@override String get protectedTime => 'KORUNAN SÜRE';
+	@override String mostUsed({required Object name}) => 'En çok kullanılan: ${name}';
+	@override String get quiet => 'Sakin bir hafta: hiçbir şey size ihtiyaç duymadı';
+	@override String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} yeni cihaz katıldı',
+	);
+	@override String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} açık Wi-Fi\'ye bağlandınız',
+	);
+	@override String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} uygulama engellendi',
+	);
+	@override String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} büyük yeni sızıntı',
+	);
+}
+
+// Path: breaches
+class _Translations$breaches$tr extends Translations$breaches$en {
+	_Translations$breaches$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Veri sızıntıları';
+	@override String get info => 'Have I Been Pwned\'ın herkese açık listesinden en yeni veri sızıntıları. Sizinle ilgili hiçbir şey gönderilmez: liste herkes için aynıdır.\n\nSızdırılan bir sitede hesabınız varsa o parolayı ve aynısını kullandığınız her yerde değiştirin.';
+	@override String get unavailable => 'Liste yüklenemedi. Bağlantınızı kontrol edin.';
+	@override String get biggest => 'BU AYIN EN BÜYÜĞÜ';
+	@override String get newest => 'En yeni';
+	@override String get biggestSort => 'En büyük';
+	@override String get withPasswords => 'Parola içeren';
+	@override String get passwordsMark => 'PAROLALAR';
+	@override String get one => 'Sızıntı';
+	@override String get checkPassword => 'Bir parolayı kontrol et';
+	@override String get verified => 'Doğrulanmış';
+	@override String get hasPasswords => 'Parola içeriyor';
+	@override String get accountsLabel => 'Hesaplar';
+	@override String get happened => 'Gerçekleşti';
+	@override String get published => 'Yayımlandı';
+	@override String get website => 'Web sitesi';
+	@override String get leaked => 'NE SIZDI';
+	@override String get ifUsed => 'KULLANDIYSANIZ';
+	@override String get stepPassword => 'Orada kullandığınız parolayı değiştirin';
+	@override String get stepReuse => 'Aynısını kullandığınız her yerde değiştirin';
+	@override String get stepTwoStep => 'Mümkünse iki adımlı girişi açın';
+	@override String get stepScams => 'Dolandırıcı arama ve mesajlarına hazırlıklı olun';
+	@override String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${count} hesap',
+	);
+	@override String worldwide({required Object n}) => 'Dünya geneli · ${n}';
+	@override String get noneHere => 'Son listede buradan sızıntı yok.';
+	@override String get bigMap => 'Daha büyük harita';
+	@override String get showInList => 'Listede göster';
+	@override String get mapTitle => 'Sızıntı haritası';
+	@override String get zoomIn => 'Yakınlaştır';
+	@override String get zoomOut => 'Uzaklaştır';
+	@override String get wholeWorld => 'Tüm dünya';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} sızıntı',
+	);
+	@override String get findCountry => 'Bir ülke bul';
+	@override String get seeAll => 'Tümünü gör';
+	@override String get search => 'Sızıntılarda ara';
+}
+
+// Path: blocked
+class _Translations$blocked$tr extends Translations$blocked$en {
+	_Translations$blocked$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Ne engelli';
+	@override String get info => 'Bilinen siteleri bu telefondan VPN olmadan dener ve bu ağın hangilerini nasıl engellediğini gösterir.\n\nYanlış adres: ağın ad sorgusu yanlış yanıt verir.\n\nKesildi: bağlantı başlarken kesilir.\n\nYanıt yok: hiçbir şey dönmez.\n\nEngel sayfası: sitenin yerine başka bir şey yanıt verir.\n\nTest bir sitenin nerede engellendiğini gösterir, kimin engellediğini değil. Hiçbir şey kaydedilmez veya gönderilmez.';
+	@override String get thisNetwork => 'Bu ağ';
+	@override String get country => 'Ülkeniz';
+	@override String get question => 'Burada ne engelli?';
+	@override String get testingOn => 'TEST EDİLEN';
+	@override String get vpnOn => 'VPN AÇIK';
+	@override String get turnOff => 'Test için G VPN\'i kapatın';
+	@override String get test => 'Bu ağı test et';
+	@override String get stop => 'Durdur';
+	@override String sitesToTest({required Object n}) => 'TEST EDİLECEK SİTELER · ${n}';
+	@override String ofSites({required Object n}) => '${n} siteden';
+	@override String blockedCount({required Object n}) => '${n} ENGELLİ';
+	@override String openCount({required Object n}) => '${n} AÇIK';
+	@override String noneBlocked({required Object network}) => '${network} üzerinde engelli bir şey yok';
+	@override String openOf({required Object total, required Object open}) => '${total} siteden ${open} açık';
+	@override String get allWork => 'HEPSİ G VPN İLE ÇALIŞIYOR';
+	@override String get blockedHeading => 'ENGELLİ';
+	@override String get byKind => 'TÜRE GÖRE';
+	@override String get worksVpn => 'VPN ile çalışıyor';
+	@override String get failsVpn => 'VPN ile de engelli';
+	@override String get checkVpn => 'G VPN üzerinden kontrol et';
+	@override String get connect => 'G VPN\'e bağlan';
+	@override String get again => 'Tekrar test et';
+	@override String get withoutVpn => 'VPN OLMADAN';
+	@override String get throughVpn => 'G VPN ÜZERİNDEN';
+	@override String get notChecked => 'Kontrol edilmedi';
+	@override String get opens => 'Açılıyor';
+	@override String get stillBlocked => 'Engelli';
+	@override String get whatHappened => 'NE OLDU';
+	@override String countryBlocked({required Object country}) => '${country} ülkesinde engelli site';
+	@override String get countrySub => 'Gönüllü testlerinin son 30 günde bulduğu';
+	@override String get countryNone => 'Son 30 günde bildirilen engelli site yok.';
+	@override String get countryUnavailable => 'Ülke sonuçları yüklenemedi. Bağlantınızı kontrol edin.';
+	@override String get confirmed => 'ENGELLİ';
+	@override String get oftenFails => 'SIK HATA';
+	@override late final _Translations$blocked$kinds$tr kinds = _Translations$blocked$kinds$tr._(_root);
+	@override late final _Translations$blocked$how$tr how = _Translations$blocked$how$tr._(_root);
+	@override late final _Translations$blocked$fail$tr fail = _Translations$blocked$fail$tr._(_root);
+	@override late final _Translations$blocked$steps$tr steps = _Translations$blocked$steps$tr._(_root);
+	@override late final _Translations$blocked$consent$tr consent = _Translations$blocked$consent$tr._(_root);
+	@override String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${network} üzerinde ${n} site engelli',
+	);
+	@override String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n,
+		other: '${n} test',
+	);
 }
 
 // Path: home.status
@@ -911,18 +1514,6 @@ class _Translations$home$status$tr extends Translations$home$status$en {
 	@override String get connecting => 'Bağlanıyor';
 	@override String get stopping => 'Durduruluyor';
 	@override String get notProtected => 'Korunmuyor';
-}
-
-// Path: home.waves
-class _Translations$home$waves$tr extends Translations$home$waves$en {
-	_Translations$home$waves$tr._(TranslationsTr root) : this._root = root, super.internal(root);
-
-	final TranslationsTr _root; // ignore: unused_field
-
-	// Translations
-	@override String get encrypted => 'ŞİFRELİ';
-	@override String get securing => 'KORUNUYOR';
-	@override String get exposed => 'AÇIKTA';
 }
 
 // Path: home.network
@@ -946,11 +1537,6 @@ class _Translations$home$card$tr extends Translations$home$card$en {
 	final TranslationsTr _root; // ignore: unused_field
 
 	// Translations
-	@override String get connectedVia => 'BAĞLANTI';
-	@override String get protocol => 'PROTOKOL';
-	@override String get dns => 'DNS';
-	@override String get dnsQuad9 => 'Quad9, tünel içinde';
-	@override String get dnsServer => 'Sunucu, tünel içinde';
 	@override String get downloaded => 'İNDİRİLEN';
 	@override String get uploaded => 'YÜKLENEN';
 	@override String get wireguard => 'WireGuard';
@@ -971,7 +1557,6 @@ class _Translations$home$tiles$tr extends Translations$home$tiles$en {
 
 	// Translations
 	@override String get shield => 'Kalkan';
-	@override String get shieldOn => 'Zararlı siteleri engeller';
 	@override String get appsDirect => 'Doğrudan uygulamalar';
 	@override String get appsAll => 'Tüm uygulamalar korunuyor';
 	@override String appsSkip({required Object n}) => '${n} uygulama VPN dışı';
@@ -1120,11 +1705,180 @@ class _Translations$rules$info$tr extends Translations$rules$info$en {
 	final TranslationsTr _root; // ignore: unused_field
 
 	// Translations
-	@override String get shield => 'Kalkan, DNS sorgularını bilinen zararlı yazılım ve kimlik avı sitelerini reddeden Quad9\'a gönderir. Reklamları engellemez ve açıkken sunucunun DNS\'inin yerini alır.';
+	@override String get shield => 'Kalkan, bağlıyken DNS sorgularını süzer: Quad9 kötü amaçlı yazılımı ve oltalamayı engeller, Cloudflare for Families yetişkin sitelerini de engeller ya da kendi DNS\'inizi kullanın. Reklamları asla engellemez.';
 	@override String get autoConnect => 'Otomatik bağlanma: seçtiğiniz WireGuard sunucusunu kullanır. Elle bağlantıyı kesmek, başka bir ağa katılana kadar onu duraklatır.';
 	@override String get apps => 'Doğrudan uygulamalar: VPN dışında kalan uygulamalar doğrudan bağlanır. Bankalar VPN adreslerini sık sık engeller, bu yüzden VPN üzerinden ödemeler başarısız olabilir.';
 	@override String get reconnect => 'Kalkanı veya uygulamaları değiştirmek VPN\'i kısa süreliğine yeniden bağlar.';
 	@override String get stay => 'Bağlı kal: bazı telefonlar pil tasarrufu için arka plandaki uygulamaları durdurur. Her zaman açık VPN ve kısıtlamasız pil ayarı G VPN\'in çalışmasını sağlar.';
+}
+
+// Path: devices.kinds
+class _Translations$devices$kinds$tr extends Translations$devices$kinds$en {
+	_Translations$devices$kinds$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get phone => 'Telefon';
+	@override String get computer => 'Bilgisayar';
+	@override String get tv => 'TV';
+	@override String get speaker => 'Hoparlör';
+	@override String get printer => 'Yazıcı';
+	@override String get camera => 'Kamera';
+	@override String get smartHome => 'Akıllı ev';
+	@override String get router => 'Yönlendirici';
+	@override String get unknown => 'Tanıtılmadı';
+}
+
+// Path: map.grade
+class _Translations$map$grade$tr extends Translations$map$grade$en {
+	_Translations$map$grade$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Hızlı';
+	@override String get good => 'İyi';
+	@override String get slow => 'Yavaş';
+}
+
+// Path: presets.names
+class _Translations$presets$names$tr extends Translations$presets$names$en {
+	_Translations$presets$names$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fastest => 'En hızlı';
+	@override String get unblock => 'Engel aş';
+	@override String get streaming => 'Yayın';
+	@override String get privacy => 'En yüksek gizlilik';
+}
+
+// Path: providers.tags
+class _Translations$providers$tags$tr extends Translations$providers$tags$en {
+	_Translations$providers$tags$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Hızlı';
+	@override String get reliable => 'Güvenilir';
+	@override String get support => 'İyi destek';
+	@override String get price => 'Makul fiyat';
+	@override String get slowEvenings => 'Akşamları yavaş';
+	@override String get drops => 'Sık kopuyor';
+	@override String get poorSupport => 'Kötü destek';
+	@override String get pricey => 'Pahalı';
+}
+
+// Path: providers.words
+class _Translations$providers$words$tr extends Translations$providers$words$en {
+	_Translations$providers$words$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get bad => 'Kötü';
+	@override String get poor => 'Zayıf';
+	@override String get okay => 'İdare eder';
+	@override String get good => 'İyi';
+	@override String get great => 'Harika';
+}
+
+// Path: alerts.kinds
+class _Translations$alerts$kinds$tr extends Translations$alerts$kinds$en {
+	_Translations$alerts$kinds$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get newDevice => 'Wi-Fi\'mdaki yeni cihazlar';
+	@override String get openWifi => 'Açık veya zayıf Wi-Fi';
+	@override String get blocked => 'Engelli uygulamalar';
+	@override String get report => 'Haftalık rapor';
+	@override String get breach => 'Sızıntılar';
+}
+
+// Path: alerts.status
+class _Translations$alerts$status$tr extends Translations$alerts$status$en {
+	_Translations$alerts$status$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get background => 'Birkaç saatte bir';
+	@override String checked({required Object time}) => '${time} itibarıyla kontrol edildi';
+	@override String get wifi => 'Bağlandığınız her ağ';
+	@override String get blocked => 'Hizmet durumu çalıştığında';
+	@override String get report => 'Her pazartesi';
+}
+
+// Path: blocked.kinds
+class _Translations$blocked$kinds$tr extends Translations$blocked$kinds$en {
+	_Translations$blocked$kinds$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get social => 'Sosyal';
+	@override String get messaging => 'Mesajlaşma';
+	@override String get news => 'Haber';
+	@override String get video => 'Video ve müzik';
+	@override String get privacy => 'Gizlilik araçları';
+}
+
+// Path: blocked.how
+class _Translations$blocked$how$tr extends Translations$blocked$how$en {
+	_Translations$blocked$how$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get dns => 'Yanlış adres';
+	@override String get reset => 'Kesildi';
+	@override String get timeout => 'Yanıt yok';
+	@override String get page => 'Engel sayfası';
+	@override String get open => 'Açık';
+}
+
+// Path: blocked.fail
+class _Translations$blocked$fail$tr extends Translations$blocked$fail$en {
+	_Translations$blocked$fail$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get noAnswer => 'yanıt yok';
+	@override String get refused => 'reddedildi';
+	@override String cutOff({required Object s}) => '${s} sn sonra kesildi';
+	@override String get wrongCert => 'yanlış sertifika';
+}
+
+// Path: blocked.steps
+class _Translations$blocked$steps$tr extends Translations$blocked$steps$en {
+	_Translations$blocked$steps$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get lookup => 'Ad sorgusu';
+	@override String get connect => 'Bağlantı';
+	@override String get handshake => 'Güvenli el sıkışma';
+}
+
+// Path: blocked.consent
+class _Translations$blocked$consent$tr extends Translations$blocked$consent$en {
+	_Translations$blocked$consent$tr._(TranslationsTr root) : this._root = root, super.internal(root);
+
+	final TranslationsTr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'İlk testten önce';
+	@override String get body => 'Test her siteyi bu telefondan, VPN olmadan, bir tarayıcı gibi açar.';
+	@override String get noticeTitle => 'Fark edilebilir';
+	@override String get notice => 'Sağlayıcınız bu sitelerin açıldığını görür. Bazı ülkelerde test için bile ziyaret etmek dikkat çekebilir. Yalnızca kendinizi güvende hissettiğiniz yerde test edin.';
+	@override String get ok => 'Anladım, test et';
 }
 
 /// The flat map containing all translations for locale <tr>.
@@ -1161,8 +1915,6 @@ extension on TranslationsTr {
 			'home.status.stopping' => 'Durduruluyor',
 			'home.status.notProtected' => 'Korunmuyor',
 			'home.resumesAt' => ({required Object time}) => '${time} itibarıyla devam eder · şimdi devam etmek için dokunun',
-			'home.sitesSee' => ({required Object ip}) => 'Siteler ${ip} adresini görüyor',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'Siteler ${ip} adresini görüyor · ${org}',
 			'home.ipFailed' => 'IP adresiniz kontrol edilemedi',
 			'home.ipChecking' => 'IP adresiniz kontrol ediliyor',
 			'home.themeSystem' => 'Tema: telefonu izle',
@@ -1170,19 +1922,11 @@ extension on TranslationsTr {
 			'home.themeDark' => 'Tema: koyu',
 			'home.free' => 'Ücretsiz',
 			'home.pickServer' => 'Bir sunucu seçin',
-			'home.waves.encrypted' => 'ŞİFRELİ',
-			'home.waves.securing' => 'KORUNUYOR',
-			'home.waves.exposed' => 'AÇIKTA',
 			'home.network.title' => 'BU AĞ',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'Çevrimdışı',
 			'home.network.showName' => 'Adı göster',
 			'home.network.scanFailed' => 'Tarama başarısız. Ağ değiştiğinde tekrar çalışır.',
-			'home.card.connectedVia' => 'BAĞLANTI',
-			'home.card.protocol' => 'PROTOKOL',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9, tünel içinde',
-			'home.card.dnsServer' => 'Sunucu, tünel içinde',
 			'home.card.downloaded' => 'İNDİRİLEN',
 			'home.card.uploaded' => 'YÜKLENEN',
 			'home.card.wireguard' => 'WireGuard',
@@ -1194,7 +1938,6 @@ extension on TranslationsTr {
 			'home.card.enabled' => 'Açık',
 			'home.card.shield' => 'KALKAN',
 			'home.tiles.shield' => 'Kalkan',
-			'home.tiles.shieldOn' => 'Zararlı siteleri engeller',
 			'home.tiles.appsDirect' => 'Doğrudan uygulamalar',
 			'home.tiles.appsAll' => 'Tüm uygulamalar korunuyor',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} uygulama VPN dışı',
@@ -1276,19 +2019,22 @@ extension on TranslationsTr {
 			'servers.lastUsed' => ({required Object when}) => 'Son kullanım ${when}',
 			'servers.disconnectFirst' => 'Kaldırmak için önce bağlantıyı kesin',
 			'servers.removeConfirm' => 'Bu sunucu G VPN\'den kaldırılsın mı? Ayarları bu telefondan silinir; sunucunun kendisi değişmez.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'Ülke ara',
+			'servers.noMatch' => 'Eşleşen sunucu yok.',
+			'servers.bestPing' => ({required Object ms}) => 'en iyi ${ms} ms',
+			'servers.bestTag' => 'EN İYİ',
+			'servers.ownHero' => 'Kendi sunucularımız',
+			'servers.ownHeroSub' => 'Daha hızlı, özel, her telefonun kendi anahtarı var',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} sunucu', ), 
+			'servers.showAll' => ({required Object n}) => '${n} sunucunun tümü',
+			'servers.showFewer' => 'Daha az göster',
+			'servers.fastTab' => 'Hızlı',
+			'servers.fastestFree' => 'En hızlı ücretsiz',
 			'pro.owned' => 'Pro\'nuz var',
 			'pro.waitingPlay' => 'Google Play bekleniyor',
 			'pro.startTrial' => ({required Object days}) => '${days} günlük ücretsiz denemeyi başlat',
-			'pro.thenYearly' => ({required Object price}) => 'Ardından yılda ${price}. Google Play\'den istediğiniz zaman iptal edin.',
-			'pro.thenMonthly' => ({required Object price}) => 'Ardından ayda ${price}. Google Play\'den istediğiniz zaman iptal edin.',
-			'pro.yearlyPrice' => ({required Object price}) => 'Yılda ${price}. Google Play\'den istediğiniz zaman iptal edin.',
-			'pro.monthlyPrice' => ({required Object price}) => 'Ayda ${price}. Google Play\'den istediğiniz zaman iptal edin.',
 			'pro.restore' => 'Geri yükle',
-			'pro.heroTitle' => 'Daha hızlı sunucular,\nbizim işlettiğimiz',
-			'pro.heroSubtitle' => 'WireGuard. Etkinlik kaydı yok. Hesap yok.',
-			'pro.benefitSpeed' => 'Tam hız, gönüllü sunucu sınırları yok',
-			'pro.benefitKey' => 'Anahtar telefonunuzda oluşturulur, asla paylaşılmaz',
-			'pro.benefitFree' => 'Ücretsiz olan her şey ücretsiz kalır',
 			'pro.save' => ({required Object pct}) => '%${pct} TASARRUF',
 			'pro.yearly' => 'Yıllık',
 			'pro.monthly' => 'Aylık',
@@ -1296,10 +2042,6 @@ extension on TranslationsTr {
 			'pro.daysFree' => ({required Object days}) => '${days} gün ücretsiz',
 			'pro.perMonth' => ({required Object price}) => 'Ayda ${price}',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'Bizim işlettiğimiz daha hızlı sunucular',
-			'pro.includes' => 'İçerik',
-			'pro.benefitLogs' => 'Sunucularımızda etkinlik kaydı yok',
-			'pro.plan' => 'Bir plan seçin',
 			'pro.renewGeneric' => 'Abonelikler iptal edilene kadar otomatik yenilenir. Google Play\'den istediğiniz zaman iptal edin.',
 			'pro.renewTrial' => ({required Object days, required Object period, required Object price}) => '${days} gün ücretsiz, ardından her ${period} için ${price}. İptal edilene kadar otomatik yenilenir; ücret alınmaması için deneme bitmeden en az bir gün önce Google Play\'den iptal edin.',
 			'pro.renew' => ({required Object period, required Object price}) => 'Her ${period} için ${price}. İptal edilene kadar otomatik yenilenir; Google Play\'den istediğiniz zaman iptal edin.',
@@ -1323,15 +2065,24 @@ extension on TranslationsTr {
 			'pro.free.tools' => 'Tüm ağ araçları',
 			'pro.free.toolsSub' => 'Hız testi, ping, servis durumu, traceroute, cihazlar ve daha fazlası',
 			'pro.free.later' => 'G VPN Pro, bizim işlettiğimiz daha hızlı sunucular ekleyecek. Yukarıdaki her şey ücretsiz kalır.',
+			'pro.heroLine' => 'Kendi hızlı sunucularımız ve sınırsız her kontrol',
+			'pro.start' => 'Pro\'yu başlat',
+			'pro.compareFree' => 'ÜCRETSİZ',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'Ücretsiz sunucular',
+			'pro.rowTools' => 'Hız testi, araçlar, Wi-Fi kontrolleri',
+			'pro.rowGServers' => 'G Servers, kayıt yok',
+			'pro.rowLinks' => 'Bağlantı kontrolü',
+			'pro.linksFree' => ({required Object n}) => 'Ayda ${n}',
+			'pro.unlimited' => 'Sınırsız',
 			'rules.title' => 'Kurallar',
-			'rules.info.shield' => 'Kalkan, DNS sorgularını bilinen zararlı yazılım ve kimlik avı sitelerini reddeden Quad9\'a gönderir. Reklamları engellemez ve açıkken sunucunun DNS\'inin yerini alır.',
+			'rules.info.shield' => 'Kalkan, bağlıyken DNS sorgularını süzer: Quad9 kötü amaçlı yazılımı ve oltalamayı engeller, Cloudflare for Families yetişkin sitelerini de engeller ya da kendi DNS\'inizi kullanın. Reklamları asla engellemez.',
 			'rules.info.autoConnect' => 'Otomatik bağlanma: seçtiğiniz WireGuard sunucusunu kullanır. Elle bağlantıyı kesmek, başka bir ağa katılana kadar onu duraklatır.',
 			'rules.info.apps' => 'Doğrudan uygulamalar: VPN dışında kalan uygulamalar doğrudan bağlanır. Bankalar VPN adreslerini sık sık engeller, bu yüzden VPN üzerinden ödemeler başarısız olabilir.',
 			'rules.info.reconnect' => 'Kalkanı veya uygulamaları değiştirmek VPN\'i kısa süreliğine yeniden bağlar.',
 			'rules.info.stay' => 'Bağlı kal: bazı telefonlar pil tasarrufu için arka plandaki uygulamaları durdurur. Her zaman açık VPN ve kısıtlamasız pil ayarı G VPN\'in çalışmasını sağlar.',
 			'rules.protection' => 'Koruma',
 			'rules.shield' => 'Kalkan',
-			'rules.shieldSub' => 'Zararlı yazılım ve kimlik avı sitelerini engeller',
 			'rules.privateDns' => 'VPN olmadan Kalkan',
 			'rules.privateDnsSub' => 'Özel DNS için dns.quad9.net\'i kopyala',
 			'rules.privateDnsCopied' => 'dns.quad9.net kopyalandı',
@@ -1402,10 +2153,17 @@ extension on TranslationsTr {
 			'wol.badMac' => 'Bu bir MAC adresi değil. Şuna benzer: AA:BB:CC:DD:EE:FF.',
 			'wol.sent' => 'Uyandırma sinyali gönderildi. Cihaz bir dakika içinde açılmalı.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'Cihazı uyandır',
 			'wol.mac' => 'MAC adresi',
 			'wol.failed' => ({required Object error}) => 'Gönderilemedi: ${error}',
-			'speed.info' => 'Açık bir araştırma platformu olan M-Lab tarafından ölçülür. Bir test yaklaşık 50 ila 100 MB kullanır.\n\nHerkese açık sonuçlar: M-Lab her testi, geldiği IP adresi dahil, açık araştırma verisi olarak yayımlar.\n\nSağlayıcı karşılaştırması: VPN olmadan yapılan testten sonra G VPN yalnızca üç hız değerini gönderir. Karşılaştırma hizmeti sağlayıcınızı ve şehrinizi bağlantının kendisinden okur ve hiçbir IP adresi saklamaz. Bu sayfanın altındaki anahtarla kapatın.\n\nVPN üzerinden: VPN açıkken tünel üzerinden hızı ölçer ve VPN\'siz son testinizle karşılaştırır.\n\nVideo önizleme: aynı resim, yayın hizmetlerinin açıkladığı bit hızlarına göre bu hızın oynatabileceği çözünürlükte gösterilir. Hiçbir video indirilmez.',
+			'wol.computer' => 'Bilgisayar',
+			'wol.pick' => 'Uyandırmak için bir cihaz seçin',
+			'wol.waking' => ({required Object name}) => '${name} uyandırılıyor',
+			'wol.yours' => 'CİHAZLARINIZ',
+			'wol.wakeNamed' => ({required Object name}) => '${name} uyandır',
+			'wol.removeHint' => 'Kaldırmak için cihaza basılı tutun',
+			'wol.add' => 'CİHAZ EKLE',
+			'wol.name' => 'Ad',
+			'wol.saveWake' => 'Kaydet ve uyandır',
 			'speed.download' => 'İndirme',
 			'speed.upload' => 'Yükleme',
 			'speed.finding' => 'Sunucu aranıyor',
@@ -1477,10 +2235,11 @@ extension on TranslationsTr {
 			'router.cgnat' => 'Paylaşılan sağlayıcı adresi: internetten erişilemez.',
 			'router.noDescription' => 'Açıklama yok',
 			'router.opened' => ({required Object n}) => 'Cihazların açtığı ${n} port',
-			'router.routerName' => ({required Object name}) => 'Modem: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'İnternet adresi: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} → ${host}',
 			'router.upnpOn' => 'UPnP açık',
+			'router.routerLabel' => 'Yönlendirici',
+			'router.internetAddress' => 'İnternet adresi',
+			'router.openedBy' => 'Cihazların açtıkları',
 			'network.title' => 'Bu ağ',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'Mobil veri',
@@ -1514,8 +2273,6 @@ extension on TranslationsTr {
 			'devices.title' => 'Cihazlar',
 			'devices.again' => 'Tekrar tara',
 			'devices.looking' => 'Cihazlar aranıyor',
-			'devices.nothingNew' => 'Son taramadan bu yana yeni bir şey yok',
-			'devices.takes' => 'Yaklaşık 30 saniye sürer',
 			'devices.all' => 'Tümü',
 			'devices.phones' => 'Telefonlar',
 			'devices.tvs' => 'TV\'ler',
@@ -1527,18 +2284,52 @@ extension on TranslationsTr {
 			'devices.address' => 'Adres',
 			'devices.answersIn' => 'Yanıt süresi',
 			'devices.type' => 'Tür',
-			'devices.notAnnounced' => 'Kendini tanıtmadı. Modeminizin cihaz listesi adını gösterebilir.',
 			'devices.newBadge' => 'YENİ',
 			'devices.scanning' => ({required Object n}) => '254 adresin ${n} tanesi tarandı',
-			'devices.thisNetwork' => 'bu ağ',
 			'devices.newSince' => ({required Object n}) => 'Son taramadan bu yana ${n} yeni',
-			'devices.showMore' => ({required Object n}) => '${n} tane daha göster',
 			'devices.ms' => ({required Object n}) => '${n} ms',
-			'devices.onNetwork' => ({required Object network}) => '${network} ağındaki cihaz',
-			'ping.info' => 'Bir sunucuya gidip dönmenin ne kadar sürdüğü; son bir dakika boyunca her saniye ölçülür.\n\nJitter: her yanıtın bir öncekinden ne kadar farklı olduğu. Yüksek jitter aramaları böler.\n\nKayıp: hiç geri dönmeyen yanıtlar.\n\nNasıl: Android uygulamaları klasik ping gönderemez, bu yüzden her deneme bir bağlantı el sıkışmasını ölçer; bu da aynı gidiş-dönüştür.',
+			'devices.cameras' => 'Kameralar',
+			'devices.device' => 'Cihaz',
+			'devices.online' => 'Çevrimiçi',
+			'devices.model' => 'Model',
+			'devices.announced' => 'Kendini şöyle tanıtıyor',
+			'devices.services' => 'AÇIK HİZMETLER',
+			'devices.checkingServices' => 'Hizmetler kontrol ediliyor',
+			'devices.noServices' => 'Yaygın hizmetlerden hiçbiri yanıt vermiyor',
+			'devices.rename' => 'Yeniden adlandır',
+			'devices.save' => 'Kaydet',
+			'devices.kinds.phone' => 'Telefon',
+			'devices.kinds.computer' => 'Bilgisayar',
+			'devices.kinds.tv' => 'TV',
+			'devices.kinds.speaker' => 'Hoparlör',
+			'devices.kinds.printer' => 'Yazıcı',
+			'devices.kinds.camera' => 'Kamera',
+			'devices.kinds.smartHome' => 'Akıllı ev',
+			'devices.kinds.router' => 'Yönlendirici',
+			'devices.kinds.unknown' => 'Tanıtılmadı',
+			'devices.details' => 'Ağ ayrıntıları',
+			'devices.listView' => 'Liste',
+			'devices.meshView' => 'Ağ örgüsü',
+			'devices.offlineHeading' => 'Çevrimdışı',
+			'devices.seen' => ({required Object when}) => '${when} görüldü',
+			'devices.agoMinutes' => ({required Object n}) => '${n} dk önce',
+			'devices.agoHours' => ({required Object n}) => '${n} sa önce',
+			'devices.agoDays' => ({required Object n}) => '${n} gün önce',
+			'devices.throughVpn' => 'VPN üzerinden',
+			'devices.closer' => 'Daha yakın = daha hızlı yanıt',
+			'devices.yours' => 'Bu sizin mi?',
+			'devices.mine' => 'Benim',
+			'devices.notMine' => 'Benim değil',
+			'devices.whatIsIt' => 'Bu ne?',
+			'devices.ourGuess' => ({required Object kind}) => 'Tahminimiz: ${kind}',
+			'devices.groupPersonal' => 'Telefonlar ve bilgisayarlar',
+			'devices.groupHome' => 'Ev ve medya',
+			'devices.groupNetwork' => 'Ağ ve akıllı ev',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} çevrimiçi', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} çevrimdışı', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} onay bekliyor', ), 
 			'ping.askTitle' => 'Bir sunucuya ping at',
 			'ping.askHint' => 'example.com veya 192.168.1.10',
-			'ping.cancel' => 'İptal',
 			'ping.title' => 'Ping',
 			'ping.router' => 'Modem',
 			'ping.pause' => 'Duraklat',
@@ -1575,7 +2366,6 @@ extension on TranslationsTr {
 			'status.blocked' => 'Bu ağda engellenmiş olabilir',
 			'status.connect' => 'Bağlan',
 			'status.blockedShort' => 'Engelli',
-			'status.unreachable' => 'Erişilemiyor',
 			'status.now' => 'şimdi',
 			'status.checks' => ({required Object n}) => '${n} kontrol',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} ve ${n} tane daha',
@@ -1587,27 +2377,37 @@ extension on TranslationsTr {
 			'tools.offline' => 'Çevrimdışı',
 			'tools.title' => 'Araçlar',
 			'tools.networkDesc' => 'Güvenlik kontrolü, sitelerin gördükleri, sinyal, modem ve DNS.',
-			'tools.internet' => 'İnternet bağlantısı',
+			'tools.internet' => 'İnternet',
 			'tools.speed' => 'Hız testi',
-			'tools.speedDesc' => 'İndirme ve yükleme hızı, desteklediği video kalitesi.',
+			'tools.speedDesc' => 'İndirme, yükleme ve video kalitesi',
 			'tools.ping' => 'Ping',
-			'tools.pingDesc' => 'Herhangi bir sunucuya veya modeminize canlı yanıt süresi ve jitter.',
+			'tools.pingDesc' => 'Canlı yanıt süresi ve dalgalanma',
 			'tools.status' => 'Hizmet durumu',
-			'tools.statusDesc' => 'WhatsApp, YouTube veya Google buradan erişilebilir mi, yoksa engelli mi?',
+			'tools.statusDesc' => 'Bir uygulama burada çalışıyor mu, engelli mi?',
 			'tools.trace' => 'Traceroute',
-			'tools.traceDesc' => 'Sizinle bir site arasındaki her modem ve her birinin süresi.',
-			'tools.security' => 'Ağ güvenliği',
+			'tools.traceDesc' => 'Bir siteye giden yoldaki her durak',
+			'tools.security' => 'Bu ağ',
 			'tools.devices' => 'Bu ağdaki cihazlar',
-			'tools.devicesDesc' => 'Wi-Fi\'nizde başka kimler var: telefonlar, TV\'ler, kameralar ve bilgisayarlar.',
+			'tools.devicesDesc' => 'Wi-Fi\'nizde kimler var',
 			'tools.router' => 'Modem kontrolü',
-			'tools.routerDesc' => 'Cihazlar modeminizde kendi başlarına port açabiliyor mu (UPnP).',
+			'tools.routerDesc' => 'Cihazlarınızın açtığı portlar',
 			'tools.ports' => 'Açık portlar',
-			'tools.portsDesc' => 'Modeminizi veya bir sunucuyu riskli açık portlar için kontrol edin.',
-			'tools.utilities' => 'Yardımcı araçlar',
+			'tools.portsDesc' => 'Bir cihaz veya sunucudaki riskli portlar',
+			'tools.utilities' => 'Araçlar',
 			'tools.wifiScanner' => 'Wi-Fi tarayıcı',
-			'tools.wifiDesc' => 'Yakındaki ağlar, güvenlikleri ve en az kalabalık kanal.',
+			'tools.wifiDesc' => 'Çevrenizdeki ağlar ve en boş kanal',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'Bu ağdaki bir bilgisayarı veya NAS\'ı açın.',
+			'tools.wolDesc' => 'Bu ağdaki bir bilgisayarı açın',
+			'tools.passwordCheck' => 'Parola kontrolü',
+			'tools.passwordCheckDesc' => 'Sızdırılmış mı?',
+			'tools.linkCheck' => 'Bağlantı kontrolü',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'Açmak güvenli mi?',
+			'tools.breaches' => 'Veri sızıntıları',
+			'tools.breachesDesc' => 'Son zamanlarda ne sızdı',
+			'tools.blocked' => 'Ne engelli',
+			'tools.blockedDesc' => 'Bu ağda engellenen siteler',
 			'trace.info' => 'Her durak, trafiğinizin siteye giderken geçtiği bir yönlendiricidir.\n\nSessiz atlamalar: birçok yönlendirici bu denemelere hiç yanıt vermez. Bu normaldir, bir arıza değildir.\n\nVPN açıkken: yol tünelin içinden başlar, bu yüzden kendi ağınız ve sağlayıcınız gizli kalır.\n\nNasıl: uygulamalar bu paketleri doğrudan gönderemediği için Android\'in kendi ping aracını atlama sınırıyla kullanır.',
 			'trace.title' => 'Traceroute',
 			'trace.stop' => 'Durdur',
@@ -1624,6 +2424,10 @@ extension on TranslationsTr {
 			'trace.silentMany' => ({required Object n}) => '${n} sessiz atlama',
 			'trace.hop' => ({required Object n}) => 'Atlama ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'Gecikmenin çoğu, ${ms} ms, ${hop}. atlamada ekleniyor: genellikle ülkeler arası uzun bir kablo ya da yoğun bir bağlantı.',
+			'trace.popular' => 'POPÜLER',
+			'trace.recent' => 'SON KULLANILANLAR',
+			'trace.clearRecent' => 'Sonları temizle',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} atlama', ), 
 			'ports.ftpNote' => 'Şifreleri şifrelemeden gönderir.',
 			'ports.sshNote' => 'Uzaktan giriş. Kendiniz kurduysanız sorun yok.',
 			'ports.telnetNote' => 'Şifresiz uzaktan giriş; botnetlerin favorisi.',
@@ -1647,13 +2451,14 @@ extension on TranslationsTr {
 			'ports.address' => 'Cihaz veya sunucu adresi',
 			'ports.risky' => 'RİSKLİ',
 			'ports.review' => 'İNCELE',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Ev modemleri ve cihazlarında önemli olan ${n} portu kontrol eder ve açık olan her birini açıklar.\n\nYalnızca sahibi olduğunuz veya yönettiğiniz cihazları ve sunucuları kontrol edin.',
 			'ports.checking' => ({required Object n}) => '${n} port kontrol ediliyor',
 			'ports.yourRouter' => ({required Object ip}) => 'Modeminiz: ${ip}',
 			'ports.noneOpen' => ({required Object host}) => '${host} üzerinde açık yaygın port yok.',
+			'ports.summary' => ({required Object n, required Object open}) => '${n} port içinde ${open} açık',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} riskli', ), 
+			'ports.noneRisky' => 'Riskli bir şey yok',
 			'wifi.title' => 'Wi-Fi tarayıcı',
 			'wifi.allow' => 'Wi-Fi taramasına izin ver',
 			'wifi.needsPermission' => 'Konum izni gerekiyor.',
@@ -1663,11 +2468,36 @@ extension on TranslationsTr {
 			'wifi.none' => 'Ağ bulunamadı. Konum kapalı olabilir.',
 			'wifi.hidden' => 'Gizli ağ',
 			'wifi.nearby' => ({required Object n}) => 'Yakında ${n} ağ',
-			'wifi.bestChannel' => ({required Object n}) => 'En az kalabalık 2,4 GHz kanalı: ${n}',
-			'wifi.weak' => ({required Object n}) => '${n} açık veya zayıf',
-			'wifi.connectedPrefix' => 'Bağlı · ',
 			'wifi.permissionInfo' => 'Android, yakındaki Wi-Fi ağlarını yalnızca konum izni olan uygulamalara gösterir. G VPN bunu yalnızca bu telefondaki ağları listelemek için kullanır.',
 			'wifi.info' => 'Telefonun son taramasındaki ağları listeler. Android dakikada yalnızca birkaç taramaya izin verir, bu yüzden hızlı tekrar tarama aynı listeyi gösterebilir. Önerilen kanal, birbiriyle çakışmayan üç kanal olan 1, 6 ve 11 arasında en az kalabalık olanıdır.',
+			'wifi.airMap' => 'Hava haritası',
+			'wifi.channels' => 'Kanallar',
+			'wifi.list' => 'Liste',
+			'wifi.secure' => 'Güvenli',
+			'wifi.weakLabel' => 'Zayıf',
+			'wifi.openLabel' => 'Açık',
+			'wifi.sizeIsWidth' => 'Boyut = kanal genişliği',
+			'wifi.strongest' => 'EN GÜÇLÜ',
+			'wifi.openNearby' => 'YAKINDAKİ AÇIK AĞLAR',
+			'wifi.onYourChannel' => 'KANALINIZDA',
+			'wifi.noneNearby' => 'Yok',
+			'wifi.verdictOpen' => 'Yakındaki herkes gönderilenleri okuyabilir',
+			'wifi.verdictWep' => 'Eski güvenlik, kolay kırılır',
+			'wifi.verdictWpa' => 'Eski güvenlik',
+			'wifi.verdictWps' => 'WPS açık: kırılması daha kolay',
+			'wifi.verdictGood' => 'İyi korunuyor',
+			'wifi.maker' => 'Üretici',
+			'wifi.address' => 'Donanım adresi',
+			'wifi.privateAddress' => 'Gizlilik için yönlendirici uydurdu',
+			'wifi.you' => 'Siz',
+			'wifi.onClear' => ({required Object name}) => '${name} boş bir kanalda',
+			'wifi.move' => ({required Object name, required Object n}) => '${name} ağını ${n}. kanala taşıyın',
+			'wifi.clear' => 'Boş',
+			'wifi.busy' => 'Yoğun',
+			'wifi.crowded' => 'Kalabalık',
+			'wifi.allBands' => 'Tüm bantlar',
+			'wifi.openOnly' => 'Yalnızca açık',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} ağ', ), 
 			'errors.notAuthorized' => 'VPN izni verilmedi.',
 			'errors.turnedOff' => 'VPN sistem veya başka bir uygulama tarafından kapatıldı.',
 			'errors.busy' => 'Zaten açık bir izin isteği var.',
@@ -1745,10 +2575,6 @@ extension on TranslationsTr {
 			'gs.busy' => ({required Object n}) => '%${n} meşgul',
 			'gs.offline' => 'Çevrimdışı',
 			'gs.devices' => 'Cihazlarınız',
-			'gs.devicesSub' => ({required Object n}) => 'En fazla ${n} telefon, her biri kendi anahtarıyla',
-			'gs.footnote' => 'Her telefon, telefonda oluşturulan kendi anahtarını alır. G Servers etkinlik kaydı tutmaz.',
-			'gs.leastBusy' => 'ŞU AN EN AZ MEŞGUL',
-			'gs.busyNoLogs' => ({required Object n}) => '%${n} meşgul · kayıt yok',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'MEŞGUL',
 			'gs.status' => 'DURUM',
@@ -1783,6 +2609,400 @@ extension on TranslationsTr {
 			'gs.chartLabel' => ({required Object max}) => 'Son 24 saatteki meşguliyet, en fazla yüzde ${max}',
 			'gs.hoursAgo' => '24 sa önce',
 			'gs.now' => 'Şimdi',
+			'gs.included' => 'Dahil',
+			'gs.perkServers' => 'Hızlı, özel sunucular',
+			'gs.perkServersSub' => 'WireGuard, bizim işlettiğimiz, etkinlik kaydı yok',
+			'gs.perkLinks' => 'Sınırsız bağlantı kontrolü',
+			'gs.perkLinksSub' => 'Size gönderilen her bağlantıyı kontrol edin',
+			'gs.devicesOf' => ({required Object limit, required Object used}) => 'Cihazlarınız · ${limit} içinde ${used}',
+			'gs.eachKey' => 'Her telefonun kendi anahtarı var',
+			'gs.connected' => 'Bağlı',
+			'gs.bestNow' => 'ŞU AN SİZİN İÇİN EN İYİSİ',
+			'gs.logsShort' => 'KAYIT',
+			'map.open' => 'Haritayı aç',
+			'map.searchCountries' => 'Ülke ara',
+			'map.noMatch' => 'Eşleşen ülke yok',
+			'map.locate' => 'Konumum',
+			'map.list' => 'Liste',
+			'map.map' => 'Harita',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} ücretsiz sunucu', ), 
+			'map.grade.fast' => 'Hızlı',
+			'map.grade.good' => 'İyi',
+			'map.grade.slow' => 'Yavaş',
+			'map.switchTo' => 'Geç',
+			'map.freeServer' => ({required Object n}) => 'Ücretsiz sunucu ${n}',
+			'map.best' => 'EN İYİ',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} G Server', ), 
+			'stats.thisWeek' => 'Bu hafta',
+			'stats.time' => 'Süre',
+			'stats.data' => 'Veri',
+			'stats.protected' => 'korumalı',
+			'stats.throughVpn' => 'VPN üzerinden',
+			'stats.seeDetails' => 'Ayrıntılar',
+			'stats.title' => 'İstatistikler',
+			'stats.week' => 'Hafta',
+			'stats.month' => 'Ay',
+			'stats.protectedLabel' => 'KORUMALI',
+			'stats.dataUsed' => 'KULLANILAN VERİ',
+			'stats.byServer' => 'SUNUCUYA GÖRE',
+			'stats.onPhone' => 'Yalnızca bu telefonda',
+			'stats.reset' => 'Sıfırla',
+			'stats.resetTitle' => 'İstatistikler sıfırlansın mı?',
+			'stats.resetBody' => 'Bu telefondaki korumalı süre ve veri silinir. Geri alınamaz.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} sa ${m} dk',
+			'stats.m' => ({required Object m}) => '${m} dk',
+			'stats.empty' => 'Saymaya başlamak için bağlanın.',
+			'recents.title' => 'Son kullanılanlar',
+			'recents.allServers' => 'Tüm sunucular',
+			'recents.free' => 'Ücretsiz sunucu',
+			'recents.yours' => 'Sunucunuz',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'Hazır ayarlar',
+			'presets.all' => 'Tümü',
+			'presets.newPreset' => 'Yeni ayar',
+			'presets.edit' => 'Ayarı düzenle',
+			'presets.name' => 'Ad',
+			'presets.namePlaceholder' => 'Ayarım',
+			'presets.server' => 'SUNUCU',
+			'presets.fastestOption' => 'En hızlı',
+			'presets.countryOption' => 'Ülke',
+			'presets.pickCountry' => 'Ülke seçin',
+			'presets.skipMyCountry' => 'Ülkemi atla',
+			'presets.notMine' => 'ülkem hariç',
+			'presets.protocol' => 'PROTOKOL',
+			'presets.auto' => 'Otomatik',
+			'presets.tryNext' => 'Engellenirse sonrakini dene',
+			'presets.shield' => 'KALKAN',
+			'presets.followRules' => 'Kurallardaki gibi',
+			'presets.allApps' => 'Tüm uygulamalar VPN\'den',
+			'presets.allAppsShort' => 'tüm uygulamalar',
+			'presets.save' => 'Kaydet',
+			'presets.delete' => 'Sil',
+			'presets.reset' => 'Varsayılana dön',
+			'presets.none' => 'Şu an bu ayara uyan ücretsiz sunucu yok.',
+			'presets.names.fastest' => 'En hızlı',
+			'presets.names.unblock' => 'Engel aş',
+			'presets.names.streaming' => 'Yayın',
+			'presets.names.privacy' => 'En yüksek gizlilik',
+			'shield.title' => 'Kalkan',
+			'shield.sub' => 'Bağlıyken çalışır',
+			'shield.off' => 'Kapalı',
+			'shield.offSub' => 'Sunucunun kendi DNS\'i',
+			'shield.malware' => 'Kötü amaçlı yazılım',
+			'shield.malwareSub' => 'Zararlı ve oltalama sitelerini engeller',
+			'shield.family' => 'Kötü amaçlı ve yetişkin siteleri',
+			'shield.familySub' => 'Yetişkin içeriği de engeller',
+			'shield.custom' => 'Özel DNS',
+			'shield.customSub' => 'Kendi DNS sunucularınız',
+			'shield.customHint' => 'IP adresi, örneğin 1.1.1.1',
+			'shield.invalid' => 'Bir veya iki IP adresi girin.',
+			'checks.title' => 'Güvenlik kontrolleri',
+			'checks.password' => 'Parola',
+			'checks.link' => 'Bağlantı',
+			'checks.pwTitle' => 'Sızdırıldı mı?',
+			'checks.pwHint' => 'Kontrol edilecek parola',
+			'checks.showPassword' => 'Parolayı göster',
+			'checks.hidePassword' => 'Parolayı gizle',
+			'checks.check' => 'Kontrol et',
+			'checks.leaked' => 'Sızıntılarda bulundu',
+			'checks.seen' => ({required Object n}) => '${n} kez görüldü',
+			'checks.leakedAdvice' => 'Kullandığınız her yerde değiştirin; e-posta ve bankadan başlayın.',
+			'checks.notFound' => 'Bilinen sızıntılarda yok',
+			'checks.notFoundAdvice' => 'İyi bir işaret, garanti değil. Her hesapta farklı parola kullanın.',
+			'checks.failed' => 'Kontrol edilemedi. Tekrar deneyin.',
+			'checks.private' => 'Parolanız bu telefondan hiç çıkmaz',
+			'checks.linkTitle' => 'Bu bağlantı güvenli mi?',
+			'checks.linkHint' => 'Kontrol edilecek bağlantı',
+			'checks.paste' => 'Yapıştır',
+			'checks.danger' => 'Tehlikeli bağlantı',
+			'checks.dangerAdvice' => 'Açmayın ve hiçbir bilgi girmeyin.',
+			'checks.clear' => 'Bilinen kötü amaçlı yazılım veya oltalama listelerinde yok',
+			'checks.clearAdvice' => 'Yine de giriş yapmadan önce adrese bakın.',
+			'checks.goesTo' => 'Gittiği yer',
+			'checks.redirects' => 'Yönlendirmeler',
+			'checks.invalid' => 'Bu bir web adresine benzemiyor.',
+			'checks.busy' => 'Çok fazla kontrol. Biraz sonra tekrar deneyin.',
+			'checks.unavailable' => 'Bağlantı kontrolü şu an kullanılamıyor.',
+			'checks.listed' => 'Kötü amaçlı yazılım veya oltalamayla bilinen',
+			'checks.missing' => 'Bu adreste site yok',
+			'checks.missingAdvice' => 'Yazımı kontrol edin: dolandırıcılar benzer adresler kullanır.',
+			'checks.left' => ({required Object total, required Object n}) => 'Bu ay ${total} ücretsiz kontrolden ${n} kaldı',
+			'checks.usedUp' => 'Bu ayın ücretsiz bağlantı kontrollerini kullandınız',
+			'checks.usedUpSub' => 'Pro\'da sınırsız kontrol var. Ücretsiz kontroller ayın 1\'inde yenilenir.',
+			'checks.getPro' => 'Pro\'yu al',
+			'toolSettings.title' => 'Araç ayarları',
+			'toolSettings.askMobile' => 'Mobil veride hız testinden önce sor',
+			'toolSettings.askMobileSub' => 'Hızlı bağlantıda bir test 100 MB\'tan fazla kullanabilir',
+			'toolSettings.mobileTitle' => 'Mobil veri kullanılsın mı?',
+			'toolSettings.mobileBody' => 'Hızlı bağlantıda bir hız testi 100 MB\'tan fazla kullanabilir.',
+			'toolSettings.mobileGo' => 'Test et',
+			'toolSettings.safe' => 'Güvenli',
+			'toolSettings.unsafe' => 'Güvensiz',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} cihaz', ), 
+			'toolSettings.hideMac' => 'Donanım adreslerini gizle',
+			'toolSettings.hideMacSub' => 'MAC adreslerinin yalnızca üretici kısmını gösterir',
+			'toolSettings.names' => 'Yönlendirici ve sunucu adlarını göster',
+			'toolSettings.namesSub' => 'Traceroute\'ta adresler için ad arar',
+			'toolSettings.remember' => 'Son kullanılan adresleri hatırla',
+			'toolSettings.rememberSub' => 'Traceroute için',
+			'toolSettings.clear' => 'Araç geçmişini temizle',
+			'toolSettings.clearSub' => 'Son adresleri ve her ağdaki cihazları unutur',
+			'toolSettings.clearGo' => 'Temizle',
+			'security.tab' => 'Güvenlik',
+			'security.good' => 'İyi',
+			'security.fair' => 'Orta',
+			'security.atRisk' => 'Riskli',
+			'security.allClear' => 'Düzeltilecek bir şey yok',
+			'security.checked' => ({required Object time}) => '${time} itibarıyla kontrol edildi',
+			'security.trend' => 'SON İKİ HAFTA',
+			'security.checking' => 'Bu ağ kontrol ediliyor',
+			'security.snoozed' => 'Ertelenenler',
+			'security.remindLater' => 'Sonra hatırlat',
+			'security.unsnooze' => 'Şimdi hatırlat',
+			'security.review' => 'İncele',
+			'security.confirmGo' => 'Onayla',
+			'security.scanGo' => 'Tara',
+			'security.look' => 'Bak',
+			'security.connectGo' => 'Bağlan',
+			'security.checkAgain' => 'Tekrar kontrol et',
+			'security.wifiOpen' => 'Wi-Fi açık',
+			'security.wifiOpenDetail' => 'Yakındaki herkes gönderilenleri görebilir',
+			'security.wifiWep' => 'Wi-Fi WEP kullanıyor',
+			'security.wifiWepDetail' => 'Eski güvenlik, kolay kırılır',
+			'security.wifiOwe' => 'Wi-Fi Enhanced Open kullanıyor',
+			'security.wifiOweDetail' => 'Şifreli ama herkes katılabilir',
+			'security.wifiSecure' => 'Wi-Fi şifrelemesi',
+			'security.wifiUnknown' => 'Wi-Fi güvenliği bilinmiyor',
+			'security.wifiUnknownDetail' => 'Android nasıl korunduğunu bildirmedi',
+			'security.wps' => 'WPS açık',
+			'security.wpsDetail' => 'Yönlendirici ayarlarından kapatın',
+			'security.upnpOff' => 'Yönlendirici portları kapalı tutuyor',
+			'security.upnpOffDetail' => 'UPnP kapalı',
+			'security.upnpOn' => 'Yönlendirici cihazların port açmasına izin veriyor',
+			'security.upnpOnDetail' => 'UPnP açık',
+			'security.portsOk' => 'Yönlendiricide riskli port yok',
+			'security.portsRisky' => 'Yönlendiricide riskli portlar açık',
+			'security.scanFirst' => 'Burada kimler var görmek için tarayın',
+			'security.scanFirstDetail' => 'Bilinmeyen cihazlar puanı düşürür',
+			'security.notMineDetail' => 'Yönlendiricinin cihaz listesine bakın',
+			'security.confirmDetail' => 'Sizin olanları işaretleyin',
+			'security.devicesOk' => 'Tüm cihazlar biliniyor',
+			'security.devicesOkDetail' => 'Hepsini onayladınız',
+			'security.camera' => 'Bu ağda bir kamera var',
+			'security.dnsHijack' => 'Bilinmeyen adlar yönlendiriliyor',
+			'security.dnsHijackDetail' => 'Sağlayıcınız veya yönlendiriciniz sorguları değiştiriyor',
+			'security.dnsOk' => 'DNS normal yanıt veriyor',
+			'security.dnsOkDetail' => 'Yönlendirme belirtisi yok',
+			'security.vpnOn' => 'VPN açık',
+			'security.vpnOnDetail' => 'Trafik tünelden çıkıyor',
+			'security.vpnOff' => 'VPN kapalı',
+			'security.vpnOffDetail' => 'Sağlayıcınız her siteyi görüyor',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: 'Düzeltilecek ${n} şey', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: 'Cihazların açtığı ${n} port', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} port kontrol edildi', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} cihaz sizin değil', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: 'Onaylanacak ${n} cihaz', ), 
+			'providers.tab' => 'İnternet',
+			'providers.unavailable' => 'Sağlayıcı listesi yüklenemedi. Bağlantınızı kontrol edin.',
+			'providers.cached' => 'VPN\'siz son kontrolünüze göre',
+			'providers.notEnough' => 'Henüz yeterli puan yok',
+			'providers.yourRating' => 'Bu ayki puanınız',
+			'providers.yourSpeed' => 'HIZINIZ',
+			'providers.runTest' => 'Hız testi yap',
+			'providers.aboutAverage' => 'Buradaki ortalama civarında',
+			'providers.aboveAverage' => ({required Object pct}) => 'Yerel ortalamanın %${pct} üstünde',
+			'providers.belowAverage' => ({required Object pct}) => 'Yerel ortalamanın %${pct} altında',
+			'providers.call' => 'Ara',
+			'providers.website' => 'Web sitesi',
+			'providers.outages' => 'Kesintiler',
+			'providers.rate' => 'Puanla',
+			'providers.changeRating' => 'Puanı değiştir',
+			'providers.compare' => 'Karşılaştır',
+			'providers.rateTitle' => ({required Object name}) => '${name} sağlayıcısını puanla',
+			'providers.oncePerMonth' => 'Ayda bir puan',
+			'providers.tapStars' => 'Yıldızlara dokunun',
+			'providers.verified' => ({required Object mbps}) => 'Hız testinizle doğrulandı: ${mbps} Mbps',
+			'providers.busy' => 'Buradan çok fazla puan geldi. Sonra deneyin.',
+			'providers.failed' => 'Gönderilemedi. Tekrar deneyin.',
+			'providers.post' => 'Puanı gönder',
+			'providers.nearTitle' => 'Yakınınızdaki sağlayıcılar',
+			'providers.slower' => ({required Object pct}) => 'İndirme hızınız sağlayıcınızın buradaki ortalamasının %${pct} altında',
+			'providers.inPlace' => ({required Object place}) => '${place} ev interneti',
+			'providers.byRating' => 'Puan',
+			'providers.bySpeed' => 'Hız',
+			'providers.footnote' => 'Hızlar G VPN hız testlerinin ortalamasıdır',
+			'providers.noneNearby' => 'Yakında henüz puan yok. İlk siz olun.',
+			'providers.you' => 'Siz',
+			'providers.topRated' => 'En yüksek puanlı',
+			'providers.starsOf' => ({required Object n}) => '5 üzerinden ${n}',
+			'providers.tags.fast' => 'Hızlı',
+			'providers.tags.reliable' => 'Güvenilir',
+			'providers.tags.support' => 'İyi destek',
+			'providers.tags.price' => 'Makul fiyat',
+			'providers.tags.slowEvenings' => 'Akşamları yavaş',
+			'providers.tags.drops' => 'Sık kopuyor',
+			'providers.tags.poorSupport' => 'Kötü destek',
+			'providers.tags.pricey' => 'Pahalı',
+			'providers.words.bad' => 'Kötü',
+			'providers.words.poor' => 'Zayıf',
+			'providers.words.okay' => 'İdare eder',
+			'providers.words.good' => 'İyi',
+			'providers.words.great' => 'Harika',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} puan', ), 
+			'alerts.channel' => 'Uyarılar',
+			'alerts.title' => 'Uyarılar',
+			'alerts.markAllRead' => 'Tümünü okundu yap',
+			'alerts.clearAll' => 'Tümünü temizle',
+			'alerts.thisNetwork' => 'bu ağ',
+			'alerts.openWifiTitle' => ({required Object name}) => 'Açık bir Wi-Fi\'ye bağlandınız: ${name}',
+			'alerts.openWifiBody' => 'Yakındaki herkes gönderilenleri görebilir. G VPN\'i açın.',
+			'alerts.reportTitle' => 'Haftalık raporunuz hazır',
+			'alerts.reportBody' => ({required Object hours}) => 'Geçen hafta ${hours} saat korundunuz',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} burada engelli',
+			'alerts.blockedBody' => 'VPN üzerinden yanıt veriyor',
+			'alerts.kinds.newDevice' => 'Wi-Fi\'mdaki yeni cihazlar',
+			'alerts.kinds.openWifi' => 'Açık veya zayıf Wi-Fi',
+			'alerts.kinds.blocked' => 'Engelli uygulamalar',
+			'alerts.kinds.report' => 'Haftalık rapor',
+			'alerts.kinds.breach' => 'Sızıntılar',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${network} ağında ${n} yeni cihaz', ), 
+			'alerts.settings' => 'Uyarı ayarları',
+			'alerts.look' => 'Bak',
+			'alerts.read' => 'Oku',
+			'alerts.open' => 'Aç',
+			'alerts.check' => 'Kontrol et',
+			'alerts.today' => 'BUGÜN',
+			'alerts.thisWeek' => 'BU HAFTA',
+			'alerts.earlier' => 'DAHA ÖNCE',
+			'alerts.all' => 'Tümü',
+			'alerts.quiet' => 'Her şey sakin',
+			'alerts.quietSub' => 'Son zamanlarda hiçbir şey size ihtiyaç duymadı',
+			'alerts.breachTitle' => ({required Object name}) => 'Yeni sızıntı: ${name}',
+			'alerts.status.background' => 'Birkaç saatte bir',
+			'alerts.status.checked' => ({required Object time}) => '${time} itibarıyla kontrol edildi',
+			'alerts.status.wifi' => 'Bağlandığınız her ağ',
+			'alerts.status.blocked' => 'Hizmet durumu çalıştığında',
+			'alerts.status.report' => 'Her pazartesi',
+			'report.title' => 'Haftalık rapor',
+			'report.share' => 'Görsel olarak paylaş',
+			'report.shareText' => 'G VPN ile haftam',
+			'report.safer' => 'Daha güvenli bir hafta',
+			'report.moreProtected' => 'Geçen haftadan daha korunaklı',
+			'report.yourWeek' => 'Haftanız',
+			'report.soFar' => ({required Object range}) => '${range}, şu ana kadar',
+			'report.protected' => 'Korunan',
+			'report.data' => 'Veri',
+			'report.security' => 'Güvenlik',
+			'report.speed' => 'En iyi hız',
+			'report.noScore' => 'Kontrol edilmedi',
+			'report.noTest' => 'Test yok',
+			'report.bestDirect' => 'Doğrudan test',
+			'report.moreThan' => ({required Object d}) => 'Geçen haftadan ${d} fazla',
+			'report.lessThan' => ({required Object d}) => 'Geçen haftadan ${d} az',
+			'report.protectedTime' => 'KORUNAN SÜRE',
+			'report.mostUsed' => ({required Object name}) => 'En çok kullanılan: ${name}',
+			'report.quiet' => 'Sakin bir hafta: hiçbir şey size ihtiyaç duymadı',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} yeni cihaz katıldı', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} açık Wi-Fi\'ye bağlandınız', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} uygulama engellendi', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} büyük yeni sızıntı', ), 
+			'breaches.title' => 'Veri sızıntıları',
+			'breaches.info' => 'Have I Been Pwned\'ın herkese açık listesinden en yeni veri sızıntıları. Sizinle ilgili hiçbir şey gönderilmez: liste herkes için aynıdır.\n\nSızdırılan bir sitede hesabınız varsa o parolayı ve aynısını kullandığınız her yerde değiştirin.',
+			'breaches.unavailable' => 'Liste yüklenemedi. Bağlantınızı kontrol edin.',
+			'breaches.biggest' => 'BU AYIN EN BÜYÜĞÜ',
+			'breaches.newest' => 'En yeni',
+			'breaches.biggestSort' => 'En büyük',
+			'breaches.withPasswords' => 'Parola içeren',
+			'breaches.passwordsMark' => 'PAROLALAR',
+			'breaches.one' => 'Sızıntı',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'Bir parolayı kontrol et',
+			'breaches.verified' => 'Doğrulanmış',
+			'breaches.hasPasswords' => 'Parola içeriyor',
+			'breaches.accountsLabel' => 'Hesaplar',
+			'breaches.happened' => 'Gerçekleşti',
+			'breaches.published' => 'Yayımlandı',
+			'breaches.website' => 'Web sitesi',
+			'breaches.leaked' => 'NE SIZDI',
+			'breaches.ifUsed' => 'KULLANDIYSANIZ',
+			'breaches.stepPassword' => 'Orada kullandığınız parolayı değiştirin',
+			'breaches.stepReuse' => 'Aynısını kullandığınız her yerde değiştirin',
+			'breaches.stepTwoStep' => 'Mümkünse iki adımlı girişi açın',
+			'breaches.stepScams' => 'Dolandırıcı arama ve mesajlarına hazırlıklı olun',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${count} hesap', ), 
+			'breaches.worldwide' => ({required Object n}) => 'Dünya geneli · ${n}',
+			'breaches.noneHere' => 'Son listede buradan sızıntı yok.',
+			'breaches.bigMap' => 'Daha büyük harita',
+			'breaches.showInList' => 'Listede göster',
+			'breaches.mapTitle' => 'Sızıntı haritası',
+			'breaches.zoomIn' => 'Yakınlaştır',
+			'breaches.zoomOut' => 'Uzaklaştır',
+			'breaches.wholeWorld' => 'Tüm dünya',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} sızıntı', ), 
+			'breaches.findCountry' => 'Bir ülke bul',
+			'breaches.seeAll' => 'Tümünü gör',
+			'breaches.search' => 'Sızıntılarda ara',
+			'blocked.title' => 'Ne engelli',
+			'blocked.info' => 'Bilinen siteleri bu telefondan VPN olmadan dener ve bu ağın hangilerini nasıl engellediğini gösterir.\n\nYanlış adres: ağın ad sorgusu yanlış yanıt verir.\n\nKesildi: bağlantı başlarken kesilir.\n\nYanıt yok: hiçbir şey dönmez.\n\nEngel sayfası: sitenin yerine başka bir şey yanıt verir.\n\nTest bir sitenin nerede engellendiğini gösterir, kimin engellediğini değil. Hiçbir şey kaydedilmez veya gönderilmez.',
+			'blocked.thisNetwork' => 'Bu ağ',
+			'blocked.country' => 'Ülkeniz',
+			'blocked.question' => 'Burada ne engelli?',
+			'blocked.testingOn' => 'TEST EDİLEN',
+			'blocked.vpnOn' => 'VPN AÇIK',
+			'blocked.turnOff' => 'Test için G VPN\'i kapatın',
+			'blocked.test' => 'Bu ağı test et',
+			'blocked.stop' => 'Durdur',
+			'blocked.sitesToTest' => ({required Object n}) => 'TEST EDİLECEK SİTELER · ${n}',
+			'blocked.ofSites' => ({required Object n}) => '${n} siteden',
+			'blocked.blockedCount' => ({required Object n}) => '${n} ENGELLİ',
+			'blocked.openCount' => ({required Object n}) => '${n} AÇIK',
+			'blocked.noneBlocked' => ({required Object network}) => '${network} üzerinde engelli bir şey yok',
+			'blocked.openOf' => ({required Object total, required Object open}) => '${total} siteden ${open} açık',
+			'blocked.allWork' => 'HEPSİ G VPN İLE ÇALIŞIYOR',
+			'blocked.blockedHeading' => 'ENGELLİ',
+			'blocked.byKind' => 'TÜRE GÖRE',
+			'blocked.worksVpn' => 'VPN ile çalışıyor',
+			'blocked.failsVpn' => 'VPN ile de engelli',
+			'blocked.checkVpn' => 'G VPN üzerinden kontrol et',
+			'blocked.connect' => 'G VPN\'e bağlan',
+			'blocked.again' => 'Tekrar test et',
+			'blocked.withoutVpn' => 'VPN OLMADAN',
+			'blocked.throughVpn' => 'G VPN ÜZERİNDEN',
+			'blocked.notChecked' => 'Kontrol edilmedi',
+			'blocked.opens' => 'Açılıyor',
+			'blocked.stillBlocked' => 'Engelli',
+			'blocked.whatHappened' => 'NE OLDU',
+			'blocked.countryBlocked' => ({required Object country}) => '${country} ülkesinde engelli site',
+			'blocked.countrySub' => 'Gönüllü testlerinin son 30 günde bulduğu',
+			'blocked.countryNone' => 'Son 30 günde bildirilen engelli site yok.',
+			'blocked.countryUnavailable' => 'Ülke sonuçları yüklenemedi. Bağlantınızı kontrol edin.',
+			'blocked.confirmed' => 'ENGELLİ',
+			'blocked.oftenFails' => 'SIK HATA',
+			'blocked.kinds.social' => 'Sosyal',
+			'blocked.kinds.messaging' => 'Mesajlaşma',
+			'blocked.kinds.news' => 'Haber',
+			'blocked.kinds.video' => 'Video ve müzik',
+			'blocked.kinds.privacy' => 'Gizlilik araçları',
+			'blocked.how.dns' => 'Yanlış adres',
+			'blocked.how.reset' => 'Kesildi',
+			'blocked.how.timeout' => 'Yanıt yok',
+			'blocked.how.page' => 'Engel sayfası',
+			'blocked.how.open' => 'Açık',
+			'blocked.fail.noAnswer' => 'yanıt yok',
+			'blocked.fail.refused' => 'reddedildi',
+			'blocked.fail.cutOff' => ({required Object s}) => '${s} sn sonra kesildi',
+			'blocked.fail.wrongCert' => 'yanlış sertifika',
+			'blocked.steps.lookup' => 'Ad sorgusu',
+			'blocked.steps.connect' => 'Bağlantı',
+			'blocked.steps.handshake' => 'Güvenli el sıkışma',
+			'blocked.consent.title' => 'İlk testten önce',
+			'blocked.consent.body' => 'Test her siteyi bu telefondan, VPN olmadan, bir tarayıcı gibi açar.',
+			'blocked.consent.noticeTitle' => 'Fark edilebilir',
+			'blocked.consent.notice' => 'Sağlayıcınız bu sitelerin açıldığını görür. Bazı ülkelerde test için bile ziyaret etmek dikkat çekebilir. Yalnızca kendinizi güvende hissettiğiniz yerde test edin.',
+			'blocked.consent.ok' => 'Anladım, test et',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${network} üzerinde ${n} site engelli', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('tr'))(n, other: '${n} test', ), 
 			_ => null,
 		};
 	}

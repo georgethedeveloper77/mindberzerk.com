@@ -69,6 +69,19 @@ class TranslationsId extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$add$id add = _Translations$add$id._(_root);
 	@override late final _Translations$backup$id backup = _Translations$backup$id._(_root);
 	@override late final _Translations$gs$id gs = _Translations$gs$id._(_root);
+	@override late final _Translations$map$id map = _Translations$map$id._(_root);
+	@override late final _Translations$stats$id stats = _Translations$stats$id._(_root);
+	@override late final _Translations$recents$id recents = _Translations$recents$id._(_root);
+	@override late final _Translations$presets$id presets = _Translations$presets$id._(_root);
+	@override late final _Translations$shield$id shield = _Translations$shield$id._(_root);
+	@override late final _Translations$checks$id checks = _Translations$checks$id._(_root);
+	@override late final _Translations$toolSettings$id toolSettings = _Translations$toolSettings$id._(_root);
+	@override late final _Translations$security$id security = _Translations$security$id._(_root);
+	@override late final _Translations$providers$id providers = _Translations$providers$id._(_root);
+	@override late final _Translations$alerts$id alerts = _Translations$alerts$id._(_root);
+	@override late final _Translations$report$id report = _Translations$report$id._(_root);
+	@override late final _Translations$breaches$id breaches = _Translations$breaches$id._(_root);
+	@override late final _Translations$blocked$id blocked = _Translations$blocked$id._(_root);
 }
 
 // Path: common
@@ -117,8 +130,6 @@ class _Translations$home$id extends Translations$home$en {
 	// Translations
 	@override late final _Translations$home$status$id status = _Translations$home$status$id._(_root);
 	@override String resumesAt({required Object time}) => 'Lanjut pukul ${time} · ketuk untuk lanjut sekarang';
-	@override String sitesSee({required Object ip}) => 'Situs melihat ${ip}';
-	@override String sitesSeeOrg({required Object ip, required Object org}) => 'Situs melihat ${ip} · ${org}';
 	@override String get ipFailed => 'Tidak dapat memeriksa IP Anda';
 	@override String get ipChecking => 'Memeriksa IP Anda';
 	@override String get themeSystem => 'Tema: ikuti ponsel';
@@ -126,7 +137,6 @@ class _Translations$home$id extends Translations$home$en {
 	@override String get themeDark => 'Tema: gelap';
 	@override String get free => 'Gratis';
 	@override String get pickServer => 'Pilih server';
-	@override late final _Translations$home$waves$id waves = _Translations$home$waves$id._(_root);
 	@override late final _Translations$home$network$id network = _Translations$home$network$id._(_root);
 	@override late final _Translations$home$card$id card = _Translations$home$card$id._(_root);
 	@override late final _Translations$home$tiles$id tiles = _Translations$home$tiles$id._(_root);
@@ -177,6 +187,20 @@ class _Translations$servers$id extends Translations$servers$en {
 	@override String lastUsed({required Object when}) => 'Terakhir dipakai ${when}';
 	@override String get disconnectFirst => 'Putuskan dulu untuk menghapusnya';
 	@override String get removeConfirm => 'Hapus server ini dari G VPN? Setelannya dihapus dari ponsel ini; server itu sendiri tidak berubah.';
+	@override String get gTab => 'G Servers';
+	@override String get search => 'Cari negara';
+	@override String get noMatch => 'Tidak ada server yang cocok.';
+	@override String bestPing({required Object ms}) => 'terbaik ${ms} ms';
+	@override String get bestTag => 'TERBAIK';
+	@override String get ownHero => 'Server milik kami';
+	@override String get ownHeroSub => 'Lebih cepat, privat, tiap ponsel punya kunci sendiri';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} server',
+	);
+	@override String showAll({required Object n}) => 'Tampilkan semua ${n}';
+	@override String get showFewer => 'Tampilkan lebih sedikit';
+	@override String get fastTab => 'Cepat';
+	@override String get fastestFree => 'Gratis tercepat';
 }
 
 // Path: pro
@@ -189,16 +213,7 @@ class _Translations$pro$id extends Translations$pro$en {
 	@override String get owned => 'Anda punya Pro';
 	@override String get waitingPlay => 'Menunggu Google Play';
 	@override String startTrial({required Object days}) => 'Mulai uji coba gratis ${days} hari';
-	@override String thenYearly({required Object price}) => 'Lalu ${price} per tahun. Batalkan kapan saja di Google Play.';
-	@override String thenMonthly({required Object price}) => 'Lalu ${price} per bulan. Batalkan kapan saja di Google Play.';
-	@override String yearlyPrice({required Object price}) => '${price} per tahun. Batalkan kapan saja di Google Play.';
-	@override String monthlyPrice({required Object price}) => '${price} per bulan. Batalkan kapan saja di Google Play.';
 	@override String get restore => 'Pulihkan';
-	@override String get heroTitle => 'Server lebih cepat,\ndikelola oleh kami';
-	@override String get heroSubtitle => 'WireGuard. Tanpa log aktivitas. Tanpa akun.';
-	@override String get benefitSpeed => 'Kecepatan penuh, tanpa batas server sukarelawan';
-	@override String get benefitKey => 'Kunci dibuat di ponsel Anda, tidak pernah dibagikan';
-	@override String get benefitFree => 'Semua yang gratis tetap gratis';
 	@override String save({required Object pct}) => 'HEMAT ${pct}%';
 	@override String get yearly => 'Tahunan';
 	@override String get monthly => 'Bulanan';
@@ -206,10 +221,6 @@ class _Translations$pro$id extends Translations$pro$en {
 	@override String daysFree({required Object days}) => '${days} hari gratis';
 	@override String perMonth({required Object price}) => '${price} per bulan';
 	@override String get title => 'G VPN Pro';
-	@override String get heroTitleOneLine => 'Server lebih cepat, dikelola oleh kami';
-	@override String get includes => 'Termasuk';
-	@override String get benefitLogs => 'Tanpa log aktivitas di server kami';
-	@override String get plan => 'Pilih paket';
 	@override String get renewGeneric => 'Langganan diperpanjang otomatis hingga dibatalkan. Batalkan kapan saja di Google Play.';
 	@override String renewTrial({required Object days, required Object price, required Object period}) => '${days} hari gratis, lalu ${price} per ${period}. Diperpanjang otomatis hingga dibatalkan; batalkan di Google Play paling lambat sehari sebelum uji coba berakhir agar tidak ditagih.';
 	@override String renew({required Object price, required Object period}) => '${price} per ${period}. Diperpanjang otomatis hingga dibatalkan; batalkan kapan saja di Google Play.';
@@ -217,6 +228,16 @@ class _Translations$pro$id extends Translations$pro$en {
 	@override String get month => 'bulan';
 	@override String get manage => 'Kelola langganan';
 	@override late final _Translations$pro$free$id free = _Translations$pro$free$id._(_root);
+	@override String get heroLine => 'Server cepat milik kami, dan semua pengecekan tanpa batas';
+	@override String get start => 'Mulai Pro';
+	@override String get compareFree => 'GRATIS';
+	@override String get comparePro => 'PRO';
+	@override String get rowFreeServers => 'Server gratis';
+	@override String get rowTools => 'Tes kecepatan, alat, cek Wi-Fi';
+	@override String get rowGServers => 'G Servers, tanpa log';
+	@override String get rowLinks => 'Cek tautan';
+	@override String linksFree({required Object n}) => '${n} per bulan';
+	@override String get unlimited => 'Tanpa batas';
 }
 
 // Path: rules
@@ -230,7 +251,6 @@ class _Translations$rules$id extends Translations$rules$en {
 	@override late final _Translations$rules$info$id info = _Translations$rules$info$id._(_root);
 	@override String get protection => 'Perlindungan';
 	@override String get shield => 'Perisai';
-	@override String get shieldSub => 'Memblokir situs malware dan phishing';
 	@override String get privateDns => 'Perisai tanpa VPN';
 	@override String get privateDnsSub => 'Salin dns.quad9.net untuk DNS Pribadi';
 	@override String get privateDnsCopied => 'dns.quad9.net disalin';
@@ -346,9 +366,17 @@ class _Translations$wol$id extends Translations$wol$en {
 	@override String get badMac => 'Itu bukan alamat MAC. Bentuknya seperti AA:BB:CC:DD:EE:FF.';
 	@override String get sent => 'Sinyal dikirim. Perangkat seharusnya menyala dalam satu menit.';
 	@override String get title => 'Wake on LAN';
-	@override String get wake => 'Nyalakan perangkat';
 	@override String get mac => 'Alamat MAC';
 	@override String failed({required Object error}) => 'Tidak dapat mengirim: ${error}';
+	@override String get computer => 'Komputer';
+	@override String get pick => 'Pilih perangkat untuk dinyalakan';
+	@override String waking({required Object name}) => 'Menyalakan ${name}';
+	@override String get yours => 'PERANGKAT ANDA';
+	@override String wakeNamed({required Object name}) => 'Nyalakan ${name}';
+	@override String get removeHint => 'Tahan perangkat untuk menghapusnya';
+	@override String get add => 'TAMBAH PERANGKAT';
+	@override String get name => 'Nama';
+	@override String get saveWake => 'Simpan dan nyalakan';
 }
 
 // Path: speed
@@ -358,7 +386,6 @@ class _Translations$speed$id extends Translations$speed$en {
 	final TranslationsId _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Diukur oleh M-Lab, platform riset terbuka. Satu tes memakai sekitar 50 sampai 100 MB.\n\nHasil publik: M-Lab menerbitkan setiap tes, termasuk alamat IP asalnya, sebagai data riset terbuka.\n\nPerbandingan penyedia: setelah tes tanpa VPN, G VPN hanya mengirim tiga angka kecepatan. Layanan perbandingan membaca penyedia dan kota Anda dari koneksi itu sendiri dan tidak menyimpan alamat IP. Matikan dengan sakelar di bagian bawah halaman ini.\n\nMelalui VPN: saat VPN aktif, tes mengukur kecepatan melalui terowongan dan membandingkannya dengan tes terakhir tanpa VPN.\n\nPratinjau video: gambar yang sama ditampilkan pada resolusi yang dapat diputar kecepatan ini, berdasarkan bitrate yang dipublikasikan layanan streaming. Tidak ada video yang diunduh.';
 	@override String get download => 'Unduh';
 	@override String get upload => 'Unggah';
 	@override String get finding => 'Mencari server';
@@ -439,10 +466,11 @@ class _Translations$router$id extends Translations$router$en {
 	@override String get cgnat => 'Alamat penyedia bersama: tidak dapat dijangkau dari internet.';
 	@override String get noDescription => 'Tanpa deskripsi';
 	@override String opened({required Object n}) => '${n} port dibuka oleh perangkat';
-	@override String routerName({required Object name}) => 'Router: ${name}';
-	@override String externalIp({required Object ip}) => 'Alamat internet: ${ip}';
 	@override String mapping({required Object proto, required Object host}) => '${proto} ke ${host}';
 	@override String get upnpOn => 'UPnP aktif';
+	@override String get routerLabel => 'Router';
+	@override String get internetAddress => 'Alamat internet';
+	@override String get openedBy => 'Dibuka oleh perangkat';
 }
 
 // Path: network
@@ -494,8 +522,6 @@ class _Translations$devices$id extends Translations$devices$en {
 	@override String get title => 'Perangkat';
 	@override String get again => 'Pindai lagi';
 	@override String get looking => 'Mencari perangkat';
-	@override String get nothingNew => 'Tidak ada yang baru sejak pindaian terakhir';
-	@override String get takes => 'Sekitar 30 detik';
 	@override String get all => 'Semua';
 	@override String get phones => 'Ponsel';
 	@override String get tvs => 'TV';
@@ -507,14 +533,48 @@ class _Translations$devices$id extends Translations$devices$en {
 	@override String get address => 'Alamat';
 	@override String get answersIn => 'Menjawab dalam';
 	@override String get type => 'Jenis';
-	@override String get notAnnounced => 'Tidak diumumkan. Daftar perangkat di router Anda dapat menamainya.';
 	@override String get newBadge => 'BARU';
 	@override String scanning({required Object n}) => 'Memindai ${n} dari 254';
-	@override String get thisNetwork => 'jaringan ini';
 	@override String newSince({required Object n}) => '${n} baru sejak pindaian terakhir';
-	@override String showMore({required Object n}) => 'Tampilkan ${n} lagi';
 	@override String ms({required Object n}) => '${n} md';
-	@override String onNetwork({required Object network}) => 'perangkat di ${network}';
+	@override String get cameras => 'Kamera';
+	@override String get device => 'Perangkat';
+	@override String get online => 'Online';
+	@override String get model => 'Model';
+	@override String get announced => 'Mengumumkan diri sebagai';
+	@override String get services => 'LAYANAN TERBUKA';
+	@override String get checkingServices => 'Memeriksa layanan';
+	@override String get noServices => 'Tidak ada layanan umum yang menjawab';
+	@override String get rename => 'Ganti nama';
+	@override String get save => 'Simpan';
+	@override late final _Translations$devices$kinds$id kinds = _Translations$devices$kinds$id._(_root);
+	@override String get details => 'Detail jaringan';
+	@override String get listView => 'Daftar';
+	@override String get meshView => 'Jaring';
+	@override String get offlineHeading => 'Offline';
+	@override String seen({required Object when}) => 'Terlihat ${when}';
+	@override String agoMinutes({required Object n}) => '${n} mnt lalu';
+	@override String agoHours({required Object n}) => '${n} jam lalu';
+	@override String agoDays({required Object n}) => '${n} hari lalu';
+	@override String get throughVpn => 'Lewat VPN';
+	@override String get closer => 'Lebih dekat = menjawab lebih cepat';
+	@override String get yours => 'Ini milik Anda?';
+	@override String get mine => 'Milik saya';
+	@override String get notMine => 'Bukan milik saya';
+	@override String get whatIsIt => 'Apa ini?';
+	@override String ourGuess({required Object kind}) => 'Tebakan kami: ${kind}';
+	@override String get groupPersonal => 'Ponsel dan komputer';
+	@override String get groupHome => 'Rumah dan media';
+	@override String get groupNetwork => 'Jaringan dan rumah pintar';
+	@override String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} online',
+	);
+	@override String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} offline',
+	);
+	@override String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perlu dikonfirmasi',
+	);
 }
 
 // Path: ping
@@ -524,10 +584,8 @@ class _Translations$ping$id extends Translations$ping$en {
 	final TranslationsId _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Berapa lama satu perjalanan pulang-pergi ke server, diukur setiap detik selama satu menit terakhir.\n\nJitter: seberapa besar setiap jawaban berbeda dari jawaban sebelumnya. Jitter tinggi membuat panggilan putus-putus.\n\nLoss: jawaban yang tidak pernah kembali.\n\nCara: aplikasi Android tidak dapat mengirim ping klasik, jadi setiap uji mengukur waktu jabat tangan koneksi, yang sama dengan satu perjalanan pulang-pergi.';
 	@override String get askTitle => 'Ping host';
 	@override String get askHint => 'example.com atau 192.168.1.10';
-	@override String get cancel => 'Batal';
 	@override String get title => 'Ping';
 	@override String get router => 'Router';
 	@override String get pause => 'Jeda';
@@ -573,7 +631,6 @@ class _Translations$status$id extends Translations$status$en {
 	@override String get blocked => 'Mungkin diblokir di jaringan ini';
 	@override String get connect => 'Hubungkan';
 	@override String get blockedShort => 'Diblokir';
-	@override String get unreachable => 'Tidak terjangkau';
 	@override String get now => 'sekarang';
 	@override String checks({required Object n}) => '${n} pemeriksaan';
 	@override String andMore({required Object first, required Object n}) => '${first} dan ${n} lainnya';
@@ -594,27 +651,35 @@ class _Translations$tools$id extends Translations$tools$en {
 	@override String get offline => 'Offline';
 	@override String get title => 'Alat';
 	@override String get networkDesc => 'Pemeriksaan keamanan, apa yang dilihat situs, sinyal, router, dan DNS.';
-	@override String get internet => 'Konektivitas internet';
+	@override String get internet => 'Internet';
 	@override String get speed => 'Tes kecepatan';
-	@override String get speedDesc => 'Kecepatan unduh dan unggah, serta kualitas video yang didukung.';
+	@override String get speedDesc => 'Unduh, unggah, dan kualitas video';
 	@override String get ping => 'Ping';
-	@override String get pingDesc => 'Waktu respons langsung dan jitter ke server mana pun atau router Anda.';
+	@override String get pingDesc => 'Waktu respons dan jitter langsung';
 	@override String get status => 'Status layanan';
-	@override String get statusDesc => 'Apakah WhatsApp, YouTube, atau Google dapat dijangkau dari sini, atau diblokir?';
+	@override String get statusDesc => 'Aplikasi bisa diakses atau diblokir di sini?';
 	@override String get trace => 'Traceroute';
-	@override String get traceDesc => 'Setiap router antara Anda dan sebuah situs, dan berapa lama masing-masing.';
-	@override String get security => 'Keamanan jaringan';
+	@override String get traceDesc => 'Setiap persinggahan menuju situs';
+	@override String get security => 'Jaringan ini';
 	@override String get devices => 'Perangkat di jaringan ini';
-	@override String get devicesDesc => 'Siapa lagi di Wi-Fi Anda: ponsel, TV, kamera, dan komputer.';
+	@override String get devicesDesc => 'Siapa saja di Wi-Fi Anda';
 	@override String get router => 'Periksa router';
-	@override String get routerDesc => 'Apakah perangkat dapat membuka port di router Anda sendiri (UPnP).';
+	@override String get routerDesc => 'Port yang dibuka perangkat Anda';
 	@override String get ports => 'Port terbuka';
-	@override String get portsDesc => 'Periksa router atau server dari port terbuka yang berisiko.';
+	@override String get portsDesc => 'Port berisiko di perangkat atau server';
 	@override String get utilities => 'Utilitas';
 	@override String get wifiScanner => 'Pemindai Wi-Fi';
-	@override String get wifiDesc => 'Jaringan di sekitar, keamanannya, dan kanal paling sepi.';
+	@override String get wifiDesc => 'Jaringan di sekitar dan kanal paling sepi';
 	@override String get wol => 'Wake on LAN';
-	@override String get wolDesc => 'Nyalakan komputer atau NAS di jaringan ini.';
+	@override String get wolDesc => 'Nyalakan komputer di jaringan ini';
+	@override String get passwordCheck => 'Cek kata sandi';
+	@override String get passwordCheckDesc => 'Pernah bocor?';
+	@override String get linkCheck => 'Cek tautan';
+	@override String get linkCheckDesc => 'Aman dibuka?';
+	@override String get breaches => 'Kebocoran data';
+	@override String get breachesDesc => 'Apa yang bocor belakangan ini';
+	@override String get blocked => 'Apa yang diblokir';
+	@override String get blockedDesc => 'Situs yang diblokir di jaringan ini';
 }
 
 // Path: trace
@@ -640,6 +705,12 @@ class _Translations$trace$id extends Translations$trace$en {
 	@override String silentMany({required Object n}) => '${n} hop diam';
 	@override String hop({required Object n}) => 'Hop ${n}';
 	@override String slowest({required Object ms, required Object hop}) => 'Sebagian besar jeda, ${ms} md, ditambahkan di hop ${hop}: biasanya kabel panjang antarnegara, atau jalur yang padat.';
+	@override String get popular => 'POPULER';
+	@override String get recent => 'TERBARU';
+	@override String get clearRecent => 'Hapus terbaru';
+	@override String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} lompatan',
+	);
 }
 
 // Path: ports
@@ -677,6 +748,11 @@ class _Translations$ports$id extends Translations$ports$en {
 	@override String checking({required Object n}) => 'Memeriksa ${n} port';
 	@override String yourRouter({required Object ip}) => 'Router Anda adalah ${ip}';
 	@override String noneOpen({required Object host}) => 'Tidak ada port umum yang terbuka di ${host}.';
+	@override String summary({required Object open, required Object n}) => '${open} terbuka dari ${n} dicek';
+	@override String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} berisiko',
+	);
+	@override String get noneRisky => 'Tidak ada yang berisiko';
 }
 
 // Path: wifi
@@ -695,11 +771,38 @@ class _Translations$wifi$id extends Translations$wifi$en {
 	@override String get none => 'Tidak ada jaringan ditemukan. Lokasi mungkin mati.';
 	@override String get hidden => 'Jaringan tersembunyi';
 	@override String nearby({required Object n}) => '${n} jaringan di sekitar';
-	@override String bestChannel({required Object n}) => 'Kanal 2,4 GHz paling sepi: ${n}';
-	@override String weak({required Object n}) => '${n} terbuka atau lemah';
-	@override String get connectedPrefix => 'Terhubung · ';
 	@override String get permissionInfo => 'Android hanya menampilkan jaringan Wi-Fi di sekitar kepada aplikasi yang memiliki izin lokasi. G VPN memakainya hanya untuk menampilkan jaringan di ponsel ini.';
 	@override String get info => 'Menampilkan jaringan dari pemindaian terakhir ponsel. Android hanya mengizinkan beberapa pemindaian per menit, jadi pemindaian ulang yang cepat bisa menampilkan daftar yang sama. Kanal yang disarankan adalah yang paling sepi di antara 1, 6, dan 11, tiga kanal yang tidak tumpang tindih.';
+	@override String get airMap => 'Peta udara';
+	@override String get channels => 'Kanal';
+	@override String get list => 'Daftar';
+	@override String get secure => 'Aman';
+	@override String get weakLabel => 'Lemah';
+	@override String get openLabel => 'Terbuka';
+	@override String get sizeIsWidth => 'Ukuran = lebar kanal';
+	@override String get strongest => 'TERKUAT';
+	@override String get openNearby => 'TERBUKA DI SEKITAR';
+	@override String get onYourChannel => 'DI KANAL ANDA';
+	@override String get noneNearby => 'Tidak ada';
+	@override String get verdictOpen => 'Siapa pun di sekitar bisa membaca yang dikirim';
+	@override String get verdictWep => 'Keamanan lama, mudah dibobol';
+	@override String get verdictWpa => 'Keamanan lama';
+	@override String get verdictWps => 'WPS aktif: lebih mudah dibobol';
+	@override String get verdictGood => 'Terlindungi baik';
+	@override String get maker => 'Pembuat';
+	@override String get address => 'Alamat perangkat keras';
+	@override String get privateAddress => 'Dibuat router demi privasi';
+	@override String get you => 'Anda';
+	@override String onClear({required Object name}) => '${name} ada di kanal yang sepi';
+	@override String move({required Object name, required Object n}) => 'Pindahkan ${name} ke kanal ${n}';
+	@override String get clear => 'Sepi';
+	@override String get busy => 'Sibuk';
+	@override String get crowded => 'Padat';
+	@override String get allBands => 'Semua pita';
+	@override String get openOnly => 'Hanya terbuka';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} jaringan',
+	);
 }
 
 // Path: errors
@@ -858,10 +961,6 @@ class _Translations$gs$id extends Translations$gs$en {
 	@override String busy({required Object n}) => '${n}% sibuk';
 	@override String get offline => 'Offline';
 	@override String get devices => 'Perangkat Anda';
-	@override String devicesSub({required Object n}) => 'Hingga ${n} ponsel, masing-masing dengan kuncinya sendiri';
-	@override String get footnote => 'Setiap ponsel mendapat kuncinya sendiri, dibuat di ponsel itu. G Servers tidak menyimpan log aktivitas.';
-	@override String get leastBusy => 'PALING SEPI SAAT INI';
-	@override String busyNoLogs({required Object n}) => '${n}% sibuk · tanpa log';
 	@override String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 	@override String get busyLabel => 'SIBUK';
 	@override String get status => 'STATUS';
@@ -896,6 +995,510 @@ class _Translations$gs$id extends Translations$gs$en {
 	@override String chartLabel({required Object max}) => 'Kesibukan 24 jam terakhir, paling tinggi ${max} persen';
 	@override String get hoursAgo => '24 jam lalu';
 	@override String get now => 'Sekarang';
+	@override String get included => 'Termasuk';
+	@override String get perkServers => 'Server cepat dan privat';
+	@override String get perkServersSub => 'WireGuard, dikelola kami, tanpa log aktivitas';
+	@override String get perkLinks => 'Cek tautan tanpa batas';
+	@override String get perkLinksSub => 'Cek setiap tautan yang Anda terima';
+	@override String devicesOf({required Object used, required Object limit}) => 'Perangkat Anda · ${used} dari ${limit}';
+	@override String get eachKey => 'Setiap ponsel punya kuncinya sendiri';
+	@override String get connected => 'Tersambung';
+	@override String get bestNow => 'TERBAIK UNTUK ANDA SEKARANG';
+	@override String get logsShort => 'LOG';
+}
+
+// Path: map
+class _Translations$map$id extends Translations$map$en {
+	_Translations$map$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get open => 'Buka peta';
+	@override String get searchCountries => 'Cari negara';
+	@override String get noMatch => 'Tidak ada negara yang cocok';
+	@override String get locate => 'Lokasi saya';
+	@override String get list => 'Daftar';
+	@override String get map => 'Peta';
+	@override String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} server gratis',
+	);
+	@override late final _Translations$map$grade$id grade = _Translations$map$grade$id._(_root);
+	@override String get switchTo => 'Ganti';
+	@override String freeServer({required Object n}) => 'Server gratis ${n}';
+	@override String get best => 'TERBAIK';
+	@override String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} G Server',
+	);
+}
+
+// Path: stats
+class _Translations$stats$id extends Translations$stats$en {
+	_Translations$stats$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get thisWeek => 'Minggu ini';
+	@override String get time => 'Waktu';
+	@override String get data => 'Data';
+	@override String get protected => 'terlindungi';
+	@override String get throughVpn => 'lewat VPN';
+	@override String get seeDetails => 'Lihat detail';
+	@override String get title => 'Statistik';
+	@override String get week => 'Minggu';
+	@override String get month => 'Bulan';
+	@override String get protectedLabel => 'TERLINDUNGI';
+	@override String get dataUsed => 'DATA TERPAKAI';
+	@override String get byServer => 'PER SERVER';
+	@override String get onPhone => 'Hanya di ponsel ini';
+	@override String get reset => 'Atur ulang';
+	@override String get resetTitle => 'Atur ulang statistik?';
+	@override String get resetBody => 'Menghapus waktu terlindungi dan data di ponsel ini. Tidak bisa dibatalkan.';
+	@override String hm({required Object h, required Object m}) => '${h} j ${m} m';
+	@override String m({required Object m}) => '${m} m';
+	@override String get empty => 'Hubungkan untuk mulai menghitung.';
+}
+
+// Path: recents
+class _Translations$recents$id extends Translations$recents$en {
+	_Translations$recents$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Terbaru';
+	@override String get allServers => 'Semua server';
+	@override String get free => 'Server gratis';
+	@override String get yours => 'Server Anda';
+	@override String get gserver => 'G Server';
+}
+
+// Path: presets
+class _Translations$presets$id extends Translations$presets$en {
+	_Translations$presets$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Preset';
+	@override String get all => 'Semua';
+	@override String get newPreset => 'Preset baru';
+	@override String get edit => 'Ubah preset';
+	@override String get name => 'Nama';
+	@override String get namePlaceholder => 'Preset saya';
+	@override String get server => 'SERVER';
+	@override String get fastestOption => 'Tercepat';
+	@override String get countryOption => 'Negara';
+	@override String get pickCountry => 'Pilih negara';
+	@override String get skipMyCountry => 'Lewati negara saya';
+	@override String get notMine => 'bukan negara saya';
+	@override String get protocol => 'PROTOKOL';
+	@override String get auto => 'Otomatis';
+	@override String get tryNext => 'Jika diblokir, coba server berikutnya';
+	@override String get shield => 'PERISAI';
+	@override String get followRules => 'Sesuai Aturan';
+	@override String get allApps => 'Semua aplikasi lewat VPN';
+	@override String get allAppsShort => 'semua aplikasi';
+	@override String get save => 'Simpan';
+	@override String get delete => 'Hapus';
+	@override String get reset => 'Kembalikan bawaan';
+	@override String get none => 'Belum ada server gratis yang cocok untuk preset ini.';
+	@override late final _Translations$presets$names$id names = _Translations$presets$names$id._(_root);
+}
+
+// Path: shield
+class _Translations$shield$id extends Translations$shield$en {
+	_Translations$shield$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Perisai';
+	@override String get sub => 'Bekerja saat Anda terhubung';
+	@override String get off => 'Mati';
+	@override String get offSub => 'DNS milik server';
+	@override String get malware => 'Malware';
+	@override String get malwareSub => 'Memblokir situs berbahaya dan phishing';
+	@override String get family => 'Malware dan situs dewasa';
+	@override String get familySub => 'Juga memblokir konten dewasa';
+	@override String get custom => 'DNS sendiri';
+	@override String get customSub => 'Server DNS Anda sendiri';
+	@override String get customHint => 'Alamat IP, misalnya 1.1.1.1';
+	@override String get invalid => 'Masukkan satu atau dua alamat IP.';
+}
+
+// Path: checks
+class _Translations$checks$id extends Translations$checks$en {
+	_Translations$checks$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Pemeriksaan keamanan';
+	@override String get password => 'Kata sandi';
+	@override String get link => 'Tautan';
+	@override String get pwTitle => 'Pernah bocor?';
+	@override String get pwHint => 'Kata sandi yang dicek';
+	@override String get showPassword => 'Tampilkan kata sandi';
+	@override String get hidePassword => 'Sembunyikan kata sandi';
+	@override String get check => 'Cek';
+	@override String get leaked => 'Ditemukan di kebocoran';
+	@override String seen({required Object n}) => 'Terlihat ${n} kali';
+	@override String get leakedAdvice => 'Ganti di semua tempat Anda memakainya, mulai dari email dan bank.';
+	@override String get notFound => 'Tidak ada di kebocoran yang diketahui';
+	@override String get notFoundAdvice => 'Pertanda baik, bukan jaminan. Pakai kata sandi berbeda untuk tiap akun.';
+	@override String get failed => 'Gagal mengecek. Coba lagi.';
+	@override String get private => 'Kata sandi Anda tidak pernah keluar dari ponsel ini';
+	@override String get linkTitle => 'Amankah tautan ini?';
+	@override String get linkHint => 'Tautan yang dicek';
+	@override String get paste => 'Tempel';
+	@override String get danger => 'Tautan berbahaya';
+	@override String get dangerAdvice => 'Jangan dibuka dan jangan isi data apa pun.';
+	@override String get clear => 'Tidak ada di daftar malware atau phishing yang dikenal';
+	@override String get clearAdvice => 'Tetap periksa alamatnya sebelum masuk ke mana pun.';
+	@override String get goesTo => 'Menuju ke';
+	@override String get redirects => 'Pengalihan';
+	@override String get invalid => 'Itu tidak tampak seperti alamat web.';
+	@override String get busy => 'Terlalu banyak pengecekan. Coba lagi nanti.';
+	@override String get unavailable => 'Cek tautan sedang tidak tersedia.';
+	@override String get listed => 'Dikenal sebagai malware atau phishing';
+	@override String get missing => 'Tidak ada situs di alamat ini';
+	@override String get missingAdvice => 'Periksa ejaannya: penipuan sering memakai alamat yang mirip.';
+	@override String left({required Object n, required Object total}) => 'Sisa ${n} dari ${total} cek gratis bulan ini';
+	@override String get usedUp => 'Cek tautan gratis bulan ini sudah habis';
+	@override String get usedUpSub => 'Pro punya cek tanpa batas. Cek gratis kembali setiap tanggal 1.';
+	@override String get getPro => 'Dapatkan Pro';
+}
+
+// Path: toolSettings
+class _Translations$toolSettings$id extends Translations$toolSettings$en {
+	_Translations$toolSettings$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Pengaturan alat';
+	@override String get askMobile => 'Tanya sebelum tes kecepatan di data seluler';
+	@override String get askMobileSub => 'Satu tes bisa memakai lebih dari 100 MB di koneksi cepat';
+	@override String get mobileTitle => 'Pakai data seluler?';
+	@override String get mobileBody => 'Tes kecepatan bisa memakai lebih dari 100 MB di koneksi cepat.';
+	@override String get mobileGo => 'Tes';
+	@override String get safe => 'Aman';
+	@override String get unsafe => 'Tidak aman';
+	@override String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perangkat',
+	);
+	@override String get hideMac => 'Sembunyikan alamat perangkat keras';
+	@override String get hideMacSub => 'Hanya tampilkan bagian pembuat dari alamat MAC';
+	@override String get names => 'Tampilkan nama router dan server';
+	@override String get namesSub => 'Mencari nama alamat di Traceroute';
+	@override String get remember => 'Ingat host terbaru';
+	@override String get rememberSub => 'Untuk Traceroute';
+	@override String get clear => 'Hapus riwayat alat';
+	@override String get clearSub => 'Melupakan host terbaru dan perangkat di tiap jaringan';
+	@override String get clearGo => 'Hapus';
+}
+
+// Path: security
+class _Translations$security$id extends Translations$security$en {
+	_Translations$security$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'Keamanan';
+	@override String get good => 'Baik';
+	@override String get fair => 'Cukup';
+	@override String get atRisk => 'Berisiko';
+	@override String get allClear => 'Tidak ada yang perlu diperbaiki';
+	@override String checked({required Object time}) => 'Dicek pukul ${time}';
+	@override String get trend => 'DUA MINGGU TERAKHIR';
+	@override String get checking => 'Memeriksa jaringan ini';
+	@override String get snoozed => 'Ditunda';
+	@override String get remindLater => 'Ingatkan nanti';
+	@override String get unsnooze => 'Ingatkan sekarang';
+	@override String get review => 'Tinjau';
+	@override String get confirmGo => 'Konfirmasi';
+	@override String get scanGo => 'Pindai';
+	@override String get look => 'Lihat';
+	@override String get connectGo => 'Hubungkan';
+	@override String get checkAgain => 'Cek lagi';
+	@override String get wifiOpen => 'Wi-Fi terbuka';
+	@override String get wifiOpenDetail => 'Siapa pun di sekitar bisa melihat yang dikirim';
+	@override String get wifiWep => 'Wi-Fi memakai WEP';
+	@override String get wifiWepDetail => 'Keamanan lama, mudah dibobol';
+	@override String get wifiOwe => 'Wi-Fi memakai Enhanced Open';
+	@override String get wifiOweDetail => 'Terenkripsi, tapi siapa pun bisa masuk';
+	@override String get wifiSecure => 'Enkripsi Wi-Fi';
+	@override String get wifiUnknown => 'Keamanan Wi-Fi tidak diketahui';
+	@override String get wifiUnknownDetail => 'Android tidak menyebut perlindungannya';
+	@override String get wps => 'WPS aktif';
+	@override String get wpsDetail => 'Matikan di pengaturan router';
+	@override String get upnpOff => 'Router menjaga port tetap tertutup';
+	@override String get upnpOffDetail => 'UPnP mati';
+	@override String get upnpOn => 'Router membiarkan perangkat membuka port';
+	@override String get upnpOnDetail => 'UPnP aktif';
+	@override String get portsOk => 'Tidak ada port berisiko di router';
+	@override String get portsRisky => 'Port berisiko terbuka di router';
+	@override String get scanFirst => 'Pindai untuk melihat siapa di sini';
+	@override String get scanFirstDetail => 'Perangkat tak dikenal mengurangi skor';
+	@override String get notMineDetail => 'Periksa daftar perangkat di router';
+	@override String get confirmDetail => 'Tandai yang milik Anda';
+	@override String get devicesOk => 'Semua perangkat dikenal';
+	@override String get devicesOkDetail => 'Anda sudah mengonfirmasi semuanya';
+	@override String get camera => 'Ada kamera di jaringan ini';
+	@override String get dnsHijack => 'Nama tak dikenal dialihkan';
+	@override String get dnsHijackDetail => 'Penyedia atau router Anda mengubah pencarian';
+	@override String get dnsOk => 'DNS menjawab normal';
+	@override String get dnsOkDetail => 'Tidak ada tanda pengalihan';
+	@override String get vpnOn => 'VPN aktif';
+	@override String get vpnOnDetail => 'Lalu lintas keluar lewat terowongan';
+	@override String get vpnOff => 'VPN mati';
+	@override String get vpnOffDetail => 'Penyedia Anda melihat setiap situs';
+	@override String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} hal perlu diperbaiki',
+	);
+	@override String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} port dibuka perangkat',
+	);
+	@override String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} port dicek',
+	);
+	@override String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perangkat bukan milik Anda',
+	);
+	@override String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perangkat perlu dikonfirmasi',
+	);
+}
+
+// Path: providers
+class _Translations$providers$id extends Translations$providers$en {
+	_Translations$providers$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'Internet';
+	@override String get unavailable => 'Tidak bisa memuat daftar penyedia. Periksa koneksi Anda.';
+	@override String get cached => 'Menurut pengecekan terakhir tanpa VPN';
+	@override String get notEnough => 'Belum cukup penilaian';
+	@override String get yourRating => 'Penilaian Anda bulan ini';
+	@override String get yourSpeed => 'KECEPATAN ANDA';
+	@override String get runTest => 'Jalankan tes kecepatan';
+	@override String get aboutAverage => 'Setara rata-rata di sini';
+	@override String aboveAverage({required Object pct}) => '${pct}% di atas rata-rata lokal';
+	@override String belowAverage({required Object pct}) => '${pct}% di bawah rata-rata lokal';
+	@override String get call => 'Telepon';
+	@override String get website => 'Situs web';
+	@override String get outages => 'Gangguan';
+	@override String get rate => 'Nilai';
+	@override String get changeRating => 'Ubah penilaian';
+	@override String get compare => 'Bandingkan';
+	@override String rateTitle({required Object name}) => 'Nilai ${name}';
+	@override String get oncePerMonth => 'Satu penilaian sebulan';
+	@override String get tapStars => 'Ketuk bintangnya';
+	@override String verified({required Object mbps}) => 'Terverifikasi oleh tes Anda: ${mbps} Mbps';
+	@override String get busy => 'Terlalu banyak penilaian dari sini. Coba nanti.';
+	@override String get failed => 'Gagal mengirim. Coba lagi.';
+	@override String get post => 'Kirim penilaian';
+	@override String get nearTitle => 'Penyedia di sekitar Anda';
+	@override String slower({required Object pct}) => 'Unduhan Anda ${pct}% di bawah rata-rata penyedia Anda di sini';
+	@override String inPlace({required Object place}) => 'Internet rumah di ${place}';
+	@override String get byRating => 'Penilaian';
+	@override String get bySpeed => 'Kecepatan';
+	@override String get footnote => 'Kecepatan adalah rata-rata tes G VPN';
+	@override String get noneNearby => 'Belum ada penilaian di sekitar. Jadilah yang pertama.';
+	@override String get you => 'Anda';
+	@override String get topRated => 'Nilai tertinggi';
+	@override String starsOf({required Object n}) => '${n} dari 5';
+	@override late final _Translations$providers$tags$id tags = _Translations$providers$tags$id._(_root);
+	@override late final _Translations$providers$words$id words = _Translations$providers$words$id._(_root);
+	@override String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} penilaian',
+	);
+}
+
+// Path: alerts
+class _Translations$alerts$id extends Translations$alerts$en {
+	_Translations$alerts$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get channel => 'Peringatan';
+	@override String get title => 'Peringatan';
+	@override String get markAllRead => 'Tandai semua dibaca';
+	@override String get clearAll => 'Hapus semua';
+	@override String get thisNetwork => 'jaringan ini';
+	@override String openWifiTitle({required Object name}) => 'Anda tersambung ke Wi-Fi terbuka: ${name}';
+	@override String get openWifiBody => 'Siapa pun di sekitar bisa melihat yang dikirim. Nyalakan G VPN.';
+	@override String get reportTitle => 'Laporan mingguan Anda siap';
+	@override String reportBody({required Object hours}) => '${hours} jam terlindungi minggu lalu';
+	@override String blockedTitle({required Object name}) => '${name} diblokir di sini';
+	@override String get blockedBody => 'Bisa diakses lewat VPN';
+	@override late final _Translations$alerts$kinds$id kinds = _Translations$alerts$kinds$id._(_root);
+	@override String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perangkat baru di ${network}',
+	);
+	@override String get settings => 'Pengaturan peringatan';
+	@override String get look => 'Lihat';
+	@override String get read => 'Baca';
+	@override String get open => 'Buka';
+	@override String get check => 'Cek';
+	@override String get today => 'HARI INI';
+	@override String get thisWeek => 'MINGGU INI';
+	@override String get earlier => 'SEBELUMNYA';
+	@override String get all => 'Semua';
+	@override String get quiet => 'Semua tenang';
+	@override String get quietSub => 'Tidak ada yang perlu Anda tangani';
+	@override String breachTitle({required Object name}) => 'Kebocoran baru: ${name}';
+	@override late final _Translations$alerts$status$id status = _Translations$alerts$status$id._(_root);
+}
+
+// Path: report
+class _Translations$report$id extends Translations$report$en {
+	_Translations$report$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Laporan mingguan';
+	@override String get share => 'Bagikan sebagai gambar';
+	@override String get shareText => 'Minggu saya dengan G VPN';
+	@override String get safer => 'Minggu yang lebih aman';
+	@override String get moreProtected => 'Lebih terlindungi dari minggu lalu';
+	@override String get yourWeek => 'Minggu Anda';
+	@override String soFar({required Object range}) => '${range}, sejauh ini';
+	@override String get protected => 'Terlindungi';
+	@override String get data => 'Data';
+	@override String get security => 'Keamanan';
+	@override String get speed => 'Kecepatan terbaik';
+	@override String get noScore => 'Belum dicek';
+	@override String get noTest => 'Belum ada tes';
+	@override String get bestDirect => 'Tes langsung';
+	@override String moreThan({required Object d}) => '${d} lebih lama dari minggu lalu';
+	@override String lessThan({required Object d}) => '${d} lebih singkat dari minggu lalu';
+	@override String get protectedTime => 'WAKTU TERLINDUNGI';
+	@override String mostUsed({required Object name}) => 'Paling sering: ${name}';
+	@override String get quiet => 'Minggu yang tenang: tidak ada yang perlu Anda tangani';
+	@override String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} perangkat baru bergabung',
+	);
+	@override String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: 'Bergabung ke ${n} Wi-Fi terbuka',
+	);
+	@override String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} aplikasi diblokir',
+	);
+	@override String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} kebocoran besar baru',
+	);
+}
+
+// Path: breaches
+class _Translations$breaches$id extends Translations$breaches$en {
+	_Translations$breaches$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Kebocoran data';
+	@override String get info => 'Kebocoran data terbaru, dari daftar publik Have I Been Pwned. Tidak ada data Anda yang dikirim: daftarnya sama untuk semua orang.\n\nJika Anda punya akun di situs yang bocor, ganti kata sandinya, juga di tempat lain yang memakai sandi sama.';
+	@override String get unavailable => 'Gagal memuat daftar. Periksa koneksi Anda.';
+	@override String get biggest => 'TERBESAR BULAN INI';
+	@override String get newest => 'Terbaru';
+	@override String get biggestSort => 'Terbesar';
+	@override String get withPasswords => 'Dengan kata sandi';
+	@override String get passwordsMark => 'KATA SANDI';
+	@override String get one => 'Kebocoran';
+	@override String get checkPassword => 'Cek kata sandi';
+	@override String get verified => 'Terverifikasi';
+	@override String get hasPasswords => 'Ada kata sandi';
+	@override String get accountsLabel => 'Akun';
+	@override String get happened => 'Terjadi';
+	@override String get published => 'Dipublikasikan';
+	@override String get website => 'Situs web';
+	@override String get leaked => 'YANG BOCOR';
+	@override String get ifUsed => 'JIKA ANDA MEMAKAINYA';
+	@override String get stepPassword => 'Ganti kata sandi yang Anda pakai di sana';
+	@override String get stepReuse => 'Ganti juga di tempat lain yang memakai sandi sama';
+	@override String get stepTwoStep => 'Aktifkan verifikasi dua langkah jika bisa';
+	@override String get stepScams => 'Waspadai telepon dan pesan penipuan';
+	@override String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${count} akun',
+	);
+	@override String worldwide({required Object n}) => 'Global · ${n}';
+	@override String get noneHere => 'Tidak ada kebocoran dari sini di daftar terbaru.';
+	@override String get bigMap => 'Peta lebih besar';
+	@override String get showInList => 'Tampilkan di daftar';
+	@override String get mapTitle => 'Peta kebocoran';
+	@override String get zoomIn => 'Perbesar';
+	@override String get zoomOut => 'Perkecil';
+	@override String get wholeWorld => 'Seluruh dunia';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} kebocoran',
+	);
+	@override String get findCountry => 'Cari negara';
+	@override String get seeAll => 'Lihat semua';
+	@override String get search => 'Cari kebocoran';
+}
+
+// Path: blocked
+class _Translations$blocked$id extends Translations$blocked$en {
+	_Translations$blocked$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Apa yang diblokir';
+	@override String get info => 'Menguji situs terkenal dari ponsel ini, tanpa VPN, dan menunjukkan mana yang diblokir jaringan ini serta caranya.\n\nAlamat palsu: pencarian nama jaringan memberi jawaban palsu.\n\nDiputus: koneksi diputus saat dimulai.\n\nTidak ada jawaban: tidak ada yang kembali.\n\nHalaman blokir: hal lain menjawab menggantikan situs.\n\nTes menunjukkan di mana situs diblokir, bukan siapa yang memblokir. Tidak ada yang disimpan atau dikirim.';
+	@override String get thisNetwork => 'Jaringan ini';
+	@override String get country => 'Negara Anda';
+	@override String get question => 'Apa yang diblokir di sini?';
+	@override String get testingOn => 'MENGUJI DI';
+	@override String get vpnOn => 'VPN AKTIF';
+	@override String get turnOff => 'Matikan G VPN untuk menguji';
+	@override String get test => 'Uji jaringan ini';
+	@override String get stop => 'Berhenti';
+	@override String sitesToTest({required Object n}) => 'SITUS YANG DIUJI · ${n}';
+	@override String ofSites({required Object n}) => 'dari ${n} situs';
+	@override String blockedCount({required Object n}) => '${n} DIBLOKIR';
+	@override String openCount({required Object n}) => '${n} TERBUKA';
+	@override String noneBlocked({required Object network}) => 'Tidak ada yang diblokir di ${network}';
+	@override String openOf({required Object open, required Object total}) => '${open} dari ${total} terbuka';
+	@override String get allWork => 'SEMUA BISA DENGAN G VPN';
+	@override String get blockedHeading => 'DIBLOKIR';
+	@override String get byKind => 'MENURUT JENIS';
+	@override String get worksVpn => 'Bisa dengan VPN';
+	@override String get failsVpn => 'Tetap diblokir lewat VPN';
+	@override String get checkVpn => 'Cek lewat G VPN';
+	@override String get connect => 'Sambungkan G VPN';
+	@override String get again => 'Uji lagi';
+	@override String get withoutVpn => 'TANPA VPN';
+	@override String get throughVpn => 'LEWAT G VPN';
+	@override String get notChecked => 'Belum dicek';
+	@override String get opens => 'Terbuka';
+	@override String get stillBlocked => 'Diblokir';
+	@override String get whatHappened => 'APA YANG TERJADI';
+	@override String countryBlocked({required Object country}) => 'situs diblokir di ${country}';
+	@override String get countrySub => 'Ditemukan oleh tes relawan dalam 30 hari terakhir';
+	@override String get countryNone => 'Tidak ada situs diblokir yang dilaporkan dalam 30 hari terakhir.';
+	@override String get countryUnavailable => 'Gagal memuat hasil negara. Periksa koneksi Anda.';
+	@override String get confirmed => 'DIBLOKIR';
+	@override String get oftenFails => 'SERING GAGAL';
+	@override late final _Translations$blocked$kinds$id kinds = _Translations$blocked$kinds$id._(_root);
+	@override late final _Translations$blocked$how$id how = _Translations$blocked$how$id._(_root);
+	@override late final _Translations$blocked$fail$id fail = _Translations$blocked$fail$id._(_root);
+	@override late final _Translations$blocked$steps$id steps = _Translations$blocked$steps$id._(_root);
+	@override late final _Translations$blocked$consent$id consent = _Translations$blocked$consent$id._(_root);
+	@override String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} situs diblokir di ${network}',
+	);
+	@override String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n,
+		other: '${n} tes',
+	);
 }
 
 // Path: home.status
@@ -911,18 +1514,6 @@ class _Translations$home$status$id extends Translations$home$status$en {
 	@override String get connecting => 'Menghubungkan';
 	@override String get stopping => 'Memutuskan';
 	@override String get notProtected => 'Tidak terlindungi';
-}
-
-// Path: home.waves
-class _Translations$home$waves$id extends Translations$home$waves$en {
-	_Translations$home$waves$id._(TranslationsId root) : this._root = root, super.internal(root);
-
-	final TranslationsId _root; // ignore: unused_field
-
-	// Translations
-	@override String get encrypted => 'TERENKRIPSI';
-	@override String get securing => 'MENGAMANKAN';
-	@override String get exposed => 'TERBUKA';
 }
 
 // Path: home.network
@@ -946,11 +1537,6 @@ class _Translations$home$card$id extends Translations$home$card$en {
 	final TranslationsId _root; // ignore: unused_field
 
 	// Translations
-	@override String get connectedVia => 'TERHUBUNG MELALUI';
-	@override String get protocol => 'PROTOKOL';
-	@override String get dns => 'DNS';
-	@override String get dnsQuad9 => 'Quad9, di dalam terowongan';
-	@override String get dnsServer => 'Server, di dalam terowongan';
 	@override String get downloaded => 'DIUNDUH';
 	@override String get uploaded => 'DIUNGGAH';
 	@override String get wireguard => 'WireGuard';
@@ -971,7 +1557,6 @@ class _Translations$home$tiles$id extends Translations$home$tiles$en {
 
 	// Translations
 	@override String get shield => 'Perisai';
-	@override String get shieldOn => 'Memblokir situs berbahaya';
 	@override String get appsDirect => 'Aplikasi langsung';
 	@override String get appsAll => 'Semua aplikasi terlindungi';
 	@override String appsSkip({required Object n}) => '${n} tanpa VPN';
@@ -1120,11 +1705,180 @@ class _Translations$rules$info$id extends Translations$rules$info$en {
 	final TranslationsId _root; // ignore: unused_field
 
 	// Translations
-	@override String get shield => 'Perisai mengirim pencarian DNS ke Quad9, yang menolak situs malware dan phishing yang dikenal. Perisai tidak memblokir iklan, dan menggantikan DNS server selama aktif.';
+	@override String get shield => 'Perisai menyaring pencarian DNS saat Anda terhubung: Quad9 memblokir malware dan phishing, Cloudflare for Families juga memblokir situs dewasa, atau pakai DNS Anda sendiri. Tidak pernah memblokir iklan.';
 	@override String get autoConnect => 'Sambung otomatis: memakai server WireGuard pilihan Anda. Memutus secara manual menjedanya sampai Anda bergabung ke jaringan lain.';
 	@override String get apps => 'Aplikasi langsung: aplikasi yang melewati VPN terhubung langsung. Bank sering memblokir alamat VPN, jadi pembayaran bisa gagal lewat VPN.';
 	@override String get reconnect => 'Mengubah Perisai atau aplikasi akan menyambungkan ulang VPN sebentar.';
 	@override String get stay => 'Tetap terhubung: beberapa ponsel menghentikan aplikasi di latar belakang untuk menghemat baterai. VPN selalu aktif dan setelan baterai tanpa batasan menjaga G VPN tetap berjalan.';
+}
+
+// Path: devices.kinds
+class _Translations$devices$kinds$id extends Translations$devices$kinds$en {
+	_Translations$devices$kinds$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get phone => 'Ponsel';
+	@override String get computer => 'Komputer';
+	@override String get tv => 'TV';
+	@override String get speaker => 'Speaker';
+	@override String get printer => 'Printer';
+	@override String get camera => 'Kamera';
+	@override String get smartHome => 'Rumah pintar';
+	@override String get router => 'Router';
+	@override String get unknown => 'Tidak diumumkan';
+}
+
+// Path: map.grade
+class _Translations$map$grade$id extends Translations$map$grade$en {
+	_Translations$map$grade$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Cepat';
+	@override String get good => 'Baik';
+	@override String get slow => 'Lambat';
+}
+
+// Path: presets.names
+class _Translations$presets$names$id extends Translations$presets$names$en {
+	_Translations$presets$names$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get fastest => 'Tercepat';
+	@override String get unblock => 'Buka blokir';
+	@override String get streaming => 'Streaming';
+	@override String get privacy => 'Privasi maksimal';
+}
+
+// Path: providers.tags
+class _Translations$providers$tags$id extends Translations$providers$tags$en {
+	_Translations$providers$tags$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Cepat';
+	@override String get reliable => 'Andal';
+	@override String get support => 'Dukungan baik';
+	@override String get price => 'Harga wajar';
+	@override String get slowEvenings => 'Lambat malam hari';
+	@override String get drops => 'Sering putus';
+	@override String get poorSupport => 'Dukungan buruk';
+	@override String get pricey => 'Mahal';
+}
+
+// Path: providers.words
+class _Translations$providers$words$id extends Translations$providers$words$en {
+	_Translations$providers$words$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get bad => 'Buruk';
+	@override String get poor => 'Kurang';
+	@override String get okay => 'Lumayan';
+	@override String get good => 'Bagus';
+	@override String get great => 'Hebat';
+}
+
+// Path: alerts.kinds
+class _Translations$alerts$kinds$id extends Translations$alerts$kinds$en {
+	_Translations$alerts$kinds$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get newDevice => 'Perangkat baru di Wi-Fi saya';
+	@override String get openWifi => 'Wi-Fi terbuka atau lemah';
+	@override String get blocked => 'Aplikasi diblokir';
+	@override String get report => 'Laporan mingguan';
+	@override String get breach => 'Kebocoran';
+}
+
+// Path: alerts.status
+class _Translations$alerts$status$id extends Translations$alerts$status$en {
+	_Translations$alerts$status$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get background => 'Setiap beberapa jam';
+	@override String checked({required Object time}) => 'Dicek pukul ${time}';
+	@override String get wifi => 'Setiap jaringan yang Anda masuki';
+	@override String get blocked => 'Saat status layanan dicek';
+	@override String get report => 'Setiap Senin';
+}
+
+// Path: blocked.kinds
+class _Translations$blocked$kinds$id extends Translations$blocked$kinds$en {
+	_Translations$blocked$kinds$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get social => 'Media sosial';
+	@override String get messaging => 'Pesan';
+	@override String get news => 'Berita';
+	@override String get video => 'Video dan musik';
+	@override String get privacy => 'Privasi';
+}
+
+// Path: blocked.how
+class _Translations$blocked$how$id extends Translations$blocked$how$en {
+	_Translations$blocked$how$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get dns => 'Alamat palsu';
+	@override String get reset => 'Diputus';
+	@override String get timeout => 'Tidak ada jawaban';
+	@override String get page => 'Halaman blokir';
+	@override String get open => 'Terbuka';
+}
+
+// Path: blocked.fail
+class _Translations$blocked$fail$id extends Translations$blocked$fail$en {
+	_Translations$blocked$fail$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get noAnswer => 'tidak ada jawaban';
+	@override String get refused => 'ditolak';
+	@override String cutOff({required Object s}) => 'diputus setelah ${s} dtk';
+	@override String get wrongCert => 'sertifikat salah';
+}
+
+// Path: blocked.steps
+class _Translations$blocked$steps$id extends Translations$blocked$steps$en {
+	_Translations$blocked$steps$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get lookup => 'Pencarian nama';
+	@override String get connect => 'Sambung';
+	@override String get handshake => 'Jabat tangan aman';
+}
+
+// Path: blocked.consent
+class _Translations$blocked$consent$id extends Translations$blocked$consent$en {
+	_Translations$blocked$consent$id._(TranslationsId root) : this._root = root, super.internal(root);
+
+	final TranslationsId _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Sebelum tes pertama';
+	@override String get body => 'Tes membuka tiap situs dari ponsel ini, tanpa VPN, seperti browser.';
+	@override String get noticeTitle => 'Bisa terlihat';
+	@override String get notice => 'Penyedia Anda melihat situs ini dibuka. Di beberapa negara mengunjunginya, meski hanya untuk tes, bisa menarik perhatian. Uji hanya jika Anda merasa aman.';
+	@override String get ok => 'Saya mengerti, uji';
 }
 
 /// The flat map containing all translations for locale <id>.
@@ -1161,8 +1915,6 @@ extension on TranslationsId {
 			'home.status.stopping' => 'Memutuskan',
 			'home.status.notProtected' => 'Tidak terlindungi',
 			'home.resumesAt' => ({required Object time}) => 'Lanjut pukul ${time} · ketuk untuk lanjut sekarang',
-			'home.sitesSee' => ({required Object ip}) => 'Situs melihat ${ip}',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'Situs melihat ${ip} · ${org}',
 			'home.ipFailed' => 'Tidak dapat memeriksa IP Anda',
 			'home.ipChecking' => 'Memeriksa IP Anda',
 			'home.themeSystem' => 'Tema: ikuti ponsel',
@@ -1170,19 +1922,11 @@ extension on TranslationsId {
 			'home.themeDark' => 'Tema: gelap',
 			'home.free' => 'Gratis',
 			'home.pickServer' => 'Pilih server',
-			'home.waves.encrypted' => 'TERENKRIPSI',
-			'home.waves.securing' => 'MENGAMANKAN',
-			'home.waves.exposed' => 'TERBUKA',
 			'home.network.title' => 'JARINGAN INI',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'Offline',
 			'home.network.showName' => 'Tampilkan nama',
 			'home.network.scanFailed' => 'Pemeriksaan gagal. Akan dijalankan lagi saat jaringan berubah.',
-			'home.card.connectedVia' => 'TERHUBUNG MELALUI',
-			'home.card.protocol' => 'PROTOKOL',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9, di dalam terowongan',
-			'home.card.dnsServer' => 'Server, di dalam terowongan',
 			'home.card.downloaded' => 'DIUNDUH',
 			'home.card.uploaded' => 'DIUNGGAH',
 			'home.card.wireguard' => 'WireGuard',
@@ -1194,7 +1938,6 @@ extension on TranslationsId {
 			'home.card.enabled' => 'Aktif',
 			'home.card.shield' => 'PERISAI',
 			'home.tiles.shield' => 'Perisai',
-			'home.tiles.shieldOn' => 'Memblokir situs berbahaya',
 			'home.tiles.appsDirect' => 'Aplikasi langsung',
 			'home.tiles.appsAll' => 'Semua aplikasi terlindungi',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} tanpa VPN',
@@ -1276,19 +2019,22 @@ extension on TranslationsId {
 			'servers.lastUsed' => ({required Object when}) => 'Terakhir dipakai ${when}',
 			'servers.disconnectFirst' => 'Putuskan dulu untuk menghapusnya',
 			'servers.removeConfirm' => 'Hapus server ini dari G VPN? Setelannya dihapus dari ponsel ini; server itu sendiri tidak berubah.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'Cari negara',
+			'servers.noMatch' => 'Tidak ada server yang cocok.',
+			'servers.bestPing' => ({required Object ms}) => 'terbaik ${ms} ms',
+			'servers.bestTag' => 'TERBAIK',
+			'servers.ownHero' => 'Server milik kami',
+			'servers.ownHeroSub' => 'Lebih cepat, privat, tiap ponsel punya kunci sendiri',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} server', ), 
+			'servers.showAll' => ({required Object n}) => 'Tampilkan semua ${n}',
+			'servers.showFewer' => 'Tampilkan lebih sedikit',
+			'servers.fastTab' => 'Cepat',
+			'servers.fastestFree' => 'Gratis tercepat',
 			'pro.owned' => 'Anda punya Pro',
 			'pro.waitingPlay' => 'Menunggu Google Play',
 			'pro.startTrial' => ({required Object days}) => 'Mulai uji coba gratis ${days} hari',
-			'pro.thenYearly' => ({required Object price}) => 'Lalu ${price} per tahun. Batalkan kapan saja di Google Play.',
-			'pro.thenMonthly' => ({required Object price}) => 'Lalu ${price} per bulan. Batalkan kapan saja di Google Play.',
-			'pro.yearlyPrice' => ({required Object price}) => '${price} per tahun. Batalkan kapan saja di Google Play.',
-			'pro.monthlyPrice' => ({required Object price}) => '${price} per bulan. Batalkan kapan saja di Google Play.',
 			'pro.restore' => 'Pulihkan',
-			'pro.heroTitle' => 'Server lebih cepat,\ndikelola oleh kami',
-			'pro.heroSubtitle' => 'WireGuard. Tanpa log aktivitas. Tanpa akun.',
-			'pro.benefitSpeed' => 'Kecepatan penuh, tanpa batas server sukarelawan',
-			'pro.benefitKey' => 'Kunci dibuat di ponsel Anda, tidak pernah dibagikan',
-			'pro.benefitFree' => 'Semua yang gratis tetap gratis',
 			'pro.save' => ({required Object pct}) => 'HEMAT ${pct}%',
 			'pro.yearly' => 'Tahunan',
 			'pro.monthly' => 'Bulanan',
@@ -1296,10 +2042,6 @@ extension on TranslationsId {
 			'pro.daysFree' => ({required Object days}) => '${days} hari gratis',
 			'pro.perMonth' => ({required Object price}) => '${price} per bulan',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'Server lebih cepat, dikelola oleh kami',
-			'pro.includes' => 'Termasuk',
-			'pro.benefitLogs' => 'Tanpa log aktivitas di server kami',
-			'pro.plan' => 'Pilih paket',
 			'pro.renewGeneric' => 'Langganan diperpanjang otomatis hingga dibatalkan. Batalkan kapan saja di Google Play.',
 			'pro.renewTrial' => ({required Object days, required Object price, required Object period}) => '${days} hari gratis, lalu ${price} per ${period}. Diperpanjang otomatis hingga dibatalkan; batalkan di Google Play paling lambat sehari sebelum uji coba berakhir agar tidak ditagih.',
 			'pro.renew' => ({required Object price, required Object period}) => '${price} per ${period}. Diperpanjang otomatis hingga dibatalkan; batalkan kapan saja di Google Play.',
@@ -1323,15 +2065,24 @@ extension on TranslationsId {
 			'pro.free.tools' => 'Semua alat jaringan',
 			'pro.free.toolsSub' => 'Tes kecepatan, ping, status layanan, traceroute, perangkat, dan lainnya',
 			'pro.free.later' => 'G VPN Pro akan menambah server lebih cepat yang dikelola oleh kami. Semua di atas tetap gratis.',
+			'pro.heroLine' => 'Server cepat milik kami, dan semua pengecekan tanpa batas',
+			'pro.start' => 'Mulai Pro',
+			'pro.compareFree' => 'GRATIS',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'Server gratis',
+			'pro.rowTools' => 'Tes kecepatan, alat, cek Wi-Fi',
+			'pro.rowGServers' => 'G Servers, tanpa log',
+			'pro.rowLinks' => 'Cek tautan',
+			'pro.linksFree' => ({required Object n}) => '${n} per bulan',
+			'pro.unlimited' => 'Tanpa batas',
 			'rules.title' => 'Aturan',
-			'rules.info.shield' => 'Perisai mengirim pencarian DNS ke Quad9, yang menolak situs malware dan phishing yang dikenal. Perisai tidak memblokir iklan, dan menggantikan DNS server selama aktif.',
+			'rules.info.shield' => 'Perisai menyaring pencarian DNS saat Anda terhubung: Quad9 memblokir malware dan phishing, Cloudflare for Families juga memblokir situs dewasa, atau pakai DNS Anda sendiri. Tidak pernah memblokir iklan.',
 			'rules.info.autoConnect' => 'Sambung otomatis: memakai server WireGuard pilihan Anda. Memutus secara manual menjedanya sampai Anda bergabung ke jaringan lain.',
 			'rules.info.apps' => 'Aplikasi langsung: aplikasi yang melewati VPN terhubung langsung. Bank sering memblokir alamat VPN, jadi pembayaran bisa gagal lewat VPN.',
 			'rules.info.reconnect' => 'Mengubah Perisai atau aplikasi akan menyambungkan ulang VPN sebentar.',
 			'rules.info.stay' => 'Tetap terhubung: beberapa ponsel menghentikan aplikasi di latar belakang untuk menghemat baterai. VPN selalu aktif dan setelan baterai tanpa batasan menjaga G VPN tetap berjalan.',
 			'rules.protection' => 'Perlindungan',
 			'rules.shield' => 'Perisai',
-			'rules.shieldSub' => 'Memblokir situs malware dan phishing',
 			'rules.privateDns' => 'Perisai tanpa VPN',
 			'rules.privateDnsSub' => 'Salin dns.quad9.net untuk DNS Pribadi',
 			'rules.privateDnsCopied' => 'dns.quad9.net disalin',
@@ -1402,10 +2153,17 @@ extension on TranslationsId {
 			'wol.badMac' => 'Itu bukan alamat MAC. Bentuknya seperti AA:BB:CC:DD:EE:FF.',
 			'wol.sent' => 'Sinyal dikirim. Perangkat seharusnya menyala dalam satu menit.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'Nyalakan perangkat',
 			'wol.mac' => 'Alamat MAC',
 			'wol.failed' => ({required Object error}) => 'Tidak dapat mengirim: ${error}',
-			'speed.info' => 'Diukur oleh M-Lab, platform riset terbuka. Satu tes memakai sekitar 50 sampai 100 MB.\n\nHasil publik: M-Lab menerbitkan setiap tes, termasuk alamat IP asalnya, sebagai data riset terbuka.\n\nPerbandingan penyedia: setelah tes tanpa VPN, G VPN hanya mengirim tiga angka kecepatan. Layanan perbandingan membaca penyedia dan kota Anda dari koneksi itu sendiri dan tidak menyimpan alamat IP. Matikan dengan sakelar di bagian bawah halaman ini.\n\nMelalui VPN: saat VPN aktif, tes mengukur kecepatan melalui terowongan dan membandingkannya dengan tes terakhir tanpa VPN.\n\nPratinjau video: gambar yang sama ditampilkan pada resolusi yang dapat diputar kecepatan ini, berdasarkan bitrate yang dipublikasikan layanan streaming. Tidak ada video yang diunduh.',
+			'wol.computer' => 'Komputer',
+			'wol.pick' => 'Pilih perangkat untuk dinyalakan',
+			'wol.waking' => ({required Object name}) => 'Menyalakan ${name}',
+			'wol.yours' => 'PERANGKAT ANDA',
+			'wol.wakeNamed' => ({required Object name}) => 'Nyalakan ${name}',
+			'wol.removeHint' => 'Tahan perangkat untuk menghapusnya',
+			'wol.add' => 'TAMBAH PERANGKAT',
+			'wol.name' => 'Nama',
+			'wol.saveWake' => 'Simpan dan nyalakan',
 			'speed.download' => 'Unduh',
 			'speed.upload' => 'Unggah',
 			'speed.finding' => 'Mencari server',
@@ -1477,10 +2235,11 @@ extension on TranslationsId {
 			'router.cgnat' => 'Alamat penyedia bersama: tidak dapat dijangkau dari internet.',
 			'router.noDescription' => 'Tanpa deskripsi',
 			'router.opened' => ({required Object n}) => '${n} port dibuka oleh perangkat',
-			'router.routerName' => ({required Object name}) => 'Router: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'Alamat internet: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} ke ${host}',
 			'router.upnpOn' => 'UPnP aktif',
+			'router.routerLabel' => 'Router',
+			'router.internetAddress' => 'Alamat internet',
+			'router.openedBy' => 'Dibuka oleh perangkat',
 			'network.title' => 'Jaringan ini',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'Data seluler',
@@ -1514,8 +2273,6 @@ extension on TranslationsId {
 			'devices.title' => 'Perangkat',
 			'devices.again' => 'Pindai lagi',
 			'devices.looking' => 'Mencari perangkat',
-			'devices.nothingNew' => 'Tidak ada yang baru sejak pindaian terakhir',
-			'devices.takes' => 'Sekitar 30 detik',
 			'devices.all' => 'Semua',
 			'devices.phones' => 'Ponsel',
 			'devices.tvs' => 'TV',
@@ -1527,18 +2284,52 @@ extension on TranslationsId {
 			'devices.address' => 'Alamat',
 			'devices.answersIn' => 'Menjawab dalam',
 			'devices.type' => 'Jenis',
-			'devices.notAnnounced' => 'Tidak diumumkan. Daftar perangkat di router Anda dapat menamainya.',
 			'devices.newBadge' => 'BARU',
 			'devices.scanning' => ({required Object n}) => 'Memindai ${n} dari 254',
-			'devices.thisNetwork' => 'jaringan ini',
 			'devices.newSince' => ({required Object n}) => '${n} baru sejak pindaian terakhir',
-			'devices.showMore' => ({required Object n}) => 'Tampilkan ${n} lagi',
 			'devices.ms' => ({required Object n}) => '${n} md',
-			'devices.onNetwork' => ({required Object network}) => 'perangkat di ${network}',
-			'ping.info' => 'Berapa lama satu perjalanan pulang-pergi ke server, diukur setiap detik selama satu menit terakhir.\n\nJitter: seberapa besar setiap jawaban berbeda dari jawaban sebelumnya. Jitter tinggi membuat panggilan putus-putus.\n\nLoss: jawaban yang tidak pernah kembali.\n\nCara: aplikasi Android tidak dapat mengirim ping klasik, jadi setiap uji mengukur waktu jabat tangan koneksi, yang sama dengan satu perjalanan pulang-pergi.',
+			'devices.cameras' => 'Kamera',
+			'devices.device' => 'Perangkat',
+			'devices.online' => 'Online',
+			'devices.model' => 'Model',
+			'devices.announced' => 'Mengumumkan diri sebagai',
+			'devices.services' => 'LAYANAN TERBUKA',
+			'devices.checkingServices' => 'Memeriksa layanan',
+			'devices.noServices' => 'Tidak ada layanan umum yang menjawab',
+			'devices.rename' => 'Ganti nama',
+			'devices.save' => 'Simpan',
+			'devices.kinds.phone' => 'Ponsel',
+			'devices.kinds.computer' => 'Komputer',
+			'devices.kinds.tv' => 'TV',
+			'devices.kinds.speaker' => 'Speaker',
+			'devices.kinds.printer' => 'Printer',
+			'devices.kinds.camera' => 'Kamera',
+			'devices.kinds.smartHome' => 'Rumah pintar',
+			'devices.kinds.router' => 'Router',
+			'devices.kinds.unknown' => 'Tidak diumumkan',
+			'devices.details' => 'Detail jaringan',
+			'devices.listView' => 'Daftar',
+			'devices.meshView' => 'Jaring',
+			'devices.offlineHeading' => 'Offline',
+			'devices.seen' => ({required Object when}) => 'Terlihat ${when}',
+			'devices.agoMinutes' => ({required Object n}) => '${n} mnt lalu',
+			'devices.agoHours' => ({required Object n}) => '${n} jam lalu',
+			'devices.agoDays' => ({required Object n}) => '${n} hari lalu',
+			'devices.throughVpn' => 'Lewat VPN',
+			'devices.closer' => 'Lebih dekat = menjawab lebih cepat',
+			'devices.yours' => 'Ini milik Anda?',
+			'devices.mine' => 'Milik saya',
+			'devices.notMine' => 'Bukan milik saya',
+			'devices.whatIsIt' => 'Apa ini?',
+			'devices.ourGuess' => ({required Object kind}) => 'Tebakan kami: ${kind}',
+			'devices.groupPersonal' => 'Ponsel dan komputer',
+			'devices.groupHome' => 'Rumah dan media',
+			'devices.groupNetwork' => 'Jaringan dan rumah pintar',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} online', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} offline', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perlu dikonfirmasi', ), 
 			'ping.askTitle' => 'Ping host',
 			'ping.askHint' => 'example.com atau 192.168.1.10',
-			'ping.cancel' => 'Batal',
 			'ping.title' => 'Ping',
 			'ping.router' => 'Router',
 			'ping.pause' => 'Jeda',
@@ -1575,7 +2366,6 @@ extension on TranslationsId {
 			'status.blocked' => 'Mungkin diblokir di jaringan ini',
 			'status.connect' => 'Hubungkan',
 			'status.blockedShort' => 'Diblokir',
-			'status.unreachable' => 'Tidak terjangkau',
 			'status.now' => 'sekarang',
 			'status.checks' => ({required Object n}) => '${n} pemeriksaan',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} dan ${n} lainnya',
@@ -1587,27 +2377,37 @@ extension on TranslationsId {
 			'tools.offline' => 'Offline',
 			'tools.title' => 'Alat',
 			'tools.networkDesc' => 'Pemeriksaan keamanan, apa yang dilihat situs, sinyal, router, dan DNS.',
-			'tools.internet' => 'Konektivitas internet',
+			'tools.internet' => 'Internet',
 			'tools.speed' => 'Tes kecepatan',
-			'tools.speedDesc' => 'Kecepatan unduh dan unggah, serta kualitas video yang didukung.',
+			'tools.speedDesc' => 'Unduh, unggah, dan kualitas video',
 			'tools.ping' => 'Ping',
-			'tools.pingDesc' => 'Waktu respons langsung dan jitter ke server mana pun atau router Anda.',
+			'tools.pingDesc' => 'Waktu respons dan jitter langsung',
 			'tools.status' => 'Status layanan',
-			'tools.statusDesc' => 'Apakah WhatsApp, YouTube, atau Google dapat dijangkau dari sini, atau diblokir?',
+			'tools.statusDesc' => 'Aplikasi bisa diakses atau diblokir di sini?',
 			'tools.trace' => 'Traceroute',
-			'tools.traceDesc' => 'Setiap router antara Anda dan sebuah situs, dan berapa lama masing-masing.',
-			'tools.security' => 'Keamanan jaringan',
+			'tools.traceDesc' => 'Setiap persinggahan menuju situs',
+			'tools.security' => 'Jaringan ini',
 			'tools.devices' => 'Perangkat di jaringan ini',
-			'tools.devicesDesc' => 'Siapa lagi di Wi-Fi Anda: ponsel, TV, kamera, dan komputer.',
+			'tools.devicesDesc' => 'Siapa saja di Wi-Fi Anda',
 			'tools.router' => 'Periksa router',
-			'tools.routerDesc' => 'Apakah perangkat dapat membuka port di router Anda sendiri (UPnP).',
+			'tools.routerDesc' => 'Port yang dibuka perangkat Anda',
 			'tools.ports' => 'Port terbuka',
-			'tools.portsDesc' => 'Periksa router atau server dari port terbuka yang berisiko.',
+			'tools.portsDesc' => 'Port berisiko di perangkat atau server',
 			'tools.utilities' => 'Utilitas',
 			'tools.wifiScanner' => 'Pemindai Wi-Fi',
-			'tools.wifiDesc' => 'Jaringan di sekitar, keamanannya, dan kanal paling sepi.',
+			'tools.wifiDesc' => 'Jaringan di sekitar dan kanal paling sepi',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'Nyalakan komputer atau NAS di jaringan ini.',
+			'tools.wolDesc' => 'Nyalakan komputer di jaringan ini',
+			'tools.passwordCheck' => 'Cek kata sandi',
+			'tools.passwordCheckDesc' => 'Pernah bocor?',
+			'tools.linkCheck' => 'Cek tautan',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'Aman dibuka?',
+			'tools.breaches' => 'Kebocoran data',
+			'tools.breachesDesc' => 'Apa yang bocor belakangan ini',
+			'tools.blocked' => 'Apa yang diblokir',
+			'tools.blockedDesc' => 'Situs yang diblokir di jaringan ini',
 			'trace.info' => 'Setiap perhentian adalah satu router yang dilewati lalu lintas Anda menuju situs.\n\nHop diam: banyak router tidak pernah menjawab uji ini. Itu normal dan bukan kesalahan.\n\nDengan VPN aktif: jalurnya dimulai di dalam terowongan, jadi jaringan dan penyedia Anda tersembunyi.\n\nCara: memakai alat ping bawaan Android dengan batas hop, karena aplikasi tidak dapat mengirim paket ini secara langsung.',
 			'trace.title' => 'Traceroute',
 			'trace.stop' => 'Hentikan',
@@ -1624,6 +2424,10 @@ extension on TranslationsId {
 			'trace.silentMany' => ({required Object n}) => '${n} hop diam',
 			'trace.hop' => ({required Object n}) => 'Hop ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'Sebagian besar jeda, ${ms} md, ditambahkan di hop ${hop}: biasanya kabel panjang antarnegara, atau jalur yang padat.',
+			'trace.popular' => 'POPULER',
+			'trace.recent' => 'TERBARU',
+			'trace.clearRecent' => 'Hapus terbaru',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} lompatan', ), 
 			'ports.ftpNote' => 'Mengirim kata sandi tanpa enkripsi.',
 			'ports.sshNote' => 'Login jarak jauh. Aman jika Anda yang menyiapkannya.',
 			'ports.telnetNote' => 'Login jarak jauh tanpa enkripsi; favorit botnet.',
@@ -1647,13 +2451,14 @@ extension on TranslationsId {
 			'ports.address' => 'Alamat perangkat atau server',
 			'ports.risky' => 'BERISIKO',
 			'ports.review' => 'TINJAU',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'NORMAL',
 			'ports.info' => ({required Object n}) => 'Memeriksa ${n} port yang penting di router dan perangkat rumah, dan menjelaskan setiap port yang terbuka.\n\nHanya periksa perangkat dan server yang Anda miliki atau kelola.',
 			'ports.checking' => ({required Object n}) => 'Memeriksa ${n} port',
 			'ports.yourRouter' => ({required Object ip}) => 'Router Anda adalah ${ip}',
 			'ports.noneOpen' => ({required Object host}) => 'Tidak ada port umum yang terbuka di ${host}.',
+			'ports.summary' => ({required Object open, required Object n}) => '${open} terbuka dari ${n} dicek',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} berisiko', ), 
+			'ports.noneRisky' => 'Tidak ada yang berisiko',
 			'wifi.title' => 'Pemindai Wi-Fi',
 			'wifi.allow' => 'Izinkan pemindaian Wi-Fi',
 			'wifi.needsPermission' => 'Memerlukan izin lokasi.',
@@ -1663,11 +2468,36 @@ extension on TranslationsId {
 			'wifi.none' => 'Tidak ada jaringan ditemukan. Lokasi mungkin mati.',
 			'wifi.hidden' => 'Jaringan tersembunyi',
 			'wifi.nearby' => ({required Object n}) => '${n} jaringan di sekitar',
-			'wifi.bestChannel' => ({required Object n}) => 'Kanal 2,4 GHz paling sepi: ${n}',
-			'wifi.weak' => ({required Object n}) => '${n} terbuka atau lemah',
-			'wifi.connectedPrefix' => 'Terhubung · ',
 			'wifi.permissionInfo' => 'Android hanya menampilkan jaringan Wi-Fi di sekitar kepada aplikasi yang memiliki izin lokasi. G VPN memakainya hanya untuk menampilkan jaringan di ponsel ini.',
 			'wifi.info' => 'Menampilkan jaringan dari pemindaian terakhir ponsel. Android hanya mengizinkan beberapa pemindaian per menit, jadi pemindaian ulang yang cepat bisa menampilkan daftar yang sama. Kanal yang disarankan adalah yang paling sepi di antara 1, 6, dan 11, tiga kanal yang tidak tumpang tindih.',
+			'wifi.airMap' => 'Peta udara',
+			'wifi.channels' => 'Kanal',
+			'wifi.list' => 'Daftar',
+			'wifi.secure' => 'Aman',
+			'wifi.weakLabel' => 'Lemah',
+			'wifi.openLabel' => 'Terbuka',
+			'wifi.sizeIsWidth' => 'Ukuran = lebar kanal',
+			'wifi.strongest' => 'TERKUAT',
+			'wifi.openNearby' => 'TERBUKA DI SEKITAR',
+			'wifi.onYourChannel' => 'DI KANAL ANDA',
+			'wifi.noneNearby' => 'Tidak ada',
+			'wifi.verdictOpen' => 'Siapa pun di sekitar bisa membaca yang dikirim',
+			'wifi.verdictWep' => 'Keamanan lama, mudah dibobol',
+			'wifi.verdictWpa' => 'Keamanan lama',
+			'wifi.verdictWps' => 'WPS aktif: lebih mudah dibobol',
+			'wifi.verdictGood' => 'Terlindungi baik',
+			'wifi.maker' => 'Pembuat',
+			'wifi.address' => 'Alamat perangkat keras',
+			'wifi.privateAddress' => 'Dibuat router demi privasi',
+			'wifi.you' => 'Anda',
+			'wifi.onClear' => ({required Object name}) => '${name} ada di kanal yang sepi',
+			'wifi.move' => ({required Object name, required Object n}) => 'Pindahkan ${name} ke kanal ${n}',
+			'wifi.clear' => 'Sepi',
+			'wifi.busy' => 'Sibuk',
+			'wifi.crowded' => 'Padat',
+			'wifi.allBands' => 'Semua pita',
+			'wifi.openOnly' => 'Hanya terbuka',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} jaringan', ), 
 			'errors.notAuthorized' => 'Izin VPN tidak diberikan.',
 			'errors.turnedOff' => 'VPN dimatikan oleh sistem atau aplikasi lain.',
 			'errors.busy' => 'Permintaan izin sudah terbuka.',
@@ -1745,10 +2575,6 @@ extension on TranslationsId {
 			'gs.busy' => ({required Object n}) => '${n}% sibuk',
 			'gs.offline' => 'Offline',
 			'gs.devices' => 'Perangkat Anda',
-			'gs.devicesSub' => ({required Object n}) => 'Hingga ${n} ponsel, masing-masing dengan kuncinya sendiri',
-			'gs.footnote' => 'Setiap ponsel mendapat kuncinya sendiri, dibuat di ponsel itu. G Servers tidak menyimpan log aktivitas.',
-			'gs.leastBusy' => 'PALING SEPI SAAT INI',
-			'gs.busyNoLogs' => ({required Object n}) => '${n}% sibuk · tanpa log',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'SIBUK',
 			'gs.status' => 'STATUS',
@@ -1783,6 +2609,400 @@ extension on TranslationsId {
 			'gs.chartLabel' => ({required Object max}) => 'Kesibukan 24 jam terakhir, paling tinggi ${max} persen',
 			'gs.hoursAgo' => '24 jam lalu',
 			'gs.now' => 'Sekarang',
+			'gs.included' => 'Termasuk',
+			'gs.perkServers' => 'Server cepat dan privat',
+			'gs.perkServersSub' => 'WireGuard, dikelola kami, tanpa log aktivitas',
+			'gs.perkLinks' => 'Cek tautan tanpa batas',
+			'gs.perkLinksSub' => 'Cek setiap tautan yang Anda terima',
+			'gs.devicesOf' => ({required Object used, required Object limit}) => 'Perangkat Anda · ${used} dari ${limit}',
+			'gs.eachKey' => 'Setiap ponsel punya kuncinya sendiri',
+			'gs.connected' => 'Tersambung',
+			'gs.bestNow' => 'TERBAIK UNTUK ANDA SEKARANG',
+			'gs.logsShort' => 'LOG',
+			'map.open' => 'Buka peta',
+			'map.searchCountries' => 'Cari negara',
+			'map.noMatch' => 'Tidak ada negara yang cocok',
+			'map.locate' => 'Lokasi saya',
+			'map.list' => 'Daftar',
+			'map.map' => 'Peta',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} server gratis', ), 
+			'map.grade.fast' => 'Cepat',
+			'map.grade.good' => 'Baik',
+			'map.grade.slow' => 'Lambat',
+			'map.switchTo' => 'Ganti',
+			'map.freeServer' => ({required Object n}) => 'Server gratis ${n}',
+			'map.best' => 'TERBAIK',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} G Server', ), 
+			'stats.thisWeek' => 'Minggu ini',
+			'stats.time' => 'Waktu',
+			'stats.data' => 'Data',
+			'stats.protected' => 'terlindungi',
+			'stats.throughVpn' => 'lewat VPN',
+			'stats.seeDetails' => 'Lihat detail',
+			'stats.title' => 'Statistik',
+			'stats.week' => 'Minggu',
+			'stats.month' => 'Bulan',
+			'stats.protectedLabel' => 'TERLINDUNGI',
+			'stats.dataUsed' => 'DATA TERPAKAI',
+			'stats.byServer' => 'PER SERVER',
+			'stats.onPhone' => 'Hanya di ponsel ini',
+			'stats.reset' => 'Atur ulang',
+			'stats.resetTitle' => 'Atur ulang statistik?',
+			'stats.resetBody' => 'Menghapus waktu terlindungi dan data di ponsel ini. Tidak bisa dibatalkan.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} j ${m} m',
+			'stats.m' => ({required Object m}) => '${m} m',
+			'stats.empty' => 'Hubungkan untuk mulai menghitung.',
+			'recents.title' => 'Terbaru',
+			'recents.allServers' => 'Semua server',
+			'recents.free' => 'Server gratis',
+			'recents.yours' => 'Server Anda',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'Preset',
+			'presets.all' => 'Semua',
+			'presets.newPreset' => 'Preset baru',
+			'presets.edit' => 'Ubah preset',
+			'presets.name' => 'Nama',
+			'presets.namePlaceholder' => 'Preset saya',
+			'presets.server' => 'SERVER',
+			'presets.fastestOption' => 'Tercepat',
+			'presets.countryOption' => 'Negara',
+			'presets.pickCountry' => 'Pilih negara',
+			'presets.skipMyCountry' => 'Lewati negara saya',
+			'presets.notMine' => 'bukan negara saya',
+			'presets.protocol' => 'PROTOKOL',
+			'presets.auto' => 'Otomatis',
+			'presets.tryNext' => 'Jika diblokir, coba server berikutnya',
+			'presets.shield' => 'PERISAI',
+			'presets.followRules' => 'Sesuai Aturan',
+			'presets.allApps' => 'Semua aplikasi lewat VPN',
+			'presets.allAppsShort' => 'semua aplikasi',
+			'presets.save' => 'Simpan',
+			'presets.delete' => 'Hapus',
+			'presets.reset' => 'Kembalikan bawaan',
+			'presets.none' => 'Belum ada server gratis yang cocok untuk preset ini.',
+			'presets.names.fastest' => 'Tercepat',
+			'presets.names.unblock' => 'Buka blokir',
+			'presets.names.streaming' => 'Streaming',
+			'presets.names.privacy' => 'Privasi maksimal',
+			'shield.title' => 'Perisai',
+			'shield.sub' => 'Bekerja saat Anda terhubung',
+			'shield.off' => 'Mati',
+			'shield.offSub' => 'DNS milik server',
+			'shield.malware' => 'Malware',
+			'shield.malwareSub' => 'Memblokir situs berbahaya dan phishing',
+			'shield.family' => 'Malware dan situs dewasa',
+			'shield.familySub' => 'Juga memblokir konten dewasa',
+			'shield.custom' => 'DNS sendiri',
+			'shield.customSub' => 'Server DNS Anda sendiri',
+			'shield.customHint' => 'Alamat IP, misalnya 1.1.1.1',
+			'shield.invalid' => 'Masukkan satu atau dua alamat IP.',
+			'checks.title' => 'Pemeriksaan keamanan',
+			'checks.password' => 'Kata sandi',
+			'checks.link' => 'Tautan',
+			'checks.pwTitle' => 'Pernah bocor?',
+			'checks.pwHint' => 'Kata sandi yang dicek',
+			'checks.showPassword' => 'Tampilkan kata sandi',
+			'checks.hidePassword' => 'Sembunyikan kata sandi',
+			'checks.check' => 'Cek',
+			'checks.leaked' => 'Ditemukan di kebocoran',
+			'checks.seen' => ({required Object n}) => 'Terlihat ${n} kali',
+			'checks.leakedAdvice' => 'Ganti di semua tempat Anda memakainya, mulai dari email dan bank.',
+			'checks.notFound' => 'Tidak ada di kebocoran yang diketahui',
+			'checks.notFoundAdvice' => 'Pertanda baik, bukan jaminan. Pakai kata sandi berbeda untuk tiap akun.',
+			'checks.failed' => 'Gagal mengecek. Coba lagi.',
+			'checks.private' => 'Kata sandi Anda tidak pernah keluar dari ponsel ini',
+			'checks.linkTitle' => 'Amankah tautan ini?',
+			'checks.linkHint' => 'Tautan yang dicek',
+			'checks.paste' => 'Tempel',
+			'checks.danger' => 'Tautan berbahaya',
+			'checks.dangerAdvice' => 'Jangan dibuka dan jangan isi data apa pun.',
+			'checks.clear' => 'Tidak ada di daftar malware atau phishing yang dikenal',
+			'checks.clearAdvice' => 'Tetap periksa alamatnya sebelum masuk ke mana pun.',
+			'checks.goesTo' => 'Menuju ke',
+			'checks.redirects' => 'Pengalihan',
+			'checks.invalid' => 'Itu tidak tampak seperti alamat web.',
+			'checks.busy' => 'Terlalu banyak pengecekan. Coba lagi nanti.',
+			'checks.unavailable' => 'Cek tautan sedang tidak tersedia.',
+			'checks.listed' => 'Dikenal sebagai malware atau phishing',
+			'checks.missing' => 'Tidak ada situs di alamat ini',
+			'checks.missingAdvice' => 'Periksa ejaannya: penipuan sering memakai alamat yang mirip.',
+			'checks.left' => ({required Object n, required Object total}) => 'Sisa ${n} dari ${total} cek gratis bulan ini',
+			'checks.usedUp' => 'Cek tautan gratis bulan ini sudah habis',
+			'checks.usedUpSub' => 'Pro punya cek tanpa batas. Cek gratis kembali setiap tanggal 1.',
+			'checks.getPro' => 'Dapatkan Pro',
+			'toolSettings.title' => 'Pengaturan alat',
+			'toolSettings.askMobile' => 'Tanya sebelum tes kecepatan di data seluler',
+			'toolSettings.askMobileSub' => 'Satu tes bisa memakai lebih dari 100 MB di koneksi cepat',
+			'toolSettings.mobileTitle' => 'Pakai data seluler?',
+			'toolSettings.mobileBody' => 'Tes kecepatan bisa memakai lebih dari 100 MB di koneksi cepat.',
+			'toolSettings.mobileGo' => 'Tes',
+			'toolSettings.safe' => 'Aman',
+			'toolSettings.unsafe' => 'Tidak aman',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perangkat', ), 
+			'toolSettings.hideMac' => 'Sembunyikan alamat perangkat keras',
+			'toolSettings.hideMacSub' => 'Hanya tampilkan bagian pembuat dari alamat MAC',
+			'toolSettings.names' => 'Tampilkan nama router dan server',
+			'toolSettings.namesSub' => 'Mencari nama alamat di Traceroute',
+			'toolSettings.remember' => 'Ingat host terbaru',
+			'toolSettings.rememberSub' => 'Untuk Traceroute',
+			'toolSettings.clear' => 'Hapus riwayat alat',
+			'toolSettings.clearSub' => 'Melupakan host terbaru dan perangkat di tiap jaringan',
+			'toolSettings.clearGo' => 'Hapus',
+			'security.tab' => 'Keamanan',
+			'security.good' => 'Baik',
+			'security.fair' => 'Cukup',
+			'security.atRisk' => 'Berisiko',
+			'security.allClear' => 'Tidak ada yang perlu diperbaiki',
+			'security.checked' => ({required Object time}) => 'Dicek pukul ${time}',
+			'security.trend' => 'DUA MINGGU TERAKHIR',
+			'security.checking' => 'Memeriksa jaringan ini',
+			'security.snoozed' => 'Ditunda',
+			'security.remindLater' => 'Ingatkan nanti',
+			'security.unsnooze' => 'Ingatkan sekarang',
+			'security.review' => 'Tinjau',
+			'security.confirmGo' => 'Konfirmasi',
+			'security.scanGo' => 'Pindai',
+			'security.look' => 'Lihat',
+			'security.connectGo' => 'Hubungkan',
+			'security.checkAgain' => 'Cek lagi',
+			'security.wifiOpen' => 'Wi-Fi terbuka',
+			'security.wifiOpenDetail' => 'Siapa pun di sekitar bisa melihat yang dikirim',
+			'security.wifiWep' => 'Wi-Fi memakai WEP',
+			'security.wifiWepDetail' => 'Keamanan lama, mudah dibobol',
+			'security.wifiOwe' => 'Wi-Fi memakai Enhanced Open',
+			'security.wifiOweDetail' => 'Terenkripsi, tapi siapa pun bisa masuk',
+			'security.wifiSecure' => 'Enkripsi Wi-Fi',
+			'security.wifiUnknown' => 'Keamanan Wi-Fi tidak diketahui',
+			'security.wifiUnknownDetail' => 'Android tidak menyebut perlindungannya',
+			'security.wps' => 'WPS aktif',
+			'security.wpsDetail' => 'Matikan di pengaturan router',
+			'security.upnpOff' => 'Router menjaga port tetap tertutup',
+			'security.upnpOffDetail' => 'UPnP mati',
+			'security.upnpOn' => 'Router membiarkan perangkat membuka port',
+			'security.upnpOnDetail' => 'UPnP aktif',
+			'security.portsOk' => 'Tidak ada port berisiko di router',
+			'security.portsRisky' => 'Port berisiko terbuka di router',
+			'security.scanFirst' => 'Pindai untuk melihat siapa di sini',
+			'security.scanFirstDetail' => 'Perangkat tak dikenal mengurangi skor',
+			'security.notMineDetail' => 'Periksa daftar perangkat di router',
+			'security.confirmDetail' => 'Tandai yang milik Anda',
+			'security.devicesOk' => 'Semua perangkat dikenal',
+			'security.devicesOkDetail' => 'Anda sudah mengonfirmasi semuanya',
+			'security.camera' => 'Ada kamera di jaringan ini',
+			'security.dnsHijack' => 'Nama tak dikenal dialihkan',
+			'security.dnsHijackDetail' => 'Penyedia atau router Anda mengubah pencarian',
+			'security.dnsOk' => 'DNS menjawab normal',
+			'security.dnsOkDetail' => 'Tidak ada tanda pengalihan',
+			'security.vpnOn' => 'VPN aktif',
+			'security.vpnOnDetail' => 'Lalu lintas keluar lewat terowongan',
+			'security.vpnOff' => 'VPN mati',
+			'security.vpnOffDetail' => 'Penyedia Anda melihat setiap situs',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} hal perlu diperbaiki', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} port dibuka perangkat', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} port dicek', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perangkat bukan milik Anda', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perangkat perlu dikonfirmasi', ), 
+			'providers.tab' => 'Internet',
+			'providers.unavailable' => 'Tidak bisa memuat daftar penyedia. Periksa koneksi Anda.',
+			'providers.cached' => 'Menurut pengecekan terakhir tanpa VPN',
+			'providers.notEnough' => 'Belum cukup penilaian',
+			'providers.yourRating' => 'Penilaian Anda bulan ini',
+			'providers.yourSpeed' => 'KECEPATAN ANDA',
+			'providers.runTest' => 'Jalankan tes kecepatan',
+			'providers.aboutAverage' => 'Setara rata-rata di sini',
+			'providers.aboveAverage' => ({required Object pct}) => '${pct}% di atas rata-rata lokal',
+			'providers.belowAverage' => ({required Object pct}) => '${pct}% di bawah rata-rata lokal',
+			'providers.call' => 'Telepon',
+			'providers.website' => 'Situs web',
+			'providers.outages' => 'Gangguan',
+			'providers.rate' => 'Nilai',
+			'providers.changeRating' => 'Ubah penilaian',
+			'providers.compare' => 'Bandingkan',
+			'providers.rateTitle' => ({required Object name}) => 'Nilai ${name}',
+			'providers.oncePerMonth' => 'Satu penilaian sebulan',
+			'providers.tapStars' => 'Ketuk bintangnya',
+			'providers.verified' => ({required Object mbps}) => 'Terverifikasi oleh tes Anda: ${mbps} Mbps',
+			'providers.busy' => 'Terlalu banyak penilaian dari sini. Coba nanti.',
+			'providers.failed' => 'Gagal mengirim. Coba lagi.',
+			'providers.post' => 'Kirim penilaian',
+			'providers.nearTitle' => 'Penyedia di sekitar Anda',
+			'providers.slower' => ({required Object pct}) => 'Unduhan Anda ${pct}% di bawah rata-rata penyedia Anda di sini',
+			'providers.inPlace' => ({required Object place}) => 'Internet rumah di ${place}',
+			'providers.byRating' => 'Penilaian',
+			'providers.bySpeed' => 'Kecepatan',
+			'providers.footnote' => 'Kecepatan adalah rata-rata tes G VPN',
+			'providers.noneNearby' => 'Belum ada penilaian di sekitar. Jadilah yang pertama.',
+			'providers.you' => 'Anda',
+			'providers.topRated' => 'Nilai tertinggi',
+			'providers.starsOf' => ({required Object n}) => '${n} dari 5',
+			'providers.tags.fast' => 'Cepat',
+			'providers.tags.reliable' => 'Andal',
+			'providers.tags.support' => 'Dukungan baik',
+			'providers.tags.price' => 'Harga wajar',
+			'providers.tags.slowEvenings' => 'Lambat malam hari',
+			'providers.tags.drops' => 'Sering putus',
+			'providers.tags.poorSupport' => 'Dukungan buruk',
+			'providers.tags.pricey' => 'Mahal',
+			'providers.words.bad' => 'Buruk',
+			'providers.words.poor' => 'Kurang',
+			'providers.words.okay' => 'Lumayan',
+			'providers.words.good' => 'Bagus',
+			'providers.words.great' => 'Hebat',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} penilaian', ), 
+			'alerts.channel' => 'Peringatan',
+			'alerts.title' => 'Peringatan',
+			'alerts.markAllRead' => 'Tandai semua dibaca',
+			'alerts.clearAll' => 'Hapus semua',
+			'alerts.thisNetwork' => 'jaringan ini',
+			'alerts.openWifiTitle' => ({required Object name}) => 'Anda tersambung ke Wi-Fi terbuka: ${name}',
+			'alerts.openWifiBody' => 'Siapa pun di sekitar bisa melihat yang dikirim. Nyalakan G VPN.',
+			'alerts.reportTitle' => 'Laporan mingguan Anda siap',
+			'alerts.reportBody' => ({required Object hours}) => '${hours} jam terlindungi minggu lalu',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} diblokir di sini',
+			'alerts.blockedBody' => 'Bisa diakses lewat VPN',
+			'alerts.kinds.newDevice' => 'Perangkat baru di Wi-Fi saya',
+			'alerts.kinds.openWifi' => 'Wi-Fi terbuka atau lemah',
+			'alerts.kinds.blocked' => 'Aplikasi diblokir',
+			'alerts.kinds.report' => 'Laporan mingguan',
+			'alerts.kinds.breach' => 'Kebocoran',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perangkat baru di ${network}', ), 
+			'alerts.settings' => 'Pengaturan peringatan',
+			'alerts.look' => 'Lihat',
+			'alerts.read' => 'Baca',
+			'alerts.open' => 'Buka',
+			'alerts.check' => 'Cek',
+			'alerts.today' => 'HARI INI',
+			'alerts.thisWeek' => 'MINGGU INI',
+			'alerts.earlier' => 'SEBELUMNYA',
+			'alerts.all' => 'Semua',
+			'alerts.quiet' => 'Semua tenang',
+			'alerts.quietSub' => 'Tidak ada yang perlu Anda tangani',
+			'alerts.breachTitle' => ({required Object name}) => 'Kebocoran baru: ${name}',
+			'alerts.status.background' => 'Setiap beberapa jam',
+			'alerts.status.checked' => ({required Object time}) => 'Dicek pukul ${time}',
+			'alerts.status.wifi' => 'Setiap jaringan yang Anda masuki',
+			'alerts.status.blocked' => 'Saat status layanan dicek',
+			'alerts.status.report' => 'Setiap Senin',
+			'report.title' => 'Laporan mingguan',
+			'report.share' => 'Bagikan sebagai gambar',
+			'report.shareText' => 'Minggu saya dengan G VPN',
+			'report.safer' => 'Minggu yang lebih aman',
+			'report.moreProtected' => 'Lebih terlindungi dari minggu lalu',
+			'report.yourWeek' => 'Minggu Anda',
+			'report.soFar' => ({required Object range}) => '${range}, sejauh ini',
+			'report.protected' => 'Terlindungi',
+			'report.data' => 'Data',
+			'report.security' => 'Keamanan',
+			'report.speed' => 'Kecepatan terbaik',
+			'report.noScore' => 'Belum dicek',
+			'report.noTest' => 'Belum ada tes',
+			'report.bestDirect' => 'Tes langsung',
+			'report.moreThan' => ({required Object d}) => '${d} lebih lama dari minggu lalu',
+			'report.lessThan' => ({required Object d}) => '${d} lebih singkat dari minggu lalu',
+			'report.protectedTime' => 'WAKTU TERLINDUNGI',
+			'report.mostUsed' => ({required Object name}) => 'Paling sering: ${name}',
+			'report.quiet' => 'Minggu yang tenang: tidak ada yang perlu Anda tangani',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} perangkat baru bergabung', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: 'Bergabung ke ${n} Wi-Fi terbuka', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} aplikasi diblokir', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} kebocoran besar baru', ), 
+			'breaches.title' => 'Kebocoran data',
+			'breaches.info' => 'Kebocoran data terbaru, dari daftar publik Have I Been Pwned. Tidak ada data Anda yang dikirim: daftarnya sama untuk semua orang.\n\nJika Anda punya akun di situs yang bocor, ganti kata sandinya, juga di tempat lain yang memakai sandi sama.',
+			'breaches.unavailable' => 'Gagal memuat daftar. Periksa koneksi Anda.',
+			'breaches.biggest' => 'TERBESAR BULAN INI',
+			'breaches.newest' => 'Terbaru',
+			'breaches.biggestSort' => 'Terbesar',
+			'breaches.withPasswords' => 'Dengan kata sandi',
+			'breaches.passwordsMark' => 'KATA SANDI',
+			'breaches.one' => 'Kebocoran',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'Cek kata sandi',
+			'breaches.verified' => 'Terverifikasi',
+			'breaches.hasPasswords' => 'Ada kata sandi',
+			'breaches.accountsLabel' => 'Akun',
+			'breaches.happened' => 'Terjadi',
+			'breaches.published' => 'Dipublikasikan',
+			'breaches.website' => 'Situs web',
+			'breaches.leaked' => 'YANG BOCOR',
+			'breaches.ifUsed' => 'JIKA ANDA MEMAKAINYA',
+			'breaches.stepPassword' => 'Ganti kata sandi yang Anda pakai di sana',
+			'breaches.stepReuse' => 'Ganti juga di tempat lain yang memakai sandi sama',
+			'breaches.stepTwoStep' => 'Aktifkan verifikasi dua langkah jika bisa',
+			'breaches.stepScams' => 'Waspadai telepon dan pesan penipuan',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${count} akun', ), 
+			'breaches.worldwide' => ({required Object n}) => 'Global · ${n}',
+			'breaches.noneHere' => 'Tidak ada kebocoran dari sini di daftar terbaru.',
+			'breaches.bigMap' => 'Peta lebih besar',
+			'breaches.showInList' => 'Tampilkan di daftar',
+			'breaches.mapTitle' => 'Peta kebocoran',
+			'breaches.zoomIn' => 'Perbesar',
+			'breaches.zoomOut' => 'Perkecil',
+			'breaches.wholeWorld' => 'Seluruh dunia',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} kebocoran', ), 
+			'breaches.findCountry' => 'Cari negara',
+			'breaches.seeAll' => 'Lihat semua',
+			'breaches.search' => 'Cari kebocoran',
+			'blocked.title' => 'Apa yang diblokir',
+			'blocked.info' => 'Menguji situs terkenal dari ponsel ini, tanpa VPN, dan menunjukkan mana yang diblokir jaringan ini serta caranya.\n\nAlamat palsu: pencarian nama jaringan memberi jawaban palsu.\n\nDiputus: koneksi diputus saat dimulai.\n\nTidak ada jawaban: tidak ada yang kembali.\n\nHalaman blokir: hal lain menjawab menggantikan situs.\n\nTes menunjukkan di mana situs diblokir, bukan siapa yang memblokir. Tidak ada yang disimpan atau dikirim.',
+			'blocked.thisNetwork' => 'Jaringan ini',
+			'blocked.country' => 'Negara Anda',
+			'blocked.question' => 'Apa yang diblokir di sini?',
+			'blocked.testingOn' => 'MENGUJI DI',
+			'blocked.vpnOn' => 'VPN AKTIF',
+			'blocked.turnOff' => 'Matikan G VPN untuk menguji',
+			'blocked.test' => 'Uji jaringan ini',
+			'blocked.stop' => 'Berhenti',
+			'blocked.sitesToTest' => ({required Object n}) => 'SITUS YANG DIUJI · ${n}',
+			'blocked.ofSites' => ({required Object n}) => 'dari ${n} situs',
+			'blocked.blockedCount' => ({required Object n}) => '${n} DIBLOKIR',
+			'blocked.openCount' => ({required Object n}) => '${n} TERBUKA',
+			'blocked.noneBlocked' => ({required Object network}) => 'Tidak ada yang diblokir di ${network}',
+			'blocked.openOf' => ({required Object open, required Object total}) => '${open} dari ${total} terbuka',
+			'blocked.allWork' => 'SEMUA BISA DENGAN G VPN',
+			'blocked.blockedHeading' => 'DIBLOKIR',
+			'blocked.byKind' => 'MENURUT JENIS',
+			'blocked.worksVpn' => 'Bisa dengan VPN',
+			'blocked.failsVpn' => 'Tetap diblokir lewat VPN',
+			'blocked.checkVpn' => 'Cek lewat G VPN',
+			'blocked.connect' => 'Sambungkan G VPN',
+			'blocked.again' => 'Uji lagi',
+			'blocked.withoutVpn' => 'TANPA VPN',
+			'blocked.throughVpn' => 'LEWAT G VPN',
+			'blocked.notChecked' => 'Belum dicek',
+			'blocked.opens' => 'Terbuka',
+			'blocked.stillBlocked' => 'Diblokir',
+			'blocked.whatHappened' => 'APA YANG TERJADI',
+			'blocked.countryBlocked' => ({required Object country}) => 'situs diblokir di ${country}',
+			'blocked.countrySub' => 'Ditemukan oleh tes relawan dalam 30 hari terakhir',
+			'blocked.countryNone' => 'Tidak ada situs diblokir yang dilaporkan dalam 30 hari terakhir.',
+			'blocked.countryUnavailable' => 'Gagal memuat hasil negara. Periksa koneksi Anda.',
+			'blocked.confirmed' => 'DIBLOKIR',
+			'blocked.oftenFails' => 'SERING GAGAL',
+			'blocked.kinds.social' => 'Media sosial',
+			'blocked.kinds.messaging' => 'Pesan',
+			'blocked.kinds.news' => 'Berita',
+			'blocked.kinds.video' => 'Video dan musik',
+			'blocked.kinds.privacy' => 'Privasi',
+			'blocked.how.dns' => 'Alamat palsu',
+			'blocked.how.reset' => 'Diputus',
+			'blocked.how.timeout' => 'Tidak ada jawaban',
+			'blocked.how.page' => 'Halaman blokir',
+			'blocked.how.open' => 'Terbuka',
+			'blocked.fail.noAnswer' => 'tidak ada jawaban',
+			'blocked.fail.refused' => 'ditolak',
+			'blocked.fail.cutOff' => ({required Object s}) => 'diputus setelah ${s} dtk',
+			'blocked.fail.wrongCert' => 'sertifikat salah',
+			'blocked.steps.lookup' => 'Pencarian nama',
+			'blocked.steps.connect' => 'Sambung',
+			'blocked.steps.handshake' => 'Jabat tangan aman',
+			'blocked.consent.title' => 'Sebelum tes pertama',
+			'blocked.consent.body' => 'Tes membuka tiap situs dari ponsel ini, tanpa VPN, seperti browser.',
+			'blocked.consent.noticeTitle' => 'Bisa terlihat',
+			'blocked.consent.notice' => 'Penyedia Anda melihat situs ini dibuka. Di beberapa negara mengunjunginya, meski hanya untuk tes, bisa menarik perhatian. Uji hanya jika Anda merasa aman.',
+			'blocked.consent.ok' => 'Saya mengerti, uji',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} situs diblokir di ${network}', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('id'))(n, other: '${n} tes', ), 
 			_ => null,
 		};
 	}

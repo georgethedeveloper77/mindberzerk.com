@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../alerts/alerts.dart';
 import '../design/meridian.dart';
 import '../i18n/strings.g.dart';
 import '../vpn/tunnel_store.dart';
@@ -54,14 +55,27 @@ class ServiceResult {
 /// invalidating; re-runs on its own when the VPN state changes, so the
 /// before/after comparison is one tap away.
 final serviceStatusProvider = FutureProvider.autoDispose<List<ServiceResult>>((ref) async {
-  ref.watch(vpnProvider.select((s) => s.phase == VpnPhase.on));
-  return pooled(services, 5, (s) async {
+  final viaVpn = ref.watch(vpnProvider.select((s) => s.phase == VpnPhase.on));
+  final results = await pooled(services, 5, (s) async {
     final samples = <double?>[];
     for (var i = 0; i < 3; i++) {
       samples.add(await tcpPing(s.host, 443, timeout: const Duration(seconds: 4), refusedCounts: false));
     }
     return ServiceResult(s, samples);
   });
+  // Unreachable without the VPN: likely blocked here. One alert a day each.
+  if (!viaVpn) {
+    for (final r in results.where((r) => r.best == null)) {
+      await ref.read(alertsProvider.notifier).add(
+            AlertKind.blocked,
+            title: t.alerts.blockedTitle(name: r.service.name),
+            body: t.alerts.blockedBody,
+            route: '/status',
+            once: 'blocked:${r.service.name}',
+          );
+    }
+  }
+  return results;
 });
 
 
@@ -162,6 +176,8 @@ class StatusScreen extends ConsumerWidget {
 
     return ToolPage(
       title: t.status.title,
+      icon: Icons.fact_check_outlined,
+      color: m.violet,
       info: t.status.info,
       action: FilledButton(
         onPressed: results.isLoading ? null : () => ref.invalidate(serviceStatusProvider),
@@ -178,9 +194,12 @@ class StatusScreen extends ConsumerWidget {
         ],
         Row(
           children: [
-            Text(t.status.favourites, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
-            const Spacer(),
-            TextButton(onPressed: () => _editFavourites(context, ref), child: Text(t.status.edit)),
+            Expanded(
+              child: ToolHeading(
+                t.status.favourites,
+                trailing: TextButton(onPressed: () => _editFavourites(context, ref), child: Text(t.status.edit)),
+              ),
+            ),
           ],
         ),
         Row(
@@ -196,15 +215,10 @@ class StatusScreen extends ConsumerWidget {
           ],
         ),
         if (favs.isNotEmpty && history.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Text(t.status.last24, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
-              const Spacer(),
-              Text(t.status.checks(n: history.length), style: TextStyle(fontSize: 12, color: m.muted)),
-            ],
+          ToolHeading(
+            t.status.last24,
+            trailing: Text(t.status.checks(n: history.length), style: TextStyle(fontSize: 12, color: m.muted)),
           ),
-          const SizedBox(height: 10),
           ToolCard(
             child: Column(
               children: [
@@ -224,19 +238,18 @@ class StatusScreen extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: 20),
-        Text(t.status.all, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
-        const SizedBox(height: 10),
-        ToolCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          child: Column(
-            children: [
-              for (final (i, s) in services.indexed) ...[
-                if (i > 0) Divider(height: 1, color: m.line),
-                _ServiceLine(service: s, result: byName[s.name], loading: results.isLoading),
-              ],
-            ],
-          ),
+        ToolHeading(t.status.all),
+        // Every service as a tile, three a row: the grid reads at a glance.
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: .95,
+          children: [
+            for (final s in services) _FavTile(service: s, result: byName[s.name], loading: results.isLoading),
+          ],
         ),
       ],
     );
@@ -301,7 +314,11 @@ class _BlockedBanner extends ConsumerWidget {
     final who = names.length == 1 ? names.first : t.status.andMore(first: names.first, n: names.length - 1);
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: m.badSoft, borderRadius: BorderRadius.circular(Meridian.rCard)),
+      decoration: BoxDecoration(
+        color: m.bad.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(Meridian.rCard),
+        border: Border.all(color: m.bad.withValues(alpha: .45)),
+      ),
       child: Row(
         children: [
           Container(
@@ -444,36 +461,6 @@ class _Strip extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _ServiceLine extends StatelessWidget {
-  const _ServiceLine({required this.service, required this.result, required this.loading});
-
-  final Service service;
-  final ServiceResult? result;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final best = result?.best;
-    final (text, color) = result == null || loading
-        ? ('...', m.muted)
-        : best == null
-            ? (t.status.unreachable, m.bad)
-            : ('${best.round()} ms', best > 400 ? m.warn : m.good);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Icon(service.icon, size: 20, color: service.color),
-          const SizedBox(width: 12),
-          Expanded(child: Text(service.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: m.text))),
-          Text(text, style: m.monoStyle(size: 13, color: color)),
-        ],
-      ),
     );
   }
 }

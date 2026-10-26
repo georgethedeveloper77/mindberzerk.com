@@ -67,15 +67,18 @@ class PortScanController extends Notifier<PortScanState> {
 }
 
 class PortsScreen extends ConsumerStatefulWidget {
-  const PortsScreen({super.key});
+  const PortsScreen({super.key, this.host});
+
+  /// Checks this address instead of the router (from a device's page).
+  final String? host;
 
   @override
   ConsumerState<PortsScreen> createState() => _PortsScreenState();
 }
 
 class _PortsScreenState extends ConsumerState<PortsScreen> {
-  final _host = TextEditingController();
-  bool _prefilled = false;
+  late final _host = TextEditingController(text: widget.host ?? '');
+  late bool _prefilled = widget.host != null;
 
   @override
   void dispose() {
@@ -96,6 +99,8 @@ class _PortsScreenState extends ConsumerState<PortsScreen> {
 
     return ToolPage(
       title: t.ports.title,
+      icon: Icons.lock_outline_rounded,
+      color: m.bad,
       info: t.ports.info(n: knownPorts.length),
       action: FilledButton(
         onPressed: scan.running ? null : () => ref.read(portScanProvider.notifier).scan(_host.text.trim()),
@@ -121,54 +126,115 @@ class _PortsScreenState extends ConsumerState<PortsScreen> {
           ToolCard(
             child: Text(t.ports.noneOpen(host: scan.host ?? ''), style: TextStyle(fontSize: 15, color: m.text)),
           ),
-        if (scan.done && scan.open.isNotEmpty)
-          ToolCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            child: Column(
-              children: [
-                for (final (i, p) in scan.open.indexed) ...[
-                  if (i > 0) Divider(height: 1, color: m.line),
-                  _PortRow(port: p),
-                ],
-              ],
-            ),
-          ),
+        if (scan.done && scan.open.isNotEmpty) ...[
+          _Summary(open: scan.open),
+          // Grouped by what they mean: risky first.
+          for (final (risk, label, tone) in [
+            (PortRisk.risky, t.ports.risky, m.bad),
+            (PortRisk.review, t.ports.review, m.warn),
+            (PortRisk.normal, t.ports.normal, m.good),
+          ])
+            if (scan.open.any((p) => p.risk == risk)) ...[
+              ToolHeading(label, trailing: Text('${scan.open.where((p) => p.risk == risk).length}', style: m.monoStyle(size: 12, color: tone))),
+              ToolCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final (i, p) in scan.open.where((p) => p.risk == risk).indexed) ...[
+                      if (i > 0) Divider(height: 1, color: m.line),
+                      _PortRow(port: p, color: tone),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+        ],
       ],
     );
   }
 }
 
 class _PortRow extends StatelessWidget {
-  const _PortRow({required this.port});
+  const _PortRow({required this.port, required this.color});
 
   final KnownPort port;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    final (tag, color) = switch (port.risk) {
-      PortRisk.risky => (t.ports.risky, m.bad),
-      PortRisk.review => (t.ports.review, m.warn),
-      PortRisk.normal => (t.ports.normal, m.good),
-    };
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 56, child: Text('${port.port}', style: m.monoStyle(size: 15, weight: FontWeight.w600))),
+          Container(
+            constraints: const BoxConstraints(minWidth: 52),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(9)),
+            child: Text('${port.port}', style: m.monoStyle(size: 13, weight: FontWeight.w600, color: color)),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(port.service, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text)),
+                Text(port.service, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: m.text)),
                 if (port.note != null) Text(port.note!, style: TextStyle(fontSize: 12, color: m.muted)),
               ],
             ),
           ),
-          Text(tag, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
         ],
       ),
+    );
+  }
+}
+
+/// A ring of how many answered, and how many of those are risky.
+class _Summary extends StatelessWidget {
+  const _Summary({required this.open});
+
+  final List<KnownPort> open;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final risky = open.where((p) => p.risk == PortRisk.risky).length;
+    final tone = risky > 0 ? m.bad : open.any((p) => p.risk == PortRisk.review) ? m.warn : m.good;
+    return Row(
+      children: [
+        SizedBox(
+          width: 64,
+          height: 64,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.expand(
+                child: CircularProgressIndicator(
+                  value: open.length / knownPorts.length,
+                  strokeWidth: 7,
+                  color: tone,
+                  backgroundColor: m.surface2,
+                  strokeCap: StrokeCap.round,
+                ),
+              ),
+              Text('${open.length}', style: m.monoStyle(size: 16, color: m.text)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.ports.summary(open: open.length, n: knownPorts.length),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
+              Text(risky > 0 ? t.ports.riskyCount(n: risky) : t.ports.noneRisky,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tone)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

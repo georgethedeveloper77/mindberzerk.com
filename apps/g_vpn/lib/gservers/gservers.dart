@@ -78,18 +78,38 @@ class GServersInfo {
   static const none = GServersInfo(enabled: false, proOnly: false, limit: 5, servers: []);
 }
 
+GServersInfo _parse(String body) {
+  final j = jsonDecode(body) as Map<String, dynamic>;
+  return GServersInfo(
+    enabled: j['enabled'] == true,
+    proOnly: j['access'] == 'pro',
+    limit: (j['limit'] as num?)?.toInt() ?? 5,
+    idleDays: (j['idleDays'] as num?)?.toInt() ?? 30,
+    servers: [for (final s in (j['servers'] as List? ?? const [])) GServer.fromJson(s as Map<String, dynamic>)],
+  );
+}
+
+const _cacheKey = 'gvpn.gservers.cache.v1';
+
+/// The last list the Worker sent, read from the phone: the Servers tab can
+/// show G Servers the moment it opens, before the network answers.
+final gServersCacheProvider = FutureProvider<GServersInfo?>((ref) async {
+  final raw = (await SharedPreferences.getInstance()).getString(_cacheKey);
+  if (raw == null) return null;
+  try {
+    return _parse(raw);
+  } on Object {
+    return null;
+  }
+});
+
 final gServersProvider = FutureProvider<GServersInfo>((ref) async {
   try {
     final res = await http.get(Uri.parse('$_base/servers')).timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) return GServersInfo.none;
-    final j = jsonDecode(res.body) as Map<String, dynamic>;
-    return GServersInfo(
-      enabled: j['enabled'] == true,
-      proOnly: j['access'] == 'pro',
-      limit: (j['limit'] as num?)?.toInt() ?? 5,
-      idleDays: (j['idleDays'] as num?)?.toInt() ?? 30,
-      servers: [for (final s in (j['servers'] as List? ?? const [])) GServer.fromJson(s as Map<String, dynamic>)],
-    );
+    final info = _parse(res.body);
+    await (await SharedPreferences.getInstance()).setString(_cacheKey, res.body);
+    return info;
   } on Exception {
     return GServersInfo.none;
   }

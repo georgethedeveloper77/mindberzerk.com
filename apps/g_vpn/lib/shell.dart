@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'alerts/alert_watcher.dart';
+import 'alerts/alerts.dart' show alertsProvider;
+import 'history/usage.dart';
 import 'home/meridian_home.dart';
 import 'i18n/strings.g.dart';
 import 'pro/billing.dart';
 import 'pro/pro_screen.dart';
+import 'providers/provider_api.dart' show providerRegistrarProvider;
 import 'rules/rules_screen.dart';
 import 'rules/rules_store.dart';
 import 'servers/servers_screen.dart';
@@ -39,6 +43,7 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
       if (!mounted) return;
       AppUpdate.check(context);
       _takeShared();
+      takeAlertRoute(context);
     });
   }
 
@@ -50,7 +55,12 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _takeShared();
+    if (state == AppLifecycleState.resumed) {
+      _takeShared();
+      takeAlertRoute(context);
+      // The background checks may have added alerts while the app slept.
+      ref.read(alertsProvider.notifier).reload();
+    }
   }
 
   /// A server shared to G VPN from another app (a QR image or the settings
@@ -60,10 +70,13 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
       final text = await ref.read(vpnApiProvider).takeSharedServer();
       if (text == null || !mounted) return;
       _go(1);
-      await AddServerSheet.show(context, name: suggestServerName(text) ?? t.servers.scannedServer, config: text);
+      await AddServerSheet.show(context,
+          name: suggestServerName(text) ?? t.servers.scannedServer,
+          config: text);
     } on PlatformException catch (e) {
       if (mounted && e.code == 'no_qr') {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.add.noQr)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(t.add.noQr)));
       }
     }
   }
@@ -72,6 +85,12 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // Keeps native auto-connect in step with the selected server and rules.
     ref.watch(autoConnectSyncProvider);
+    // Recents and the stats count whatever tab is open.
+    ref.watch(historyRecorderProvider);
+    // Tells the provider directory which provider this phone uses.
+    ref.watch(providerRegistrarProvider);
+    // Turns what the app notices into alerts, and the week into a report.
+    ref.watch(alertWatcherProvider);
     // Play can deliver a purchase at any launch; listen from the start.
     ref.watch(billingProvider);
 
@@ -88,18 +107,34 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
       _ => const ProScreen(),
     };
 
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: _go,
-        destinations: [
-          NavigationDestination(icon: const Icon(Icons.power_settings_new_rounded), label: t.nav.vpn),
-          NavigationDestination(icon: const Icon(Icons.public_rounded), label: t.nav.servers),
-          NavigationDestination(icon: const Icon(Icons.speed_rounded), label: t.nav.tools),
-          NavigationDestination(icon: const Icon(Icons.tune_rounded), label: t.nav.rules),
-          NavigationDestination(icon: const Icon(Icons.workspace_premium_rounded), label: t.nav.pro),
-        ],
+    // Back on any other tab returns to VPN, like other modern apps; only
+    // from VPN does back leave the app. Screens opened on top of a tab
+    // close first as usual, since they are their own routes.
+    return PopScope(
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _go(0);
+      },
+      child: Scaffold(
+        body: body,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _tab,
+          onDestinationSelected: _go,
+          destinations: [
+            NavigationDestination(
+                icon: const Icon(Icons.power_settings_new_rounded),
+                label: t.nav.vpn),
+            NavigationDestination(
+                icon: const Icon(Icons.public_rounded), label: t.nav.servers),
+            NavigationDestination(
+                icon: const Icon(Icons.speed_rounded), label: t.nav.tools),
+            NavigationDestination(
+                icon: const Icon(Icons.tune_rounded), label: t.nav.rules),
+            NavigationDestination(
+                icon: const Icon(Icons.workspace_premium_rounded),
+                label: t.nav.pro),
+          ],
+        ),
       ),
     );
   }

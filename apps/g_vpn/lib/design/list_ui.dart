@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../i18n/strings.g.dart';
 import 'meridian.dart';
 import 'sheet.dart';
 
@@ -129,15 +128,19 @@ class Tag extends StatelessWidget {
 
 /// App-bar "i": the screen's explanation, in a sheet, only when asked.
 class InfoAction extends StatelessWidget {
-  const InfoAction({super.key, required this.title, required this.body});
+  const InfoAction({super.key, required this.title, required this.body, this.icon, this.color});
 
   final String title;
   final String body;
 
+  /// The screen's mark and colour, carried into the sheet.
+  final IconData? icon;
+  final Color? color;
+
   /// Paragraphs become text sections. A paragraph opening "Heading: rest"
   /// takes that heading; the first paragraph without one becomes the
   /// sheet's subtitle, so nothing repeats the title.
-  static Future<void> show(BuildContext context, String title, String body) {
+  static Future<void> show(BuildContext context, String title, String body, {IconData? icon, Color? color}) {
     final sections = <SheetSection>[];
     String? lead;
     for (final para in body.split(RegExp(r'\n\s*\n'))) {
@@ -153,13 +156,9 @@ class InfoAction extends StatelessWidget {
         sections.add(SheetSection.text('', text));
       }
     }
-    return showInfoSheet(context, title: title, subtitle: lead, sections: sections);
+    return showInfoSheet(context, icon: icon, color: color, title: title, subtitle: lead, sections: sections);
   }
 
   @override
-  Widget build(BuildContext context) => IconButton(
-        tooltip: t.common.about,
-        icon: const Icon(Icons.info_outline_rounded),
-        onPressed: () => show(context, title, body),
-      );
+  Widget build(BuildContext context) => InfoIcon(onPressed: () => show(context, title, body, icon: icon, color: color));
 }

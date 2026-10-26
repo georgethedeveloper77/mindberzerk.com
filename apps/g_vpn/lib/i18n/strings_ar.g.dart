@@ -69,6 +69,19 @@ class TranslationsAr extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$add$ar add = _Translations$add$ar._(_root);
 	@override late final _Translations$backup$ar backup = _Translations$backup$ar._(_root);
 	@override late final _Translations$gs$ar gs = _Translations$gs$ar._(_root);
+	@override late final _Translations$map$ar map = _Translations$map$ar._(_root);
+	@override late final _Translations$stats$ar stats = _Translations$stats$ar._(_root);
+	@override late final _Translations$recents$ar recents = _Translations$recents$ar._(_root);
+	@override late final _Translations$presets$ar presets = _Translations$presets$ar._(_root);
+	@override late final _Translations$shield$ar shield = _Translations$shield$ar._(_root);
+	@override late final _Translations$checks$ar checks = _Translations$checks$ar._(_root);
+	@override late final _Translations$toolSettings$ar toolSettings = _Translations$toolSettings$ar._(_root);
+	@override late final _Translations$security$ar security = _Translations$security$ar._(_root);
+	@override late final _Translations$providers$ar providers = _Translations$providers$ar._(_root);
+	@override late final _Translations$alerts$ar alerts = _Translations$alerts$ar._(_root);
+	@override late final _Translations$report$ar report = _Translations$report$ar._(_root);
+	@override late final _Translations$breaches$ar breaches = _Translations$breaches$ar._(_root);
+	@override late final _Translations$blocked$ar blocked = _Translations$blocked$ar._(_root);
 }
 
 // Path: common
@@ -117,8 +130,6 @@ class _Translations$home$ar extends Translations$home$en {
 	// Translations
 	@override late final _Translations$home$status$ar status = _Translations$home$status$ar._(_root);
 	@override String resumesAt({required Object time}) => 'يُستأنف عند ${time} · اضغط للاستئناف الآن';
-	@override String sitesSee({required Object ip}) => 'المواقع ترى ${ip}';
-	@override String sitesSeeOrg({required Object ip, required Object org}) => 'المواقع ترى ${ip} · ${org}';
 	@override String get ipFailed => 'تعذّر التحقق من عنوان IP';
 	@override String get ipChecking => 'جارٍ التحقق من عنوان IP';
 	@override String get themeSystem => 'المظهر: حسب الهاتف';
@@ -126,7 +137,6 @@ class _Translations$home$ar extends Translations$home$en {
 	@override String get themeDark => 'المظهر: داكن';
 	@override String get free => 'مجاني';
 	@override String get pickServer => 'اختر خادمًا';
-	@override late final _Translations$home$waves$ar waves = _Translations$home$waves$ar._(_root);
 	@override late final _Translations$home$network$ar network = _Translations$home$network$ar._(_root);
 	@override late final _Translations$home$card$ar card = _Translations$home$card$ar._(_root);
 	@override late final _Translations$home$tiles$ar tiles = _Translations$home$tiles$ar._(_root);
@@ -177,6 +187,20 @@ class _Translations$servers$ar extends Translations$servers$en {
 	@override String lastUsed({required Object when}) => 'آخر استخدام ${when}';
 	@override String get disconnectFirst => 'اقطع الاتصال أولًا لإزالته';
 	@override String get removeConfirm => 'إزالة هذا الخادم من G VPN؟ تُحذف إعداداته من هذا الهاتف؛ ولا يتغيّر الخادم نفسه.';
+	@override String get gTab => 'G Servers';
+	@override String get search => 'ابحث عن دولة';
+	@override String get noMatch => 'لا خوادم مطابقة.';
+	@override String bestPing({required Object ms}) => 'الأفضل ${ms} مللي ث';
+	@override String get bestTag => 'الأفضل';
+	@override String get ownHero => 'خوادمنا';
+	@override String get ownHeroSub => 'أسرع وخاصة، لكل هاتف مفتاحه';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} خوادم',
+	);
+	@override String showAll({required Object n}) => 'عرض الكل ${n}';
+	@override String get showFewer => 'عرض أقل';
+	@override String get fastTab => 'سريعة';
+	@override String get fastestFree => 'الأسرع المجانية';
 }
 
 // Path: pro
@@ -189,16 +213,7 @@ class _Translations$pro$ar extends Translations$pro$en {
 	@override String get owned => 'لديك Pro';
 	@override String get waitingPlay => 'بانتظار Google Play';
 	@override String startTrial({required Object days}) => 'ابدأ تجربة مجانية لمدة ${days} يومًا';
-	@override String thenYearly({required Object price}) => 'ثم ${price} سنويًا. ألغِ في أي وقت من Google Play.';
-	@override String thenMonthly({required Object price}) => 'ثم ${price} شهريًا. ألغِ في أي وقت من Google Play.';
-	@override String yearlyPrice({required Object price}) => '${price} سنويًا. ألغِ في أي وقت من Google Play.';
-	@override String monthlyPrice({required Object price}) => '${price} شهريًا. ألغِ في أي وقت من Google Play.';
 	@override String get restore => 'استعادة';
-	@override String get heroTitle => 'خوادم أسرع،\nنديرها بأنفسنا';
-	@override String get heroSubtitle => 'WireGuard. بلا سجلات نشاط. بلا حساب.';
-	@override String get benefitSpeed => 'سرعة كاملة، بلا قيود الخوادم التطوعية';
-	@override String get benefitKey => 'المفتاح يُنشأ على هاتفك ولا يُشارَك أبدًا';
-	@override String get benefitFree => 'كل ما هو مجاني يبقى مجانيًا';
 	@override String save({required Object pct}) => 'وفّر ${pct}%';
 	@override String get yearly => 'سنوي';
 	@override String get monthly => 'شهري';
@@ -206,10 +221,6 @@ class _Translations$pro$ar extends Translations$pro$en {
 	@override String daysFree({required Object days}) => '${days} يومًا مجانًا';
 	@override String perMonth({required Object price}) => '${price} شهريًا';
 	@override String get title => 'G VPN Pro';
-	@override String get heroTitleOneLine => 'خوادم أسرع نديرها بأنفسنا';
-	@override String get includes => 'يشمل';
-	@override String get benefitLogs => 'بلا سجلات نشاط على خوادمنا';
-	@override String get plan => 'اختر خطة';
 	@override String get renewGeneric => 'تتجدد الاشتراكات تلقائيًا حتى إلغائها. ألغِ في أي وقت من Google Play.';
 	@override String renewTrial({required Object days, required Object price, required Object period}) => '${days} يومًا مجانًا، ثم ${price} لكل ${period}. يتجدد تلقائيًا حتى الإلغاء؛ ألغِ من Google Play قبل انتهاء التجربة بيوم على الأقل لتجنّب الدفع.';
 	@override String renew({required Object price, required Object period}) => '${price} لكل ${period}. يتجدد تلقائيًا حتى الإلغاء؛ ألغِ في أي وقت من Google Play.';
@@ -217,6 +228,16 @@ class _Translations$pro$ar extends Translations$pro$en {
 	@override String get month => 'شهر';
 	@override String get manage => 'إدارة الاشتراك';
 	@override late final _Translations$pro$free$ar free = _Translations$pro$free$ar._(_root);
+	@override String get heroLine => 'خوادمنا السريعة، وكل الفحوصات بلا حد';
+	@override String get start => 'ابدأ Pro';
+	@override String get compareFree => 'مجاني';
+	@override String get comparePro => 'PRO';
+	@override String get rowFreeServers => 'خوادم مجانية';
+	@override String get rowTools => 'اختبار السرعة والأدوات وفحص Wi-Fi';
+	@override String get rowGServers => 'G Servers بلا سجلات';
+	@override String get rowLinks => 'فحص الروابط';
+	@override String linksFree({required Object n}) => '${n} شهريًا';
+	@override String get unlimited => 'بلا حد';
 }
 
 // Path: rules
@@ -230,7 +251,6 @@ class _Translations$rules$ar extends Translations$rules$en {
 	@override late final _Translations$rules$info$ar info = _Translations$rules$info$ar._(_root);
 	@override String get protection => 'الحماية';
 	@override String get shield => 'الدرع';
-	@override String get shieldSub => 'يحظر مواقع البرامج الضارة والتصيّد';
 	@override String get privateDns => 'الدرع دون VPN';
 	@override String get privateDnsSub => 'انسخ dns.quad9.net لاستخدامه في DNS الخاص';
 	@override String get privateDnsCopied => 'تم نسخ dns.quad9.net';
@@ -346,9 +366,17 @@ class _Translations$wol$ar extends Translations$wol$en {
 	@override String get badMac => 'هذا ليس عنوان MAC. شكله مثل AA:BB:CC:DD:EE:FF.';
 	@override String get sent => 'أُرسلت إشارة التشغيل. يُفترض أن يعمل الجهاز خلال دقيقة.';
 	@override String get title => 'Wake on LAN';
-	@override String get wake => 'تشغيل الجهاز';
 	@override String get mac => 'عنوان MAC';
 	@override String failed({required Object error}) => 'تعذّر الإرسال: ${error}';
+	@override String get computer => 'حاسوب';
+	@override String get pick => 'اختر جهازًا لتشغيله';
+	@override String waking({required Object name}) => 'جارٍ تشغيل ${name}';
+	@override String get yours => 'أجهزتك';
+	@override String wakeNamed({required Object name}) => 'تشغيل ${name}';
+	@override String get removeHint => 'اضغط مطولًا على جهاز لإزالته';
+	@override String get add => 'إضافة جهاز';
+	@override String get name => 'الاسم';
+	@override String get saveWake => 'حفظ وتشغيل';
 }
 
 // Path: speed
@@ -358,7 +386,6 @@ class _Translations$speed$ar extends Translations$speed$en {
 	final TranslationsAr _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'تقيسه منصة M-Lab البحثية المفتوحة. يستهلك الاختبار نحو 50 إلى 100 ميغابايت.\n\nنتائج علنية: تنشر M-Lab كل اختبار، بما فيه عنوان IP الذي جاء منه، كبيانات بحثية مفتوحة.\n\nمقارنة المزوّدين: بعد اختبار دون VPN، يرسل G VPN أرقام السرعة الثلاثة فقط. تقرأ خدمة المقارنة مزوّدك ومدينتك من الاتصال نفسه ولا تخزّن أي عنوان IP. أوقفها بالمفتاح أسفل هذه الصفحة.\n\nعبر VPN: عند تشغيل VPN يقيس السرعة عبر النفق ويقارنها بآخر اختبار دونه.\n\nمعاينة الفيديو: الصورة نفسها بالدقة التي تتيحها هذه السرعة، وفق معدلات البت التي تنشرها خدمات البث. لا يُنزَّل أي فيديو.';
 	@override String get download => 'التنزيل';
 	@override String get upload => 'الرفع';
 	@override String get finding => 'جارٍ البحث عن خادم';
@@ -439,10 +466,11 @@ class _Translations$router$ar extends Translations$router$en {
 	@override String get cgnat => 'عنوان مشترك لدى المزوّد: لا يمكن الوصول إليه من الإنترنت.';
 	@override String get noDescription => 'بلا وصف';
 	@override String opened({required Object n}) => '${n} منافذ فتحتها الأجهزة';
-	@override String routerName({required Object name}) => 'الراوتر: ${name}';
-	@override String externalIp({required Object ip}) => 'عنوان الإنترنت: ${ip}';
 	@override String mapping({required Object proto, required Object host}) => '${proto} إلى ${host}';
 	@override String get upnpOn => 'UPnP مفعّل';
+	@override String get routerLabel => 'الراوتر';
+	@override String get internetAddress => 'عنوان الإنترنت';
+	@override String get openedBy => 'فتحتها الأجهزة';
 }
 
 // Path: network
@@ -494,8 +522,6 @@ class _Translations$devices$ar extends Translations$devices$en {
 	@override String get title => 'الأجهزة';
 	@override String get again => 'افحص مجددًا';
 	@override String get looking => 'جارٍ البحث عن الأجهزة';
-	@override String get nothingNew => 'لا جديد منذ آخر فحص';
-	@override String get takes => 'يستغرق نحو 30 ثانية';
 	@override String get all => 'الكل';
 	@override String get phones => 'الهواتف';
 	@override String get tvs => 'التلفاز';
@@ -507,14 +533,48 @@ class _Translations$devices$ar extends Translations$devices$en {
 	@override String get address => 'العنوان';
 	@override String get answersIn => 'يستجيب خلال';
 	@override String get type => 'النوع';
-	@override String get notAnnounced => 'لم يعرّف بنفسه. يمكن لقائمة الأجهزة في الراوتر تسميته.';
 	@override String get newBadge => 'جديد';
 	@override String scanning({required Object n}) => 'جارٍ فحص ${n} من 254';
-	@override String get thisNetwork => 'هذه الشبكة';
 	@override String newSince({required Object n}) => '${n} جديد منذ آخر فحص';
-	@override String showMore({required Object n}) => 'عرض ${n} أخرى';
 	@override String ms({required Object n}) => '${n} مللي ثانية';
-	@override String onNetwork({required Object network}) => 'أجهزة على ${network}';
+	@override String get cameras => 'الكاميرات';
+	@override String get device => 'الجهاز';
+	@override String get online => 'متصل';
+	@override String get model => 'الطراز';
+	@override String get announced => 'يعرّف نفسه باسم';
+	@override String get services => 'الخدمات المفتوحة';
+	@override String get checkingServices => 'جارٍ فحص الخدمات';
+	@override String get noServices => 'لا تستجيب أي خدمة شائعة';
+	@override String get rename => 'إعادة التسمية';
+	@override String get save => 'حفظ';
+	@override late final _Translations$devices$kinds$ar kinds = _Translations$devices$kinds$ar._(_root);
+	@override String get details => 'تفاصيل الشبكة';
+	@override String get listView => 'قائمة';
+	@override String get meshView => 'شبكة مترابطة';
+	@override String get offlineHeading => 'غير متصل';
+	@override String seen({required Object when}) => 'شوهد ${when}';
+	@override String agoMinutes({required Object n}) => 'قبل ${n} د';
+	@override String agoHours({required Object n}) => 'قبل ${n} س';
+	@override String agoDays({required Object n}) => 'قبل ${n} يوم';
+	@override String get throughVpn => 'عبر VPN';
+	@override String get closer => 'الأقرب = يستجيب أسرع';
+	@override String get yours => 'هل هذا لك؟';
+	@override String get mine => 'لي';
+	@override String get notMine => 'ليس لي';
+	@override String get whatIsIt => 'ما هذا؟';
+	@override String ourGuess({required Object kind}) => 'تخميننا: ${kind}';
+	@override String get groupPersonal => 'الهواتف والحواسيب';
+	@override String get groupHome => 'المنزل والوسائط';
+	@override String get groupNetwork => 'الشبكة والمنزل الذكي';
+	@override String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} متصل',
+	);
+	@override String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} غير متصل',
+	);
+	@override String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} للتأكيد',
+	);
 }
 
 // Path: ping
@@ -524,10 +584,8 @@ class _Translations$ping$ar extends Translations$ping$en {
 	final TranslationsAr _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'المدة التي تستغرقها رحلة ذهاب وإياب واحدة إلى الخادم، تُقاس كل ثانية خلال الدقيقة الأخيرة.\n\nالتذبذب: مقدار اختلاف كل رد عن الذي قبله. التذبذب العالي هو ما يقطع المكالمات.\n\nالفقدان: ردود لم تعد أبدًا.\n\nالطريقة: لا تستطيع تطبيقات Android إرسال ping التقليدي، لذا يقيس كل اختبار زمن إنشاء اتصال، وهو رحلة الذهاب والإياب نفسها.';
 	@override String get askTitle => 'Ping لمضيف';
 	@override String get askHint => 'example.com أو 192.168.1.10';
-	@override String get cancel => 'إلغاء';
 	@override String get title => 'Ping';
 	@override String get router => 'الراوتر';
 	@override String get pause => 'إيقاف مؤقت';
@@ -573,7 +631,6 @@ class _Translations$status$ar extends Translations$status$en {
 	@override String get blocked => 'قد يكون محظورًا على هذه الشبكة';
 	@override String get connect => 'اتصال';
 	@override String get blockedShort => 'محظور';
-	@override String get unreachable => 'يتعذّر الوصول';
 	@override String get now => 'الآن';
 	@override String checks({required Object n}) => '${n} فحوصات';
 	@override String andMore({required Object first, required Object n}) => '${first} و${n} أخرى';
@@ -594,27 +651,35 @@ class _Translations$tools$ar extends Translations$tools$en {
 	@override String get offline => 'غير متصل';
 	@override String get title => 'الأدوات';
 	@override String get networkDesc => 'فحص الأمان، وما تراه المواقع، والإشارة، والراوتر وDNS.';
-	@override String get internet => 'الاتصال بالإنترنت';
+	@override String get internet => 'الإنترنت';
 	@override String get speed => 'اختبار السرعة';
-	@override String get speedDesc => 'سرعة التنزيل والرفع، وجودة الفيديو التي تدعمها.';
+	@override String get speedDesc => 'التنزيل والرفع وجودة الفيديو';
 	@override String get ping => 'Ping';
-	@override String get pingDesc => 'زمن الاستجابة والتذبذب مباشرة إلى أي خادم أو إلى الراوتر.';
+	@override String get pingDesc => 'زمن الاستجابة والتذبذب مباشرة';
 	@override String get status => 'حالة الخدمات';
-	@override String get statusDesc => 'هل يمكن الوصول إلى WhatsApp أو YouTube أو Google من هنا، أم أنها محظورة؟';
+	@override String get statusDesc => 'هل التطبيق متاح أم محظور هنا؟';
 	@override String get trace => 'تتبّع المسار';
-	@override String get traceDesc => 'كل راوتر بينك وبين موقع ما، والوقت الذي يستغرقه كل منها.';
-	@override String get security => 'أمان الشبكة';
+	@override String get traceDesc => 'كل محطة في الطريق إلى موقع';
+	@override String get security => 'هذه الشبكة';
 	@override String get devices => 'الأجهزة على هذه الشبكة';
-	@override String get devicesDesc => 'من غيرك على Wi-Fi: هواتف وتلفاز وكاميرات وحواسيب.';
+	@override String get devicesDesc => 'من على شبكة Wi-Fi لديك';
 	@override String get router => 'فحص الراوتر';
-	@override String get routerDesc => 'هل تستطيع الأجهزة فتح منافذ على الراوتر بنفسها (UPnP).';
+	@override String get routerDesc => 'المنافذ التي فتحتها أجهزتك';
 	@override String get ports => 'المنافذ المفتوحة';
-	@override String get portsDesc => 'افحص الراوتر أو خادمًا بحثًا عن منافذ مفتوحة خطرة.';
-	@override String get utilities => 'أدوات مساعدة';
+	@override String get portsDesc => 'منافذ خطرة على جهاز أو خادم';
+	@override String get utilities => 'أدوات';
 	@override String get wifiScanner => 'ماسح Wi-Fi';
-	@override String get wifiDesc => 'الشبكات القريبة وأمانها والقناة الأقل ازدحامًا.';
+	@override String get wifiDesc => 'الشبكات من حولك وأهدأ قناة';
 	@override String get wol => 'Wake on LAN';
-	@override String get wolDesc => 'شغّل حاسوبًا أو NAS على هذه الشبكة.';
+	@override String get wolDesc => 'تشغيل حاسوب على هذه الشبكة';
+	@override String get passwordCheck => 'فحص كلمة المرور';
+	@override String get passwordCheckDesc => 'هل تسرّبت؟';
+	@override String get linkCheck => 'فحص الرابط';
+	@override String get linkCheckDesc => 'هل فتحه آمن؟';
+	@override String get breaches => 'تسريبات البيانات';
+	@override String get breachesDesc => 'ما الذي تسرّب مؤخرًا';
+	@override String get blocked => 'ما المحجوب';
+	@override String get blockedDesc => 'مواقع محجوبة على هذه الشبكة';
 }
 
 // Path: trace
@@ -640,6 +705,12 @@ class _Translations$trace$ar extends Translations$trace$en {
 	@override String silentMany({required Object n}) => '${n} قفزات صامتة';
 	@override String hop({required Object n}) => 'القفزة ${n}';
 	@override String slowest({required Object ms, required Object hop}) => 'معظم التأخير، ${ms} مللي ثانية، يُضاف عند القفزة ${hop}: غالبًا كابل طويل بين الدول أو رابط مزدحم.';
+	@override String get popular => 'الشائعة';
+	@override String get recent => 'الأخيرة';
+	@override String get clearRecent => 'مسح الأخيرة';
+	@override String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} قفزة',
+	);
 }
 
 // Path: ports
@@ -677,6 +748,11 @@ class _Translations$ports$ar extends Translations$ports$en {
 	@override String checking({required Object n}) => 'جارٍ فحص ${n} منفذًا';
 	@override String yourRouter({required Object ip}) => 'الراوتر الخاص بك هو ${ip}';
 	@override String noneOpen({required Object host}) => 'لا توجد منافذ شائعة مفتوحة على ${host}.';
+	@override String summary({required Object open, required Object n}) => '${open} مفتوح من ${n} تم فحصها';
+	@override String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} خطر',
+	);
+	@override String get noneRisky => 'لا شيء خطر';
 }
 
 // Path: wifi
@@ -695,11 +771,38 @@ class _Translations$wifi$ar extends Translations$wifi$en {
 	@override String get none => 'لم يُعثر على شبكات. قد تكون خدمة الموقع متوقفة.';
 	@override String get hidden => 'شبكة مخفية';
 	@override String nearby({required Object n}) => '${n} شبكات قريبة';
-	@override String bestChannel({required Object n}) => 'القناة الأقل ازدحامًا في 2.4 غيغاهرتز: ${n}';
-	@override String weak({required Object n}) => '${n} مفتوحة أو ضعيفة';
-	@override String get connectedPrefix => 'متصل · ';
 	@override String get permissionInfo => 'لا يعرض Android شبكات Wi-Fi القريبة إلا للتطبيقات التي لديها إذن الموقع. يستخدمه G VPN فقط لعرض الشبكات على هذا الهاتف.';
 	@override String get info => 'يعرض الشبكات من آخر فحص للهاتف. يسمح Android بعدد قليل من الفحوصات في الدقيقة، لذا قد يُظهر الفحص السريع القائمة نفسها. القناة المقترحة هي الأقل ازدحامًا بين 1 و6 و11، وهي القنوات الثلاث غير المتداخلة.';
+	@override String get airMap => 'خريطة الهواء';
+	@override String get channels => 'القنوات';
+	@override String get list => 'القائمة';
+	@override String get secure => 'آمنة';
+	@override String get weakLabel => 'ضعيفة';
+	@override String get openLabel => 'مفتوحة';
+	@override String get sizeIsWidth => 'الحجم = عرض القناة';
+	@override String get strongest => 'الأقوى';
+	@override String get openNearby => 'المفتوحة بالقرب';
+	@override String get onYourChannel => 'على قناتك';
+	@override String get noneNearby => 'لا شيء';
+	@override String get verdictOpen => 'يمكن لأي شخص قريب قراءة ما يُرسل';
+	@override String get verdictWep => 'حماية قديمة وسهلة الكسر';
+	@override String get verdictWpa => 'حماية قديمة';
+	@override String get verdictWps => 'WPS مفعّل: الاختراق أسهل';
+	@override String get verdictGood => 'محمية جيدًا';
+	@override String get maker => 'الشركة المصنّعة';
+	@override String get address => 'العنوان الفعلي';
+	@override String get privateAddress => 'أنشأه الراوتر للخصوصية';
+	@override String get you => 'أنت';
+	@override String onClear({required Object name}) => '${name} على قناة هادئة';
+	@override String move({required Object name, required Object n}) => 'انقل ${name} إلى القناة ${n}';
+	@override String get clear => 'هادئة';
+	@override String get busy => 'مشغولة';
+	@override String get crowded => 'مزدحمة';
+	@override String get allBands => 'كل النطاقات';
+	@override String get openOnly => 'المفتوحة فقط';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} شبكة',
+	);
 }
 
 // Path: errors
@@ -858,10 +961,6 @@ class _Translations$gs$ar extends Translations$gs$en {
 	@override String busy({required Object n}) => 'مشغول ${n}%';
 	@override String get offline => 'غير متصل';
 	@override String get devices => 'أجهزتك';
-	@override String devicesSub({required Object n}) => 'حتى ${n} هواتف، لكل منها مفتاحه';
-	@override String get footnote => 'يحصل كل هاتف على مفتاحه الخاص المُنشأ عليه. لا تحتفظ G Servers بسجلات نشاط.';
-	@override String get leastBusy => 'الأقل انشغالًا الآن';
-	@override String busyNoLogs({required Object n}) => 'مشغول ${n}% · بلا سجلات';
 	@override String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 	@override String get busyLabel => 'الانشغال';
 	@override String get status => 'الحالة';
@@ -890,12 +989,521 @@ class _Translations$gs$ar extends Translations$gs$en {
 	@override String get fullBody => 'أزل هاتفًا لم تعد تستخدمه، وسيتصل هذا الهاتف فورًا.';
 	@override String get busyNow => 'هناك هواتف جديدة كثيرة الآن. حاول مجددًا بعد قليل.';
 	@override String get serverFull => 'هذا الخادم ممتلئ. جرّب خادم G Server آخر.';
-	@override String get ping => 'PING';
+	@override String get ping => 'زمن الاستجابة';
 	@override String get last24 => 'الانشغال، آخر 24 ساعة';
 	@override String get noHistory => 'يمتلئ الرسم مع استخدام الخادم خلال اليوم.';
 	@override String chartLabel({required Object max}) => 'الانشغال خلال آخر 24 ساعة، بحد أقصى ${max} بالمئة';
 	@override String get hoursAgo => 'قبل 24 س';
 	@override String get now => 'الآن';
+	@override String get included => 'مشمول';
+	@override String get perkServers => 'خوادم سريعة وخاصة';
+	@override String get perkServersSub => 'WireGuard، نديرها بأنفسنا، بلا سجلات نشاط';
+	@override String get perkLinks => 'فحص روابط غير محدود';
+	@override String get perkLinksSub => 'افحص كل رابط يصلك';
+	@override String devicesOf({required Object used, required Object limit}) => 'أجهزتك · ${used} من ${limit}';
+	@override String get eachKey => 'لكل هاتف مفتاحه الخاص';
+	@override String get connected => 'متصل';
+	@override String get bestNow => 'الأفضل لك الآن';
+	@override String get logsShort => 'السجلات';
+}
+
+// Path: map
+class _Translations$map$ar extends Translations$map$en {
+	_Translations$map$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get open => 'فتح الخريطة';
+	@override String get searchCountries => 'ابحث عن دولة';
+	@override String get noMatch => 'لا توجد دولة مطابقة';
+	@override String get locate => 'موقعي';
+	@override String get list => 'قائمة';
+	@override String get map => 'خريطة';
+	@override String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		zero: 'لا خوادم مجانية',
+		one: 'خادم مجاني واحد',
+		two: 'خادمان مجانيان',
+		few: '${n} خوادم مجانية',
+		many: '${n} خادمًا مجانيًا',
+		other: '${n} خادم مجاني',
+	);
+	@override late final _Translations$map$grade$ar grade = _Translations$map$grade$ar._(_root);
+	@override String get switchTo => 'تبديل';
+	@override String freeServer({required Object n}) => 'خادم مجاني ${n}';
+	@override String get best => 'الأفضل';
+	@override String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} G Server',
+	);
+}
+
+// Path: stats
+class _Translations$stats$ar extends Translations$stats$en {
+	_Translations$stats$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get thisWeek => 'هذا الأسبوع';
+	@override String get time => 'الوقت';
+	@override String get data => 'البيانات';
+	@override String get protected => 'محمي';
+	@override String get throughVpn => 'عبر VPN';
+	@override String get seeDetails => 'التفاصيل';
+	@override String get title => 'الإحصاءات';
+	@override String get week => 'أسبوع';
+	@override String get month => 'شهر';
+	@override String get protectedLabel => 'محمي';
+	@override String get dataUsed => 'البيانات المستخدمة';
+	@override String get byServer => 'حسب الخادم';
+	@override String get onPhone => 'محفوظة على هذا الهاتف فقط';
+	@override String get reset => 'إعادة الضبط';
+	@override String get resetTitle => 'إعادة ضبط الإحصاءات؟';
+	@override String get resetBody => 'يمحو وقت الحماية والبيانات على هذا الهاتف. لا يمكن التراجع.';
+	@override String hm({required Object h, required Object m}) => '${h} س ${m} د';
+	@override String m({required Object m}) => '${m} د';
+	@override String get empty => 'اتصل لبدء العد.';
+}
+
+// Path: recents
+class _Translations$recents$ar extends Translations$recents$en {
+	_Translations$recents$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'الأخيرة';
+	@override String get allServers => 'كل الخوادم';
+	@override String get free => 'خادم مجاني';
+	@override String get yours => 'خادمك';
+	@override String get gserver => 'G Server';
+}
+
+// Path: presets
+class _Translations$presets$ar extends Translations$presets$en {
+	_Translations$presets$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'الإعدادات الجاهزة';
+	@override String get all => 'الكل';
+	@override String get newPreset => 'إعداد جديد';
+	@override String get edit => 'تعديل الإعداد';
+	@override String get name => 'الاسم';
+	@override String get namePlaceholder => 'إعدادي';
+	@override String get server => 'الخادم';
+	@override String get fastestOption => 'الأسرع';
+	@override String get countryOption => 'الدولة';
+	@override String get pickCountry => 'اختر دولة';
+	@override String get skipMyCountry => 'تجاوز دولتي';
+	@override String get notMine => 'ليست دولتي';
+	@override String get protocol => 'البروتوكول';
+	@override String get auto => 'تلقائي';
+	@override String get tryNext => 'عند الحظر، جرّب الخادم التالي';
+	@override String get shield => 'الدرع';
+	@override String get followRules => 'كما في القواعد';
+	@override String get allApps => 'كل التطبيقات عبر VPN';
+	@override String get allAppsShort => 'كل التطبيقات';
+	@override String get save => 'حفظ';
+	@override String get delete => 'حذف';
+	@override String get reset => 'استعادة الافتراضي';
+	@override String get none => 'لا يوجد خادم مجاني يناسب هذا الإعداد الآن.';
+	@override late final _Translations$presets$names$ar names = _Translations$presets$names$ar._(_root);
+}
+
+// Path: shield
+class _Translations$shield$ar extends Translations$shield$en {
+	_Translations$shield$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'الدرع';
+	@override String get sub => 'يعمل أثناء الاتصال';
+	@override String get off => 'إيقاف';
+	@override String get offSub => 'DNS الخاص بالخادم';
+	@override String get malware => 'البرمجيات الخبيثة';
+	@override String get malwareSub => 'يحظر المواقع الضارة والتصيد';
+	@override String get family => 'البرمجيات الخبيثة ومواقع البالغين';
+	@override String get familySub => 'يحظر محتوى البالغين أيضًا';
+	@override String get custom => 'DNS مخصص';
+	@override String get customSub => 'خوادم DNS الخاصة بك';
+	@override String get customHint => 'عنوان IP، مثل 1.1.1.1';
+	@override String get invalid => 'أدخل عنوان IP واحدًا أو اثنين.';
+}
+
+// Path: checks
+class _Translations$checks$ar extends Translations$checks$en {
+	_Translations$checks$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'فحوصات الأمان';
+	@override String get password => 'كلمة المرور';
+	@override String get link => 'الرابط';
+	@override String get pwTitle => 'هل تسرّبت؟';
+	@override String get pwHint => 'كلمة المرور للفحص';
+	@override String get showPassword => 'إظهار كلمة المرور';
+	@override String get hidePassword => 'إخفاء كلمة المرور';
+	@override String get check => 'افحص';
+	@override String get leaked => 'موجودة في التسريبات';
+	@override String seen({required Object n}) => 'ظهرت ${n} مرة';
+	@override String get leakedAdvice => 'غيّرها في كل مكان تستخدمها فيه، بدءًا بالبريد والبنك.';
+	@override String get notFound => 'غير موجودة في التسريبات المعروفة';
+	@override String get notFoundAdvice => 'علامة جيدة وليست ضمانًا. استخدم كلمة مرور مختلفة لكل حساب.';
+	@override String get failed => 'تعذّر الفحص. حاول مجددًا.';
+	@override String get private => 'كلمة مرورك لا تغادر هذا الهاتف أبدًا';
+	@override String get linkTitle => 'هل هذا الرابط آمن؟';
+	@override String get linkHint => 'الرابط للفحص';
+	@override String get paste => 'لصق';
+	@override String get danger => 'رابط خطير';
+	@override String get dangerAdvice => 'لا تفتحه ولا تُدخل أي بيانات.';
+	@override String get clear => 'ليس في القوائم المعروفة للبرمجيات الخبيثة أو التصيّد';
+	@override String get clearAdvice => 'ومع ذلك، تحقّق من العنوان قبل تسجيل الدخول.';
+	@override String get goesTo => 'يؤدي إلى';
+	@override String get redirects => 'عمليات التحويل';
+	@override String get invalid => 'هذا لا يبدو عنوان ويب.';
+	@override String get busy => 'فحوصات كثيرة. حاول بعد قليل.';
+	@override String get unavailable => 'فحص الروابط غير متاح الآن.';
+	@override String get listed => 'معروف بالبرمجيات الخبيثة أو التصيّد';
+	@override String get missing => 'لا يوجد موقع على هذا العنوان';
+	@override String get missingAdvice => 'تحقّق من الكتابة: يستخدم المحتالون عناوين متشابهة.';
+	@override String left({required Object n, required Object total}) => 'تبقّى ${n} من ${total} فحوصات مجانية هذا الشهر';
+	@override String get usedUp => 'استخدمت فحوصات الروابط المجانية لهذا الشهر';
+	@override String get usedUpSub => 'في Pro فحوصات بلا حد. تعود الفحوصات المجانية في اليوم الأول من الشهر.';
+	@override String get getPro => 'احصل على Pro';
+}
+
+// Path: toolSettings
+class _Translations$toolSettings$ar extends Translations$toolSettings$en {
+	_Translations$toolSettings$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'إعدادات الأدوات';
+	@override String get askMobile => 'اسأل قبل اختبار السرعة على بيانات الجوال';
+	@override String get askMobileSub => 'قد يستهلك الاختبار أكثر من 100 ميغابايت على اتصال سريع';
+	@override String get mobileTitle => 'استخدام بيانات الجوال؟';
+	@override String get mobileBody => 'قد يستهلك اختبار السرعة أكثر من 100 ميغابايت على اتصال سريع.';
+	@override String get mobileGo => 'اختبار';
+	@override String get safe => 'آمنة';
+	@override String get unsafe => 'غير آمنة';
+	@override String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} جهاز',
+	);
+	@override String get hideMac => 'إخفاء العناوين الفعلية';
+	@override String get hideMacSub => 'عرض جزء الشركة المصنّعة فقط من عناوين MAC';
+	@override String get names => 'إظهار أسماء الراوترات والخوادم';
+	@override String get namesSub => 'يبحث عن أسماء العناوين في Traceroute';
+	@override String get remember => 'تذكّر المضيفين الأخيرين';
+	@override String get rememberSub => 'لـ Traceroute';
+	@override String get clear => 'مسح سجل الأدوات';
+	@override String get clearSub => 'ينسى المضيفين الأخيرين والأجهزة في كل شبكة';
+	@override String get clearGo => 'مسح';
+}
+
+// Path: security
+class _Translations$security$ar extends Translations$security$en {
+	_Translations$security$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'الأمان';
+	@override String get good => 'جيد';
+	@override String get fair => 'مقبول';
+	@override String get atRisk => 'في خطر';
+	@override String get allClear => 'لا شيء لإصلاحه';
+	@override String checked({required Object time}) => 'فُحصت الساعة ${time}';
+	@override String get trend => 'آخر أسبوعين';
+	@override String get checking => 'جارٍ فحص هذه الشبكة';
+	@override String get snoozed => 'مؤجلة';
+	@override String get remindLater => 'ذكّرني لاحقًا';
+	@override String get unsnooze => 'ذكّرني الآن';
+	@override String get review => 'مراجعة';
+	@override String get confirmGo => 'تأكيد';
+	@override String get scanGo => 'فحص';
+	@override String get look => 'عرض';
+	@override String get connectGo => 'اتصال';
+	@override String get checkAgain => 'افحص مجددًا';
+	@override String get wifiOpen => 'شبكة Wi-Fi مفتوحة';
+	@override String get wifiOpenDetail => 'يمكن لأي شخص قريب رؤية ما يُرسل';
+	@override String get wifiWep => 'الشبكة تستخدم WEP';
+	@override String get wifiWepDetail => 'حماية قديمة وسهلة الكسر';
+	@override String get wifiOwe => 'الشبكة تستخدم Enhanced Open';
+	@override String get wifiOweDetail => 'مشفّرة لكن يمكن لأي شخص الانضمام';
+	@override String get wifiSecure => 'تشفير Wi-Fi';
+	@override String get wifiUnknown => 'أمان Wi-Fi غير معروف';
+	@override String get wifiUnknownDetail => 'لم يذكر Android طريقة الحماية';
+	@override String get wps => 'WPS مفعّل';
+	@override String get wpsDetail => 'أوقفه من إعدادات الراوتر';
+	@override String get upnpOff => 'الراوتر يبقي المنافذ مغلقة';
+	@override String get upnpOffDetail => 'UPnP متوقف';
+	@override String get upnpOn => 'الراوتر يسمح للأجهزة بفتح منافذ';
+	@override String get upnpOnDetail => 'UPnP مفعّل';
+	@override String get portsOk => 'لا منافذ خطرة على الراوتر';
+	@override String get portsRisky => 'منافذ خطرة مفتوحة على الراوتر';
+	@override String get scanFirst => 'افحص لترى من هنا';
+	@override String get scanFirstDetail => 'الأجهزة المجهولة تخفض النتيجة';
+	@override String get notMineDetail => 'راجع قائمة أجهزة الراوتر';
+	@override String get confirmDetail => 'حدّد أجهزتك';
+	@override String get devicesOk => 'كل الأجهزة معروفة';
+	@override String get devicesOkDetail => 'أكدت كل جهاز';
+	@override String get camera => 'توجد كاميرا على هذه الشبكة';
+	@override String get dnsHijack => 'تُعاد توجيه الأسماء المجهولة';
+	@override String get dnsHijackDetail => 'مزوّدك أو الراوتر يعيد كتابة الاستعلامات';
+	@override String get dnsOk => 'DNS يجيب بشكل طبيعي';
+	@override String get dnsOkDetail => 'لا أثر لإعادة التوجيه';
+	@override String get vpnOn => 'VPN مفعّل';
+	@override String get vpnOnDetail => 'تخرج البيانات عبر النفق';
+	@override String get vpnOff => 'VPN متوقف';
+	@override String get vpnOffDetail => 'مزوّدك يرى كل موقع';
+	@override String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} أمور لإصلاحها',
+	);
+	@override String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} منافذ فتحتها الأجهزة',
+	);
+	@override String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} منافذ فُحصت',
+	);
+	@override String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} أجهزة ليست لك',
+	);
+	@override String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} أجهزة للتأكيد',
+	);
+}
+
+// Path: providers
+class _Translations$providers$ar extends Translations$providers$en {
+	_Translations$providers$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'الإنترنت';
+	@override String get unavailable => 'تعذّر تحميل قائمة المزوّدين. تحقق من اتصالك.';
+	@override String get cached => 'حسب آخر فحص بدون VPN';
+	@override String get notEnough => 'لا توجد تقييمات كافية بعد';
+	@override String get yourRating => 'تقييمك هذا الشهر';
+	@override String get yourSpeed => 'سرعتك';
+	@override String get runTest => 'إجراء اختبار سرعة';
+	@override String get aboutAverage => 'قريب من المتوسط هنا';
+	@override String aboveAverage({required Object pct}) => 'أعلى من المتوسط المحلي بنسبة ${pct}٪';
+	@override String belowAverage({required Object pct}) => 'أقل من المتوسط المحلي بنسبة ${pct}٪';
+	@override String get call => 'اتصال';
+	@override String get website => 'الموقع';
+	@override String get outages => 'الأعطال';
+	@override String get rate => 'قيّم';
+	@override String get changeRating => 'تغيير التقييم';
+	@override String get compare => 'قارن';
+	@override String rateTitle({required Object name}) => 'قيّم ${name}';
+	@override String get oncePerMonth => 'تقييم واحد شهريًا';
+	@override String get tapStars => 'اضغط على النجوم';
+	@override String verified({required Object mbps}) => 'موثّق باختبار سرعتك: ${mbps} ميغابت/ث';
+	@override String get busy => 'تقييمات كثيرة من هنا. حاول لاحقًا.';
+	@override String get failed => 'تعذّر الإرسال. حاول مجددًا.';
+	@override String get post => 'إرسال التقييم';
+	@override String get nearTitle => 'مزوّدون بالقرب منك';
+	@override String slower({required Object pct}) => 'التنزيل لديك أقل بنسبة ${pct}٪ من متوسط مزوّدك هنا';
+	@override String inPlace({required Object place}) => 'الإنترنت المنزلي في ${place}';
+	@override String get byRating => 'التقييم';
+	@override String get bySpeed => 'السرعة';
+	@override String get footnote => 'السرعات متوسطات اختبارات G VPN';
+	@override String get noneNearby => 'لا تقييمات قريبة بعد. كن الأول.';
+	@override String get you => 'أنت';
+	@override String get topRated => 'الأعلى تقييمًا';
+	@override String starsOf({required Object n}) => '${n} من 5';
+	@override late final _Translations$providers$tags$ar tags = _Translations$providers$tags$ar._(_root);
+	@override late final _Translations$providers$words$ar words = _Translations$providers$words$ar._(_root);
+	@override String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} تقييمات',
+	);
+}
+
+// Path: alerts
+class _Translations$alerts$ar extends Translations$alerts$en {
+	_Translations$alerts$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get channel => 'التنبيهات';
+	@override String get title => 'التنبيهات';
+	@override String get markAllRead => 'تعليم الكل كمقروء';
+	@override String get clearAll => 'مسح الكل';
+	@override String get thisNetwork => 'هذه الشبكة';
+	@override String openWifiTitle({required Object name}) => 'اتصلت بشبكة Wi-Fi مفتوحة: ${name}';
+	@override String get openWifiBody => 'يمكن لأي شخص قريب رؤية ما يُرسل. شغّل G VPN.';
+	@override String get reportTitle => 'تقريرك الأسبوعي جاهز';
+	@override String reportBody({required Object hours}) => '${hours} ساعات حماية الأسبوع الماضي';
+	@override String blockedTitle({required Object name}) => '${name} محظور هنا';
+	@override String get blockedBody => 'يعمل عبر VPN';
+	@override late final _Translations$alerts$kinds$ar kinds = _Translations$alerts$kinds$ar._(_root);
+	@override String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} أجهزة جديدة على ${network}',
+	);
+	@override String get settings => 'إعدادات التنبيهات';
+	@override String get look => 'عرض';
+	@override String get read => 'قراءة';
+	@override String get open => 'فتح';
+	@override String get check => 'فحص';
+	@override String get today => 'اليوم';
+	@override String get thisWeek => 'هذا الأسبوع';
+	@override String get earlier => 'سابقًا';
+	@override String get all => 'الكل';
+	@override String get quiet => 'كل شيء هادئ';
+	@override String get quietSub => 'لم يحتج إليك شيء مؤخرًا';
+	@override String breachTitle({required Object name}) => 'تسريب جديد: ${name}';
+	@override late final _Translations$alerts$status$ar status = _Translations$alerts$status$ar._(_root);
+}
+
+// Path: report
+class _Translations$report$ar extends Translations$report$en {
+	_Translations$report$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'التقرير الأسبوعي';
+	@override String get share => 'مشاركة كصورة';
+	@override String get shareText => 'أسبوعي مع G VPN';
+	@override String get safer => 'أسبوع أكثر أمانًا';
+	@override String get moreProtected => 'حماية أكثر من الأسبوع الماضي';
+	@override String get yourWeek => 'أسبوعك';
+	@override String soFar({required Object range}) => '${range}، حتى الآن';
+	@override String get protected => 'محمي';
+	@override String get data => 'البيانات';
+	@override String get security => 'الأمان';
+	@override String get speed => 'أفضل سرعة';
+	@override String get noScore => 'لم يُفحص';
+	@override String get noTest => 'لا اختبار';
+	@override String get bestDirect => 'اختبار مباشر';
+	@override String moreThan({required Object d}) => 'أكثر بـ ${d} من الأسبوع الماضي';
+	@override String lessThan({required Object d}) => 'أقل بـ ${d} من الأسبوع الماضي';
+	@override String get protectedTime => 'وقت الحماية';
+	@override String mostUsed({required Object name}) => 'الأكثر استخدامًا: ${name}';
+	@override String get quiet => 'أسبوع هادئ: لم يحتج شيء إليك';
+	@override String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: 'انضمت ${n} أجهزة جديدة',
+	);
+	@override String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: 'اتصلت بـ ${n} شبكات Wi-Fi مفتوحة',
+	);
+	@override String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} تطبيقات محظورة',
+	);
+	@override String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} تسريبات كبيرة جديدة',
+	);
+}
+
+// Path: breaches
+class _Translations$breaches$ar extends Translations$breaches$en {
+	_Translations$breaches$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'تسريبات البيانات';
+	@override String get info => 'أحدث تسريبات البيانات من القائمة العامة لـ Have I Been Pwned. لا يُرسل شيء عنك: القائمة واحدة للجميع.\n\nإن كان لديك حساب في موقع مُسرَّب فغيّر تلك الكلمة، وكل مكان استخدمتها فيه.';
+	@override String get unavailable => 'تعذّر تحميل القائمة. تحقق من اتصالك.';
+	@override String get biggest => 'الأكبر هذا الشهر';
+	@override String get newest => 'الأحدث';
+	@override String get biggestSort => 'الأكبر';
+	@override String get withPasswords => 'مع كلمات مرور';
+	@override String get passwordsMark => 'كلمات مرور';
+	@override String get one => 'تسريب';
+	@override String get checkPassword => 'فحص كلمة مرور';
+	@override String get verified => 'موثّق';
+	@override String get hasPasswords => 'يحتوي كلمات مرور';
+	@override String get accountsLabel => 'الحسابات';
+	@override String get happened => 'حدث';
+	@override String get published => 'نُشر';
+	@override String get website => 'الموقع';
+	@override String get leaked => 'ما الذي تسرّب';
+	@override String get ifUsed => 'إن كنت تستخدمه';
+	@override String get stepPassword => 'غيّر كلمة المرور التي استخدمتها هناك';
+	@override String get stepReuse => 'غيّرها حيثما استخدمت الكلمة نفسها';
+	@override String get stepTwoStep => 'فعّل التحقق بخطوتين حيث أمكن';
+	@override String get stepScams => 'توقّع مكالمات ورسائل احتيال';
+	@override String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${count} حساب',
+	);
+	@override String worldwide({required Object n}) => 'عالميًا · ${n}';
+	@override String get noneHere => 'لا تسريبات من هنا في القائمة الأخيرة.';
+	@override String get bigMap => 'خريطة أكبر';
+	@override String get showInList => 'عرض في القائمة';
+	@override String get mapTitle => 'خريطة التسريبات';
+	@override String get zoomIn => 'تكبير';
+	@override String get zoomOut => 'تصغير';
+	@override String get wholeWorld => 'العالم كله';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} تسريبات',
+	);
+	@override String get findCountry => 'ابحث عن دولة';
+	@override String get seeAll => 'عرض الكل';
+	@override String get search => 'ابحث في التسريبات';
+}
+
+// Path: blocked
+class _Translations$blocked$ar extends Translations$blocked$en {
+	_Translations$blocked$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ما المحجوب';
+	@override String get info => 'يختبر مواقع معروفة من هذا الهاتف، دون VPN، ويبيّن أيها تحجبه هذه الشبكة وكيف.\n\nعنوان مزيف: بحث الأسماء في الشبكة يعطي إجابة خاطئة.\n\nمقطوع: يُقطع الاتصال عند بدايته.\n\nلا إجابة: لا يعود شيء.\n\nصفحة حجب: يجيب شيء آخر مكان الموقع.\n\nيبيّن الاختبار أين الموقع محجوب، لا من حجبه. لا يُحفظ أو يُرسل أي شيء.';
+	@override String get thisNetwork => 'هذه الشبكة';
+	@override String get country => 'بلدك';
+	@override String get question => 'ما المحجوب هنا؟';
+	@override String get testingOn => 'الاختبار على';
+	@override String get vpnOn => 'VPN مفعّل';
+	@override String get turnOff => 'أوقف G VPN للاختبار';
+	@override String get test => 'اختبر هذه الشبكة';
+	@override String get stop => 'إيقاف';
+	@override String sitesToTest({required Object n}) => 'مواقع للاختبار · ${n}';
+	@override String ofSites({required Object n}) => 'من ${n} موقعًا';
+	@override String blockedCount({required Object n}) => '${n} محجوب';
+	@override String openCount({required Object n}) => '${n} مفتوح';
+	@override String noneBlocked({required Object network}) => 'لا شيء محجوب على ${network}';
+	@override String openOf({required Object open, required Object total}) => '${open} من ${total} مفتوحة';
+	@override String get allWork => 'كلها تعمل مع G VPN';
+	@override String get blockedHeading => 'محجوب';
+	@override String get byKind => 'حسب النوع';
+	@override String get worksVpn => 'يعمل مع VPN';
+	@override String get failsVpn => 'محجوب حتى مع VPN';
+	@override String get checkVpn => 'تحقق عبر G VPN';
+	@override String get connect => 'اتصل بـ G VPN';
+	@override String get again => 'اختبر مجددًا';
+	@override String get withoutVpn => 'دون VPN';
+	@override String get throughVpn => 'عبر G VPN';
+	@override String get notChecked => 'لم يُتحقق';
+	@override String get opens => 'يفتح';
+	@override String get stillBlocked => 'محجوب';
+	@override String get whatHappened => 'ما الذي حدث';
+	@override String countryBlocked({required Object country}) => 'موقعًا محجوبًا في ${country}';
+	@override String get countrySub => 'وجدتها اختبارات المتطوعين في آخر 30 يومًا';
+	@override String get countryNone => 'لا مواقع محجوبة مُبلّغ عنها في آخر 30 يومًا.';
+	@override String get countryUnavailable => 'تعذّر تحميل نتائج البلد. تحقق من اتصالك.';
+	@override String get confirmed => 'محجوب';
+	@override String get oftenFails => 'يفشل كثيرًا';
+	@override late final _Translations$blocked$kinds$ar kinds = _Translations$blocked$kinds$ar._(_root);
+	@override late final _Translations$blocked$how$ar how = _Translations$blocked$how$ar._(_root);
+	@override late final _Translations$blocked$fail$ar fail = _Translations$blocked$fail$ar._(_root);
+	@override late final _Translations$blocked$steps$ar steps = _Translations$blocked$steps$ar._(_root);
+	@override late final _Translations$blocked$consent$ar consent = _Translations$blocked$consent$ar._(_root);
+	@override String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} مواقع محجوبة على ${network}',
+	);
+	@override String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n,
+		other: '${n} اختبارات',
+	);
 }
 
 // Path: home.status
@@ -911,18 +1519,6 @@ class _Translations$home$status$ar extends Translations$home$status$en {
 	@override String get connecting => 'جارٍ الاتصال';
 	@override String get stopping => 'جارٍ الإيقاف';
 	@override String get notProtected => 'غير محمي';
-}
-
-// Path: home.waves
-class _Translations$home$waves$ar extends Translations$home$waves$en {
-	_Translations$home$waves$ar._(TranslationsAr root) : this._root = root, super.internal(root);
-
-	final TranslationsAr _root; // ignore: unused_field
-
-	// Translations
-	@override String get encrypted => 'مشفّر';
-	@override String get securing => 'جارٍ التأمين';
-	@override String get exposed => 'مكشوف';
 }
 
 // Path: home.network
@@ -946,11 +1542,6 @@ class _Translations$home$card$ar extends Translations$home$card$en {
 	final TranslationsAr _root; // ignore: unused_field
 
 	// Translations
-	@override String get connectedVia => 'متصل عبر';
-	@override String get protocol => 'البروتوكول';
-	@override String get dns => 'DNS';
-	@override String get dnsQuad9 => 'Quad9، داخل النفق';
-	@override String get dnsServer => 'الخادم، داخل النفق';
 	@override String get downloaded => 'تم تنزيله';
 	@override String get uploaded => 'تم رفعه';
 	@override String get wireguard => 'WireGuard';
@@ -971,7 +1562,6 @@ class _Translations$home$tiles$ar extends Translations$home$tiles$en {
 
 	// Translations
 	@override String get shield => 'الدرع';
-	@override String get shieldOn => 'يحظر المواقع الضارة';
 	@override String get appsDirect => 'تطبيقات مباشرة';
 	@override String get appsAll => 'كل التطبيقات محمية';
 	@override String appsSkip({required Object n}) => '${n} دون VPN';
@@ -1120,11 +1710,180 @@ class _Translations$rules$info$ar extends Translations$rules$info$en {
 	final TranslationsAr _root; // ignore: unused_field
 
 	// Translations
-	@override String get shield => 'يرسل الدرع استعلامات DNS إلى Quad9 الذي يرفض مواقع البرامج الضارة والتصيّد المعروفة. لا يحظر الإعلانات، ويحلّ محل DNS الخادم أثناء تشغيله.';
+	@override String get shield => 'يرشّح الدرع طلبات DNS أثناء الاتصال: Quad9 يحظر البرمجيات الخبيثة والتصيد، وCloudflare for Families يحظر مواقع البالغين أيضًا، أو استخدم DNS الخاص بك. لا يحظر الإعلانات أبدًا.';
 	@override String get autoConnect => 'الاتصال التلقائي: يستخدم خادم WireGuard الذي اخترته. قطع الاتصال يدويًا يوقفه مؤقتًا حتى تنضم إلى شبكة أخرى.';
 	@override String get apps => 'التطبيقات المباشرة: التطبيقات المستثناة من VPN تتصل مباشرة. كثيرًا ما تحظر البنوك عناوين VPN، لذا قد تفشل المدفوعات عبر VPN.';
 	@override String get reconnect => 'تغيير الدرع أو التطبيقات يعيد اتصال VPN للحظة.';
 	@override String get stay => 'البقاء متصلًا: بعض الهواتف توقف التطبيقات في الخلفية لتوفير البطارية. يبقي VPN الدائم وإعداد البطارية غير المقيّد تطبيق G VPN يعمل.';
+}
+
+// Path: devices.kinds
+class _Translations$devices$kinds$ar extends Translations$devices$kinds$en {
+	_Translations$devices$kinds$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get phone => 'هاتف';
+	@override String get computer => 'حاسوب';
+	@override String get tv => 'تلفاز';
+	@override String get speaker => 'سماعة';
+	@override String get printer => 'طابعة';
+	@override String get camera => 'كاميرا';
+	@override String get smartHome => 'منزل ذكي';
+	@override String get router => 'راوتر';
+	@override String get unknown => 'لم يعرّف نفسه';
+}
+
+// Path: map.grade
+class _Translations$map$grade$ar extends Translations$map$grade$en {
+	_Translations$map$grade$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'سريع';
+	@override String get good => 'جيد';
+	@override String get slow => 'بطيء';
+}
+
+// Path: presets.names
+class _Translations$presets$names$ar extends Translations$presets$names$en {
+	_Translations$presets$names$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fastest => 'الأسرع';
+	@override String get unblock => 'فك الحظر';
+	@override String get streaming => 'البث';
+	@override String get privacy => 'أقصى خصوصية';
+}
+
+// Path: providers.tags
+class _Translations$providers$tags$ar extends Translations$providers$tags$en {
+	_Translations$providers$tags$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'سريع';
+	@override String get reliable => 'موثوق';
+	@override String get support => 'دعم جيد';
+	@override String get price => 'سعر عادل';
+	@override String get slowEvenings => 'بطيء مساءً';
+	@override String get drops => 'ينقطع كثيرًا';
+	@override String get poorSupport => 'دعم سيئ';
+	@override String get pricey => 'مكلف';
+}
+
+// Path: providers.words
+class _Translations$providers$words$ar extends Translations$providers$words$en {
+	_Translations$providers$words$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get bad => 'سيئ';
+	@override String get poor => 'ضعيف';
+	@override String get okay => 'مقبول';
+	@override String get good => 'جيد';
+	@override String get great => 'ممتاز';
+}
+
+// Path: alerts.kinds
+class _Translations$alerts$kinds$ar extends Translations$alerts$kinds$en {
+	_Translations$alerts$kinds$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get newDevice => 'أجهزة جديدة على شبكتي';
+	@override String get openWifi => 'Wi-Fi مفتوحة أو ضعيفة';
+	@override String get blocked => 'تطبيقات محظورة';
+	@override String get report => 'التقرير الأسبوعي';
+	@override String get breach => 'التسريبات';
+}
+
+// Path: alerts.status
+class _Translations$alerts$status$ar extends Translations$alerts$status$en {
+	_Translations$alerts$status$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get background => 'كل بضع ساعات';
+	@override String checked({required Object time}) => 'فُحص الساعة ${time}';
+	@override String get wifi => 'كل شبكة تنضم إليها';
+	@override String get blocked => 'عند فحص حالة الخدمات';
+	@override String get report => 'كل يوم اثنين';
+}
+
+// Path: blocked.kinds
+class _Translations$blocked$kinds$ar extends Translations$blocked$kinds$en {
+	_Translations$blocked$kinds$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get social => 'التواصل الاجتماعي';
+	@override String get messaging => 'المراسلة';
+	@override String get news => 'الأخبار';
+	@override String get video => 'الفيديو والموسيقى';
+	@override String get privacy => 'أدوات الخصوصية';
+}
+
+// Path: blocked.how
+class _Translations$blocked$how$ar extends Translations$blocked$how$en {
+	_Translations$blocked$how$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get dns => 'عنوان مزيف';
+	@override String get reset => 'مقطوع';
+	@override String get timeout => 'لا إجابة';
+	@override String get page => 'صفحة حجب';
+	@override String get open => 'مفتوح';
+}
+
+// Path: blocked.fail
+class _Translations$blocked$fail$ar extends Translations$blocked$fail$en {
+	_Translations$blocked$fail$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get noAnswer => 'لا إجابة';
+	@override String get refused => 'مرفوض';
+	@override String cutOff({required Object s}) => 'قُطع بعد ${s} ث';
+	@override String get wrongCert => 'شهادة خاطئة';
+}
+
+// Path: blocked.steps
+class _Translations$blocked$steps$ar extends Translations$blocked$steps$en {
+	_Translations$blocked$steps$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get lookup => 'بحث الاسم';
+	@override String get connect => 'الاتصال';
+	@override String get handshake => 'المصافحة الآمنة';
+}
+
+// Path: blocked.consent
+class _Translations$blocked$consent$ar extends Translations$blocked$consent$en {
+	_Translations$blocked$consent$ar._(TranslationsAr root) : this._root = root, super.internal(root);
+
+	final TranslationsAr _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'قبل الاختبار الأول';
+	@override String get body => 'يفتح الاختبار كل موقع من هذا الهاتف، دون VPN، كما يفعل المتصفح.';
+	@override String get noticeTitle => 'قد يُلاحَظ';
+	@override String get notice => 'يرى مزوّدك فتح هذه المواقع. في بعض البلدان قد تلفت زيارتها الانتباه حتى للاختبار. اختبر فقط حيث تشعر بالأمان.';
+	@override String get ok => 'فهمت، اختبر';
 }
 
 /// The flat map containing all translations for locale <ar>.
@@ -1161,8 +1920,6 @@ extension on TranslationsAr {
 			'home.status.stopping' => 'جارٍ الإيقاف',
 			'home.status.notProtected' => 'غير محمي',
 			'home.resumesAt' => ({required Object time}) => 'يُستأنف عند ${time} · اضغط للاستئناف الآن',
-			'home.sitesSee' => ({required Object ip}) => 'المواقع ترى ${ip}',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'المواقع ترى ${ip} · ${org}',
 			'home.ipFailed' => 'تعذّر التحقق من عنوان IP',
 			'home.ipChecking' => 'جارٍ التحقق من عنوان IP',
 			'home.themeSystem' => 'المظهر: حسب الهاتف',
@@ -1170,19 +1927,11 @@ extension on TranslationsAr {
 			'home.themeDark' => 'المظهر: داكن',
 			'home.free' => 'مجاني',
 			'home.pickServer' => 'اختر خادمًا',
-			'home.waves.encrypted' => 'مشفّر',
-			'home.waves.securing' => 'جارٍ التأمين',
-			'home.waves.exposed' => 'مكشوف',
 			'home.network.title' => 'هذه الشبكة',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'غير متصل',
 			'home.network.showName' => 'إظهار الاسم',
 			'home.network.scanFailed' => 'فشل الفحص. سيُعاد عند تغيّر الشبكة.',
-			'home.card.connectedVia' => 'متصل عبر',
-			'home.card.protocol' => 'البروتوكول',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9، داخل النفق',
-			'home.card.dnsServer' => 'الخادم، داخل النفق',
 			'home.card.downloaded' => 'تم تنزيله',
 			'home.card.uploaded' => 'تم رفعه',
 			'home.card.wireguard' => 'WireGuard',
@@ -1194,7 +1943,6 @@ extension on TranslationsAr {
 			'home.card.enabled' => 'مفعّل',
 			'home.card.shield' => 'الدرع',
 			'home.tiles.shield' => 'الدرع',
-			'home.tiles.shieldOn' => 'يحظر المواقع الضارة',
 			'home.tiles.appsDirect' => 'تطبيقات مباشرة',
 			'home.tiles.appsAll' => 'كل التطبيقات محمية',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} دون VPN',
@@ -1276,19 +2024,22 @@ extension on TranslationsAr {
 			'servers.lastUsed' => ({required Object when}) => 'آخر استخدام ${when}',
 			'servers.disconnectFirst' => 'اقطع الاتصال أولًا لإزالته',
 			'servers.removeConfirm' => 'إزالة هذا الخادم من G VPN؟ تُحذف إعداداته من هذا الهاتف؛ ولا يتغيّر الخادم نفسه.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'ابحث عن دولة',
+			'servers.noMatch' => 'لا خوادم مطابقة.',
+			'servers.bestPing' => ({required Object ms}) => 'الأفضل ${ms} مللي ث',
+			'servers.bestTag' => 'الأفضل',
+			'servers.ownHero' => 'خوادمنا',
+			'servers.ownHeroSub' => 'أسرع وخاصة، لكل هاتف مفتاحه',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} خوادم', ), 
+			'servers.showAll' => ({required Object n}) => 'عرض الكل ${n}',
+			'servers.showFewer' => 'عرض أقل',
+			'servers.fastTab' => 'سريعة',
+			'servers.fastestFree' => 'الأسرع المجانية',
 			'pro.owned' => 'لديك Pro',
 			'pro.waitingPlay' => 'بانتظار Google Play',
 			'pro.startTrial' => ({required Object days}) => 'ابدأ تجربة مجانية لمدة ${days} يومًا',
-			'pro.thenYearly' => ({required Object price}) => 'ثم ${price} سنويًا. ألغِ في أي وقت من Google Play.',
-			'pro.thenMonthly' => ({required Object price}) => 'ثم ${price} شهريًا. ألغِ في أي وقت من Google Play.',
-			'pro.yearlyPrice' => ({required Object price}) => '${price} سنويًا. ألغِ في أي وقت من Google Play.',
-			'pro.monthlyPrice' => ({required Object price}) => '${price} شهريًا. ألغِ في أي وقت من Google Play.',
 			'pro.restore' => 'استعادة',
-			'pro.heroTitle' => 'خوادم أسرع،\nنديرها بأنفسنا',
-			'pro.heroSubtitle' => 'WireGuard. بلا سجلات نشاط. بلا حساب.',
-			'pro.benefitSpeed' => 'سرعة كاملة، بلا قيود الخوادم التطوعية',
-			'pro.benefitKey' => 'المفتاح يُنشأ على هاتفك ولا يُشارَك أبدًا',
-			'pro.benefitFree' => 'كل ما هو مجاني يبقى مجانيًا',
 			'pro.save' => ({required Object pct}) => 'وفّر ${pct}%',
 			'pro.yearly' => 'سنوي',
 			'pro.monthly' => 'شهري',
@@ -1296,10 +2047,6 @@ extension on TranslationsAr {
 			'pro.daysFree' => ({required Object days}) => '${days} يومًا مجانًا',
 			'pro.perMonth' => ({required Object price}) => '${price} شهريًا',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'خوادم أسرع نديرها بأنفسنا',
-			'pro.includes' => 'يشمل',
-			'pro.benefitLogs' => 'بلا سجلات نشاط على خوادمنا',
-			'pro.plan' => 'اختر خطة',
 			'pro.renewGeneric' => 'تتجدد الاشتراكات تلقائيًا حتى إلغائها. ألغِ في أي وقت من Google Play.',
 			'pro.renewTrial' => ({required Object days, required Object price, required Object period}) => '${days} يومًا مجانًا، ثم ${price} لكل ${period}. يتجدد تلقائيًا حتى الإلغاء؛ ألغِ من Google Play قبل انتهاء التجربة بيوم على الأقل لتجنّب الدفع.',
 			'pro.renew' => ({required Object price, required Object period}) => '${price} لكل ${period}. يتجدد تلقائيًا حتى الإلغاء؛ ألغِ في أي وقت من Google Play.',
@@ -1323,15 +2070,24 @@ extension on TranslationsAr {
 			'pro.free.tools' => 'كل أدوات الشبكة',
 			'pro.free.toolsSub' => 'اختبار السرعة وping وحالة الخدمات وتتبّع المسار والأجهزة والمزيد',
 			'pro.free.later' => 'سيضيف G VPN Pro خوادم أسرع نديرها بأنفسنا. كل ما سبق يبقى مجانيًا.',
+			'pro.heroLine' => 'خوادمنا السريعة، وكل الفحوصات بلا حد',
+			'pro.start' => 'ابدأ Pro',
+			'pro.compareFree' => 'مجاني',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'خوادم مجانية',
+			'pro.rowTools' => 'اختبار السرعة والأدوات وفحص Wi-Fi',
+			'pro.rowGServers' => 'G Servers بلا سجلات',
+			'pro.rowLinks' => 'فحص الروابط',
+			'pro.linksFree' => ({required Object n}) => '${n} شهريًا',
+			'pro.unlimited' => 'بلا حد',
 			'rules.title' => 'القواعد',
-			'rules.info.shield' => 'يرسل الدرع استعلامات DNS إلى Quad9 الذي يرفض مواقع البرامج الضارة والتصيّد المعروفة. لا يحظر الإعلانات، ويحلّ محل DNS الخادم أثناء تشغيله.',
+			'rules.info.shield' => 'يرشّح الدرع طلبات DNS أثناء الاتصال: Quad9 يحظر البرمجيات الخبيثة والتصيد، وCloudflare for Families يحظر مواقع البالغين أيضًا، أو استخدم DNS الخاص بك. لا يحظر الإعلانات أبدًا.',
 			'rules.info.autoConnect' => 'الاتصال التلقائي: يستخدم خادم WireGuard الذي اخترته. قطع الاتصال يدويًا يوقفه مؤقتًا حتى تنضم إلى شبكة أخرى.',
 			'rules.info.apps' => 'التطبيقات المباشرة: التطبيقات المستثناة من VPN تتصل مباشرة. كثيرًا ما تحظر البنوك عناوين VPN، لذا قد تفشل المدفوعات عبر VPN.',
 			'rules.info.reconnect' => 'تغيير الدرع أو التطبيقات يعيد اتصال VPN للحظة.',
 			'rules.info.stay' => 'البقاء متصلًا: بعض الهواتف توقف التطبيقات في الخلفية لتوفير البطارية. يبقي VPN الدائم وإعداد البطارية غير المقيّد تطبيق G VPN يعمل.',
 			'rules.protection' => 'الحماية',
 			'rules.shield' => 'الدرع',
-			'rules.shieldSub' => 'يحظر مواقع البرامج الضارة والتصيّد',
 			'rules.privateDns' => 'الدرع دون VPN',
 			'rules.privateDnsSub' => 'انسخ dns.quad9.net لاستخدامه في DNS الخاص',
 			'rules.privateDnsCopied' => 'تم نسخ dns.quad9.net',
@@ -1402,10 +2158,17 @@ extension on TranslationsAr {
 			'wol.badMac' => 'هذا ليس عنوان MAC. شكله مثل AA:BB:CC:DD:EE:FF.',
 			'wol.sent' => 'أُرسلت إشارة التشغيل. يُفترض أن يعمل الجهاز خلال دقيقة.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'تشغيل الجهاز',
 			'wol.mac' => 'عنوان MAC',
 			'wol.failed' => ({required Object error}) => 'تعذّر الإرسال: ${error}',
-			'speed.info' => 'تقيسه منصة M-Lab البحثية المفتوحة. يستهلك الاختبار نحو 50 إلى 100 ميغابايت.\n\nنتائج علنية: تنشر M-Lab كل اختبار، بما فيه عنوان IP الذي جاء منه، كبيانات بحثية مفتوحة.\n\nمقارنة المزوّدين: بعد اختبار دون VPN، يرسل G VPN أرقام السرعة الثلاثة فقط. تقرأ خدمة المقارنة مزوّدك ومدينتك من الاتصال نفسه ولا تخزّن أي عنوان IP. أوقفها بالمفتاح أسفل هذه الصفحة.\n\nعبر VPN: عند تشغيل VPN يقيس السرعة عبر النفق ويقارنها بآخر اختبار دونه.\n\nمعاينة الفيديو: الصورة نفسها بالدقة التي تتيحها هذه السرعة، وفق معدلات البت التي تنشرها خدمات البث. لا يُنزَّل أي فيديو.',
+			'wol.computer' => 'حاسوب',
+			'wol.pick' => 'اختر جهازًا لتشغيله',
+			'wol.waking' => ({required Object name}) => 'جارٍ تشغيل ${name}',
+			'wol.yours' => 'أجهزتك',
+			'wol.wakeNamed' => ({required Object name}) => 'تشغيل ${name}',
+			'wol.removeHint' => 'اضغط مطولًا على جهاز لإزالته',
+			'wol.add' => 'إضافة جهاز',
+			'wol.name' => 'الاسم',
+			'wol.saveWake' => 'حفظ وتشغيل',
 			'speed.download' => 'التنزيل',
 			'speed.upload' => 'الرفع',
 			'speed.finding' => 'جارٍ البحث عن خادم',
@@ -1477,10 +2240,11 @@ extension on TranslationsAr {
 			'router.cgnat' => 'عنوان مشترك لدى المزوّد: لا يمكن الوصول إليه من الإنترنت.',
 			'router.noDescription' => 'بلا وصف',
 			'router.opened' => ({required Object n}) => '${n} منافذ فتحتها الأجهزة',
-			'router.routerName' => ({required Object name}) => 'الراوتر: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'عنوان الإنترنت: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} إلى ${host}',
 			'router.upnpOn' => 'UPnP مفعّل',
+			'router.routerLabel' => 'الراوتر',
+			'router.internetAddress' => 'عنوان الإنترنت',
+			'router.openedBy' => 'فتحتها الأجهزة',
 			'network.title' => 'هذه الشبكة',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'بيانات الجوال',
@@ -1514,8 +2278,6 @@ extension on TranslationsAr {
 			'devices.title' => 'الأجهزة',
 			'devices.again' => 'افحص مجددًا',
 			'devices.looking' => 'جارٍ البحث عن الأجهزة',
-			'devices.nothingNew' => 'لا جديد منذ آخر فحص',
-			'devices.takes' => 'يستغرق نحو 30 ثانية',
 			'devices.all' => 'الكل',
 			'devices.phones' => 'الهواتف',
 			'devices.tvs' => 'التلفاز',
@@ -1527,18 +2289,52 @@ extension on TranslationsAr {
 			'devices.address' => 'العنوان',
 			'devices.answersIn' => 'يستجيب خلال',
 			'devices.type' => 'النوع',
-			'devices.notAnnounced' => 'لم يعرّف بنفسه. يمكن لقائمة الأجهزة في الراوتر تسميته.',
 			'devices.newBadge' => 'جديد',
 			'devices.scanning' => ({required Object n}) => 'جارٍ فحص ${n} من 254',
-			'devices.thisNetwork' => 'هذه الشبكة',
 			'devices.newSince' => ({required Object n}) => '${n} جديد منذ آخر فحص',
-			'devices.showMore' => ({required Object n}) => 'عرض ${n} أخرى',
 			'devices.ms' => ({required Object n}) => '${n} مللي ثانية',
-			'devices.onNetwork' => ({required Object network}) => 'أجهزة على ${network}',
-			'ping.info' => 'المدة التي تستغرقها رحلة ذهاب وإياب واحدة إلى الخادم، تُقاس كل ثانية خلال الدقيقة الأخيرة.\n\nالتذبذب: مقدار اختلاف كل رد عن الذي قبله. التذبذب العالي هو ما يقطع المكالمات.\n\nالفقدان: ردود لم تعد أبدًا.\n\nالطريقة: لا تستطيع تطبيقات Android إرسال ping التقليدي، لذا يقيس كل اختبار زمن إنشاء اتصال، وهو رحلة الذهاب والإياب نفسها.',
+			'devices.cameras' => 'الكاميرات',
+			'devices.device' => 'الجهاز',
+			'devices.online' => 'متصل',
+			'devices.model' => 'الطراز',
+			'devices.announced' => 'يعرّف نفسه باسم',
+			'devices.services' => 'الخدمات المفتوحة',
+			'devices.checkingServices' => 'جارٍ فحص الخدمات',
+			'devices.noServices' => 'لا تستجيب أي خدمة شائعة',
+			'devices.rename' => 'إعادة التسمية',
+			'devices.save' => 'حفظ',
+			'devices.kinds.phone' => 'هاتف',
+			'devices.kinds.computer' => 'حاسوب',
+			'devices.kinds.tv' => 'تلفاز',
+			'devices.kinds.speaker' => 'سماعة',
+			'devices.kinds.printer' => 'طابعة',
+			'devices.kinds.camera' => 'كاميرا',
+			'devices.kinds.smartHome' => 'منزل ذكي',
+			'devices.kinds.router' => 'راوتر',
+			'devices.kinds.unknown' => 'لم يعرّف نفسه',
+			'devices.details' => 'تفاصيل الشبكة',
+			'devices.listView' => 'قائمة',
+			'devices.meshView' => 'شبكة مترابطة',
+			'devices.offlineHeading' => 'غير متصل',
+			'devices.seen' => ({required Object when}) => 'شوهد ${when}',
+			'devices.agoMinutes' => ({required Object n}) => 'قبل ${n} د',
+			'devices.agoHours' => ({required Object n}) => 'قبل ${n} س',
+			'devices.agoDays' => ({required Object n}) => 'قبل ${n} يوم',
+			'devices.throughVpn' => 'عبر VPN',
+			'devices.closer' => 'الأقرب = يستجيب أسرع',
+			'devices.yours' => 'هل هذا لك؟',
+			'devices.mine' => 'لي',
+			'devices.notMine' => 'ليس لي',
+			'devices.whatIsIt' => 'ما هذا؟',
+			'devices.ourGuess' => ({required Object kind}) => 'تخميننا: ${kind}',
+			'devices.groupPersonal' => 'الهواتف والحواسيب',
+			'devices.groupHome' => 'المنزل والوسائط',
+			'devices.groupNetwork' => 'الشبكة والمنزل الذكي',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} متصل', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} غير متصل', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} للتأكيد', ), 
 			'ping.askTitle' => 'Ping لمضيف',
 			'ping.askHint' => 'example.com أو 192.168.1.10',
-			'ping.cancel' => 'إلغاء',
 			'ping.title' => 'Ping',
 			'ping.router' => 'الراوتر',
 			'ping.pause' => 'إيقاف مؤقت',
@@ -1575,7 +2371,6 @@ extension on TranslationsAr {
 			'status.blocked' => 'قد يكون محظورًا على هذه الشبكة',
 			'status.connect' => 'اتصال',
 			'status.blockedShort' => 'محظور',
-			'status.unreachable' => 'يتعذّر الوصول',
 			'status.now' => 'الآن',
 			'status.checks' => ({required Object n}) => '${n} فحوصات',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} و${n} أخرى',
@@ -1587,27 +2382,37 @@ extension on TranslationsAr {
 			'tools.offline' => 'غير متصل',
 			'tools.title' => 'الأدوات',
 			'tools.networkDesc' => 'فحص الأمان، وما تراه المواقع، والإشارة، والراوتر وDNS.',
-			'tools.internet' => 'الاتصال بالإنترنت',
+			'tools.internet' => 'الإنترنت',
 			'tools.speed' => 'اختبار السرعة',
-			'tools.speedDesc' => 'سرعة التنزيل والرفع، وجودة الفيديو التي تدعمها.',
+			'tools.speedDesc' => 'التنزيل والرفع وجودة الفيديو',
 			'tools.ping' => 'Ping',
-			'tools.pingDesc' => 'زمن الاستجابة والتذبذب مباشرة إلى أي خادم أو إلى الراوتر.',
+			'tools.pingDesc' => 'زمن الاستجابة والتذبذب مباشرة',
 			'tools.status' => 'حالة الخدمات',
-			'tools.statusDesc' => 'هل يمكن الوصول إلى WhatsApp أو YouTube أو Google من هنا، أم أنها محظورة؟',
+			'tools.statusDesc' => 'هل التطبيق متاح أم محظور هنا؟',
 			'tools.trace' => 'تتبّع المسار',
-			'tools.traceDesc' => 'كل راوتر بينك وبين موقع ما، والوقت الذي يستغرقه كل منها.',
-			'tools.security' => 'أمان الشبكة',
+			'tools.traceDesc' => 'كل محطة في الطريق إلى موقع',
+			'tools.security' => 'هذه الشبكة',
 			'tools.devices' => 'الأجهزة على هذه الشبكة',
-			'tools.devicesDesc' => 'من غيرك على Wi-Fi: هواتف وتلفاز وكاميرات وحواسيب.',
+			'tools.devicesDesc' => 'من على شبكة Wi-Fi لديك',
 			'tools.router' => 'فحص الراوتر',
-			'tools.routerDesc' => 'هل تستطيع الأجهزة فتح منافذ على الراوتر بنفسها (UPnP).',
+			'tools.routerDesc' => 'المنافذ التي فتحتها أجهزتك',
 			'tools.ports' => 'المنافذ المفتوحة',
-			'tools.portsDesc' => 'افحص الراوتر أو خادمًا بحثًا عن منافذ مفتوحة خطرة.',
-			'tools.utilities' => 'أدوات مساعدة',
+			'tools.portsDesc' => 'منافذ خطرة على جهاز أو خادم',
+			'tools.utilities' => 'أدوات',
 			'tools.wifiScanner' => 'ماسح Wi-Fi',
-			'tools.wifiDesc' => 'الشبكات القريبة وأمانها والقناة الأقل ازدحامًا.',
+			'tools.wifiDesc' => 'الشبكات من حولك وأهدأ قناة',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'شغّل حاسوبًا أو NAS على هذه الشبكة.',
+			'tools.wolDesc' => 'تشغيل حاسوب على هذه الشبكة',
+			'tools.passwordCheck' => 'فحص كلمة المرور',
+			'tools.passwordCheckDesc' => 'هل تسرّبت؟',
+			'tools.linkCheck' => 'فحص الرابط',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'هل فتحه آمن؟',
+			'tools.breaches' => 'تسريبات البيانات',
+			'tools.breachesDesc' => 'ما الذي تسرّب مؤخرًا',
+			'tools.blocked' => 'ما المحجوب',
+			'tools.blockedDesc' => 'مواقع محجوبة على هذه الشبكة',
 			'trace.info' => 'كل محطة هي راوتر تمر به حركة بياناتك في طريقها إلى الموقع.\n\nالقفزات الصامتة: كثير من أجهزة الراوتر لا تستجيب أبدًا لهذه الاختبارات. هذا طبيعي وليس عطلًا.\n\nمع تشغيل VPN: يبدأ المسار داخل النفق، فتبقى شبكتك ومزوّدك مخفيين.\n\nالطريقة: يستخدم أداة ping المدمجة في Android مع حدّ للقفزات، لأن التطبيقات لا تستطيع إرسال هذه الحزم مباشرة.',
 			'trace.title' => 'تتبّع المسار',
 			'trace.stop' => 'إيقاف',
@@ -1624,6 +2429,10 @@ extension on TranslationsAr {
 			'trace.silentMany' => ({required Object n}) => '${n} قفزات صامتة',
 			'trace.hop' => ({required Object n}) => 'القفزة ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'معظم التأخير، ${ms} مللي ثانية، يُضاف عند القفزة ${hop}: غالبًا كابل طويل بين الدول أو رابط مزدحم.',
+			'trace.popular' => 'الشائعة',
+			'trace.recent' => 'الأخيرة',
+			'trace.clearRecent' => 'مسح الأخيرة',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} قفزة', ), 
 			'ports.ftpNote' => 'يرسل كلمات المرور دون تشفير.',
 			'ports.sshNote' => 'تسجيل دخول عن بُعد. لا بأس إن كنت أعددته بنفسك.',
 			'ports.telnetNote' => 'تسجيل دخول عن بُعد دون تشفير؛ مفضّل لدى شبكات البوتات.',
@@ -1647,13 +2456,14 @@ extension on TranslationsAr {
 			'ports.address' => 'عنوان الجهاز أو الخادم',
 			'ports.risky' => 'خطر',
 			'ports.review' => 'راجِع',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'طبيعي',
 			'ports.info' => ({required Object n}) => 'يفحص ${n} منفذًا مهمًا على أجهزة الراوتر والأجهزة المنزلية، ويشرح كل منفذ مفتوح.\n\nافحص فقط الأجهزة والخوادم التي تملكها أو تديرها.',
 			'ports.checking' => ({required Object n}) => 'جارٍ فحص ${n} منفذًا',
 			'ports.yourRouter' => ({required Object ip}) => 'الراوتر الخاص بك هو ${ip}',
 			'ports.noneOpen' => ({required Object host}) => 'لا توجد منافذ شائعة مفتوحة على ${host}.',
+			'ports.summary' => ({required Object open, required Object n}) => '${open} مفتوح من ${n} تم فحصها',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} خطر', ), 
+			'ports.noneRisky' => 'لا شيء خطر',
 			'wifi.title' => 'ماسح Wi-Fi',
 			'wifi.allow' => 'السماح بفحص Wi-Fi',
 			'wifi.needsPermission' => 'يحتاج إلى إذن الموقع.',
@@ -1663,11 +2473,36 @@ extension on TranslationsAr {
 			'wifi.none' => 'لم يُعثر على شبكات. قد تكون خدمة الموقع متوقفة.',
 			'wifi.hidden' => 'شبكة مخفية',
 			'wifi.nearby' => ({required Object n}) => '${n} شبكات قريبة',
-			'wifi.bestChannel' => ({required Object n}) => 'القناة الأقل ازدحامًا في 2.4 غيغاهرتز: ${n}',
-			'wifi.weak' => ({required Object n}) => '${n} مفتوحة أو ضعيفة',
-			'wifi.connectedPrefix' => 'متصل · ',
 			'wifi.permissionInfo' => 'لا يعرض Android شبكات Wi-Fi القريبة إلا للتطبيقات التي لديها إذن الموقع. يستخدمه G VPN فقط لعرض الشبكات على هذا الهاتف.',
 			'wifi.info' => 'يعرض الشبكات من آخر فحص للهاتف. يسمح Android بعدد قليل من الفحوصات في الدقيقة، لذا قد يُظهر الفحص السريع القائمة نفسها. القناة المقترحة هي الأقل ازدحامًا بين 1 و6 و11، وهي القنوات الثلاث غير المتداخلة.',
+			'wifi.airMap' => 'خريطة الهواء',
+			'wifi.channels' => 'القنوات',
+			'wifi.list' => 'القائمة',
+			'wifi.secure' => 'آمنة',
+			'wifi.weakLabel' => 'ضعيفة',
+			'wifi.openLabel' => 'مفتوحة',
+			'wifi.sizeIsWidth' => 'الحجم = عرض القناة',
+			'wifi.strongest' => 'الأقوى',
+			'wifi.openNearby' => 'المفتوحة بالقرب',
+			'wifi.onYourChannel' => 'على قناتك',
+			'wifi.noneNearby' => 'لا شيء',
+			'wifi.verdictOpen' => 'يمكن لأي شخص قريب قراءة ما يُرسل',
+			'wifi.verdictWep' => 'حماية قديمة وسهلة الكسر',
+			'wifi.verdictWpa' => 'حماية قديمة',
+			'wifi.verdictWps' => 'WPS مفعّل: الاختراق أسهل',
+			'wifi.verdictGood' => 'محمية جيدًا',
+			'wifi.maker' => 'الشركة المصنّعة',
+			'wifi.address' => 'العنوان الفعلي',
+			'wifi.privateAddress' => 'أنشأه الراوتر للخصوصية',
+			'wifi.you' => 'أنت',
+			'wifi.onClear' => ({required Object name}) => '${name} على قناة هادئة',
+			'wifi.move' => ({required Object name, required Object n}) => 'انقل ${name} إلى القناة ${n}',
+			'wifi.clear' => 'هادئة',
+			'wifi.busy' => 'مشغولة',
+			'wifi.crowded' => 'مزدحمة',
+			'wifi.allBands' => 'كل النطاقات',
+			'wifi.openOnly' => 'المفتوحة فقط',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} شبكة', ), 
 			'errors.notAuthorized' => 'لم يُمنح إذن VPN.',
 			'errors.turnedOff' => 'أوقف النظام أو تطبيق آخر VPN.',
 			'errors.busy' => 'طلب إذن مفتوح بالفعل.',
@@ -1745,10 +2580,6 @@ extension on TranslationsAr {
 			'gs.busy' => ({required Object n}) => 'مشغول ${n}%',
 			'gs.offline' => 'غير متصل',
 			'gs.devices' => 'أجهزتك',
-			'gs.devicesSub' => ({required Object n}) => 'حتى ${n} هواتف، لكل منها مفتاحه',
-			'gs.footnote' => 'يحصل كل هاتف على مفتاحه الخاص المُنشأ عليه. لا تحتفظ G Servers بسجلات نشاط.',
-			'gs.leastBusy' => 'الأقل انشغالًا الآن',
-			'gs.busyNoLogs' => ({required Object n}) => 'مشغول ${n}% · بلا سجلات',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'الانشغال',
 			'gs.status' => 'الحالة',
@@ -1777,12 +2608,406 @@ extension on TranslationsAr {
 			'gs.fullBody' => 'أزل هاتفًا لم تعد تستخدمه، وسيتصل هذا الهاتف فورًا.',
 			'gs.busyNow' => 'هناك هواتف جديدة كثيرة الآن. حاول مجددًا بعد قليل.',
 			'gs.serverFull' => 'هذا الخادم ممتلئ. جرّب خادم G Server آخر.',
-			'gs.ping' => 'PING',
+			'gs.ping' => 'زمن الاستجابة',
 			'gs.last24' => 'الانشغال، آخر 24 ساعة',
 			'gs.noHistory' => 'يمتلئ الرسم مع استخدام الخادم خلال اليوم.',
 			'gs.chartLabel' => ({required Object max}) => 'الانشغال خلال آخر 24 ساعة، بحد أقصى ${max} بالمئة',
 			'gs.hoursAgo' => 'قبل 24 س',
 			'gs.now' => 'الآن',
+			'gs.included' => 'مشمول',
+			'gs.perkServers' => 'خوادم سريعة وخاصة',
+			'gs.perkServersSub' => 'WireGuard، نديرها بأنفسنا، بلا سجلات نشاط',
+			'gs.perkLinks' => 'فحص روابط غير محدود',
+			'gs.perkLinksSub' => 'افحص كل رابط يصلك',
+			'gs.devicesOf' => ({required Object used, required Object limit}) => 'أجهزتك · ${used} من ${limit}',
+			'gs.eachKey' => 'لكل هاتف مفتاحه الخاص',
+			'gs.connected' => 'متصل',
+			'gs.bestNow' => 'الأفضل لك الآن',
+			'gs.logsShort' => 'السجلات',
+			'map.open' => 'فتح الخريطة',
+			'map.searchCountries' => 'ابحث عن دولة',
+			'map.noMatch' => 'لا توجد دولة مطابقة',
+			'map.locate' => 'موقعي',
+			'map.list' => 'قائمة',
+			'map.map' => 'خريطة',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, zero: 'لا خوادم مجانية', one: 'خادم مجاني واحد', two: 'خادمان مجانيان', few: '${n} خوادم مجانية', many: '${n} خادمًا مجانيًا', other: '${n} خادم مجاني', ), 
+			'map.grade.fast' => 'سريع',
+			'map.grade.good' => 'جيد',
+			'map.grade.slow' => 'بطيء',
+			'map.switchTo' => 'تبديل',
+			'map.freeServer' => ({required Object n}) => 'خادم مجاني ${n}',
+			'map.best' => 'الأفضل',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} G Server', ), 
+			'stats.thisWeek' => 'هذا الأسبوع',
+			'stats.time' => 'الوقت',
+			'stats.data' => 'البيانات',
+			'stats.protected' => 'محمي',
+			'stats.throughVpn' => 'عبر VPN',
+			'stats.seeDetails' => 'التفاصيل',
+			'stats.title' => 'الإحصاءات',
+			'stats.week' => 'أسبوع',
+			'stats.month' => 'شهر',
+			'stats.protectedLabel' => 'محمي',
+			'stats.dataUsed' => 'البيانات المستخدمة',
+			'stats.byServer' => 'حسب الخادم',
+			'stats.onPhone' => 'محفوظة على هذا الهاتف فقط',
+			'stats.reset' => 'إعادة الضبط',
+			'stats.resetTitle' => 'إعادة ضبط الإحصاءات؟',
+			'stats.resetBody' => 'يمحو وقت الحماية والبيانات على هذا الهاتف. لا يمكن التراجع.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} س ${m} د',
+			'stats.m' => ({required Object m}) => '${m} د',
+			'stats.empty' => 'اتصل لبدء العد.',
+			'recents.title' => 'الأخيرة',
+			'recents.allServers' => 'كل الخوادم',
+			'recents.free' => 'خادم مجاني',
+			'recents.yours' => 'خادمك',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'الإعدادات الجاهزة',
+			'presets.all' => 'الكل',
+			'presets.newPreset' => 'إعداد جديد',
+			'presets.edit' => 'تعديل الإعداد',
+			'presets.name' => 'الاسم',
+			'presets.namePlaceholder' => 'إعدادي',
+			'presets.server' => 'الخادم',
+			'presets.fastestOption' => 'الأسرع',
+			'presets.countryOption' => 'الدولة',
+			'presets.pickCountry' => 'اختر دولة',
+			'presets.skipMyCountry' => 'تجاوز دولتي',
+			'presets.notMine' => 'ليست دولتي',
+			'presets.protocol' => 'البروتوكول',
+			'presets.auto' => 'تلقائي',
+			'presets.tryNext' => 'عند الحظر، جرّب الخادم التالي',
+			'presets.shield' => 'الدرع',
+			'presets.followRules' => 'كما في القواعد',
+			'presets.allApps' => 'كل التطبيقات عبر VPN',
+			'presets.allAppsShort' => 'كل التطبيقات',
+			'presets.save' => 'حفظ',
+			'presets.delete' => 'حذف',
+			'presets.reset' => 'استعادة الافتراضي',
+			'presets.none' => 'لا يوجد خادم مجاني يناسب هذا الإعداد الآن.',
+			'presets.names.fastest' => 'الأسرع',
+			'presets.names.unblock' => 'فك الحظر',
+			'presets.names.streaming' => 'البث',
+			'presets.names.privacy' => 'أقصى خصوصية',
+			'shield.title' => 'الدرع',
+			'shield.sub' => 'يعمل أثناء الاتصال',
+			'shield.off' => 'إيقاف',
+			'shield.offSub' => 'DNS الخاص بالخادم',
+			'shield.malware' => 'البرمجيات الخبيثة',
+			'shield.malwareSub' => 'يحظر المواقع الضارة والتصيد',
+			'shield.family' => 'البرمجيات الخبيثة ومواقع البالغين',
+			'shield.familySub' => 'يحظر محتوى البالغين أيضًا',
+			'shield.custom' => 'DNS مخصص',
+			'shield.customSub' => 'خوادم DNS الخاصة بك',
+			'shield.customHint' => 'عنوان IP، مثل 1.1.1.1',
+			'shield.invalid' => 'أدخل عنوان IP واحدًا أو اثنين.',
+			'checks.title' => 'فحوصات الأمان',
+			'checks.password' => 'كلمة المرور',
+			'checks.link' => 'الرابط',
+			'checks.pwTitle' => 'هل تسرّبت؟',
+			'checks.pwHint' => 'كلمة المرور للفحص',
+			'checks.showPassword' => 'إظهار كلمة المرور',
+			'checks.hidePassword' => 'إخفاء كلمة المرور',
+			'checks.check' => 'افحص',
+			'checks.leaked' => 'موجودة في التسريبات',
+			'checks.seen' => ({required Object n}) => 'ظهرت ${n} مرة',
+			'checks.leakedAdvice' => 'غيّرها في كل مكان تستخدمها فيه، بدءًا بالبريد والبنك.',
+			'checks.notFound' => 'غير موجودة في التسريبات المعروفة',
+			'checks.notFoundAdvice' => 'علامة جيدة وليست ضمانًا. استخدم كلمة مرور مختلفة لكل حساب.',
+			'checks.failed' => 'تعذّر الفحص. حاول مجددًا.',
+			'checks.private' => 'كلمة مرورك لا تغادر هذا الهاتف أبدًا',
+			'checks.linkTitle' => 'هل هذا الرابط آمن؟',
+			'checks.linkHint' => 'الرابط للفحص',
+			'checks.paste' => 'لصق',
+			'checks.danger' => 'رابط خطير',
+			'checks.dangerAdvice' => 'لا تفتحه ولا تُدخل أي بيانات.',
+			'checks.clear' => 'ليس في القوائم المعروفة للبرمجيات الخبيثة أو التصيّد',
+			'checks.clearAdvice' => 'ومع ذلك، تحقّق من العنوان قبل تسجيل الدخول.',
+			'checks.goesTo' => 'يؤدي إلى',
+			'checks.redirects' => 'عمليات التحويل',
+			'checks.invalid' => 'هذا لا يبدو عنوان ويب.',
+			'checks.busy' => 'فحوصات كثيرة. حاول بعد قليل.',
+			'checks.unavailable' => 'فحص الروابط غير متاح الآن.',
+			'checks.listed' => 'معروف بالبرمجيات الخبيثة أو التصيّد',
+			'checks.missing' => 'لا يوجد موقع على هذا العنوان',
+			'checks.missingAdvice' => 'تحقّق من الكتابة: يستخدم المحتالون عناوين متشابهة.',
+			'checks.left' => ({required Object n, required Object total}) => 'تبقّى ${n} من ${total} فحوصات مجانية هذا الشهر',
+			'checks.usedUp' => 'استخدمت فحوصات الروابط المجانية لهذا الشهر',
+			'checks.usedUpSub' => 'في Pro فحوصات بلا حد. تعود الفحوصات المجانية في اليوم الأول من الشهر.',
+			'checks.getPro' => 'احصل على Pro',
+			'toolSettings.title' => 'إعدادات الأدوات',
+			'toolSettings.askMobile' => 'اسأل قبل اختبار السرعة على بيانات الجوال',
+			'toolSettings.askMobileSub' => 'قد يستهلك الاختبار أكثر من 100 ميغابايت على اتصال سريع',
+			'toolSettings.mobileTitle' => 'استخدام بيانات الجوال؟',
+			'toolSettings.mobileBody' => 'قد يستهلك اختبار السرعة أكثر من 100 ميغابايت على اتصال سريع.',
+			'toolSettings.mobileGo' => 'اختبار',
+			'toolSettings.safe' => 'آمنة',
+			'toolSettings.unsafe' => 'غير آمنة',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} جهاز', ), 
+			'toolSettings.hideMac' => 'إخفاء العناوين الفعلية',
+			'toolSettings.hideMacSub' => 'عرض جزء الشركة المصنّعة فقط من عناوين MAC',
+			'toolSettings.names' => 'إظهار أسماء الراوترات والخوادم',
+			'toolSettings.namesSub' => 'يبحث عن أسماء العناوين في Traceroute',
+			'toolSettings.remember' => 'تذكّر المضيفين الأخيرين',
+			'toolSettings.rememberSub' => 'لـ Traceroute',
+			'toolSettings.clear' => 'مسح سجل الأدوات',
+			'toolSettings.clearSub' => 'ينسى المضيفين الأخيرين والأجهزة في كل شبكة',
+			'toolSettings.clearGo' => 'مسح',
+			'security.tab' => 'الأمان',
+			'security.good' => 'جيد',
+			'security.fair' => 'مقبول',
+			'security.atRisk' => 'في خطر',
+			'security.allClear' => 'لا شيء لإصلاحه',
+			'security.checked' => ({required Object time}) => 'فُحصت الساعة ${time}',
+			'security.trend' => 'آخر أسبوعين',
+			'security.checking' => 'جارٍ فحص هذه الشبكة',
+			'security.snoozed' => 'مؤجلة',
+			'security.remindLater' => 'ذكّرني لاحقًا',
+			'security.unsnooze' => 'ذكّرني الآن',
+			'security.review' => 'مراجعة',
+			'security.confirmGo' => 'تأكيد',
+			'security.scanGo' => 'فحص',
+			'security.look' => 'عرض',
+			'security.connectGo' => 'اتصال',
+			'security.checkAgain' => 'افحص مجددًا',
+			'security.wifiOpen' => 'شبكة Wi-Fi مفتوحة',
+			'security.wifiOpenDetail' => 'يمكن لأي شخص قريب رؤية ما يُرسل',
+			'security.wifiWep' => 'الشبكة تستخدم WEP',
+			'security.wifiWepDetail' => 'حماية قديمة وسهلة الكسر',
+			'security.wifiOwe' => 'الشبكة تستخدم Enhanced Open',
+			'security.wifiOweDetail' => 'مشفّرة لكن يمكن لأي شخص الانضمام',
+			'security.wifiSecure' => 'تشفير Wi-Fi',
+			'security.wifiUnknown' => 'أمان Wi-Fi غير معروف',
+			'security.wifiUnknownDetail' => 'لم يذكر Android طريقة الحماية',
+			'security.wps' => 'WPS مفعّل',
+			'security.wpsDetail' => 'أوقفه من إعدادات الراوتر',
+			'security.upnpOff' => 'الراوتر يبقي المنافذ مغلقة',
+			'security.upnpOffDetail' => 'UPnP متوقف',
+			'security.upnpOn' => 'الراوتر يسمح للأجهزة بفتح منافذ',
+			'security.upnpOnDetail' => 'UPnP مفعّل',
+			'security.portsOk' => 'لا منافذ خطرة على الراوتر',
+			'security.portsRisky' => 'منافذ خطرة مفتوحة على الراوتر',
+			'security.scanFirst' => 'افحص لترى من هنا',
+			'security.scanFirstDetail' => 'الأجهزة المجهولة تخفض النتيجة',
+			'security.notMineDetail' => 'راجع قائمة أجهزة الراوتر',
+			'security.confirmDetail' => 'حدّد أجهزتك',
+			'security.devicesOk' => 'كل الأجهزة معروفة',
+			'security.devicesOkDetail' => 'أكدت كل جهاز',
+			'security.camera' => 'توجد كاميرا على هذه الشبكة',
+			'security.dnsHijack' => 'تُعاد توجيه الأسماء المجهولة',
+			'security.dnsHijackDetail' => 'مزوّدك أو الراوتر يعيد كتابة الاستعلامات',
+			'security.dnsOk' => 'DNS يجيب بشكل طبيعي',
+			'security.dnsOkDetail' => 'لا أثر لإعادة التوجيه',
+			'security.vpnOn' => 'VPN مفعّل',
+			'security.vpnOnDetail' => 'تخرج البيانات عبر النفق',
+			'security.vpnOff' => 'VPN متوقف',
+			'security.vpnOffDetail' => 'مزوّدك يرى كل موقع',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} أمور لإصلاحها', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} منافذ فتحتها الأجهزة', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} منافذ فُحصت', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} أجهزة ليست لك', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} أجهزة للتأكيد', ), 
+			'providers.tab' => 'الإنترنت',
+			'providers.unavailable' => 'تعذّر تحميل قائمة المزوّدين. تحقق من اتصالك.',
+			'providers.cached' => 'حسب آخر فحص بدون VPN',
+			'providers.notEnough' => 'لا توجد تقييمات كافية بعد',
+			'providers.yourRating' => 'تقييمك هذا الشهر',
+			'providers.yourSpeed' => 'سرعتك',
+			'providers.runTest' => 'إجراء اختبار سرعة',
+			'providers.aboutAverage' => 'قريب من المتوسط هنا',
+			'providers.aboveAverage' => ({required Object pct}) => 'أعلى من المتوسط المحلي بنسبة ${pct}٪',
+			'providers.belowAverage' => ({required Object pct}) => 'أقل من المتوسط المحلي بنسبة ${pct}٪',
+			'providers.call' => 'اتصال',
+			'providers.website' => 'الموقع',
+			'providers.outages' => 'الأعطال',
+			'providers.rate' => 'قيّم',
+			'providers.changeRating' => 'تغيير التقييم',
+			'providers.compare' => 'قارن',
+			'providers.rateTitle' => ({required Object name}) => 'قيّم ${name}',
+			'providers.oncePerMonth' => 'تقييم واحد شهريًا',
+			'providers.tapStars' => 'اضغط على النجوم',
+			'providers.verified' => ({required Object mbps}) => 'موثّق باختبار سرعتك: ${mbps} ميغابت/ث',
+			'providers.busy' => 'تقييمات كثيرة من هنا. حاول لاحقًا.',
+			'providers.failed' => 'تعذّر الإرسال. حاول مجددًا.',
+			'providers.post' => 'إرسال التقييم',
+			'providers.nearTitle' => 'مزوّدون بالقرب منك',
+			'providers.slower' => ({required Object pct}) => 'التنزيل لديك أقل بنسبة ${pct}٪ من متوسط مزوّدك هنا',
+			'providers.inPlace' => ({required Object place}) => 'الإنترنت المنزلي في ${place}',
+			'providers.byRating' => 'التقييم',
+			'providers.bySpeed' => 'السرعة',
+			'providers.footnote' => 'السرعات متوسطات اختبارات G VPN',
+			'providers.noneNearby' => 'لا تقييمات قريبة بعد. كن الأول.',
+			'providers.you' => 'أنت',
+			'providers.topRated' => 'الأعلى تقييمًا',
+			'providers.starsOf' => ({required Object n}) => '${n} من 5',
+			'providers.tags.fast' => 'سريع',
+			'providers.tags.reliable' => 'موثوق',
+			'providers.tags.support' => 'دعم جيد',
+			'providers.tags.price' => 'سعر عادل',
+			'providers.tags.slowEvenings' => 'بطيء مساءً',
+			'providers.tags.drops' => 'ينقطع كثيرًا',
+			'providers.tags.poorSupport' => 'دعم سيئ',
+			'providers.tags.pricey' => 'مكلف',
+			'providers.words.bad' => 'سيئ',
+			'providers.words.poor' => 'ضعيف',
+			'providers.words.okay' => 'مقبول',
+			'providers.words.good' => 'جيد',
+			'providers.words.great' => 'ممتاز',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} تقييمات', ), 
+			'alerts.channel' => 'التنبيهات',
+			'alerts.title' => 'التنبيهات',
+			'alerts.markAllRead' => 'تعليم الكل كمقروء',
+			'alerts.clearAll' => 'مسح الكل',
+			'alerts.thisNetwork' => 'هذه الشبكة',
+			'alerts.openWifiTitle' => ({required Object name}) => 'اتصلت بشبكة Wi-Fi مفتوحة: ${name}',
+			'alerts.openWifiBody' => 'يمكن لأي شخص قريب رؤية ما يُرسل. شغّل G VPN.',
+			'alerts.reportTitle' => 'تقريرك الأسبوعي جاهز',
+			'alerts.reportBody' => ({required Object hours}) => '${hours} ساعات حماية الأسبوع الماضي',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} محظور هنا',
+			'alerts.blockedBody' => 'يعمل عبر VPN',
+			'alerts.kinds.newDevice' => 'أجهزة جديدة على شبكتي',
+			'alerts.kinds.openWifi' => 'Wi-Fi مفتوحة أو ضعيفة',
+			'alerts.kinds.blocked' => 'تطبيقات محظورة',
+			'alerts.kinds.report' => 'التقرير الأسبوعي',
+			'alerts.kinds.breach' => 'التسريبات',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} أجهزة جديدة على ${network}', ), 
+			'alerts.settings' => 'إعدادات التنبيهات',
+			'alerts.look' => 'عرض',
+			'alerts.read' => 'قراءة',
+			'alerts.open' => 'فتح',
+			'alerts.check' => 'فحص',
+			'alerts.today' => 'اليوم',
+			'alerts.thisWeek' => 'هذا الأسبوع',
+			'alerts.earlier' => 'سابقًا',
+			'alerts.all' => 'الكل',
+			'alerts.quiet' => 'كل شيء هادئ',
+			'alerts.quietSub' => 'لم يحتج إليك شيء مؤخرًا',
+			'alerts.breachTitle' => ({required Object name}) => 'تسريب جديد: ${name}',
+			'alerts.status.background' => 'كل بضع ساعات',
+			'alerts.status.checked' => ({required Object time}) => 'فُحص الساعة ${time}',
+			'alerts.status.wifi' => 'كل شبكة تنضم إليها',
+			'alerts.status.blocked' => 'عند فحص حالة الخدمات',
+			'alerts.status.report' => 'كل يوم اثنين',
+			'report.title' => 'التقرير الأسبوعي',
+			'report.share' => 'مشاركة كصورة',
+			'report.shareText' => 'أسبوعي مع G VPN',
+			'report.safer' => 'أسبوع أكثر أمانًا',
+			'report.moreProtected' => 'حماية أكثر من الأسبوع الماضي',
+			'report.yourWeek' => 'أسبوعك',
+			'report.soFar' => ({required Object range}) => '${range}، حتى الآن',
+			'report.protected' => 'محمي',
+			'report.data' => 'البيانات',
+			'report.security' => 'الأمان',
+			'report.speed' => 'أفضل سرعة',
+			'report.noScore' => 'لم يُفحص',
+			'report.noTest' => 'لا اختبار',
+			'report.bestDirect' => 'اختبار مباشر',
+			'report.moreThan' => ({required Object d}) => 'أكثر بـ ${d} من الأسبوع الماضي',
+			'report.lessThan' => ({required Object d}) => 'أقل بـ ${d} من الأسبوع الماضي',
+			'report.protectedTime' => 'وقت الحماية',
+			'report.mostUsed' => ({required Object name}) => 'الأكثر استخدامًا: ${name}',
+			'report.quiet' => 'أسبوع هادئ: لم يحتج شيء إليك',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: 'انضمت ${n} أجهزة جديدة', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: 'اتصلت بـ ${n} شبكات Wi-Fi مفتوحة', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} تطبيقات محظورة', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} تسريبات كبيرة جديدة', ), 
+			'breaches.title' => 'تسريبات البيانات',
+			'breaches.info' => 'أحدث تسريبات البيانات من القائمة العامة لـ Have I Been Pwned. لا يُرسل شيء عنك: القائمة واحدة للجميع.\n\nإن كان لديك حساب في موقع مُسرَّب فغيّر تلك الكلمة، وكل مكان استخدمتها فيه.',
+			'breaches.unavailable' => 'تعذّر تحميل القائمة. تحقق من اتصالك.',
+			'breaches.biggest' => 'الأكبر هذا الشهر',
+			'breaches.newest' => 'الأحدث',
+			'breaches.biggestSort' => 'الأكبر',
+			'breaches.withPasswords' => 'مع كلمات مرور',
+			'breaches.passwordsMark' => 'كلمات مرور',
+			'breaches.one' => 'تسريب',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'فحص كلمة مرور',
+			'breaches.verified' => 'موثّق',
+			'breaches.hasPasswords' => 'يحتوي كلمات مرور',
+			'breaches.accountsLabel' => 'الحسابات',
+			'breaches.happened' => 'حدث',
+			'breaches.published' => 'نُشر',
+			'breaches.website' => 'الموقع',
+			'breaches.leaked' => 'ما الذي تسرّب',
+			'breaches.ifUsed' => 'إن كنت تستخدمه',
+			'breaches.stepPassword' => 'غيّر كلمة المرور التي استخدمتها هناك',
+			'breaches.stepReuse' => 'غيّرها حيثما استخدمت الكلمة نفسها',
+			'breaches.stepTwoStep' => 'فعّل التحقق بخطوتين حيث أمكن',
+			'breaches.stepScams' => 'توقّع مكالمات ورسائل احتيال',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${count} حساب', ), 
+			'breaches.worldwide' => ({required Object n}) => 'عالميًا · ${n}',
+			'breaches.noneHere' => 'لا تسريبات من هنا في القائمة الأخيرة.',
+			'breaches.bigMap' => 'خريطة أكبر',
+			'breaches.showInList' => 'عرض في القائمة',
+			'breaches.mapTitle' => 'خريطة التسريبات',
+			'breaches.zoomIn' => 'تكبير',
+			'breaches.zoomOut' => 'تصغير',
+			'breaches.wholeWorld' => 'العالم كله',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} تسريبات', ), 
+			'breaches.findCountry' => 'ابحث عن دولة',
+			'breaches.seeAll' => 'عرض الكل',
+			'breaches.search' => 'ابحث في التسريبات',
+			'blocked.title' => 'ما المحجوب',
+			'blocked.info' => 'يختبر مواقع معروفة من هذا الهاتف، دون VPN، ويبيّن أيها تحجبه هذه الشبكة وكيف.\n\nعنوان مزيف: بحث الأسماء في الشبكة يعطي إجابة خاطئة.\n\nمقطوع: يُقطع الاتصال عند بدايته.\n\nلا إجابة: لا يعود شيء.\n\nصفحة حجب: يجيب شيء آخر مكان الموقع.\n\nيبيّن الاختبار أين الموقع محجوب، لا من حجبه. لا يُحفظ أو يُرسل أي شيء.',
+			'blocked.thisNetwork' => 'هذه الشبكة',
+			'blocked.country' => 'بلدك',
+			'blocked.question' => 'ما المحجوب هنا؟',
+			'blocked.testingOn' => 'الاختبار على',
+			'blocked.vpnOn' => 'VPN مفعّل',
+			'blocked.turnOff' => 'أوقف G VPN للاختبار',
+			'blocked.test' => 'اختبر هذه الشبكة',
+			'blocked.stop' => 'إيقاف',
+			'blocked.sitesToTest' => ({required Object n}) => 'مواقع للاختبار · ${n}',
+			'blocked.ofSites' => ({required Object n}) => 'من ${n} موقعًا',
+			'blocked.blockedCount' => ({required Object n}) => '${n} محجوب',
+			'blocked.openCount' => ({required Object n}) => '${n} مفتوح',
+			'blocked.noneBlocked' => ({required Object network}) => 'لا شيء محجوب على ${network}',
+			'blocked.openOf' => ({required Object open, required Object total}) => '${open} من ${total} مفتوحة',
+			'blocked.allWork' => 'كلها تعمل مع G VPN',
+			'blocked.blockedHeading' => 'محجوب',
+			'blocked.byKind' => 'حسب النوع',
+			'blocked.worksVpn' => 'يعمل مع VPN',
+			'blocked.failsVpn' => 'محجوب حتى مع VPN',
+			'blocked.checkVpn' => 'تحقق عبر G VPN',
+			'blocked.connect' => 'اتصل بـ G VPN',
+			'blocked.again' => 'اختبر مجددًا',
+			'blocked.withoutVpn' => 'دون VPN',
+			'blocked.throughVpn' => 'عبر G VPN',
+			'blocked.notChecked' => 'لم يُتحقق',
+			'blocked.opens' => 'يفتح',
+			'blocked.stillBlocked' => 'محجوب',
+			'blocked.whatHappened' => 'ما الذي حدث',
+			'blocked.countryBlocked' => ({required Object country}) => 'موقعًا محجوبًا في ${country}',
+			'blocked.countrySub' => 'وجدتها اختبارات المتطوعين في آخر 30 يومًا',
+			'blocked.countryNone' => 'لا مواقع محجوبة مُبلّغ عنها في آخر 30 يومًا.',
+			'blocked.countryUnavailable' => 'تعذّر تحميل نتائج البلد. تحقق من اتصالك.',
+			'blocked.confirmed' => 'محجوب',
+			'blocked.oftenFails' => 'يفشل كثيرًا',
+			'blocked.kinds.social' => 'التواصل الاجتماعي',
+			'blocked.kinds.messaging' => 'المراسلة',
+			'blocked.kinds.news' => 'الأخبار',
+			'blocked.kinds.video' => 'الفيديو والموسيقى',
+			'blocked.kinds.privacy' => 'أدوات الخصوصية',
+			'blocked.how.dns' => 'عنوان مزيف',
+			'blocked.how.reset' => 'مقطوع',
+			'blocked.how.timeout' => 'لا إجابة',
+			'blocked.how.page' => 'صفحة حجب',
+			'blocked.how.open' => 'مفتوح',
+			'blocked.fail.noAnswer' => 'لا إجابة',
+			'blocked.fail.refused' => 'مرفوض',
+			'blocked.fail.cutOff' => ({required Object s}) => 'قُطع بعد ${s} ث',
+			'blocked.fail.wrongCert' => 'شهادة خاطئة',
+			'blocked.steps.lookup' => 'بحث الاسم',
+			'blocked.steps.connect' => 'الاتصال',
+			'blocked.steps.handshake' => 'المصافحة الآمنة',
+			'blocked.consent.title' => 'قبل الاختبار الأول',
+			'blocked.consent.body' => 'يفتح الاختبار كل موقع من هذا الهاتف، دون VPN، كما يفعل المتصفح.',
+			'blocked.consent.noticeTitle' => 'قد يُلاحَظ',
+			'blocked.consent.notice' => 'يرى مزوّدك فتح هذه المواقع. في بعض البلدان قد تلفت زيارتها الانتباه حتى للاختبار. اختبر فقط حيث تشعر بالأمان.',
+			'blocked.consent.ok' => 'فهمت، اختبر',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} مواقع محجوبة على ${network}', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ar'))(n, other: '${n} اختبارات', ), 
 			_ => null,
 		};
 	}

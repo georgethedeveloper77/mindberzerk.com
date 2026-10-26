@@ -8,10 +8,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../i18n/strings.g.dart';
 
-/// The whoami Worker URL, baked in at build time:
+/// The whoami Worker, which adds the city and its coordinates that place
+/// the user on the map. Overridable per build, like COMMUNITY_URL:
 ///   flutter run --dart-define=WHOAMI_URL=https://whoami.mindberzerk.com
-/// Empty falls back to Cloudflare's trace page (IP and country only).
-const _whoamiUrl = String.fromEnvironment('WHOAMI_URL');
+/// When it cannot be reached, Cloudflare's trace page answers with the IP
+/// and country only.
+const _whoamiUrl = String.fromEnvironment(
+  'WHOAMI_URL',
+  defaultValue: 'https://gvpn-whoami.mindberzerk.workers.dev',
+);
 
 /// Identifies this app to M-Lab's locator, as their API asks.
 const _clientVersion = String.fromEnvironment('APP_VERSION', defaultValue: '2.0.0');

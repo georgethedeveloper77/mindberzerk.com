@@ -27,6 +27,8 @@ class _RouterScreenState extends ConsumerState<RouterScreen> {
 
     return ToolPage(
       title: t.router.title,
+      icon: Icons.router_outlined,
+      color: m.warn,
       info: t.router.info,
       action: FilledButton(
         onPressed: report?.isLoading == true
@@ -66,50 +68,63 @@ class _Report extends StatelessWidget {
             : (t.router.opened(n: report.mappings.length), t.router.checkEach, m.bad);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ToolCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(headline, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-              const SizedBox(height: 4),
-              Text(detail, style: TextStyle(fontSize: 13, height: 1.4, color: m.muted)),
-              if (report.routerName != null) ...[
-                const SizedBox(height: 10),
-                Text(t.router.routerName(name: report.routerName ?? ''), style: TextStyle(fontSize: 13, color: m.text)),
-              ],
-              if (report.externalIp != null)
-                Text(t.router.externalIp(ip: report.externalIp ?? ''), style: m.monoStyle(size: 12, color: m.muted)),
-              if (report.behindCarrierNat) ...[
-                const SizedBox(height: 6),
-                Text(t.router.cgnat, style: TextStyle(fontSize: 12, color: m.good)),
-              ],
-            ],
+        const SizedBox(height: 8),
+        Center(
+          child: Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .12),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: .5), width: 2),
+            ),
+            child: Icon(Icons.router_outlined, size: 44, color: color),
           ),
         ),
+        const SizedBox(height: 12),
+        Text(headline, textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+        const SizedBox(height: 4),
+        Text(detail, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, height: 1.4, color: m.muted)),
+        if (report.routerName != null || report.externalIp != null) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              if (report.routerName != null)
+                Expanded(child: MetricTile(label: t.router.routerLabel, value: report.routerName!)),
+              if (report.routerName != null && report.externalIp != null) const SizedBox(width: 8),
+              if (report.externalIp != null)
+                Expanded(child: MetricTile(label: t.router.internetAddress, value: report.externalIp!)),
+            ],
+          ),
+        ],
+        if (report.behindCarrierNat) ...[
+          const SizedBox(height: 10),
+          Text(t.router.cgnat, style: TextStyle(fontSize: 12, color: m.good)),
+        ],
         if (report.mappings.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          ToolHeading(t.router.openedBy),
           ToolCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 for (final (i, p) in report.mappings.indexed) ...[
                   if (i > 0) Divider(height: 1, color: m.line),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
                       children: [
-                        SizedBox(
-                          width: 70,
-                          child: Text('${p.externalPort}', style: m.monoStyle(size: 15, weight: FontWeight.w600)),
-                        ),
+                        _PortChip(port: p.externalPort, color: p.description.isEmpty ? m.warn : m.brand),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.description.isEmpty ? t.router.noDescription : p.description,
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: m.text)),
+                              Text(
+                                p.description.isEmpty ? t.router.noDescription : p.description,
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: p.description.isEmpty ? m.warn : m.text),
+                              ),
                               Text(t.router.mapping(proto: p.protocol, host: '${p.internalClient}:${p.internalPort}'),
                                   style: m.monoStyle(size: 12, color: m.muted)),
                             ],
@@ -126,4 +141,21 @@ class _Report extends StatelessWidget {
       ],
     );
   }
+}
+
+/// A port number in a tinted box.
+class _PortChip extends StatelessWidget {
+  const _PortChip({required this.port, required this.color});
+
+  final int port;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minWidth: 58),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(9)),
+        child: Text('$port', style: context.mer.monoStyle(size: 13, weight: FontWeight.w600, color: color)),
+      );
 }

@@ -19,7 +19,11 @@ class GVpnApplication : ICSOpenVPNApplication() {
 
     override fun onCreate() {
         super.onCreate()
-        if (isMainProcess()) OpenVpnEngine.attach(this)
+        if (isMainProcess()) {
+            OpenVpnEngine.attach(this)
+            // Alerts' background checks: new devices, new breaches.
+            ChecksWorker.schedule(this)
+        }
     }
 
     private fun isMainProcess(): Boolean {

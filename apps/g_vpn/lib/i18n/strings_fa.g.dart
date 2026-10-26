@@ -69,6 +69,19 @@ class TranslationsFa extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$add$fa add = _Translations$add$fa._(_root);
 	@override late final _Translations$backup$fa backup = _Translations$backup$fa._(_root);
 	@override late final _Translations$gs$fa gs = _Translations$gs$fa._(_root);
+	@override late final _Translations$map$fa map = _Translations$map$fa._(_root);
+	@override late final _Translations$stats$fa stats = _Translations$stats$fa._(_root);
+	@override late final _Translations$recents$fa recents = _Translations$recents$fa._(_root);
+	@override late final _Translations$presets$fa presets = _Translations$presets$fa._(_root);
+	@override late final _Translations$shield$fa shield = _Translations$shield$fa._(_root);
+	@override late final _Translations$checks$fa checks = _Translations$checks$fa._(_root);
+	@override late final _Translations$toolSettings$fa toolSettings = _Translations$toolSettings$fa._(_root);
+	@override late final _Translations$security$fa security = _Translations$security$fa._(_root);
+	@override late final _Translations$providers$fa providers = _Translations$providers$fa._(_root);
+	@override late final _Translations$alerts$fa alerts = _Translations$alerts$fa._(_root);
+	@override late final _Translations$report$fa report = _Translations$report$fa._(_root);
+	@override late final _Translations$breaches$fa breaches = _Translations$breaches$fa._(_root);
+	@override late final _Translations$blocked$fa blocked = _Translations$blocked$fa._(_root);
 }
 
 // Path: common
@@ -117,8 +130,6 @@ class _Translations$home$fa extends Translations$home$en {
 	// Translations
 	@override late final _Translations$home$status$fa status = _Translations$home$status$fa._(_root);
 	@override String resumesAt({required Object time}) => 'ادامه در ${time} · برای ادامه ضربه بزنید';
-	@override String sitesSee({required Object ip}) => 'سایت‌ها می‌بینند: ${ip}';
-	@override String sitesSeeOrg({required Object ip, required Object org}) => 'سایت‌ها می‌بینند: ${ip} · ${org}';
 	@override String get ipFailed => 'بررسی IP ممکن نشد';
 	@override String get ipChecking => 'در حال بررسی IP';
 	@override String get themeSystem => 'پوسته: مطابق گوشی';
@@ -126,7 +137,6 @@ class _Translations$home$fa extends Translations$home$en {
 	@override String get themeDark => 'پوسته: تیره';
 	@override String get free => 'رایگان';
 	@override String get pickServer => 'یک سرور انتخاب کنید';
-	@override late final _Translations$home$waves$fa waves = _Translations$home$waves$fa._(_root);
 	@override late final _Translations$home$network$fa network = _Translations$home$network$fa._(_root);
 	@override late final _Translations$home$card$fa card = _Translations$home$card$fa._(_root);
 	@override late final _Translations$home$tiles$fa tiles = _Translations$home$tiles$fa._(_root);
@@ -177,6 +187,20 @@ class _Translations$servers$fa extends Translations$servers$en {
 	@override String lastUsed({required Object when}) => 'آخرین استفاده: ${when}';
 	@override String get disconnectFirst => 'برای حذف، ابتدا اتصال را قطع کنید';
 	@override String get removeConfirm => 'این سرور از G VPN حذف شود؟ تنظیمات آن از این گوشی پاک می‌شود؛ خود سرور تغییری نمی‌کند.';
+	@override String get gTab => 'G Servers';
+	@override String get search => 'جستجوی کشورها';
+	@override String get noMatch => 'سروری پیدا نشد.';
+	@override String bestPing({required Object ms}) => 'بهترین ${ms} میلی‌ثانیه';
+	@override String get bestTag => 'بهترین';
+	@override String get ownHero => 'سرورهای خودمان';
+	@override String get ownHeroSub => 'سریع‌تر، خصوصی، هر گوشی با کلید خودش';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} سرور',
+	);
+	@override String showAll({required Object n}) => 'نمایش همه ${n}';
+	@override String get showFewer => 'نمایش کمتر';
+	@override String get fastTab => 'سریع';
+	@override String get fastestFree => 'سریع‌ترین رایگان';
 }
 
 // Path: pro
@@ -189,16 +213,7 @@ class _Translations$pro$fa extends Translations$pro$en {
 	@override String get owned => 'شما Pro دارید';
 	@override String get waitingPlay => 'در انتظار Google Play';
 	@override String startTrial({required Object days}) => 'شروع دوره رایگان ${days} روزه';
-	@override String thenYearly({required Object price}) => 'سپس سالی ${price}. هر زمان در Google Play لغو کنید.';
-	@override String thenMonthly({required Object price}) => 'سپس ماهی ${price}. هر زمان در Google Play لغو کنید.';
-	@override String yearlyPrice({required Object price}) => 'سالی ${price}. هر زمان در Google Play لغو کنید.';
-	@override String monthlyPrice({required Object price}) => 'ماهی ${price}. هر زمان در Google Play لغو کنید.';
 	@override String get restore => 'بازیابی';
-	@override String get heroTitle => 'سرورهای سریع‌تر،\nاداره‌شده توسط ما';
-	@override String get heroSubtitle => 'WireGuard. بدون گزارش فعالیت. بدون حساب کاربری.';
-	@override String get benefitSpeed => 'سرعت کامل، بدون محدودیت سرورهای داوطلبانه';
-	@override String get benefitKey => 'کلید روی گوشی شما ساخته می‌شود و هرگز به اشتراک گذاشته نمی‌شود';
-	@override String get benefitFree => 'هر چیز رایگان، رایگان می‌ماند';
 	@override String save({required Object pct}) => '${pct}٪ صرفه‌جویی';
 	@override String get yearly => 'سالانه';
 	@override String get monthly => 'ماهانه';
@@ -206,10 +221,6 @@ class _Translations$pro$fa extends Translations$pro$en {
 	@override String daysFree({required Object days}) => '${days} روز رایگان';
 	@override String perMonth({required Object price}) => 'ماهی ${price}';
 	@override String get title => 'G VPN Pro';
-	@override String get heroTitleOneLine => 'سرورهای سریع‌تر، اداره‌شده توسط ما';
-	@override String get includes => 'شامل';
-	@override String get benefitLogs => 'بدون گزارش فعالیت روی سرورهای ما';
-	@override String get plan => 'یک طرح انتخاب کنید';
 	@override String get renewGeneric => 'اشتراک‌ها تا زمان لغو خودکار تمدید می‌شوند. هر زمان در Google Play لغو کنید.';
 	@override String renewTrial({required Object days, required Object price, required Object period}) => '${days} روز رایگان، سپس ${price} در هر ${period}. تا زمان لغو خودکار تمدید می‌شود؛ برای جلوگیری از پرداخت، دست‌کم یک روز پیش از پایان دوره رایگان در Google Play لغو کنید.';
 	@override String renew({required Object price, required Object period}) => '${price} در هر ${period}. تا زمان لغو خودکار تمدید می‌شود؛ هر زمان در Google Play لغو کنید.';
@@ -217,6 +228,16 @@ class _Translations$pro$fa extends Translations$pro$en {
 	@override String get month => 'ماه';
 	@override String get manage => 'مدیریت اشتراک';
 	@override late final _Translations$pro$free$fa free = _Translations$pro$free$fa._(_root);
+	@override String get heroLine => 'سرورهای سریع خودمان، و همه بررسی‌ها نامحدود';
+	@override String get start => 'شروع Pro';
+	@override String get compareFree => 'رایگان';
+	@override String get comparePro => 'PRO';
+	@override String get rowFreeServers => 'سرورهای رایگان';
+	@override String get rowTools => 'تست سرعت، ابزارها، بررسی وای‌فای';
+	@override String get rowGServers => 'G Servers، بدون گزارش';
+	@override String get rowLinks => 'بررسی پیوند';
+	@override String linksFree({required Object n}) => '${n} در ماه';
+	@override String get unlimited => 'نامحدود';
 }
 
 // Path: rules
@@ -230,7 +251,6 @@ class _Translations$rules$fa extends Translations$rules$en {
 	@override late final _Translations$rules$info$fa info = _Translations$rules$info$fa._(_root);
 	@override String get protection => 'محافظت';
 	@override String get shield => 'سپر';
-	@override String get shieldSub => 'سایت‌های بدافزار و فیشینگ را مسدود می‌کند';
 	@override String get privateDns => 'سپر بدون VPN';
 	@override String get privateDnsSub => 'کپی dns.quad9.net برای DNS خصوصی';
 	@override String get privateDnsCopied => 'dns.quad9.net کپی شد';
@@ -346,9 +366,17 @@ class _Translations$wol$fa extends Translations$wol$en {
 	@override String get badMac => 'این آدرس MAC نیست. شکل آن مانند AA:BB:CC:DD:EE:FF است.';
 	@override String get sent => 'سیگنال روشن شدن ارسال شد. دستگاه باید ظرف یک دقیقه روشن شود.';
 	@override String get title => 'Wake on LAN';
-	@override String get wake => 'روشن کردن دستگاه';
 	@override String get mac => 'آدرس MAC';
 	@override String failed({required Object error}) => 'ارسال ممکن نشد: ${error}';
+	@override String get computer => 'رایانه';
+	@override String get pick => 'دستگاهی را برای روشن کردن انتخاب کنید';
+	@override String waking({required Object name}) => 'در حال روشن کردن ${name}';
+	@override String get yours => 'دستگاه‌های شما';
+	@override String wakeNamed({required Object name}) => 'روشن کردن ${name}';
+	@override String get removeHint => 'برای حذف، دستگاه را نگه دارید';
+	@override String get add => 'افزودن دستگاه';
+	@override String get name => 'نام';
+	@override String get saveWake => 'ذخیره و روشن کردن';
 }
 
 // Path: speed
@@ -358,7 +386,6 @@ class _Translations$speed$fa extends Translations$speed$en {
 	final TranslationsFa _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'اندازه‌گیری توسط M-Lab، یک پلتفرم پژوهشی باز. هر آزمایش حدود ۵۰ تا ۱۰۰ مگابایت مصرف می‌کند.\n\nنتایج عمومی: M-Lab هر آزمایش، از جمله آدرس IP مبدأ آن، را به‌عنوان داده پژوهشی باز منتشر می‌کند.\n\nمقایسه ارائه‌دهنده: پس از آزمایش بدون VPN، G VPN فقط سه عدد سرعت را می‌فرستد. سرویس مقایسه، ارائه‌دهنده و شهر شما را از خود اتصال می‌خواند و هیچ آدرس IP ذخیره نمی‌کند. با کلید پایین این صفحه آن را خاموش کنید.\n\nاز طریق VPN: با VPN روشن، سرعت داخل تونل را اندازه می‌گیرد و با آخرین آزمایش بدون VPN مقایسه می‌کند.\n\nپیش‌نمایش ویدیو: همان تصویر با وضوحی که این سرعت می‌تواند پخش کند، بر اساس نرخ بیتی که سرویس‌های پخش اعلام می‌کنند. هیچ ویدیویی دانلود نمی‌شود.';
 	@override String get download => 'دریافت';
 	@override String get upload => 'ارسال';
 	@override String get finding => 'در حال یافتن سرور';
@@ -439,10 +466,11 @@ class _Translations$router$fa extends Translations$router$en {
 	@override String get cgnat => 'آدرس مشترک ارائه‌دهنده: از اینترنت قابل دسترسی نیست.';
 	@override String get noDescription => 'بدون توضیح';
 	@override String opened({required Object n}) => '${n} پورت توسط دستگاه‌ها باز شده';
-	@override String routerName({required Object name}) => 'روتر: ${name}';
-	@override String externalIp({required Object ip}) => 'آدرس اینترنت: ${ip}';
 	@override String mapping({required Object proto, required Object host}) => '${proto} به ${host}';
 	@override String get upnpOn => 'UPnP روشن است';
+	@override String get routerLabel => 'روتر';
+	@override String get internetAddress => 'نشانی اینترنت';
+	@override String get openedBy => 'باز شده توسط دستگاه‌ها';
 }
 
 // Path: network
@@ -494,8 +522,6 @@ class _Translations$devices$fa extends Translations$devices$en {
 	@override String get title => 'دستگاه‌ها';
 	@override String get again => 'اسکن دوباره';
 	@override String get looking => 'در حال جست‌وجوی دستگاه‌ها';
-	@override String get nothingNew => 'از آخرین اسکن چیز جدیدی نیست';
-	@override String get takes => 'حدود ۳۰ ثانیه طول می‌کشد';
 	@override String get all => 'همه';
 	@override String get phones => 'گوشی‌ها';
 	@override String get tvs => 'تلویزیون‌ها';
@@ -507,14 +533,48 @@ class _Translations$devices$fa extends Translations$devices$en {
 	@override String get address => 'آدرس';
 	@override String get answersIn => 'پاسخ در';
 	@override String get type => 'نوع';
-	@override String get notAnnounced => 'اعلام نشده. فهرست دستگاه‌های روتر شما می‌تواند نام آن را نشان دهد.';
 	@override String get newBadge => 'جدید';
 	@override String scanning({required Object n}) => 'اسکن ${n} از ۲۵۴';
-	@override String get thisNetwork => 'این شبکه';
 	@override String newSince({required Object n}) => '${n} دستگاه جدید از آخرین اسکن';
-	@override String showMore({required Object n}) => 'نمایش ${n} مورد دیگر';
 	@override String ms({required Object n}) => '${n} میلی‌ثانیه';
-	@override String onNetwork({required Object network}) => 'دستگاه در ${network}';
+	@override String get cameras => 'دوربین‌ها';
+	@override String get device => 'دستگاه';
+	@override String get online => 'آنلاین';
+	@override String get model => 'مدل';
+	@override String get announced => 'خود را این‌طور معرفی می‌کند';
+	@override String get services => 'سرویس‌های باز';
+	@override String get checkingServices => 'در حال بررسی سرویس‌ها';
+	@override String get noServices => 'هیچ سرویس رایجی پاسخ نمی‌دهد';
+	@override String get rename => 'تغییر نام';
+	@override String get save => 'ذخیره';
+	@override late final _Translations$devices$kinds$fa kinds = _Translations$devices$kinds$fa._(_root);
+	@override String get details => 'جزئیات شبکه';
+	@override String get listView => 'فهرست';
+	@override String get meshView => 'شبکه‌نما';
+	@override String get offlineHeading => 'آفلاین';
+	@override String seen({required Object when}) => 'دیده‌شده ${when}';
+	@override String agoMinutes({required Object n}) => '${n} دقیقه پیش';
+	@override String agoHours({required Object n}) => '${n} ساعت پیش';
+	@override String agoDays({required Object n}) => '${n} روز پیش';
+	@override String get throughVpn => 'از طریق VPN';
+	@override String get closer => 'نزدیک‌تر = پاسخ سریع‌تر';
+	@override String get yours => 'این مال شماست؟';
+	@override String get mine => 'مال من';
+	@override String get notMine => 'مال من نیست';
+	@override String get whatIsIt => 'این چیست؟';
+	@override String ourGuess({required Object kind}) => 'حدس ما: ${kind}';
+	@override String get groupPersonal => 'تلفن‌ها و رایانه‌ها';
+	@override String get groupHome => 'خانه و رسانه';
+	@override String get groupNetwork => 'شبکه و خانه هوشمند';
+	@override String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} آنلاین',
+	);
+	@override String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} آفلاین',
+	);
+	@override String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} در انتظار تأیید',
+	);
 }
 
 // Path: ping
@@ -524,10 +584,8 @@ class _Translations$ping$fa extends Translations$ping$en {
 	final TranslationsFa _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'مدت زمان یک رفت‌وبرگشت تا سرور، هر ثانیه در یک دقیقه گذشته اندازه‌گیری می‌شود.\n\nلرزش (Jitter): میزان تفاوت هر پاسخ با پاسخ قبلی. لرزش زیاد باعث قطع‌ووصلی تماس‌ها می‌شود.\n\nاتلاف: پاسخ‌هایی که هرگز برنگشتند.\n\nروش: برنامه‌های اندروید نمی‌توانند پینگ کلاسیک بفرستند، پس هر آزمایش زمان یک دست‌دادن اتصال را می‌سنجد که همان یک رفت‌وبرگشت است.';
 	@override String get askTitle => 'پینگ یک میزبان';
 	@override String get askHint => 'example.com یا 192.168.1.10';
-	@override String get cancel => 'لغو';
 	@override String get title => 'پینگ';
 	@override String get router => 'روتر';
 	@override String get pause => 'توقف';
@@ -573,7 +631,6 @@ class _Translations$status$fa extends Translations$status$en {
 	@override String get blocked => 'ممکن است در این شبکه مسدود باشد';
 	@override String get connect => 'اتصال';
 	@override String get blockedShort => 'مسدود';
-	@override String get unreachable => 'غیرقابل دسترس';
 	@override String get now => 'اکنون';
 	@override String checks({required Object n}) => '${n} بررسی';
 	@override String andMore({required Object first, required Object n}) => '${first} و ${n} مورد دیگر';
@@ -594,27 +651,35 @@ class _Translations$tools$fa extends Translations$tools$en {
 	@override String get offline => 'آفلاین';
 	@override String get title => 'ابزارها';
 	@override String get networkDesc => 'بررسی ایمنی، آنچه سایت‌ها می‌بینند، سیگنال، روتر و DNS.';
-	@override String get internet => 'اتصال اینترنت';
+	@override String get internet => 'اینترنت';
 	@override String get speed => 'آزمایش سرعت';
-	@override String get speedDesc => 'سرعت دریافت و ارسال، و کیفیت ویدیویی که پشتیبانی می‌کند.';
+	@override String get speedDesc => 'دانلود، آپلود و کیفیت ویدیو';
 	@override String get ping => 'پینگ';
-	@override String get pingDesc => 'زمان پاسخ زنده و لرزش تا هر سرور یا روتر شما.';
+	@override String get pingDesc => 'زمان پاسخ و نوسان زنده';
 	@override String get status => 'وضعیت سرویس‌ها';
-	@override String get statusDesc => 'آیا WhatsApp، YouTube یا Google از اینجا در دسترس است یا مسدود؟';
+	@override String get statusDesc => 'برنامه اینجا کار می‌کند یا مسدود است؟';
 	@override String get trace => 'ردیابی مسیر';
-	@override String get traceDesc => 'همه روترهای بین شما و یک سایت، و زمان هر کدام.';
-	@override String get security => 'امنیت شبکه';
+	@override String get traceDesc => 'هر توقف در مسیر رسیدن به یک سایت';
+	@override String get security => 'این شبکه';
 	@override String get devices => 'دستگاه‌های این شبکه';
-	@override String get devicesDesc => 'چه کسانی در Wi-Fi شما هستند: گوشی، تلویزیون، دوربین و کامپیوتر.';
+	@override String get devicesDesc => 'چه کسانی در وای‌فای شما هستند';
 	@override String get router => 'بررسی روتر';
-	@override String get routerDesc => 'آیا دستگاه‌ها می‌توانند خودشان روی روتر شما پورت باز کنند (UPnP).';
+	@override String get routerDesc => 'پورت‌هایی که دستگاه‌ها باز کرده‌اند';
 	@override String get ports => 'پورت‌های باز';
-	@override String get portsDesc => 'روتر یا یک سرور را از نظر پورت‌های باز پرخطر بررسی کنید.';
-	@override String get utilities => 'ابزارهای کمکی';
+	@override String get portsDesc => 'پورت‌های پرخطر روی دستگاه یا سرور';
+	@override String get utilities => 'ابزارها';
 	@override String get wifiScanner => 'اسکنر Wi-Fi';
-	@override String get wifiDesc => 'شبکه‌های اطراف، امنیت آن‌ها و خلوت‌ترین کانال.';
+	@override String get wifiDesc => 'شبکه‌های اطراف و خلوت‌ترین کانال';
 	@override String get wol => 'Wake on LAN';
-	@override String get wolDesc => 'یک کامپیوتر یا NAS را در این شبکه روشن کنید.';
+	@override String get wolDesc => 'روشن کردن رایانه‌ای در این شبکه';
+	@override String get passwordCheck => 'بررسی رمز عبور';
+	@override String get passwordCheckDesc => 'لو رفته است؟';
+	@override String get linkCheck => 'بررسی پیوند';
+	@override String get linkCheckDesc => 'باز کردنش امن است؟';
+	@override String get breaches => 'نشت داده‌ها';
+	@override String get breachesDesc => 'اخیراً چه چیزی نشت کرده';
+	@override String get blocked => 'چه چیزی مسدود است';
+	@override String get blockedDesc => 'سایت‌های مسدود در این شبکه';
 }
 
 // Path: trace
@@ -640,6 +705,12 @@ class _Translations$trace$fa extends Translations$trace$en {
 	@override String silentMany({required Object n}) => '${n} گام ساکت';
 	@override String hop({required Object n}) => 'گام ${n}';
 	@override String slowest({required Object ms, required Object hop}) => 'بیشتر تأخیر، ${ms} میلی‌ثانیه، در گام ${hop} اضافه می‌شود: معمولاً یک کابل طولانی بین کشورها یا یک لینک شلوغ.';
+	@override String get popular => 'پرطرفدار';
+	@override String get recent => 'اخیر';
+	@override String get clearRecent => 'پاک کردن اخیر';
+	@override String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} گام',
+	);
 }
 
 // Path: ports
@@ -677,6 +748,11 @@ class _Translations$ports$fa extends Translations$ports$en {
 	@override String checking({required Object n}) => 'در حال بررسی ${n} پورت';
 	@override String yourRouter({required Object ip}) => 'روتر شما ${ip} است';
 	@override String noneOpen({required Object host}) => 'هیچ پورت رایجی روی ${host} باز نیست.';
+	@override String summary({required Object open, required Object n}) => '${open} باز از ${n} بررسی‌شده';
+	@override String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} پرخطر',
+	);
+	@override String get noneRisky => 'چیز پرخطری نیست';
 }
 
 // Path: wifi
@@ -695,11 +771,38 @@ class _Translations$wifi$fa extends Translations$wifi$en {
 	@override String get none => 'شبکه‌ای پیدا نشد. ممکن است موقعیت مکانی خاموش باشد.';
 	@override String get hidden => 'شبکه پنهان';
 	@override String nearby({required Object n}) => '${n} شبکه در اطراف';
-	@override String bestChannel({required Object n}) => 'خلوت‌ترین کانال 2.4 GHz: ${n}';
-	@override String weak({required Object n}) => '${n} شبکه باز یا ضعیف';
-	@override String get connectedPrefix => 'متصل · ';
 	@override String get permissionInfo => 'اندروید شبکه‌های Wi-Fi اطراف را فقط به برنامه‌های دارای اجازه موقعیت نشان می‌دهد. G VPN از آن فقط برای فهرست کردن شبکه‌ها روی همین گوشی استفاده می‌کند.';
 	@override String get info => 'شبکه‌ها را از آخرین اسکن گوشی فهرست می‌کند. اندروید فقط چند اسکن در دقیقه اجازه می‌دهد، پس اسکن دوباره سریع ممکن است همان فهرست را نشان دهد. کانال پیشنهادی خلوت‌ترین از میان ۱، ۶ و ۱۱ است، سه کانالی که هم‌پوشانی ندارند.';
+	@override String get airMap => 'نقشه هوا';
+	@override String get channels => 'کانال‌ها';
+	@override String get list => 'فهرست';
+	@override String get secure => 'امن';
+	@override String get weakLabel => 'ضعیف';
+	@override String get openLabel => 'باز';
+	@override String get sizeIsWidth => 'اندازه = پهنای کانال';
+	@override String get strongest => 'قوی‌ترین';
+	@override String get openNearby => 'شبکه‌های باز اطراف';
+	@override String get onYourChannel => 'روی کانال شما';
+	@override String get noneNearby => 'هیچ';
+	@override String get verdictOpen => 'هر کسی در اطراف می‌تواند ارسال‌ها را بخواند';
+	@override String get verdictWep => 'امنیت قدیمی، آسان شکسته می‌شود';
+	@override String get verdictWpa => 'امنیت قدیمی';
+	@override String get verdictWps => 'WPS روشن است: نفوذ آسان‌تر';
+	@override String get verdictGood => 'به‌خوبی محافظت شده';
+	@override String get maker => 'سازنده';
+	@override String get address => 'نشانی سخت‌افزاری';
+	@override String get privateAddress => 'ساخته روتر برای حریم خصوصی';
+	@override String get you => 'شما';
+	@override String onClear({required Object name}) => '${name} روی کانالی خلوت است';
+	@override String move({required Object name, required Object n}) => '${name} را به کانال ${n} ببرید';
+	@override String get clear => 'خلوت';
+	@override String get busy => 'شلوغ';
+	@override String get crowded => 'پرازدحام';
+	@override String get allBands => 'همه باندها';
+	@override String get openOnly => 'فقط باز';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} شبکه',
+	);
 }
 
 // Path: errors
@@ -858,10 +961,6 @@ class _Translations$gs$fa extends Translations$gs$en {
 	@override String busy({required Object n}) => '${n}٪ مشغول';
 	@override String get offline => 'آفلاین';
 	@override String get devices => 'دستگاه‌های شما';
-	@override String devicesSub({required Object n}) => 'تا ${n} گوشی، هر کدام با کلید خودش';
-	@override String get footnote => 'هر گوشی کلید خودش را دارد که روی همان گوشی ساخته می‌شود. G Servers هیچ گزارش فعالیتی نگه نمی‌دارند.';
-	@override String get leastBusy => 'کم‌مشغله‌ترین در حال حاضر';
-	@override String busyNoLogs({required Object n}) => '${n}٪ مشغول · بدون گزارش';
 	@override String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 	@override String get busyLabel => 'مشغولی';
 	@override String get status => 'وضعیت';
@@ -896,6 +995,510 @@ class _Translations$gs$fa extends Translations$gs$en {
 	@override String chartLabel({required Object max}) => 'مشغولی در ۲۴ ساعت گذشته، حداکثر ${max} درصد';
 	@override String get hoursAgo => '۲۴ ساعت پیش';
 	@override String get now => 'اکنون';
+	@override String get included => 'شامل';
+	@override String get perkServers => 'سرورهای سریع و خصوصی';
+	@override String get perkServersSub => 'WireGuard، اداره‌شده توسط ما، بدون گزارش فعالیت';
+	@override String get perkLinks => 'بررسی نامحدود پیوند';
+	@override String get perkLinksSub => 'هر پیوندی که برایتان می‌فرستند را بررسی کنید';
+	@override String devicesOf({required Object used, required Object limit}) => 'دستگاه‌های شما · ${used} از ${limit}';
+	@override String get eachKey => 'هر گوشی کلید خودش را دارد';
+	@override String get connected => 'متصل';
+	@override String get bestNow => 'بهترین برای شما الان';
+	@override String get logsShort => 'گزارش';
+}
+
+// Path: map
+class _Translations$map$fa extends Translations$map$en {
+	_Translations$map$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get open => 'باز کردن نقشه';
+	@override String get searchCountries => 'جستجوی کشور';
+	@override String get noMatch => 'کشوری پیدا نشد';
+	@override String get locate => 'موقعیت من';
+	@override String get list => 'فهرست';
+	@override String get map => 'نقشه';
+	@override String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} سرور رایگان',
+	);
+	@override late final _Translations$map$grade$fa grade = _Translations$map$grade$fa._(_root);
+	@override String get switchTo => 'تعویض';
+	@override String freeServer({required Object n}) => 'سرور رایگان ${n}';
+	@override String get best => 'بهترین';
+	@override String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} G Server',
+	);
+}
+
+// Path: stats
+class _Translations$stats$fa extends Translations$stats$en {
+	_Translations$stats$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get thisWeek => 'این هفته';
+	@override String get time => 'زمان';
+	@override String get data => 'داده';
+	@override String get protected => 'محافظت‌شده';
+	@override String get throughVpn => 'از طریق VPN';
+	@override String get seeDetails => 'جزئیات';
+	@override String get title => 'آمار';
+	@override String get week => 'هفته';
+	@override String get month => 'ماه';
+	@override String get protectedLabel => 'محافظت‌شده';
+	@override String get dataUsed => 'داده مصرفی';
+	@override String get byServer => 'بر اساس سرور';
+	@override String get onPhone => 'فقط روی همین گوشی';
+	@override String get reset => 'بازنشانی';
+	@override String get resetTitle => 'آمار بازنشانی شود؟';
+	@override String get resetBody => 'زمان محافظت و داده روی این گوشی پاک می‌شود. قابل بازگشت نیست.';
+	@override String hm({required Object h, required Object m}) => '${h} ساعت ${m} دقیقه';
+	@override String m({required Object m}) => '${m} دقیقه';
+	@override String get empty => 'برای شروع شمارش وصل شوید.';
+}
+
+// Path: recents
+class _Translations$recents$fa extends Translations$recents$en {
+	_Translations$recents$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'اخیر';
+	@override String get allServers => 'همه سرورها';
+	@override String get free => 'سرور رایگان';
+	@override String get yours => 'سرور شما';
+	@override String get gserver => 'G Server';
+}
+
+// Path: presets
+class _Translations$presets$fa extends Translations$presets$en {
+	_Translations$presets$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'پیش‌تنظیم‌ها';
+	@override String get all => 'همه';
+	@override String get newPreset => 'پیش‌تنظیم جدید';
+	@override String get edit => 'ویرایش پیش‌تنظیم';
+	@override String get name => 'نام';
+	@override String get namePlaceholder => 'پیش‌تنظیم من';
+	@override String get server => 'سرور';
+	@override String get fastestOption => 'سریع‌ترین';
+	@override String get countryOption => 'کشور';
+	@override String get pickCountry => 'انتخاب کشور';
+	@override String get skipMyCountry => 'رد کردن کشور من';
+	@override String get notMine => 'غیر از کشور من';
+	@override String get protocol => 'پروتکل';
+	@override String get auto => 'خودکار';
+	@override String get tryNext => 'اگر مسدود شد، سرور بعدی را امتحان کن';
+	@override String get shield => 'سپر';
+	@override String get followRules => 'مطابق قوانین';
+	@override String get allApps => 'همه برنامه‌ها از طریق VPN';
+	@override String get allAppsShort => 'همه برنامه‌ها';
+	@override String get save => 'ذخیره';
+	@override String get delete => 'حذف';
+	@override String get reset => 'بازگشت به پیش‌فرض';
+	@override String get none => 'فعلاً هیچ سرور رایگانی با این پیش‌تنظیم جور نیست.';
+	@override late final _Translations$presets$names$fa names = _Translations$presets$names$fa._(_root);
+}
+
+// Path: shield
+class _Translations$shield$fa extends Translations$shield$en {
+	_Translations$shield$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'سپر';
+	@override String get sub => 'هنگام اتصال کار می‌کند';
+	@override String get off => 'خاموش';
+	@override String get offSub => 'DNS خود سرور';
+	@override String get malware => 'بدافزار';
+	@override String get malwareSub => 'سایت‌های مخرب و فیشینگ را مسدود می‌کند';
+	@override String get family => 'بدافزار و سایت‌های بزرگسالان';
+	@override String get familySub => 'محتوای بزرگسالان را هم مسدود می‌کند';
+	@override String get custom => 'DNS دلخواه';
+	@override String get customSub => 'سرورهای DNS خودتان';
+	@override String get customHint => 'نشانی IP، مثلاً 1.1.1.1';
+	@override String get invalid => 'یک یا دو نشانی IP وارد کنید.';
+}
+
+// Path: checks
+class _Translations$checks$fa extends Translations$checks$en {
+	_Translations$checks$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'بررسی‌های امنیتی';
+	@override String get password => 'رمز عبور';
+	@override String get link => 'پیوند';
+	@override String get pwTitle => 'لو رفته است؟';
+	@override String get pwHint => 'رمز عبور برای بررسی';
+	@override String get showPassword => 'نمایش رمز';
+	@override String get hidePassword => 'پنهان کردن رمز';
+	@override String get check => 'بررسی';
+	@override String get leaked => 'در نشت‌ها پیدا شد';
+	@override String seen({required Object n}) => '${n} بار دیده شده';
+	@override String get leakedAdvice => 'همه‌جا که از آن استفاده می‌کنید عوضش کنید، از ایمیل و بانک شروع کنید.';
+	@override String get notFound => 'در نشت‌های شناخته‌شده نیست';
+	@override String get notFoundAdvice => 'نشانه خوبی است، نه تضمین. برای هر حساب رمز جداگانه بگذارید.';
+	@override String get failed => 'بررسی نشد. دوباره تلاش کنید.';
+	@override String get private => 'رمز عبور شما هرگز از این گوشی خارج نمی‌شود';
+	@override String get linkTitle => 'این پیوند امن است؟';
+	@override String get linkHint => 'پیوند برای بررسی';
+	@override String get paste => 'چسباندن';
+	@override String get danger => 'پیوند خطرناک';
+	@override String get dangerAdvice => 'بازش نکنید و هیچ اطلاعاتی وارد نکنید.';
+	@override String get clear => 'در فهرست‌های شناخته‌شده بدافزار یا فیشینگ نیست';
+	@override String get clearAdvice => 'باز هم پیش از ورود، نشانی را نگاه کنید.';
+	@override String get goesTo => 'می‌رود به';
+	@override String get redirects => 'تغییر مسیرها';
+	@override String get invalid => 'این شبیه نشانی وب نیست.';
+	@override String get busy => 'بررسی‌ها زیاد شد. کمی بعد دوباره تلاش کنید.';
+	@override String get unavailable => 'بررسی پیوند الان در دسترس نیست.';
+	@override String get listed => 'شناخته‌شده برای بدافزار یا فیشینگ';
+	@override String get missing => 'در این نشانی سایتی نیست';
+	@override String get missingAdvice => 'املا را بررسی کنید: کلاهبرداران از نشانی‌های مشابه استفاده می‌کنند.';
+	@override String left({required Object n, required Object total}) => '${n} از ${total} بررسی رایگان این ماه مانده است';
+	@override String get usedUp => 'بررسی‌های رایگان پیوند این ماه تمام شد';
+	@override String get usedUpSub => 'Pro بررسی نامحدود دارد. بررسی‌های رایگان روز اول ماه برمی‌گردند.';
+	@override String get getPro => 'دریافت Pro';
+}
+
+// Path: toolSettings
+class _Translations$toolSettings$fa extends Translations$toolSettings$en {
+	_Translations$toolSettings$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'تنظیمات ابزارها';
+	@override String get askMobile => 'پیش از تست سرعت با داده همراه بپرس';
+	@override String get askMobileSub => 'یک تست در اتصال سریع می‌تواند بیش از ۱۰۰ مگابایت مصرف کند';
+	@override String get mobileTitle => 'از داده همراه استفاده شود؟';
+	@override String get mobileBody => 'تست سرعت در اتصال سریع می‌تواند بیش از ۱۰۰ مگابایت مصرف کند.';
+	@override String get mobileGo => 'تست';
+	@override String get safe => 'امن';
+	@override String get unsafe => 'ناامن';
+	@override String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} دستگاه',
+	);
+	@override String get hideMac => 'پنهان کردن نشانی‌های سخت‌افزاری';
+	@override String get hideMacSub => 'فقط بخش سازنده نشانی‌های MAC نمایش داده می‌شود';
+	@override String get names => 'نمایش نام روترها و سرورها';
+	@override String get namesSub => 'در Traceroute نام نشانی‌ها را پیدا می‌کند';
+	@override String get remember => 'به خاطر سپردن میزبان‌های اخیر';
+	@override String get rememberSub => 'برای Traceroute';
+	@override String get clear => 'پاک کردن تاریخچه ابزارها';
+	@override String get clearSub => 'میزبان‌های اخیر و دستگاه‌های هر شبکه فراموش می‌شوند';
+	@override String get clearGo => 'پاک کردن';
+}
+
+// Path: security
+class _Translations$security$fa extends Translations$security$en {
+	_Translations$security$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'امنیت';
+	@override String get good => 'خوب';
+	@override String get fair => 'متوسط';
+	@override String get atRisk => 'در خطر';
+	@override String get allClear => 'چیزی برای رفع نیست';
+	@override String checked({required Object time}) => 'بررسی‌شده در ${time}';
+	@override String get trend => 'دو هفته اخیر';
+	@override String get checking => 'در حال بررسی این شبکه';
+	@override String get snoozed => 'به‌تعویق‌افتاده';
+	@override String get remindLater => 'بعداً یادآوری کن';
+	@override String get unsnooze => 'الان یادآوری کن';
+	@override String get review => 'بررسی';
+	@override String get confirmGo => 'تأیید';
+	@override String get scanGo => 'اسکن';
+	@override String get look => 'دیدن';
+	@override String get connectGo => 'اتصال';
+	@override String get checkAgain => 'بررسی دوباره';
+	@override String get wifiOpen => 'وای‌فای باز است';
+	@override String get wifiOpenDetail => 'هر کسی در اطراف می‌تواند ارسال‌ها را ببیند';
+	@override String get wifiWep => 'وای‌فای از WEP استفاده می‌کند';
+	@override String get wifiWepDetail => 'امنیت قدیمی، آسان شکسته می‌شود';
+	@override String get wifiOwe => 'وای‌فای از Enhanced Open استفاده می‌کند';
+	@override String get wifiOweDetail => 'رمزنگاری شده، اما همه می‌توانند وصل شوند';
+	@override String get wifiSecure => 'رمزنگاری وای‌فای';
+	@override String get wifiUnknown => 'امنیت وای‌فای نامشخص است';
+	@override String get wifiUnknownDetail => 'اندروید نگفت چطور محافظت می‌شود';
+	@override String get wps => 'WPS روشن است';
+	@override String get wpsDetail => 'آن را در تنظیمات روتر خاموش کنید';
+	@override String get upnpOff => 'روتر پورت‌ها را بسته نگه می‌دارد';
+	@override String get upnpOffDetail => 'UPnP خاموش است';
+	@override String get upnpOn => 'روتر اجازه می‌دهد دستگاه‌ها پورت باز کنند';
+	@override String get upnpOnDetail => 'UPnP روشن است';
+	@override String get portsOk => 'پورت پرخطری روی روتر نیست';
+	@override String get portsRisky => 'پورت‌های پرخطر روی روتر باز است';
+	@override String get scanFirst => 'برای دیدن حاضران اسکن کنید';
+	@override String get scanFirstDetail => 'دستگاه‌های ناشناس امتیاز را کم می‌کنند';
+	@override String get notMineDetail => 'فهرست دستگاه‌های روتر را بررسی کنید';
+	@override String get confirmDetail => 'دستگاه‌های خودتان را علامت بزنید';
+	@override String get devicesOk => 'همه دستگاه‌ها شناخته‌شده‌اند';
+	@override String get devicesOkDetail => 'همه را تأیید کرده‌اید';
+	@override String get camera => 'یک دوربین در این شبکه است';
+	@override String get dnsHijack => 'نام‌های ناشناس تغییر مسیر داده می‌شوند';
+	@override String get dnsHijackDetail => 'ارائه‌دهنده یا روتر شما پاسخ‌ها را بازنویسی می‌کند';
+	@override String get dnsOk => 'DNS عادی پاسخ می‌دهد';
+	@override String get dnsOkDetail => 'نشانه‌ای از تغییر مسیر نیست';
+	@override String get vpnOn => 'VPN روشن است';
+	@override String get vpnOnDetail => 'ترافیک از تونل خارج می‌شود';
+	@override String get vpnOff => 'VPN خاموش است';
+	@override String get vpnOffDetail => 'ارائه‌دهنده شما هر سایتی را می‌بیند';
+	@override String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} مورد برای رفع',
+	);
+	@override String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} پورت باز شده توسط دستگاه‌ها',
+	);
+	@override String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} پورت بررسی شد',
+	);
+	@override String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} دستگاه مال شما نیست',
+	);
+	@override String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} دستگاه برای تأیید',
+	);
+}
+
+// Path: providers
+class _Translations$providers$fa extends Translations$providers$en {
+	_Translations$providers$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'اینترنت';
+	@override String get unavailable => 'فهرست ارائه‌دهندگان بارگیری نشد. اتصال را بررسی کنید.';
+	@override String get cached => 'طبق آخرین بررسی بدون VPN';
+	@override String get notEnough => 'هنوز امتیاز کافی نیست';
+	@override String get yourRating => 'امتیاز شما در این ماه';
+	@override String get yourSpeed => 'سرعت شما';
+	@override String get runTest => 'تست سرعت';
+	@override String get aboutAverage => 'حدود میانگین اینجا';
+	@override String aboveAverage({required Object pct}) => '${pct}٪ بالاتر از میانگین محلی';
+	@override String belowAverage({required Object pct}) => '${pct}٪ پایین‌تر از میانگین محلی';
+	@override String get call => 'تماس';
+	@override String get website => 'وب‌سایت';
+	@override String get outages => 'قطعی‌ها';
+	@override String get rate => 'امتیاز بدهید';
+	@override String get changeRating => 'تغییر امتیاز';
+	@override String get compare => 'مقایسه';
+	@override String rateTitle({required Object name}) => 'امتیاز به ${name}';
+	@override String get oncePerMonth => 'ماهی یک امتیاز';
+	@override String get tapStars => 'روی ستاره‌ها بزنید';
+	@override String verified({required Object mbps}) => 'با تست سرعت شما تأیید شد: ${mbps} Mbps';
+	@override String get busy => 'امتیازهای زیادی از اینجا آمده. بعداً امتحان کنید.';
+	@override String get failed => 'ارسال نشد. دوباره امتحان کنید.';
+	@override String get post => 'ارسال امتیاز';
+	@override String get nearTitle => 'ارائه‌دهندگان نزدیک شما';
+	@override String slower({required Object pct}) => 'سرعت دانلود شما ${pct}٪ پایین‌تر از میانگین ارائه‌دهنده‌تان در اینجاست';
+	@override String inPlace({required Object place}) => 'اینترنت خانگی در ${place}';
+	@override String get byRating => 'امتیاز';
+	@override String get bySpeed => 'سرعت';
+	@override String get footnote => 'سرعت‌ها میانگین تست‌های G VPN هستند';
+	@override String get noneNearby => 'هنوز امتیازی در نزدیکی نیست. اولین نفر باشید.';
+	@override String get you => 'شما';
+	@override String get topRated => 'بالاترین امتیاز';
+	@override String starsOf({required Object n}) => '${n} از ۵';
+	@override late final _Translations$providers$tags$fa tags = _Translations$providers$tags$fa._(_root);
+	@override late final _Translations$providers$words$fa words = _Translations$providers$words$fa._(_root);
+	@override String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} امتیاز',
+	);
+}
+
+// Path: alerts
+class _Translations$alerts$fa extends Translations$alerts$en {
+	_Translations$alerts$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get channel => 'هشدارها';
+	@override String get title => 'هشدارها';
+	@override String get markAllRead => 'همه خوانده شد';
+	@override String get clearAll => 'پاک کردن همه';
+	@override String get thisNetwork => 'این شبکه';
+	@override String openWifiTitle({required Object name}) => 'به یک وای‌فای باز وصل شدید: ${name}';
+	@override String get openWifiBody => 'هر کسی در اطراف می‌تواند ارسال‌ها را ببیند. G VPN را روشن کنید.';
+	@override String get reportTitle => 'گزارش هفتگی شما آماده است';
+	@override String reportBody({required Object hours}) => '${hours} ساعت محافظت در هفته گذشته';
+	@override String blockedTitle({required Object name}) => '${name} اینجا مسدود است';
+	@override String get blockedBody => 'از طریق VPN پاسخ می‌دهد';
+	@override late final _Translations$alerts$kinds$fa kinds = _Translations$alerts$kinds$fa._(_root);
+	@override String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} دستگاه جدید در ${network}',
+	);
+	@override String get settings => 'تنظیمات هشدارها';
+	@override String get look => 'دیدن';
+	@override String get read => 'خواندن';
+	@override String get open => 'باز کردن';
+	@override String get check => 'بررسی';
+	@override String get today => 'امروز';
+	@override String get thisWeek => 'این هفته';
+	@override String get earlier => 'قبل‌تر';
+	@override String get all => 'همه';
+	@override String get quiet => 'همه چیز آرام است';
+	@override String get quietSub => 'اخیراً چیزی به شما نیاز نداشت';
+	@override String breachTitle({required Object name}) => 'نشت جدید: ${name}';
+	@override late final _Translations$alerts$status$fa status = _Translations$alerts$status$fa._(_root);
+}
+
+// Path: report
+class _Translations$report$fa extends Translations$report$en {
+	_Translations$report$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'گزارش هفتگی';
+	@override String get share => 'اشتراک به‌صورت تصویر';
+	@override String get shareText => 'هفته من با G VPN';
+	@override String get safer => 'هفته‌ای امن‌تر';
+	@override String get moreProtected => 'محافظت بیشتر از هفته قبل';
+	@override String get yourWeek => 'هفته شما';
+	@override String soFar({required Object range}) => '${range}، تا اینجا';
+	@override String get protected => 'محافظت‌شده';
+	@override String get data => 'داده';
+	@override String get security => 'امنیت';
+	@override String get speed => 'بهترین سرعت';
+	@override String get noScore => 'بررسی نشده';
+	@override String get noTest => 'بدون تست';
+	@override String get bestDirect => 'تست مستقیم';
+	@override String moreThan({required Object d}) => '${d} بیشتر از هفته قبل';
+	@override String lessThan({required Object d}) => '${d} کمتر از هفته قبل';
+	@override String get protectedTime => 'زمان محافظت';
+	@override String mostUsed({required Object name}) => 'پرکاربردترین: ${name}';
+	@override String get quiet => 'هفته‌ای آرام: چیزی به شما نیاز نداشت';
+	@override String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} دستگاه جدید وصل شد',
+	);
+	@override String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: 'به ${n} وای‌فای باز وصل شدید',
+	);
+	@override String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} برنامه مسدود شد',
+	);
+	@override String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} نشت بزرگ جدید',
+	);
+}
+
+// Path: breaches
+class _Translations$breaches$fa extends Translations$breaches$en {
+	_Translations$breaches$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'نشت داده‌ها';
+	@override String get info => 'تازه‌ترین نشت‌های داده از فهرست عمومی Have I Been Pwned. چیزی درباره شما ارسال نمی‌شود: فهرست برای همه یکسان است.\n\nاگر در سایت نشت‌کرده حساب داشتید، آن رمز را و هر جا که همان را به کار بردید عوض کنید.';
+	@override String get unavailable => 'فهرست بارگیری نشد. اتصال را بررسی کنید.';
+	@override String get biggest => 'بزرگ‌ترین این ماه';
+	@override String get newest => 'تازه‌ترین';
+	@override String get biggestSort => 'بزرگ‌ترین';
+	@override String get withPasswords => 'دارای رمز عبور';
+	@override String get passwordsMark => 'رمزها';
+	@override String get one => 'نشت';
+	@override String get checkPassword => 'بررسی یک رمز عبور';
+	@override String get verified => 'تأییدشده';
+	@override String get hasPasswords => 'رمز عبور دارد';
+	@override String get accountsLabel => 'حساب‌ها';
+	@override String get happened => 'رخ داد';
+	@override String get published => 'منتشر شد';
+	@override String get website => 'وب‌سایت';
+	@override String get leaked => 'چه چیزی نشت کرد';
+	@override String get ifUsed => 'اگر از آن استفاده می‌کردید';
+	@override String get stepPassword => 'رمزی را که آنجا استفاده می‌کردید عوض کنید';
+	@override String get stepReuse => 'هر جا همان رمز را دارید عوضش کنید';
+	@override String get stepTwoStep => 'ورود دومرحله‌ای را هر جا ممکن است روشن کنید';
+	@override String get stepScams => 'منتظر تماس‌ها و پیام‌های کلاهبرداری باشید';
+	@override String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${count} حساب',
+	);
+	@override String worldwide({required Object n}) => 'جهانی · ${n}';
+	@override String get noneHere => 'در فهرست اخیر نشتی از اینجا نیست.';
+	@override String get bigMap => 'نقشه بزرگ‌تر';
+	@override String get showInList => 'نمایش در فهرست';
+	@override String get mapTitle => 'نقشه نشت‌ها';
+	@override String get zoomIn => 'بزرگ‌نمایی';
+	@override String get zoomOut => 'کوچک‌نمایی';
+	@override String get wholeWorld => 'کل جهان';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} نشت',
+	);
+	@override String get findCountry => 'یافتن کشور';
+	@override String get seeAll => 'دیدن همه';
+	@override String get search => 'جستجوی نشت‌ها';
+}
+
+// Path: blocked
+class _Translations$blocked$fa extends Translations$blocked$en {
+	_Translations$blocked$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'چه چیزی مسدود است';
+	@override String get info => 'سایت‌های شناخته‌شده را از همین گوشی، بدون VPN، آزمایش می‌کند و نشان می‌دهد این شبکه کدام را و چگونه مسدود می‌کند.\n\nنشانی جعلی: جستجوی نام در شبکه پاسخ نادرست می‌دهد.\n\nقطع‌شده: اتصال در شروع قطع می‌شود.\n\nبی‌پاسخ: چیزی برنمی‌گردد.\n\nصفحه مسدودسازی: چیز دیگری به جای سایت پاسخ می‌دهد.\n\nآزمایش نشان می‌دهد سایت کجا مسدود است، نه اینکه چه کسی آن را مسدود کرده. چیزی ذخیره یا ارسال نمی‌شود.';
+	@override String get thisNetwork => 'این شبکه';
+	@override String get country => 'کشور شما';
+	@override String get question => 'اینجا چه چیزی مسدود است؟';
+	@override String get testingOn => 'در حال آزمایش روی';
+	@override String get vpnOn => 'VPN روشن';
+	@override String get turnOff => 'برای آزمایش G VPN را خاموش کنید';
+	@override String get test => 'آزمایش این شبکه';
+	@override String get stop => 'توقف';
+	@override String sitesToTest({required Object n}) => 'سایت‌های آزمایشی · ${n}';
+	@override String ofSites({required Object n}) => 'از ${n} سایت';
+	@override String blockedCount({required Object n}) => '${n} مسدود';
+	@override String openCount({required Object n}) => '${n} باز';
+	@override String noneBlocked({required Object network}) => 'در ${network} چیزی مسدود نیست';
+	@override String openOf({required Object open, required Object total}) => '${open} از ${total} باز';
+	@override String get allWork => 'همه با G VPN کار می‌کنند';
+	@override String get blockedHeading => 'مسدود';
+	@override String get byKind => 'بر اساس نوع';
+	@override String get worksVpn => 'با VPN کار می‌کند';
+	@override String get failsVpn => 'با VPN هم مسدود است';
+	@override String get checkVpn => 'بررسی از طریق G VPN';
+	@override String get connect => 'اتصال G VPN';
+	@override String get again => 'آزمایش دوباره';
+	@override String get withoutVpn => 'بدون VPN';
+	@override String get throughVpn => 'از طریق G VPN';
+	@override String get notChecked => 'بررسی نشده';
+	@override String get opens => 'باز می‌شود';
+	@override String get stillBlocked => 'مسدود';
+	@override String get whatHappened => 'چه اتفاقی افتاد';
+	@override String countryBlocked({required Object country}) => 'سایت مسدود در ${country}';
+	@override String get countrySub => 'یافته‌های آزمایش داوطلبان در ۳۰ روز گذشته';
+	@override String get countryNone => 'در ۳۰ روز گذشته سایت مسدودی گزارش نشده است.';
+	@override String get countryUnavailable => 'نتایج کشور بارگیری نشد. اتصال را بررسی کنید.';
+	@override String get confirmed => 'مسدود';
+	@override String get oftenFails => 'اغلب ناموفق';
+	@override late final _Translations$blocked$kinds$fa kinds = _Translations$blocked$kinds$fa._(_root);
+	@override late final _Translations$blocked$how$fa how = _Translations$blocked$how$fa._(_root);
+	@override late final _Translations$blocked$fail$fa fail = _Translations$blocked$fail$fa._(_root);
+	@override late final _Translations$blocked$steps$fa steps = _Translations$blocked$steps$fa._(_root);
+	@override late final _Translations$blocked$consent$fa consent = _Translations$blocked$consent$fa._(_root);
+	@override String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} سایت در ${network} مسدود است',
+	);
+	@override String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n,
+		other: '${n} آزمایش',
+	);
 }
 
 // Path: home.status
@@ -911,18 +1514,6 @@ class _Translations$home$status$fa extends Translations$home$status$en {
 	@override String get connecting => 'در حال اتصال';
 	@override String get stopping => 'در حال قطع';
 	@override String get notProtected => 'محافظت‌نشده';
-}
-
-// Path: home.waves
-class _Translations$home$waves$fa extends Translations$home$waves$en {
-	_Translations$home$waves$fa._(TranslationsFa root) : this._root = root, super.internal(root);
-
-	final TranslationsFa _root; // ignore: unused_field
-
-	// Translations
-	@override String get encrypted => 'رمزگذاری‌شده';
-	@override String get securing => 'در حال ایمن‌سازی';
-	@override String get exposed => 'بی‌محافظ';
 }
 
 // Path: home.network
@@ -946,11 +1537,6 @@ class _Translations$home$card$fa extends Translations$home$card$en {
 	final TranslationsFa _root; // ignore: unused_field
 
 	// Translations
-	@override String get connectedVia => 'متصل از طریق';
-	@override String get protocol => 'پروتکل';
-	@override String get dns => 'DNS';
-	@override String get dnsQuad9 => 'Quad9، داخل تونل';
-	@override String get dnsServer => 'سرور، داخل تونل';
 	@override String get downloaded => 'دریافت‌شده';
 	@override String get uploaded => 'ارسال‌شده';
 	@override String get wireguard => 'WireGuard';
@@ -971,7 +1557,6 @@ class _Translations$home$tiles$fa extends Translations$home$tiles$en {
 
 	// Translations
 	@override String get shield => 'سپر';
-	@override String get shieldOn => 'سایت‌های مخرب را مسدود می‌کند';
 	@override String get appsDirect => 'برنامه‌های مستقیم';
 	@override String get appsAll => 'همه برنامه‌ها محافظت‌شده';
 	@override String appsSkip({required Object n}) => '${n} برنامه بدون VPN';
@@ -1120,11 +1705,180 @@ class _Translations$rules$info$fa extends Translations$rules$info$en {
 	final TranslationsFa _root; // ignore: unused_field
 
 	// Translations
-	@override String get shield => 'سپر درخواست‌های DNS را به Quad9 می‌فرستد که سایت‌های شناخته‌شده بدافزار و فیشینگ را رد می‌کند. تبلیغات را مسدود نمی‌کند و تا روشن است جایگزین DNS سرور می‌شود.';
+	@override String get shield => 'سپر هنگام اتصال درخواست‌های DNS را فیلتر می‌کند: Quad9 بدافزار و فیشینگ را مسدود می‌کند، Cloudflare for Families سایت‌های بزرگسالان را هم مسدود می‌کند، یا از DNS خودتان استفاده کنید. هرگز تبلیغات را مسدود نمی‌کند.';
 	@override String get autoConnect => 'اتصال خودکار: از سرور WireGuard انتخاب‌شده شما استفاده می‌کند. قطع دستی آن را تا پیوستن به شبکه‌ای دیگر متوقف می‌کند.';
 	@override String get apps => 'برنامه‌های مستقیم: برنامه‌هایی که از VPN عبور نمی‌کنند مستقیم وصل می‌شوند. بانک‌ها اغلب آدرس‌های VPN را مسدود می‌کنند، پس پرداخت از طریق VPN ممکن است ناموفق باشد.';
 	@override String get reconnect => 'تغییر سپر یا برنامه‌ها، VPN را برای لحظه‌ای دوباره وصل می‌کند.';
 	@override String get stay => 'متصل ماندن: برخی گوشی‌ها برای صرفه‌جویی در باتری، برنامه‌ها را در پس‌زمینه متوقف می‌کنند. VPN همیشه روشن و تنظیم باتری بدون محدودیت، G VPN را فعال نگه می‌دارند.';
+}
+
+// Path: devices.kinds
+class _Translations$devices$kinds$fa extends Translations$devices$kinds$en {
+	_Translations$devices$kinds$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get phone => 'تلفن';
+	@override String get computer => 'رایانه';
+	@override String get tv => 'تلویزیون';
+	@override String get speaker => 'بلندگو';
+	@override String get printer => 'چاپگر';
+	@override String get camera => 'دوربین';
+	@override String get smartHome => 'خانه هوشمند';
+	@override String get router => 'روتر';
+	@override String get unknown => 'معرفی نشده';
+}
+
+// Path: map.grade
+class _Translations$map$grade$fa extends Translations$map$grade$en {
+	_Translations$map$grade$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'سریع';
+	@override String get good => 'خوب';
+	@override String get slow => 'کند';
+}
+
+// Path: presets.names
+class _Translations$presets$names$fa extends Translations$presets$names$en {
+	_Translations$presets$names$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get fastest => 'سریع‌ترین';
+	@override String get unblock => 'رفع مسدودیت';
+	@override String get streaming => 'استریم';
+	@override String get privacy => 'حداکثر حریم خصوصی';
+}
+
+// Path: providers.tags
+class _Translations$providers$tags$fa extends Translations$providers$tags$en {
+	_Translations$providers$tags$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'سریع';
+	@override String get reliable => 'قابل اعتماد';
+	@override String get support => 'پشتیبانی خوب';
+	@override String get price => 'قیمت منصفانه';
+	@override String get slowEvenings => 'کند در شب';
+	@override String get drops => 'قطعی زیاد';
+	@override String get poorSupport => 'پشتیبانی ضعیف';
+	@override String get pricey => 'گران';
+}
+
+// Path: providers.words
+class _Translations$providers$words$fa extends Translations$providers$words$en {
+	_Translations$providers$words$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get bad => 'بد';
+	@override String get poor => 'ضعیف';
+	@override String get okay => 'متوسط';
+	@override String get good => 'خوب';
+	@override String get great => 'عالی';
+}
+
+// Path: alerts.kinds
+class _Translations$alerts$kinds$fa extends Translations$alerts$kinds$en {
+	_Translations$alerts$kinds$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get newDevice => 'دستگاه‌های جدید در وای‌فای من';
+	@override String get openWifi => 'وای‌فای باز یا ضعیف';
+	@override String get blocked => 'برنامه‌های مسدود';
+	@override String get report => 'گزارش هفتگی';
+	@override String get breach => 'نشت‌ها';
+}
+
+// Path: alerts.status
+class _Translations$alerts$status$fa extends Translations$alerts$status$en {
+	_Translations$alerts$status$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get background => 'هر چند ساعت';
+	@override String checked({required Object time}) => 'بررسی‌شده در ${time}';
+	@override String get wifi => 'هر شبکه‌ای که به آن وصل می‌شوید';
+	@override String get blocked => 'هنگام اجرای وضعیت سرویس‌ها';
+	@override String get report => 'هر دوشنبه';
+}
+
+// Path: blocked.kinds
+class _Translations$blocked$kinds$fa extends Translations$blocked$kinds$en {
+	_Translations$blocked$kinds$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get social => 'شبکه‌های اجتماعی';
+	@override String get messaging => 'پیام‌رسان‌ها';
+	@override String get news => 'اخبار';
+	@override String get video => 'ویدیو و موسیقی';
+	@override String get privacy => 'ابزارهای حریم خصوصی';
+}
+
+// Path: blocked.how
+class _Translations$blocked$how$fa extends Translations$blocked$how$en {
+	_Translations$blocked$how$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get dns => 'نشانی جعلی';
+	@override String get reset => 'قطع‌شده';
+	@override String get timeout => 'بی‌پاسخ';
+	@override String get page => 'صفحه مسدودسازی';
+	@override String get open => 'باز';
+}
+
+// Path: blocked.fail
+class _Translations$blocked$fail$fa extends Translations$blocked$fail$en {
+	_Translations$blocked$fail$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get noAnswer => 'بی‌پاسخ';
+	@override String get refused => 'رد شد';
+	@override String cutOff({required Object s}) => 'قطع پس از ${s} ثانیه';
+	@override String get wrongCert => 'گواهی نادرست';
+}
+
+// Path: blocked.steps
+class _Translations$blocked$steps$fa extends Translations$blocked$steps$en {
+	_Translations$blocked$steps$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get lookup => 'جستجوی نام';
+	@override String get connect => 'اتصال';
+	@override String get handshake => 'دست‌دهی امن';
+}
+
+// Path: blocked.consent
+class _Translations$blocked$consent$fa extends Translations$blocked$consent$en {
+	_Translations$blocked$consent$fa._(TranslationsFa root) : this._root = root, super.internal(root);
+
+	final TranslationsFa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'پیش از اولین آزمایش';
+	@override String get body => 'آزمایش هر سایت را از همین گوشی، بدون VPN، مثل یک مرورگر باز می‌کند.';
+	@override String get noticeTitle => 'ممکن است دیده شود';
+	@override String get notice => 'ارائه‌دهنده شما باز شدن این سایت‌ها را می‌بیند. در برخی کشورها بازدید از آنها، حتی برای آزمایش، می‌تواند توجه جلب کند. فقط جایی آزمایش کنید که احساس امنیت می‌کنید.';
+	@override String get ok => 'متوجه شدم، آزمایش کن';
 }
 
 /// The flat map containing all translations for locale <fa>.
@@ -1161,8 +1915,6 @@ extension on TranslationsFa {
 			'home.status.stopping' => 'در حال قطع',
 			'home.status.notProtected' => 'محافظت‌نشده',
 			'home.resumesAt' => ({required Object time}) => 'ادامه در ${time} · برای ادامه ضربه بزنید',
-			'home.sitesSee' => ({required Object ip}) => 'سایت‌ها می‌بینند: ${ip}',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'سایت‌ها می‌بینند: ${ip} · ${org}',
 			'home.ipFailed' => 'بررسی IP ممکن نشد',
 			'home.ipChecking' => 'در حال بررسی IP',
 			'home.themeSystem' => 'پوسته: مطابق گوشی',
@@ -1170,19 +1922,11 @@ extension on TranslationsFa {
 			'home.themeDark' => 'پوسته: تیره',
 			'home.free' => 'رایگان',
 			'home.pickServer' => 'یک سرور انتخاب کنید',
-			'home.waves.encrypted' => 'رمزگذاری‌شده',
-			'home.waves.securing' => 'در حال ایمن‌سازی',
-			'home.waves.exposed' => 'بی‌محافظ',
 			'home.network.title' => 'این شبکه',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'آفلاین',
 			'home.network.showName' => 'نمایش نام',
 			'home.network.scanFailed' => 'بررسی ناموفق بود. با تغییر شبکه دوباره انجام می‌شود.',
-			'home.card.connectedVia' => 'متصل از طریق',
-			'home.card.protocol' => 'پروتکل',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9، داخل تونل',
-			'home.card.dnsServer' => 'سرور، داخل تونل',
 			'home.card.downloaded' => 'دریافت‌شده',
 			'home.card.uploaded' => 'ارسال‌شده',
 			'home.card.wireguard' => 'WireGuard',
@@ -1194,7 +1938,6 @@ extension on TranslationsFa {
 			'home.card.enabled' => 'روشن',
 			'home.card.shield' => 'سپر',
 			'home.tiles.shield' => 'سپر',
-			'home.tiles.shieldOn' => 'سایت‌های مخرب را مسدود می‌کند',
 			'home.tiles.appsDirect' => 'برنامه‌های مستقیم',
 			'home.tiles.appsAll' => 'همه برنامه‌ها محافظت‌شده',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} برنامه بدون VPN',
@@ -1276,19 +2019,22 @@ extension on TranslationsFa {
 			'servers.lastUsed' => ({required Object when}) => 'آخرین استفاده: ${when}',
 			'servers.disconnectFirst' => 'برای حذف، ابتدا اتصال را قطع کنید',
 			'servers.removeConfirm' => 'این سرور از G VPN حذف شود؟ تنظیمات آن از این گوشی پاک می‌شود؛ خود سرور تغییری نمی‌کند.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'جستجوی کشورها',
+			'servers.noMatch' => 'سروری پیدا نشد.',
+			'servers.bestPing' => ({required Object ms}) => 'بهترین ${ms} میلی‌ثانیه',
+			'servers.bestTag' => 'بهترین',
+			'servers.ownHero' => 'سرورهای خودمان',
+			'servers.ownHeroSub' => 'سریع‌تر، خصوصی، هر گوشی با کلید خودش',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} سرور', ), 
+			'servers.showAll' => ({required Object n}) => 'نمایش همه ${n}',
+			'servers.showFewer' => 'نمایش کمتر',
+			'servers.fastTab' => 'سریع',
+			'servers.fastestFree' => 'سریع‌ترین رایگان',
 			'pro.owned' => 'شما Pro دارید',
 			'pro.waitingPlay' => 'در انتظار Google Play',
 			'pro.startTrial' => ({required Object days}) => 'شروع دوره رایگان ${days} روزه',
-			'pro.thenYearly' => ({required Object price}) => 'سپس سالی ${price}. هر زمان در Google Play لغو کنید.',
-			'pro.thenMonthly' => ({required Object price}) => 'سپس ماهی ${price}. هر زمان در Google Play لغو کنید.',
-			'pro.yearlyPrice' => ({required Object price}) => 'سالی ${price}. هر زمان در Google Play لغو کنید.',
-			'pro.monthlyPrice' => ({required Object price}) => 'ماهی ${price}. هر زمان در Google Play لغو کنید.',
 			'pro.restore' => 'بازیابی',
-			'pro.heroTitle' => 'سرورهای سریع‌تر،\nاداره‌شده توسط ما',
-			'pro.heroSubtitle' => 'WireGuard. بدون گزارش فعالیت. بدون حساب کاربری.',
-			'pro.benefitSpeed' => 'سرعت کامل، بدون محدودیت سرورهای داوطلبانه',
-			'pro.benefitKey' => 'کلید روی گوشی شما ساخته می‌شود و هرگز به اشتراک گذاشته نمی‌شود',
-			'pro.benefitFree' => 'هر چیز رایگان، رایگان می‌ماند',
 			'pro.save' => ({required Object pct}) => '${pct}٪ صرفه‌جویی',
 			'pro.yearly' => 'سالانه',
 			'pro.monthly' => 'ماهانه',
@@ -1296,10 +2042,6 @@ extension on TranslationsFa {
 			'pro.daysFree' => ({required Object days}) => '${days} روز رایگان',
 			'pro.perMonth' => ({required Object price}) => 'ماهی ${price}',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'سرورهای سریع‌تر، اداره‌شده توسط ما',
-			'pro.includes' => 'شامل',
-			'pro.benefitLogs' => 'بدون گزارش فعالیت روی سرورهای ما',
-			'pro.plan' => 'یک طرح انتخاب کنید',
 			'pro.renewGeneric' => 'اشتراک‌ها تا زمان لغو خودکار تمدید می‌شوند. هر زمان در Google Play لغو کنید.',
 			'pro.renewTrial' => ({required Object days, required Object price, required Object period}) => '${days} روز رایگان، سپس ${price} در هر ${period}. تا زمان لغو خودکار تمدید می‌شود؛ برای جلوگیری از پرداخت، دست‌کم یک روز پیش از پایان دوره رایگان در Google Play لغو کنید.',
 			'pro.renew' => ({required Object price, required Object period}) => '${price} در هر ${period}. تا زمان لغو خودکار تمدید می‌شود؛ هر زمان در Google Play لغو کنید.',
@@ -1323,15 +2065,24 @@ extension on TranslationsFa {
 			'pro.free.tools' => 'همه ابزارهای شبکه',
 			'pro.free.toolsSub' => 'آزمایش سرعت، پینگ، وضعیت سرویس‌ها، ردیابی مسیر، دستگاه‌ها و بیشتر',
 			'pro.free.later' => 'G VPN Pro سرورهای سریع‌تری اضافه می‌کند که توسط ما اداره می‌شوند. همه موارد بالا رایگان می‌مانند.',
+			'pro.heroLine' => 'سرورهای سریع خودمان، و همه بررسی‌ها نامحدود',
+			'pro.start' => 'شروع Pro',
+			'pro.compareFree' => 'رایگان',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'سرورهای رایگان',
+			'pro.rowTools' => 'تست سرعت، ابزارها، بررسی وای‌فای',
+			'pro.rowGServers' => 'G Servers، بدون گزارش',
+			'pro.rowLinks' => 'بررسی پیوند',
+			'pro.linksFree' => ({required Object n}) => '${n} در ماه',
+			'pro.unlimited' => 'نامحدود',
 			'rules.title' => 'قوانین',
-			'rules.info.shield' => 'سپر درخواست‌های DNS را به Quad9 می‌فرستد که سایت‌های شناخته‌شده بدافزار و فیشینگ را رد می‌کند. تبلیغات را مسدود نمی‌کند و تا روشن است جایگزین DNS سرور می‌شود.',
+			'rules.info.shield' => 'سپر هنگام اتصال درخواست‌های DNS را فیلتر می‌کند: Quad9 بدافزار و فیشینگ را مسدود می‌کند، Cloudflare for Families سایت‌های بزرگسالان را هم مسدود می‌کند، یا از DNS خودتان استفاده کنید. هرگز تبلیغات را مسدود نمی‌کند.',
 			'rules.info.autoConnect' => 'اتصال خودکار: از سرور WireGuard انتخاب‌شده شما استفاده می‌کند. قطع دستی آن را تا پیوستن به شبکه‌ای دیگر متوقف می‌کند.',
 			'rules.info.apps' => 'برنامه‌های مستقیم: برنامه‌هایی که از VPN عبور نمی‌کنند مستقیم وصل می‌شوند. بانک‌ها اغلب آدرس‌های VPN را مسدود می‌کنند، پس پرداخت از طریق VPN ممکن است ناموفق باشد.',
 			'rules.info.reconnect' => 'تغییر سپر یا برنامه‌ها، VPN را برای لحظه‌ای دوباره وصل می‌کند.',
 			'rules.info.stay' => 'متصل ماندن: برخی گوشی‌ها برای صرفه‌جویی در باتری، برنامه‌ها را در پس‌زمینه متوقف می‌کنند. VPN همیشه روشن و تنظیم باتری بدون محدودیت، G VPN را فعال نگه می‌دارند.',
 			'rules.protection' => 'محافظت',
 			'rules.shield' => 'سپر',
-			'rules.shieldSub' => 'سایت‌های بدافزار و فیشینگ را مسدود می‌کند',
 			'rules.privateDns' => 'سپر بدون VPN',
 			'rules.privateDnsSub' => 'کپی dns.quad9.net برای DNS خصوصی',
 			'rules.privateDnsCopied' => 'dns.quad9.net کپی شد',
@@ -1402,10 +2153,17 @@ extension on TranslationsFa {
 			'wol.badMac' => 'این آدرس MAC نیست. شکل آن مانند AA:BB:CC:DD:EE:FF است.',
 			'wol.sent' => 'سیگنال روشن شدن ارسال شد. دستگاه باید ظرف یک دقیقه روشن شود.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'روشن کردن دستگاه',
 			'wol.mac' => 'آدرس MAC',
 			'wol.failed' => ({required Object error}) => 'ارسال ممکن نشد: ${error}',
-			'speed.info' => 'اندازه‌گیری توسط M-Lab، یک پلتفرم پژوهشی باز. هر آزمایش حدود ۵۰ تا ۱۰۰ مگابایت مصرف می‌کند.\n\nنتایج عمومی: M-Lab هر آزمایش، از جمله آدرس IP مبدأ آن، را به‌عنوان داده پژوهشی باز منتشر می‌کند.\n\nمقایسه ارائه‌دهنده: پس از آزمایش بدون VPN، G VPN فقط سه عدد سرعت را می‌فرستد. سرویس مقایسه، ارائه‌دهنده و شهر شما را از خود اتصال می‌خواند و هیچ آدرس IP ذخیره نمی‌کند. با کلید پایین این صفحه آن را خاموش کنید.\n\nاز طریق VPN: با VPN روشن، سرعت داخل تونل را اندازه می‌گیرد و با آخرین آزمایش بدون VPN مقایسه می‌کند.\n\nپیش‌نمایش ویدیو: همان تصویر با وضوحی که این سرعت می‌تواند پخش کند، بر اساس نرخ بیتی که سرویس‌های پخش اعلام می‌کنند. هیچ ویدیویی دانلود نمی‌شود.',
+			'wol.computer' => 'رایانه',
+			'wol.pick' => 'دستگاهی را برای روشن کردن انتخاب کنید',
+			'wol.waking' => ({required Object name}) => 'در حال روشن کردن ${name}',
+			'wol.yours' => 'دستگاه‌های شما',
+			'wol.wakeNamed' => ({required Object name}) => 'روشن کردن ${name}',
+			'wol.removeHint' => 'برای حذف، دستگاه را نگه دارید',
+			'wol.add' => 'افزودن دستگاه',
+			'wol.name' => 'نام',
+			'wol.saveWake' => 'ذخیره و روشن کردن',
 			'speed.download' => 'دریافت',
 			'speed.upload' => 'ارسال',
 			'speed.finding' => 'در حال یافتن سرور',
@@ -1477,10 +2235,11 @@ extension on TranslationsFa {
 			'router.cgnat' => 'آدرس مشترک ارائه‌دهنده: از اینترنت قابل دسترسی نیست.',
 			'router.noDescription' => 'بدون توضیح',
 			'router.opened' => ({required Object n}) => '${n} پورت توسط دستگاه‌ها باز شده',
-			'router.routerName' => ({required Object name}) => 'روتر: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'آدرس اینترنت: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} به ${host}',
 			'router.upnpOn' => 'UPnP روشن است',
+			'router.routerLabel' => 'روتر',
+			'router.internetAddress' => 'نشانی اینترنت',
+			'router.openedBy' => 'باز شده توسط دستگاه‌ها',
 			'network.title' => 'این شبکه',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'داده تلفن همراه',
@@ -1514,8 +2273,6 @@ extension on TranslationsFa {
 			'devices.title' => 'دستگاه‌ها',
 			'devices.again' => 'اسکن دوباره',
 			'devices.looking' => 'در حال جست‌وجوی دستگاه‌ها',
-			'devices.nothingNew' => 'از آخرین اسکن چیز جدیدی نیست',
-			'devices.takes' => 'حدود ۳۰ ثانیه طول می‌کشد',
 			'devices.all' => 'همه',
 			'devices.phones' => 'گوشی‌ها',
 			'devices.tvs' => 'تلویزیون‌ها',
@@ -1527,18 +2284,52 @@ extension on TranslationsFa {
 			'devices.address' => 'آدرس',
 			'devices.answersIn' => 'پاسخ در',
 			'devices.type' => 'نوع',
-			'devices.notAnnounced' => 'اعلام نشده. فهرست دستگاه‌های روتر شما می‌تواند نام آن را نشان دهد.',
 			'devices.newBadge' => 'جدید',
 			'devices.scanning' => ({required Object n}) => 'اسکن ${n} از ۲۵۴',
-			'devices.thisNetwork' => 'این شبکه',
 			'devices.newSince' => ({required Object n}) => '${n} دستگاه جدید از آخرین اسکن',
-			'devices.showMore' => ({required Object n}) => 'نمایش ${n} مورد دیگر',
 			'devices.ms' => ({required Object n}) => '${n} میلی‌ثانیه',
-			'devices.onNetwork' => ({required Object network}) => 'دستگاه در ${network}',
-			'ping.info' => 'مدت زمان یک رفت‌وبرگشت تا سرور، هر ثانیه در یک دقیقه گذشته اندازه‌گیری می‌شود.\n\nلرزش (Jitter): میزان تفاوت هر پاسخ با پاسخ قبلی. لرزش زیاد باعث قطع‌ووصلی تماس‌ها می‌شود.\n\nاتلاف: پاسخ‌هایی که هرگز برنگشتند.\n\nروش: برنامه‌های اندروید نمی‌توانند پینگ کلاسیک بفرستند، پس هر آزمایش زمان یک دست‌دادن اتصال را می‌سنجد که همان یک رفت‌وبرگشت است.',
+			'devices.cameras' => 'دوربین‌ها',
+			'devices.device' => 'دستگاه',
+			'devices.online' => 'آنلاین',
+			'devices.model' => 'مدل',
+			'devices.announced' => 'خود را این‌طور معرفی می‌کند',
+			'devices.services' => 'سرویس‌های باز',
+			'devices.checkingServices' => 'در حال بررسی سرویس‌ها',
+			'devices.noServices' => 'هیچ سرویس رایجی پاسخ نمی‌دهد',
+			'devices.rename' => 'تغییر نام',
+			'devices.save' => 'ذخیره',
+			'devices.kinds.phone' => 'تلفن',
+			'devices.kinds.computer' => 'رایانه',
+			'devices.kinds.tv' => 'تلویزیون',
+			'devices.kinds.speaker' => 'بلندگو',
+			'devices.kinds.printer' => 'چاپگر',
+			'devices.kinds.camera' => 'دوربین',
+			'devices.kinds.smartHome' => 'خانه هوشمند',
+			'devices.kinds.router' => 'روتر',
+			'devices.kinds.unknown' => 'معرفی نشده',
+			'devices.details' => 'جزئیات شبکه',
+			'devices.listView' => 'فهرست',
+			'devices.meshView' => 'شبکه‌نما',
+			'devices.offlineHeading' => 'آفلاین',
+			'devices.seen' => ({required Object when}) => 'دیده‌شده ${when}',
+			'devices.agoMinutes' => ({required Object n}) => '${n} دقیقه پیش',
+			'devices.agoHours' => ({required Object n}) => '${n} ساعت پیش',
+			'devices.agoDays' => ({required Object n}) => '${n} روز پیش',
+			'devices.throughVpn' => 'از طریق VPN',
+			'devices.closer' => 'نزدیک‌تر = پاسخ سریع‌تر',
+			'devices.yours' => 'این مال شماست؟',
+			'devices.mine' => 'مال من',
+			'devices.notMine' => 'مال من نیست',
+			'devices.whatIsIt' => 'این چیست؟',
+			'devices.ourGuess' => ({required Object kind}) => 'حدس ما: ${kind}',
+			'devices.groupPersonal' => 'تلفن‌ها و رایانه‌ها',
+			'devices.groupHome' => 'خانه و رسانه',
+			'devices.groupNetwork' => 'شبکه و خانه هوشمند',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} آنلاین', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} آفلاین', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} در انتظار تأیید', ), 
 			'ping.askTitle' => 'پینگ یک میزبان',
 			'ping.askHint' => 'example.com یا 192.168.1.10',
-			'ping.cancel' => 'لغو',
 			'ping.title' => 'پینگ',
 			'ping.router' => 'روتر',
 			'ping.pause' => 'توقف',
@@ -1575,7 +2366,6 @@ extension on TranslationsFa {
 			'status.blocked' => 'ممکن است در این شبکه مسدود باشد',
 			'status.connect' => 'اتصال',
 			'status.blockedShort' => 'مسدود',
-			'status.unreachable' => 'غیرقابل دسترس',
 			'status.now' => 'اکنون',
 			'status.checks' => ({required Object n}) => '${n} بررسی',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} و ${n} مورد دیگر',
@@ -1587,27 +2377,37 @@ extension on TranslationsFa {
 			'tools.offline' => 'آفلاین',
 			'tools.title' => 'ابزارها',
 			'tools.networkDesc' => 'بررسی ایمنی، آنچه سایت‌ها می‌بینند، سیگنال، روتر و DNS.',
-			'tools.internet' => 'اتصال اینترنت',
+			'tools.internet' => 'اینترنت',
 			'tools.speed' => 'آزمایش سرعت',
-			'tools.speedDesc' => 'سرعت دریافت و ارسال، و کیفیت ویدیویی که پشتیبانی می‌کند.',
+			'tools.speedDesc' => 'دانلود، آپلود و کیفیت ویدیو',
 			'tools.ping' => 'پینگ',
-			'tools.pingDesc' => 'زمان پاسخ زنده و لرزش تا هر سرور یا روتر شما.',
+			'tools.pingDesc' => 'زمان پاسخ و نوسان زنده',
 			'tools.status' => 'وضعیت سرویس‌ها',
-			'tools.statusDesc' => 'آیا WhatsApp، YouTube یا Google از اینجا در دسترس است یا مسدود؟',
+			'tools.statusDesc' => 'برنامه اینجا کار می‌کند یا مسدود است؟',
 			'tools.trace' => 'ردیابی مسیر',
-			'tools.traceDesc' => 'همه روترهای بین شما و یک سایت، و زمان هر کدام.',
-			'tools.security' => 'امنیت شبکه',
+			'tools.traceDesc' => 'هر توقف در مسیر رسیدن به یک سایت',
+			'tools.security' => 'این شبکه',
 			'tools.devices' => 'دستگاه‌های این شبکه',
-			'tools.devicesDesc' => 'چه کسانی در Wi-Fi شما هستند: گوشی، تلویزیون، دوربین و کامپیوتر.',
+			'tools.devicesDesc' => 'چه کسانی در وای‌فای شما هستند',
 			'tools.router' => 'بررسی روتر',
-			'tools.routerDesc' => 'آیا دستگاه‌ها می‌توانند خودشان روی روتر شما پورت باز کنند (UPnP).',
+			'tools.routerDesc' => 'پورت‌هایی که دستگاه‌ها باز کرده‌اند',
 			'tools.ports' => 'پورت‌های باز',
-			'tools.portsDesc' => 'روتر یا یک سرور را از نظر پورت‌های باز پرخطر بررسی کنید.',
-			'tools.utilities' => 'ابزارهای کمکی',
+			'tools.portsDesc' => 'پورت‌های پرخطر روی دستگاه یا سرور',
+			'tools.utilities' => 'ابزارها',
 			'tools.wifiScanner' => 'اسکنر Wi-Fi',
-			'tools.wifiDesc' => 'شبکه‌های اطراف، امنیت آن‌ها و خلوت‌ترین کانال.',
+			'tools.wifiDesc' => 'شبکه‌های اطراف و خلوت‌ترین کانال',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'یک کامپیوتر یا NAS را در این شبکه روشن کنید.',
+			'tools.wolDesc' => 'روشن کردن رایانه‌ای در این شبکه',
+			'tools.passwordCheck' => 'بررسی رمز عبور',
+			'tools.passwordCheckDesc' => 'لو رفته است؟',
+			'tools.linkCheck' => 'بررسی پیوند',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'باز کردنش امن است؟',
+			'tools.breaches' => 'نشت داده‌ها',
+			'tools.breachesDesc' => 'اخیراً چه چیزی نشت کرده',
+			'tools.blocked' => 'چه چیزی مسدود است',
+			'tools.blockedDesc' => 'سایت‌های مسدود در این شبکه',
 			'trace.info' => 'هر توقف، یک روتر است که ترافیک شما در راه رسیدن به سایت از آن عبور می‌کند.\n\nگام‌های ساکت: بسیاری از روترها هرگز به این آزمایش‌ها پاسخ نمی‌دهند. این عادی است و خطا نیست.\n\nبا VPN روشن: مسیر از داخل تونل شروع می‌شود، پس شبکه و ارائه‌دهنده خودتان پنهان می‌مانند.\n\nروش: از ابزار پینگ خود اندروید با محدودیت گام استفاده می‌کند، چون برنامه‌ها نمی‌توانند مستقیماً این بسته‌ها را بفرستند.',
 			'trace.title' => 'ردیابی مسیر',
 			'trace.stop' => 'توقف',
@@ -1624,6 +2424,10 @@ extension on TranslationsFa {
 			'trace.silentMany' => ({required Object n}) => '${n} گام ساکت',
 			'trace.hop' => ({required Object n}) => 'گام ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'بیشتر تأخیر، ${ms} میلی‌ثانیه، در گام ${hop} اضافه می‌شود: معمولاً یک کابل طولانی بین کشورها یا یک لینک شلوغ.',
+			'trace.popular' => 'پرطرفدار',
+			'trace.recent' => 'اخیر',
+			'trace.clearRecent' => 'پاک کردن اخیر',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} گام', ), 
 			'ports.ftpNote' => 'رمزها را بدون رمزگذاری می‌فرستد.',
 			'ports.sshNote' => 'ورود از راه دور. اگر خودتان راه انداخته‌اید مشکلی نیست.',
 			'ports.telnetNote' => 'ورود از راه دور بدون رمزگذاری؛ مورد علاقه بات‌نت‌ها.',
@@ -1647,13 +2451,14 @@ extension on TranslationsFa {
 			'ports.address' => 'آدرس دستگاه یا سرور',
 			'ports.risky' => 'پرخطر',
 			'ports.review' => 'بررسی شود',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'عادی',
 			'ports.info' => ({required Object n}) => '${n} پورت مهم روی روترها و دستگاه‌های خانگی را بررسی می‌کند و هر پورت باز را توضیح می‌دهد.\n\nفقط دستگاه‌ها و سرورهایی را بررسی کنید که مالک یا مدیر آن‌ها هستید.',
 			'ports.checking' => ({required Object n}) => 'در حال بررسی ${n} پورت',
 			'ports.yourRouter' => ({required Object ip}) => 'روتر شما ${ip} است',
 			'ports.noneOpen' => ({required Object host}) => 'هیچ پورت رایجی روی ${host} باز نیست.',
+			'ports.summary' => ({required Object open, required Object n}) => '${open} باز از ${n} بررسی‌شده',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} پرخطر', ), 
+			'ports.noneRisky' => 'چیز پرخطری نیست',
 			'wifi.title' => 'اسکنر Wi-Fi',
 			'wifi.allow' => 'اجازه اسکن Wi-Fi',
 			'wifi.needsPermission' => 'به اجازه موقعیت نیاز دارد.',
@@ -1663,11 +2468,36 @@ extension on TranslationsFa {
 			'wifi.none' => 'شبکه‌ای پیدا نشد. ممکن است موقعیت مکانی خاموش باشد.',
 			'wifi.hidden' => 'شبکه پنهان',
 			'wifi.nearby' => ({required Object n}) => '${n} شبکه در اطراف',
-			'wifi.bestChannel' => ({required Object n}) => 'خلوت‌ترین کانال 2.4 GHz: ${n}',
-			'wifi.weak' => ({required Object n}) => '${n} شبکه باز یا ضعیف',
-			'wifi.connectedPrefix' => 'متصل · ',
 			'wifi.permissionInfo' => 'اندروید شبکه‌های Wi-Fi اطراف را فقط به برنامه‌های دارای اجازه موقعیت نشان می‌دهد. G VPN از آن فقط برای فهرست کردن شبکه‌ها روی همین گوشی استفاده می‌کند.',
 			'wifi.info' => 'شبکه‌ها را از آخرین اسکن گوشی فهرست می‌کند. اندروید فقط چند اسکن در دقیقه اجازه می‌دهد، پس اسکن دوباره سریع ممکن است همان فهرست را نشان دهد. کانال پیشنهادی خلوت‌ترین از میان ۱، ۶ و ۱۱ است، سه کانالی که هم‌پوشانی ندارند.',
+			'wifi.airMap' => 'نقشه هوا',
+			'wifi.channels' => 'کانال‌ها',
+			'wifi.list' => 'فهرست',
+			'wifi.secure' => 'امن',
+			'wifi.weakLabel' => 'ضعیف',
+			'wifi.openLabel' => 'باز',
+			'wifi.sizeIsWidth' => 'اندازه = پهنای کانال',
+			'wifi.strongest' => 'قوی‌ترین',
+			'wifi.openNearby' => 'شبکه‌های باز اطراف',
+			'wifi.onYourChannel' => 'روی کانال شما',
+			'wifi.noneNearby' => 'هیچ',
+			'wifi.verdictOpen' => 'هر کسی در اطراف می‌تواند ارسال‌ها را بخواند',
+			'wifi.verdictWep' => 'امنیت قدیمی، آسان شکسته می‌شود',
+			'wifi.verdictWpa' => 'امنیت قدیمی',
+			'wifi.verdictWps' => 'WPS روشن است: نفوذ آسان‌تر',
+			'wifi.verdictGood' => 'به‌خوبی محافظت شده',
+			'wifi.maker' => 'سازنده',
+			'wifi.address' => 'نشانی سخت‌افزاری',
+			'wifi.privateAddress' => 'ساخته روتر برای حریم خصوصی',
+			'wifi.you' => 'شما',
+			'wifi.onClear' => ({required Object name}) => '${name} روی کانالی خلوت است',
+			'wifi.move' => ({required Object name, required Object n}) => '${name} را به کانال ${n} ببرید',
+			'wifi.clear' => 'خلوت',
+			'wifi.busy' => 'شلوغ',
+			'wifi.crowded' => 'پرازدحام',
+			'wifi.allBands' => 'همه باندها',
+			'wifi.openOnly' => 'فقط باز',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} شبکه', ), 
 			'errors.notAuthorized' => 'اجازه VPN داده نشد.',
 			'errors.turnedOff' => 'VPN توسط سیستم یا برنامه دیگری خاموش شد.',
 			'errors.busy' => 'یک درخواست اجازه از قبل باز است.',
@@ -1745,10 +2575,6 @@ extension on TranslationsFa {
 			'gs.busy' => ({required Object n}) => '${n}٪ مشغول',
 			'gs.offline' => 'آفلاین',
 			'gs.devices' => 'دستگاه‌های شما',
-			'gs.devicesSub' => ({required Object n}) => 'تا ${n} گوشی، هر کدام با کلید خودش',
-			'gs.footnote' => 'هر گوشی کلید خودش را دارد که روی همان گوشی ساخته می‌شود. G Servers هیچ گزارش فعالیتی نگه نمی‌دارند.',
-			'gs.leastBusy' => 'کم‌مشغله‌ترین در حال حاضر',
-			'gs.busyNoLogs' => ({required Object n}) => '${n}٪ مشغول · بدون گزارش',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'مشغولی',
 			'gs.status' => 'وضعیت',
@@ -1783,6 +2609,400 @@ extension on TranslationsFa {
 			'gs.chartLabel' => ({required Object max}) => 'مشغولی در ۲۴ ساعت گذشته، حداکثر ${max} درصد',
 			'gs.hoursAgo' => '۲۴ ساعت پیش',
 			'gs.now' => 'اکنون',
+			'gs.included' => 'شامل',
+			'gs.perkServers' => 'سرورهای سریع و خصوصی',
+			'gs.perkServersSub' => 'WireGuard، اداره‌شده توسط ما، بدون گزارش فعالیت',
+			'gs.perkLinks' => 'بررسی نامحدود پیوند',
+			'gs.perkLinksSub' => 'هر پیوندی که برایتان می‌فرستند را بررسی کنید',
+			'gs.devicesOf' => ({required Object used, required Object limit}) => 'دستگاه‌های شما · ${used} از ${limit}',
+			'gs.eachKey' => 'هر گوشی کلید خودش را دارد',
+			'gs.connected' => 'متصل',
+			'gs.bestNow' => 'بهترین برای شما الان',
+			'gs.logsShort' => 'گزارش',
+			'map.open' => 'باز کردن نقشه',
+			'map.searchCountries' => 'جستجوی کشور',
+			'map.noMatch' => 'کشوری پیدا نشد',
+			'map.locate' => 'موقعیت من',
+			'map.list' => 'فهرست',
+			'map.map' => 'نقشه',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} سرور رایگان', ), 
+			'map.grade.fast' => 'سریع',
+			'map.grade.good' => 'خوب',
+			'map.grade.slow' => 'کند',
+			'map.switchTo' => 'تعویض',
+			'map.freeServer' => ({required Object n}) => 'سرور رایگان ${n}',
+			'map.best' => 'بهترین',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} G Server', ), 
+			'stats.thisWeek' => 'این هفته',
+			'stats.time' => 'زمان',
+			'stats.data' => 'داده',
+			'stats.protected' => 'محافظت‌شده',
+			'stats.throughVpn' => 'از طریق VPN',
+			'stats.seeDetails' => 'جزئیات',
+			'stats.title' => 'آمار',
+			'stats.week' => 'هفته',
+			'stats.month' => 'ماه',
+			'stats.protectedLabel' => 'محافظت‌شده',
+			'stats.dataUsed' => 'داده مصرفی',
+			'stats.byServer' => 'بر اساس سرور',
+			'stats.onPhone' => 'فقط روی همین گوشی',
+			'stats.reset' => 'بازنشانی',
+			'stats.resetTitle' => 'آمار بازنشانی شود؟',
+			'stats.resetBody' => 'زمان محافظت و داده روی این گوشی پاک می‌شود. قابل بازگشت نیست.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} ساعت ${m} دقیقه',
+			'stats.m' => ({required Object m}) => '${m} دقیقه',
+			'stats.empty' => 'برای شروع شمارش وصل شوید.',
+			'recents.title' => 'اخیر',
+			'recents.allServers' => 'همه سرورها',
+			'recents.free' => 'سرور رایگان',
+			'recents.yours' => 'سرور شما',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'پیش‌تنظیم‌ها',
+			'presets.all' => 'همه',
+			'presets.newPreset' => 'پیش‌تنظیم جدید',
+			'presets.edit' => 'ویرایش پیش‌تنظیم',
+			'presets.name' => 'نام',
+			'presets.namePlaceholder' => 'پیش‌تنظیم من',
+			'presets.server' => 'سرور',
+			'presets.fastestOption' => 'سریع‌ترین',
+			'presets.countryOption' => 'کشور',
+			'presets.pickCountry' => 'انتخاب کشور',
+			'presets.skipMyCountry' => 'رد کردن کشور من',
+			'presets.notMine' => 'غیر از کشور من',
+			'presets.protocol' => 'پروتکل',
+			'presets.auto' => 'خودکار',
+			'presets.tryNext' => 'اگر مسدود شد، سرور بعدی را امتحان کن',
+			'presets.shield' => 'سپر',
+			'presets.followRules' => 'مطابق قوانین',
+			'presets.allApps' => 'همه برنامه‌ها از طریق VPN',
+			'presets.allAppsShort' => 'همه برنامه‌ها',
+			'presets.save' => 'ذخیره',
+			'presets.delete' => 'حذف',
+			'presets.reset' => 'بازگشت به پیش‌فرض',
+			'presets.none' => 'فعلاً هیچ سرور رایگانی با این پیش‌تنظیم جور نیست.',
+			'presets.names.fastest' => 'سریع‌ترین',
+			'presets.names.unblock' => 'رفع مسدودیت',
+			'presets.names.streaming' => 'استریم',
+			'presets.names.privacy' => 'حداکثر حریم خصوصی',
+			'shield.title' => 'سپر',
+			'shield.sub' => 'هنگام اتصال کار می‌کند',
+			'shield.off' => 'خاموش',
+			'shield.offSub' => 'DNS خود سرور',
+			'shield.malware' => 'بدافزار',
+			'shield.malwareSub' => 'سایت‌های مخرب و فیشینگ را مسدود می‌کند',
+			'shield.family' => 'بدافزار و سایت‌های بزرگسالان',
+			'shield.familySub' => 'محتوای بزرگسالان را هم مسدود می‌کند',
+			'shield.custom' => 'DNS دلخواه',
+			'shield.customSub' => 'سرورهای DNS خودتان',
+			'shield.customHint' => 'نشانی IP، مثلاً 1.1.1.1',
+			'shield.invalid' => 'یک یا دو نشانی IP وارد کنید.',
+			'checks.title' => 'بررسی‌های امنیتی',
+			'checks.password' => 'رمز عبور',
+			'checks.link' => 'پیوند',
+			'checks.pwTitle' => 'لو رفته است؟',
+			'checks.pwHint' => 'رمز عبور برای بررسی',
+			'checks.showPassword' => 'نمایش رمز',
+			'checks.hidePassword' => 'پنهان کردن رمز',
+			'checks.check' => 'بررسی',
+			'checks.leaked' => 'در نشت‌ها پیدا شد',
+			'checks.seen' => ({required Object n}) => '${n} بار دیده شده',
+			'checks.leakedAdvice' => 'همه‌جا که از آن استفاده می‌کنید عوضش کنید، از ایمیل و بانک شروع کنید.',
+			'checks.notFound' => 'در نشت‌های شناخته‌شده نیست',
+			'checks.notFoundAdvice' => 'نشانه خوبی است، نه تضمین. برای هر حساب رمز جداگانه بگذارید.',
+			'checks.failed' => 'بررسی نشد. دوباره تلاش کنید.',
+			'checks.private' => 'رمز عبور شما هرگز از این گوشی خارج نمی‌شود',
+			'checks.linkTitle' => 'این پیوند امن است؟',
+			'checks.linkHint' => 'پیوند برای بررسی',
+			'checks.paste' => 'چسباندن',
+			'checks.danger' => 'پیوند خطرناک',
+			'checks.dangerAdvice' => 'بازش نکنید و هیچ اطلاعاتی وارد نکنید.',
+			'checks.clear' => 'در فهرست‌های شناخته‌شده بدافزار یا فیشینگ نیست',
+			'checks.clearAdvice' => 'باز هم پیش از ورود، نشانی را نگاه کنید.',
+			'checks.goesTo' => 'می‌رود به',
+			'checks.redirects' => 'تغییر مسیرها',
+			'checks.invalid' => 'این شبیه نشانی وب نیست.',
+			'checks.busy' => 'بررسی‌ها زیاد شد. کمی بعد دوباره تلاش کنید.',
+			'checks.unavailable' => 'بررسی پیوند الان در دسترس نیست.',
+			'checks.listed' => 'شناخته‌شده برای بدافزار یا فیشینگ',
+			'checks.missing' => 'در این نشانی سایتی نیست',
+			'checks.missingAdvice' => 'املا را بررسی کنید: کلاهبرداران از نشانی‌های مشابه استفاده می‌کنند.',
+			'checks.left' => ({required Object n, required Object total}) => '${n} از ${total} بررسی رایگان این ماه مانده است',
+			'checks.usedUp' => 'بررسی‌های رایگان پیوند این ماه تمام شد',
+			'checks.usedUpSub' => 'Pro بررسی نامحدود دارد. بررسی‌های رایگان روز اول ماه برمی‌گردند.',
+			'checks.getPro' => 'دریافت Pro',
+			'toolSettings.title' => 'تنظیمات ابزارها',
+			'toolSettings.askMobile' => 'پیش از تست سرعت با داده همراه بپرس',
+			'toolSettings.askMobileSub' => 'یک تست در اتصال سریع می‌تواند بیش از ۱۰۰ مگابایت مصرف کند',
+			'toolSettings.mobileTitle' => 'از داده همراه استفاده شود؟',
+			'toolSettings.mobileBody' => 'تست سرعت در اتصال سریع می‌تواند بیش از ۱۰۰ مگابایت مصرف کند.',
+			'toolSettings.mobileGo' => 'تست',
+			'toolSettings.safe' => 'امن',
+			'toolSettings.unsafe' => 'ناامن',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} دستگاه', ), 
+			'toolSettings.hideMac' => 'پنهان کردن نشانی‌های سخت‌افزاری',
+			'toolSettings.hideMacSub' => 'فقط بخش سازنده نشانی‌های MAC نمایش داده می‌شود',
+			'toolSettings.names' => 'نمایش نام روترها و سرورها',
+			'toolSettings.namesSub' => 'در Traceroute نام نشانی‌ها را پیدا می‌کند',
+			'toolSettings.remember' => 'به خاطر سپردن میزبان‌های اخیر',
+			'toolSettings.rememberSub' => 'برای Traceroute',
+			'toolSettings.clear' => 'پاک کردن تاریخچه ابزارها',
+			'toolSettings.clearSub' => 'میزبان‌های اخیر و دستگاه‌های هر شبکه فراموش می‌شوند',
+			'toolSettings.clearGo' => 'پاک کردن',
+			'security.tab' => 'امنیت',
+			'security.good' => 'خوب',
+			'security.fair' => 'متوسط',
+			'security.atRisk' => 'در خطر',
+			'security.allClear' => 'چیزی برای رفع نیست',
+			'security.checked' => ({required Object time}) => 'بررسی‌شده در ${time}',
+			'security.trend' => 'دو هفته اخیر',
+			'security.checking' => 'در حال بررسی این شبکه',
+			'security.snoozed' => 'به‌تعویق‌افتاده',
+			'security.remindLater' => 'بعداً یادآوری کن',
+			'security.unsnooze' => 'الان یادآوری کن',
+			'security.review' => 'بررسی',
+			'security.confirmGo' => 'تأیید',
+			'security.scanGo' => 'اسکن',
+			'security.look' => 'دیدن',
+			'security.connectGo' => 'اتصال',
+			'security.checkAgain' => 'بررسی دوباره',
+			'security.wifiOpen' => 'وای‌فای باز است',
+			'security.wifiOpenDetail' => 'هر کسی در اطراف می‌تواند ارسال‌ها را ببیند',
+			'security.wifiWep' => 'وای‌فای از WEP استفاده می‌کند',
+			'security.wifiWepDetail' => 'امنیت قدیمی، آسان شکسته می‌شود',
+			'security.wifiOwe' => 'وای‌فای از Enhanced Open استفاده می‌کند',
+			'security.wifiOweDetail' => 'رمزنگاری شده، اما همه می‌توانند وصل شوند',
+			'security.wifiSecure' => 'رمزنگاری وای‌فای',
+			'security.wifiUnknown' => 'امنیت وای‌فای نامشخص است',
+			'security.wifiUnknownDetail' => 'اندروید نگفت چطور محافظت می‌شود',
+			'security.wps' => 'WPS روشن است',
+			'security.wpsDetail' => 'آن را در تنظیمات روتر خاموش کنید',
+			'security.upnpOff' => 'روتر پورت‌ها را بسته نگه می‌دارد',
+			'security.upnpOffDetail' => 'UPnP خاموش است',
+			'security.upnpOn' => 'روتر اجازه می‌دهد دستگاه‌ها پورت باز کنند',
+			'security.upnpOnDetail' => 'UPnP روشن است',
+			'security.portsOk' => 'پورت پرخطری روی روتر نیست',
+			'security.portsRisky' => 'پورت‌های پرخطر روی روتر باز است',
+			'security.scanFirst' => 'برای دیدن حاضران اسکن کنید',
+			'security.scanFirstDetail' => 'دستگاه‌های ناشناس امتیاز را کم می‌کنند',
+			'security.notMineDetail' => 'فهرست دستگاه‌های روتر را بررسی کنید',
+			'security.confirmDetail' => 'دستگاه‌های خودتان را علامت بزنید',
+			'security.devicesOk' => 'همه دستگاه‌ها شناخته‌شده‌اند',
+			'security.devicesOkDetail' => 'همه را تأیید کرده‌اید',
+			'security.camera' => 'یک دوربین در این شبکه است',
+			'security.dnsHijack' => 'نام‌های ناشناس تغییر مسیر داده می‌شوند',
+			'security.dnsHijackDetail' => 'ارائه‌دهنده یا روتر شما پاسخ‌ها را بازنویسی می‌کند',
+			'security.dnsOk' => 'DNS عادی پاسخ می‌دهد',
+			'security.dnsOkDetail' => 'نشانه‌ای از تغییر مسیر نیست',
+			'security.vpnOn' => 'VPN روشن است',
+			'security.vpnOnDetail' => 'ترافیک از تونل خارج می‌شود',
+			'security.vpnOff' => 'VPN خاموش است',
+			'security.vpnOffDetail' => 'ارائه‌دهنده شما هر سایتی را می‌بیند',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} مورد برای رفع', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} پورت باز شده توسط دستگاه‌ها', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} پورت بررسی شد', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} دستگاه مال شما نیست', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} دستگاه برای تأیید', ), 
+			'providers.tab' => 'اینترنت',
+			'providers.unavailable' => 'فهرست ارائه‌دهندگان بارگیری نشد. اتصال را بررسی کنید.',
+			'providers.cached' => 'طبق آخرین بررسی بدون VPN',
+			'providers.notEnough' => 'هنوز امتیاز کافی نیست',
+			'providers.yourRating' => 'امتیاز شما در این ماه',
+			'providers.yourSpeed' => 'سرعت شما',
+			'providers.runTest' => 'تست سرعت',
+			'providers.aboutAverage' => 'حدود میانگین اینجا',
+			'providers.aboveAverage' => ({required Object pct}) => '${pct}٪ بالاتر از میانگین محلی',
+			'providers.belowAverage' => ({required Object pct}) => '${pct}٪ پایین‌تر از میانگین محلی',
+			'providers.call' => 'تماس',
+			'providers.website' => 'وب‌سایت',
+			'providers.outages' => 'قطعی‌ها',
+			'providers.rate' => 'امتیاز بدهید',
+			'providers.changeRating' => 'تغییر امتیاز',
+			'providers.compare' => 'مقایسه',
+			'providers.rateTitle' => ({required Object name}) => 'امتیاز به ${name}',
+			'providers.oncePerMonth' => 'ماهی یک امتیاز',
+			'providers.tapStars' => 'روی ستاره‌ها بزنید',
+			'providers.verified' => ({required Object mbps}) => 'با تست سرعت شما تأیید شد: ${mbps} Mbps',
+			'providers.busy' => 'امتیازهای زیادی از اینجا آمده. بعداً امتحان کنید.',
+			'providers.failed' => 'ارسال نشد. دوباره امتحان کنید.',
+			'providers.post' => 'ارسال امتیاز',
+			'providers.nearTitle' => 'ارائه‌دهندگان نزدیک شما',
+			'providers.slower' => ({required Object pct}) => 'سرعت دانلود شما ${pct}٪ پایین‌تر از میانگین ارائه‌دهنده‌تان در اینجاست',
+			'providers.inPlace' => ({required Object place}) => 'اینترنت خانگی در ${place}',
+			'providers.byRating' => 'امتیاز',
+			'providers.bySpeed' => 'سرعت',
+			'providers.footnote' => 'سرعت‌ها میانگین تست‌های G VPN هستند',
+			'providers.noneNearby' => 'هنوز امتیازی در نزدیکی نیست. اولین نفر باشید.',
+			'providers.you' => 'شما',
+			'providers.topRated' => 'بالاترین امتیاز',
+			'providers.starsOf' => ({required Object n}) => '${n} از ۵',
+			'providers.tags.fast' => 'سریع',
+			'providers.tags.reliable' => 'قابل اعتماد',
+			'providers.tags.support' => 'پشتیبانی خوب',
+			'providers.tags.price' => 'قیمت منصفانه',
+			'providers.tags.slowEvenings' => 'کند در شب',
+			'providers.tags.drops' => 'قطعی زیاد',
+			'providers.tags.poorSupport' => 'پشتیبانی ضعیف',
+			'providers.tags.pricey' => 'گران',
+			'providers.words.bad' => 'بد',
+			'providers.words.poor' => 'ضعیف',
+			'providers.words.okay' => 'متوسط',
+			'providers.words.good' => 'خوب',
+			'providers.words.great' => 'عالی',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} امتیاز', ), 
+			'alerts.channel' => 'هشدارها',
+			'alerts.title' => 'هشدارها',
+			'alerts.markAllRead' => 'همه خوانده شد',
+			'alerts.clearAll' => 'پاک کردن همه',
+			'alerts.thisNetwork' => 'این شبکه',
+			'alerts.openWifiTitle' => ({required Object name}) => 'به یک وای‌فای باز وصل شدید: ${name}',
+			'alerts.openWifiBody' => 'هر کسی در اطراف می‌تواند ارسال‌ها را ببیند. G VPN را روشن کنید.',
+			'alerts.reportTitle' => 'گزارش هفتگی شما آماده است',
+			'alerts.reportBody' => ({required Object hours}) => '${hours} ساعت محافظت در هفته گذشته',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} اینجا مسدود است',
+			'alerts.blockedBody' => 'از طریق VPN پاسخ می‌دهد',
+			'alerts.kinds.newDevice' => 'دستگاه‌های جدید در وای‌فای من',
+			'alerts.kinds.openWifi' => 'وای‌فای باز یا ضعیف',
+			'alerts.kinds.blocked' => 'برنامه‌های مسدود',
+			'alerts.kinds.report' => 'گزارش هفتگی',
+			'alerts.kinds.breach' => 'نشت‌ها',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} دستگاه جدید در ${network}', ), 
+			'alerts.settings' => 'تنظیمات هشدارها',
+			'alerts.look' => 'دیدن',
+			'alerts.read' => 'خواندن',
+			'alerts.open' => 'باز کردن',
+			'alerts.check' => 'بررسی',
+			'alerts.today' => 'امروز',
+			'alerts.thisWeek' => 'این هفته',
+			'alerts.earlier' => 'قبل‌تر',
+			'alerts.all' => 'همه',
+			'alerts.quiet' => 'همه چیز آرام است',
+			'alerts.quietSub' => 'اخیراً چیزی به شما نیاز نداشت',
+			'alerts.breachTitle' => ({required Object name}) => 'نشت جدید: ${name}',
+			'alerts.status.background' => 'هر چند ساعت',
+			'alerts.status.checked' => ({required Object time}) => 'بررسی‌شده در ${time}',
+			'alerts.status.wifi' => 'هر شبکه‌ای که به آن وصل می‌شوید',
+			'alerts.status.blocked' => 'هنگام اجرای وضعیت سرویس‌ها',
+			'alerts.status.report' => 'هر دوشنبه',
+			'report.title' => 'گزارش هفتگی',
+			'report.share' => 'اشتراک به‌صورت تصویر',
+			'report.shareText' => 'هفته من با G VPN',
+			'report.safer' => 'هفته‌ای امن‌تر',
+			'report.moreProtected' => 'محافظت بیشتر از هفته قبل',
+			'report.yourWeek' => 'هفته شما',
+			'report.soFar' => ({required Object range}) => '${range}، تا اینجا',
+			'report.protected' => 'محافظت‌شده',
+			'report.data' => 'داده',
+			'report.security' => 'امنیت',
+			'report.speed' => 'بهترین سرعت',
+			'report.noScore' => 'بررسی نشده',
+			'report.noTest' => 'بدون تست',
+			'report.bestDirect' => 'تست مستقیم',
+			'report.moreThan' => ({required Object d}) => '${d} بیشتر از هفته قبل',
+			'report.lessThan' => ({required Object d}) => '${d} کمتر از هفته قبل',
+			'report.protectedTime' => 'زمان محافظت',
+			'report.mostUsed' => ({required Object name}) => 'پرکاربردترین: ${name}',
+			'report.quiet' => 'هفته‌ای آرام: چیزی به شما نیاز نداشت',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} دستگاه جدید وصل شد', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: 'به ${n} وای‌فای باز وصل شدید', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} برنامه مسدود شد', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} نشت بزرگ جدید', ), 
+			'breaches.title' => 'نشت داده‌ها',
+			'breaches.info' => 'تازه‌ترین نشت‌های داده از فهرست عمومی Have I Been Pwned. چیزی درباره شما ارسال نمی‌شود: فهرست برای همه یکسان است.\n\nاگر در سایت نشت‌کرده حساب داشتید، آن رمز را و هر جا که همان را به کار بردید عوض کنید.',
+			'breaches.unavailable' => 'فهرست بارگیری نشد. اتصال را بررسی کنید.',
+			'breaches.biggest' => 'بزرگ‌ترین این ماه',
+			'breaches.newest' => 'تازه‌ترین',
+			'breaches.biggestSort' => 'بزرگ‌ترین',
+			'breaches.withPasswords' => 'دارای رمز عبور',
+			'breaches.passwordsMark' => 'رمزها',
+			'breaches.one' => 'نشت',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'بررسی یک رمز عبور',
+			'breaches.verified' => 'تأییدشده',
+			'breaches.hasPasswords' => 'رمز عبور دارد',
+			'breaches.accountsLabel' => 'حساب‌ها',
+			'breaches.happened' => 'رخ داد',
+			'breaches.published' => 'منتشر شد',
+			'breaches.website' => 'وب‌سایت',
+			'breaches.leaked' => 'چه چیزی نشت کرد',
+			'breaches.ifUsed' => 'اگر از آن استفاده می‌کردید',
+			'breaches.stepPassword' => 'رمزی را که آنجا استفاده می‌کردید عوض کنید',
+			'breaches.stepReuse' => 'هر جا همان رمز را دارید عوضش کنید',
+			'breaches.stepTwoStep' => 'ورود دومرحله‌ای را هر جا ممکن است روشن کنید',
+			'breaches.stepScams' => 'منتظر تماس‌ها و پیام‌های کلاهبرداری باشید',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${count} حساب', ), 
+			'breaches.worldwide' => ({required Object n}) => 'جهانی · ${n}',
+			'breaches.noneHere' => 'در فهرست اخیر نشتی از اینجا نیست.',
+			'breaches.bigMap' => 'نقشه بزرگ‌تر',
+			'breaches.showInList' => 'نمایش در فهرست',
+			'breaches.mapTitle' => 'نقشه نشت‌ها',
+			'breaches.zoomIn' => 'بزرگ‌نمایی',
+			'breaches.zoomOut' => 'کوچک‌نمایی',
+			'breaches.wholeWorld' => 'کل جهان',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} نشت', ), 
+			'breaches.findCountry' => 'یافتن کشور',
+			'breaches.seeAll' => 'دیدن همه',
+			'breaches.search' => 'جستجوی نشت‌ها',
+			'blocked.title' => 'چه چیزی مسدود است',
+			'blocked.info' => 'سایت‌های شناخته‌شده را از همین گوشی، بدون VPN، آزمایش می‌کند و نشان می‌دهد این شبکه کدام را و چگونه مسدود می‌کند.\n\nنشانی جعلی: جستجوی نام در شبکه پاسخ نادرست می‌دهد.\n\nقطع‌شده: اتصال در شروع قطع می‌شود.\n\nبی‌پاسخ: چیزی برنمی‌گردد.\n\nصفحه مسدودسازی: چیز دیگری به جای سایت پاسخ می‌دهد.\n\nآزمایش نشان می‌دهد سایت کجا مسدود است، نه اینکه چه کسی آن را مسدود کرده. چیزی ذخیره یا ارسال نمی‌شود.',
+			'blocked.thisNetwork' => 'این شبکه',
+			'blocked.country' => 'کشور شما',
+			'blocked.question' => 'اینجا چه چیزی مسدود است؟',
+			'blocked.testingOn' => 'در حال آزمایش روی',
+			'blocked.vpnOn' => 'VPN روشن',
+			'blocked.turnOff' => 'برای آزمایش G VPN را خاموش کنید',
+			'blocked.test' => 'آزمایش این شبکه',
+			'blocked.stop' => 'توقف',
+			'blocked.sitesToTest' => ({required Object n}) => 'سایت‌های آزمایشی · ${n}',
+			'blocked.ofSites' => ({required Object n}) => 'از ${n} سایت',
+			'blocked.blockedCount' => ({required Object n}) => '${n} مسدود',
+			'blocked.openCount' => ({required Object n}) => '${n} باز',
+			'blocked.noneBlocked' => ({required Object network}) => 'در ${network} چیزی مسدود نیست',
+			'blocked.openOf' => ({required Object open, required Object total}) => '${open} از ${total} باز',
+			'blocked.allWork' => 'همه با G VPN کار می‌کنند',
+			'blocked.blockedHeading' => 'مسدود',
+			'blocked.byKind' => 'بر اساس نوع',
+			'blocked.worksVpn' => 'با VPN کار می‌کند',
+			'blocked.failsVpn' => 'با VPN هم مسدود است',
+			'blocked.checkVpn' => 'بررسی از طریق G VPN',
+			'blocked.connect' => 'اتصال G VPN',
+			'blocked.again' => 'آزمایش دوباره',
+			'blocked.withoutVpn' => 'بدون VPN',
+			'blocked.throughVpn' => 'از طریق G VPN',
+			'blocked.notChecked' => 'بررسی نشده',
+			'blocked.opens' => 'باز می‌شود',
+			'blocked.stillBlocked' => 'مسدود',
+			'blocked.whatHappened' => 'چه اتفاقی افتاد',
+			'blocked.countryBlocked' => ({required Object country}) => 'سایت مسدود در ${country}',
+			'blocked.countrySub' => 'یافته‌های آزمایش داوطلبان در ۳۰ روز گذشته',
+			'blocked.countryNone' => 'در ۳۰ روز گذشته سایت مسدودی گزارش نشده است.',
+			'blocked.countryUnavailable' => 'نتایج کشور بارگیری نشد. اتصال را بررسی کنید.',
+			'blocked.confirmed' => 'مسدود',
+			'blocked.oftenFails' => 'اغلب ناموفق',
+			'blocked.kinds.social' => 'شبکه‌های اجتماعی',
+			'blocked.kinds.messaging' => 'پیام‌رسان‌ها',
+			'blocked.kinds.news' => 'اخبار',
+			'blocked.kinds.video' => 'ویدیو و موسیقی',
+			'blocked.kinds.privacy' => 'ابزارهای حریم خصوصی',
+			'blocked.how.dns' => 'نشانی جعلی',
+			'blocked.how.reset' => 'قطع‌شده',
+			'blocked.how.timeout' => 'بی‌پاسخ',
+			'blocked.how.page' => 'صفحه مسدودسازی',
+			'blocked.how.open' => 'باز',
+			'blocked.fail.noAnswer' => 'بی‌پاسخ',
+			'blocked.fail.refused' => 'رد شد',
+			'blocked.fail.cutOff' => ({required Object s}) => 'قطع پس از ${s} ثانیه',
+			'blocked.fail.wrongCert' => 'گواهی نادرست',
+			'blocked.steps.lookup' => 'جستجوی نام',
+			'blocked.steps.connect' => 'اتصال',
+			'blocked.steps.handshake' => 'دست‌دهی امن',
+			'blocked.consent.title' => 'پیش از اولین آزمایش',
+			'blocked.consent.body' => 'آزمایش هر سایت را از همین گوشی، بدون VPN، مثل یک مرورگر باز می‌کند.',
+			'blocked.consent.noticeTitle' => 'ممکن است دیده شود',
+			'blocked.consent.notice' => 'ارائه‌دهنده شما باز شدن این سایت‌ها را می‌بیند. در برخی کشورها بازدید از آنها، حتی برای آزمایش، می‌تواند توجه جلب کند. فقط جایی آزمایش کنید که احساس امنیت می‌کنید.',
+			'blocked.consent.ok' => 'متوجه شدم، آزمایش کن',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} سایت در ${network} مسدود است', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, other: '${n} آزمایش', ), 
 			_ => null,
 		};
 	}

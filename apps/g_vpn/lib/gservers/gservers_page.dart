@@ -8,6 +8,7 @@ import '../design/list_ui.dart';
 import '../design/meridian.dart';
 import '../i18n/strings.g.dart';
 import '../pro/billing.dart';
+import '../tools/probe.dart';
 import '../vpn/tunnel_store.dart';
 import '../vpn/vpn_controller.dart';
 import 'gservers.dart';
@@ -47,8 +48,22 @@ bool _isConnected(WidgetRef ref, GServer s) {
   return selected == '$gserverPrefix${s.id}' && ref.watch(vpnProvider).phase == VpnPhase.on;
 }
 
-/// The Pro tab when G Servers are on: the least busy server, all servers,
-/// and this plan's phones.
+/// Time to reach a G Server from this phone, in ms; null when it cannot be
+/// timed. One handshake each, measured when the Pro tab opens.
+final gServerPingProvider = FutureProvider.autoDispose.family<double?, String>((ref, id) async {
+  final info = await ref.watch(gServersProvider.future);
+  final s = info.servers.where((s) => s.id == id).firstOrNull;
+  final host = s?.host;
+  if (s == null || host == null || !s.online) return null;
+  return tcpPing(host, s.pingPort ?? 443, timeout: const Duration(seconds: 3));
+});
+
+Color _busyColor(Meridian m, int? busy) =>
+    busy == null ? m.muted : busy >= 85 ? m.bad : busy >= 60 ? m.warn : m.good;
+
+/// The Pro tab when G Servers are on: the best server for this phone right
+/// now, every server with its load and ping, what Pro includes, and this
+/// plan's phones.
 class GServersPage extends ConsumerWidget {
   const GServersPage({super.key, required this.info});
 
@@ -59,6 +74,10 @@ class GServersPage extends ConsumerWidget {
     final m = context.mer;
     final best = info.best;
     final owned = ref.watch(billingProvider).owned;
+    final devices = ref.watch(gDevicesProvider).value;
+    final used = devices?.devices.length ?? 0;
+    final limit = devices?.limit ?? info.limit;
+
     return Scaffold(
       backgroundColor: m.bg,
       body: SafeArea(
@@ -66,47 +85,76 @@ class GServersPage extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () => ref.refresh(gServersProvider.future),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(t.pro.title, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
-                  ),
-                  if (owned) Tag(t.gs.active, color: m.good),
-                ],
-              ),
+              Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: m.warn.withValues(alpha: .16), borderRadius: BorderRadius.circular(11)),
+                  child: Icon(Icons.workspace_premium_rounded, size: 20, color: m.warn),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(t.pro.title, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
+                ),
+                if (owned) Tag(t.gs.active, color: m.good),
+              ]),
               const SizedBox(height: 16),
               if (best != null) Appear(index: 0, child: _BestCard(server: best)),
-              SectionTitle(t.gs.servers),
+              _Heading(t.gs.servers),
               Appear(
                 index: 1,
-                child: ListGroup(children: [
-                  for (final s in info.servers)
-                    ListItem(
-                      leading: CountryFlag(s.country, width: 30),
-                      title: '${countryName(s.country, s.country)} · ${s.city}',
-                      subtitle: s.online ? t.gs.busy(n: s.busy ?? 0) : t.gs.offline,
-                      trailing: _BusyBar(busy: s.online ? s.busy : null),
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GServerScreen(server: s))),
-                    ),
-                ]),
+                child: _Card(children: [for (final s in byLoad(info.servers)) GServerRow(server: s)]),
               ),
-              const SizedBox(height: 14),
+              _Heading(t.gs.included),
               Appear(
                 index: 2,
-                child: ListGroup(children: [
-                  ListItem(
-                    leading: Icon(Icons.smartphone_rounded, color: m.brand),
-                    title: t.gs.devices,
-                    subtitle: t.gs.devicesSub(n: info.limit),
-                    trailing: Icon(Icons.chevron_right_rounded, color: m.muted),
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GDevicesScreen(info: info))),
-                  ),
+                child: _Card(children: [
+                  _Perk(icon: Icons.bolt_rounded, color: m.brand, title: t.gs.perkServers, sub: t.gs.perkServersSub),
+                  _Perk(icon: Icons.link_rounded, color: m.bad, title: t.gs.perkLinks, sub: t.gs.perkLinksSub),
                 ]),
               ),
-              const SizedBox(height: 16),
-              Text(t.gs.footnote, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, height: 1.5, color: m.muted)),
+              const SizedBox(height: 12),
+              Appear(
+                index: 3,
+                child: Material(
+                  color: m.surface,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Meridian.rCard), side: BorderSide(color: m.line)),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(Meridian.rCard),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GDevicesScreen(info: info))),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(children: [
+                        // One slot per phone the plan allows, filled for each in use.
+                        for (var i = 0; i < limit.clamp(1, 5); i++) ...[
+                          if (i > 0) const SizedBox(width: 6),
+                          Container(
+                            width: 26,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: i < used ? m.brand.withValues(alpha: .14) : null,
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(color: i < used ? m.brand : m.line, width: 2),
+                            ),
+                            child: i < used ? Icon(Icons.smartphone_rounded, size: 14, color: m.brand) : null,
+                          ),
+                        ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(t.gs.devicesOf(used: used, limit: limit),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: m.text)),
+                            Text(t.gs.eachKey, style: TextStyle(fontSize: 12, color: m.muted)),
+                          ]),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: m.muted),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -115,6 +163,172 @@ class GServersPage extends ConsumerWidget {
   }
 }
 
+class _Heading extends StatelessWidget {
+  const _Heading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+        child: Text(text.toUpperCase(),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: .8, color: context.mer.muted)),
+      );
+}
+
+class _Card extends StatelessWidget {
+  const _Card({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return Container(
+      decoration: BoxDecoration(color: m.surface, borderRadius: BorderRadius.circular(Meridian.rCard), border: Border.all(color: m.line)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        for (final (i, c) in children.indexed) ...[
+          if (i > 0) Divider(height: 1, color: m.line),
+          c,
+        ],
+      ]),
+    );
+  }
+}
+
+class _Perk extends StatelessWidget {
+  const _Perk({required this.icon, required this.color, required this.title, required this.sub});
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(11)),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: m.text)),
+            Text(sub, style: TextStyle(fontSize: 12, color: m.muted)),
+          ]),
+        ),
+        Icon(Icons.check_rounded, color: m.good),
+      ]),
+    );
+  }
+}
+
+/// How busy a server is, as a ring with the figure inside.
+class _BusyRing extends StatelessWidget {
+  const _BusyRing({required this.busy});
+
+  static const _size = 44.0;
+
+  final int? busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final color = _busyColor(m, busy);
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: (busy ?? 0) / 100),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (_, v, __) => Stack(alignment: Alignment.center, children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: busy == null ? 0 : v.clamp(0.02, 1.0),
+              strokeWidth: 5,
+              strokeCap: StrokeCap.round,
+              color: color,
+              backgroundColor: m.surface2,
+            ),
+          ),
+          Text(busy == null ? '--' : '$busy%', style: m.monoStyle(size: 11, color: m.text)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Servers that are up first, least busy first: the fastest to use now.
+List<GServer> byLoad(List<GServer> servers) => [...servers]
+  ..sort((a, b) {
+    if (a.online != b.online) return a.online ? -1 : 1;
+    return (a.busy ?? 100).compareTo(b.busy ?? 100);
+  });
+
+/// One G Server: load ring, ping from this phone, and Connect.
+class GServerRow extends ConsumerWidget {
+  const GServerRow({super.key, required this.server});
+
+  final GServer server;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = context.mer;
+    final s = server;
+    final ping = ref.watch(gServerPingProvider(s.id)).value;
+    final connected = _isConnected(ref, s);
+    final connecting = ref.watch(vpnProvider).phase == VpnPhase.connecting;
+    return InkWell(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GServerScreen(server: s))),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: Row(children: [
+          _BusyRing(busy: s.online ? s.busy : null),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                CountryFlag(s.country, width: 20),
+                const SizedBox(width: 8),
+                Flexible(child: Text(s.city, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: m.text))),
+              ]),
+              const SizedBox(height: 2),
+              Text(
+                s.online ? [if (ping != null) '${ping.round()} ms', countryName(s.country, s.country)].join(' · ') : t.gs.offline,
+                style: m.monoStyle(size: 12, color: s.online ? m.muted : m.bad),
+              ),
+            ]),
+          ),
+          if (connected)
+            Tag(t.gs.connected, color: m.good)
+          else if (s.online)
+            OutlinedButton(
+              onPressed: connecting ? null : () => connectGServer(context, ref, s),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                foregroundColor: m.brand,
+                side: BorderSide(color: m.brand.withValues(alpha: .5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(t.common.connect, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The best server for this phone now: a gradient card with its load and
+/// ping, and one big button.
 class _BestCard extends ConsumerWidget {
   const _BestCard({required this.server});
 
@@ -125,33 +339,56 @@ class _BestCard extends ConsumerWidget {
     final m = context.mer;
     final connected = _isConnected(ref, server);
     final busy = ref.watch(vpnProvider).phase == VpnPhase.connecting;
+    final ping = ref.watch(gServerPingProvider(server.id)).value;
+    const soft = Color(0xFFDCE6FF);
+    Widget tile(String label, String value) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(12)),
+            child: Column(children: [
+              Text(value, style: m.monoStyle(size: 15, color: Colors.white)),
+              Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: .6, color: soft)),
+            ]),
+          ),
+        );
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: m.brand, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2E57E6), Color(0xFF172A73)],
+        ),
+        boxShadow: [BoxShadow(color: const Color(0xFF2E57E6).withValues(alpha: .35), blurRadius: 24, offset: const Offset(0, 10))],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(t.gs.leastBusy, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8, color: Color(0xFFDCE6FF))),
+          Text(t.gs.bestNow, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: soft)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              CountryFlag(server.country, width: 44),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(server.city, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
-                    Text(t.gs.busyNoLogs(n: server.busy ?? 0), style: m.monoStyle(size: 13, color: const Color(0xFFDCE6FF))),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            CountryFlag(server.country, width: 48),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(server.city, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+                Text(countryName(server.country, server.country), style: const TextStyle(fontSize: 13, color: soft)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            tile(t.gs.busyLabel, server.busy == null ? '--' : '${server.busy}%'),
+            const SizedBox(width: 6),
+            tile(t.gs.ping, ping == null ? '--' : '${ping.round()} ms'),
+            const SizedBox(width: 6),
+            tile(t.gs.logsShort, t.gs.noneKept),
+          ]),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 52,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 240),
               child: connected
@@ -161,8 +398,8 @@ class _BestCard extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.white, width: 1.5),
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: Text(t.servers.disconnect, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     )
@@ -172,39 +409,14 @@ class _BestCard extends ConsumerWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF1E3FB0),
-                        minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: Text(t.common.connect, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BusyBar extends StatelessWidget {
-  const _BusyBar({required this.busy});
-
-  final int? busy;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final value = (busy ?? 0) / 100;
-    final color = busy == null ? m.muted : busy! >= 85 ? m.bad : busy! >= 60 ? m.warn : m.good;
-    return SizedBox(
-      width: 64,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: value),
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, __) => LinearProgressIndicator(value: v, minHeight: 6, backgroundColor: m.line, color: color),
-        ),
       ),
     );
   }

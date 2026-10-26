@@ -75,11 +75,10 @@ class _AppsScreenState extends ConsumerState<AppsScreen> {
         title: Text(t.apps.title),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: t.common.about,
-            icon: const Icon(Icons.info_outline_rounded),
+          InfoIcon(
             onPressed: () => showInfoSheet(
               context,
+              icon: Icons.call_split_rounded,
               title: t.apps.title,
               subtitle: t.apps.sheetSubtitle,
               sections: [

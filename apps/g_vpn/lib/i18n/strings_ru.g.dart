@@ -69,6 +69,19 @@ class TranslationsRu extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$add$ru add = _Translations$add$ru._(_root);
 	@override late final _Translations$backup$ru backup = _Translations$backup$ru._(_root);
 	@override late final _Translations$gs$ru gs = _Translations$gs$ru._(_root);
+	@override late final _Translations$map$ru map = _Translations$map$ru._(_root);
+	@override late final _Translations$stats$ru stats = _Translations$stats$ru._(_root);
+	@override late final _Translations$recents$ru recents = _Translations$recents$ru._(_root);
+	@override late final _Translations$presets$ru presets = _Translations$presets$ru._(_root);
+	@override late final _Translations$shield$ru shield = _Translations$shield$ru._(_root);
+	@override late final _Translations$checks$ru checks = _Translations$checks$ru._(_root);
+	@override late final _Translations$toolSettings$ru toolSettings = _Translations$toolSettings$ru._(_root);
+	@override late final _Translations$security$ru security = _Translations$security$ru._(_root);
+	@override late final _Translations$providers$ru providers = _Translations$providers$ru._(_root);
+	@override late final _Translations$alerts$ru alerts = _Translations$alerts$ru._(_root);
+	@override late final _Translations$report$ru report = _Translations$report$ru._(_root);
+	@override late final _Translations$breaches$ru breaches = _Translations$breaches$ru._(_root);
+	@override late final _Translations$blocked$ru blocked = _Translations$blocked$ru._(_root);
 }
 
 // Path: common
@@ -117,8 +130,6 @@ class _Translations$home$ru extends Translations$home$en {
 	// Translations
 	@override late final _Translations$home$status$ru status = _Translations$home$status$ru._(_root);
 	@override String resumesAt({required Object time}) => 'Возобновится в ${time} · нажмите, чтобы продолжить сейчас';
-	@override String sitesSee({required Object ip}) => 'Сайты видят ${ip}';
-	@override String sitesSeeOrg({required Object ip, required Object org}) => 'Сайты видят ${ip} · ${org}';
 	@override String get ipFailed => 'Не удалось проверить IP';
 	@override String get ipChecking => 'Проверка IP';
 	@override String get themeSystem => 'Тема: как в телефоне';
@@ -126,7 +137,6 @@ class _Translations$home$ru extends Translations$home$en {
 	@override String get themeDark => 'Тема: тёмная';
 	@override String get free => 'Бесплатно';
 	@override String get pickServer => 'Выберите сервер';
-	@override late final _Translations$home$waves$ru waves = _Translations$home$waves$ru._(_root);
 	@override late final _Translations$home$network$ru network = _Translations$home$network$ru._(_root);
 	@override late final _Translations$home$card$ru card = _Translations$home$card$ru._(_root);
 	@override late final _Translations$home$tiles$ru tiles = _Translations$home$tiles$ru._(_root);
@@ -177,6 +187,23 @@ class _Translations$servers$ru extends Translations$servers$en {
 	@override String lastUsed({required Object when}) => 'Использовался ${when}';
 	@override String get disconnectFirst => 'Сначала отключитесь, чтобы удалить';
 	@override String get removeConfirm => 'Удалить этот сервер из G VPN? Его настройки удалятся с этого телефона; сам сервер не изменится.';
+	@override String get gTab => 'G Servers';
+	@override String get search => 'Поиск стран';
+	@override String get noMatch => 'Нет подходящих серверов.';
+	@override String bestPing({required Object ms}) => 'лучший ${ms} мс';
+	@override String get bestTag => 'ЛУЧШИЙ';
+	@override String get ownHero => 'Наши серверы';
+	@override String get ownHeroSub => 'Быстрее, приватно, у каждого телефона свой ключ';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} сервер',
+		few: '${n} сервера',
+		many: '${n} серверов',
+		other: '${n} сервера',
+	);
+	@override String showAll({required Object n}) => 'Показать все ${n}';
+	@override String get showFewer => 'Свернуть';
+	@override String get fastTab => 'Быстрые';
+	@override String get fastestFree => 'Самые быстрые бесплатные';
 }
 
 // Path: pro
@@ -189,16 +216,7 @@ class _Translations$pro$ru extends Translations$pro$en {
 	@override String get owned => 'У вас есть Pro';
 	@override String get waitingPlay => 'Ожидание Google Play';
 	@override String startTrial({required Object days}) => 'Начать бесплатный период на ${days} дн.';
-	@override String thenYearly({required Object price}) => 'Затем ${price} в год. Отмена в любой момент в Google Play.';
-	@override String thenMonthly({required Object price}) => 'Затем ${price} в месяц. Отмена в любой момент в Google Play.';
-	@override String yearlyPrice({required Object price}) => '${price} в год. Отмена в любой момент в Google Play.';
-	@override String monthlyPrice({required Object price}) => '${price} в месяц. Отмена в любой момент в Google Play.';
 	@override String get restore => 'Восстановить';
-	@override String get heroTitle => 'Быстрые серверы,\nнаши собственные';
-	@override String get heroSubtitle => 'WireGuard. Без журналов активности. Без аккаунта.';
-	@override String get benefitSpeed => 'Полная скорость, без ограничений волонтёрских серверов';
-	@override String get benefitKey => 'Ключ создаётся на вашем телефоне и никому не передаётся';
-	@override String get benefitFree => 'Всё бесплатное останется бесплатным';
 	@override String save({required Object pct}) => 'ЭКОНОМИЯ ${pct}%';
 	@override String get yearly => 'На год';
 	@override String get monthly => 'На месяц';
@@ -206,10 +224,6 @@ class _Translations$pro$ru extends Translations$pro$en {
 	@override String daysFree({required Object days}) => '${days} дн. бесплатно';
 	@override String perMonth({required Object price}) => '${price} в месяц';
 	@override String get title => 'G VPN Pro';
-	@override String get heroTitleOneLine => 'Быстрые серверы, наши собственные';
-	@override String get includes => 'Что входит';
-	@override String get benefitLogs => 'Без журналов активности на наших серверах';
-	@override String get plan => 'Выберите план';
 	@override String get renewGeneric => 'Подписки продлеваются автоматически до отмены. Отмена в любой момент в Google Play.';
 	@override String renewTrial({required Object days, required Object price, required Object period}) => '${days} дн. бесплатно, затем ${price} за ${period}. Продлевается автоматически до отмены; отмените в Google Play не позднее чем за день до конца пробного периода, чтобы не было списания.';
 	@override String renew({required Object price, required Object period}) => '${price} за ${period}. Продлевается автоматически до отмены; отмена в любой момент в Google Play.';
@@ -217,6 +231,16 @@ class _Translations$pro$ru extends Translations$pro$en {
 	@override String get month => 'месяц';
 	@override String get manage => 'Управление подпиской';
 	@override late final _Translations$pro$free$ru free = _Translations$pro$free$ru._(_root);
+	@override String get heroLine => 'Наши быстрые серверы и все проверки без ограничений';
+	@override String get start => 'Начать Pro';
+	@override String get compareFree => 'БЕСПЛАТНО';
+	@override String get comparePro => 'PRO';
+	@override String get rowFreeServers => 'Бесплатные серверы';
+	@override String get rowTools => 'Тест скорости, инструменты, проверка Wi-Fi';
+	@override String get rowGServers => 'G Servers, без журналов';
+	@override String get rowLinks => 'Проверка ссылок';
+	@override String linksFree({required Object n}) => '${n} в месяц';
+	@override String get unlimited => 'Без ограничений';
 }
 
 // Path: rules
@@ -230,7 +254,6 @@ class _Translations$rules$ru extends Translations$rules$en {
 	@override late final _Translations$rules$info$ru info = _Translations$rules$info$ru._(_root);
 	@override String get protection => 'Защита';
 	@override String get shield => 'Щит';
-	@override String get shieldSub => 'Блокирует вредоносные и фишинговые сайты';
 	@override String get privateDns => 'Щит без VPN';
 	@override String get privateDnsSub => 'Скопировать dns.quad9.net для частного DNS';
 	@override String get privateDnsCopied => 'dns.quad9.net скопирован';
@@ -346,9 +369,17 @@ class _Translations$wol$ru extends Translations$wol$en {
 	@override String get badMac => 'Это не MAC-адрес. Он выглядит так: AA:BB:CC:DD:EE:FF.';
 	@override String get sent => 'Сигнал отправлен. Устройство должно включиться в течение минуты.';
 	@override String get title => 'Wake on LAN';
-	@override String get wake => 'Включить устройство';
 	@override String get mac => 'MAC-адрес';
 	@override String failed({required Object error}) => 'Не удалось отправить: ${error}';
+	@override String get computer => 'Компьютер';
+	@override String get pick => 'Выберите устройство для включения';
+	@override String waking({required Object name}) => 'Включаем ${name}';
+	@override String get yours => 'ВАШИ УСТРОЙСТВА';
+	@override String wakeNamed({required Object name}) => 'Включить ${name}';
+	@override String get removeHint => 'Удерживайте устройство, чтобы удалить';
+	@override String get add => 'ДОБАВИТЬ УСТРОЙСТВО';
+	@override String get name => 'Название';
+	@override String get saveWake => 'Сохранить и включить';
 }
 
 // Path: speed
@@ -358,7 +389,6 @@ class _Translations$speed$ru extends Translations$speed$en {
 	final TranslationsRu _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Измеряется открытой исследовательской платформой M-Lab. Тест расходует около 50–100 МБ.\n\nПубличные результаты: M-Lab публикует каждый тест, включая IP-адрес, с которого он проведён, как открытые исследовательские данные.\n\nСравнение провайдеров: после теста без VPN G VPN отправляет только три показателя скорости. Сервис сравнения определяет вашего провайдера и город по самому подключению и не хранит IP-адрес. Отключить можно переключателем внизу страницы.\n\nЧерез VPN: при включённом VPN измеряется скорость через туннель и сравнивается с последним тестом без него.\n\nПредпросмотр видео: та же картинка в разрешении, которое позволяет эта скорость, по битрейтам, которые публикуют стриминговые сервисы. Видео не загружается.';
 	@override String get download => 'Загрузка';
 	@override String get upload => 'Отдача';
 	@override String get finding => 'Поиск сервера';
@@ -439,10 +469,11 @@ class _Translations$router$ru extends Translations$router$en {
 	@override String get cgnat => 'Общий адрес провайдера: недоступен из интернета.';
 	@override String get noDescription => 'Без описания';
 	@override String opened({required Object n}) => 'Устройства открыли портов: ${n}';
-	@override String routerName({required Object name}) => 'Роутер: ${name}';
-	@override String externalIp({required Object ip}) => 'Интернет-адрес: ${ip}';
 	@override String mapping({required Object proto, required Object host}) => '${proto} на ${host}';
 	@override String get upnpOn => 'UPnP включён';
+	@override String get routerLabel => 'Роутер';
+	@override String get internetAddress => 'Адрес в интернете';
+	@override String get openedBy => 'Открыто устройствами';
 }
 
 // Path: network
@@ -494,8 +525,6 @@ class _Translations$devices$ru extends Translations$devices$en {
 	@override String get title => 'Устройства';
 	@override String get again => 'Сканировать снова';
 	@override String get looking => 'Поиск устройств';
-	@override String get nothingNew => 'С прошлого сканирования ничего нового';
-	@override String get takes => 'Займёт около 30 секунд';
 	@override String get all => 'Все';
 	@override String get phones => 'Телефоны';
 	@override String get tvs => 'Телевизоры';
@@ -507,14 +536,57 @@ class _Translations$devices$ru extends Translations$devices$en {
 	@override String get address => 'Адрес';
 	@override String get answersIn => 'Отвечает за';
 	@override String get type => 'Тип';
-	@override String get notAnnounced => 'Не представилось. Имя можно найти в списке устройств роутера.';
 	@override String get newBadge => 'НОВОЕ';
 	@override String scanning({required Object n}) => 'Сканирование ${n} из 254';
-	@override String get thisNetwork => 'этой сети';
 	@override String newSince({required Object n}) => 'Новых с прошлого сканирования: ${n}';
-	@override String showMore({required Object n}) => 'Показать ещё ${n}';
 	@override String ms({required Object n}) => '${n} мс';
-	@override String onNetwork({required Object network}) => 'устройств в ${network}';
+	@override String get cameras => 'Камеры';
+	@override String get device => 'Устройство';
+	@override String get online => 'В сети';
+	@override String get model => 'Модель';
+	@override String get announced => 'Представляется как';
+	@override String get services => 'ОТКРЫТЫЕ СЛУЖБЫ';
+	@override String get checkingServices => 'Проверяем службы';
+	@override String get noServices => 'Обычные службы не отвечают';
+	@override String get rename => 'Переименовать';
+	@override String get save => 'Сохранить';
+	@override late final _Translations$devices$kinds$ru kinds = _Translations$devices$kinds$ru._(_root);
+	@override String get details => 'Сведения о сети';
+	@override String get listView => 'Список';
+	@override String get meshView => 'Сеть-граф';
+	@override String get offlineHeading => 'Не в сети';
+	@override String seen({required Object when}) => 'Был ${when}';
+	@override String agoMinutes({required Object n}) => '${n} мин назад';
+	@override String agoHours({required Object n}) => '${n} ч назад';
+	@override String agoDays({required Object n}) => '${n} дн. назад';
+	@override String get throughVpn => 'Через VPN';
+	@override String get closer => 'Ближе = отвечает быстрее';
+	@override String get yours => 'Это ваше?';
+	@override String get mine => 'Моё';
+	@override String get notMine => 'Не моё';
+	@override String get whatIsIt => 'Что это?';
+	@override String ourGuess({required Object kind}) => 'Наша догадка: ${kind}';
+	@override String get groupPersonal => 'Телефоны и компьютеры';
+	@override String get groupHome => 'Дом и медиа';
+	@override String get groupNetwork => 'Сеть и умный дом';
+	@override String onlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} в сети',
+		few: '${n} в сети',
+		many: '${n} в сети',
+		other: '${n} в сети',
+	);
+	@override String offlineCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} не в сети',
+		few: '${n} не в сети',
+		many: '${n} не в сети',
+		other: '${n} не в сети',
+	);
+	@override String toConfirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} подтвердить',
+		few: '${n} подтвердить',
+		many: '${n} подтвердить',
+		other: '${n} подтвердить',
+	);
 }
 
 // Path: ping
@@ -524,10 +596,8 @@ class _Translations$ping$ru extends Translations$ping$en {
 	final TranslationsRu _root; // ignore: unused_field
 
 	// Translations
-	@override String get info => 'Сколько длится один путь до сервера и обратно; измеряется раз в секунду за последнюю минуту.\n\nДжиттер: насколько каждый ответ отличается от предыдущего. Высокий джиттер прерывает звонки.\n\nПотери: ответы, которые так и не вернулись.\n\nКак: приложения Android не могут отправлять классический пинг, поэтому каждая проба измеряет установку соединения, а это тот же один путь туда и обратно.';
 	@override String get askTitle => 'Пинг узла';
 	@override String get askHint => 'example.com или 192.168.1.10';
-	@override String get cancel => 'Отмена';
 	@override String get title => 'Пинг';
 	@override String get router => 'Роутер';
 	@override String get pause => 'Пауза';
@@ -573,7 +643,6 @@ class _Translations$status$ru extends Translations$status$en {
 	@override String get blocked => 'Возможно, заблокирован в этой сети';
 	@override String get connect => 'Подключить';
 	@override String get blockedShort => 'Блок';
-	@override String get unreachable => 'Недоступен';
 	@override String get now => 'сейчас';
 	@override String checks({required Object n}) => 'Проверок: ${n}';
 	@override String andMore({required Object first, required Object n}) => '${first} и ещё ${n}';
@@ -594,27 +663,35 @@ class _Translations$tools$ru extends Translations$tools$en {
 	@override String get offline => 'Нет сети';
 	@override String get title => 'Инструменты';
 	@override String get networkDesc => 'Проверка безопасности, что видят сайты, сигнал, роутер и DNS.';
-	@override String get internet => 'Интернет-подключение';
+	@override String get internet => 'Интернет';
 	@override String get speed => 'Тест скорости';
-	@override String get speedDesc => 'Скорость загрузки и отдачи и какое качество видео она тянет.';
+	@override String get speedDesc => 'Загрузка, отдача и качество видео';
 	@override String get ping => 'Пинг';
-	@override String get pingDesc => 'Время отклика и джиттер до любого сервера или вашего роутера в реальном времени.';
+	@override String get pingDesc => 'Отклик и джиттер в реальном времени';
 	@override String get status => 'Статус сервисов';
-	@override String get statusDesc => 'Доступны ли отсюда WhatsApp, YouTube или Google, или они заблокированы?';
+	@override String get statusDesc => 'Приложение доступно или заблокировано?';
 	@override String get trace => 'Трассировка';
-	@override String get traceDesc => 'Все роутеры между вами и сайтом и сколько времени занимает каждый.';
-	@override String get security => 'Безопасность сети';
+	@override String get traceDesc => 'Каждая остановка на пути к сайту';
+	@override String get security => 'Эта сеть';
 	@override String get devices => 'Устройства в этой сети';
-	@override String get devicesDesc => 'Кто ещё в вашем Wi-Fi: телефоны, телевизоры, камеры и компьютеры.';
+	@override String get devicesDesc => 'Кто в вашем Wi-Fi';
 	@override String get router => 'Проверка роутера';
-	@override String get routerDesc => 'Могут ли устройства сами открывать порты на роутере (UPnP).';
+	@override String get routerDesc => 'Порты, открытые устройствами';
 	@override String get ports => 'Открытые порты';
-	@override String get portsDesc => 'Проверьте роутер или сервер на опасные открытые порты.';
+	@override String get portsDesc => 'Опасные порты на устройстве или сервере';
 	@override String get utilities => 'Утилиты';
 	@override String get wifiScanner => 'Сканер Wi-Fi';
-	@override String get wifiDesc => 'Ближайшие сети, их защита и наименее загруженный канал.';
+	@override String get wifiDesc => 'Сети вокруг и самый свободный канал';
 	@override String get wol => 'Wake on LAN';
-	@override String get wolDesc => 'Включите компьютер или NAS в этой сети.';
+	@override String get wolDesc => 'Включить компьютер в этой сети';
+	@override String get passwordCheck => 'Проверка пароля';
+	@override String get passwordCheckDesc => 'Утёк ли пароль?';
+	@override String get linkCheck => 'Проверка ссылки';
+	@override String get linkCheckDesc => 'Безопасно ли открыть?';
+	@override String get breaches => 'Утечки данных';
+	@override String get breachesDesc => 'Что утекло недавно';
+	@override String get blocked => 'Что заблокировано';
+	@override String get blockedDesc => 'Сайты, заблокированные в этой сети';
 }
 
 // Path: trace
@@ -640,6 +717,15 @@ class _Translations$trace$ru extends Translations$trace$en {
 	@override String silentMany({required Object n}) => 'Молчащих узлов: ${n}';
 	@override String hop({required Object n}) => 'Узел ${n}';
 	@override String slowest({required Object ms, required Object hop}) => 'Основная задержка, ${ms} мс, добавляется на узле ${hop}: обычно это длинный кабель между странами или перегруженный канал.';
+	@override String get popular => 'ПОПУЛЯРНЫЕ';
+	@override String get recent => 'НЕДАВНИЕ';
+	@override String get clearRecent => 'Очистить недавние';
+	@override String hopsCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} узел',
+		few: '${n} узла',
+		many: '${n} узлов',
+		other: '${n} узла',
+	);
 }
 
 // Path: ports
@@ -677,6 +763,14 @@ class _Translations$ports$ru extends Translations$ports$en {
 	@override String checking({required Object n}) => 'Проверка портов: ${n}';
 	@override String yourRouter({required Object ip}) => 'Ваш роутер: ${ip}';
 	@override String noneOpen({required Object host}) => 'На ${host} нет открытых распространённых портов.';
+	@override String summary({required Object open, required Object n}) => 'Открыто ${open} из ${n} проверенных';
+	@override String riskyCount({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} опасный',
+		few: '${n} опасных',
+		many: '${n} опасных',
+		other: '${n} опасных',
+	);
+	@override String get noneRisky => 'Ничего опасного';
 }
 
 // Path: wifi
@@ -695,11 +789,41 @@ class _Translations$wifi$ru extends Translations$wifi$en {
 	@override String get none => 'Сети не найдены. Возможно, геолокация выключена.';
 	@override String get hidden => 'Скрытая сеть';
 	@override String nearby({required Object n}) => 'Сетей поблизости: ${n}';
-	@override String bestChannel({required Object n}) => 'Наименее загруженный канал 2,4 ГГц: ${n}';
-	@override String weak({required Object n}) => 'Открытых или слабо защищённых: ${n}';
-	@override String get connectedPrefix => 'Подключено · ';
 	@override String get permissionInfo => 'Android показывает ближайшие сети Wi-Fi только приложениям с доступом к геолокации. G VPN использует его лишь для списка сетей на этом телефоне.';
 	@override String get info => 'Показывает сети из последнего сканирования телефона. Android разрешает лишь несколько сканирований в минуту, поэтому быстрое повторное может показать тот же список. Рекомендуемый канал: наименее загруженный из 1, 6 и 11, трёх неперекрывающихся.';
+	@override String get airMap => 'Карта эфира';
+	@override String get channels => 'Каналы';
+	@override String get list => 'Список';
+	@override String get secure => 'Защищена';
+	@override String get weakLabel => 'Слабая';
+	@override String get openLabel => 'Открытая';
+	@override String get sizeIsWidth => 'Размер = ширина канала';
+	@override String get strongest => 'САМАЯ СИЛЬНАЯ';
+	@override String get openNearby => 'ОТКРЫТЫЕ РЯДОМ';
+	@override String get onYourChannel => 'НА ВАШЕМ КАНАЛЕ';
+	@override String get noneNearby => 'Нет';
+	@override String get verdictOpen => 'Любой рядом может читать передаваемое';
+	@override String get verdictWep => 'Старая защита, легко взломать';
+	@override String get verdictWpa => 'Устаревшая защита';
+	@override String get verdictWps => 'Включён WPS: проще взломать';
+	@override String get verdictGood => 'Хорошо защищена';
+	@override String get maker => 'Производитель';
+	@override String get address => 'Аппаратный адрес';
+	@override String get privateAddress => 'Придуман роутером ради приватности';
+	@override String get you => 'Вы';
+	@override String onClear({required Object name}) => '${name} на свободном канале';
+	@override String move({required Object name, required Object n}) => 'Переведите ${name} на канал ${n}';
+	@override String get clear => 'Свободен';
+	@override String get busy => 'Занят';
+	@override String get crowded => 'Перегружен';
+	@override String get allBands => 'Все диапазоны';
+	@override String get openOnly => 'Только открытые';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} сеть',
+		few: '${n} сети',
+		many: '${n} сетей',
+		other: '${n} сети',
+	);
 }
 
 // Path: errors
@@ -858,10 +982,6 @@ class _Translations$gs$ru extends Translations$gs$en {
 	@override String busy({required Object n}) => 'Загрузка ${n}%';
 	@override String get offline => 'Не в сети';
 	@override String get devices => 'Ваши устройства';
-	@override String devicesSub({required Object n}) => 'До ${n} телефонов, у каждого свой ключ';
-	@override String get footnote => 'Каждый телефон получает свой ключ, созданный на нём. G Servers не хранят журналы активности.';
-	@override String get leastBusy => 'НАИМЕНЕЕ ЗАГРУЖЕН СЕЙЧАС';
-	@override String busyNoLogs({required Object n}) => 'Загрузка ${n}% · без журналов';
 	@override String subtitle({required Object country}) => 'G Server · ${country} · WireGuard';
 	@override String get busyLabel => 'ЗАГРУЗКА';
 	@override String get status => 'СТАТУС';
@@ -896,6 +1016,564 @@ class _Translations$gs$ru extends Translations$gs$en {
 	@override String chartLabel({required Object max}) => 'Загрузка за последние 24 часа, максимум ${max} процентов';
 	@override String get hoursAgo => '24 ч назад';
 	@override String get now => 'Сейчас';
+	@override String get included => 'Включено';
+	@override String get perkServers => 'Быстрые частные серверы';
+	@override String get perkServersSub => 'WireGuard, наши серверы, без журналов';
+	@override String get perkLinks => 'Безлимитная проверка ссылок';
+	@override String get perkLinksSub => 'Проверяйте каждую присланную ссылку';
+	@override String devicesOf({required Object used, required Object limit}) => 'Ваши устройства · ${used} из ${limit}';
+	@override String get eachKey => 'У каждого телефона свой ключ';
+	@override String get connected => 'Подключено';
+	@override String get bestNow => 'ЛУЧШИЙ ДЛЯ ВАС СЕЙЧАС';
+	@override String get logsShort => 'ЖУРНАЛЫ';
+}
+
+// Path: map
+class _Translations$map$ru extends Translations$map$en {
+	_Translations$map$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get open => 'Открыть карту';
+	@override String get searchCountries => 'Поиск страны';
+	@override String get noMatch => 'Страна не найдена';
+	@override String get locate => 'Моё местоположение';
+	@override String get list => 'Список';
+	@override String get map => 'Карта';
+	@override String freeServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} бесплатный сервер',
+		few: '${n} бесплатных сервера',
+		many: '${n} бесплатных серверов',
+		other: '${n} бесплатного сервера',
+	);
+	@override late final _Translations$map$grade$ru grade = _Translations$map$grade$ru._(_root);
+	@override String get switchTo => 'Переключить';
+	@override String freeServer({required Object n}) => 'Бесплатный сервер ${n}';
+	@override String get best => 'ЛУЧШИЙ';
+	@override String gServers({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} G Server',
+		few: '${n} G Server',
+		many: '${n} G Server',
+		other: '${n} G Server',
+	);
+}
+
+// Path: stats
+class _Translations$stats$ru extends Translations$stats$en {
+	_Translations$stats$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get thisWeek => 'Эта неделя';
+	@override String get time => 'Время';
+	@override String get data => 'Данные';
+	@override String get protected => 'под защитой';
+	@override String get throughVpn => 'через VPN';
+	@override String get seeDetails => 'Подробнее';
+	@override String get title => 'Статистика';
+	@override String get week => 'Неделя';
+	@override String get month => 'Месяц';
+	@override String get protectedLabel => 'ПОД ЗАЩИТОЙ';
+	@override String get dataUsed => 'ДАННЫЕ';
+	@override String get byServer => 'ПО СЕРВЕРАМ';
+	@override String get onPhone => 'Хранится только на этом телефоне';
+	@override String get reset => 'Сбросить';
+	@override String get resetTitle => 'Сбросить статистику?';
+	@override String get resetBody => 'Удалит время под защитой и данные на этом телефоне. Отменить нельзя.';
+	@override String hm({required Object h, required Object m}) => '${h} ч ${m} мин';
+	@override String m({required Object m}) => '${m} мин';
+	@override String get empty => 'Подключитесь, чтобы начать подсчёт.';
+}
+
+// Path: recents
+class _Translations$recents$ru extends Translations$recents$en {
+	_Translations$recents$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Недавние';
+	@override String get allServers => 'Все серверы';
+	@override String get free => 'Бесплатный сервер';
+	@override String get yours => 'Ваш сервер';
+	@override String get gserver => 'G Server';
+}
+
+// Path: presets
+class _Translations$presets$ru extends Translations$presets$en {
+	_Translations$presets$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Профили';
+	@override String get all => 'Все';
+	@override String get newPreset => 'Новый профиль';
+	@override String get edit => 'Изменить профиль';
+	@override String get name => 'Название';
+	@override String get namePlaceholder => 'Мой профиль';
+	@override String get server => 'СЕРВЕР';
+	@override String get fastestOption => 'Самый быстрый';
+	@override String get countryOption => 'Страна';
+	@override String get pickCountry => 'Выберите страну';
+	@override String get skipMyCountry => 'Не моя страна';
+	@override String get notMine => 'не моя страна';
+	@override String get protocol => 'ПРОТОКОЛ';
+	@override String get auto => 'Авто';
+	@override String get tryNext => 'Если заблокировано, пробовать следующий';
+	@override String get shield => 'ЩИТ';
+	@override String get followRules => 'Как в Правилах';
+	@override String get allApps => 'Все приложения через VPN';
+	@override String get allAppsShort => 'все приложения';
+	@override String get save => 'Сохранить';
+	@override String get delete => 'Удалить';
+	@override String get reset => 'Сбросить';
+	@override String get none => 'Сейчас нет бесплатного сервера для этого профиля.';
+	@override late final _Translations$presets$names$ru names = _Translations$presets$names$ru._(_root);
+}
+
+// Path: shield
+class _Translations$shield$ru extends Translations$shield$en {
+	_Translations$shield$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Щит';
+	@override String get sub => 'Работает, пока вы подключены';
+	@override String get off => 'Выкл.';
+	@override String get offSub => 'DNS самого сервера';
+	@override String get malware => 'Вредоносное ПО';
+	@override String get malwareSub => 'Блокирует вредоносные и фишинговые сайты';
+	@override String get family => 'Вредоносное ПО и сайты для взрослых';
+	@override String get familySub => 'Также блокирует контент для взрослых';
+	@override String get custom => 'Свой DNS';
+	@override String get customSub => 'Ваши DNS-серверы';
+	@override String get customHint => 'IP-адрес, например 1.1.1.1';
+	@override String get invalid => 'Введите один или два IP-адреса.';
+}
+
+// Path: checks
+class _Translations$checks$ru extends Translations$checks$en {
+	_Translations$checks$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Проверки';
+	@override String get password => 'Пароль';
+	@override String get link => 'Ссылка';
+	@override String get pwTitle => 'Утёк ли пароль?';
+	@override String get pwHint => 'Пароль для проверки';
+	@override String get showPassword => 'Показать пароль';
+	@override String get hidePassword => 'Скрыть пароль';
+	@override String get check => 'Проверить';
+	@override String get leaked => 'Найден в утечках';
+	@override String seen({required Object n}) => 'Встречался ${n} раз';
+	@override String get leakedAdvice => 'Смените его везде, где используете, начиная с почты и банка.';
+	@override String get notFound => 'Нет в известных утечках';
+	@override String get notFoundAdvice => 'Хороший знак, но не гарантия. Используйте разные пароли для каждого аккаунта.';
+	@override String get failed => 'Не удалось проверить. Попробуйте ещё раз.';
+	@override String get private => 'Ваш пароль не покидает этот телефон';
+	@override String get linkTitle => 'Безопасна ли ссылка?';
+	@override String get linkHint => 'Ссылка для проверки';
+	@override String get paste => 'Вставить';
+	@override String get danger => 'Опасная ссылка';
+	@override String get dangerAdvice => 'Не открывайте её и не вводите никаких данных.';
+	@override String get clear => 'Нет в известных списках вредоносных и фишинговых сайтов';
+	@override String get clearAdvice => 'Всё равно проверьте адрес, прежде чем входить.';
+	@override String get goesTo => 'Ведёт на';
+	@override String get redirects => 'Перенаправления';
+	@override String get invalid => 'Это не похоже на веб-адрес.';
+	@override String get busy => 'Слишком много проверок. Попробуйте позже.';
+	@override String get unavailable => 'Проверка ссылок сейчас недоступна.';
+	@override String get listed => 'Известен вредоносным ПО или фишингом';
+	@override String get missing => 'По этому адресу нет сайта';
+	@override String get missingAdvice => 'Проверьте написание: мошенники используют похожие адреса.';
+	@override String left({required Object n, required Object total}) => 'Осталось ${n} из ${total} бесплатных проверок в этом месяце';
+	@override String get usedUp => 'Бесплатные проверки ссылок на этот месяц закончились';
+	@override String get usedUpSub => 'В Pro проверки без ограничений. Бесплатные вернутся 1-го числа.';
+	@override String get getPro => 'Получить Pro';
+}
+
+// Path: toolSettings
+class _Translations$toolSettings$ru extends Translations$toolSettings$en {
+	_Translations$toolSettings$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Настройки инструментов';
+	@override String get askMobile => 'Спрашивать перед тестом на мобильных данных';
+	@override String get askMobileSub => 'На быстром соединении тест может потратить больше 100 МБ';
+	@override String get mobileTitle => 'Использовать мобильные данные?';
+	@override String get mobileBody => 'Тест скорости может потратить больше 100 МБ на быстром соединении.';
+	@override String get mobileGo => 'Проверить';
+	@override String get safe => 'Безопасна';
+	@override String get unsafe => 'Небезопасна';
+	@override String devices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} устройство',
+		few: '${n} устройства',
+		many: '${n} устройств',
+		other: '${n} устройства',
+	);
+	@override String get hideMac => 'Скрывать аппаратные адреса';
+	@override String get hideMacSub => 'Показывать только часть MAC-адреса с производителем';
+	@override String get names => 'Показывать имена роутеров и серверов';
+	@override String get namesSub => 'Ищет имена адресов в Traceroute';
+	@override String get remember => 'Запоминать недавние адреса';
+	@override String get rememberSub => 'Для Traceroute';
+	@override String get clear => 'Очистить историю инструментов';
+	@override String get clearSub => 'Забывает недавние адреса и устройства каждой сети';
+	@override String get clearGo => 'Очистить';
+}
+
+// Path: security
+class _Translations$security$ru extends Translations$security$en {
+	_Translations$security$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'Безопасность';
+	@override String get good => 'Хорошо';
+	@override String get fair => 'Средне';
+	@override String get atRisk => 'Под угрозой';
+	@override String get allClear => 'Исправлять нечего';
+	@override String checked({required Object time}) => 'Проверено в ${time}';
+	@override String get trend => 'ЗА ДВЕ НЕДЕЛИ';
+	@override String get checking => 'Проверяем эту сеть';
+	@override String get snoozed => 'Отложенные';
+	@override String get remindLater => 'Напомнить позже';
+	@override String get unsnooze => 'Напомнить сейчас';
+	@override String get review => 'Посмотреть';
+	@override String get confirmGo => 'Подтвердить';
+	@override String get scanGo => 'Сканировать';
+	@override String get look => 'Открыть';
+	@override String get connectGo => 'Подключить';
+	@override String get checkAgain => 'Проверить снова';
+	@override String get wifiOpen => 'Wi-Fi открыт';
+	@override String get wifiOpenDetail => 'Любой рядом видит передаваемое';
+	@override String get wifiWep => 'Wi-Fi использует WEP';
+	@override String get wifiWepDetail => 'Старая защита, легко взломать';
+	@override String get wifiOwe => 'Wi-Fi использует Enhanced Open';
+	@override String get wifiOweDetail => 'Шифруется, но войти может любой';
+	@override String get wifiSecure => 'Шифрование Wi-Fi';
+	@override String get wifiUnknown => 'Защита Wi-Fi неизвестна';
+	@override String get wifiUnknownDetail => 'Android не сообщил, как она защищена';
+	@override String get wps => 'Включён WPS';
+	@override String get wpsDetail => 'Отключите его в настройках роутера';
+	@override String get upnpOff => 'Роутер держит порты закрытыми';
+	@override String get upnpOffDetail => 'UPnP выключен';
+	@override String get upnpOn => 'Роутер позволяет устройствам открывать порты';
+	@override String get upnpOnDetail => 'UPnP включён';
+	@override String get portsOk => 'Опасных портов на роутере нет';
+	@override String get portsRisky => 'На роутере открыты опасные порты';
+	@override String get scanFirst => 'Просканируйте, чтобы увидеть, кто здесь';
+	@override String get scanFirstDetail => 'Неизвестные устройства снижают оценку';
+	@override String get notMineDetail => 'Проверьте список устройств в роутере';
+	@override String get confirmDetail => 'Отметьте свои';
+	@override String get devicesOk => 'Все устройства известны';
+	@override String get devicesOkDetail => 'Вы подтвердили каждое';
+	@override String get camera => 'В этой сети есть камера';
+	@override String get dnsHijack => 'Неизвестные имена перенаправляются';
+	@override String get dnsHijackDetail => 'Провайдер или роутер подменяет ответы';
+	@override String get dnsOk => 'DNS отвечает нормально';
+	@override String get dnsOkDetail => 'Признаков подмены нет';
+	@override String get vpnOn => 'VPN включён';
+	@override String get vpnOnDetail => 'Трафик идёт через туннель';
+	@override String get vpnOff => 'VPN выключен';
+	@override String get vpnOffDetail => 'Провайдер видит каждый сайт';
+	@override String toFix({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} проблема',
+		other: '${n} проблемы',
+		few: '${n} проблемы',
+		many: '${n} проблем',
+	);
+	@override String upnpOpened({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: 'Устройства открыли ${n} порт',
+		other: 'Устройства открыли ${n} порта',
+		few: 'Устройства открыли ${n} порта',
+		many: 'Устройства открыли ${n} портов',
+	);
+	@override String portsChecked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: 'Проверен ${n} порт',
+		other: 'Проверено ${n} порта',
+		few: 'Проверено ${n} порта',
+		many: 'Проверено ${n} портов',
+	);
+	@override String notMine({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} устройство не ваше',
+		other: '${n} устройства не ваши',
+		few: '${n} устройства не ваши',
+		many: '${n} устройств не ваши',
+	);
+	@override String confirm({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} устройство подтвердить',
+		other: '${n} устройства подтвердить',
+		few: '${n} устройства подтвердить',
+		many: '${n} устройств подтвердить',
+	);
+}
+
+// Path: providers
+class _Translations$providers$ru extends Translations$providers$en {
+	_Translations$providers$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get tab => 'Интернет';
+	@override String get unavailable => 'Не удалось загрузить список провайдеров. Проверьте связь.';
+	@override String get cached => 'По последней проверке без VPN';
+	@override String get notEnough => 'Пока мало оценок';
+	@override String get yourRating => 'Ваша оценка в этом месяце';
+	@override String get yourSpeed => 'ВАША СКОРОСТЬ';
+	@override String get runTest => 'Проверить скорость';
+	@override String get aboutAverage => 'Около среднего здесь';
+	@override String aboveAverage({required Object pct}) => 'На ${pct}% выше местного среднего';
+	@override String belowAverage({required Object pct}) => 'На ${pct}% ниже местного среднего';
+	@override String get call => 'Позвонить';
+	@override String get website => 'Сайт';
+	@override String get outages => 'Сбои';
+	@override String get rate => 'Оценить';
+	@override String get changeRating => 'Изменить оценку';
+	@override String get compare => 'Сравнить';
+	@override String rateTitle({required Object name}) => 'Оценить ${name}';
+	@override String get oncePerMonth => 'Одна оценка в месяц';
+	@override String get tapStars => 'Нажмите на звёзды';
+	@override String verified({required Object mbps}) => 'Подтверждено вашим тестом: ${mbps} Мбит/с';
+	@override String get busy => 'Слишком много оценок отсюда. Попробуйте позже.';
+	@override String get failed => 'Не удалось отправить. Попробуйте ещё раз.';
+	@override String get post => 'Отправить оценку';
+	@override String get nearTitle => 'Провайдеры рядом';
+	@override String slower({required Object pct}) => 'Ваша загрузка на ${pct}% ниже среднего у вашего провайдера здесь';
+	@override String inPlace({required Object place}) => 'Домашний интернет: ${place}';
+	@override String get byRating => 'Оценка';
+	@override String get bySpeed => 'Скорость';
+	@override String get footnote => 'Скорости — средние по тестам G VPN';
+	@override String get noneNearby => 'Рядом пока нет оценок. Будьте первым.';
+	@override String get you => 'Вы';
+	@override String get topRated => 'Лучшие оценки';
+	@override String starsOf({required Object n}) => '${n} из 5';
+	@override late final _Translations$providers$tags$ru tags = _Translations$providers$tags$ru._(_root);
+	@override late final _Translations$providers$words$ru words = _Translations$providers$words$ru._(_root);
+	@override String ratings({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} оценка',
+		few: '${n} оценки',
+		many: '${n} оценок',
+		other: '${n} оценки',
+	);
+}
+
+// Path: alerts
+class _Translations$alerts$ru extends Translations$alerts$en {
+	_Translations$alerts$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get channel => 'Оповещения';
+	@override String get title => 'Оповещения';
+	@override String get markAllRead => 'Прочитать все';
+	@override String get clearAll => 'Очистить всё';
+	@override String get thisNetwork => 'этой сети';
+	@override String openWifiTitle({required Object name}) => 'Вы подключились к открытому Wi-Fi: ${name}';
+	@override String get openWifiBody => 'Любой рядом видит передаваемое. Включите G VPN.';
+	@override String get reportTitle => 'Еженедельный отчёт готов';
+	@override String reportBody({required Object hours}) => '${hours} ч под защитой на прошлой неделе';
+	@override String blockedTitle({required Object name}) => '${name} здесь заблокирован';
+	@override String get blockedBody => 'Работает через VPN';
+	@override late final _Translations$alerts$kinds$ru kinds = _Translations$alerts$kinds$ru._(_root);
+	@override String newDeviceTitle({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} новое устройство в ${network}',
+		few: '${n} новых устройства в ${network}',
+		many: '${n} новых устройств в ${network}',
+		other: '${n} новых устройства в ${network}',
+	);
+	@override String get settings => 'Настройки оповещений';
+	@override String get look => 'Открыть';
+	@override String get read => 'Читать';
+	@override String get open => 'Открыть';
+	@override String get check => 'Проверить';
+	@override String get today => 'СЕГОДНЯ';
+	@override String get thisWeek => 'НА ЭТОЙ НЕДЕЛЕ';
+	@override String get earlier => 'РАНЕЕ';
+	@override String get all => 'Все';
+	@override String get quiet => 'Всё спокойно';
+	@override String get quietSub => 'В последнее время ничего не требовало внимания';
+	@override String breachTitle({required Object name}) => 'Новая утечка: ${name}';
+	@override late final _Translations$alerts$status$ru status = _Translations$alerts$status$ru._(_root);
+}
+
+// Path: report
+class _Translations$report$ru extends Translations$report$en {
+	_Translations$report$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Еженедельный отчёт';
+	@override String get share => 'Поделиться картинкой';
+	@override String get shareText => 'Моя неделя с G VPN';
+	@override String get safer => 'Неделя стала безопаснее';
+	@override String get moreProtected => 'Больше защиты, чем на прошлой неделе';
+	@override String get yourWeek => 'Ваша неделя';
+	@override String soFar({required Object range}) => '${range}, пока что';
+	@override String get protected => 'Под защитой';
+	@override String get data => 'Данные';
+	@override String get security => 'Безопасность';
+	@override String get speed => 'Лучшая скорость';
+	@override String get noScore => 'Не проверено';
+	@override String get noTest => 'Нет теста';
+	@override String get bestDirect => 'Прямой тест';
+	@override String moreThan({required Object d}) => 'На ${d} больше, чем на прошлой неделе';
+	@override String lessThan({required Object d}) => 'На ${d} меньше, чем на прошлой неделе';
+	@override String get protectedTime => 'ВРЕМЯ ПОД ЗАЩИТОЙ';
+	@override String mostUsed({required Object name}) => 'Чаще всего: ${name}';
+	@override String get quiet => 'Спокойная неделя: ничего не требовало внимания';
+	@override String newDevices({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: 'Подключилось ${n} новое устройство',
+		few: 'Подключилось ${n} новых устройства',
+		many: 'Подключилось ${n} новых устройств',
+		other: 'Подключилось ${n} новых устройства',
+	);
+	@override String openWifi({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} открытый Wi-Fi',
+		few: '${n} открытых Wi-Fi',
+		many: '${n} открытых Wi-Fi',
+		other: '${n} открытых Wi-Fi',
+	);
+	@override String blocked({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} приложение заблокировано',
+		few: '${n} приложения заблокировано',
+		many: '${n} приложений заблокировано',
+		other: '${n} приложения заблокировано',
+	);
+	@override String breaches({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} крупная новая утечка',
+		few: '${n} крупные новые утечки',
+		many: '${n} крупных новых утечек',
+		other: '${n} крупные новые утечки',
+	);
+}
+
+// Path: breaches
+class _Translations$breaches$ru extends Translations$breaches$en {
+	_Translations$breaches$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Утечки данных';
+	@override String get info => 'Последние утечки данных из открытого списка Have I Been Pwned. О вас ничего не отправляется: список один для всех.\n\nЕсли у вас был аккаунт на взломанном сайте, смените этот пароль и везде, где использовали такой же.';
+	@override String get unavailable => 'Не удалось загрузить список. Проверьте подключение.';
+	@override String get biggest => 'КРУПНЕЙШАЯ ЗА МЕСЯЦ';
+	@override String get newest => 'Новые';
+	@override String get biggestSort => 'Крупные';
+	@override String get withPasswords => 'С паролями';
+	@override String get passwordsMark => 'ПАРОЛИ';
+	@override String get one => 'Утечка';
+	@override String get checkPassword => 'Проверить пароль';
+	@override String get verified => 'Подтверждена';
+	@override String get hasPasswords => 'Есть пароли';
+	@override String get accountsLabel => 'Аккаунты';
+	@override String get happened => 'Произошла';
+	@override String get published => 'Опубликована';
+	@override String get website => 'Сайт';
+	@override String get leaked => 'ЧТО УТЕКЛО';
+	@override String get ifUsed => 'ЕСЛИ ВЫ ПОЛЬЗОВАЛИСЬ';
+	@override String get stepPassword => 'Смените пароль, который использовали там';
+	@override String get stepReuse => 'Смените его везде, где он был таким же';
+	@override String get stepTwoStep => 'Включите двухэтапный вход, где можно';
+	@override String get stepScams => 'Ожидайте мошеннических звонков и сообщений';
+	@override String accounts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${count} аккаунт',
+		few: '${count} аккаунта',
+		many: '${count} аккаунтов',
+		other: '${count} аккаунта',
+	);
+	@override String worldwide({required Object n}) => 'По всему миру · ${n}';
+	@override String get noneHere => 'В недавнем списке нет утечек отсюда.';
+	@override String get bigMap => 'Большая карта';
+	@override String get showInList => 'Показать в списке';
+	@override String get mapTitle => 'Карта утечек';
+	@override String get zoomIn => 'Приблизить';
+	@override String get zoomOut => 'Отдалить';
+	@override String get wholeWorld => 'Весь мир';
+	@override String count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} утечка',
+		few: '${n} утечки',
+		many: '${n} утечек',
+		other: '${n} утечки',
+	);
+	@override String get findCountry => 'Найти страну';
+	@override String get seeAll => 'Смотреть все';
+	@override String get search => 'Поиск утечек';
+}
+
+// Path: blocked
+class _Translations$blocked$ru extends Translations$blocked$en {
+	_Translations$blocked$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Что заблокировано';
+	@override String get info => 'Проверяет известные сайты с этого телефона без VPN и показывает, какие из них блокирует эта сеть и как.\n\nЛожный адрес: поиск имени в сети даёт ложный ответ.\n\nОбрыв: соединение рвётся в начале.\n\nНет ответа: ничего не возвращается.\n\nСтраница блокировки: вместо сайта отвечает что-то другое.\n\nПроверка показывает, где сайт заблокирован, но не кто его заблокировал. Ничего не сохраняется и не отправляется.';
+	@override String get thisNetwork => 'Эта сеть';
+	@override String get country => 'Ваша страна';
+	@override String get question => 'Что здесь заблокировано?';
+	@override String get testingOn => 'ПРОВЕРКА В СЕТИ';
+	@override String get vpnOn => 'VPN ВКЛЮЧЁН';
+	@override String get turnOff => 'Выключите G VPN для проверки';
+	@override String get test => 'Проверить эту сеть';
+	@override String get stop => 'Стоп';
+	@override String sitesToTest({required Object n}) => 'САЙТЫ ДЛЯ ПРОВЕРКИ · ${n}';
+	@override String ofSites({required Object n}) => 'из ${n} сайтов';
+	@override String blockedCount({required Object n}) => 'ЗАБЛОКИРОВАНО: ${n}';
+	@override String openCount({required Object n}) => 'ОТКРЫТО: ${n}';
+	@override String noneBlocked({required Object network}) => 'В сети ${network} ничего не заблокировано';
+	@override String openOf({required Object open, required Object total}) => 'Открыто ${open} из ${total}';
+	@override String get allWork => 'ВСЁ РАБОТАЕТ ЧЕРЕЗ G VPN';
+	@override String get blockedHeading => 'ЗАБЛОКИРОВАНО';
+	@override String get byKind => 'ПО ТИПАМ';
+	@override String get worksVpn => 'Работает через VPN';
+	@override String get failsVpn => 'Заблокирован и через VPN';
+	@override String get checkVpn => 'Проверить через G VPN';
+	@override String get connect => 'Подключить G VPN';
+	@override String get again => 'Проверить снова';
+	@override String get withoutVpn => 'БЕЗ VPN';
+	@override String get throughVpn => 'ЧЕРЕЗ G VPN';
+	@override String get notChecked => 'Не проверено';
+	@override String get opens => 'Открывается';
+	@override String get stillBlocked => 'Заблокирован';
+	@override String get whatHappened => 'ЧТО ПРОИЗОШЛО';
+	@override String countryBlocked({required Object country}) => 'сайтов заблокировано: ${country}';
+	@override String get countrySub => 'По проверкам волонтёров за последние 30 дней';
+	@override String get countryNone => 'За последние 30 дней заблокированных сайтов не найдено.';
+	@override String get countryUnavailable => 'Не удалось загрузить данные по стране. Проверьте подключение.';
+	@override String get confirmed => 'ЗАБЛОКИРОВАН';
+	@override String get oftenFails => 'ЧАСТО НЕДОСТУПЕН';
+	@override late final _Translations$blocked$kinds$ru kinds = _Translations$blocked$kinds$ru._(_root);
+	@override late final _Translations$blocked$how$ru how = _Translations$blocked$how$ru._(_root);
+	@override late final _Translations$blocked$fail$ru fail = _Translations$blocked$fail$ru._(_root);
+	@override late final _Translations$blocked$steps$ru steps = _Translations$blocked$steps$ru._(_root);
+	@override late final _Translations$blocked$consent$ru consent = _Translations$blocked$consent$ru._(_root);
+	@override String someBlocked({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} сайт заблокирован в сети ${network}',
+		few: '${n} сайта заблокировано в сети ${network}',
+		many: '${n} сайтов заблокировано в сети ${network}',
+		other: '${n} сайта заблокировано в сети ${network}',
+	);
+	@override String tests({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: '${n} проверка',
+		few: '${n} проверки',
+		many: '${n} проверок',
+		other: '${n} проверки',
+	);
 }
 
 // Path: home.status
@@ -911,18 +1589,6 @@ class _Translations$home$status$ru extends Translations$home$status$en {
 	@override String get connecting => 'Подключение';
 	@override String get stopping => 'Отключение';
 	@override String get notProtected => 'Не защищено';
-}
-
-// Path: home.waves
-class _Translations$home$waves$ru extends Translations$home$waves$en {
-	_Translations$home$waves$ru._(TranslationsRu root) : this._root = root, super.internal(root);
-
-	final TranslationsRu _root; // ignore: unused_field
-
-	// Translations
-	@override String get encrypted => 'ЗАШИФРОВАНО';
-	@override String get securing => 'ЗАЩИТА';
-	@override String get exposed => 'ОТКРЫТО';
 }
 
 // Path: home.network
@@ -946,11 +1612,6 @@ class _Translations$home$card$ru extends Translations$home$card$en {
 	final TranslationsRu _root; // ignore: unused_field
 
 	// Translations
-	@override String get connectedVia => 'ПОДКЛЮЧЕНО ЧЕРЕЗ';
-	@override String get protocol => 'ПРОТОКОЛ';
-	@override String get dns => 'DNS';
-	@override String get dnsQuad9 => 'Quad9, в туннеле';
-	@override String get dnsServer => 'Сервер, в туннеле';
 	@override String get downloaded => 'ПОЛУЧЕНО';
 	@override String get uploaded => 'ОТПРАВЛЕНО';
 	@override String get wireguard => 'WireGuard';
@@ -971,7 +1632,6 @@ class _Translations$home$tiles$ru extends Translations$home$tiles$en {
 
 	// Translations
 	@override String get shield => 'Щит';
-	@override String get shieldOn => 'Блокирует вредоносные сайты';
 	@override String get appsDirect => 'Приложения напрямую';
 	@override String get appsAll => 'Все приложения защищены';
 	@override String appsSkip({required Object n}) => '${n} без VPN';
@@ -1120,11 +1780,180 @@ class _Translations$rules$info$ru extends Translations$rules$info$en {
 	final TranslationsRu _root; // ignore: unused_field
 
 	// Translations
-	@override String get shield => 'Щит отправляет DNS-запросы в Quad9, который отклоняет известные вредоносные и фишинговые сайты. Он не блокирует рекламу и, пока включён, заменяет DNS сервера.';
+	@override String get shield => 'Щит фильтрует DNS-запросы, пока вы подключены: Quad9 блокирует вредоносное ПО и фишинг, Cloudflare for Families также блокирует сайты для взрослых, или используйте свой DNS. Рекламу он не блокирует никогда.';
 	@override String get autoConnect => 'Автоподключение: использует выбранный вами сервер WireGuard. Ручное отключение приостанавливает его до подключения к другой сети.';
 	@override String get apps => 'Приложения напрямую: приложения вне VPN подключаются напрямую. Банки часто блокируют адреса VPN, поэтому платежи через VPN могут не проходить.';
 	@override String get reconnect => 'Изменение щита или списка приложений ненадолго переподключает VPN.';
 	@override String get stay => 'Оставаться на связи: некоторые телефоны останавливают фоновые приложения для экономии батареи. Постоянный VPN и неограниченный режим батареи сохраняют работу G VPN.';
+}
+
+// Path: devices.kinds
+class _Translations$devices$kinds$ru extends Translations$devices$kinds$en {
+	_Translations$devices$kinds$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get phone => 'Телефон';
+	@override String get computer => 'Компьютер';
+	@override String get tv => 'ТВ';
+	@override String get speaker => 'Колонка';
+	@override String get printer => 'Принтер';
+	@override String get camera => 'Камера';
+	@override String get smartHome => 'Умный дом';
+	@override String get router => 'Роутер';
+	@override String get unknown => 'Не представилось';
+}
+
+// Path: map.grade
+class _Translations$map$grade$ru extends Translations$map$grade$en {
+	_Translations$map$grade$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Быстрый';
+	@override String get good => 'Хороший';
+	@override String get slow => 'Медленный';
+}
+
+// Path: presets.names
+class _Translations$presets$names$ru extends Translations$presets$names$en {
+	_Translations$presets$names$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get fastest => 'Самый быстрый';
+	@override String get unblock => 'Обход блокировок';
+	@override String get streaming => 'Стриминг';
+	@override String get privacy => 'Максимум приватности';
+}
+
+// Path: providers.tags
+class _Translations$providers$tags$ru extends Translations$providers$tags$en {
+	_Translations$providers$tags$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get fast => 'Быстрый';
+	@override String get reliable => 'Надёжный';
+	@override String get support => 'Хорошая поддержка';
+	@override String get price => 'Честная цена';
+	@override String get slowEvenings => 'Медленно вечером';
+	@override String get drops => 'Часто обрывается';
+	@override String get poorSupport => 'Плохая поддержка';
+	@override String get pricey => 'Дорого';
+}
+
+// Path: providers.words
+class _Translations$providers$words$ru extends Translations$providers$words$en {
+	_Translations$providers$words$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get bad => 'Плохо';
+	@override String get poor => 'Слабо';
+	@override String get okay => 'Нормально';
+	@override String get good => 'Хорошо';
+	@override String get great => 'Отлично';
+}
+
+// Path: alerts.kinds
+class _Translations$alerts$kinds$ru extends Translations$alerts$kinds$en {
+	_Translations$alerts$kinds$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get newDevice => 'Новые устройства в моём Wi-Fi';
+	@override String get openWifi => 'Открытый или слабый Wi-Fi';
+	@override String get blocked => 'Заблокированные приложения';
+	@override String get report => 'Еженедельный отчёт';
+	@override String get breach => 'Утечки';
+}
+
+// Path: alerts.status
+class _Translations$alerts$status$ru extends Translations$alerts$status$en {
+	_Translations$alerts$status$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get background => 'Раз в несколько часов';
+	@override String checked({required Object time}) => 'Проверено в ${time}';
+	@override String get wifi => 'Каждая сеть, к которой вы подключаетесь';
+	@override String get blocked => 'Когда проверяется статус сервисов';
+	@override String get report => 'Каждый понедельник';
+}
+
+// Path: blocked.kinds
+class _Translations$blocked$kinds$ru extends Translations$blocked$kinds$en {
+	_Translations$blocked$kinds$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get social => 'Соцсети';
+	@override String get messaging => 'Мессенджеры';
+	@override String get news => 'Новости';
+	@override String get video => 'Видео и музыка';
+	@override String get privacy => 'Приватность';
+}
+
+// Path: blocked.how
+class _Translations$blocked$how$ru extends Translations$blocked$how$en {
+	_Translations$blocked$how$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get dns => 'Ложный адрес';
+	@override String get reset => 'Обрыв';
+	@override String get timeout => 'Нет ответа';
+	@override String get page => 'Страница блокировки';
+	@override String get open => 'Открыт';
+}
+
+// Path: blocked.fail
+class _Translations$blocked$fail$ru extends Translations$blocked$fail$en {
+	_Translations$blocked$fail$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get noAnswer => 'нет ответа';
+	@override String get refused => 'отказано';
+	@override String cutOff({required Object s}) => 'обрыв через ${s} с';
+	@override String get wrongCert => 'неверный сертификат';
+}
+
+// Path: blocked.steps
+class _Translations$blocked$steps$ru extends Translations$blocked$steps$en {
+	_Translations$blocked$steps$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get lookup => 'Поиск имени';
+	@override String get connect => 'Подключение';
+	@override String get handshake => 'Защищённое соединение';
+}
+
+// Path: blocked.consent
+class _Translations$blocked$consent$ru extends Translations$blocked$consent$en {
+	_Translations$blocked$consent$ru._(TranslationsRu root) : this._root = root, super.internal(root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Перед первой проверкой';
+	@override String get body => 'Проверка открывает каждый сайт с этого телефона без VPN, как это сделал бы браузер.';
+	@override String get noticeTitle => 'Это может быть заметно';
+	@override String get notice => 'Ваш провайдер видит, что эти сайты открываются. В некоторых странах их посещение, даже ради проверки, может привлечь внимание. Проверяйте только там, где чувствуете себя в безопасности.';
+	@override String get ok => 'Понятно, проверить';
 }
 
 /// The flat map containing all translations for locale <ru>.
@@ -1161,8 +1990,6 @@ extension on TranslationsRu {
 			'home.status.stopping' => 'Отключение',
 			'home.status.notProtected' => 'Не защищено',
 			'home.resumesAt' => ({required Object time}) => 'Возобновится в ${time} · нажмите, чтобы продолжить сейчас',
-			'home.sitesSee' => ({required Object ip}) => 'Сайты видят ${ip}',
-			'home.sitesSeeOrg' => ({required Object ip, required Object org}) => 'Сайты видят ${ip} · ${org}',
 			'home.ipFailed' => 'Не удалось проверить IP',
 			'home.ipChecking' => 'Проверка IP',
 			'home.themeSystem' => 'Тема: как в телефоне',
@@ -1170,19 +1997,11 @@ extension on TranslationsRu {
 			'home.themeDark' => 'Тема: тёмная',
 			'home.free' => 'Бесплатно',
 			'home.pickServer' => 'Выберите сервер',
-			'home.waves.encrypted' => 'ЗАШИФРОВАНО',
-			'home.waves.securing' => 'ЗАЩИТА',
-			'home.waves.exposed' => 'ОТКРЫТО',
 			'home.network.title' => 'ЭТА СЕТЬ',
 			'home.network.wifi' => 'Wi-Fi',
 			'home.network.offline' => 'Нет сети',
 			'home.network.showName' => 'Показать имя',
 			'home.network.scanFailed' => 'Проверка не удалась. Она повторится при смене сети.',
-			'home.card.connectedVia' => 'ПОДКЛЮЧЕНО ЧЕРЕЗ',
-			'home.card.protocol' => 'ПРОТОКОЛ',
-			'home.card.dns' => 'DNS',
-			'home.card.dnsQuad9' => 'Quad9, в туннеле',
-			'home.card.dnsServer' => 'Сервер, в туннеле',
 			'home.card.downloaded' => 'ПОЛУЧЕНО',
 			'home.card.uploaded' => 'ОТПРАВЛЕНО',
 			'home.card.wireguard' => 'WireGuard',
@@ -1194,7 +2013,6 @@ extension on TranslationsRu {
 			'home.card.enabled' => 'Вкл.',
 			'home.card.shield' => 'ЩИТ',
 			'home.tiles.shield' => 'Щит',
-			'home.tiles.shieldOn' => 'Блокирует вредоносные сайты',
 			'home.tiles.appsDirect' => 'Приложения напрямую',
 			'home.tiles.appsAll' => 'Все приложения защищены',
 			'home.tiles.appsSkip' => ({required Object n}) => '${n} без VPN',
@@ -1276,19 +2094,22 @@ extension on TranslationsRu {
 			'servers.lastUsed' => ({required Object when}) => 'Использовался ${when}',
 			'servers.disconnectFirst' => 'Сначала отключитесь, чтобы удалить',
 			'servers.removeConfirm' => 'Удалить этот сервер из G VPN? Его настройки удалятся с этого телефона; сам сервер не изменится.',
+			'servers.gTab' => 'G Servers',
+			'servers.search' => 'Поиск стран',
+			'servers.noMatch' => 'Нет подходящих серверов.',
+			'servers.bestPing' => ({required Object ms}) => 'лучший ${ms} мс',
+			'servers.bestTag' => 'ЛУЧШИЙ',
+			'servers.ownHero' => 'Наши серверы',
+			'servers.ownHeroSub' => 'Быстрее, приватно, у каждого телефона свой ключ',
+			'servers.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} сервер', few: '${n} сервера', many: '${n} серверов', other: '${n} сервера', ), 
+			'servers.showAll' => ({required Object n}) => 'Показать все ${n}',
+			'servers.showFewer' => 'Свернуть',
+			'servers.fastTab' => 'Быстрые',
+			'servers.fastestFree' => 'Самые быстрые бесплатные',
 			'pro.owned' => 'У вас есть Pro',
 			'pro.waitingPlay' => 'Ожидание Google Play',
 			'pro.startTrial' => ({required Object days}) => 'Начать бесплатный период на ${days} дн.',
-			'pro.thenYearly' => ({required Object price}) => 'Затем ${price} в год. Отмена в любой момент в Google Play.',
-			'pro.thenMonthly' => ({required Object price}) => 'Затем ${price} в месяц. Отмена в любой момент в Google Play.',
-			'pro.yearlyPrice' => ({required Object price}) => '${price} в год. Отмена в любой момент в Google Play.',
-			'pro.monthlyPrice' => ({required Object price}) => '${price} в месяц. Отмена в любой момент в Google Play.',
 			'pro.restore' => 'Восстановить',
-			'pro.heroTitle' => 'Быстрые серверы,\nнаши собственные',
-			'pro.heroSubtitle' => 'WireGuard. Без журналов активности. Без аккаунта.',
-			'pro.benefitSpeed' => 'Полная скорость, без ограничений волонтёрских серверов',
-			'pro.benefitKey' => 'Ключ создаётся на вашем телефоне и никому не передаётся',
-			'pro.benefitFree' => 'Всё бесплатное останется бесплатным',
 			'pro.save' => ({required Object pct}) => 'ЭКОНОМИЯ ${pct}%',
 			'pro.yearly' => 'На год',
 			'pro.monthly' => 'На месяц',
@@ -1296,10 +2117,6 @@ extension on TranslationsRu {
 			'pro.daysFree' => ({required Object days}) => '${days} дн. бесплатно',
 			'pro.perMonth' => ({required Object price}) => '${price} в месяц',
 			'pro.title' => 'G VPN Pro',
-			'pro.heroTitleOneLine' => 'Быстрые серверы, наши собственные',
-			'pro.includes' => 'Что входит',
-			'pro.benefitLogs' => 'Без журналов активности на наших серверах',
-			'pro.plan' => 'Выберите план',
 			'pro.renewGeneric' => 'Подписки продлеваются автоматически до отмены. Отмена в любой момент в Google Play.',
 			'pro.renewTrial' => ({required Object days, required Object price, required Object period}) => '${days} дн. бесплатно, затем ${price} за ${period}. Продлевается автоматически до отмены; отмените в Google Play не позднее чем за день до конца пробного периода, чтобы не было списания.',
 			'pro.renew' => ({required Object price, required Object period}) => '${price} за ${period}. Продлевается автоматически до отмены; отмена в любой момент в Google Play.',
@@ -1323,15 +2140,24 @@ extension on TranslationsRu {
 			'pro.free.tools' => 'Все сетевые инструменты',
 			'pro.free.toolsSub' => 'Тест скорости, пинг, статус сервисов, трассировка, устройства и другое',
 			'pro.free.later' => 'G VPN Pro добавит быстрые серверы, которыми управляем мы. Всё перечисленное останется бесплатным.',
+			'pro.heroLine' => 'Наши быстрые серверы и все проверки без ограничений',
+			'pro.start' => 'Начать Pro',
+			'pro.compareFree' => 'БЕСПЛАТНО',
+			'pro.comparePro' => 'PRO',
+			'pro.rowFreeServers' => 'Бесплатные серверы',
+			'pro.rowTools' => 'Тест скорости, инструменты, проверка Wi-Fi',
+			'pro.rowGServers' => 'G Servers, без журналов',
+			'pro.rowLinks' => 'Проверка ссылок',
+			'pro.linksFree' => ({required Object n}) => '${n} в месяц',
+			'pro.unlimited' => 'Без ограничений',
 			'rules.title' => 'Правила',
-			'rules.info.shield' => 'Щит отправляет DNS-запросы в Quad9, который отклоняет известные вредоносные и фишинговые сайты. Он не блокирует рекламу и, пока включён, заменяет DNS сервера.',
+			'rules.info.shield' => 'Щит фильтрует DNS-запросы, пока вы подключены: Quad9 блокирует вредоносное ПО и фишинг, Cloudflare for Families также блокирует сайты для взрослых, или используйте свой DNS. Рекламу он не блокирует никогда.',
 			'rules.info.autoConnect' => 'Автоподключение: использует выбранный вами сервер WireGuard. Ручное отключение приостанавливает его до подключения к другой сети.',
 			'rules.info.apps' => 'Приложения напрямую: приложения вне VPN подключаются напрямую. Банки часто блокируют адреса VPN, поэтому платежи через VPN могут не проходить.',
 			'rules.info.reconnect' => 'Изменение щита или списка приложений ненадолго переподключает VPN.',
 			'rules.info.stay' => 'Оставаться на связи: некоторые телефоны останавливают фоновые приложения для экономии батареи. Постоянный VPN и неограниченный режим батареи сохраняют работу G VPN.',
 			'rules.protection' => 'Защита',
 			'rules.shield' => 'Щит',
-			'rules.shieldSub' => 'Блокирует вредоносные и фишинговые сайты',
 			'rules.privateDns' => 'Щит без VPN',
 			'rules.privateDnsSub' => 'Скопировать dns.quad9.net для частного DNS',
 			'rules.privateDnsCopied' => 'dns.quad9.net скопирован',
@@ -1402,10 +2228,17 @@ extension on TranslationsRu {
 			'wol.badMac' => 'Это не MAC-адрес. Он выглядит так: AA:BB:CC:DD:EE:FF.',
 			'wol.sent' => 'Сигнал отправлен. Устройство должно включиться в течение минуты.',
 			'wol.title' => 'Wake on LAN',
-			'wol.wake' => 'Включить устройство',
 			'wol.mac' => 'MAC-адрес',
 			'wol.failed' => ({required Object error}) => 'Не удалось отправить: ${error}',
-			'speed.info' => 'Измеряется открытой исследовательской платформой M-Lab. Тест расходует около 50–100 МБ.\n\nПубличные результаты: M-Lab публикует каждый тест, включая IP-адрес, с которого он проведён, как открытые исследовательские данные.\n\nСравнение провайдеров: после теста без VPN G VPN отправляет только три показателя скорости. Сервис сравнения определяет вашего провайдера и город по самому подключению и не хранит IP-адрес. Отключить можно переключателем внизу страницы.\n\nЧерез VPN: при включённом VPN измеряется скорость через туннель и сравнивается с последним тестом без него.\n\nПредпросмотр видео: та же картинка в разрешении, которое позволяет эта скорость, по битрейтам, которые публикуют стриминговые сервисы. Видео не загружается.',
+			'wol.computer' => 'Компьютер',
+			'wol.pick' => 'Выберите устройство для включения',
+			'wol.waking' => ({required Object name}) => 'Включаем ${name}',
+			'wol.yours' => 'ВАШИ УСТРОЙСТВА',
+			'wol.wakeNamed' => ({required Object name}) => 'Включить ${name}',
+			'wol.removeHint' => 'Удерживайте устройство, чтобы удалить',
+			'wol.add' => 'ДОБАВИТЬ УСТРОЙСТВО',
+			'wol.name' => 'Название',
+			'wol.saveWake' => 'Сохранить и включить',
 			'speed.download' => 'Загрузка',
 			'speed.upload' => 'Отдача',
 			'speed.finding' => 'Поиск сервера',
@@ -1477,10 +2310,11 @@ extension on TranslationsRu {
 			'router.cgnat' => 'Общий адрес провайдера: недоступен из интернета.',
 			'router.noDescription' => 'Без описания',
 			'router.opened' => ({required Object n}) => 'Устройства открыли портов: ${n}',
-			'router.routerName' => ({required Object name}) => 'Роутер: ${name}',
-			'router.externalIp' => ({required Object ip}) => 'Интернет-адрес: ${ip}',
 			'router.mapping' => ({required Object proto, required Object host}) => '${proto} на ${host}',
 			'router.upnpOn' => 'UPnP включён',
+			'router.routerLabel' => 'Роутер',
+			'router.internetAddress' => 'Адрес в интернете',
+			'router.openedBy' => 'Открыто устройствами',
 			'network.title' => 'Эта сеть',
 			'network.wifi' => 'Wi-Fi',
 			'network.mobile' => 'Мобильные данные',
@@ -1514,8 +2348,6 @@ extension on TranslationsRu {
 			'devices.title' => 'Устройства',
 			'devices.again' => 'Сканировать снова',
 			'devices.looking' => 'Поиск устройств',
-			'devices.nothingNew' => 'С прошлого сканирования ничего нового',
-			'devices.takes' => 'Займёт около 30 секунд',
 			'devices.all' => 'Все',
 			'devices.phones' => 'Телефоны',
 			'devices.tvs' => 'Телевизоры',
@@ -1527,18 +2359,52 @@ extension on TranslationsRu {
 			'devices.address' => 'Адрес',
 			'devices.answersIn' => 'Отвечает за',
 			'devices.type' => 'Тип',
-			'devices.notAnnounced' => 'Не представилось. Имя можно найти в списке устройств роутера.',
 			'devices.newBadge' => 'НОВОЕ',
 			'devices.scanning' => ({required Object n}) => 'Сканирование ${n} из 254',
-			'devices.thisNetwork' => 'этой сети',
 			'devices.newSince' => ({required Object n}) => 'Новых с прошлого сканирования: ${n}',
-			'devices.showMore' => ({required Object n}) => 'Показать ещё ${n}',
 			'devices.ms' => ({required Object n}) => '${n} мс',
-			'devices.onNetwork' => ({required Object network}) => 'устройств в ${network}',
-			'ping.info' => 'Сколько длится один путь до сервера и обратно; измеряется раз в секунду за последнюю минуту.\n\nДжиттер: насколько каждый ответ отличается от предыдущего. Высокий джиттер прерывает звонки.\n\nПотери: ответы, которые так и не вернулись.\n\nКак: приложения Android не могут отправлять классический пинг, поэтому каждая проба измеряет установку соединения, а это тот же один путь туда и обратно.',
+			'devices.cameras' => 'Камеры',
+			'devices.device' => 'Устройство',
+			'devices.online' => 'В сети',
+			'devices.model' => 'Модель',
+			'devices.announced' => 'Представляется как',
+			'devices.services' => 'ОТКРЫТЫЕ СЛУЖБЫ',
+			'devices.checkingServices' => 'Проверяем службы',
+			'devices.noServices' => 'Обычные службы не отвечают',
+			'devices.rename' => 'Переименовать',
+			'devices.save' => 'Сохранить',
+			'devices.kinds.phone' => 'Телефон',
+			'devices.kinds.computer' => 'Компьютер',
+			'devices.kinds.tv' => 'ТВ',
+			'devices.kinds.speaker' => 'Колонка',
+			'devices.kinds.printer' => 'Принтер',
+			'devices.kinds.camera' => 'Камера',
+			'devices.kinds.smartHome' => 'Умный дом',
+			'devices.kinds.router' => 'Роутер',
+			'devices.kinds.unknown' => 'Не представилось',
+			'devices.details' => 'Сведения о сети',
+			'devices.listView' => 'Список',
+			'devices.meshView' => 'Сеть-граф',
+			'devices.offlineHeading' => 'Не в сети',
+			'devices.seen' => ({required Object when}) => 'Был ${when}',
+			'devices.agoMinutes' => ({required Object n}) => '${n} мин назад',
+			'devices.agoHours' => ({required Object n}) => '${n} ч назад',
+			'devices.agoDays' => ({required Object n}) => '${n} дн. назад',
+			'devices.throughVpn' => 'Через VPN',
+			'devices.closer' => 'Ближе = отвечает быстрее',
+			'devices.yours' => 'Это ваше?',
+			'devices.mine' => 'Моё',
+			'devices.notMine' => 'Не моё',
+			'devices.whatIsIt' => 'Что это?',
+			'devices.ourGuess' => ({required Object kind}) => 'Наша догадка: ${kind}',
+			'devices.groupPersonal' => 'Телефоны и компьютеры',
+			'devices.groupHome' => 'Дом и медиа',
+			'devices.groupNetwork' => 'Сеть и умный дом',
+			'devices.onlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} в сети', few: '${n} в сети', many: '${n} в сети', other: '${n} в сети', ), 
+			'devices.offlineCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} не в сети', few: '${n} не в сети', many: '${n} не в сети', other: '${n} не в сети', ), 
+			'devices.toConfirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} подтвердить', few: '${n} подтвердить', many: '${n} подтвердить', other: '${n} подтвердить', ), 
 			'ping.askTitle' => 'Пинг узла',
 			'ping.askHint' => 'example.com или 192.168.1.10',
-			'ping.cancel' => 'Отмена',
 			'ping.title' => 'Пинг',
 			'ping.router' => 'Роутер',
 			'ping.pause' => 'Пауза',
@@ -1575,7 +2441,6 @@ extension on TranslationsRu {
 			'status.blocked' => 'Возможно, заблокирован в этой сети',
 			'status.connect' => 'Подключить',
 			'status.blockedShort' => 'Блок',
-			'status.unreachable' => 'Недоступен',
 			'status.now' => 'сейчас',
 			'status.checks' => ({required Object n}) => 'Проверок: ${n}',
 			'status.andMore' => ({required Object first, required Object n}) => '${first} и ещё ${n}',
@@ -1587,27 +2452,37 @@ extension on TranslationsRu {
 			'tools.offline' => 'Нет сети',
 			'tools.title' => 'Инструменты',
 			'tools.networkDesc' => 'Проверка безопасности, что видят сайты, сигнал, роутер и DNS.',
-			'tools.internet' => 'Интернет-подключение',
+			'tools.internet' => 'Интернет',
 			'tools.speed' => 'Тест скорости',
-			'tools.speedDesc' => 'Скорость загрузки и отдачи и какое качество видео она тянет.',
+			'tools.speedDesc' => 'Загрузка, отдача и качество видео',
 			'tools.ping' => 'Пинг',
-			'tools.pingDesc' => 'Время отклика и джиттер до любого сервера или вашего роутера в реальном времени.',
+			'tools.pingDesc' => 'Отклик и джиттер в реальном времени',
 			'tools.status' => 'Статус сервисов',
-			'tools.statusDesc' => 'Доступны ли отсюда WhatsApp, YouTube или Google, или они заблокированы?',
+			'tools.statusDesc' => 'Приложение доступно или заблокировано?',
 			'tools.trace' => 'Трассировка',
-			'tools.traceDesc' => 'Все роутеры между вами и сайтом и сколько времени занимает каждый.',
-			'tools.security' => 'Безопасность сети',
+			'tools.traceDesc' => 'Каждая остановка на пути к сайту',
+			'tools.security' => 'Эта сеть',
 			'tools.devices' => 'Устройства в этой сети',
-			'tools.devicesDesc' => 'Кто ещё в вашем Wi-Fi: телефоны, телевизоры, камеры и компьютеры.',
+			'tools.devicesDesc' => 'Кто в вашем Wi-Fi',
 			'tools.router' => 'Проверка роутера',
-			'tools.routerDesc' => 'Могут ли устройства сами открывать порты на роутере (UPnP).',
+			'tools.routerDesc' => 'Порты, открытые устройствами',
 			'tools.ports' => 'Открытые порты',
-			'tools.portsDesc' => 'Проверьте роутер или сервер на опасные открытые порты.',
+			'tools.portsDesc' => 'Опасные порты на устройстве или сервере',
 			'tools.utilities' => 'Утилиты',
 			'tools.wifiScanner' => 'Сканер Wi-Fi',
-			'tools.wifiDesc' => 'Ближайшие сети, их защита и наименее загруженный канал.',
+			'tools.wifiDesc' => 'Сети вокруг и самый свободный канал',
 			'tools.wol' => 'Wake on LAN',
-			'tools.wolDesc' => 'Включите компьютер или NAS в этой сети.',
+			'tools.wolDesc' => 'Включить компьютер в этой сети',
+			'tools.passwordCheck' => 'Проверка пароля',
+			'tools.passwordCheckDesc' => 'Утёк ли пароль?',
+			'tools.linkCheck' => 'Проверка ссылки',
+			_ => null,
+		} ?? switch (path) {
+			'tools.linkCheckDesc' => 'Безопасно ли открыть?',
+			'tools.breaches' => 'Утечки данных',
+			'tools.breachesDesc' => 'Что утекло недавно',
+			'tools.blocked' => 'Что заблокировано',
+			'tools.blockedDesc' => 'Сайты, заблокированные в этой сети',
 			'trace.info' => 'Каждая точка обозначает роутер, через который проходит ваш трафик на пути к сайту.\n\nМолчащие узлы: многие роутеры никогда не отвечают на эти пробы. Это нормально и не является ошибкой.\n\nС включённым VPN: маршрут начинается внутри туннеля, поэтому ваша сеть и провайдер скрыты.\n\nКак: используется встроенная в Android утилита ping с ограничением числа узлов, так как приложения не могут отправлять такие пакеты напрямую.',
 			'trace.title' => 'Трассировка',
 			'trace.stop' => 'Стоп',
@@ -1624,6 +2499,10 @@ extension on TranslationsRu {
 			'trace.silentMany' => ({required Object n}) => 'Молчащих узлов: ${n}',
 			'trace.hop' => ({required Object n}) => 'Узел ${n}',
 			'trace.slowest' => ({required Object ms, required Object hop}) => 'Основная задержка, ${ms} мс, добавляется на узле ${hop}: обычно это длинный кабель между странами или перегруженный канал.',
+			'trace.popular' => 'ПОПУЛЯРНЫЕ',
+			'trace.recent' => 'НЕДАВНИЕ',
+			'trace.clearRecent' => 'Очистить недавние',
+			'trace.hopsCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} узел', few: '${n} узла', many: '${n} узлов', other: '${n} узла', ), 
 			'ports.ftpNote' => 'Передаёт пароли без шифрования.',
 			'ports.sshNote' => 'Удалённый вход. Нормально, если вы настроили его сами.',
 			'ports.telnetNote' => 'Удалённый вход без шифрования; любимец ботнетов.',
@@ -1647,13 +2526,14 @@ extension on TranslationsRu {
 			'ports.address' => 'Адрес устройства или сервера',
 			'ports.risky' => 'ОПАСНО',
 			'ports.review' => 'ПРОВЕРИТЬ',
-			_ => null,
-		} ?? switch (path) {
 			'ports.normal' => 'НОРМА',
 			'ports.info' => ({required Object n}) => 'Проверяет ${n} портов, важных для домашних роутеров и устройств, и объясняет каждый открытый.\n\nПроверяйте только устройства и серверы, которыми вы владеете или управляете.',
 			'ports.checking' => ({required Object n}) => 'Проверка портов: ${n}',
 			'ports.yourRouter' => ({required Object ip}) => 'Ваш роутер: ${ip}',
 			'ports.noneOpen' => ({required Object host}) => 'На ${host} нет открытых распространённых портов.',
+			'ports.summary' => ({required Object open, required Object n}) => 'Открыто ${open} из ${n} проверенных',
+			'ports.riskyCount' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} опасный', few: '${n} опасных', many: '${n} опасных', other: '${n} опасных', ), 
+			'ports.noneRisky' => 'Ничего опасного',
 			'wifi.title' => 'Сканер Wi-Fi',
 			'wifi.allow' => 'Разрешить сканирование Wi-Fi',
 			'wifi.needsPermission' => 'Нужен доступ к геолокации.',
@@ -1663,11 +2543,36 @@ extension on TranslationsRu {
 			'wifi.none' => 'Сети не найдены. Возможно, геолокация выключена.',
 			'wifi.hidden' => 'Скрытая сеть',
 			'wifi.nearby' => ({required Object n}) => 'Сетей поблизости: ${n}',
-			'wifi.bestChannel' => ({required Object n}) => 'Наименее загруженный канал 2,4 ГГц: ${n}',
-			'wifi.weak' => ({required Object n}) => 'Открытых или слабо защищённых: ${n}',
-			'wifi.connectedPrefix' => 'Подключено · ',
 			'wifi.permissionInfo' => 'Android показывает ближайшие сети Wi-Fi только приложениям с доступом к геолокации. G VPN использует его лишь для списка сетей на этом телефоне.',
 			'wifi.info' => 'Показывает сети из последнего сканирования телефона. Android разрешает лишь несколько сканирований в минуту, поэтому быстрое повторное может показать тот же список. Рекомендуемый канал: наименее загруженный из 1, 6 и 11, трёх неперекрывающихся.',
+			'wifi.airMap' => 'Карта эфира',
+			'wifi.channels' => 'Каналы',
+			'wifi.list' => 'Список',
+			'wifi.secure' => 'Защищена',
+			'wifi.weakLabel' => 'Слабая',
+			'wifi.openLabel' => 'Открытая',
+			'wifi.sizeIsWidth' => 'Размер = ширина канала',
+			'wifi.strongest' => 'САМАЯ СИЛЬНАЯ',
+			'wifi.openNearby' => 'ОТКРЫТЫЕ РЯДОМ',
+			'wifi.onYourChannel' => 'НА ВАШЕМ КАНАЛЕ',
+			'wifi.noneNearby' => 'Нет',
+			'wifi.verdictOpen' => 'Любой рядом может читать передаваемое',
+			'wifi.verdictWep' => 'Старая защита, легко взломать',
+			'wifi.verdictWpa' => 'Устаревшая защита',
+			'wifi.verdictWps' => 'Включён WPS: проще взломать',
+			'wifi.verdictGood' => 'Хорошо защищена',
+			'wifi.maker' => 'Производитель',
+			'wifi.address' => 'Аппаратный адрес',
+			'wifi.privateAddress' => 'Придуман роутером ради приватности',
+			'wifi.you' => 'Вы',
+			'wifi.onClear' => ({required Object name}) => '${name} на свободном канале',
+			'wifi.move' => ({required Object name, required Object n}) => 'Переведите ${name} на канал ${n}',
+			'wifi.clear' => 'Свободен',
+			'wifi.busy' => 'Занят',
+			'wifi.crowded' => 'Перегружен',
+			'wifi.allBands' => 'Все диапазоны',
+			'wifi.openOnly' => 'Только открытые',
+			'wifi.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} сеть', few: '${n} сети', many: '${n} сетей', other: '${n} сети', ), 
 			'errors.notAuthorized' => 'Разрешение на VPN не выдано.',
 			'errors.turnedOff' => 'VPN был выключен системой или другим приложением.',
 			'errors.busy' => 'Запрос разрешения уже открыт.',
@@ -1745,10 +2650,6 @@ extension on TranslationsRu {
 			'gs.busy' => ({required Object n}) => 'Загрузка ${n}%',
 			'gs.offline' => 'Не в сети',
 			'gs.devices' => 'Ваши устройства',
-			'gs.devicesSub' => ({required Object n}) => 'До ${n} телефонов, у каждого свой ключ',
-			'gs.footnote' => 'Каждый телефон получает свой ключ, созданный на нём. G Servers не хранят журналы активности.',
-			'gs.leastBusy' => 'НАИМЕНЕЕ ЗАГРУЖЕН СЕЙЧАС',
-			'gs.busyNoLogs' => ({required Object n}) => 'Загрузка ${n}% · без журналов',
 			'gs.subtitle' => ({required Object country}) => 'G Server · ${country} · WireGuard',
 			'gs.busyLabel' => 'ЗАГРУЗКА',
 			'gs.status' => 'СТАТУС',
@@ -1783,6 +2684,400 @@ extension on TranslationsRu {
 			'gs.chartLabel' => ({required Object max}) => 'Загрузка за последние 24 часа, максимум ${max} процентов',
 			'gs.hoursAgo' => '24 ч назад',
 			'gs.now' => 'Сейчас',
+			'gs.included' => 'Включено',
+			'gs.perkServers' => 'Быстрые частные серверы',
+			'gs.perkServersSub' => 'WireGuard, наши серверы, без журналов',
+			'gs.perkLinks' => 'Безлимитная проверка ссылок',
+			'gs.perkLinksSub' => 'Проверяйте каждую присланную ссылку',
+			'gs.devicesOf' => ({required Object used, required Object limit}) => 'Ваши устройства · ${used} из ${limit}',
+			'gs.eachKey' => 'У каждого телефона свой ключ',
+			'gs.connected' => 'Подключено',
+			'gs.bestNow' => 'ЛУЧШИЙ ДЛЯ ВАС СЕЙЧАС',
+			'gs.logsShort' => 'ЖУРНАЛЫ',
+			'map.open' => 'Открыть карту',
+			'map.searchCountries' => 'Поиск страны',
+			'map.noMatch' => 'Страна не найдена',
+			'map.locate' => 'Моё местоположение',
+			'map.list' => 'Список',
+			'map.map' => 'Карта',
+			'map.freeServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} бесплатный сервер', few: '${n} бесплатных сервера', many: '${n} бесплатных серверов', other: '${n} бесплатного сервера', ), 
+			'map.grade.fast' => 'Быстрый',
+			'map.grade.good' => 'Хороший',
+			'map.grade.slow' => 'Медленный',
+			'map.switchTo' => 'Переключить',
+			'map.freeServer' => ({required Object n}) => 'Бесплатный сервер ${n}',
+			'map.best' => 'ЛУЧШИЙ',
+			'map.gServers' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} G Server', few: '${n} G Server', many: '${n} G Server', other: '${n} G Server', ), 
+			'stats.thisWeek' => 'Эта неделя',
+			'stats.time' => 'Время',
+			'stats.data' => 'Данные',
+			'stats.protected' => 'под защитой',
+			'stats.throughVpn' => 'через VPN',
+			'stats.seeDetails' => 'Подробнее',
+			'stats.title' => 'Статистика',
+			'stats.week' => 'Неделя',
+			'stats.month' => 'Месяц',
+			'stats.protectedLabel' => 'ПОД ЗАЩИТОЙ',
+			'stats.dataUsed' => 'ДАННЫЕ',
+			'stats.byServer' => 'ПО СЕРВЕРАМ',
+			'stats.onPhone' => 'Хранится только на этом телефоне',
+			'stats.reset' => 'Сбросить',
+			'stats.resetTitle' => 'Сбросить статистику?',
+			'stats.resetBody' => 'Удалит время под защитой и данные на этом телефоне. Отменить нельзя.',
+			'stats.hm' => ({required Object h, required Object m}) => '${h} ч ${m} мин',
+			'stats.m' => ({required Object m}) => '${m} мин',
+			'stats.empty' => 'Подключитесь, чтобы начать подсчёт.',
+			'recents.title' => 'Недавние',
+			'recents.allServers' => 'Все серверы',
+			'recents.free' => 'Бесплатный сервер',
+			'recents.yours' => 'Ваш сервер',
+			'recents.gserver' => 'G Server',
+			'presets.title' => 'Профили',
+			'presets.all' => 'Все',
+			'presets.newPreset' => 'Новый профиль',
+			'presets.edit' => 'Изменить профиль',
+			'presets.name' => 'Название',
+			'presets.namePlaceholder' => 'Мой профиль',
+			'presets.server' => 'СЕРВЕР',
+			'presets.fastestOption' => 'Самый быстрый',
+			'presets.countryOption' => 'Страна',
+			'presets.pickCountry' => 'Выберите страну',
+			'presets.skipMyCountry' => 'Не моя страна',
+			'presets.notMine' => 'не моя страна',
+			'presets.protocol' => 'ПРОТОКОЛ',
+			'presets.auto' => 'Авто',
+			'presets.tryNext' => 'Если заблокировано, пробовать следующий',
+			'presets.shield' => 'ЩИТ',
+			'presets.followRules' => 'Как в Правилах',
+			'presets.allApps' => 'Все приложения через VPN',
+			'presets.allAppsShort' => 'все приложения',
+			'presets.save' => 'Сохранить',
+			'presets.delete' => 'Удалить',
+			'presets.reset' => 'Сбросить',
+			'presets.none' => 'Сейчас нет бесплатного сервера для этого профиля.',
+			'presets.names.fastest' => 'Самый быстрый',
+			'presets.names.unblock' => 'Обход блокировок',
+			'presets.names.streaming' => 'Стриминг',
+			'presets.names.privacy' => 'Максимум приватности',
+			'shield.title' => 'Щит',
+			'shield.sub' => 'Работает, пока вы подключены',
+			'shield.off' => 'Выкл.',
+			'shield.offSub' => 'DNS самого сервера',
+			'shield.malware' => 'Вредоносное ПО',
+			'shield.malwareSub' => 'Блокирует вредоносные и фишинговые сайты',
+			'shield.family' => 'Вредоносное ПО и сайты для взрослых',
+			'shield.familySub' => 'Также блокирует контент для взрослых',
+			'shield.custom' => 'Свой DNS',
+			'shield.customSub' => 'Ваши DNS-серверы',
+			'shield.customHint' => 'IP-адрес, например 1.1.1.1',
+			'shield.invalid' => 'Введите один или два IP-адреса.',
+			'checks.title' => 'Проверки',
+			'checks.password' => 'Пароль',
+			'checks.link' => 'Ссылка',
+			'checks.pwTitle' => 'Утёк ли пароль?',
+			'checks.pwHint' => 'Пароль для проверки',
+			'checks.showPassword' => 'Показать пароль',
+			'checks.hidePassword' => 'Скрыть пароль',
+			'checks.check' => 'Проверить',
+			'checks.leaked' => 'Найден в утечках',
+			'checks.seen' => ({required Object n}) => 'Встречался ${n} раз',
+			'checks.leakedAdvice' => 'Смените его везде, где используете, начиная с почты и банка.',
+			'checks.notFound' => 'Нет в известных утечках',
+			'checks.notFoundAdvice' => 'Хороший знак, но не гарантия. Используйте разные пароли для каждого аккаунта.',
+			'checks.failed' => 'Не удалось проверить. Попробуйте ещё раз.',
+			'checks.private' => 'Ваш пароль не покидает этот телефон',
+			'checks.linkTitle' => 'Безопасна ли ссылка?',
+			'checks.linkHint' => 'Ссылка для проверки',
+			'checks.paste' => 'Вставить',
+			'checks.danger' => 'Опасная ссылка',
+			'checks.dangerAdvice' => 'Не открывайте её и не вводите никаких данных.',
+			'checks.clear' => 'Нет в известных списках вредоносных и фишинговых сайтов',
+			'checks.clearAdvice' => 'Всё равно проверьте адрес, прежде чем входить.',
+			'checks.goesTo' => 'Ведёт на',
+			'checks.redirects' => 'Перенаправления',
+			'checks.invalid' => 'Это не похоже на веб-адрес.',
+			'checks.busy' => 'Слишком много проверок. Попробуйте позже.',
+			'checks.unavailable' => 'Проверка ссылок сейчас недоступна.',
+			'checks.listed' => 'Известен вредоносным ПО или фишингом',
+			'checks.missing' => 'По этому адресу нет сайта',
+			'checks.missingAdvice' => 'Проверьте написание: мошенники используют похожие адреса.',
+			'checks.left' => ({required Object n, required Object total}) => 'Осталось ${n} из ${total} бесплатных проверок в этом месяце',
+			'checks.usedUp' => 'Бесплатные проверки ссылок на этот месяц закончились',
+			'checks.usedUpSub' => 'В Pro проверки без ограничений. Бесплатные вернутся 1-го числа.',
+			'checks.getPro' => 'Получить Pro',
+			'toolSettings.title' => 'Настройки инструментов',
+			'toolSettings.askMobile' => 'Спрашивать перед тестом на мобильных данных',
+			'toolSettings.askMobileSub' => 'На быстром соединении тест может потратить больше 100 МБ',
+			'toolSettings.mobileTitle' => 'Использовать мобильные данные?',
+			'toolSettings.mobileBody' => 'Тест скорости может потратить больше 100 МБ на быстром соединении.',
+			'toolSettings.mobileGo' => 'Проверить',
+			'toolSettings.safe' => 'Безопасна',
+			'toolSettings.unsafe' => 'Небезопасна',
+			'toolSettings.devices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} устройство', few: '${n} устройства', many: '${n} устройств', other: '${n} устройства', ), 
+			'toolSettings.hideMac' => 'Скрывать аппаратные адреса',
+			'toolSettings.hideMacSub' => 'Показывать только часть MAC-адреса с производителем',
+			'toolSettings.names' => 'Показывать имена роутеров и серверов',
+			'toolSettings.namesSub' => 'Ищет имена адресов в Traceroute',
+			'toolSettings.remember' => 'Запоминать недавние адреса',
+			'toolSettings.rememberSub' => 'Для Traceroute',
+			'toolSettings.clear' => 'Очистить историю инструментов',
+			'toolSettings.clearSub' => 'Забывает недавние адреса и устройства каждой сети',
+			'toolSettings.clearGo' => 'Очистить',
+			'security.tab' => 'Безопасность',
+			'security.good' => 'Хорошо',
+			'security.fair' => 'Средне',
+			'security.atRisk' => 'Под угрозой',
+			'security.allClear' => 'Исправлять нечего',
+			'security.checked' => ({required Object time}) => 'Проверено в ${time}',
+			'security.trend' => 'ЗА ДВЕ НЕДЕЛИ',
+			'security.checking' => 'Проверяем эту сеть',
+			'security.snoozed' => 'Отложенные',
+			'security.remindLater' => 'Напомнить позже',
+			'security.unsnooze' => 'Напомнить сейчас',
+			'security.review' => 'Посмотреть',
+			'security.confirmGo' => 'Подтвердить',
+			'security.scanGo' => 'Сканировать',
+			'security.look' => 'Открыть',
+			'security.connectGo' => 'Подключить',
+			'security.checkAgain' => 'Проверить снова',
+			'security.wifiOpen' => 'Wi-Fi открыт',
+			'security.wifiOpenDetail' => 'Любой рядом видит передаваемое',
+			'security.wifiWep' => 'Wi-Fi использует WEP',
+			'security.wifiWepDetail' => 'Старая защита, легко взломать',
+			'security.wifiOwe' => 'Wi-Fi использует Enhanced Open',
+			'security.wifiOweDetail' => 'Шифруется, но войти может любой',
+			'security.wifiSecure' => 'Шифрование Wi-Fi',
+			'security.wifiUnknown' => 'Защита Wi-Fi неизвестна',
+			'security.wifiUnknownDetail' => 'Android не сообщил, как она защищена',
+			'security.wps' => 'Включён WPS',
+			'security.wpsDetail' => 'Отключите его в настройках роутера',
+			'security.upnpOff' => 'Роутер держит порты закрытыми',
+			'security.upnpOffDetail' => 'UPnP выключен',
+			'security.upnpOn' => 'Роутер позволяет устройствам открывать порты',
+			'security.upnpOnDetail' => 'UPnP включён',
+			'security.portsOk' => 'Опасных портов на роутере нет',
+			'security.portsRisky' => 'На роутере открыты опасные порты',
+			'security.scanFirst' => 'Просканируйте, чтобы увидеть, кто здесь',
+			'security.scanFirstDetail' => 'Неизвестные устройства снижают оценку',
+			'security.notMineDetail' => 'Проверьте список устройств в роутере',
+			'security.confirmDetail' => 'Отметьте свои',
+			'security.devicesOk' => 'Все устройства известны',
+			'security.devicesOkDetail' => 'Вы подтвердили каждое',
+			'security.camera' => 'В этой сети есть камера',
+			'security.dnsHijack' => 'Неизвестные имена перенаправляются',
+			'security.dnsHijackDetail' => 'Провайдер или роутер подменяет ответы',
+			'security.dnsOk' => 'DNS отвечает нормально',
+			'security.dnsOkDetail' => 'Признаков подмены нет',
+			'security.vpnOn' => 'VPN включён',
+			'security.vpnOnDetail' => 'Трафик идёт через туннель',
+			'security.vpnOff' => 'VPN выключен',
+			'security.vpnOffDetail' => 'Провайдер видит каждый сайт',
+			'security.toFix' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} проблема', other: '${n} проблемы', few: '${n} проблемы', many: '${n} проблем', ), 
+			'security.upnpOpened' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: 'Устройства открыли ${n} порт', other: 'Устройства открыли ${n} порта', few: 'Устройства открыли ${n} порта', many: 'Устройства открыли ${n} портов', ), 
+			'security.portsChecked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: 'Проверен ${n} порт', other: 'Проверено ${n} порта', few: 'Проверено ${n} порта', many: 'Проверено ${n} портов', ), 
+			'security.notMine' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} устройство не ваше', other: '${n} устройства не ваши', few: '${n} устройства не ваши', many: '${n} устройств не ваши', ), 
+			'security.confirm' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} устройство подтвердить', other: '${n} устройства подтвердить', few: '${n} устройства подтвердить', many: '${n} устройств подтвердить', ), 
+			'providers.tab' => 'Интернет',
+			'providers.unavailable' => 'Не удалось загрузить список провайдеров. Проверьте связь.',
+			'providers.cached' => 'По последней проверке без VPN',
+			'providers.notEnough' => 'Пока мало оценок',
+			'providers.yourRating' => 'Ваша оценка в этом месяце',
+			'providers.yourSpeed' => 'ВАША СКОРОСТЬ',
+			'providers.runTest' => 'Проверить скорость',
+			'providers.aboutAverage' => 'Около среднего здесь',
+			'providers.aboveAverage' => ({required Object pct}) => 'На ${pct}% выше местного среднего',
+			'providers.belowAverage' => ({required Object pct}) => 'На ${pct}% ниже местного среднего',
+			'providers.call' => 'Позвонить',
+			'providers.website' => 'Сайт',
+			'providers.outages' => 'Сбои',
+			'providers.rate' => 'Оценить',
+			'providers.changeRating' => 'Изменить оценку',
+			'providers.compare' => 'Сравнить',
+			'providers.rateTitle' => ({required Object name}) => 'Оценить ${name}',
+			'providers.oncePerMonth' => 'Одна оценка в месяц',
+			'providers.tapStars' => 'Нажмите на звёзды',
+			'providers.verified' => ({required Object mbps}) => 'Подтверждено вашим тестом: ${mbps} Мбит/с',
+			'providers.busy' => 'Слишком много оценок отсюда. Попробуйте позже.',
+			'providers.failed' => 'Не удалось отправить. Попробуйте ещё раз.',
+			'providers.post' => 'Отправить оценку',
+			'providers.nearTitle' => 'Провайдеры рядом',
+			'providers.slower' => ({required Object pct}) => 'Ваша загрузка на ${pct}% ниже среднего у вашего провайдера здесь',
+			'providers.inPlace' => ({required Object place}) => 'Домашний интернет: ${place}',
+			'providers.byRating' => 'Оценка',
+			'providers.bySpeed' => 'Скорость',
+			'providers.footnote' => 'Скорости — средние по тестам G VPN',
+			'providers.noneNearby' => 'Рядом пока нет оценок. Будьте первым.',
+			'providers.you' => 'Вы',
+			'providers.topRated' => 'Лучшие оценки',
+			'providers.starsOf' => ({required Object n}) => '${n} из 5',
+			'providers.tags.fast' => 'Быстрый',
+			'providers.tags.reliable' => 'Надёжный',
+			'providers.tags.support' => 'Хорошая поддержка',
+			'providers.tags.price' => 'Честная цена',
+			'providers.tags.slowEvenings' => 'Медленно вечером',
+			'providers.tags.drops' => 'Часто обрывается',
+			'providers.tags.poorSupport' => 'Плохая поддержка',
+			'providers.tags.pricey' => 'Дорого',
+			'providers.words.bad' => 'Плохо',
+			'providers.words.poor' => 'Слабо',
+			'providers.words.okay' => 'Нормально',
+			'providers.words.good' => 'Хорошо',
+			'providers.words.great' => 'Отлично',
+			'providers.ratings' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} оценка', few: '${n} оценки', many: '${n} оценок', other: '${n} оценки', ), 
+			'alerts.channel' => 'Оповещения',
+			'alerts.title' => 'Оповещения',
+			'alerts.markAllRead' => 'Прочитать все',
+			'alerts.clearAll' => 'Очистить всё',
+			'alerts.thisNetwork' => 'этой сети',
+			'alerts.openWifiTitle' => ({required Object name}) => 'Вы подключились к открытому Wi-Fi: ${name}',
+			'alerts.openWifiBody' => 'Любой рядом видит передаваемое. Включите G VPN.',
+			'alerts.reportTitle' => 'Еженедельный отчёт готов',
+			'alerts.reportBody' => ({required Object hours}) => '${hours} ч под защитой на прошлой неделе',
+			'alerts.blockedTitle' => ({required Object name}) => '${name} здесь заблокирован',
+			'alerts.blockedBody' => 'Работает через VPN',
+			'alerts.kinds.newDevice' => 'Новые устройства в моём Wi-Fi',
+			'alerts.kinds.openWifi' => 'Открытый или слабый Wi-Fi',
+			'alerts.kinds.blocked' => 'Заблокированные приложения',
+			'alerts.kinds.report' => 'Еженедельный отчёт',
+			'alerts.kinds.breach' => 'Утечки',
+			'alerts.newDeviceTitle' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} новое устройство в ${network}', few: '${n} новых устройства в ${network}', many: '${n} новых устройств в ${network}', other: '${n} новых устройства в ${network}', ), 
+			'alerts.settings' => 'Настройки оповещений',
+			'alerts.look' => 'Открыть',
+			'alerts.read' => 'Читать',
+			'alerts.open' => 'Открыть',
+			'alerts.check' => 'Проверить',
+			'alerts.today' => 'СЕГОДНЯ',
+			'alerts.thisWeek' => 'НА ЭТОЙ НЕДЕЛЕ',
+			'alerts.earlier' => 'РАНЕЕ',
+			'alerts.all' => 'Все',
+			'alerts.quiet' => 'Всё спокойно',
+			'alerts.quietSub' => 'В последнее время ничего не требовало внимания',
+			'alerts.breachTitle' => ({required Object name}) => 'Новая утечка: ${name}',
+			'alerts.status.background' => 'Раз в несколько часов',
+			'alerts.status.checked' => ({required Object time}) => 'Проверено в ${time}',
+			'alerts.status.wifi' => 'Каждая сеть, к которой вы подключаетесь',
+			'alerts.status.blocked' => 'Когда проверяется статус сервисов',
+			'alerts.status.report' => 'Каждый понедельник',
+			'report.title' => 'Еженедельный отчёт',
+			'report.share' => 'Поделиться картинкой',
+			'report.shareText' => 'Моя неделя с G VPN',
+			'report.safer' => 'Неделя стала безопаснее',
+			'report.moreProtected' => 'Больше защиты, чем на прошлой неделе',
+			'report.yourWeek' => 'Ваша неделя',
+			'report.soFar' => ({required Object range}) => '${range}, пока что',
+			'report.protected' => 'Под защитой',
+			'report.data' => 'Данные',
+			'report.security' => 'Безопасность',
+			'report.speed' => 'Лучшая скорость',
+			'report.noScore' => 'Не проверено',
+			'report.noTest' => 'Нет теста',
+			'report.bestDirect' => 'Прямой тест',
+			'report.moreThan' => ({required Object d}) => 'На ${d} больше, чем на прошлой неделе',
+			'report.lessThan' => ({required Object d}) => 'На ${d} меньше, чем на прошлой неделе',
+			'report.protectedTime' => 'ВРЕМЯ ПОД ЗАЩИТОЙ',
+			'report.mostUsed' => ({required Object name}) => 'Чаще всего: ${name}',
+			'report.quiet' => 'Спокойная неделя: ничего не требовало внимания',
+			'report.newDevices' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: 'Подключилось ${n} новое устройство', few: 'Подключилось ${n} новых устройства', many: 'Подключилось ${n} новых устройств', other: 'Подключилось ${n} новых устройства', ), 
+			'report.openWifi' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} открытый Wi-Fi', few: '${n} открытых Wi-Fi', many: '${n} открытых Wi-Fi', other: '${n} открытых Wi-Fi', ), 
+			'report.blocked' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} приложение заблокировано', few: '${n} приложения заблокировано', many: '${n} приложений заблокировано', other: '${n} приложения заблокировано', ), 
+			'report.breaches' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} крупная новая утечка', few: '${n} крупные новые утечки', many: '${n} крупных новых утечек', other: '${n} крупные новые утечки', ), 
+			'breaches.title' => 'Утечки данных',
+			'breaches.info' => 'Последние утечки данных из открытого списка Have I Been Pwned. О вас ничего не отправляется: список один для всех.\n\nЕсли у вас был аккаунт на взломанном сайте, смените этот пароль и везде, где использовали такой же.',
+			'breaches.unavailable' => 'Не удалось загрузить список. Проверьте подключение.',
+			'breaches.biggest' => 'КРУПНЕЙШАЯ ЗА МЕСЯЦ',
+			'breaches.newest' => 'Новые',
+			'breaches.biggestSort' => 'Крупные',
+			'breaches.withPasswords' => 'С паролями',
+			'breaches.passwordsMark' => 'ПАРОЛИ',
+			'breaches.one' => 'Утечка',
+			_ => null,
+		} ?? switch (path) {
+			'breaches.checkPassword' => 'Проверить пароль',
+			'breaches.verified' => 'Подтверждена',
+			'breaches.hasPasswords' => 'Есть пароли',
+			'breaches.accountsLabel' => 'Аккаунты',
+			'breaches.happened' => 'Произошла',
+			'breaches.published' => 'Опубликована',
+			'breaches.website' => 'Сайт',
+			'breaches.leaked' => 'ЧТО УТЕКЛО',
+			'breaches.ifUsed' => 'ЕСЛИ ВЫ ПОЛЬЗОВАЛИСЬ',
+			'breaches.stepPassword' => 'Смените пароль, который использовали там',
+			'breaches.stepReuse' => 'Смените его везде, где он был таким же',
+			'breaches.stepTwoStep' => 'Включите двухэтапный вход, где можно',
+			'breaches.stepScams' => 'Ожидайте мошеннических звонков и сообщений',
+			'breaches.accounts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${count} аккаунт', few: '${count} аккаунта', many: '${count} аккаунтов', other: '${count} аккаунта', ), 
+			'breaches.worldwide' => ({required Object n}) => 'По всему миру · ${n}',
+			'breaches.noneHere' => 'В недавнем списке нет утечек отсюда.',
+			'breaches.bigMap' => 'Большая карта',
+			'breaches.showInList' => 'Показать в списке',
+			'breaches.mapTitle' => 'Карта утечек',
+			'breaches.zoomIn' => 'Приблизить',
+			'breaches.zoomOut' => 'Отдалить',
+			'breaches.wholeWorld' => 'Весь мир',
+			'breaches.count' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} утечка', few: '${n} утечки', many: '${n} утечек', other: '${n} утечки', ), 
+			'breaches.findCountry' => 'Найти страну',
+			'breaches.seeAll' => 'Смотреть все',
+			'breaches.search' => 'Поиск утечек',
+			'blocked.title' => 'Что заблокировано',
+			'blocked.info' => 'Проверяет известные сайты с этого телефона без VPN и показывает, какие из них блокирует эта сеть и как.\n\nЛожный адрес: поиск имени в сети даёт ложный ответ.\n\nОбрыв: соединение рвётся в начале.\n\nНет ответа: ничего не возвращается.\n\nСтраница блокировки: вместо сайта отвечает что-то другое.\n\nПроверка показывает, где сайт заблокирован, но не кто его заблокировал. Ничего не сохраняется и не отправляется.',
+			'blocked.thisNetwork' => 'Эта сеть',
+			'blocked.country' => 'Ваша страна',
+			'blocked.question' => 'Что здесь заблокировано?',
+			'blocked.testingOn' => 'ПРОВЕРКА В СЕТИ',
+			'blocked.vpnOn' => 'VPN ВКЛЮЧЁН',
+			'blocked.turnOff' => 'Выключите G VPN для проверки',
+			'blocked.test' => 'Проверить эту сеть',
+			'blocked.stop' => 'Стоп',
+			'blocked.sitesToTest' => ({required Object n}) => 'САЙТЫ ДЛЯ ПРОВЕРКИ · ${n}',
+			'blocked.ofSites' => ({required Object n}) => 'из ${n} сайтов',
+			'blocked.blockedCount' => ({required Object n}) => 'ЗАБЛОКИРОВАНО: ${n}',
+			'blocked.openCount' => ({required Object n}) => 'ОТКРЫТО: ${n}',
+			'blocked.noneBlocked' => ({required Object network}) => 'В сети ${network} ничего не заблокировано',
+			'blocked.openOf' => ({required Object open, required Object total}) => 'Открыто ${open} из ${total}',
+			'blocked.allWork' => 'ВСЁ РАБОТАЕТ ЧЕРЕЗ G VPN',
+			'blocked.blockedHeading' => 'ЗАБЛОКИРОВАНО',
+			'blocked.byKind' => 'ПО ТИПАМ',
+			'blocked.worksVpn' => 'Работает через VPN',
+			'blocked.failsVpn' => 'Заблокирован и через VPN',
+			'blocked.checkVpn' => 'Проверить через G VPN',
+			'blocked.connect' => 'Подключить G VPN',
+			'blocked.again' => 'Проверить снова',
+			'blocked.withoutVpn' => 'БЕЗ VPN',
+			'blocked.throughVpn' => 'ЧЕРЕЗ G VPN',
+			'blocked.notChecked' => 'Не проверено',
+			'blocked.opens' => 'Открывается',
+			'blocked.stillBlocked' => 'Заблокирован',
+			'blocked.whatHappened' => 'ЧТО ПРОИЗОШЛО',
+			'blocked.countryBlocked' => ({required Object country}) => 'сайтов заблокировано: ${country}',
+			'blocked.countrySub' => 'По проверкам волонтёров за последние 30 дней',
+			'blocked.countryNone' => 'За последние 30 дней заблокированных сайтов не найдено.',
+			'blocked.countryUnavailable' => 'Не удалось загрузить данные по стране. Проверьте подключение.',
+			'blocked.confirmed' => 'ЗАБЛОКИРОВАН',
+			'blocked.oftenFails' => 'ЧАСТО НЕДОСТУПЕН',
+			'blocked.kinds.social' => 'Соцсети',
+			'blocked.kinds.messaging' => 'Мессенджеры',
+			'blocked.kinds.news' => 'Новости',
+			'blocked.kinds.video' => 'Видео и музыка',
+			'blocked.kinds.privacy' => 'Приватность',
+			'blocked.how.dns' => 'Ложный адрес',
+			'blocked.how.reset' => 'Обрыв',
+			'blocked.how.timeout' => 'Нет ответа',
+			'blocked.how.page' => 'Страница блокировки',
+			'blocked.how.open' => 'Открыт',
+			'blocked.fail.noAnswer' => 'нет ответа',
+			'blocked.fail.refused' => 'отказано',
+			'blocked.fail.cutOff' => ({required Object s}) => 'обрыв через ${s} с',
+			'blocked.fail.wrongCert' => 'неверный сертификат',
+			'blocked.steps.lookup' => 'Поиск имени',
+			'blocked.steps.connect' => 'Подключение',
+			'blocked.steps.handshake' => 'Защищённое соединение',
+			'blocked.consent.title' => 'Перед первой проверкой',
+			'blocked.consent.body' => 'Проверка открывает каждый сайт с этого телефона без VPN, как это сделал бы браузер.',
+			'blocked.consent.noticeTitle' => 'Это может быть заметно',
+			'blocked.consent.notice' => 'Ваш провайдер видит, что эти сайты открываются. В некоторых странах их посещение, даже ради проверки, может привлечь внимание. Проверяйте только там, где чувствуете себя в безопасности.',
+			'blocked.consent.ok' => 'Понятно, проверить',
+			'blocked.someBlocked' => ({required num n, required Object network}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} сайт заблокирован в сети ${network}', few: '${n} сайта заблокировано в сети ${network}', many: '${n} сайтов заблокировано в сети ${network}', other: '${n} сайта заблокировано в сети ${network}', ), 
+			'blocked.tests' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: '${n} проверка', few: '${n} проверки', many: '${n} проверок', other: '${n} проверки', ), 
 			_ => null,
 		};
 	}

@@ -7,13 +7,35 @@ import 'package:g_network/g_network.dart';
 import '../design/meridian.dart';
 import '../i18n/strings.g.dart';
 import '../vpn/vpn_controller.dart';
+import 'network_screen.dart' show liveSnapshotProvider;
+import 'tool_settings.dart';
 import 'tool_widgets.dart';
 import 'tools_providers.dart';
 
 class SpeedScreen extends ConsumerWidget {
   const SpeedScreen({super.key});
 
-  void _start(WidgetRef ref) => ref.read(speedTestProvider.notifier).start();
+  /// Starts a test, first asking on mobile data when the setting says so:
+  /// a test can use well over 100 MB on a fast connection.
+  Future<void> _start(BuildContext context, WidgetRef ref) async {
+    final ask = (await ref.read(toolSettingsProvider.future)).askOnMobile;
+    final mobile = ref.read(liveSnapshotProvider).value?.transport == Transport.cellular;
+    if (ask && mobile && context.mounted) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(t.toolSettings.mobileTitle),
+          content: Text(t.toolSettings.mobileBody),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t.common.cancel)),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: Text(t.toolSettings.mobileGo)),
+          ],
+        ),
+      );
+      if (go != true) return;
+    }
+    ref.read(speedTestProvider.notifier).start();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,7 +89,8 @@ class SpeedScreen extends ConsumerWidget {
 
     return ToolPage(
       title: t.speed.title,
-      info: t.speed.info,
+      icon: Icons.speed_rounded,
+      color: m.brand,
       action: test.running
           ? OutlinedButton(
               onPressed: () => ref.read(speedTestProvider.notifier).cancel(),
@@ -75,7 +98,7 @@ class SpeedScreen extends ConsumerWidget {
               child: Text(t.speed.stop),
             )
           : FilledButton(
-              onPressed: () => _start(ref),
+              onPressed: () => _start(context, ref),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               child: Text(p == null ? t.speed.start : t.speed.again),
             ),
@@ -98,10 +121,12 @@ class SpeedScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              _Phases(phase: phase),
+              const SizedBox(height: 4),
               SizedBox(
-                width: 250,
-                height: 200,
+                width: 270,
+                height: 220,
                 child: CustomPaint(
                   painter: _Dial(value: value, color: color, m: m),
                   child: Center(
@@ -119,17 +144,16 @@ class SpeedScreen extends ConsumerWidget {
               ),
               Row(
                 children: [
-                  Expanded(child: _Mini(label: t.speed.ping, value: p?.minRttMs == null ? null : t.speed.ms(n: p!.minRttMs!.round()))),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _Mini(
-                      label: t.speed.vsDirect,
-                      value: viaVpn && down != null && direct != null && direct > 0
-                          ? '${(down / direct * 100).round()}%'
-                          : null,
-                      color: m.good,
-                    ),
-                  ),
+                  for (final (i, (label, figure, tone)) in [
+                    (t.speed.download, down == null ? t.speed.none : down.toStringAsFixed(down >= 100 ? 0 : 1), null),
+                    (t.speed.upload, up == null ? t.speed.none : up.toStringAsFixed(up >= 100 ? 0 : 1), null),
+                    (t.speed.ping, p?.minRttMs == null ? t.speed.none : t.speed.ms(n: p!.minRttMs!.round()), null),
+                    if (viaVpn && down != null && direct != null && direct > 0)
+                      (t.speed.vsDirect, '${(down / direct * 100).round()}%', m.good),
+                  ].indexed) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(child: MetricTile(label: label, value: figure, color: tone)),
+                  ],
                 ],
               ),
             ],
@@ -206,31 +230,6 @@ class _Chip extends StatelessWidget {
         decoration: BoxDecoration(color: color.withValues(alpha: .13), borderRadius: BorderRadius.circular(999)),
         child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
       );
-}
-
-class _Mini extends StatelessWidget {
-  const _Mini({required this.label, required this.value, this.color});
-
-  final String label;
-  final String? value;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    final c = value == null ? m.muted : (color ?? m.text);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: m.muted)),
-          Text(value ?? t.speed.none, style: m.monoStyle(size: 16, color: c)),
-        ],
-      ),
-    );
-  }
 }
 
 /// One phase's own graph: its live samples, its figure, lit while running.
@@ -669,17 +668,118 @@ class _Dial extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final max = const [50.0, 100.0, 250.0, 500.0, 1000.0].firstWhere((s) => value <= s, orElse: () => 1000);
-    final rect = Rect.fromCircle(center: Offset(size.width / 2, size.height / 2 + 6), radius: size.width / 2 - 14);
+    final centre = Offset(size.width / 2, size.height / 2 + 6);
+    final radius = size.width / 2 - 18;
+    final rect = Rect.fromCircle(center: centre, radius: radius);
     const start = math.pi * .75, sweep = math.pi * 1.5;
     final stroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(rect, start, sweep, false, stroke..color = m.surface2);
+
+    // Scale marks: 0, a fifth, ... the top of the scale.
+    for (var i = 0; i <= 5; i++) {
+      final a = start + sweep * i / 5;
+      final at = centre + Offset(math.cos(a), math.sin(a)) * (radius - 26);
+      final label = (max * i / 5).round().toString();
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: TextStyle(fontSize: 10, fontFamily: Meridian.mono, color: m.muted)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
+    }
+
     final f = (value / max).clamp(0.0, 1.0);
-    if (f > 0) canvas.drawArc(rect, start, sweep * f, false, stroke..color = color);
+    if (f <= 0) return;
+    final fill = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: start,
+        endAngle: start + sweep,
+        colors: [m.teal, color],
+        transform: const GradientRotation(0),
+      ).createShader(rect);
+    canvas.drawArc(rect, start, sweep * f, false, fill);
+    final end = start + sweep * f;
+    final knob = centre + Offset(math.cos(end), math.sin(end)) * radius;
+    canvas.drawCircle(knob, 9, Paint()..color = m.bg);
+    canvas.drawCircle(
+      knob,
+      9,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = color,
+    );
   }
 
   @override
   bool shouldRepaint(_Dial old) => old.value != value || old.color != color || old.m != m;
+}
+
+/// Ping, Download, Upload: the step running now is lit and breathing.
+class _Phases extends StatefulWidget {
+  const _Phases({required this.phase});
+
+  final SpeedPhase? phase;
+
+  @override
+  State<_Phases> createState() => _PhasesState();
+}
+
+class _PhasesState extends State<_Phases> with SingleTickerProviderStateMixin {
+  late final AnimationController _breath = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _breath.stop();
+    } else if (!_breath.isAnimating) {
+      _breath.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _breath.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final phase = widget.phase;
+    final done = phase == SpeedPhase.done;
+    final steps = [
+      (t.speed.ping, m.good, phase == SpeedPhase.locating, done || phase == SpeedPhase.download || phase == SpeedPhase.upload),
+      (t.speed.download, m.brand, phase == SpeedPhase.download, done || phase == SpeedPhase.upload),
+      (t.speed.upload, m.good, phase == SpeedPhase.upload, done),
+    ];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (final (i, (label, tone, now, past)) in steps.indexed) ...[
+          if (i > 0) const SizedBox(width: 18),
+          AnimatedBuilder(
+            animation: _breath,
+            builder: (_, __) => Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: now ? tone.withValues(alpha: .4 + .6 * _breath.value) : past ? tone : m.line,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: now || past ? tone : m.muted)),
+        ],
+      ],
+    );
+  }
 }

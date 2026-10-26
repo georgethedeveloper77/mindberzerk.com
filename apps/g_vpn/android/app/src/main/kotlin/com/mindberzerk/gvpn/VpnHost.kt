@@ -520,13 +520,16 @@ class VpnHost(private var activity: Activity?) : VpnHostApi {
             @Suppress("DEPRECATION") r.SSID ?: ""
         }
         val caps = r.capabilities ?: ""
-        val security = when {
+        val base = when {
             caps.contains("SAE") || caps.contains("WPA3") -> "WPA3"
             caps.contains("RSN") || caps.contains("WPA2") -> "WPA2"
             caps.contains("WPA") -> "WPA"
             caps.contains("WEP") -> "WEP"
             else -> "Open"
         }
+        // WPS rides on the security string ("WPA2+WPS") so the Pigeon
+        // record keeps its shape; the Dart side splits it back apart.
+        val security = if (caps.contains("[WPS]")) "$base+WPS" else base
         val f = r.frequency
         val channel = when {
             f == 2484 -> 14

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -62,20 +61,20 @@ class CountryShape {
   /// should frame (France without Guiana, the US without Alaska).
   final GeoBounds focus;
 
-  /// Builds a closed path, projecting each point with [project].
-  Path toPath(Offset Function(double lon, double lat) project) {
-    final path = Path();
-    for (final ring in rings) {
-      final first = project(ring[0], ring[1]);
-      path.moveTo(first.dx, first.dy);
-      for (var i = 2; i < ring.length; i += 2) {
-        final p = project(ring[i], ring[i + 1]);
-        path.lineTo(p.dx, p.dy);
-      }
-      path.close();
-    }
-    return path;
-  }
+  /// The outline as a GeoJSON MultiPolygon geometry, for map layers.
+  Map<String, dynamic> toGeoJson() => {
+        'type': 'MultiPolygon',
+        'coordinates': [
+          for (final ring in rings)
+            [
+              [
+                for (var i = 0; i < ring.length; i += 2) [ring[i], ring[i + 1]],
+                // GeoJSON rings close on their first point.
+                [ring[0], ring[1]],
+              ],
+            ],
+        ],
+      };
 }
 
 /// Bundled Natural Earth outlines, decoded once on first use.

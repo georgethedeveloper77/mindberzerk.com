@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../checks/check_allowance.dart' show freeLinkChecksPerMonth;
 import '../design/list_ui.dart';
 import '../design/meridian.dart';
 import '../gservers/gservers.dart';
@@ -54,17 +55,28 @@ class _ProScreenState extends ConsumerState<ProScreen> {
                 ? t.pro.waitingPlay
                 : chosen?.trialDays != null
                     ? t.pro.startTrial(days: chosen!.trialDays!)
-                    : t.common.continueLabel;
+                    : t.pro.start;
+
+    final rows = <(String, Object, Object)>[
+      (t.pro.rowFreeServers, true, true),
+      (t.pro.rowTools, true, true),
+      (t.pro.rowGServers, false, true),
+      (t.pro.rowLinks, t.pro.linksFree(n: freeLinkChecksPerMonth), t.pro.unlimited),
+    ];
+    Widget cell(Object v) => switch (v) {
+          true => Icon(Icons.check_rounded, size: 18, color: m.good),
+          false => Text('-', style: TextStyle(color: m.muted)),
+          _ => Text('$v', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: m.text)),
+        };
 
     return Scaffold(
       backgroundColor: m.bg,
       body: SafeArea(
-        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
               child: Row(
                 children: [
                   if (Navigator.of(context).canPop())
@@ -73,77 +85,73 @@ class _ProScreenState extends ConsumerState<ProScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close_rounded),
                     ),
-                  Expanded(
-                    child: Text(t.pro.title, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
-                  ),
-                  TextButton(
-                    onPressed: () => ref.read(billingProvider.notifier).restore(),
-                    child: Text(t.pro.restore),
-                  ),
+                  const Spacer(),
+                  TextButton(onPressed: () => ref.read(billingProvider.notifier).restore(), child: Text(t.pro.restore)),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                 children: [
                   // ── What Pro is ──
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: m.brand, borderRadius: BorderRadius.circular(Meridian.rCard)),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: m.onBrand.withValues(alpha: .18),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(Icons.bolt_rounded, size: 30, color: m.onBrand),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                billing.owned ? t.pro.owned : t.pro.heroTitleOneLine,
-                                style: TextStyle(fontSize: 19, height: 1.2, fontWeight: FontWeight.w800, color: m.onBrand),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(t.pro.heroSubtitle, style: TextStyle(fontSize: 13, color: m.onBrand.withValues(alpha: .85))),
-                            ],
-                          ),
-                        ),
-                      ],
+                  Center(
+                    child: Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        gradient: const LinearGradient(colors: [Color(0xFFFFD36B), Color(0xFFF59E0B)]),
+                        boxShadow: [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: .35), blurRadius: 20, offset: const Offset(0, 8))],
+                      ),
+                      child: const Icon(Icons.workspace_premium_rounded, size: 36, color: Color(0xFF3B2400)),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Text(t.pro.title, textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
+                  const SizedBox(height: 4),
+                  Text(billing.owned ? t.pro.owned : t.pro.heroLine, textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, fontWeight: billing.owned ? FontWeight.w800 : FontWeight.w500, color: billing.owned ? m.good : m.muted)),
+                  const SizedBox(height: 18),
 
-                  // ── What it includes ──
-                  SectionTitle(t.pro.includes),
-                  ListGroup(children: [
-                    ListItem(
-                      leading: Icon(Icons.speed_rounded, color: m.brand),
-                      title: t.pro.benefitSpeed,
-                    ),
-                    ListItem(
-                      leading: Icon(Icons.key_rounded, color: m.brand),
-                      title: t.pro.benefitKey,
-                    ),
-                    ListItem(
-                      leading: Icon(Icons.visibility_off_outlined, color: m.brand),
-                      title: t.pro.benefitLogs,
-                    ),
-                    ListItem(
-                      leading: Icon(Icons.check_rounded, color: m.good),
-                      title: t.pro.benefitFree,
-                    ),
-                  ]),
+                  // ── Free next to Pro ──
+                  Container(
+                    decoration: BoxDecoration(color: m.surface, borderRadius: BorderRadius.circular(Meridian.rCard), border: Border.all(color: m.line)),
+                    child: Column(children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                        child: Row(children: [
+                          const Spacer(),
+                          SizedBox(
+                            width: 76,
+                            child: Text(t.pro.compareFree, textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8, color: m.muted)),
+                          ),
+                          SizedBox(
+                            width: 76,
+                            child: Text(t.pro.comparePro, textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8, color: m.warn)),
+                          ),
+                        ]),
+                      ),
+                      for (final (i, (label, free, pro)) in rows.indexed) ...[
+                        if (i > 0) Divider(height: 1, color: m.line),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          child: Row(children: [
+                            Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: m.text))),
+                            SizedBox(width: 76, child: Center(child: cell(free))),
+                            SizedBox(width: 76, child: Center(child: cell(pro))),
+                          ]),
+                        ),
+                      ],
+                    ]),
+                  ),
 
-                  // ── Plans, one column ──
+                  // ── Plans ──
                   if (!billing.owned) ...[
-                    SectionTitle(t.pro.plan),
+                    const SizedBox(height: 16),
                     switch (plansAsync) {
                       AsyncError(:final error) => Text('$error', style: TextStyle(color: m.muted)),
                       _ when plans.isEmpty => const Padding(
@@ -170,20 +178,9 @@ class _ProScreenState extends ConsumerState<ProScreen> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(billing.error!, style: TextStyle(color: m.bad, fontSize: 13)),
                     ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 54,
-                    child: FilledButton(
-                      onPressed: billing.owned || !proSalesOpen || billing.pending || chosen == null
-                          ? null
-                          : () => ref.read(billingProvider.notifier).buy(chosen),
-                      style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                      child: Text(cta, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                    ),
-                  ),
 
                   // ── Subscription terms, as Play expects beside a purchase ──
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 6),
                   Text(
                     chosen == null
                         ? t.pro.renewGeneric
@@ -191,9 +188,8 @@ class _ProScreenState extends ConsumerState<ProScreen> {
                             ? t.pro.renewTrial(days: chosen.trialDays!, price: chosen.price, period: chosen.yearly ? t.pro.year : t.pro.month)
                             : t.pro.renew(price: chosen.price, period: chosen.yearly ? t.pro.year : t.pro.month),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, height: 1.5, color: m.muted),
+                    style: TextStyle(fontSize: 11.5, height: 1.5, color: m.muted),
                   ),
-                  const SizedBox(height: 6),
                   Wrap(
                     alignment: WrapAlignment.center,
                     children: [
@@ -205,6 +201,24 @@ class _ProScreenState extends ConsumerState<ProScreen> {
                 ],
               ),
             ),
+            if (!billing.owned)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    onPressed: !proSalesOpen || billing.pending || chosen == null
+                        ? null
+                        : () => ref.read(billingProvider.notifier).buy(chosen),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: m.warn,
+                      foregroundColor: const Color(0xFF241500),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Text(cta, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -231,10 +245,10 @@ class _PlanRow extends StatelessWidget {
       selected: selected,
       button: true,
       child: Material(
-        color: selected ? m.brandSoft : m.surface,
+        color: selected ? m.warn.withValues(alpha: .10) : m.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Meridian.rCard),
-          side: BorderSide(color: selected ? m.brand : m.line, width: selected ? 2 : 1),
+          side: BorderSide(color: selected ? m.warn : m.line, width: selected ? 2 : 1),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(Meridian.rCard),
@@ -245,7 +259,7 @@ class _PlanRow extends StatelessWidget {
               children: [
                 Icon(
                   selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                  color: selected ? m.brand : m.muted,
+                  color: selected ? m.warn : m.muted,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

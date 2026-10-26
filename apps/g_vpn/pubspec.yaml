@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed the live G VPN build (1.0.19 on Play). Check the
 # console for its exact code before the first upload; 100 leaves headroom.
-version: 2.0.0+101
+version: 2.0.0+102
 
 # Pub workspace member, same as g_launcher.
 resolution: workspace
@@ -49,6 +49,18 @@ dependencies:
   qr_flutter: ^4.1.0
   share_plus: ^13.3.1
   http: ^1.6.0
+  # SHA-1 for the password check: only a 5-character prefix of the hash
+  # leaves the phone (Have I Been Pwned's k-anonymity range API).
+  crypto: ^3.0.6
+  # Short weekday names in Alerts. Pinned by flutter_localizations.
+  intl: any
+
+  # The Home, full-screen and Servers maps. MapLibre draws OpenFreeMap's
+  # vector tiles (free, no key) in Meridian colours from assets/map/.
+  # Held at 0.25: from 0.26 its web package needs image 4.8+, which needs
+  # archive 4, and g_launcher is on archive 3 in the same workspace. Move
+  # to the latest once g_launcher takes archive 4.
+  maplibre_gl: ^0.25.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +83,10 @@ flutter:
     - assets/flags/
     # Speed test video preview: an original picture shown at each resolution.
     - assets/preview/
+    # Meridian map styles (light and dark), built by tool/build_map_style.py.
+    - assets/map/
+    # Hardware address prefix -> maker, from IEEE; built by tool/build_oui.py.
+    - assets/oui/
 
   # MERIDIAN typefaces, BUNDLED rather than fetched with google_fonts: a VPN
   # app should make no network calls of its own before the user connects.

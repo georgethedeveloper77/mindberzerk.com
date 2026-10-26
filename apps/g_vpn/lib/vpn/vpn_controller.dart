@@ -8,7 +8,6 @@ import '../analytics/events.dart';
 import '../i18n/strings.g.dart';
 import '../rules/rules_store.dart';
 import '../servers/community.dart';
-import 'config_rules.dart';
 import 'tunnel_store.dart';
 import 'vpn_api.g.dart';
 
@@ -110,10 +109,17 @@ class VpnController extends Notifier<VpnState> {
     return const VpnState();
   }
 
-  Future<void> connect(ServerChoice choice) async {
+  /// A preset's changes for the current connection, kept so a reconnect
+  /// (after a Rules change) keeps them. Cleared on disconnect.
+  RulesOverride? _override;
+
+  /// Connects to [choice]. A preset passes [override] to change Shield or
+  /// Apps direct for this connection only.
+  Future<void> connect(ServerChoice choice, {RulesOverride? override}) async {
     if (state.phase == VpnPhase.connecting || state.phase == VpnPhase.disconnecting) {
       return;
     }
+    _override = override;
     state = VpnState(phase: VpnPhase.connecting, tunnelId: choice.id);
     // For the admin's analytics: what kind of connection, never where to.
     final (kind, protocol, country) = switch (choice) {
@@ -129,7 +135,8 @@ class VpnController extends Notifier<VpnState> {
       }
       // App rules and Shield DNS are layered on here, the same for both
       // engines; saved configs are never rewritten.
-      final rules = await ref.read(rulesProvider.future);
+      final saved = await ref.read(rulesProvider.future);
+      final rules = _override?.applyTo(saved) ?? saved;
       switch (choice) {
         case OwnServer(:final tunnel):
           await _api.connect(rules.render(tunnel), choice.name);
@@ -144,7 +151,7 @@ class VpnController extends Notifier<VpnState> {
               password: 'vpn',
               name: choice.name,
               excludedApps: rules.excluded.toList(),
-              dnsServers: rules.shield ? shieldResolvers : const [],
+              dnsServers: rules.dnsServers,
             ),
           );
         case CommunityChoice(:final server):
@@ -161,7 +168,7 @@ class VpnController extends Notifier<VpnState> {
             OpenVpnOptions(
               name: choice.name,
               excludedApps: rules.excluded.toList(),
-              dnsServers: rules.shield ? shieldResolvers : const [],
+              dnsServers: rules.dnsServers,
             ),
           );
       }
@@ -201,6 +208,7 @@ class VpnController extends Notifier<VpnState> {
       state = state.copyWith(phase: VpnPhase.on, error: _describe(e));
       return;
     }
+    _override = null;
     state = const VpnState();
     _syncPolling();
   }
@@ -211,8 +219,9 @@ class VpnController extends Notifier<VpnState> {
     if (state.phase != VpnPhase.on) return;
     final choice = (await ref.read(tunnelsProvider.future)).choice;
     if (choice == null) return;
+    final override = _override;
     await disconnect();
-    await connect(choice);
+    await connect(choice, override: override);
   }
 
   Future<void> _refresh() async {

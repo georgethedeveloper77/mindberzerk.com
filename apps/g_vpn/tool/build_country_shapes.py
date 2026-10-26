@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build lib/design/country_shapes_data.dart from Natural Earth country outlines.
+"""Build lib/map/country_shapes_data.dart from Natural Earth country outlines.
 
 Natural Earth is public domain, so the outlines ship inside the app with no
 map service, API key or attribution requirement.
 
-Encoding (decoded by lib/design/country_shapes.dart):
+Encoding (decoded by lib/map/country_shapes.dart):
     repeated per country:
         2 bytes   ISO 3166-1 alpha-2 code (ASCII)
         varint    ring count
@@ -35,7 +35,7 @@ SOURCE_URL = (
     'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/'
     'master/geojson/ne_50m_admin_0_countries.geojson'
 )
-OUTPUT = Path(__file__).resolve().parent.parent / 'lib' / 'design' / 'country_shapes_data.dart'
+OUTPUT = Path(__file__).resolve().parent.parent / 'lib' / 'map' / 'country_shapes_data.dart'
 
 # Simplification tolerance in degrees. 0.03 keeps coastlines readable at
 # country zoom while holding the payload near 110 KB.

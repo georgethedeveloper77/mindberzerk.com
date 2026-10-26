@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../design/country_map.dart';
 import '../design/countries.dart';
 import '../design/meridian.dart';
 import '../design/meridian_widgets.dart';
-import '../design/world_map.dart' show LatLon;
+import '../map/lat_lon.dart';
 import '../i18n/strings.g.dart';
+import '../map/g_map.dart';
+import '../map/map_data.dart';
 import '../vpn/vpn_controller.dart';
 import 'home_scan.dart';
 
@@ -48,8 +49,10 @@ class _IpSheet extends ConsumerWidget {
     final on = phase == VpnPhase.on;
     final identity = ref.watch(identityProvider);
     final id = identity.value;
-    final code = id?.country != null && id!.country!.length == 2 ? id.country!.toUpperCase() : null;
+    // City coordinates when the Worker sends them; else the country only.
     final place = id?.latitude != null && id?.longitude != null ? LatLon(id!.latitude!, id.longitude!) : null;
+    final code = isoOf(id?.country);
+    final spot = place ?? placeOf(country: code);
     final tone = on ? m.good : m.bad;
 
     return ConstrainedBox(
@@ -94,17 +97,18 @@ class _IpSheet extends ConsumerWidget {
                   border: Border.all(color: m.line),
                   borderRadius: BorderRadius.circular(Meridian.rTile),
                 ),
-                child: place == null && code == null
+                child: spot == null
                     ? Center(child: Icon(Icons.public_rounded, size: 40, color: m.muted))
-                    : CountryMap(
-                        mood: on ? MapMood.protected : MapMood.exposed,
-                        you: on ? null : place,
-                        youCountry: on ? null : code,
-                        server: on ? place : null,
-                        serverCountry: on ? code : null,
-                        span: 9,
-                        pulse: false,
-                        framePadding: const EdgeInsets.all(16),
+                    : GMap(
+                        // Close in on a city; frame the whole country otherwise.
+                        zoom: place == null ? null : 9.5,
+                        scene: MapScene(
+                          mood: on ? MapMood.protected : MapMood.exposed,
+                          you: on ? null : spot,
+                          youCountry: on ? null : code,
+                          server: on ? spot : null,
+                          serverCountry: on ? code : null,
+                        ),
                       ),
               ),
             ),

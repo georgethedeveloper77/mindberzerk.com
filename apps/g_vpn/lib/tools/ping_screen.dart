@@ -70,15 +70,18 @@ class PingController extends Notifier<PingState> {
 }
 
 class PingScreen extends ConsumerStatefulWidget {
-  const PingScreen({super.key});
+  const PingScreen({super.key, this.host});
+
+  /// Starts on this host instead of Google (from a device's page).
+  final String? host;
 
   @override
   ConsumerState<PingScreen> createState() => _PingScreenState();
 }
 
 class _PingScreenState extends ConsumerState<PingScreen> {
-  String _target = 'google.com';
-  String? _custom;
+  late String _target = widget.host ?? 'google.com';
+  late String? _custom = widget.host;
 
   @override
   void initState() {
@@ -93,26 +96,15 @@ class _PingScreenState extends ConsumerState<PingScreen> {
   }
 
   Future<void> _askHost() async {
-    final controller = TextEditingController(text: _custom ?? '');
-    final host = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(t.ping.askTitle),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.url,
-          decoration: InputDecoration(hintText: t.ping.askHint),
-          onSubmitted: (v) => Navigator.pop(c, v.trim()),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(t.ping.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: Text(t.ping.title)),
-        ],
-      ),
+    final host = await askText(
+      context,
+      title: t.ping.askTitle,
+      action: t.ping.title,
+      initial: _custom ?? '',
+      hint: t.ping.askHint,
+      keyboard: TextInputType.url,
     );
-    controller.dispose();
-    if (host == null || host.isEmpty) return;
+    if (host == null || host.isEmpty || !mounted) return;
     _custom = host;
     _run(host);
   }
@@ -132,7 +124,8 @@ class _PingScreenState extends ConsumerState<PingScreen> {
 
     return ToolPage(
       title: t.ping.title,
-      info: t.ping.info,
+      icon: Icons.show_chart_rounded,
+      color: m.teal,
       action: ping.running
           ? OutlinedButton(
               onPressed: () => ref.read(pingProvider.notifier).stop(),
@@ -157,10 +150,10 @@ class _PingScreenState extends ConsumerState<PingScreen> {
                     selected: _target == host,
                     onSelected: (_) => _run(host),
                     showCheckmark: false,
-                    selectedColor: m.text,
+                    selectedColor: m.teal.withValues(alpha: .16),
                     backgroundColor: m.surface,
-                    labelStyle: TextStyle(fontWeight: FontWeight.w700, color: _target == host ? m.bg : m.text),
-                    shape: StadiumBorder(side: BorderSide(color: _target == host ? m.text : m.line)),
+                    labelStyle: TextStyle(fontWeight: FontWeight.w700, color: _target == host ? m.teal : m.text),
+                    shape: StadiumBorder(side: BorderSide(color: _target == host ? m.teal : m.line)),
                   ),
                 ),
               ActionChip(
@@ -193,16 +186,16 @@ class _PingScreenState extends ConsumerState<PingScreen> {
                   if (ping.running)
                     Row(
                       children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: m.good, shape: BoxShape.circle)),
+                        Container(width: 8, height: 8, decoration: BoxDecoration(color: m.teal, shape: BoxShape.circle)),
                         const SizedBox(width: 6),
-                        Text(t.ping.live, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: m.good)),
+                        Text(t.ping.live, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: m.teal)),
                       ],
                     ),
                 ],
               ),
               Text(_target, style: m.monoStyle(size: 12, color: m.muted)),
               const SizedBox(height: 10),
-              LineChartView(series: [(ping.samples, m.brand)], height: 130, unit: ''),
+              LineChartView(series: [(ping.samples, m.teal)], height: 130, unit: ''),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -224,27 +217,17 @@ class _PingScreenState extends ConsumerState<PingScreen> {
             ].indexed) ...[
               if (i > 0) const SizedBox(width: 8),
               Expanded(
-                child: ToolCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: m.muted)),
-                      Text(
-                        value == null ? '--' : label == t.ping.loss ? '${value.round()}%' : value.toStringAsFixed(label == t.ping.jitter ? 1 : 0),
-                        style: m.monoStyle(size: 16),
-                      ),
-                    ],
-                  ),
+                child: MetricTile(
+                  label: label,
+                  value: value == null ? '--' : label == t.ping.loss ? '${value.round()}%' : value.toStringAsFixed(label == t.ping.jitter ? 1 : 0),
+                  color: label == t.ping.loss && value != null ? (value == 0 ? m.good : m.warn) : null,
                 ),
               ),
             ],
           ],
         ),
         if (ping.samples.length >= 5) ...[
-          const SizedBox(height: 20),
-          Text(t.ping.goodFor, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: m.text)),
-          const SizedBox(height: 10),
+          ToolHeading(t.ping.goodFor),
           ToolCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Column(

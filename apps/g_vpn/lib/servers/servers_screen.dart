@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,11 @@ import '../design/flag.dart';
 import '../design/list_ui.dart';
 import '../design/meridian.dart';
 import '../design/sheet.dart';
+import '../gservers/gservers.dart';
+import '../gservers/gservers_page.dart' show GServerRow, byLoad;
 import '../i18n/strings.g.dart';
+import '../map/server_map_view.dart';
+import '../pro/billing.dart';
 import '../ui/add_server_sheet.dart';
 import '../vpn/community_server.dart';
 import '../vpn/tunnel_store.dart';
@@ -16,12 +21,7 @@ import '../vpn/vpn_controller.dart';
 import 'server_details.dart';
 import 'community.dart';
 
-/// G Servers (Pro) appear as their own first tab once any are running.
-/// Until then the tab is not shown at all: an empty "coming soon" tab is a
-/// dead end on the screen people open to connect.
-const _proServersLive = false;
-
-enum _Filter { all, fastest, stable, popular }
+enum _Filter { all, fastest, stable, popular, sstp }
 
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key, required this.openHome, required this.openPro});
@@ -34,19 +34,44 @@ class ServersScreen extends ConsumerStatefulWidget {
   ConsumerState<ServersScreen> createState() => _ServersScreenState();
 }
 
-class _ServersScreenState extends ConsumerState<ServersScreen> {
-  // The first tab is the one with servers in it: Free today, Pro later.
-  int _tab = 0;
+/// One row of tabs you swipe between: Free, G Servers (once any run) and
+/// Yours. List or Map is a floating switch inside Free, not a second bar.
+class _ServersScreenState extends ConsumerState<ServersScreen> with TickerProviderStateMixin {
+  TabController? _tabs;
+  List<String> _ids = const [];
   _Filter _filter = _Filter.all;
-
-  /// Tab ids; labels come from the translations.
-  List<String> get _tabs => [if (_proServersLive) 'pro', 'free', 'yours'];
+  bool _onMap = false;
+  bool _searching = false;
+  String _query = '';
 
   static String _label(String id) => switch (id) {
-        'pro' => t.servers.tabs.pro,
+        'fast' => t.servers.fastTab,
         'free' => t.servers.tabs.free,
+        'gservers' => t.servers.gTab,
         _ => t.servers.tabs.yours,
       };
+
+  /// Rebuilds the controller when G Servers appear or go, keeping the tab
+  /// the user was on.
+  TabController _controllerFor(List<String> ids) {
+    if (_tabs != null && listEquals(ids, _ids)) return _tabs!;
+    final was = _tabs == null ? ids.first : _ids[_tabs!.index];
+    // The old controller is still attached to this frame's TabBar.
+    final old = _tabs;
+    if (old != null) WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    _ids = ids;
+    final c = TabController(length: ids.length, vsync: this, initialIndex: ids.contains(was) ? ids.indexOf(was) : 0);
+    c.addListener(() {
+      if (!c.indexIsChanging) setState(() {});
+    });
+    return _tabs = c;
+  }
+
+  @override
+  void dispose() {
+    _tabs?.dispose();
+    super.dispose();
+  }
 
   /// Select, connect (switching if already connected elsewhere), show Home.
   Future<void> _pick(ServerChoice choice, Future<void> Function() select) async {
@@ -78,10 +103,15 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
     final m = context.mer;
     final tunnels = ref.watch(tunnelsProvider).value;
     final community = ref.watch(communityProvider);
-    final tabs = _tabs;
-    final current = tabs[_tab.clamp(0, tabs.length - 1)];
+    final g = ref.watch(gServersProvider).value ?? ref.watch(gServersCacheProvider).value;
+    // Fast first (our own servers when they run, then the fastest free
+    // ones), then every free server, then G Servers, then the user's own.
+    final ids = ['fast', 'free', if (g != null && g.available) 'gservers', 'yours'];
+    final tabs = _controllerFor(ids);
+    final current = ids[tabs.index];
     final counts = {
       'free': community.value?.servers.length,
+      'gservers': g?.servers.length,
       'yours': tunnels?.tunnels.length,
     };
 
@@ -93,35 +123,122 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(t.servers.title, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
+                    child: Text(t.servers.title, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -.5, color: m.text)),
                   ),
-                  IconButton.outlined(
-                    tooltip: t.servers.aboutServers,
-                    onPressed: _about,
-                    icon: const Icon(Icons.info_outline_rounded, size: 20),
+                  IconButton(
+                    tooltip: t.servers.search,
+                    onPressed: () => setState(() {
+                      _searching = !_searching;
+                      if (!_searching) _query = '';
+                      if (_searching && current != 'free') tabs.animateTo(ids.indexOf('free'));
+                    }),
+                    icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded, color: m.text),
                   ),
+                  InfoIcon(onPressed: _about),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _Segmented(
-                labels: [for (final id in tabs) _label(id)],
-                counts: [for (final id in tabs) counts[id]],
-                index: _tab.clamp(0, tabs.length - 1),
-                onChanged: (i) => setState(() => _tab = i),
-              ),
+            TabBar(
+              controller: tabs,
+              labelColor: m.text,
+              unselectedLabelColor: m.muted,
+              indicatorColor: current == 'gservers' ? m.warn : m.brand,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+              dividerColor: m.line,
+              labelStyle: const TextStyle(fontFamily: Meridian.sans, fontSize: 15, fontWeight: FontWeight.w800),
+              unselectedLabelStyle: const TextStyle(fontFamily: Meridian.sans, fontSize: 15, fontWeight: FontWeight.w600),
+              tabs: [
+                for (final id in ids)
+                  Tab(
+                    height: 48,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (id == 'gservers') ...[Icon(Icons.workspace_premium_rounded, size: 15, color: m.warn), const SizedBox(width: 5)],
+                      if (id == 'fast') ...[Icon(Icons.bolt_rounded, size: 16, color: m.brand), const SizedBox(width: 4)],
+                      Text(_label(id)),
+                      if (counts[id] != null) ...[
+                        const SizedBox(width: 6),
+                        Text('${counts[id]}', style: m.monoStyle(size: 12, color: m.muted)),
+                      ],
+                    ]),
+                  ),
+              ],
             ),
+            if (_searching && current == 'free')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: TextField(
+                  autofocus: true,
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: t.servers.search,
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: m.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: m.line)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: m.brand)),
+                  ),
+                ),
+              ),
             Expanded(
-              child: switch (current) {
-                'free' => _FreeTab(filter: _filter, onFilter: (f) => setState(() => _filter = f), pick: _pick),
-                'yours' => _YoursTab(pick: _pick),
-                _ => const SizedBox.shrink(),
-              },
+              child: Stack(children: [
+                TabBarView(
+                  controller: tabs,
+                  // The map pans with a finger, so swiping tabs stops there.
+                  physics: current == 'free' && _onMap ? const NeverScrollableScrollPhysics() : null,
+                  children: [
+                    for (final id in ids)
+                      switch (id) {
+                        'free' when _onMap => Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: ServerMapView(onConnected: widget.openHome, openOnFastest: true),
+                          ),
+                        'free' => _FreeTab(
+                            filter: _filter,
+                            query: _query,
+                            onFilter: (f) => setState(() => _filter = f),
+                            pick: _pick,
+                          ),
+                        'gservers' => _GServersTab(info: g!),
+                        'fast' => _FastTab(gservers: g != null && g.available ? g : null, pick: _pick),
+                        _ => _YoursTab(pick: _pick),
+                      },
+                  ],
+                ),
+                // List or Map, floating over the Free tab.
+                if (current == 'free')
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 16,
+                    child: Center(
+                      child: FilledButton.icon(
+                        onPressed: () => setState(() => _onMap = !_onMap),
+                        icon: Icon(_onMap ? Icons.format_list_bulleted_rounded : Icons.map_outlined, size: 18),
+                        label: Text(_onMap ? t.map.list : t.map.map),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: m.text,
+                          foregroundColor: m.bg,
+                          minimumSize: const Size(0, 46),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          shape: const StadiumBorder(),
+                          elevation: 6,
+                          shadowColor: Colors.black54,
+                          textStyle: const TextStyle(fontFamily: Meridian.sans, fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ),
+              ]),
             ),
           ],
         ),
@@ -130,109 +247,78 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
   }
 }
 
-class _Segmented extends StatelessWidget {
-  const _Segmented({required this.labels, required this.counts, required this.index, required this.onChanged});
-
-  final List<String> labels;
-  final List<int?> counts;
-  final int index;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = context.mer;
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
-              child: Semantics(
-                selected: i == index,
-                button: true,
-                child: GestureDetector(
-                  onTap: () => onChanged(i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: i == index ? m.surface : Colors.transparent,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Text.rich(
-                      TextSpan(
-                        text: labels[i],
-                        style: TextStyle(fontSize: 14, fontWeight: i == index ? FontWeight.w800 : FontWeight.w700, color: i == index ? m.text : m.muted),
-                        children: [
-                          if (counts[i] != null)
-                            TextSpan(text: '  ${counts[i]}', style: TextStyle(fontWeight: FontWeight.w600, color: m.muted)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 typedef _Pick = Future<void> Function(ServerChoice choice, Future<void> Function() select);
+
+String _speed(double mbps) => mbps >= 10 ? mbps.round().toString() : mbps.toStringAsFixed(1);
 
 // ── Free ──────────────────────────────────────────────────────────────────
 
-class _FreeTab extends ConsumerWidget {
-  const _FreeTab({required this.filter, required this.onFilter, required this.pick});
+/// Free servers grouped by country: one row per country with its best
+/// figures, opening in place to show each server.
+class _FreeTab extends ConsumerStatefulWidget {
+  const _FreeTab({required this.filter, required this.query, required this.onFilter, required this.pick});
 
   final _Filter filter;
+  final String query;
   final ValueChanged<_Filter> onFilter;
   final _Pick pick;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FreeTab> createState() => _FreeTabState();
+}
+
+class _FreeTabState extends ConsumerState<_FreeTab> {
+  /// Countries opened by the user; the top one opens by itself.
+  final Set<String> _open = {};
+  bool _touched = false;
+
+  @override
+  Widget build(BuildContext context) {
     final m = context.mer;
     final community = ref.watch(communityProvider);
     final selectedId = ref.watch(tunnelsProvider).value?.choice?.id;
     final phase = ref.watch(vpnProvider.select((s) => s.phase));
     final busy = phase == VpnPhase.connecting || phase == VpnPhase.disconnecting;
+    void connect(CommunityServer s) =>
+        widget.pick(CommunityChoice(s), () => ref.read(tunnelsProvider.notifier).selectCommunity(s));
 
     return RefreshIndicator(
       onRefresh: () => ref.refresh(communityProvider.future),
       child: switch (community) {
         AsyncData(:final value) when value.servers.isNotEmpty => Builder(builder: (context) {
-            final servers = value.servers;
-            // Badges from what VPN Gate reports live: sessions right now,
-            // days without a restart, and measured throughput.
-            CommunityServer top(num Function(CommunityServer) by) => servers.reduce((a, b) => by(b) > by(a) ? b : a);
-            final badges = <String, (String, Color)>{};
-            badges.putIfAbsent(top((s) => s.sessions).id, () => (t.servers.badges.mostUsed, m.brand));
-            badges.putIfAbsent(top((s) => s.uptimeDays).id, () => (t.servers.badges.mostStable, m.good));
-            badges.putIfAbsent(top((s) => s.speedMbps).id, () => (t.servers.badges.fastest, m.warn));
-
-            final sorted = [...servers];
-            switch (filter) {
+            final q = widget.query.trim().toLowerCase();
+            final sorted = [
+              for (final s in value.servers)
+                if ((widget.filter != _Filter.sstp || s.sstpHost != null) &&
+                    (q.isEmpty || countryName(s.countryCode, s.country).toLowerCase().contains(q)))
+                  s,
+            ];
+            switch (widget.filter) {
               case _Filter.fastest:
                 sorted.sort((a, b) => b.speedMbps.compareTo(a.speedMbps));
               case _Filter.stable:
                 sorted.sort((a, b) => b.uptimeDays.compareTo(a.uptimeDays));
               case _Filter.popular:
                 sorted.sort((a, b) => b.sessions.compareTo(a.sessions));
-              case _Filter.all:
+              case _Filter.all || _Filter.sstp:
                 break; // the Worker's ranking
             }
-            final best = servers.first;
-            void connect(CommunityServer s) =>
-                pick(CommunityChoice(s), () => ref.read(tunnelsProvider.notifier).selectCommunity(s));
+            // Countries in the order their best server ranks.
+            final groups = <String, List<CommunityServer>>{};
+            for (final s in sorted) {
+              groups.putIfAbsent(s.countryCode.toUpperCase(), () => []).add(s);
+            }
+            final codes = groups.keys.toList();
+            final open = _touched ? _open : {if (codes.isNotEmpty) codes.first};
+            final best = value.servers.first;
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
               children: [
-                Appear(index: 0, child: _BestCard(server: best, onConnect: busy ? null : () => connect(best))),
-                const SizedBox(height: 14),
+                if (q.isEmpty) ...[
+                  Appear(index: 0, child: _BestCard(server: best, onConnect: busy ? null : () => connect(best))),
+                  const SizedBox(height: 14),
+                ],
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -242,17 +328,18 @@ class _FreeTab extends ConsumerWidget {
                         (_Filter.fastest, t.servers.filters.fastest),
                         (_Filter.stable, t.servers.filters.stable),
                         (_Filter.popular, t.servers.filters.popular),
+                        (_Filter.sstp, 'SSTP'),
                       ])
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
                             label: Text(label),
-                            selected: filter == f,
-                            onSelected: (_) => onFilter(f),
+                            selected: widget.filter == f,
+                            onSelected: (_) => widget.onFilter(f),
                             showCheckmark: false,
                             selectedColor: m.text,
-                            labelStyle: TextStyle(fontWeight: FontWeight.w700, color: filter == f ? m.bg : m.text),
-                            shape: StadiumBorder(side: BorderSide(color: filter == f ? m.text : m.line)),
+                            labelStyle: TextStyle(fontWeight: FontWeight.w700, color: widget.filter == f ? m.bg : m.text),
+                            shape: StadiumBorder(side: BorderSide(color: widget.filter == f ? m.text : m.line)),
                             backgroundColor: m.surface,
                           ),
                         ),
@@ -260,22 +347,35 @@ class _FreeTab extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Keyed by filter: changing it replays the arrival.
-                KeyedSubtree(
-                  key: ValueKey(filter),
-                  child: _Group(children: [
-                    for (final (i, s) in sorted.indexed)
-                      Appear(
-                        index: i + 1,
-                        child: _ServerRow(
-                          server: s,
-                          badge: badges[s.id],
-                          selected: '$communityPrefix${s.id}' == selectedId,
-                          onTap: busy ? null : () => connect(s),
+                if (codes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(t.servers.noMatch, textAlign: TextAlign.center, style: TextStyle(color: m.muted)),
+                  )
+                else
+                  KeyedSubtree(
+                    key: ValueKey('${widget.filter}$q'),
+                    child: _Group(children: [
+                      for (final (i, code) in codes.indexed)
+                        Appear(
+                          index: i + 1,
+                          child: _CountryRow(
+                            servers: groups[code]!,
+                            open: open.contains(code),
+                            selectedId: selectedId,
+                            busy: busy,
+                            onToggle: () => setState(() {
+                              if (!_touched) {
+                                _touched = true;
+                                _open.addAll(open);
+                              }
+                              _open.contains(code) ? _open.remove(code) : _open.add(code);
+                            }),
+                            onConnect: connect,
+                          ),
                         ),
-                      ),
-                  ]),
-                ),
+                    ]),
+                  ),
               ],
             );
           }),
@@ -296,6 +396,229 @@ class _FreeTab extends ConsumerWidget {
   }
 }
 
+/// Signal bars from the Worker's grade.
+class _Bars extends StatelessWidget {
+  const _Bars({required this.grade});
+
+  final String grade;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final n = switch (grade) { 'fast' => 4, 'good' => 3, _ => 2 };
+    final c = grade == 'slow' ? m.warn : m.good;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < 4; i++)
+          Container(
+            width: 4,
+            height: 6.0 + i * 3.4,
+            margin: const EdgeInsets.only(left: 2),
+            decoration: BoxDecoration(color: i < n ? c : m.line, borderRadius: BorderRadius.circular(1)),
+          ),
+      ],
+    );
+  }
+}
+
+/// One country: its server count and best figures on two short lines, and
+/// its servers when opened (three, then "Show all"). A country with one
+/// server connects straight from the row.
+class _CountryRow extends StatefulWidget {
+  const _CountryRow({
+    required this.servers,
+    required this.open,
+    required this.selectedId,
+    required this.busy,
+    required this.onToggle,
+    required this.onConnect,
+  });
+
+  final List<CommunityServer> servers;
+  final bool open;
+  final String? selectedId;
+  final bool busy;
+  final VoidCallback onToggle;
+  final ValueChanged<CommunityServer> onConnect;
+
+  @override
+  State<_CountryRow> createState() => _CountryRowState();
+}
+
+class _CountryRowState extends State<_CountryRow> {
+  static const _first = 3;
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final servers = widget.servers;
+    final top = servers.first;
+    final single = servers.length == 1;
+    final pings = servers.where((s) => s.pingMs > 0).map((s) => s.pingMs);
+    final fastest = servers.map((s) => s.speedMbps).fold<double>(0, (a, b) => b > a ? b : a);
+    final facts = [
+      if (pings.isNotEmpty) '${pings.reduce((a, b) => a < b ? a : b)} ms',
+      if (fastest > 0) '${_speed(fastest)} Mbps',
+    ].join(' · ');
+    final hasSelected = servers.any((s) => '$communityPrefix${s.id}' == widget.selectedId);
+    final shown = _all ? servers : servers.take(_first).toList();
+
+    return Container(
+      color: widget.open || hasSelected ? m.brand.withValues(alpha: .06) : null,
+      child: Column(children: [
+        InkWell(
+          onTap: single ? (widget.busy ? null : () => widget.onConnect(top)) : widget.onToggle,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            child: Row(children: [
+              CountryFlag(top.countryCode, width: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Flexible(
+                      child: Text(countryName(top.countryCode, top.country),
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: m.text)),
+                    ),
+                    if (!single) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(color: m.surface2, borderRadius: BorderRadius.circular(999)),
+                        child: Text('${servers.length}', style: m.monoStyle(size: 11, color: m.muted)),
+                      ),
+                    ],
+                  ]),
+                  if (facts.isNotEmpty)
+                    Text(facts, maxLines: 1, overflow: TextOverflow.ellipsis, style: m.monoStyle(size: 12, color: m.muted)),
+                ]),
+              ),
+              if (hasSelected && !widget.open) ...[Icon(Icons.check_rounded, color: m.brand, size: 20), const SizedBox(width: 6)],
+              _Bars(grade: top.grade),
+              const SizedBox(width: 4),
+              if (single)
+                IconButton(
+                  tooltip: t.common.connect,
+                  onPressed: widget.busy ? null : () => widget.onConnect(top),
+                  icon: Icon(Icons.power_settings_new_rounded, color: m.brand),
+                )
+              else
+                AnimatedRotation(
+                  turns: widget.open ? .5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Icon(Icons.expand_more_rounded, color: m.muted),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: !widget.open || single
+              ? const SizedBox(width: double.infinity)
+              : Column(children: [
+                  for (final (i, s) in shown.indexed)
+                    _ServerLine(
+                      server: s,
+                      rank: i + 1,
+                      best: i == 0,
+                      selected: '$communityPrefix${s.id}' == widget.selectedId,
+                      onConnect: widget.busy ? null : () => widget.onConnect(s),
+                    ),
+                  if (servers.length > _first)
+                    InkWell(
+                      onTap: () => setState(() => _all = !_all),
+                      child: Container(
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(border: Border(top: BorderSide(color: m.line))),
+                        child: Text(
+                          _all ? t.servers.showFewer : t.servers.showAll(n: servers.length),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: m.brand),
+                        ),
+                      ),
+                    ),
+                ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// One server inside an open country: its rank, speed large, protocol and
+/// ping small, and a round connect button. The whole row connects too.
+class _ServerLine extends StatelessWidget {
+  const _ServerLine({required this.server, required this.rank, required this.best, required this.selected, required this.onConnect});
+
+  final CommunityServer server;
+  final int rank;
+  final bool best;
+  final bool selected;
+  final VoidCallback? onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.mer;
+    final s = server;
+    final sub = [s.sstpHost != null ? 'SSTP' : s.proto.toUpperCase(), if (s.pingMs > 0) '${s.pingMs} ms'].join(' · ');
+    return InkWell(
+      onTap: selected ? null : onConnect,
+      child: Container(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: m.line))),
+        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        child: Row(children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: selected ? m.brand : m.surface2, shape: BoxShape.circle),
+            child: selected
+                ? Icon(Icons.check_rounded, size: 16, color: m.onBrand)
+                : Text('$rank', style: m.monoStyle(size: 12, color: m.muted)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(s.speedMbps > 0 ? '${_speed(s.speedMbps)} Mbps' : sub, style: m.monoStyle(size: 14, color: m.text)),
+                if (best) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: m.good.withValues(alpha: .14), borderRadius: BorderRadius.circular(999)),
+                    child: Text(t.servers.bestTag, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: m.good)),
+                  ),
+                ],
+              ]),
+              if (s.speedMbps > 0) Text(sub, style: m.monoStyle(size: 11, color: m.muted)),
+            ]),
+          ),
+          _Bars(grade: s.grade),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: t.common.connect,
+            onPressed: selected ? null : onConnect,
+            style: IconButton.styleFrom(
+              backgroundColor: m.brand.withValues(alpha: .14),
+              foregroundColor: m.brand,
+              disabledBackgroundColor: Colors.transparent,
+            ),
+            icon: const Icon(Icons.power_settings_new_rounded, size: 20),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The server Worker ranks first: one line, one button.
 class _BestCard extends StatelessWidget {
   const _BestCard({required this.server, required this.onConnect});
 
@@ -305,51 +628,50 @@ class _BestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    // A dark card in both themes: it is the one thing to look at first.
-    const ink = Color(0xFF0E1220);
+    final facts = [
+      if (server.pingMs > 0) '${server.pingMs} ms',
+      if (server.speedMbps > 0) '${_speed(server.speedMbps)} Mbps',
+    ].join(' · ');
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: ink, borderRadius: BorderRadius.circular(Meridian.rCard)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(t.servers.best,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8, color: Color(0xFF9DB4FF))),
-              ),
-              if (server.pingMs > 0)
-                Text('${server.pingMs} ms', style: m.monoStyle(size: 12, color: const Color(0xFFB7BDCC))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              CountryFlag(server.countryCode, width: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(countryName(server.countryCode, server.country),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-                    Text(t.servers.topRanked, style: const TextStyle(fontSize: 13, color: Color(0xFFB7BDCC))),
-                  ],
-                ),
-              ),
-              FilledButton(
-                onPressed: onConnect,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 46),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Text(t.common.connect),
-              ),
-            ],
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(Meridian.rCard),
+        gradient: LinearGradient(colors: [m.brand.withValues(alpha: .22), m.brand.withValues(alpha: .08)]),
+        border: Border.all(color: m.brand.withValues(alpha: .35)),
       ),
+      child: Row(children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(color: m.brand.withValues(alpha: .2), borderRadius: BorderRadius.circular(13)),
+          child: Icon(Icons.bolt_rounded, color: m.brand),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t.servers.best, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8, color: m.brand)),
+            const SizedBox(height: 2),
+            Row(children: [
+              CountryFlag(server.countryCode, width: 22),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(countryName(server.countryCode, server.country),
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: m.text)),
+              ),
+              if (facts.isNotEmpty) ...[const SizedBox(width: 8), Text(facts, style: m.monoStyle(size: 12, color: m.muted))],
+            ]),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: onConnect,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          child: Text(t.common.connect),
+        ),
+      ]),
     );
   }
 }
@@ -369,7 +691,7 @@ class _Group extends StatelessWidget {
       child: Column(
         children: [
           for (final (i, c) in children.indexed) ...[
-            if (i > 0) Divider(height: 1, indent: 14, endIndent: 14, color: m.line),
+            if (i > 0) Divider(height: 1, color: m.line),
             c,
           ],
         ],
@@ -378,79 +700,160 @@ class _Group extends StatelessWidget {
   }
 }
 
-class _ServerRow extends StatelessWidget {
-  const _ServerRow({required this.server, required this.badge, required this.selected, required this.onTap});
+// ── Fast ──────────────────────────────────────────────────────────────────
+
+/// The quickest way to a fast connection: G Servers, least busy first, when
+/// they run; then the free servers with the most speed.
+class _FastTab extends ConsumerWidget {
+  const _FastTab({required this.gservers, required this.pick});
+
+  final GServersInfo? gservers;
+  final _Pick pick;
+
+  static const _freeShown = 8;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = context.mer;
+    final community = ref.watch(communityProvider);
+    final selectedId = ref.watch(tunnelsProvider).value?.choice?.id;
+    final phase = ref.watch(vpnProvider.select((s) => s.phase));
+    final busy = phase == VpnPhase.connecting || phase == VpnPhase.disconnecting;
+    final g = gservers;
+    final free = [...?community.value?.servers]..sort((a, b) => b.speedMbps.compareTo(a.speedMbps));
+    Widget heading(String text, Color color) => Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+          child: Text(text.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: .8, color: color)),
+        );
+
+    return RefreshIndicator(
+      onRefresh: () {
+        ref.invalidate(gServersProvider);
+        return ref.refresh(communityProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        children: [
+          if (g != null) ...[
+            heading(t.gs.servers, m.warn),
+            _Group(children: [for (final s in byLoad(g.servers)) GServerRow(server: s)]),
+          ],
+          heading(t.servers.fastestFree, m.brand),
+          switch (community) {
+            AsyncData() when free.isNotEmpty => _Group(children: [
+                for (final (i, s) in free.take(_freeShown).indexed)
+                  Appear(
+                    index: i,
+                    child: _FastRow(
+                      server: s,
+                      selected: '$communityPrefix${s.id}' == selectedId,
+                      onConnect: busy ? null : () => pick(CommunityChoice(s), () => ref.read(tunnelsProvider.notifier).selectCommunity(s)),
+                    ),
+                  ),
+              ]),
+            AsyncData() || AsyncError() => Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(community.hasError ? t.servers.loadFailed : t.servers.noServers, style: TextStyle(color: m.muted)),
+              ),
+            _ => const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
+          },
+        ],
+      ),
+    );
+  }
+}
+
+/// A fast free server: country, speed large, protocol and ping small.
+class _FastRow extends StatelessWidget {
+  const _FastRow({required this.server, required this.selected, required this.onConnect});
 
   final CommunityServer server;
-  final (String, Color)? badge;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback? onConnect;
 
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    final bars = switch (server.grade) { 'fast' => 4, 'good' => 3, _ => 2 };
-    final barColor = server.grade == 'slow' ? m.warn : m.good;
-    final speed = server.speedMbps <= 0
-        ? null
-        : server.speedMbps >= 10
-            ? server.speedMbps.round().toString()
-            : server.speedMbps.toStringAsFixed(1);
-    final detail = [
-      if (speed != null) '$speed Mbps',
-      server.proto.toUpperCase(),
-      if (server.pingMs > 0) '${server.pingMs} ms',
+    final s = server;
+    final sub = [
+      countryName(s.countryCode, s.country),
+      s.sstpHost != null ? 'SSTP' : s.proto.toUpperCase(),
+      if (s.pingMs > 0) '${s.pingMs} ms',
     ].join(' · ');
-
     return InkWell(
-      onTap: onTap,
+      onTap: selected ? null : onConnect,
       child: Container(
-        color: selected ? m.brandSoft : null,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        child: Row(
-          children: [
-            CountryFlag(server.countryCode, width: 32),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(countryName(server.countryCode, server.country),
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: m.text)),
-                      if (badge != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(color: badge!.$2.withValues(alpha: .13), borderRadius: BorderRadius.circular(999)),
-                          child: Text(badge!.$1,
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: .4, color: badge!.$2)),
-                        ),
-                    ],
-                  ),
-                  Text(detail, style: m.monoStyle(size: 12, color: m.muted)),
-                ],
-              ),
+        color: selected ? m.brand.withValues(alpha: .06) : null,
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Row(children: [
+          CountryFlag(s.countryCode, width: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${_speed(s.speedMbps)} Mbps', style: m.monoStyle(size: 15, color: m.text)),
+              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: m.muted)),
+            ]),
+          ),
+          _Bars(grade: s.grade),
+          const SizedBox(width: 6),
+          if (selected)
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.check_rounded, color: m.brand))
+          else
+            IconButton(
+              tooltip: t.common.connect,
+              onPressed: onConnect,
+              style: IconButton.styleFrom(backgroundColor: m.brand.withValues(alpha: .14), foregroundColor: m.brand),
+              icon: const Icon(Icons.power_settings_new_rounded, size: 20),
             ),
-            if (selected)
-              Icon(Icons.check_rounded, color: m.brand)
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  for (var i = 0; i < 4; i++)
-                    Container(
-                      width: 4,
-                      height: 6.0 + i * 3.4,
-                      margin: const EdgeInsets.only(left: 2),
-                      decoration: BoxDecoration(color: i < bars ? barColor : m.line, borderRadius: BorderRadius.circular(1)),
-                    ),
-                ],
+        ]),
+      ),
+    );
+  }
+}
+
+// ── G Servers ─────────────────────────────────────────────────────────────
+
+class _GServersTab extends ConsumerWidget {
+  const _GServersTab({required this.info});
+
+  final GServersInfo info;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = context.mer;
+    final owned = ref.watch(billingProvider).owned;
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(gServersProvider.future),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: m.warn.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(Meridian.rCard),
+              border: Border.all(color: m.warn.withValues(alpha: .35)),
+            ),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: m.warn.withValues(alpha: .18), borderRadius: BorderRadius.circular(13)),
+                child: Icon(Icons.workspace_premium_rounded, color: m.warn),
               ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(t.servers.ownHero, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: m.text)),
+                  Text(t.servers.ownHeroSub, style: TextStyle(fontSize: 12, color: m.muted)),
+                ]),
+              ),
+              if (owned) Tag(t.gs.active, color: m.good),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          _Group(children: [for (final s in byLoad(info.servers)) GServerRow(server: s)]),
+        ],
       ),
     );
   }

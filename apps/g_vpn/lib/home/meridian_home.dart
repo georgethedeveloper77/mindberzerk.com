@@ -1,24 +1,28 @@
-import 'dart:async';
-import 'dart:math' as math;
+import '../alerts/alerts_screen.dart' show AlertsBell;
+import '../design/meridian.dart';
+import '../design/theme_mode.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../design/countries.dart';
-import '../design/country_map.dart';
-import '../design/meridian.dart';
-import '../design/theme_mode.dart';
 import '../design/wifi_name_prompt.dart';
-import '../design/world_map.dart' show LatLon;
+import '../history/recents_row.dart';
+import '../history/stats_screen.dart';
 import '../i18n/strings.g.dart';
+import '../map/full_map_screen.dart';
+import '../map/g_map.dart';
+import '../map/map_data.dart';
+import '../map/server_sheet.dart';
+import '../presets/presets_screen.dart';
 import '../rules/apps_screen.dart';
 import '../rules/rules_store.dart';
-import '../servers/community.dart';
+import '../rules/shield_screen.dart';
 import '../tools/speed_screen.dart';
 import '../tools/tools_providers.dart' show directSpeedProvider;
-import '../vpn/tunnel_store.dart';
 import '../vpn/vpn_controller.dart';
 import 'connect_card.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'home_scan.dart';
 import 'ip_sheet.dart';
 
@@ -40,11 +44,8 @@ class MeridianHome extends ConsumerWidget {
   final VoidCallback openRules;
   final VoidCallback openPro;
 
-  /// How far the connection card rises into the map.
-  static const _overlap = 56.0;
-
-  /// Header 56, status line, clock and IP chip: the band at the top of the
-  /// map that the camera keeps clear.
+  /// Header 56, status line, clock and IP chip: the band at the top that
+  /// the camera keeps clear.
   static const _overlayBand = 56.0 + 112.0;
 
   @override
@@ -55,9 +56,9 @@ class MeridianHome extends ConsumerWidget {
     final busy = vpn.phase == VpnPhase.connecting || vpn.phase == VpnPhase.disconnecting;
     final paused = vpn.pausedUntil != null;
     final top = MediaQuery.paddingOf(context).top;
-    final mapHeight = (MediaQuery.sizeOf(context).height * .52).clamp(380.0, 480.0) + top;
 
     Future<void> connect() => connectFromHome(ref, openServers: openServers);
+    void openMap() => FullMapScreen.open(context);
 
     final statusColor = on && (vpn.reconnecting || paused) ? m.warn : on ? m.good : busy ? m.warn : m.bad;
     final status = switch (vpn.phase) {
@@ -72,147 +73,148 @@ class MeridianHome extends ConsumerWidget {
     };
     final statusIcon = on ? Icons.lock_rounded : busy ? Icons.sync_rounded : Icons.lock_open_rounded;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: mapHeight,
-            child: _HomeMap(
-              framePadding: EdgeInsets.fromLTRB(24, top + _overlayBand, 24, _overlap + 12),
+    return LayoutBuilder(
+      builder: (context, box) {
+        // The map fills the page. A clear window under the status band
+        // shows it; the cards ride up over it as a sheet when scrolled.
+        final height = box.maxHeight;
+        final window = (height * .40).clamp(220.0, 380.0);
+        final sheetTop = top + _overlayBand + window;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _HomeMap(padding: EdgeInsets.fromLTRB(0, top + _overlayBand, 0, height - sheetTop)),
+              ),
             ),
-          ),
-          // Fades the map into the page so the card sits on calm ground.
-          Positioned(
-            top: mapHeight - 120,
-            left: 0,
-            right: 0,
-            height: 120,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [m.bg.withValues(alpha: 0), m.bg],
+            // Keeps the header and status legible over any part of the map.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: top + _overlayBand + 24,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [m.bg.withValues(alpha: .92), m.bg.withValues(alpha: .55), m.bg.withValues(alpha: 0)],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          Column(
-            children: [
-              SizedBox(
-                height: mapHeight - _overlap,
-                child: Padding(
-                  padding: EdgeInsets.only(top: top),
-                  child: Column(
+            SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: top),
+                  _Header(onPro: openPro, onMap: openMap),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _Header(onPro: openPro),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(statusIcon, size: 20, color: statusColor),
-                          const SizedBox(width: 8),
-                          Text(
-                            status,
-                            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -.4, color: statusColor),
-                          ),
-                        ],
+                      Icon(statusIcon, size: 20, color: statusColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        status,
+                        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -.4, color: statusColor),
                       ),
-                      if (paused)
-                        TextButton(
-                          onPressed: () => ref.read(vpnProvider.notifier).resume(),
-                          style: TextButton.styleFrom(foregroundColor: m.muted, minimumSize: const Size(48, 36)),
-                          child: Text(
-                            t.home.resumesAt(time: TimeOfDay.fromDateTime(vpn.pausedUntil!).format(context)),
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        )
-                      else if (on)
-                        _Clock(since: vpn.connectedAt),
-                      const SizedBox(height: 8),
-                      _IpChip(onTap: () => showIpSheet(context, onHide: connect)),
-                      if (vpn.error != null)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-                          child: Text(vpn.error!, textAlign: TextAlign.center, style: TextStyle(color: m.bad, fontSize: 13)),
-                        ),
                     ],
                   ),
-                ),
+                  if (paused)
+                    Center(
+                      child: TextButton(
+                        onPressed: () => ref.read(vpnProvider.notifier).resume(),
+                        style: TextButton.styleFrom(foregroundColor: m.muted, minimumSize: const Size(48, 36)),
+                        child: Text(
+                          t.home.resumesAt(time: TimeOfDay.fromDateTime(vpn.pausedUntil!).format(context)),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    )
+                  else if (on)
+                    Center(child: _Clock(since: vpn.connectedAt)),
+                  const SizedBox(height: 8),
+                  Center(child: _IpChip(onTap: () => showIpSheet(context, onHide: connect))),
+                  if (vpn.error != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                      child: Text(vpn.error!, textAlign: TextAlign.center, style: TextStyle(color: m.bad, fontSize: 13)),
+                    ),
+                  // The window onto the map: a tap on a server marker opens its
+                  // servers; anywhere else opens the full map.
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: (d) async {
+                      final id = await _homeMap.currentState?.markerAt(d.globalPosition);
+                      if (!context.mounted) return;
+                      final hit = id == null ? null : ref.read(countryServersProvider).where((c) => c.code == id).firstOrNull;
+                      if (hit != null) {
+                        await showServerSheet(context, country: hit);
+                      } else {
+                        openMap();
+                      }
+                    },
+                    child: SizedBox(height: window),
+                  ),
+                  // The sheet: opaque page colour so the map stays behind it.
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: m.bg,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                      boxShadow: [BoxShadow(color: m.shadow, blurRadius: 24, offset: const Offset(0, -6))],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          HomeConnectCard(openServers: openServers),
+                          const PresetsRow(),
+                          RecentsRow(openServers: openServers),
+                          if (!on) ...[const SizedBox(height: 14), const _ScanCard()],
+                          const SizedBox(height: 14),
+                          const StatsCard(),
+                          const SizedBox(height: 14),
+                          _Tiles(openRules: openRules, openTools: openTools),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: HomeConnectCard(openServers: openServers),
-              ),
-              if (!on) ...[
-                const SizedBox(height: 10),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _ScanCard()),
-              ],
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _Tiles(openRules: openRules, openTools: openTools),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-/// The map, fed from the VPN state, the IP lookups and the free list.
-class _HomeMap extends ConsumerWidget {
-  const _HomeMap({required this.framePadding});
+/// Home's map, reachable from the window above it for marker taps. Only
+/// one Home exists at a time.
+final _homeMap = GlobalKey<GMapState>();
 
-  final EdgeInsets framePadding;
+/// The page-filling map behind Home. Exposed, it opens on the continent,
+/// moves to the user's country outlined in red, then their spot; connecting,
+/// it spins; protected, it flies into the server's country outlined in
+/// green with nearby free servers. Taps go to the full map, not into this.
+class _HomeMap extends ConsumerWidget {
+  const _HomeMap({required this.padding});
+
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final phase = ref.watch(vpnProvider.select((s) => s.phase));
-    final choice = ref.watch(tunnelsProvider).value?.choice;
-    final id = ref.watch(identityProvider).value;
-    final home = ref.watch(homeLocationProvider);
-    final servers = ref.watch(communityProvider).value?.servers ?? const [];
-    final on = phase == VpnPhase.on;
-    final idCountry = id?.country != null && id!.country!.length == 2 ? id.country!.toUpperCase() : null;
-
-    // Community servers sit at their country's centre the moment we
-    // connect; your own servers wherever the lookup through them lands.
-    final centre = choice?.countryCode == null ? null : countryCentres[choice!.countryCode!.toUpperCase()];
-    final server = !on
-        ? null
-        : centre != null
-            ? LatLon(centre.$1, centre.$2)
-            : id?.latitude != null && id?.longitude != null
-                ? LatLon(id!.latitude!, id.longitude!)
-                : null;
-
-    // One dot per country with a free server.
-    final dots = <LatLon>[
-      for (final code in {for (final s in servers) s.countryCode.toUpperCase()})
-        if (countryCentres[code] case final c?) LatLon(c.$1, c.$2),
-    ];
-
-    return CountryMap(
-      mood: switch (phase) {
-        VpnPhase.on => MapMood.protected,
-        VpnPhase.connecting || VpnPhase.disconnecting => MapMood.connecting,
-        VpnPhase.off => MapMood.exposed,
-      },
-      you: home,
-      // Exposed, the lookup is the user's own; protected, it is the server's.
-      youCountry: on ? null : idCountry,
-      server: server,
-      serverCountry: choice?.countryCode ?? (on ? idCountry : null),
-      dots: dots,
-      framePadding: framePadding,
+    final scene = ref.watch(mapSceneProvider);
+    final countries = ref.watch(countryServersProvider);
+    return GMap(
+      key: _homeMap,
+      choreograph: true,
+      padding: padding,
+      scene: scene.mood == MapMood.protected ? scene.withMarkers([for (final c in countries) c.marker]) : scene,
     );
   }
 }
@@ -260,9 +262,10 @@ class _IpChip extends ConsumerWidget {
 }
 
 class _Header extends ConsumerWidget {
-  const _Header({required this.onPro});
+  const _Header({required this.onPro, required this.onMap});
 
   final VoidCallback onPro;
+  final VoidCallback onMap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,6 +285,12 @@ class _Header extends ConsumerWidget {
           const SizedBox(width: 10),
           Text('G VPN', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -.3, color: m.text)),
           const Spacer(),
+          const AlertsBell(),
+          IconButton(
+            tooltip: t.map.open,
+            onPressed: onMap,
+            icon: Icon(Icons.map_outlined, color: m.muted),
+          ),
           IconButton(
             tooltip: label,
             onPressed: () => ref.read(themeModeProvider.notifier).set(next),
@@ -428,23 +437,18 @@ class _ScanCard extends ConsumerWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.chip, this.good = false});
+  const _Chip({required this.chip});
 
   final ScanChip chip;
-
-  /// Protected-state chips: tinted with the "secure" colour.
-  final bool good;
 
   @override
   Widget build(BuildContext context) {
     final m = context.mer;
-    final (bg, fg) = good
-        ? (m.good.withValues(alpha: .10), m.good)
-        : switch (chip.tone) {
-            Tone.bad => (m.badSoft, m.bad),
-            Tone.warn => (m.warnSoft, m.warn),
-            Tone.ok => (m.surface2, m.text),
-          };
+    final (bg, fg) = switch (chip.tone) {
+      Tone.bad => (m.badSoft, m.bad),
+      Tone.warn => (m.warnSoft, m.warn),
+      Tone.ok => (m.surface2, m.text),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(Meridian.rChip)),
@@ -494,9 +498,9 @@ class _Tiles extends ConsumerWidget {
           icon: Icons.shield_outlined,
           tone: m.good,
           title: t.home.tiles.shield,
-          sub: rules.shield ? t.home.tiles.shieldOn : t.common.off,
+          sub: shieldLevelName(rules.shieldLevel),
           accessory: _Switch(on: rules.shield),
-          onTap: () => ref.read(rulesProvider.notifier).setShield(!rules.shield),
+          onTap: () => ShieldScreen.open(context),
         ),
         _Tile(
           icon: Icons.alt_route_rounded,

@@ -11,22 +11,79 @@ import '../vpn/vpn_controller.dart';
 
 enum AutoConnectChoice { off, open, any }
 
+/// How Shield filters lookups while connected. None of them blocks ads:
+/// Play's VPN policy forbids it.
+enum ShieldLevel {
+  off,
+
+  /// Quad9: malware and phishing.
+  malware,
+
+  /// Cloudflare for Families: malware and adult sites.
+  family,
+
+  /// The user's own resolvers.
+  custom,
+}
+
+/// What a preset changes for one connection, on top of the Rules.
+class RulesOverride {
+  const RulesOverride({this.shield, this.allApps = false});
+
+  /// Null keeps the Rules' level.
+  final ShieldLevel? shield;
+
+  /// Sends every app through the VPN, ignoring Apps direct.
+  final bool allApps;
+
+  RulesState applyTo(RulesState rules) => rules.copyWith(
+        shieldLevel: shield ?? rules.shieldLevel,
+        excluded: allApps ? const <String>{} : rules.excluded,
+      );
+}
+
 class RulesState {
   const RulesState({
     this.excluded = const {},
-    this.shield = true,
+    this.shieldLevel = ShieldLevel.malware,
+    this.lastOnLevel = ShieldLevel.malware,
+    this.customDns = const [],
     this.autoConnect = AutoConnectChoice.off,
   });
 
   /// Package names that bypass the tunnel.
   final Set<String> excluded;
-  final bool shield;
+  final ShieldLevel shieldLevel;
+
+  /// The level the on/off switch returns to.
+  final ShieldLevel lastOnLevel;
+
+  /// Resolvers for [ShieldLevel.custom].
+  final List<String> customDns;
   final AutoConnectChoice autoConnect;
 
-  RulesState copyWith({Set<String>? excluded, bool? shield, AutoConnectChoice? autoConnect}) =>
+  bool get shield => shieldLevel != ShieldLevel.off;
+
+  /// The resolvers this level puts in the tunnel; empty keeps the server's.
+  List<String> get dnsServers => switch (shieldLevel) {
+        ShieldLevel.off => const [],
+        ShieldLevel.malware => shieldResolvers,
+        ShieldLevel.family => familyResolvers,
+        ShieldLevel.custom => customDns.isEmpty ? shieldResolvers : customDns,
+      };
+
+  RulesState copyWith({
+    Set<String>? excluded,
+    ShieldLevel? shieldLevel,
+    ShieldLevel? lastOnLevel,
+    List<String>? customDns,
+    AutoConnectChoice? autoConnect,
+  }) =>
       RulesState(
         excluded: excluded ?? this.excluded,
-        shield: shield ?? this.shield,
+        shieldLevel: shieldLevel ?? this.shieldLevel,
+        lastOnLevel: lastOnLevel ?? this.lastOnLevel,
+        customDns: customDns ?? this.customDns,
         autoConnect: autoConnect ?? this.autoConnect,
       );
 
@@ -34,22 +91,31 @@ class RulesState {
   String render(SavedTunnel tunnel) => applyRules(
         tunnel.configText,
         excludedApps: excluded,
-        dns: shield ? shieldResolvers : null,
+        dns: dnsServers.isEmpty ? null : dnsServers,
       );
 
   Map<String, Object> toJson() => {
         'excluded': excluded.toList(),
-        'shield': shield,
+        'shieldLevel': shieldLevel.name,
+        'lastOnLevel': lastOnLevel.name,
+        'customDns': customDns,
         'autoConnect': autoConnect.name,
       };
+
+  static ShieldLevel? _level(Object? name) => ShieldLevel.values.where((l) => l.name == name).firstOrNull;
 
   static RulesState fromJson(Object? json) {
     if (json is! Map) return const RulesState();
     final excluded = json['excluded'];
     final auto = json['autoConnect'];
+    final custom = json['customDns'];
+    // Before levels, Shield was a plain switch.
+    final legacy = json['shield'] is bool ? (json['shield'] as bool ? ShieldLevel.malware : ShieldLevel.off) : null;
     return RulesState(
       excluded: excluded is List ? excluded.whereType<String>().toSet() : const {},
-      shield: json['shield'] is bool ? json['shield'] as bool : true,
+      shieldLevel: _level(json['shieldLevel']) ?? legacy ?? ShieldLevel.malware,
+      lastOnLevel: _level(json['lastOnLevel']) ?? ShieldLevel.malware,
+      customDns: custom is List ? custom.whereType<String>().toList() : const [],
       autoConnect: AutoConnectChoice.values.firstWhere(
         (c) => c.name == auto,
         orElse: () => AutoConnectChoice.off,
@@ -77,7 +143,23 @@ class RulesController extends AsyncNotifier<RulesState> {
   Future<void> setExcluded(Set<String> excluded) async =>
       _save((await future).copyWith(excluded: excluded), reconnect: true);
 
-  Future<void> setShield(bool on) async => _save((await future).copyWith(shield: on), reconnect: true);
+  /// The quick switch: off, or back to the last level that was on.
+  Future<void> setShield(bool on) async {
+    final current = await future;
+    await _save(current.copyWith(shieldLevel: on ? current.lastOnLevel : ShieldLevel.off), reconnect: true);
+  }
+
+  Future<void> setShieldLevel(ShieldLevel level, {List<String>? customDns}) async {
+    final current = await future;
+    await _save(
+      current.copyWith(
+        shieldLevel: level,
+        lastOnLevel: level == ShieldLevel.off ? current.lastOnLevel : level,
+        customDns: customDns,
+      ),
+      reconnect: true,
+    );
+  }
 
   Future<void> setAutoConnect(AutoConnectChoice choice) async =>
       _save((await future).copyWith(autoConnect: choice), reconnect: false);
