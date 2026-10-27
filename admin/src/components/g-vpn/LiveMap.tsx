@@ -410,19 +410,21 @@ export function LiveMap({ data }: { data: LiveData }) {
 
           {/* Zoom controls */}
           <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-[10px] border" style={{ borderColor: C.line, background: C.panel }}>
-            {[
-              ['+', 'Zoom in', () => zoomAt(W / 2, H / 2, 1.6, true)],
-              ['−', 'Zoom out', () => zoomAt(W / 2, H / 2, 1 / 1.6, true)],
-              ['⤢', 'Whole world', () => focusOn(null)],
-            ].map(([label, title, act]) => (
+            {(
+              [
+                { label: '+', title: 'Zoom in', act: () => zoomAt(W / 2, H / 2, 1.6, true) },
+                { label: '−', title: 'Zoom out', act: () => zoomAt(W / 2, H / 2, 1 / 1.6, true) },
+                { label: '⤢', title: 'Whole world', act: () => focusOn(null) },
+              ] satisfies ReadonlyArray<{ label: string; title: string; act: () => void }>
+            ).map(({ label, title, act }, i) => (
               <button
-                key={title as string}
+                key={title}
                 type="button"
-                aria-label={title as string}
-                title={title as string}
-                onClick={act as () => void}
+                aria-label={title}
+                title={title}
+                onClick={act}
                 className="grid size-9 place-items-center text-[16px] font-bold hover:bg-white/5"
-                style={{ color: C.text, borderTop: label === '+' ? undefined : `1px solid ${C.line}` }}
+                style={{ color: C.text, borderTop: i === 0 ? undefined : `1px solid ${C.line}` }}
               >
                 {label}
               </button>
