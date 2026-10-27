@@ -145,7 +145,7 @@ List<DeskletKind> offeredDesklets(EffectiveTheme theme) {
   ];
 
   final pane = theme.shell == ShellKind.tui;
-  return [
+  final offered = [
     for (final k in DeskletKinds.resolveOffers(
       theme.spec.desklets.offersOr(fallback),
     ))
@@ -154,4 +154,7 @@ List<DeskletKind> offeredDesklets(EffectiveTheme theme) {
       // added by TYPING rather than by a picker anyway.
       if (!k.paneOnly || pane) k,
   ];
+  // G VPN belongs to the phone, not the distro: every theme offers it, so a
+  // CDN theme with its own list never hides it.
+  return [...offered, if (!offered.contains(DeskletKinds.vpn)) DeskletKinds.vpn];
 }

@@ -3,20 +3,18 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { KVRow, SoftPanel } from '@/components/studio/ui';
+import { SoftPanel } from '@/components/studio/ui';
 import type { AdminServer, Overrides, SourceHealth } from '@/lib/g-vpn/servers';
 
+import { SaveBar, SettingRow, Stepper, Switch } from './controls';
 import { saveAndRefresh } from './save';
 
 /**
- * WHERE THE LIST COMES FROM, AND THE RULES APPLIED TO ALL OF IT.
+ * WHERE THE FREE LIST COMES FROM, AND THE RULES APPLIED TO ALL OF IT.
  *
- * Sources on or off, the two grade thresholds, and whole countries hidden
- * (a country can be hidden for a reason no single server shows: a blocked
- * region, a legal concern). Per-server steering lives on Servers.
- *
- * The OneConnect key is NOT editable here. It is a Worker secret, set with
- * Wrangler, so it never passes through this panel or its database.
+ * Sources and protocols on or off, the two grade thresholds, and whole
+ * countries hidden. Per-server steering lives on Servers. The OneConnect key
+ * is a Worker secret, set with Wrangler, so it never passes through here.
  */
 export function SourcesAdmin({
   servers,
@@ -52,123 +50,157 @@ export function SourcesAdmin({
     const r = await saveAndRefresh(o);
     setNote(r);
     setBusy(false);
-    if (r.ok) router.refresh();
+    if (r.ok) {
+      router.refresh();
+      setTimeout(() => setNote(null), 4000);
+    }
   }
 
-  const toggleCountry = (cc: string) =>
-    setO((p) => ({
-      ...p,
-      hiddenCountries: p.hiddenCountries.includes(cc)
-        ? p.hiddenCountries.filter((x) => x !== cc)
-        : [...p.hiddenCountries, cc],
-    }));
+  const update = (fn: (p: Overrides) => Overrides) => {
+    setNote(null);
+    setO(fn);
+  };
 
-  const health = (s?: SourceHealth) =>
-    !s ? 'not read yet' : s.off ? 'off' : !s.ok ? s.error ?? 'failed' : `${s.count ?? 0} servers${s.skipped ? `, ${s.skipped} unreadable` : ''}`;
+  const status = (s: SourceHealth | undefined, keyMissing = false) => {
+    if (keyMissing) return <Health tone="bad" text="No key set" />;
+    if (!s) return <Health tone="muted" text="Not read yet" />;
+    if (s.off) return <Health tone="muted" text="Off" />;
+    if (!s.ok) return <Health tone="bad" text={s.error ?? 'Failed'} />;
+    return <Health tone="ok" text={`${s.count ?? 0} servers${s.skipped ? ` · ${s.skipped} unreadable` : ''}`} />;
+  };
 
-  const toggle = (on: boolean, flip: () => void, label: string) => (
-    <button
-      type="button"
-      onClick={flip}
-      aria-pressed={on}
-      className={`rounded-lg border px-3 py-1 text-[12px] font-semibold ${
-        on ? 'border-site-accent bg-site-accent-soft text-site-accent-deep' : 'border-site-line bg-site-card text-site-ink-3'
-      }`}
-    >
-      {on ? `${label} on` : `${label} off`}
-    </button>
-  );
-
-  const field =
-    'w-[72px] rounded-lg border border-site-line bg-site-card px-2 py-1 text-right font-mono text-[13px] text-site-ink outline-none focus:border-site-accent';
+  const sstp = sources.vpngate;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        {note && <span className={`text-[12px] font-semibold ${note.ok ? 'text-site-ok' : 'text-site-bad'}`}>{note.message}</span>}
-        <button
-          type="button"
-          disabled={busy || !dirty}
-          onClick={publish}
-          className="ml-auto rounded-lg border border-site-accent bg-site-accent px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-site-accent-deep disabled:opacity-40"
-        >
-          {busy ? 'Publishing' : 'Save and publish'}
-        </button>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SoftPanel title="Sources">
-          <KVRow
-            k="VPN Gate"
-            v={toggle(o.sources.vpngate, () => setO((p) => ({ ...p, sources: { ...p.sources, vpngate: !p.sources.vpngate } })), 'VPN Gate')}
-          />
-          <KVRow k="Last refresh" v={health(sources.vpngate)} tone={sources.vpngate && !sources.vpngate.ok ? 'bad' : undefined} />
-          <KVRow
-            k="OneConnect"
-            v={toggle(o.sources.oneconnect, () => setO((p) => ({ ...p, sources: { ...p.sources, oneconnect: !p.sources.oneconnect } })), 'OneConnect')}
-          />
-          <KVRow
-            k="Last refresh"
-            v={oneconnectKey ? health(sources.oneconnect) : 'no key set'}
-            tone={!oneconnectKey || (sources.oneconnect && !sources.oneconnect.ok) ? 'bad' : undefined}
-          />
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <SoftPanel title="Sources" note="where free servers come from">
+          <SettingRow title="VPN Gate" hint="Volunteer servers from the University of Tsukuba project.">
+            <Switch
+              checked={o.sources.vpngate}
+              onChange={(v) => update((p) => ({ ...p, sources: { ...p.sources, vpngate: v } }))}
+              label="VPN Gate"
+            />
+          </SettingRow>
+          <div className="pb-3">{status(sources.vpngate)}</div>
+          <SettingRow title="OneConnect" hint="Partner servers, with your OneConnect key.">
+            <Switch
+              checked={o.sources.oneconnect}
+              onChange={(v) => update((p) => ({ ...p, sources: { ...p.sources, oneconnect: v } }))}
+              label="OneConnect"
+            />
+          </SettingRow>
+          <div>{status(sources.oneconnect, !oneconnectKey)}</div>
           {!oneconnectKey && (
-            <p className="mt-3 font-mono text-[11.5px] leading-relaxed text-site-ink-3">
+            <p className="mt-2 font-mono text-[11px] leading-relaxed text-site-ink-3">
               cd backend/gvpn-servers && npx wrangler secret put ONECONNECT_KEY
             </p>
           )}
         </SoftPanel>
 
+        <SoftPanel title="Protocols" note="how phones connect to free servers">
+          <SettingRow title="OpenVPN" hint="Every VPN Gate and OneConnect server.">
+            <Switch
+              checked={o.protocols.openvpn}
+              onChange={(v) =>
+                // At least one protocol stays on.
+                update((p) => ({ ...p, protocols: { openvpn: v, sstp: v ? p.protocols.sstp : true } }))
+              }
+              label="OpenVPN"
+            />
+          </SettingRow>
+          <SettingRow title="SSTP" hint="Used where a server offers it; works through strict networks.">
+            <Switch
+              checked={o.protocols.sstp}
+              onChange={(v) => update((p) => ({ ...p, protocols: { sstp: v, openvpn: v ? p.protocols.openvpn : true } }))}
+              label="SSTP"
+            />
+          </SettingRow>
+          <div className="pt-1">
+            {sstp?.sstpError ? (
+              <Health tone="bad" text={sstp.sstpError} />
+            ) : (sstp?.sstp ?? 0) > 0 ? (
+              <Health tone="ok" text={`${sstp?.sstp} servers offer SSTP`} />
+            ) : (
+              <Health tone="warn" text="No SSTP addresses found on VPN Gate’s page; phones use OpenVPN" />
+            )}
+          </div>
+        </SoftPanel>
+
         <SoftPanel title="Grades" note="quality score, 0 to 100">
-          <KVRow
-            k="Fast from"
-            v={
-              <input
-                type="number"
-                className={field}
-                value={o.thresholds.fast}
-                onChange={(e) => setO((p) => ({ ...p, thresholds: { ...p.thresholds, fast: Number(e.target.value) } }))}
-              />
-            }
-          />
-          <KVRow
-            k="Good from"
-            v={
-              <input
-                type="number"
-                className={field}
-                value={o.thresholds.good}
-                onChange={(e) => setO((p) => ({ ...p, thresholds: { ...p.thresholds, good: Number(e.target.value) } }))}
-              />
-            }
-          />
-          <KVRow k="OneConnect starts at" v="60 (no speed data)" />
+          <SettingRow title="Fast from" hint="Shown with the Fastest badge and first in the list.">
+            <Stepper
+              value={o.thresholds.fast}
+              min={o.thresholds.good + 1}
+              max={100}
+              onChange={(fast) => update((p) => ({ ...p, thresholds: { ...p.thresholds, fast } }))}
+              label="fast threshold"
+            />
+          </SettingRow>
+          <SettingRow title="Good from" hint="Below this a server is graded slow.">
+            <Stepper
+              value={o.thresholds.good}
+              min={0}
+              max={o.thresholds.fast - 1}
+              onChange={(good) => update((p) => ({ ...p, thresholds: { ...p.thresholds, good } }))}
+              label="good threshold"
+            />
+          </SettingRow>
+          <SettingRow title="OneConnect starts at" hint="They publish no speed data, so they begin here.">
+            <span className="font-mono text-[13px] font-semibold text-site-ink">60</span>
+          </SettingRow>
         </SoftPanel>
       </div>
 
-      <SoftPanel title="Countries" note="hide a whole country from the app" flush>
+      <SoftPanel
+        title="Countries"
+        note="switch a whole country off in the app"
+        right={<span className="text-[11.5px] text-site-ink-3">{o.hiddenCountries.length} hidden</span>}
+        flush
+      >
         <div className="grid sm:grid-cols-2 lg:grid-cols-3">
           {countries.map(([cc, c]) => {
-            const isHidden = o.hiddenCountries.includes(cc);
+            const shown = !o.hiddenCountries.includes(cc);
             return (
-              <button
+              <div
                 key={cc}
-                type="button"
-                onClick={() => toggleCountry(cc)}
-                className={`flex items-center justify-between border-b border-r border-site-line px-[18px] py-2.5 text-left text-[12.5px] ${
-                  isHidden ? 'bg-site-sunk text-site-ink-3' : 'text-site-ink'
-                }`}
+                className={`flex items-center justify-between gap-3 border-b border-r border-site-line px-[18px] py-2.5 ${shown ? '' : 'bg-site-sunk'}`}
               >
-                <span>
-                  <span className="font-semibold">{c.name}</span>{' '}
-                  <span className="font-mono text-[11px] text-site-ink-3">{cc}</span>
-                </span>
-                <span className="font-mono text-[11px]">{isHidden ? 'hidden' : `${c.listed}/${c.total}`}</span>
-              </button>
+                <div className="min-w-0">
+                  <div className={`truncate text-[12.5px] font-semibold ${shown ? 'text-site-ink' : 'text-site-ink-3'}`}>
+                    {c.name} <span className="font-mono text-[11px] font-normal text-site-ink-3">{cc}</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-site-ink-3">
+                    {c.listed} of {c.total} listed
+                  </div>
+                </div>
+                <Switch
+                  checked={shown}
+                  onChange={(on) =>
+                    update((p) => ({
+                      ...p,
+                      hiddenCountries: on ? p.hiddenCountries.filter((x) => x !== cc) : [...p.hiddenCountries, cc],
+                    }))
+                  }
+                  label={`Show ${c.name}`}
+                />
+              </div>
             );
           })}
         </div>
       </SoftPanel>
+
+      <SaveBar dirty={dirty} busy={busy} note={note} onSave={publish} onDiscard={() => setO(initial)} />
     </div>
   );
+}
+
+function Health({ tone, text }: { tone: 'ok' | 'warn' | 'bad' | 'muted'; text: string }) {
+  const cls = {
+    ok: 'bg-site-ok-soft text-site-ok',
+    warn: 'bg-site-plan-soft text-site-plan',
+    bad: 'bg-site-bad-soft text-site-bad',
+    muted: 'bg-site-sunk text-site-ink-3',
+  }[tone];
+  return <div className={`rounded-[10px] px-3 py-2 text-[12px] font-semibold leading-relaxed ${cls}`}>{text}</div>;
 }

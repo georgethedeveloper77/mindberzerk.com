@@ -1,9 +1,10 @@
 {
   "locale": "en",
-  "generated": "2026-08-13T12:55:07Z",
-  "count": 340,
+  "generated": "2026-10-26T14:52:18Z",
+  "count": 385,
   "strings": {
     "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.": "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.",
+    "A newer build is on Play": "A newer build is on Play",
     "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.": "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.",
     "A portrait with a deliberately blurred background scores low and is not a mistake.": "A portrait with a deliberately blurred background scores low and is not a mistake.",
     "A rattle or a buzz at one pitch and not another is a damaged driver.": "A rattle or a buzz at one pitch and not another is a damaged driver.",
@@ -17,6 +18,7 @@
     "After": "After",
     "After, about": "After, about",
     "All files access": "All files access",
+    "All files access is the only permission that reaches app trash folders, which is where most recoverable files are. There is no narrower one that would work.": "All files access is the only permission that reaches app trash folders, which is where most recoverable files are. There is no narrower one that would work.",
     "All folders": "All folders",
     "All languages": "All languages",
     "All of it is optional and all of it can be changed later.": "All of it is optional and all of it can be changed later.",
@@ -34,6 +36,8 @@
     "Apps": "Apps",
     "Apps and system": "Apps and system",
     "Apps and their caches": "Apps and their caches",
+    "Asking Play": "Asking Play",
+    "Asks the Play Store whether a newer build exists. Play already knows this app is installed.": "Asks the Play Store whether a newer build exists. Play already knows this app is installed.",
     "Audio": "Audio",
     "BACKUP": "BACKUP",
     "BY HAND  ·  FREE": "BY HAND  ·  FREE",
@@ -50,12 +54,15 @@
     "Certificate": "Certificate",
     "Changing your screen lock can destroy the key that protects it. If that happens the app asks you to type it again rather than failing quietly every night.": "Changing your screen lock can destroy the key that protects it. If that happens the app asks you to type it again rather than failing quietly every night.",
     "Check for duplicates and blur": "Check for duplicates and blur",
+    "Checking": "Checking",
     "Checking your device": "Checking your device",
     "Clearing app caches": "Clearing app caches",
     "Clusters inferred from maximum frequencies. This kernel does not publish its frequency domains.": "Clusters inferred from maximum frequencies. This kernel does not publish its frequency domains.",
     "Collecting": "Collecting",
     "Compressed files": "Compressed files",
     "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.": "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.",
+    "Connect": "Connect",
+    "Connecting": "Connecting",
     "Continue": "Continue",
     "Continue without it": "Continue without it",
     "Copying": "Copying",
@@ -73,12 +80,16 @@
     "Deleted is not\nalways gone": "Deleted is not\nalways gone",
     "Deleted items cannot be brought back after this.": "Deleted items cannot be brought back after this.",
     "Deleting is not\none thing": "Deleting is not\none thing",
+    "Device": "Device",
     "Did not match, kept": "Did not match, kept",
+    "Disconnect": "Disconnect",
     "Display": "Display",
     "Docs": "Docs",
     "Documents, PDFs and music are not listed. They are already compressed inside, so squeezing them again gains almost nothing.": "Documents, PDFs and music are not listed. They are already compressed inside, so squeezing them again gains almost nothing.",
     "Done": "Done",
     "Double": "Double",
+    "Downloading update": "Downloading update",
+    "Downloads a list of where phones hide deleted files. Nothing about your phone is sent to ask for it.": "Downloads a list of where phones hide deleted files. Nothing about your phone is sent to ask for it.",
     "ESTIMATED  ·  PRO": "ESTIMATED  ·  PRO",
     "EVERY DEVICE ON THIS ACCOUNT": "EVERY DEVICE ON THIS ACCOUNT",
     "Each file is hashed here and on the server before anything is touched.": "Each file is hashed here and on the server before anything is touched.",
@@ -100,6 +111,7 @@
     "Everything that has not actually been deleted yet: the system trash, the bins individual apps keep, media sitting in a folder after the app forgot about it, and the thumbnail cache. That is what this app looks through, and it says which of them each find came from.": "Everything that has not actually been deleted yet: the system trash, the bins individual apps keep, media sitting in a folder after the app forgot about it, and the thumbnail cache. That is what this app looks through, and it says which of them each find came from.",
     "Expiring": "Expiring",
     "FREED": "FREED",
+    "Fetched once from Google, and only if you pick one. Set the typeface back to System and this stops.": "Fetched once from Google, and only if you pick one. Set the typeface back to System and this stops.",
     "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.": "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.",
     "Files": "Files",
     "Files go one way, from the phone to your server. Deleting something on the server never deletes it here.": "Files go one way, from the phone to your server. Deleting something on the server never deletes it here.",
@@ -108,16 +120,20 @@
     "Folder on the server": "Folder on the server",
     "Forget": "Forget",
     "Forget this server": "Forget this server",
+    "Four things go out, and none of them is yours. All four are below.": "Four things go out, and none of them is yours. All four are below.",
     "Free memory": "Free memory",
     "Free memory, last minute": "Free memory, last minute",
     "Free on server": "Free on server",
     "From your phone settings": "From your phone settings",
     "Full quality means the original file is still here. Restoring gives you exactly what you had.": "Full quality means the original file is still here. Restoring gives you exactly what you had.",
     "G Recovery": "G Recovery",
+    "G VPN is free, from the makers of G Recovery.": "G VPN is free, from the makers of G Recovery.",
+    "Get G VPN": "Get G VPN",
     "Get started": "Get started",
     "Gone means this phone will not let any app look there. The row stays visible so you know it was checked and not forgotten.": "Gone means this phone will not let any app look there. The row stays visible so you know it was checked and not forgotten.",
     "HEALTH": "HEALTH",
     "Hold to see the original": "Hold to see the original",
+    "Home": "Home",
     "Home server": "Home server",
     "How Android storage works": "How Android storage works",
     "How many fingers the screen can follow": "How many fingers the screen can follow",
@@ -144,7 +160,6 @@
     "Memory": "Memory",
     "Message archive": "Message archive",
     "Messages": "Messages",
-    "Messages stay on the phone": "Messages stay on the phone",
     "Messaging apps only": "Messaging apps only",
     "More": "More",
     "NO RENEWAL": "NO RENEWAL",
@@ -152,12 +167,15 @@
     "Network": "Network",
     "Network name and MAC need location access": "Network name and MAC need location access",
     "Never": "Never",
-    "No account, no server": "No account, no server",
+    "Never a file name, a folder, a photo or a message. The screen, not what was on it.": "Never a file name, a folder, a photo or a message. The screen, not what was on it.",
     "No ads, ever": "No ads, ever",
     "No video on this phone is large enough to be worth looking at.": "No video on this phone is large enough to be worth looking at.",
     "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.": "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.",
+    "Not a banner, not a sponsored row, not a partner offer. This is a decision rather than a current state.": "Not a banner, not a sponsored row, not a partner offer. This is a decision rather than a current state.",
     "Not available": "Not available",
     "Not deleted": "Not deleted",
+    "Not now": "Not now",
+    "Not protected": "Not protected",
     "Nothing from a muted chat, because a muted chat posts no notification at all.": "Nothing from a muted chat, because a muted chat posts no notification at all.",
     "Nothing from before you switch it on. No copy of those messages exists anywhere for this app to find.": "Nothing from before you switch it on. No copy of those messages exists anywhere for this app to find.",
     "Nothing has been changed on your device yet.": "Nothing has been changed on your device yet.",
@@ -175,6 +193,9 @@
     "Only files still on the device and files sitting in a trash folder can be searched. Anything erased outside a trash folder leaves no name behind.": "Only files still on the device and files sitting in a trash folder can be searched. Anything erased outside a trash folder leaves no name behind.",
     "Only the preview survived": "Only the preview survived",
     "Only what this app made is visible": "Only what this app made is visible",
+    "Open": "Open",
+    "Open G VPN": "Open G VPN",
+    "Open G VPN to see whether this phone is protected.": "Open G VPN to see whether this phone is protected.",
     "Open settings": "Open settings",
     "Open the setting": "Open the setting",
     "Open with another app": "Open with another app",
@@ -182,16 +203,23 @@
     "Original": "Original",
     "PITCH": "PITCH",
     "Paired devices need Bluetooth access": "Paired devices need Bluetooth access",
+    "Paused": "Paused",
     "Per core frequency": "Per core frequency",
     "Permissions": "Permissions",
     "Phone storage is flash, which cannot overwrite in place. When a file is deleted the phone immediately tells the chip that those blocks are free, and the chip clears them in the background, usually within seconds. On a spinning hard disk the data sat there until something else needed the room. Here it does not.": "Phone storage is flash, which cannot overwrite in place. When a file is deleted the phone immediately tells the chip that those blocks are free, and the chip clears them in the background, usually within seconds. On a spinning hard disk the data sat there until something else needed the room. Here it does not.",
     "Photos": "Photos",
     "Pick a look": "Pick a look",
     "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.": "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.",
+    "Play could not install the update": "Play could not install the update",
+    "Play could not start the update": "Play could not start the update",
+    "Play did not answer": "Play did not answer",
+    "Play is fetching it in the background": "Play is fetching it in the background",
     "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.": "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.",
     "Previews": "Previews",
     "Privacy": "Privacy",
     "Pro": "Pro",
+    "Protect public Wi-Fi": "Protect public Wi-Fi",
+    "Protected": "Protected",
     "Put as many fingers on the screen as you can, and drag them into every corner.": "Put as many fingers on the screen as you can, and drag them into every corner.",
     "RIGHT NOW": "RIGHT NOW",
     "Read more": "Read more",
@@ -208,10 +236,13 @@
     "Reading your photos": "Reading your photos",
     "Ready": "Ready",
     "Reclaim space": "Reclaim space",
+    "Reconnecting": "Reconnecting",
     "Recovery coverage": "Recovery coverage",
     "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.": "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.",
+    "Restart to finish updating": "Restart to finish updating",
     "Restore": "Restore",
     "Restore a previous purchase": "Restore a previous purchase",
+    "Resume now": "Resume now",
     "Review and reclaim": "Review and reclaim",
     "Review and restore": "Review and restore",
     "Reviewed": "Reviewed",
@@ -255,18 +286,23 @@
     "Storage": "Storage",
     "System": "System",
     "System load": "System load",
+    "System uses the font already on your phone and downloads nothing. The rest are fetched once and kept.": "System uses the font already on your phone and downloads nothing. The rest are fetched once and kept.",
     "TOOLS": "TOOLS",
+    "Tap to check again": "Tap to check again",
+    "Tap to install and restart": "Tap to install and restart",
     "Temperature": "Temperature",
     "Text only. A photo arrives as the word Photo, so a view once image cannot be kept this way.": "Text only. A photo arrives as the word Photo, so a view once image cannot be kept this way.",
     "Thank you": "Thank you",
     "The address and password are removed from this phone. Everything already copied stays on the server, untouched.": "The address and password are removed from this phone. Everything already copied stays on the server, untouched.",
     "The archive starts here. Messages from before you switched this on were never captured.": "The archive starts here. Messages from before you switched this on were never captured.",
+    "The message archive": "The message archive",
     "The operating system itself.": "The operating system itself.",
     "The saving shown is measured, not guessed. Each file is really re-encoded before you decide.": "The saving shown is measured, not guessed. Each file is really re-encoded before you decide.",
     "The scan could not run": "The scan could not run",
     "The scan ran out of time. What it found is here, and the picture is incomplete.": "The scan ran out of time. What it found is here, and the picture is incomplete.",
     "The technical reason, if you want it.": "The technical reason, if you want it.",
     "Theme": "Theme",
+    "There is no account to attach it to": "There is no account to attach it to",
     "Thermal": "Thermal",
     "Thermal state": "Thermal state",
     "These come from a fast count taken when the app opens. A full scan walks folders that counting cannot reach, so the numbers usually grow after one has run.": "These come from a fast count taken when the app opens. A full scan walks folders that counting cannot reach, so the numbers usually grow after one has run.",
@@ -275,10 +311,10 @@
     "These leave the trash for good. This app cannot bring them back afterwards, and neither can anything else.": "These leave the trash for good. This app cannot bring them back afterwards, and neither can anything else.",
     "These skip the trash and leave the phone for good. Nothing on this device, including this app, can bring them back.": "These skip the trash and leave the phone for good. Nothing on this device, including this app, can bring them back.",
     "This app can show photos, video, text and PDF. Anything else opens in an app built for it.": "This app can show photos, video, text and PDF. Anything else opens in an app built for it.",
-    "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.": "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.",
     "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.": "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.",
     "This cannot be played while it is still in the trash. Restore it and it will open in your usual player.": "This cannot be played while it is still in the trash. Restore it and it will open in your usual player.",
     "This chapter is not in the version of the guide on this device.": "This chapter is not in the version of the guide on this device.",
+    "This is the newest build": "This is the newest build",
     "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.": "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.",
     "This server is not on your network, so the only way to be sure a copy is intact is to read it back. On Wi-Fi that costs nothing. On mobile data it costs the same as the space you are freeing. Choosing fewer files costs less.": "This server is not on your network, so the only way to be sure a copy is intact is to read it back. On Wi-Fi that costs nothing. On mobile data it costs the same as the space you are freeing. Choosing fewer files costs less.",
     "Touch": "Touch",
@@ -287,6 +323,11 @@
     "Turn on file access": "Turn on file access",
     "Turn the volume up. Each button plays a tone through one side only.": "Turn the volume up. Each button plays a tone through one side only.",
     "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.": "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.",
+    "Typeface": "Typeface",
+    "Up to date": "Up to date",
+    "Update available": "Update available",
+    "Update check": "Update check",
+    "Uploading recovered files on public Wi-Fi? Turn on G VPN first.": "Uploading recovered files on public Wi-Fi? Turn on G VPN first.",
     "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.": "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.",
     "Username": "Username",
     "VIBRATION": "VIBRATION",
@@ -298,13 +339,13 @@
     "What can come back": "What can come back",
     "What cannot come back, and why": "What cannot come back, and why",
     "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.": "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.",
-    "What is measured": "What is measured",
     "What it cannot do": "What it cannot do",
     "What matches goes to the trash, where Android keeps it for thirty days.": "What matches goes to the trash, where Android keeps it for thirty days.",
     "What this app is allowed to read": "What this app is allowed to read",
     "What this does": "What this does",
     "WhatsApp, Telegram, Instagram, Messenger and Messages. Every other notification, including bank alerts and sign in codes, is discarded before it is written down.": "WhatsApp, Telegram, Instagram, Messenger and Messages. Every other notification, including bank alerts and sign in codes, is discarded before it is written down.",
     "Where the password goes": "Where the password goes",
+    "Which screens you open": "Which screens you open",
     "While charging": "While charging",
     "Why apps and system cannot be broken down": "Why apps and system cannot be broken down",
     "Why is this empty": "Why is this empty",
@@ -316,8 +357,11 @@
     "Windows share": "Windows share",
     "You can change this any time from settings.": "You can change this any time from settings.",
     "You can leave the app. This keeps running and tells you when it is done.": "You can leave the app. This keeps running and tells you when it is done.",
+    "Your connection is encrypted": "Your connection is encrypted",
     "Your files,\non your own machine": "Your files,\non your own machine",
+    "Your files, and every scan of them": "Your files, and every scan of them",
     "Your folder structure is kept, so the copy is browsable with anything, not just this app.": "Your folder structure is kept, so the copy is browsable with anything, not just this app.",
+    "Your home server address and password": "Your home server address and password",
     "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.": "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.",
     "Your server has never been used": "Your server has never been used",
     "Zones": "Zones",
@@ -340,6 +384,7 @@
     "nets reachable": "nets reachable",
     "no gain": "no gain",
     "places checked": "places checked",
+    "resumes in {} min": "resumes in {} min",
     "shown here": "shown here",
     "since the last backup": "since the last backup",
     "to turn on": "to turn on"
@@ -347,6 +392,9 @@
   "sources": {
     "A Windows share only works while the phone is on the same network. WebDAV over https works from anywhere, which is what makes an overnight backup away from home possible.": [
       "lib/features/server/server_page.dart"
+    ],
+    "A newer build is on Play": [
+      "lib/features/more/more_page.dart"
     ],
     "A photo is re-encoded and loses a little detail. The original goes to the trash for thirty days, and after that the smaller version is the only one left.": [
       "lib/features/storage/compress/compress_page.dart"
@@ -387,6 +435,9 @@
     ],
     "All files access": [
       "lib/features/onboarding/onboarding_page.dart"
+    ],
+    "All files access is the only permission that reaches app trash folders, which is where most recoverable files are. There is no narrower one that would work.": [
+      "lib/features/more/settings_pages.dart"
     ],
     "All folders": [
       "lib/features/storage/storage_page.dart"
@@ -442,6 +493,12 @@
     "Apps and their caches": [
       "lib/features/storage/storage_page.dart"
     ],
+    "Asking Play": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Asks the Play Store whether a newer build exists. Play already knows this app is installed.": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "Audio": [
       "lib/features/home/widgets/category_grid.dart"
     ],
@@ -493,6 +550,9 @@
     "Check for duplicates and blur": [
       "lib/features/storage/storage_page.dart"
     ],
+    "Checking": [
+      "lib/features/more/more_page.dart"
+    ],
     "Checking your device": [
       "lib/features/recovery/sources_page.dart"
     ],
@@ -511,6 +571,12 @@
     ],
     "Compressed in RAM rather than written to storage, so it costs processor time instead of wear.": [
       "lib/features/device/pages/memory_page.dart"
+    ],
+    "Connect": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Connecting": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Continue": [
       "lib/features/onboarding/onboarding_page.dart"
@@ -565,8 +631,14 @@
     "Deleting is not\none thing": [
       "lib/features/learn/limits_page.dart"
     ],
+    "Device": [
+      "lib/app/shell.dart"
+    ],
     "Did not match, kept": [
       "lib/features/server/reclaim_page.dart"
+    ],
+    "Disconnect": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Display": [
       "lib/features/device/device_page.dart",
@@ -583,6 +655,12 @@
     ],
     "Double": [
       "lib/features/device/tools/sound_test_page.dart"
+    ],
+    "Downloading update": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Downloads a list of where phones hide deleted files. Nothing about your phone is sent to ask for it.": [
+      "lib/features/more/settings_pages.dart"
     ],
     "ESTIMATED  ·  PRO": [
       "lib/features/storage/compress/compress_page.dart"
@@ -647,6 +725,9 @@
     "FREED": [
       "lib/features/pro/pro_page.dart"
     ],
+    "Fetched once from Google, and only if you pick one. Set the typeface back to System and this stops.": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "Fifteen seconds of each clip is really encoded to work these out, so they are close rather than exact. The true figure appears as each one finishes.": [
       "lib/features/storage/compress/video_list_page.dart"
     ],
@@ -671,6 +752,9 @@
     "Forget this server": [
       "lib/features/server/server_page.dart"
     ],
+    "Four things go out, and none of them is yours. All four are below.": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "Free memory": [
       "lib/features/device/device_page.dart"
     ],
@@ -692,6 +776,12 @@
       "lib/features/more/more_page.dart",
       "lib/features/onboarding/onboarding_page.dart"
     ],
+    "G VPN is free, from the makers of G Recovery.": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Get G VPN": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
     "Get started": [
       "lib/features/onboarding/onboarding_page.dart"
     ],
@@ -703,6 +793,9 @@
     ],
     "Hold to see the original": [
       "lib/features/storage/compress/compress_viewer_page.dart"
+    ],
+    "Home": [
+      "lib/app/shell.dart"
     ],
     "Home server": [
       "lib/features/more/more_page.dart",
@@ -796,13 +889,11 @@
       "lib/features/home/widgets/category_grid.dart",
       "lib/features/messages/messages_page.dart"
     ],
-    "Messages stay on the phone": [
-      "lib/features/more/settings_pages.dart"
-    ],
     "Messaging apps only": [
       "lib/features/messages/messages_page.dart"
     ],
     "More": [
+      "lib/app/shell.dart",
       "lib/features/more/more_page.dart"
     ],
     "NO RENEWAL": [
@@ -822,7 +913,7 @@
       "lib/features/home/widgets/attention_strip.dart",
       "lib/features/pro/pro_page.dart"
     ],
-    "No account, no server": [
+    "Never a file name, a folder, a photo or a message. The screen, not what was on it.": [
       "lib/features/more/settings_pages.dart"
     ],
     "No ads, ever": [
@@ -834,11 +925,20 @@
     "None of it can be listed by any app, including this one, so it is shown as a single figure rather than guessed at.": [
       "lib/features/storage/storage_page.dart"
     ],
+    "Not a banner, not a sponsored row, not a partner offer. This is a decision rather than a current state.": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "Not available": [
       "lib/features/device/widgets/unavailable_note.dart"
     ],
     "Not deleted": [
       "lib/features/search/search_page.dart"
+    ],
+    "Not now": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Not protected": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Nothing from a muted chat, because a muted chat posts no notification at all.": [
       "lib/features/messages/messages_page.dart"
@@ -891,6 +991,15 @@
     "Only what this app made is visible": [
       "lib/features/storage/storage_page.dart"
     ],
+    "Open": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Open G VPN": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Open G VPN to see whether this phone is protected.": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
     "Open settings": [
       "lib/features/home/home_page.dart"
     ],
@@ -913,6 +1022,9 @@
     "Paired devices need Bluetooth access": [
       "lib/features/device/pages/sim_page.dart"
     ],
+    "Paused": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
     "Per core frequency": [
       "lib/features/device/pages/cpu_page.dart"
     ],
@@ -932,6 +1044,18 @@
     "Pictures keep their size in pixels. Nothing is cropped or scaled down, so they print and crop as before.": [
       "lib/features/storage/compress/compress_page.dart"
     ],
+    "Play could not install the update": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Play could not start the update": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Play did not answer": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Play is fetching it in the background": [
+      "lib/features/more/more_page.dart"
+    ],
     "Preview only means the original is gone and what survives is the small copy Android kept to draw your gallery quickly. It is a few hundred pixels wide.": [
       "lib/features/recovery/sources_page.dart"
     ],
@@ -944,6 +1068,12 @@
     ],
     "Pro": [
       "lib/features/pro/pro_page.dart"
+    ],
+    "Protect public Wi-Fi": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
+    "Protected": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Put as many fingers on the screen as you can, and drag them into every corner.": [
       "lib/features/device/tools/sound_test_page.dart"
@@ -994,17 +1124,27 @@
     "Reclaim space": [
       "lib/features/server/reclaim_page.dart"
     ],
+    "Reconnecting": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
     "Recovery coverage": [
-      "lib/features/more/more_page.dart"
+      "lib/features/more/more_page.dart",
+      "lib/features/more/settings_pages.dart"
     ],
     "Recovery tools on a computer work by reading the disk directly, past the filing system, and reassembling whatever is still lying there. Three things stop that working on a phone.": [
       "lib/features/learn/limits_page.dart"
+    ],
+    "Restart to finish updating": [
+      "lib/features/more/more_page.dart"
     ],
     "Restore": [
       "lib/features/review/review_page.dart"
     ],
     "Restore a previous purchase": [
       "lib/features/pro/pro_page.dart"
+    ],
+    "Resume now": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Review and reclaim": [
       "lib/features/server/server_page.dart"
@@ -1130,6 +1270,7 @@
       "lib/features/home/widgets/hero_card.dart"
     ],
     "Storage": [
+      "lib/app/shell.dart",
       "lib/features/storage/storage_page.dart"
     ],
     "System": [
@@ -1138,8 +1279,17 @@
     "System load": [
       "lib/features/device/pages/cpu_page.dart"
     ],
+    "System uses the font already on your phone and downloads nothing. The rest are fetched once and kept.": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "TOOLS": [
       "lib/features/device/device_page.dart"
+    ],
+    "Tap to check again": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Tap to install and restart": [
+      "lib/features/more/more_page.dart"
     ],
     "Temperature": [
       "lib/features/device/device_page.dart"
@@ -1155,6 +1305,9 @@
     ],
     "The archive starts here. Messages from before you switched this on were never captured.": [
       "lib/features/messages/messages_page.dart"
+    ],
+    "The message archive": [
+      "lib/features/more/settings_pages.dart"
     ],
     "The operating system itself.": [
       "lib/features/storage/storage_page.dart"
@@ -1172,6 +1325,9 @@
       "lib/features/learn/limits_page.dart"
     ],
     "Theme": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "There is no account to attach it to": [
       "lib/features/more/settings_pages.dart"
     ],
     "Thermal": [
@@ -1198,9 +1354,6 @@
     "This app can show photos, video, text and PDF. Anything else opens in an app built for it.": [
       "lib/features/storage/file_viewer.dart"
     ],
-    "This app reads a great deal: every file in your storage, the contents of your trash, and, if you turn it on, the text of messages as they arrive. None of it is sent anywhere.": [
-      "lib/features/more/settings_pages.dart"
-    ],
     "This app shows photos, video, audio, text and PDF. Anything else opens in an app built for it.": [
       "lib/features/viewer/recovered_frame.dart"
     ],
@@ -1209,6 +1362,9 @@
     ],
     "This chapter is not in the version of the guide on this device.": [
       "lib/features/learn/chapter_page.dart"
+    ],
+    "This is the newest build": [
+      "lib/features/more/more_page.dart"
     ],
     "This list comes from the Android media index, which covers your own files but not app code or the private data each app keeps. Those are shown on the previous screen as apps and system, and no app can enumerate them.": [
       "lib/features/storage/storage_files_page.dart"
@@ -1236,6 +1392,21 @@
     ],
     "Type at least two letters. Searches your deleted files and the ones still on the device at the same time.": [
       "lib/features/search/search_page.dart"
+    ],
+    "Typeface": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Up to date": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Update available": [
+      "lib/features/more/more_page.dart"
+    ],
+    "Update check": [
+      "lib/features/more/settings_pages.dart"
+    ],
+    "Uploading recovered files on public Wi-Fi? Turn on G VPN first.": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "Usage access lets this app read how much space each app takes. It reads sizes, not what you do in them.": [
       "lib/features/apps/apps_page.dart"
@@ -1273,9 +1444,6 @@
     "What happens to a file depends entirely on how it left. Some are waiting to be picked up. Some left a shadow. Some are simply not there any more, and no app can change that.": [
       "lib/features/learn/limits_page.dart"
     ],
-    "What is measured": [
-      "lib/features/more/settings_pages.dart"
-    ],
     "What it cannot do": [
       "lib/features/messages/messages_page.dart"
     ],
@@ -1293,6 +1461,9 @@
     ],
     "Where the password goes": [
       "lib/features/server/server_setup_page.dart"
+    ],
+    "Which screens you open": [
+      "lib/features/more/settings_pages.dart"
     ],
     "While charging": [
       "lib/features/server/server_page.dart"
@@ -1327,11 +1498,20 @@
     "You can leave the app. This keeps running and tells you when it is done.": [
       "lib/features/storage/compress/video_list_page.dart"
     ],
+    "Your connection is encrypted": [
+      "lib/features/home/widgets/vpn_card.dart"
+    ],
     "Your files,\non your own machine": [
       "lib/features/server/server_page.dart"
     ],
+    "Your files, and every scan of them": [
+      "lib/features/more/settings_pages.dart"
+    ],
     "Your folder structure is kept, so the copy is browsable with anything, not just this app.": [
       "lib/features/server/server_page.dart"
+    ],
+    "Your home server address and password": [
+      "lib/features/more/settings_pages.dart"
     ],
     "Your phone keeps deleted files in several places before it lets them go. G Recovery finds every one of them and tells you exactly what quality you would get back.": [
       "lib/features/onboarding/onboarding_page.dart"
@@ -1399,6 +1579,9 @@
     ],
     "places checked": [
       "lib/features/more/more_page.dart"
+    ],
+    "resumes in {} min": [
+      "lib/features/home/widgets/vpn_card.dart"
     ],
     "shown here": [
       "lib/features/storage/storage_files_page.dart"

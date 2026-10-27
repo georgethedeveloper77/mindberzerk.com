@@ -1,0 +1,6 @@
+{
+  "name": "gvpn-isps",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test" }
+}

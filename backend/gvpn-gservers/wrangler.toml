@@ -1,0 +1,18 @@
+name = "gvpn-gservers"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Secrets (wrangler secret put): GSERVERS, ADMIN_TOKEN, and later
+# PLAY_SERVICE_ACCOUNT for "Pro only" access.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gvpn-gservers"
+database_id = "f8111c90-5cdc-489b-aaac-81e94d4873c1"
+
+[triggers]
+crons = ["23 3 * * *"]
+
+[observability]
+enabled = false

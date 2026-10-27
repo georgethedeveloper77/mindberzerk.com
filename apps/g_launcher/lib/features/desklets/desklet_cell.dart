@@ -49,3 +49,19 @@ class DeskletCellNotifier extends Notifier<DeskletCell?> {
 final deskletCellProvider = NotifierProvider<DeskletCellNotifier, DeskletCell?>(
   DeskletCellNotifier.new,
 );
+
+/// Cells (`row * cols + col`) under the dock on the desktop, published by the
+/// desklet surface so the editor can refuse or redirect a drop onto them.
+class DeskletDockCellsNotifier extends Notifier<Set<int>> {
+  @override
+  Set<int> build() => const {};
+
+  void set(Set<int> next) {
+    if (next.length == state.length && next.containsAll(state)) return;
+    state = next;
+  }
+}
+
+final deskletDockCellsProvider = NotifierProvider<DeskletDockCellsNotifier, Set<int>>(
+  DeskletDockCellsNotifier.new,
+);

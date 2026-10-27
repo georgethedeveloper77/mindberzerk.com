@@ -61,6 +61,31 @@ class DockExtentController extends Notifier<double?> {
 /// Wraps the dock inside the dock's own build rather than at each shell's
 /// `Positioned`, so all four shells that mount one get this without knowing it
 /// exists, and a fifth cannot forget.
+/// The dock's box on screen, in global coordinates; null while no dock is
+/// shown. Desklets avoid exactly this box rather than a whole strip down one
+/// side (see features/desklets/dock_avoid.dart).
+final dockRectProvider =
+    NotifierProvider<DockRectController, Rect?>(DockRectController.new);
+
+class DockRectController extends Notifier<Rect?> {
+  @override
+  Rect? build() => null;
+
+  void report(Rect rect) {
+    final was = state;
+    if (was != null &&
+        (was.left - rect.left).abs() < 0.5 &&
+        (was.top - rect.top).abs() < 0.5 &&
+        (was.width - rect.width).abs() < 0.5 &&
+        (was.height - rect.height).abs() < 0.5) {
+      return;
+    }
+    state = rect;
+  }
+
+  void clear() => state = null;
+}
+
 class DockExtentProbe extends ConsumerStatefulWidget {
   const DockExtentProbe({
     super.key,
@@ -107,6 +132,10 @@ class _DockExtentProbeState extends ConsumerState<DockExtentProbe> {
     if (n != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => n.clear());
     }
+    // The BOX is deliberately kept. A dock hidden by Activities or an
+    // edge-reveal comes back to the same place, and clearing it would make
+    // every desklet beside it jump each time the drawer opened. A new dock
+    // (theme change) reports its own box on its first layout.
     super.dispose();
   }
 
@@ -119,6 +148,10 @@ class _DockExtentProbeState extends ConsumerState<DockExtentProbe> {
             .read(dockExtentProvider.notifier)
             .report(widget.vertical ? size.width : size.height);
       },
+      onRect: (rect) {
+        if (!mounted) return;
+        ref.read(dockRectProvider.notifier).report(rect);
+      },
       child: widget.child,
     );
   }
@@ -129,29 +162,41 @@ class _DockExtentProbeState extends ConsumerState<DockExtentProbe> {
 /// A `LayoutBuilder` cannot do this: it reports the constraints going IN, and
 /// the dock's size is decided by its contents, not by what it was offered.
 class _Measure extends SingleChildRenderObjectWidget {
-  const _Measure({required this.onSize, required super.child});
+  const _Measure({required this.onSize, required this.onRect, required super.child});
 
   final ValueChanged<Size> onSize;
+  final ValueChanged<Rect> onRect;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderMeasure(onSize);
+      _RenderMeasure(onSize, onRect);
 
   @override
   void updateRenderObject(BuildContext context, _RenderMeasure renderObject) {
-    renderObject.onSize = onSize;
+    renderObject
+      ..onSize = onSize
+      ..onRect = onRect;
   }
 }
 
 class _RenderMeasure extends RenderProxyBox {
-  _RenderMeasure(this.onSize);
+  _RenderMeasure(this.onSize, this.onRect);
 
   ValueChanged<Size> onSize;
+  ValueChanged<Rect> onRect;
   Size? _last;
 
   @override
   void performLayout() {
     super.performLayout();
+    // The box, every layout: a dock can move without changing size (a
+    // centred bottom dock on rotation). Read after the frame, when the
+    // parents' offsets are final; the controller drops repeats.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final box = child;
+      if (!attached || box == null || !box.hasSize) return;
+      onRect(box.localToGlobal(Offset.zero) & box.size);
+    });
     final s = child?.size;
     if (s == null || s == _last) return;
     _last = s;

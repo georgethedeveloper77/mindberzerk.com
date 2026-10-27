@@ -90,3 +90,27 @@ test('cleanOverrides drops malformed input', () => {
   assert.equal(o.thresholds.fast, 70);
   assert.equal(o.sources.oneconnect, true);
 });
+
+test('parseSstpHosts reads host and port per IP, skipping rows without SSTP', async () => {
+  const { parseSstpHosts } = await import('./rank.js');
+  const html = `
+    <table><tr><td><a href="do_openvpn.aspx?fqdn=public-vpn-65.opengw.net&ip=219.100.37.10&tcp=443&udp=1194">OpenVPN</a></td>
+      <td>MS-SSTP<br>SSTP Hostname :<br><b><span style='color: #006600;'>public-vpn-65.opengw.net</span></b></td></tr>
+    <tr><td><a href="do_openvpn.aspx?fqdn=vpn123.opengw.net&ip=1.2.3.4&tcp=995&udp=0">OpenVPN</a></td>
+      <td>SSTP Hostname : <b>vpn123.opengw.net:995</b></td></tr>
+    <tr><td><a href="do_openvpn.aspx?fqdn=x.opengw.net&ip=5.6.7.8&tcp=443&udp=1194">OpenVPN</a></td><td>-</td></tr></table>`;
+  const m = parseSstpHosts(html);
+  assert.equal(m.size, 2);
+  assert.deepEqual(m.get('219.100.37.10'), { host: 'public-vpn-65.opengw.net', port: 443 });
+  assert.deepEqual(m.get('1.2.3.4'), { host: 'vpn123.opengw.net', port: 995 });
+  assert.equal(m.get('5.6.7.8'), undefined);
+});
+
+test('protocol switches: SSTP off strips SSTP, OpenVPN off keeps only SSTP servers', async () => {
+  const { applyProtocols, cleanOverrides } = await import('./rank.js');
+  const servers = [{ id: 'a', sstpHost: 'x.opengw.net', sstpPort: 443 }, { id: 'b' }];
+  assert.deepEqual(applyProtocols(servers, { openvpn: true, sstp: true }).map((s) => s.id), ['a', 'b']);
+  assert.equal(applyProtocols(servers, { openvpn: true, sstp: false })[0].sstpHost, undefined);
+  assert.deepEqual(applyProtocols(servers, { openvpn: false, sstp: true }).map((s) => s.id), ['a']);
+  assert.deepEqual(cleanOverrides({ protocols: { openvpn: false, sstp: false } }).protocols, { openvpn: true, sstp: false });
+});

@@ -60,8 +60,9 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
       --ssh-authorized-keys-file "$SSH_KEY" \
       --wait-for-state RUNNING \
       --query 'data.id' --raw-output 2>&1)
-    if [[ "$OUT" == ocid1.instance* ]]; then
-      INSTANCE=$(echo "$OUT" | grep -o 'ocid1.instance[^[:space:]"]*' | head -1)
+    # The CLI prints status lines before the id, so look for it anywhere.
+    INSTANCE=$(grep -o 'ocid1\.instance[^[:space:]"]*' <<<"$OUT" | head -1)
+    if [[ -n "$INSTANCE" ]]; then
       IP=$(oci compute instance list-vnics --instance-id "$INSTANCE" --query 'data[0]."public-ip"' --raw-output)
       echo
       echo "Created $NAME in ${AD##*:}"

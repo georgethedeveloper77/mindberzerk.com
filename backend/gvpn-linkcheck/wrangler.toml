@@ -1,0 +1,12 @@
+name = "gvpn-linkcheck"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# A safety check must not keep its own log of what was checked.
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gvpn-linkcheck"
+database_id = "ad3c04e4-383f-444c-a582-473c49c4b3ad"

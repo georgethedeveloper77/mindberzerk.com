@@ -165,7 +165,7 @@ export function ServersAdmin({ servers, initial }: { servers: AdminServer[]; ini
                       {s.country} <span className="font-mono text-[11px] text-site-ink-3">{s.countryCode}</span>
                     </div>
                     <div className="font-mono text-[11px] text-site-ink-3">
-                      {s.ip}:{s.port} {s.proto.toUpperCase()}
+                      {s.sstpHost ? `SSTP ${s.sstpHost}:${s.sstpPort ?? 443}` : `OpenVPN ${s.ip}:${s.port} ${s.proto.toUpperCase()}`}
                     </div>
                   </td>
                   <td className="px-2 py-2.5 text-site-ink-2">{s.source === 'oneconnect' ? 'OneConnect' : 'VPN Gate'}</td>

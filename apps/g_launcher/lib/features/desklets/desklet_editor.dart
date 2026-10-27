@@ -4,20 +4,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+// BOTH theme_spec.dart and dock_metrics.dart, and an unrestricted import of
+// `show ThemePalette` is MANDATORY here, not tidiness: DockSide is declared in
+// error that reads as if neither declaration exists.
+// theme_spec into a file that also sees dock metrics is an ambiguous-import
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
-// `show ThemePalette` is MANDATORY here, not tidiness: DockSide is declared in
-// BOTH theme_spec.dart and dock_metrics.dart, and an unrestricted import of
-// theme_spec into a file that also sees dock metrics is an ambiguous-import
-// error that reads as if neither declaration exists.
 import '../../engine/theme_spec.dart' show ThemePalette;
 import '../../engine/widget_span.dart';
 import 'desklet_cell.dart';
 import 'desklet_edit.dart';
 import 'desklet_menu.dart';
+import 'dock_avoid.dart';
 import 'widget_stage.dart';
 
 /// One desklet, while the desktop is being edited. PHASE D4.
@@ -157,14 +158,45 @@ class _EditableDeskletState extends ConsumerState<EditableDesklet> {
     final before = ref.read(prefsProvider(widget.theme.spec.id)).value;
     if (before == null) return;
 
+    final cols = widget.theme.deskletCols;
+    final rows = widget.theme.deskletRows;
+    var toCol = _d.col + dc;
+    var toRow = _d.row + dr;
+
+    // A drop onto the dock lands at the nearest free spot beside it instead.
+    // Whatever spot it lands on is saved: that is the user's chosen place.
+    final dock = ref.read(deskletDockCellsProvider);
+    final target = footprint(toCol, toRow, _d.spanX, _d.spanY, cols, rows);
+    if (target != null && target.any(dock.contains)) {
+      final taken = <int>{
+        for (final o in before.desklets)
+          if (o.id != _d.id && o.page == _d.page)
+            ...?footprint(o.col, o.row, o.spanX, o.spanY, cols, rows),
+      };
+      final spot = nearestClear(
+        col: toCol,
+        row: toRow,
+        spanX: _d.spanX,
+        spanY: _d.spanY,
+        cols: cols,
+        rows: rows,
+        blocked: dock,
+        taken: taken,
+      );
+      if (spot != null) {
+        toCol = spot.col;
+        toRow = spot.row;
+      }
+    }
+
     final after = DeskletLayout.move(
       before,
       id: _d.id,
       toPage: _d.page,
-      toCol: _d.col + dc,
-      toRow: _d.row + dr,
-      cols: widget.theme.deskletCols,
-      rows: widget.theme.deskletRows,
+      toCol: toCol,
+      toRow: toRow,
+      cols: cols,
+      rows: rows,
     );
 
     // Identity, not equality. The engine returns the SAME object on refusal,

@@ -223,12 +223,21 @@ function sectionsFor(app: string): { label: string; items: Section[] }[] {
   // nothing to show for it and are left out rather than shown empty.
   if (app === 'g-vpn') {
     return [
-      { label: '', items: [{ label: 'Overview', href: `/apps/${app}`, icon: 'overview' }] },
+      {
+        label: '',
+        items: [
+          { label: 'Overview', href: `/apps/${app}`, icon: 'overview' },
+          { label: 'Live map', href: `/apps/${app}/live`, icon: 'analytics' },
+        ],
+      },
       {
         label: 'Servers',
         items: [
           { label: 'Servers', href: `/apps/${app}/servers`, icon: 'cdn' },
           { label: 'Sources', href: `/apps/${app}/sources`, icon: 'config' },
+          { label: 'ISPs', href: `/apps/${app}/isps`, icon: 'analytics' },
+          { label: 'Providers', href: `/apps/${app}/providers`, icon: 'config' },
+          { label: 'G Servers', href: `/apps/${app}/gservers`, icon: 'cdn' },
         ],
       },
       {

@@ -14,6 +14,7 @@ import '../../engine/effective_theme.dart';
 // accidentally bind the other declaration.
 import '../../engine/theme_spec.dart' show DockSide, ShellKind;
 import '../dock/aqua_dock_metrics.dart';
+import '../dock/dock_extent.dart' show dockRectProvider;
 // `show DockMetrics` IS MANDATORY. This file already binds theme_spec's
 // `DockSide` above, and `dock_metrics.dart` declares a second one of its
 // own; importing it unrestricted is an ambiguous-import error reported at
@@ -25,9 +26,11 @@ import 'desklet_edit.dart';
 import 'desklet_editor.dart';
 import 'desklet_picker.dart';
 import 'desklet_settings.dart';
+import 'dock_avoid.dart';
 import 'kinds/appwidget_desklet.dart';
 import 'kinds/clock_desklet.dart';
 import 'kinds/control_desklets.dart';
+import 'kinds/vpn_desklet.dart';
 import 'kinds/glance_desklet.dart';
 import 'kinds/pane_desklets.dart';
 import 'kinds/stack_desklet.dart';
@@ -69,6 +72,7 @@ Widget? buildDesklet(
     'storage' => StorageDesklet(theme: theme, desklet: desklet, skin: skin),
     'battery' => BatteryDesklet(theme: theme, desklet: desklet, skin: skin),
     'notes' => NotesDesklet(theme: theme, desklet: desklet, skin: skin),
+    'vpn' => VpnDesklet(theme: theme, desklet: desklet, skin: skin),
     'search' => SearchDesklet(theme: theme, desklet: desklet, skin: skin),
     // Pane-only kinds. DeskletLayout.renderable already keeps these off a
     // graphical desktop, so reaching them here means the pane asked.
@@ -195,17 +199,19 @@ class DeskletSurfaceView extends ConsumerWidget {
                 : DockMetrics.reserve);
         final dockSide = reserve == 0 ? DockSide.off : theme.dock;
 
+        // ─── THE DOCK IS A BOX, NOT A STRIP ───────────────────────────────
+        //
+        // The grid used to shrink by the whole reserve on the dock's side, top
+        // to bottom, whatever the dock's real length, so a desklet could never
+        // reach the edge even where no dock was. Now the grid runs edge to
+        // edge and only the cells under the dock's measured box are taken
+        // (dock_avoid.dart). The reserve survives only as the stand-in box
+        // for the first frame, before the dock has measured itself.
         final usable = EdgeInsets.only(
-          left: margin.left +
-              insets.left +
-              (dockSide == DockSide.left ? reserve : 0),
-          right: margin.right +
-              insets.right +
-              (dockSide == DockSide.right ? reserve : 0),
+          left: margin.left + insets.left,
+          right: margin.right + insets.right,
           top: margin.top + insets.top,
-          bottom: margin.bottom +
-              insets.bottom +
-              (dockSide == DockSide.bottom ? reserve : 0),
+          bottom: margin.bottom + insets.bottom,
         );
 
         final w = constraints.maxWidth - usable.horizontal;
@@ -251,9 +257,43 @@ class DeskletSurfaceView extends ConsumerWidget {
           ref.read(prefsProvider(theme.spec.id).notifier).edit((_) => reflowed);
         });
 
+        // Until the dock has measured itself, the old strip stands in for it,
+        // so nothing flashes under the dock on the first frame.
+        final fallback = switch (dockSide) {
+          DockSide.left => Rect.fromLTWH(0, 0, reserve, h),
+          DockSide.right => Rect.fromLTWH(w - reserve, 0, reserve, h),
+          DockSide.bottom => Rect.fromLTWH(0, h - reserve, w, reserve),
+          DockSide.off => null,
+        };
+
         return Padding(
           padding: usable,
-          child: Stack(
+          child: _DockMask(
+            enabled: dockSide != DockSide.off,
+            builder: (context, measured) {
+              final blocked = dockCells(
+                measured ?? fallback,
+                cellW: cellW,
+                cellH: cellH,
+                cols: cols,
+                rows: rows,
+              );
+              // Shown, never saved: a desklet under the dock appears at the
+              // nearest free spot and returns by itself when the dock shrinks.
+              final shown = placeAroundDock(items, cols: cols, rows: rows, blocked: blocked);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                ref.read(deskletDockCellsProvider.notifier).set(blocked);
+              });
+              // The editor works from where a desklet is SEEN, so dragging
+              // one from its moved-aside spot saves the drop point: that
+              // becomes the user's chosen place.
+              Desklet seen(Desklet d) {
+                final at = shown[d.id];
+                return at == null || (at.col == d.col && at.row == d.row) ? d : d.copyWith(col: at.col, row: at.row);
+              }
+
+              return Stack(
             children: [
               // The empty-cell grid sits UNDERNEATH the tiles, so a tap that
               // lands on a desklet reaches the desklet and only a tap on real
@@ -267,6 +307,7 @@ class DeskletSurfaceView extends ConsumerWidget {
                     rows: rows,
                     cellW: cellW,
                     cellH: cellH,
+                    blocked: blocked,
                   ),
                 ),
               // ─── ONE WIDGET IN BOTH STATES ────────────────────────
@@ -287,15 +328,15 @@ class DeskletSurfaceView extends ConsumerWidget {
               for (final d in items)
                 Positioned(
                   key: ValueKey(d.id),
-                  left: d.col * cellW,
-                  top: d.row * cellH,
+                  left: seen(d).col * cellW,
+                  top: seen(d).row * cellH,
                   // The tile sizes ITSELF in both states now, because it grows
                   // live under a resize drag and the Positioned must not fight
                   // that. At rest it computes exactly the span this used to
                   // pass down, so nothing about the resting layout changed.
                   child: EditableDesklet(
                     theme: theme,
-                    desklet: d,
+                    desklet: seen(d),
                     cellW: cellW,
                     cellH: cellH,
                     editing: editing,
@@ -306,6 +347,8 @@ class DeskletSurfaceView extends ConsumerWidget {
                   ),
                 ),
             ],
+          );
+            },
           ),
         );
       },
@@ -489,7 +532,11 @@ class _EmptyCells extends ConsumerWidget {
     required this.rows,
     required this.cellW,
     required this.cellH,
+    this.blocked = const {},
   });
+
+  /// Cells under the dock: drawn hatched, and nothing is added there.
+  final Set<int> blocked;
 
   final EffectiveTheme theme;
   final int page;
@@ -534,6 +581,7 @@ class _EmptyCells extends ConsumerWidget {
         // hit is handled and does not need excluding here.
         final c = (d.localPosition.dx / cellW).floor().clamp(0, cols - 1);
         final r = (d.localPosition.dy / cellH).floor().clamp(0, rows - 1);
+        if (blocked.contains(r * cols + c)) return;
         showDeskletPicker(context, ref, theme, page: page, col: c, row: r);
       },
       child: CustomPaint(
@@ -544,6 +592,8 @@ class _EmptyCells extends ConsumerWidget {
           cellW: cellW,
           cellH: cellH,
           color: ink.withValues(alpha: 0.10),
+          blocked: blocked,
+          hatch: theme.palette.accent.withValues(alpha: 0.22),
         ),
       ),
     );
@@ -559,7 +609,12 @@ class _GridPainter extends CustomPainter {
     required this.cellW,
     required this.cellH,
     required this.color,
+    this.blocked = const {},
+    this.hatch,
   });
+
+  final Set<int> blocked;
+  final Color? hatch;
 
   final int cols;
   final int rows;
@@ -572,6 +627,24 @@ class _GridPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1;
+
+    // The dock's cells, hatched in the distro's accent.
+    final hatchColour = hatch;
+    if (hatchColour != null && blocked.isNotEmpty) {
+      final stripe = Paint()
+        ..color = hatchColour
+        ..strokeWidth = 3;
+      for (final i in blocked) {
+        final rect = Rect.fromLTWH((i % cols) * cellW, (i ~/ cols) * cellH, cellW, cellH);
+        canvas.save();
+        canvas.clipRect(rect);
+        canvas.drawRect(rect, Paint()..color = hatchColour.withValues(alpha: hatchColour.a * 0.35));
+        for (var x = rect.left - rect.height; x < rect.right; x += 9) {
+          canvas.drawLine(Offset(x, rect.bottom), Offset(x + rect.height, rect.top), stripe);
+        }
+        canvas.restore();
+      }
+    }
 
     for (var c = 1; c < cols; c++) {
       final x = c * cellW;
@@ -589,5 +662,42 @@ class _GridPainter extends CustomPainter {
       old.rows != rows ||
       old.cellW != cellW ||
       old.cellH != cellH ||
-      old.color != color;
+      old.color != color ||
+      old.blocked != blocked ||
+      old.hatch != hatch;
+}
+
+
+/// Gives [builder] the dock's box in this widget's own coordinates (the
+/// desklet grid's), or null before the dock has measured itself. The global
+/// origin is read after each frame, when every offset is final.
+class _DockMask extends ConsumerStatefulWidget {
+  const _DockMask({required this.enabled, required this.builder});
+
+  final bool enabled;
+  final Widget Function(BuildContext context, Rect? dock) builder;
+
+  @override
+  ConsumerState<_DockMask> createState() => _DockMaskState();
+}
+
+class _DockMaskState extends ConsumerState<_DockMask> {
+  Offset? _origin;
+
+  void _measure(Duration _) {
+    if (!mounted) return;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return;
+    final o = box.localToGlobal(Offset.zero);
+    final was = _origin;
+    if (was == null || (o - was).distance > 0.5) setState(() => _origin = o);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_measure);
+    final dock = widget.enabled ? ref.watch(dockRectProvider) : null;
+    final origin = _origin;
+    return widget.builder(context, dock == null || origin == null ? null : dock.shift(-origin));
+  }
 }

@@ -25,6 +25,9 @@ export interface AdminServer {
   source: Source;
   country: string;
   countryCode: string;
+  /** Present when the server takes SSTP and SSTP is on. */
+  sstpHost?: string;
+  sstpPort?: number;
   speedMbps: number;
   pingMs: number;
   sessions: number;
@@ -44,11 +47,16 @@ export interface SourceHealth {
   count?: number;
   /** OneConnect configs that were not readable OpenVPN text. */
   skipped?: number;
+  /** VPN Gate servers whose SSTP address was found. */
+  sstp?: number;
+  sstpError?: string;
   error?: string;
 }
 
 export interface Overrides {
   sources: { vpngate: boolean; oneconnect: boolean };
+  /** How the app connects to free servers; at least one stays on. */
+  protocols: { openvpn: boolean; sstp: boolean };
   thresholds: { fast: number; good: number };
   hiddenServers: string[];
   pinnedServers: string[];
@@ -88,6 +96,7 @@ const EMPTY: Omit<VpnState, 'unreachable'> = {
   servers: [],
   overrides: {
     sources: { vpngate: true, oneconnect: true },
+    protocols: { openvpn: true, sstp: true },
     thresholds: { fast: 70, good: 45 },
     hiddenServers: [],
     pinnedServers: [],
@@ -108,7 +117,7 @@ export async function readVpnState(): Promise<VpnState> {
       ...body,
       servers: body.servers ?? [],
       sources: body.sources ?? {},
-      overrides: body.overrides ?? EMPTY.overrides,
+      overrides: { ...EMPTY.overrides, ...(body.overrides ?? {}), protocols: body.overrides?.protocols ?? EMPTY.overrides.protocols },
       unreachable: null,
     };
   } catch (e) {

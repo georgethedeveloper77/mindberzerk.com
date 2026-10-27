@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { adminGate } from '@/app/components/admin-gate';
+import { VpnAnalytics } from '@/components/g-vpn/Analytics';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, Bar, SlabButton, SlabCell, SoftPanel } from '@/components/studio/ui';
 import { exportState, retentionByDistro, setupFunnel, type Analytics } from '@/lib/core/analytics';
@@ -59,6 +60,9 @@ export default async function AnalyticsPage({
 
   const { days: daysRaw } = await searchParams;
   const days = daysRaw === '7' || daysRaw === '90' ? Number(daysRaw) : 30;
+
+  // G VPN logs its own events (connections, failures, tools), not the launcher's.
+  if (app === 'g-vpn') return <VpnAnalytics days={days} />;
 
   const [funnel, retention] = await Promise.all([setupFunnel(app, days), retentionByDistro(app)]);
 

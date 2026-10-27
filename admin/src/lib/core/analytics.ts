@@ -52,16 +52,27 @@ function projectId(): string | null {
 }
 
 /**
+ * The project holding one app's export. Most apps share the panel's Firebase
+ * project; G VPN has its own (gvpn-9bc4c), so BQ_PROJECT_<APP> can point
+ * elsewhere. The panel's service account needs BigQuery Data Viewer and Job
+ * User on that project; queries run there, inside its free sandbox.
+ */
+function projectFor(app: string): string | null {
+  const key = `BQ_PROJECT_${app.toUpperCase().replace(/-/g, '_')}`;
+  return process.env[key] ?? projectId();
+}
+
+/**
  * A lazily-constructed BigQuery client, or null with a reason.
  *
  * `@google-cloud/bigquery` is a heavy dependency and may not be installed. The
  * dynamic import means a project that never turns on analytics never pays for
  * it and never fails to build over a missing module.
  */
-async function client(): Promise<
-  { bq: import('@google-cloud/bigquery').BigQuery; project: string } | { error: string }
-> {
-  const project = projectId();
+async function client(
+  forProject?: string | null,
+): Promise<{ bq: import('@google-cloud/bigquery').BigQuery; project: string } | { error: string }> {
+  const project = forProject ?? projectId();
   if (!project) {
     return { error: 'GCP_PROJECT is not set. Point it at the Firebase project id.' };
   }
@@ -95,7 +106,7 @@ async function run<T>(
         .replace(/-/g, '_')} once the Firebase export is on.`,
     };
   }
-  const c = await client();
+  const c = await client(projectFor(app));
   if ('error' in c) return { connected: false, reason: c.error };
 
   try {
@@ -274,5 +285,134 @@ export function packageFrequency(app: string, days: number): Promise<Analytics<P
     { days },
     (rows) =>
       rows.map((r) => ({ pkg: String(r.pkg), installs: Number(r.installs) })),
+  );
+}
+
+// ── G VPN: questions about connections, never about what anyone does online ──
+
+/** One event parameter as text. */
+const param = (key: string) => `(SELECT value.string_value FROM UNNEST(event_params) WHERE key = '${key}')`;
+const range = `_TABLE_SUFFIX BETWEEN
+  FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY))
+  AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())`;
+
+export interface ConnectionMix {
+  kind: string;
+  protocol: string;
+  ok: number;
+  failed: number;
+}
+
+/** Connections and failures by kind of server and protocol. */
+export function vpnConnections(app: string, days: number): Promise<Analytics<ConnectionMix[]>> {
+  return run(
+    app,
+    (d) => `
+      SELECT ${param('kind')} AS kind, ${param('protocol')} AS protocol,
+             COUNTIF(event_name = 'vpn_connect') AS ok,
+             COUNTIF(event_name = 'vpn_connect_failed') AS failed
+      FROM ${d}.events_*
+      WHERE ${range} AND event_name IN ('vpn_connect', 'vpn_connect_failed')
+      GROUP BY kind, protocol
+      ORDER BY ok + failed DESC
+    `,
+    { days },
+    (rows) => rows.map((r) => ({ kind: String(r.kind ?? '?'), protocol: String(r.protocol ?? '?'), ok: Number(r.ok), failed: Number(r.failed) })),
+  );
+}
+
+export interface CountRow {
+  label: string;
+  count: number;
+  users: number;
+}
+
+/** Free-server countries people connect to. */
+export function vpnCountries(app: string, days: number): Promise<Analytics<CountRow[]>> {
+  return run(
+    app,
+    (d) => `
+      SELECT ${param('server_country')} AS label, COUNT(*) AS count, COUNT(DISTINCT user_pseudo_id) AS users
+      FROM ${d}.events_*
+      WHERE ${range} AND event_name = 'vpn_connect' AND ${param('kind')} = 'free'
+      GROUP BY label HAVING label IS NOT NULL
+      ORDER BY count DESC LIMIT 12
+    `,
+    { days },
+    (rows) => rows.map((r) => ({ label: String(r.label), count: Number(r.count), users: Number(r.users) })),
+  );
+}
+
+/** Why connections fail, most common first. */
+export function vpnFailures(app: string, days: number): Promise<Analytics<CountRow[]>> {
+  return run(
+    app,
+    (d) => `
+      SELECT ${param('code')} AS label, COUNT(*) AS count, COUNT(DISTINCT user_pseudo_id) AS users
+      FROM ${d}.events_*
+      WHERE ${range} AND event_name = 'vpn_connect_failed'
+      GROUP BY label
+      ORDER BY count DESC LIMIT 10
+    `,
+    { days },
+    (rows) => rows.map((r) => ({ label: String(r.label ?? 'unknown'), count: Number(r.count), users: Number(r.users) })),
+  );
+}
+
+/** Which tools get opened, by people and by opens. */
+export function toolUsage(app: string, days: number): Promise<Analytics<CountRow[]>> {
+  return run(
+    app,
+    (d) => `
+      SELECT ${param('tool')} AS label, COUNT(*) AS count, COUNT(DISTINCT user_pseudo_id) AS users
+      FROM ${d}.events_*
+      WHERE ${range} AND event_name = 'tool_open'
+      GROUP BY label HAVING label IS NOT NULL
+      ORDER BY users DESC
+    `,
+    { days },
+    (rows) => rows.map((r) => ({ label: String(r.label), count: Number(r.count), users: Number(r.users) })),
+  );
+}
+
+export interface Activation {
+  connectedFirstDay: boolean;
+  users: number;
+  back: number;
+}
+
+/**
+ * Does connecting on the first day predict coming back? New users from 14 to
+ * 37 days ago (so their 7-to-13-day window has fully passed), split by whether
+ * they connected on their first day, and how many were active again 7 to 13
+ * days later.
+ */
+export function vpnActivation(app: string): Promise<Analytics<Activation[]>> {
+  return run(
+    app,
+    (d) => `
+      WITH events AS (
+        SELECT user_pseudo_id, PARSE_DATE('%Y%m%d', event_date) AS day, event_name
+        FROM ${d}.events_*
+        WHERE _TABLE_SUFFIX BETWEEN FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 45 DAY))
+                                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+          AND event_name IN ('first_open', 'vpn_connect', 'session_start', 'user_engagement')
+      ),
+      cohort AS (
+        SELECT user_pseudo_id, MIN(day) AS d0 FROM events WHERE event_name = 'first_open' GROUP BY user_pseudo_id
+        HAVING d0 BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 37 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
+      ),
+      per_user AS (
+        SELECT c.user_pseudo_id,
+               IFNULL(LOGICAL_OR(e.event_name = 'vpn_connect' AND e.day = c.d0), FALSE) AS connected_first_day,
+               IFNULL(LOGICAL_OR(e.day BETWEEN DATE_ADD(c.d0, INTERVAL 7 DAY) AND DATE_ADD(c.d0, INTERVAL 13 DAY)), FALSE) AS back
+        FROM cohort c LEFT JOIN events e USING (user_pseudo_id)
+        GROUP BY c.user_pseudo_id
+      )
+      SELECT connected_first_day, COUNT(*) AS users, COUNTIF(back) AS back
+      FROM per_user GROUP BY connected_first_day
+    `,
+    {},
+    (rows) => rows.map((r) => ({ connectedFirstDay: Boolean(r.connected_first_day), users: Number(r.users), back: Number(r.back) })),
   );
 }

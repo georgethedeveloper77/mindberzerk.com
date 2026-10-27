@@ -394,6 +394,20 @@ class DeskletKinds {
     paneOnly: true,
   );
 
+  /// G VPN's status and one tap to change it, through g_family. Offered by
+  /// every theme (see offeredDesklets): it belongs to the phone, not to a
+  /// distro. Shows "Get G VPN" where G VPN is not installed.
+  static const vpn = DeskletKind(
+    id: 'vpn',
+    labelKey: 'desklet_spec.vpn',
+    minSpanX: 2,
+    minSpanY: 1,
+    maxSpanX: 6,
+    maxSpanY: 3,
+    defaultSpanX: 4,
+    defaultSpanY: 2,
+  );
+
   static const all = <DeskletKind>[
     glance,
     appWidget,
@@ -411,6 +425,7 @@ class DeskletKinds {
     diskFree,
     appsList,
     uptime,
+    vpn,
   ];
 
   static final Map<String, DeskletKind> _byId = {

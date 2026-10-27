@@ -16,7 +16,7 @@
  * last good list keeps being served.
  */
 import { connect } from 'cloudflare:sockets';
-import { applyOverrides, capPerCountry, cleanOverrides, fromOneConnect, parseVpnGate, rank } from './rank.js';
+import { SSTP_SOURCE, applyOverrides, applyProtocols, capPerCountry, cleanOverrides, fromOneConnect, parseSstpHosts, parseVpnGate, rank } from './rank.js';
 
 const SOURCE = 'http://www.vpngate.net/api/iphone/';
 const LIST_KEY = 'community:list';
@@ -27,7 +27,9 @@ const CONFIG_TTL = 6 * 3600; // configs outlive a couple of failed refreshes
 
 // Reachability probe. Workers allow a limited number of outbound connections
 // per run, so only the best-ranked candidates are tested, a few at a time.
-const PROBE_BUDGET = 45;
+// The free plan allows 50 outside connections per run: 3 fetches (VPN Gate
+// list, VPN Gate page, OneConnect) plus these checks, with room to spare.
+const PROBE_BUDGET = 40;
 const PROBE_PARALLEL = 5;
 const PROBE_TIMEOUT_MS = 4000;
 
@@ -43,8 +45,14 @@ export default {
       if (!(await authorised(request, env))) return json({ error: 'unauthorised' }, 401);
 
       if (url.pathname === '/refresh' && request.method === 'POST') {
-        const count = await refresh(env);
-        return json({ ok: true, servers: count });
+        // Errors come back as JSON with the reason, never as Cloudflare's
+        // bare "error code: 1101".
+        try {
+          const count = await refresh(env);
+          return json({ ok: true, servers: count });
+        } catch (e) {
+          return json({ ok: false, error: String(e?.message ?? e), stack: String(e?.stack ?? '').slice(0, 800) }, 500);
+        }
       }
       if (url.pathname === '/admin/state' && request.method === 'GET') {
         const all = JSON.parse((await env.SERVERS.get(ALL_KEY)) ?? '{}');
@@ -145,11 +153,39 @@ async function refresh(env) {
     }
   }
 
-  const decided = applyOverrides(await rank(rows), overrides);
+  // Which VPN Gate servers also accept SSTP, from VPN Gate's web page.
+  // Best effort: without it the list still builds, just with no SSTP.
+  let sstp = new Map();
+  if (overrides.sources.vpngate && overrides.protocols.sstp) {
+    try {
+      const res = await fetch(SSTP_SOURCE, { cf: { cacheTtl: 0 }, headers: { 'user-agent': 'Mozilla/5.0' } });
+      if (res.ok) sstp = parseSstpHosts(await res.text());
+      sources.vpngate = { ...sources.vpngate, sstp: sstp.size };
+    } catch (e) {
+      sources.vpngate = { ...sources.vpngate, sstp: 0, sstpError: String(e.message ?? e) };
+    }
+  }
+
+  const ranked = (await rank(rows)).map((s) => {
+    const x = sstp.get(s.ip);
+    return x ? { ...s, sstpHost: x.host, sstpPort: x.port } : s;
+  });
+  const decided = applyOverrides(applyProtocols(ranked, overrides.protocols), overrides);
   const reachable = await keepReachable(decided.filter((s) => !s.hidden));
   const reachableIds = new Set(reachable.map((s) => s.id));
   const listed = capPerCountry(reachable);
-  if (listed.length === 0) throw new Error('No reachable servers; keeping the last good list');
+  if (listed.length === 0) {
+    // Say where the servers went, so the cause is visible from the admin
+    // panel or curl rather than guessed at.
+    const where = [
+      `sources ${JSON.stringify(sources)}`,
+      `ranked ${ranked.length}`,
+      `after switches and overrides ${decided.length}`,
+      `not hidden ${decided.filter((s) => !s.hidden).length}`,
+      `reachable ${reachable.length}`,
+    ].join(', ');
+    throw new Error(`No reachable servers; keeping the last good list (${where})`);
+  }
   const listedIds = new Set(listed.map((s) => s.id));
 
   // Write a config only when it changed (or is near expiry): the free KV plan
@@ -167,6 +203,7 @@ async function refresh(env) {
   await env.SERVERS.put(LIST_KEY, JSON.stringify({
     source: 'community',
     updatedAt,
+    protocols: overrides.protocols,
     // Shown in the app: honest labelling of who runs these and what they keep.
     notice: 'Volunteer servers from the VPN Gate academic project, whose operators keep connection logs for '
       + 'about two weeks, and partner servers from OneConnect.',
@@ -203,10 +240,13 @@ async function keepReachable(ranked) {
     const batch = ranked.slice(i, i + PROBE_PARALLEL);
     const results = await Promise.all(
       batch.map(async (s) => {
-        if (s.proto !== 'tcp') return { s, ok: true, verified: false };
+        // SSTP servers are checked on their SSTP port: that is how the app
+        // connects to them. Otherwise only TCP OpenVPN ports can be probed.
+        const port = s.sstpPort ?? (s.proto === 'tcp' ? s.port : null);
+        if (port == null) return { s, ok: true, verified: false };
         if (probes >= PROBE_BUDGET) return { s, ok: false, verified: false };
         probes++;
-        return { s, ok: await tcpReachable(s.ip, s.port), verified: true };
+        return { s, ok: await tcpReachable(s.ip, port), verified: true };
       }),
     );
     // Once the budget is spent, TCP servers further down the ranking stay

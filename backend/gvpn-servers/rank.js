@@ -195,6 +195,7 @@ export function withCredentials(config, user, pass) {
 
 export const DEFAULT_OVERRIDES = {
   sources: { vpngate: true, oneconnect: true },
+  protocols: { openvpn: true, sstp: true },
   thresholds: { fast: 70, good: 45 },
   hiddenServers: [],
   pinnedServers: [],
@@ -216,6 +217,13 @@ export function cleanOverrides(raw) {
       vpngate: o.sources?.vpngate !== false,
       oneconnect: o.sources?.oneconnect !== false,
     },
+    // How the app connects to free servers. Both on: SSTP where a server
+    // offers it, OpenVPN otherwise. At least one stays on.
+    protocols: (() => {
+      const openvpn = o.protocols?.openvpn !== false;
+      const sstp = o.protocols?.sstp !== false;
+      return openvpn || sstp ? { openvpn, sstp } : { openvpn: true, sstp: false };
+    })(),
     thresholds: {
       fast: num(o.thresholds?.fast, 70, 1, 100),
       good: num(o.thresholds?.good, 45, 0, 99),
@@ -252,4 +260,39 @@ export function applyOverrides(servers, overrides) {
       };
     })
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.quality - a.quality);
+}
+
+// ── SSTP ───────────────────────────────────────────────────────────────────
+
+/** VPN Gate's server-list web page (the CSV does not say who accepts SSTP). */
+export const SSTP_SOURCE = 'https://www.vpngate.net/en/';
+
+/**
+ * VPN Gate's web page -> Map(ip -> { host, port }) for servers that accept
+ * MS-SSTP. Each table row carries the server's IP (in its OpenVPN link) and,
+ * when SSTP is on, an "SSTP Hostname : name.opengw.net[:port]" line. Rows
+ * without both are skipped: a server is only offered over SSTP when VPN Gate
+ * itself says it takes SSTP.
+ */
+export function parseSstpHosts(html) {
+  const out = new Map();
+  for (const row of String(html).split(/<tr[\s>]/i)) {
+    const ip = /[?&]ip=(\d{1,3}(?:\.\d{1,3}){3})/i.exec(row)?.[1];
+    const m = /SSTP\s*Hostname\s*:?\s*(?:<[^>]*>\s*)*([a-z0-9][a-z0-9.-]*\.[a-z]{2,})(?::(\d{1,5}))?/i.exec(row);
+    if (!ip || !m) continue;
+    const port = m[2] ? Number(m[2]) : 443;
+    if (port < 1 || port > 65535) continue;
+    out.set(ip, { host: m[1].toLowerCase(), port });
+  }
+  return out;
+}
+
+/**
+ * Applies the protocol switches to ranked servers: SSTP details are dropped
+ * when SSTP is off, and with OpenVPN off only servers offering SSTP remain.
+ */
+export function applyProtocols(servers, protocols) {
+  return servers
+    .map((s) => (protocols.sstp ? s : { ...s, sstpHost: undefined, sstpPort: undefined }))
+    .filter((s) => protocols.openvpn || s.sstpHost);
 }

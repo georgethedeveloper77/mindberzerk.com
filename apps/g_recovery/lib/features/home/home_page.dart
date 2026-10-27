@@ -20,6 +20,7 @@ import 'widgets/attention_strip.dart';
 import 'widgets/category_grid.dart';
 import 'widgets/hero_card.dart';
 import 'widgets/home_extras.dart';
+import 'widgets/vpn_card.dart';
 
 /// The real home screen. Replaces the Phase 1 design system gallery.
 ///
@@ -82,6 +83,12 @@ class HomePage extends ConsumerWidget {
         // answers what is still here and could take less room. A seventh tile
         // inside the grid would make the grid mean two things and would be the
         // only tile whose tap does not open a list of deleted files.
+        // G VPN, between what can come back and making room: the moment a
+        // phone is about to upload recovered files is when public Wi-Fi
+        // matters. Hidden entirely after "Not now" while G VPN is missing.
+        const SizedBox(height: GSpace.lg),
+        VpnCard(header: GOverline('On this network')),
+
         const SizedBox(height: GSpace.lg),
         GOverline('Make room without deleting'),
         const SizedBox(height: GSpace.sm + 1),

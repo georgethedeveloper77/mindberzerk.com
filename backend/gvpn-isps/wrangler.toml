@@ -1,0 +1,17 @@
+name = "gvpn-isps"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# Daily clean-up: results older than 90 days, yesterday's flood-control hashes.
+[triggers]
+crons = ["23 3 * * *"]
+
+# Created by setup.sh; it writes the real id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "gvpn-isps"
+database_id = "c195f12e-322a-4f95-8c3e-f6402ad3dfb6"
+
+# No request logs: no IP addresses kept anywhere.
+[observability]
+enabled = false
