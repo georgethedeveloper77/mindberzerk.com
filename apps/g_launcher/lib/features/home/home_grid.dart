@@ -650,9 +650,8 @@ class _Slot extends ConsumerWidget {
       // the moment it should.
       final key = it.componentKey;
       final pending = ref.watch(pendingAppsProvider);
-      final missing = (key == null || !pending.hasValue)
-          ? null
-          : pending.requireValue[key];
+      final missing =
+          (key == null || !pending.hasValue) ? null : pending.requireValue[key];
       if (missing == null) return const SizedBox.expand();
 
       return _wobble(
@@ -832,8 +831,8 @@ class _Draggable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LongPressDraggable<DrawerDrag>(
-      data: FolderDrag(folderId, from: DragOrigin.grid, page: page,
-          index: index),
+      data:
+          FolderDrag(folderId, from: DragOrigin.grid, page: page, index: index),
       // The dragged icon must FOLLOW the finger, not sit under it. dragAnchor
       // defaults leave the icon offset from your thumb and it feels wrong.
       feedback: Transform.scale(

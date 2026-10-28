@@ -79,7 +79,9 @@ class _VpnDeskletState extends State<VpnDesklet> {
       case GVpnState.off || GVpnState.paused:
         // Resuming a pause is a connect to the same server.
         GVpn.connect();
-      case GVpnState.connecting || GVpnState.notInstalled || GVpnState.unavailable:
+      case GVpnState.connecting ||
+            GVpnState.notInstalled ||
+            GVpnState.unavailable:
         // Opens G VPN, or its Play page when it is not installed.
         GVpn.open(referrer: 'g_launcher');
     }
@@ -101,7 +103,12 @@ class _VpnDeskletState extends State<VpnDesklet> {
           skin: widget.skin,
           body: widget.skin.surface == DeskletSurface.terminal
               ? _terminalBody(view)
-              : DeskletBody(custom: _StatusLine(theme: widget.theme, skin: widget.skin, view: view, onAction: _primary)),
+              : DeskletBody(
+                  custom: _StatusLine(
+                      theme: widget.theme,
+                      skin: widget.skin,
+                      view: view,
+                      onAction: _primary)),
         ),
       ),
     );
@@ -112,11 +119,14 @@ class _VpnDeskletState extends State<VpnDesklet> {
   DeskletBody _terminalBody(_VpnView v) => DeskletBody(
         command: 'gvpn status',
         rows: [
-          DeskletRow('state', value: v.shellState, accent: v.mark == _Mark.check),
+          DeskletRow('state',
+              value: v.shellState, accent: v.mark == _Mark.check),
           if (v.server != null) DeskletRow('server', value: v.server),
-          if (v.fraction != null) DeskletRow('resumes', value: v.shellDetail, fraction: v.fraction),
+          if (v.fraction != null)
+            DeskletRow('resumes', value: v.shellDetail, fraction: v.fraction),
         ],
-        custom: _ShellAction(theme: widget.theme, label: v.shellAction, onTap: _primary),
+        custom: _ShellAction(
+            theme: widget.theme, label: v.shellAction, onTap: _primary),
       );
 }
 
@@ -150,7 +160,8 @@ class _VpnView {
 
   static _VpnView of(BuildContext context, GVpnStatus s) {
     final server = s.label;
-    String withServer(String key) => server == null ? context.t(key) : '$server · ${context.t(key)}';
+    String withServer(String key) =>
+        server == null ? context.t(key) : '$server · ${context.t(key)}';
     switch (s.state) {
       case GVpnState.on:
         return _VpnView(
@@ -184,7 +195,9 @@ class _VpnView {
         );
       case GVpnState.paused:
         final until = s.pausedUntil;
-        final left = until == null ? 0 : until.difference(DateTime.now()).inMinutes.clamp(0, 9999) + 1;
+        final left = until == null
+            ? 0
+            : until.difference(DateTime.now()).inMinutes.clamp(0, 9999) + 1;
         return _VpnView(
           title: context.t('gvpn.paused'),
           detail: withServer('gvpn.resumesIn').replaceAll('{0}', '$left'),
@@ -195,7 +208,9 @@ class _VpnView {
           server: server,
           // Pauses are 15 or 60 minutes; the bar shows what is left of the
           // longer one when unsure, and never runs backwards.
-          fraction: until == null ? null : (left / (left > 15 ? 60 : 15)).clamp(0.0, 1.0),
+          fraction: until == null
+              ? null
+              : (left / (left > 15 ? 60 : 15)).clamp(0.0, 1.0),
           shellDetail: '$left min',
         );
       case GVpnState.off:
@@ -233,7 +248,11 @@ class _VpnView {
 /// action on surfaces that have room for a button (card and panel). On bare,
 /// the whole desklet is the button.
 class _StatusLine extends StatelessWidget {
-  const _StatusLine({required this.theme, required this.skin, required this.view, required this.onAction});
+  const _StatusLine(
+      {required this.theme,
+      required this.skin,
+      required this.view,
+      required this.onAction});
 
   final EffectiveTheme theme;
   final DeskletSkin skin;
@@ -247,7 +266,12 @@ class _StatusLine extends StatelessWidget {
     final family = mono ? theme.typography.mono : theme.typography.display;
     final bare = skin.surface == DeskletSurface.bare;
     final shadows = bare
-        ? [Shadow(color: p.bgBottom.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 2))]
+        ? [
+            Shadow(
+                color: p.bgBottom.withValues(alpha: 0.55),
+                blurRadius: 10,
+                offset: const Offset(0, 2))
+          ]
         : null;
     final markColour = view.mark == _Mark.check ? p.accent : p.onDark;
     final titleSize = skin.num_('vpnTitleSize', bare ? 20 : 15);
@@ -258,7 +282,11 @@ class _StatusLine extends StatelessWidget {
       children: [
         CustomPaint(
           size: Size.square(bare ? 40 : 30),
-          painter: _ShieldPainter(colour: markColour, mark: view.mark, filled: view.mark == _Mark.check, shadow: bare),
+          painter: _ShieldPainter(
+              colour: markColour,
+              mark: view.mark,
+              filled: view.mark == _Mark.check,
+              shadow: bare),
         ),
         SizedBox(width: bare ? 14 : 10),
         Flexible(
@@ -326,7 +354,11 @@ class _StatusLine extends StatelessWidget {
 /// The one action, as the surface draws a control: a rounded pill on card,
 /// a flat mono label on panel.
 class _ActionChip extends StatelessWidget {
-  const _ActionChip({required this.theme, required this.skin, required this.label, required this.onTap});
+  const _ActionChip(
+      {required this.theme,
+      required this.skin,
+      required this.label,
+      required this.onTap});
 
   final EffectiveTheme theme;
   final DeskletSkin skin;
@@ -348,12 +380,14 @@ class _ActionChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: panel ? null : p.accent,
             border: panel ? Border.all(color: p.accent) : null,
-            borderRadius: BorderRadius.circular(panel ? 0 : skin.num_('radius', 10) * 0.7),
+            borderRadius: BorderRadius.circular(
+                panel ? 0 : skin.num_('radius', 10) * 0.7),
           ),
           child: Text(
             panel ? label.toLowerCase() : label,
             style: TextStyle(
-              fontFamily: panel ? theme.typography.mono : theme.typography.display,
+              fontFamily:
+                  panel ? theme.typography.mono : theme.typography.display,
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: panel ? p.accent : p.bgBottom,
@@ -367,7 +401,8 @@ class _ActionChip extends StatelessWidget {
 
 /// `[ connect ]` under the shell output.
 class _ShellAction extends StatelessWidget {
-  const _ShellAction({required this.theme, required this.label, required this.onTap});
+  const _ShellAction(
+      {required this.theme, required this.label, required this.onTap});
 
   final EffectiveTheme theme;
   final String label;
@@ -385,7 +420,10 @@ class _ShellAction extends StatelessWidget {
               widthFactor: 1,
               child: Text(
                 '[ $label ]',
-                style: TextStyle(fontFamily: theme.typography.mono, fontSize: 13, color: theme.palette.accent),
+                style: TextStyle(
+                    fontFamily: theme.typography.mono,
+                    fontSize: 13,
+                    color: theme.palette.accent),
               ),
             ),
           ),
@@ -396,7 +434,11 @@ class _ShellAction extends StatelessWidget {
 /// A shield with its state's mark. Drawn rather than an icon font, so every
 /// distro gets the same silhouette in its own colour.
 class _ShieldPainter extends CustomPainter {
-  _ShieldPainter({required this.colour, required this.mark, required this.filled, required this.shadow});
+  _ShieldPainter(
+      {required this.colour,
+      required this.mark,
+      required this.filled,
+      required this.shadow});
 
   final Color colour;
   final _Mark mark;
@@ -414,7 +456,8 @@ class _ShieldPainter extends CustomPainter {
       ..cubicTo(7.7 * s, 20.1 * s, 4.5 * s, 16.2 * s, 4.5 * s, 11.5 * s)
       ..lineTo(4.5 * s, 5.5 * s)
       ..close();
-    if (shadow) canvas.drawShadow(shield, colour.withValues(alpha: 0.5), 3, false);
+    if (shadow)
+      canvas.drawShadow(shield, colour.withValues(alpha: 0.5), 3, false);
 
     // Filled (protected): the mark is cut out of the shield, so it shows the
     // wallpaper or card through it. Outlined (every other state): the mark is
@@ -453,9 +496,11 @@ class _ShieldPainter extends CustomPainter {
         canvas.drawLine(Offset(14 * s, 9 * s), Offset(14 * s, 15 * s), ink);
       case _Mark.warn:
         canvas.drawLine(Offset(12 * s, 8 * s), Offset(12 * s, 13 * s), ink);
-        canvas.drawCircle(Offset(12 * s, 16.2 * s), 1.1 * s, Paint()..color = colour);
+        canvas.drawCircle(
+            Offset(12 * s, 16.2 * s), 1.1 * s, Paint()..color = colour);
       case _Mark.sync:
-        final r = Rect.fromCircle(center: Offset(12 * s, 12 * s), radius: 3.6 * s);
+        final r =
+            Rect.fromCircle(center: Offset(12 * s, 12 * s), radius: 3.6 * s);
         canvas.drawArc(r, 3.4, 2.4, false, ink);
         canvas.drawArc(r, 0.26, 2.4, false, ink);
       case _Mark.none:
@@ -466,5 +511,8 @@ class _ShieldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ShieldPainter old) =>
-      old.colour != colour || old.mark != mark || old.filled != filled || old.shadow != shadow;
+      old.colour != colour ||
+      old.mark != mark ||
+      old.filled != filled ||
+      old.shadow != shadow;
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/app_repository.dart';
+import '../../data/search/search_text.dart';
 import '../../design/branded_message.dart';
 import '../../engine/effective_theme.dart';
 import '../../i18n/i18n.dart';
@@ -189,11 +190,11 @@ class _LibraryViewState extends ConsumerState<LibraryView>
   /// and it matters more on a list than on a grid: fuzzy RANKS, so the row
   /// under a thumb changes between the press and the release.
   List<AppEntry> _matches(List<AppEntry> apps) {
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     if (q.isEmpty) return apps;
     return [
       for (final a in apps)
-        if (a.label.toLowerCase().contains(q)) a,
+        if (SearchText.contains(a.label, q)) a,
     ];
   }
 

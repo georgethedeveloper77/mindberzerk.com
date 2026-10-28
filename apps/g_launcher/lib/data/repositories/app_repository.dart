@@ -3,8 +3,13 @@ import 'dart:ui' show Rect;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
+import '../../i18n/i18n.dart';
 import '../../platform/launcher_api.g.dart';
 import '../prefs/hidden_apps.dart';
+import '../prefs/hidden_lock.dart';
+import '../prefs/prefs_repository.dart';
+import '../prefs/query_learning.dart';
+import '../search/search_text.dart';
 
 /// No codegen. Plain Riverpod 3.
 ///
@@ -35,7 +40,19 @@ class AppList extends AsyncNotifier<List<AppEntry>> {
 
   void _swap(List<AppEntry> apps) => state = AsyncData(apps);
 
-  Future<void> launch(AppEntry entry, {Rect? iconBounds}) {
+  /// Launch [entry]. A HIDDEN app behind the hidden apps lock asks for the
+  /// owner's fingerprint first, wherever the launch came from: hidden apps
+  /// are only reachable by typing their whole name, and every search surface
+  /// ends here, so this one gate covers rofi, the terminal and the search
+  /// page alike.
+  Future<void> launch(AppEntry entry, {Rect? iconBounds}) async {
+    final hidden = ref.read(globalPrefsProvider).asData?.value.hiddenApps;
+    if (hidden != null && hidden.contains(entry.componentKey)) {
+      final title = ref
+          .read(translationsProvider)
+          .t('hidden.confirmOpen', {'name': entry.label});
+      if (!await confirmHiddenAccess(ref, title: title)) return;
+    }
     return ref.read(launcherHostApiProvider).launchApp(
           entry.componentKey,
           iconBounds?.left,
@@ -140,19 +157,27 @@ final visibleAppsProvider =
   final apps = HiddenApps.forSearch(all, key.theme.prefs, query);
   if (query.isEmpty) return apps;
 
-  final q = query.toLowerCase();
-
-  // Cheap prefix-then-substring ranking. The fuzzy matcher for the terminal
-  // command palette is a separate, smarter thing — don't conflate the two.
+  // Prefix, then word start, then anywhere, all on SearchText's folded form
+  // so "gvpn", "G VPN" and "GVPN" land the same app in the same slot. The
+  // fuzzy matcher for the terminal command palette is a separate thing.
   final prefix = <AppEntry>[];
-  final contains = <AppEntry>[];
+  final wordStart = <AppEntry>[];
+  final anywhere = <AppEntry>[];
   for (final a in apps) {
-    final label = a.label.toLowerCase();
-    if (label.startsWith(q)) {
-      prefix.add(a);
-    } else if (label.contains(q)) {
-      contains.add(a);
+    switch (SearchText.rank(a.label, query)) {
+      case 0:
+        prefix.add(a);
+      case 1:
+        wordStart.add(a);
+      case 2:
+        anywhere.add(a);
     }
   }
-  return [...prefix, ...contains];
+  // Learned answers first: if "bank" has opened Equity before, Equity leads
+  // "bank". Reorders only; admission above is untouched.
+  final learning = ref.watch(queryLearningProvider).asData?.value;
+  final ranked = [...prefix, ...wordStart, ...anywhere];
+  return learning == null
+      ? ranked
+      : learning.boost(ranked, query, (a) => a.componentKey);
 });

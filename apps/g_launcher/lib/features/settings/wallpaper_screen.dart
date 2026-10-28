@@ -2461,25 +2461,25 @@ class _Strip extends StatelessWidget {
                 width: 48,
                 height: 48,
                 child: Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: c.bg.withValues(alpha: 0.72),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: c.line),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      remove != null
-                          ? Icons.close
-                          : (isHidden
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                      size: 16,
-                      color: c.text,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: c.bg.withValues(alpha: 0.72),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: c.line),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        remove != null
+                            ? Icons.close
+                            : (isHidden
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined),
+                        size: 16,
+                        color: c.text,
+                      ),
                     ),
                   ),
-                ),
                 ),
               ),
             ),

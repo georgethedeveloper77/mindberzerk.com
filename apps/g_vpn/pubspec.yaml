@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed the live G VPN build (1.0.19 on Play). Check the
 # console for its exact code before the first upload; 100 leaves headroom.
-version: 2.0.0+102
+version: 2.0.1+104
 
 # Pub workspace member, same as g_launcher.
 resolution: workspace

@@ -7,6 +7,7 @@ import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
+import '../../data/search/search_text.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/desklet_spec.dart';
@@ -335,7 +336,7 @@ class _WidgetPickerScreenState extends ConsumerState<_WidgetPickerScreen> {
         // a Spanish user searching "reloj" finds nothing while "clock" works,
         // which is a search box that only answers in English.
         : widget.kinds
-            .where((k) => context.t(k.labelKey).toLowerCase().contains(q))
+            .where((k) => SearchText.contains(context.t(k.labelKey), q))
             .toList();
 
     // Two cards per row on a phone. Computed from the real width so the grid
@@ -612,9 +613,9 @@ class _AppWidgetSection extends ConsumerWidget {
         final shown = query.isEmpty
             ? groups
             : groups.where((g) {
-                if (g.appLabel.toLowerCase().contains(query)) return true;
+                if (SearchText.contains(g.appLabel, query)) return true;
                 return g.providers
-                    .any((p) => p.label.toLowerCase().contains(query));
+                    .any((p) => SearchText.contains(p.label, query));
               }).toList();
 
         if (shown.isEmpty) {

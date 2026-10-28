@@ -639,8 +639,7 @@ class ThemeSpec {
     return {
       for (final e in raw.entries)
         if (e.key is String && e.value is Map)
-          e.key as String:
-              WallpaperFraming.fromJson(
+          e.key as String: WallpaperFraming.fromJson(
             (e.value as Map).cast<String, dynamic>(),
           ),
     };
@@ -1348,8 +1347,7 @@ class PanelItem {
   ];
 
   /// The form written to prefs and to theme.json.
-  String toStorage() =>
-      kind == PanelModule.app ? 'app:$package' : kind.name;
+  String toStorage() => kind == PanelModule.app ? 'app:$package' : kind.name;
 
   @override
   bool operator ==(Object other) =>
@@ -1623,7 +1621,8 @@ class ThemeLayout {
   /// not that was the intent.
   ///
   /// Off by default, like [desktopIcons], so no distro shipping today changes.
-  final bool panelEdit;  final int rows;
+  final bool panelEdit;
+  final int rows;
   final int cols;
 
   /// A per-theme multiplier on every icon, everywhere: drawer, dock, folders.
@@ -1967,8 +1966,8 @@ class ThemeLayout {
       PanelSpec(
         side: TopBarSide.parse(j['topBarSide'] as String?),
         items: const [
-          PanelItem(PanelModule.activities),
-        ] +
+              PanelItem(PanelModule.activities),
+            ] +
             (j['topBarStats'] as bool? ?? false
                 ? const [
                     PanelItem(PanelModule.spacer),

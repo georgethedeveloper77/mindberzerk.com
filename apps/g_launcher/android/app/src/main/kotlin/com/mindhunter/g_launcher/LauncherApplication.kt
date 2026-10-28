@@ -4,13 +4,17 @@ import android.app.Application
 import com.mindhunter.g_launcher.apps.LauncherHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackHostApiImpl
 import com.mindhunter.g_launcher.cdn.PackSyncWorker
+import com.mindhunter.g_launcher.keys.KeysHostApi
+import com.mindhunter.g_launcher.keys.KeysHostApiImpl
 import com.mindhunter.g_launcher.pack.PackFlutterApi
 import com.mindhunter.g_launcher.pack.PackHostApi
 import com.mindhunter.g_launcher.system.BadgeBridge
 import com.mindhunter.g_launcher.system.ExitInfoBridge
 import com.mindhunter.g_launcher.system.ForegroundTracker
 import com.mindhunter.g_launcher.system.MemoryTrimmer
+import com.mindhunter.g_launcher.widgets.ForeignWidgetGuard
 import com.mindhunter.g_launcher.widgets.WidgetHostController
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -79,6 +83,11 @@ class LauncherApplication : Application() {
 
     private lateinit var packApi: PackHostApiImpl
 
+    /// The SSH keystore bridge. Exposed so LauncherActivity can lend it a
+    /// window for the BiometricPrompt, exactly as it does [hostApi].
+    lateinit var keysApi: KeysHostApiImpl
+        private set
+
     /**
      * Constructed as a FIELD rather than a local in onCreate, because
      * [onTrimMemory] is a callback on this object and needs to reach it long
@@ -110,6 +119,10 @@ class LauncherApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // First, before any widget can be hosted: an OEM widget's own code runs
+        // on our main thread and must not be able to crash the launcher.
+        ForeignWidgetGuard.install(classLoader)
 
         engine = FlutterEngine(this).apply {
             dartExecutor.executeDartEntrypoint(
@@ -168,6 +181,13 @@ class LauncherApplication : Application() {
         // ids that a shipped APK already agrees on.
         packApi = PackHostApiImpl(this, PackFlutterApi(messenger))
         PackHostApi.setUp(messenger, packApi)
+
+        // The keystore bridge, which was never registered: the Dart side has
+        // called `KeysHostApi` since the SSH keys landed and every call ended
+        // in a channel error. Its own schema and Kotlin package, so its codec
+        // cannot touch either API above.
+        keysApi = KeysHostApiImpl(ContextCompat.getMainExecutor(this))
+        KeysHostApi.setUp(messenger, keysApi)
 
         // Notification badges. A plain MethodChannel rather than a third
         // Pigeon API: see the note in NotificationBadges.kt for why a badge

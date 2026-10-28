@@ -314,7 +314,8 @@ class _PowerPageState extends ConsumerState<PowerPage> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = _selected ?? today;
-    final week = history.hasValue ? notifier.dailyUsage() : const <BatteryDay>[];
+    final week =
+        history.hasValue ? notifier.dailyUsage() : const <BatteryDay>[];
     final samples =
         history.hasValue ? notifier.samplesOn(day) : const <BatterySample>[];
     final usedToday = week.isEmpty ? null : week.last.dischargePercent;
@@ -349,8 +350,10 @@ class _PowerPageState extends ConsumerState<PowerPage> {
                   ),
                   const SizedBox(height: 12),
                   _DayStrip(
-                    days: [for (var i = 6; i >= 0; i--)
-                      today.subtract(Duration(days: i))],
+                    days: [
+                      for (var i = 6; i >= 0; i--)
+                        today.subtract(Duration(days: i))
+                    ],
                     selected: day,
                     onSelect: (d) => setState(() => _selected = d),
                   ),

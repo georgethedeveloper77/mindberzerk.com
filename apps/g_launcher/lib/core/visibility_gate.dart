@@ -53,7 +53,8 @@ sealed class _VisibilityGate {
   /// initialized before [_attach] can run.
   void start() {
     if (_disposed || _listener != null) return;
-    _state = WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
+    _state =
+        WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
     _listener = AppLifecycleListener(onStateChange: _onStateChange);
     _sync();
   }

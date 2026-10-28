@@ -780,7 +780,10 @@ class LauncherPrefs {
   final Map<String, String> gestures;
 
   // --- content ---
-  final Set<String> hiddenApps; // componentKeys
+  /// ComponentKeys. Promoted to [GlobalPrefs] in its schema 3: the value seen
+  /// here is the launcher-wide set, and the copy left in a theme's own file
+  /// is ignored on load.
+  final Set<String> hiddenApps;
 
   /// Whether a hidden app may still be reached by TYPING ITS WHOLE NAME.
   ///
@@ -790,9 +793,7 @@ class LauncherPrefs {
   /// there; turning this off is the stronger promise, that the name produces
   /// nothing at all.
   ///
-  /// Per theme like [hiddenApps] itself, because the two only make sense
-  /// together: a hidden set with a global search rule would mean hiding an app
-  /// in Ubuntu quietly changed how KDE's search behaved.
+  /// Global, like [hiddenApps]: the set and its search rule travel together.
   final bool? hiddenAppsSearchable;
 
   /// The dock's pinned apps, in dock order.

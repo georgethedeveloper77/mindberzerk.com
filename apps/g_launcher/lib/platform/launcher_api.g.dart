@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,8 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +44,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -105,7 +106,6 @@ int _deepHash(Object? value) {
   }
   return value.hashCode;
 }
-
 
 /// Why the app list changed. Native pushes the FULL list every time, so this is
 /// informational — nothing on the Dart side merges deltas.
@@ -204,7 +204,8 @@ class AppEntry {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AppEntry decode(Object result) {
     result as List<Object?>;
@@ -232,7 +233,17 @@ class AppEntry {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(componentKey, other.componentKey) && _deepEquals(packageName, other.packageName) && _deepEquals(className, other.className) && _deepEquals(userSerial, other.userSerial) && _deepEquals(label, other.label) && _deepEquals(updateToken, other.updateToken) && _deepEquals(isWorkProfile, other.isWorkProfile) && _deepEquals(isSuspended, other.isSuspended) && _deepEquals(isSystem, other.isSystem) && _deepEquals(category, other.category) && _deepEquals(isGame, other.isGame);
+    return _deepEquals(componentKey, other.componentKey) &&
+        _deepEquals(packageName, other.packageName) &&
+        _deepEquals(className, other.className) &&
+        _deepEquals(userSerial, other.userSerial) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(updateToken, other.updateToken) &&
+        _deepEquals(isWorkProfile, other.isWorkProfile) &&
+        _deepEquals(isSuspended, other.isSuspended) &&
+        _deepEquals(isSystem, other.isSystem) &&
+        _deepEquals(category, other.category) &&
+        _deepEquals(isGame, other.isGame);
   }
 
   @override
@@ -263,7 +274,8 @@ class AppChangeEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AppChangeEvent decode(Object result) {
     result as List<Object?>;
@@ -398,7 +410,8 @@ class IconStyle {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static IconStyle decode(Object result) {
     result as List<Object?>;
@@ -425,7 +438,16 @@ class IconStyle {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(treatment, other.treatment) && _deepEquals(cornerRadius, other.cornerRadius) && _deepEquals(foregroundScale, other.foregroundScale) && _deepEquals(backgroundColor, other.backgroundColor) && _deepEquals(monochromeTint, other.monochromeTint) && _deepEquals(heroPack, other.heroPack) && _deepEquals(backgroundGradientEnd, other.backgroundGradientEnd) && _deepEquals(gradientAngle, other.gradientAngle) && _deepEquals(brandPack, other.brandPack) && _deepEquals(brandTreatment, other.brandTreatment);
+    return _deepEquals(treatment, other.treatment) &&
+        _deepEquals(cornerRadius, other.cornerRadius) &&
+        _deepEquals(foregroundScale, other.foregroundScale) &&
+        _deepEquals(backgroundColor, other.backgroundColor) &&
+        _deepEquals(monochromeTint, other.monochromeTint) &&
+        _deepEquals(heroPack, other.heroPack) &&
+        _deepEquals(backgroundGradientEnd, other.backgroundGradientEnd) &&
+        _deepEquals(gradientAngle, other.gradientAngle) &&
+        _deepEquals(brandPack, other.brandPack) &&
+        _deepEquals(brandTreatment, other.brandTreatment);
   }
 
   @override
@@ -567,7 +589,8 @@ class DeviceStats {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DeviceStats decode(Object result) {
     result as List<Object?>;
@@ -599,7 +622,21 @@ class DeviceStats {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(elapsedRealtimeMillis, other.elapsedRealtimeMillis) && _deepEquals(batteryPercent, other.batteryPercent) && _deepEquals(batteryCharging, other.batteryCharging) && _deepEquals(batteryTempDeciC, other.batteryTempDeciC) && _deepEquals(batteryCurrentMicroA, other.batteryCurrentMicroA) && _deepEquals(memAvailBytes, other.memAvailBytes) && _deepEquals(memTotalBytes, other.memTotalBytes) && _deepEquals(storageFreeBytes, other.storageFreeBytes) && _deepEquals(storageTotalBytes, other.storageTotalBytes) && _deepEquals(netRxBytes, other.netRxBytes) && _deepEquals(netTxBytes, other.netTxBytes) && _deepEquals(netTransport, other.netTransport) && _deepEquals(thermalStatus, other.thermalStatus) && _deepEquals(cpuIdleJiffies, other.cpuIdleJiffies) && _deepEquals(cpuTotalJiffies, other.cpuTotalJiffies);
+    return _deepEquals(elapsedRealtimeMillis, other.elapsedRealtimeMillis) &&
+        _deepEquals(batteryPercent, other.batteryPercent) &&
+        _deepEquals(batteryCharging, other.batteryCharging) &&
+        _deepEquals(batteryTempDeciC, other.batteryTempDeciC) &&
+        _deepEquals(batteryCurrentMicroA, other.batteryCurrentMicroA) &&
+        _deepEquals(memAvailBytes, other.memAvailBytes) &&
+        _deepEquals(memTotalBytes, other.memTotalBytes) &&
+        _deepEquals(storageFreeBytes, other.storageFreeBytes) &&
+        _deepEquals(storageTotalBytes, other.storageTotalBytes) &&
+        _deepEquals(netRxBytes, other.netRxBytes) &&
+        _deepEquals(netTxBytes, other.netTxBytes) &&
+        _deepEquals(netTransport, other.netTransport) &&
+        _deepEquals(thermalStatus, other.thermalStatus) &&
+        _deepEquals(cpuIdleJiffies, other.cpuIdleJiffies) &&
+        _deepEquals(cpuTotalJiffies, other.cpuTotalJiffies);
   }
 
   @override
@@ -678,7 +715,8 @@ class StatCapabilities {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StatCapabilities decode(Object result) {
     result as List<Object?>;
@@ -703,7 +741,14 @@ class StatCapabilities {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(battery, other.battery) && _deepEquals(batteryDetail, other.batteryDetail) && _deepEquals(memory, other.memory) && _deepEquals(storage, other.storage) && _deepEquals(network, other.network) && _deepEquals(networkTransport, other.networkTransport) && _deepEquals(thermal, other.thermal) && _deepEquals(cpu, other.cpu);
+    return _deepEquals(battery, other.battery) &&
+        _deepEquals(batteryDetail, other.batteryDetail) &&
+        _deepEquals(memory, other.memory) &&
+        _deepEquals(storage, other.storage) &&
+        _deepEquals(network, other.network) &&
+        _deepEquals(networkTransport, other.networkTransport) &&
+        _deepEquals(thermal, other.thermal) &&
+        _deepEquals(cpu, other.cpu);
   }
 
   @override
@@ -839,7 +884,8 @@ class WidgetProviderInfo {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static WidgetProviderInfo decode(Object result) {
     result as List<Object?>;
@@ -871,7 +917,21 @@ class WidgetProviderInfo {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(providerKey, other.providerKey) && _deepEquals(packageName, other.packageName) && _deepEquals(appLabel, other.appLabel) && _deepEquals(label, other.label) && _deepEquals(minWidthDp, other.minWidthDp) && _deepEquals(minHeightDp, other.minHeightDp) && _deepEquals(minResizeWidthDp, other.minResizeWidthDp) && _deepEquals(minResizeHeightDp, other.minResizeHeightDp) && _deepEquals(targetCellWidth, other.targetCellWidth) && _deepEquals(targetCellHeight, other.targetCellHeight) && _deepEquals(resizeMode, other.resizeMode) && _deepEquals(category, other.category) && _deepEquals(configurable, other.configurable) && _deepEquals(hasPreviewImage, other.hasPreviewImage) && _deepEquals(description, other.description);
+    return _deepEquals(providerKey, other.providerKey) &&
+        _deepEquals(packageName, other.packageName) &&
+        _deepEquals(appLabel, other.appLabel) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(minWidthDp, other.minWidthDp) &&
+        _deepEquals(minHeightDp, other.minHeightDp) &&
+        _deepEquals(minResizeWidthDp, other.minResizeWidthDp) &&
+        _deepEquals(minResizeHeightDp, other.minResizeHeightDp) &&
+        _deepEquals(targetCellWidth, other.targetCellWidth) &&
+        _deepEquals(targetCellHeight, other.targetCellHeight) &&
+        _deepEquals(resizeMode, other.resizeMode) &&
+        _deepEquals(category, other.category) &&
+        _deepEquals(configurable, other.configurable) &&
+        _deepEquals(hasPreviewImage, other.hasPreviewImage) &&
+        _deepEquals(description, other.description);
   }
 
   @override
@@ -939,7 +999,8 @@ class AppShortcut {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AppShortcut decode(Object result) {
     result as List<Object?>;
@@ -959,7 +1020,9 @@ class AppShortcut {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(label, other.label) && _deepEquals(disabled, other.disabled);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(label, other.label) &&
+        _deepEquals(disabled, other.disabled);
   }
 
   @override
@@ -1043,7 +1106,8 @@ class NowPlaying {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static NowPlaying decode(Object result) {
     result as List<Object?>;
@@ -1066,7 +1130,12 @@ class NowPlaying {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packageName, other.packageName) && _deepEquals(title, other.title) && _deepEquals(artist, other.artist) && _deepEquals(playing, other.playing) && _deepEquals(canSkipNext, other.canSkipNext) && _deepEquals(canSkipPrevious, other.canSkipPrevious);
+    return _deepEquals(packageName, other.packageName) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(artist, other.artist) &&
+        _deepEquals(playing, other.playing) &&
+        _deepEquals(canSkipNext, other.canSkipNext) &&
+        _deepEquals(canSkipPrevious, other.canSkipPrevious);
   }
 
   @override
@@ -1079,7 +1148,6 @@ class NowPlaying {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -1087,34 +1155,34 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is AppChangeReason) {
+    } else if (value is AppChangeReason) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is IconTreatment) {
+    } else if (value is IconTreatment) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is AppEntry) {
+    } else if (value is AppEntry) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is AppChangeEvent) {
+    } else if (value is AppChangeEvent) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is IconStyle) {
+    } else if (value is IconStyle) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is DeviceStats) {
+    } else if (value is DeviceStats) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is StatCapabilities) {
+    } else if (value is StatCapabilities) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is WidgetProviderInfo) {
+    } else if (value is WidgetProviderInfo) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is AppShortcut) {
+    } else if (value is AppShortcut) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is NowPlaying) {
+    } else if (value is NowPlaying) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
@@ -1176,9 +1244,11 @@ class LauncherHostApi {
   /// Constructor for [LauncherHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  LauncherHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  LauncherHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -1188,7 +1258,8 @@ class LauncherHostApi {
   /// The full launchable-app list. Served from cache when warm, refreshed off
   /// the main thread when cold.
   Future<List<AppEntry>> getInstalledApps() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledApps$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledApps$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1198,51 +1269,59 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<AppEntry>();
   }
 
   /// [sourceLeft]..[sourceBottom] are the icon's on-screen rect in logical
   /// pixels, so the system can expand the opening app FROM the icon. All null =
   /// no animation origin.
-  Future<void> launchApp(String componentKey, double? sourceLeft, double? sourceTop, double? sourceRight, double? sourceBottom) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.launchApp$pigeonVar_messageChannelSuffix';
+  Future<void> launchApp(String componentKey, double? sourceLeft,
+      double? sourceTop, double? sourceRight, double? sourceBottom) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.launchApp$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey, sourceLeft, sourceTop, sourceRight, sourceBottom]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+      componentKey,
+      sourceLeft,
+      sourceTop,
+      sourceRight,
+      sourceBottom
+    ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> openAppInfo(String componentKey) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAppInfo$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAppInfo$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKey]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Start the system's uninstall confirmation, and report what happened.
@@ -1273,21 +1352,22 @@ class LauncherHostApi {
   /// A status this side does not recognise must be treated as a failure with a
   /// generic message, never as success.
   Future<String> requestUninstall(String componentKey) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestUninstall$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestUninstall$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKey]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
@@ -1298,21 +1378,22 @@ class LauncherHostApi {
   /// id and you will serve stale icons — so version the id ("ubuntu-24-04.v2")
   /// whenever you edit a theme's icon block.
   Future<void> setIconTheme(String themeId, IconStyle style) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconTheme$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconTheme$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[themeId, style]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[themeId, style]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// PNG bytes for one icon at one size, under the active theme.
@@ -1321,21 +1402,22 @@ class LauncherHostApi {
   /// Memory LRU -> disk -> render. The render path is the only slow one, and it
   /// runs off the main thread.
   Future<Uint8List?> getIcon(String componentKey, int sizePx) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getIcon$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getIcon$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey, sizePx]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKey, sizePx]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as Uint8List?;
   }
 
@@ -1365,22 +1447,24 @@ class LauncherHostApi {
   ///
   /// One entry per key, in order, null where nothing could be drawn, so a fixed
   /// grid can be laid out without matching lengths.
-  Future<List<Uint8List?>> previewIcons(List<String> componentKeys, String tintHex, int sizePx) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewIcons$pigeonVar_messageChannelSuffix';
+  Future<List<Uint8List?>> previewIcons(
+      List<String> componentKeys, String tintHex, int sizePx) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewIcons$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKeys, tintHex, sizePx]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKeys, tintHex, sizePx]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
   }
 
@@ -1422,28 +1506,31 @@ class LauncherHostApi {
   /// applied style, and these bitmaps deliberately are not it.
   ///
   /// One entry per key, in order, null where nothing could be drawn.
-  Future<List<Uint8List?>> previewGeneratedIcons(List<String> componentKeys, int sizePx) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewGeneratedIcons$pigeonVar_messageChannelSuffix';
+  Future<List<Uint8List?>> previewGeneratedIcons(
+      List<String> componentKeys, int sizePx) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.previewGeneratedIcons$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKeys, sizePx]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKeys, sizePx]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
   }
 
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   Future<void> clearIconCache() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.clearIconCache$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.clearIconCache$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1453,16 +1540,16 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Are we the home app right now? Drives the "Set as default" banner.
   Future<bool> isDefaultLauncher() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.isDefaultLauncher$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.isDefaultLauncher$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1472,11 +1559,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1486,7 +1572,8 @@ class LauncherHostApi {
   /// Activity + result plumbing, and several OEMs (Samsung, Xiaomi) intercept
   /// or ignore it anyway. ACTION_HOME_SETTINGS is boring and works everywhere.
   Future<void> requestDefaultLauncher() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestDefaultLauncher$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestDefaultLauncher$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1496,11 +1583,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Sets the REAL system wallpaper.
@@ -1563,7 +1649,8 @@ class LauncherHostApi {
   ///
   /// A STRING for the same reason [fit] is one: an enum takes a codec id.
   Future<String> galleryAccess() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.galleryAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.galleryAccess$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1573,11 +1660,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
@@ -1589,7 +1675,8 @@ class LauncherHostApi {
   /// the Settings app while this process is asleep, so a callback would only
   /// be right some of the time and a re-read is right always.
   Future<bool> requestGalleryAccess() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestGalleryAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.requestGalleryAccess$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1599,11 +1686,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1612,21 +1698,22 @@ class LauncherHostApi {
   /// Empty when access is denied, and under a partial grant it returns only
   /// what was shared, which is the complete answer to what this app can see.
   Future<List<String>> recentImages(int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.recentImages$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.recentImages$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[limit]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[limit]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
@@ -1648,21 +1735,22 @@ class LauncherHostApi {
   /// is a grant that expires, and a wallpaper that stops playing weeks later
   /// because a permission lapsed is indistinguishable from a bug.
   Future<bool> openMotionWallpaper(String path) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openMotionWallpaper$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.openMotionWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[path]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[path]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1672,7 +1760,8 @@ class LauncherHostApi {
   /// their wallpaper anywhere: Android's own settings, the gallery, another
   /// launcher. A stored bool would be wrong the moment they did.
   Future<bool> motionWallpaperActive() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.motionWallpaperActive$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.motionWallpaperActive$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1682,30 +1771,31 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
-  Future<bool> setWallpaper(String source, String target, String fit, int letterboxColor, double focalX, double focalY, double zoom) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setWallpaper$pigeonVar_messageChannelSuffix';
+  Future<bool> setWallpaper(String source, String target, String fit,
+      int letterboxColor, double focalX, double focalY, double zoom) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.setWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[source, target, fit, letterboxColor, focalX, focalY, zoom]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+        <Object?>[source, target, fit, letterboxColor, focalX, focalY, zoom]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1737,26 +1827,41 @@ class LauncherHostApi {
   /// lives in SharedPreferences), so it stores a string and re-reads it each
   /// tick. Handing it a string it can store verbatim keeps the whole rotation
   /// path free of a second serialisation format.
-  Future<void> scheduleWallpaperRotation(int minutes, List<String> sources, bool applyToLock, String fit, int letterboxColor, String framingJson) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.scheduleWallpaperRotation$pigeonVar_messageChannelSuffix';
+  Future<void> scheduleWallpaperRotation(
+      int minutes,
+      List<String> sources,
+      bool applyToLock,
+      String fit,
+      int letterboxColor,
+      String framingJson) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.scheduleWallpaperRotation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[minutes, sources, applyToLock, fit, letterboxColor, framingJson]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+      minutes,
+      sources,
+      applyToLock,
+      fit,
+      letterboxColor,
+      framingJson
+    ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> cancelWallpaperRotation() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.cancelWallpaperRotation$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.cancelWallpaperRotation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1766,11 +1871,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Is the gesture accessibility service actually enabled?
@@ -1779,7 +1883,8 @@ class LauncherHostApi {
   /// at any moment, and a launcher whose gestures silently stopped working — with
   /// no explanation — is a launcher people give up on.
   Future<bool> isGestureServiceEnabled() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.isGestureServiceEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.isGestureServiceEnabled$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1789,17 +1894,17 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   /// Opens Android's accessibility settings so the user can enable it.
   Future<void> openAccessibilitySettings() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAccessibilitySettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAccessibilitySettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1809,32 +1914,32 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// "notifications" | "quickSettings" | "lockScreen" | "recents".
   /// Returns false when the service is off or the action is unsupported.
   /// NEVER throws — a gesture that crashes the home screen is unforgivable.
   Future<bool> performGlobalAction(String action) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.performGlobalAction$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.performGlobalAction$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[action]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[action]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1848,7 +1953,8 @@ class LauncherHostApi {
   /// button that would not work — a restore that silently fails is worse than no
   /// restore.
   Future<bool> stashWallpaper() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.stashWallpaper$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.stashWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1858,17 +1964,17 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   /// Is there a stash to go back to? Drives whether the UI offers a restore.
   Future<bool> hasStashedWallpaper() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.hasStashedWallpaper$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.hasStashedWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1878,18 +1984,18 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   /// Put the stashed wallpaper back on both home and lock, and drop the stash.
   /// False when there was nothing stashed or the write failed.
   Future<bool> restoreWallpaper() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.restoreWallpaper$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.restoreWallpaper$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1899,11 +2005,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -1914,21 +2019,22 @@ class LauncherHostApi {
   /// Reimplementing OS settings screens is how launchers rot: the OEM changes
   /// something and your copy is quietly wrong forever.
   Future<void> openAndroidSettings(String action) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAndroidSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.openAndroidSettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[action]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[action]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Which stat sources this device will actually serve.
@@ -1937,7 +2043,8 @@ class LauncherHostApi {
   /// every desklet mount is free. `@async` because the probe attempts a file
   /// read and a `StatFs`, and neither belongs on the platform thread even once.
   Future<StatCapabilities> getStatCapabilities() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getStatCapabilities$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getStatCapabilities$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1947,11 +2054,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as StatCapabilities;
   }
 
@@ -1964,7 +2070,8 @@ class LauncherHostApi {
   /// when the launcher is not on screen, which is the only reliable way to keep
   /// a permanently-visible home screen off a budget phone's battery.
   Future<DeviceStats> readStats() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.readStats$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.readStats$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1974,11 +2081,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as DeviceStats;
   }
 
@@ -1991,7 +2097,8 @@ class LauncherHostApi {
   /// enumerating providers and hosting one live are separate capabilities, and
   /// only the second needs the host.
   Future<List<WidgetProviderInfo>> getInstalledWidgetProviders() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledWidgetProviders$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getInstalledWidgetProviders$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2001,11 +2108,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<WidgetProviderInfo>();
   }
 
@@ -2016,22 +2122,24 @@ class LauncherHostApi {
   /// opens instantly and previews fill in — never a wall of bitmaps shipped up
   /// front. [providerKey] is the flattened ComponentName from
   /// [WidgetProviderInfo.providerKey].
-  Future<Uint8List?> getWidgetPreview(String providerKey, int widthPx, int heightPx) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getWidgetPreview$pigeonVar_messageChannelSuffix';
+  Future<Uint8List?> getWidgetPreview(
+      String providerKey, int widthPx, int heightPx) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getWidgetPreview$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[providerKey, widthPx, heightPx]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[providerKey, widthPx, heightPx]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as Uint8List?;
   }
 
@@ -2046,63 +2154,67 @@ class LauncherHostApi {
   /// The returned id is DEVICE-LOCAL and non-portable: it is stored on the
   /// desklet's config for THIS install only, never in a starter or a CDN pack.
   Future<int?> addWidget(String providerKey) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.addWidget$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.addWidget$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[providerKey]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[providerKey]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as int?;
   }
 
   /// Release a hosted widget id when its desklet is removed. Deletes the host
   /// allocation so the id is not leaked for the life of the install.
   Future<void> removeWidget(int widgetId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.removeWidget$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.removeWidget$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[widgetId]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[widgetId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Tell the provider its new footprint after a resize, in dp, so its
   /// RemoteViews re-lays-out (a wide clock shows seconds, a tall calendar shows
   /// more rows). Without this the view keeps its placed layout and just scales.
-  Future<void> updateWidgetSize(int widgetId, int minWidthDp, int minHeightDp, int maxWidthDp, int maxHeightDp) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.updateWidgetSize$pigeonVar_messageChannelSuffix';
+  Future<void> updateWidgetSize(int widgetId, int minWidthDp, int minHeightDp,
+      int maxWidthDp, int maxHeightDp) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.updateWidgetSize$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[widgetId, minWidthDp, minHeightDp, maxWidthDp, maxHeightDp]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+        <Object?>[widgetId, minWidthDp, minHeightDp, maxWidthDp, maxHeightDp]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Installed icon packs: package name -> user-visible label.
@@ -2115,7 +2227,8 @@ class LauncherHostApi {
   /// this is empty on a phone that plainly has icon packs, check the manifest
   /// before this code.
   Future<Map<String, String>> installedIconPacks() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.installedIconPacks$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.installedIconPacks$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2125,12 +2238,12 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
-    return (pigeonVar_replyValue! as Map<Object?, Object?>).cast<String, String>();
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as Map<Object?, Object?>)
+        .cast<String, String>();
   }
 
   /// Select a pack, or null to stop using one.
@@ -2140,21 +2253,22 @@ class LauncherHostApi {
   /// that is a visible freeze on the home screen at the exact moment the user
   /// taps a radio button.
   Future<void> setIconPack(String? packageName) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.setIconPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packageName]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Fire an arbitrary view intent and let Android pick who handles it.
@@ -2189,21 +2303,22 @@ class LauncherHostApi {
   /// say so instead of the tap doing nothing. A phone with no gallery and no
   /// file manager is not a crash.
   Future<bool> openIntent(String action, String? uri, String? type) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.openIntent$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.openIntent$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[action, uri, type]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[action, uri, type]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -2220,7 +2335,8 @@ class LauncherHostApi {
   /// returns false on every modern phone and the microphone hides itself
   /// everywhere.
   Future<bool> canRecognizeSpeech() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.canRecognizeSpeech$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.canRecognizeSpeech$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2230,11 +2346,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -2255,21 +2370,22 @@ class LauncherHostApi {
   ///
   /// [prompt] is the line the recogniser shows above its microphone.
   Future<String?> recognizeSpeech(String? prompt) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.recognizeSpeech$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.recognizeSpeech$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[prompt]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[prompt]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -2291,7 +2407,8 @@ class LauncherHostApi {
   /// Formatted in Dart, not in Kotlin. "6.0.0 (21)" is UI copy and belongs on
   /// the side of the bridge that has the i18n system.
   Future<String> getVersionName() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionName$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionName$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2301,11 +2418,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
@@ -2320,7 +2436,8 @@ class LauncherHostApi {
   /// Note `AppEntry.iconVersion` a few hundred lines up, which says at length
   /// that it is NOT a version code. This one is.
   Future<int> getVersionCode() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionCode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getVersionCode$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2330,11 +2447,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as int;
   }
 
@@ -2344,7 +2460,8 @@ class LauncherHostApi {
   /// Activity was attached. The name rather than the URI, because the URI is
   /// nobody's business up here and the name is what a settings row shows.
   Future<String?> chooseBackupFolder() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.chooseBackupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.chooseBackupFolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2354,11 +2471,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -2370,7 +2486,8 @@ class LauncherHostApi {
   /// with no explanation. A revoked grant reports null and the stored string is
   /// dropped, so the next ask is a fresh pick rather than a silent failure.
   Future<String?> backupFolder() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.backupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.backupFolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2380,17 +2497,17 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   /// Forget the folder and release the grant.
   Future<void> forgetBackupFolder() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.forgetBackupFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.forgetBackupFolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2400,11 +2517,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Write one backup into the folder. Returns the new document URI, or null.
@@ -2414,21 +2530,22 @@ class LauncherHostApi {
   /// stream into. A backup carrying wallpapers is tens of megabytes and this is
   /// the moment it is largest in memory.
   Future<String?> writeBackup(String fileName, Uint8List bytes) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.writeBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.writeBackup$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName, bytes]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[fileName, bytes]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -2442,7 +2559,8 @@ class LauncherHostApi {
   /// Filtered by extension only. A file the user renamed is still listed and
   /// still sniffed by `PrefsBackup.inspect`, which is the check that decides.
   Future<List<String>> listBackups() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.listBackups$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.listBackups$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2452,52 +2570,53 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 
   /// The bytes of one document from the folder, or null when it has gone.
   Future<Uint8List?> readBackup(String documentUri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.readBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.readBackup$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[documentUri]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[documentUri]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as Uint8List?;
   }
 
   /// Delete one document. Used by retention, which prunes the folder the same
   /// way the local snapshot store prunes itself.
   Future<bool> deleteBackup(String documentUri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.deleteBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.deleteBackup$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[documentUri]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[documentUri]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -2517,21 +2636,22 @@ class LauncherHostApi {
   /// Returns false when no Activity is attached or nothing on the phone can
   /// take a file, which is a real state on a stripped ROM.
   Future<bool> shareBackup(String fileName, Uint8List bytes) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.shareBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.shareBackup$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName, bytes]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[fileName, bytes]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -2548,21 +2668,22 @@ class LauncherHostApi {
   /// opens to nothing is a correct answer to "this app has no shortcuts"; a
   /// null would make the caller decide which kind of nothing it was holding.
   Future<List<AppShortcut>> shortcutsFor(String componentKey) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.shortcutsFor$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.shortcutsFor$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[componentKey]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<AppShortcut>();
   }
 
@@ -2576,22 +2697,36 @@ class LauncherHostApi {
   /// Returns false when the shortcut is gone, disabled, or the launcher no
   /// longer holds the right to start it. The caller says so rather than
   /// appearing to work.
-  Future<bool> launchShortcut(String componentKey, String shortcutId, double? sourceLeft, double? sourceTop, double? sourceRight, double? sourceBottom) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.launchShortcut$pigeonVar_messageChannelSuffix';
+  Future<bool> launchShortcut(
+      String componentKey,
+      String shortcutId,
+      double? sourceLeft,
+      double? sourceTop,
+      double? sourceRight,
+      double? sourceBottom) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.launchShortcut$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[componentKey, shortcutId, sourceLeft, sourceTop, sourceRight, sourceBottom]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+      componentKey,
+      shortcutId,
+      sourceLeft,
+      sourceTop,
+      sourceRight,
+      sourceBottom
+    ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -2612,7 +2747,8 @@ class LauncherHostApi {
   /// anyone who has not enabled badges. That is not an error and the caller
   /// draws nothing rather than asking for a permission it did not open for.
   Future<List<NowPlaying>> activeSessions() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.activeSessions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.activeSessions$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -2622,11 +2758,10 @@ class LauncherHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<NowPlaying>();
   }
 
@@ -2640,22 +2775,77 @@ class LauncherHostApi {
   /// to work, and a media button that silently does nothing is the failure
   /// people describe as the launcher freezing.
   Future<bool> sendMediaCommand(String packageName, String command) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.g_launcher.LauncherHostApi.sendMediaCommand$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.sendMediaCommand$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName, command]);
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packageName, command]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
+  }
+
+  /// Can this phone confirm it is the owner? One of 'ready', 'no_lock'
+  /// (no screen lock set), 'unsupported' (below Android 9).
+  ///
+  /// Strings rather than an enum, for the codec reason [NowPlaying] gives.
+  /// Mirrored in `system/UserAuth.kt` and `data/prefs/hidden_lock.dart`.
+  Future<String> userAuthAvailability() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.userAuthAvailability$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Ask the owner to confirm it is them: fingerprint, face, or the screen
+  /// lock PIN as a fallback. For the hidden apps lock.
+  ///
+  /// Answers 'ok', 'cancelled', 'lockout' (too many tries), 'no_lock',
+  /// 'unsupported' or 'no_window'. Platform `BiometricPrompt`, NOT androidx,
+  /// because androidx needs a FragmentActivity and the home activity is a
+  /// FlutterActivity. Same call the SSH keystore makes.
+  ///
+  /// APPENDED LAST: methods do not shift codec ids, but keeping additions at
+  /// the end keeps the generated diff readable.
+  Future<String> confirmUser(String title, String? subtitle) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.confirmUser$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[title, subtitle]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
   }
 }
 
@@ -2668,11 +2858,17 @@ abstract class LauncherFlutterApi {
 
   void onAppsChanged(AppChangeEvent event);
 
-  static void setUp(LauncherFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    LauncherFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.g_launcher.LauncherFlutterApi.onAppsChanged$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.g_launcher.LauncherFlutterApi.onAppsChanged$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -2685,8 +2881,9 @@ abstract class LauncherFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }

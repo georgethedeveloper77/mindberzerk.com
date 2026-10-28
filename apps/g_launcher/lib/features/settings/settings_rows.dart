@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/search/search_text.dart';
 import '../../design/components/components.dart';
 import '../../engine/theme_spec.dart' show ChromeFamily;
 
@@ -187,10 +188,10 @@ class SettingsGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SettingsSkin.of(context);
     final f = s.framing;
-    final q = query.toLowerCase();
+    final q = query;
     // A matching group label reveals the whole section; otherwise filter row by
     // row. So "gestures" surfaces every gesture, and "wrap" surfaces one row.
-    final labelHit = q.isEmpty || label.toLowerCase().contains(q);
+    final labelHit = SearchText.contains(label, q);
     final visible = <Widget>[
       for (final r in rows)
         if (labelHit || r.matches(q)) r.child,
@@ -285,7 +286,8 @@ class FilterRow {
   final List<String> terms;
   final Widget child;
 
-  bool matches(String q) => q.isEmpty || terms.any((t) => t.contains(q));
+  /// Folded through [SearchText], so "darkmode" finds "dark mode".
+  bool matches(String q) => SearchText.anyContains(terms, q);
 }
 
 /// The search field. Filters the settings live; the clear button appears only

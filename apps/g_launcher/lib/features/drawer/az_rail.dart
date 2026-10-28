@@ -325,8 +325,7 @@ class _AzRailState extends State<AzRail> {
     // flips to dark. Third copy of the pair, and if that rule ever changes it
     // changes in all three.
     final onAccent = widget.theme.palette.accent.computeLuminance() > 0.5
-        ? const Color(
-            0xFF12080D) // theme-exempt: mirrors ChromeColors.onAccent
+        ? const Color(0xFF12080D) // theme-exempt: mirrors ChromeColors.onAccent
         : const Color(
             0xFFFFFFFF); // theme-exempt: mirrors ChromeColors.onAccent
 
@@ -348,7 +347,8 @@ class _AzRailState extends State<AzRail> {
       final goal = touch == null
           ? 0.0
           : -_kPush *
-              math.exp(-math.pow((centres[i] - touch) / _kFalloff, 2).toDouble());
+              math.exp(
+                  -math.pow((centres[i] - touch) / _kFalloff, 2).toDouble());
       _motion.v[i] +=
           (_kStiffness * (goal - _motion.x[i]) - _kDamping * _motion.v[i]) * dt;
       _motion.x[i] += _motion.v[i] * dt;

@@ -253,105 +253,107 @@ class _AquaDockState extends State<AquaDock> {
             widget.onDropApp!((d.data as AppDrag).componentKey);
           },
           builder: (context, candidate, __) => DockExtentProbe(
-          vertical: false,
-          child: Center(
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            // Silent unless this dock swells. A flat plank that still tracked
-            // the pointer would resize its slots invisibly and fight every
-            // drag that started on it.
-            onPointerDown:
-                _swells ? (e) => _setFocusFrom(e.position) : null,
-            onPointerMove:
-                _swells ? (e) => _setFocusFrom(e.position) : null,
-            onPointerUp: _swells ? (_) => _clearFocus() : null,
-            onPointerCancel: _swells ? (_) => _clearFocus() : null,
-            child: ClipRRect(
-              borderRadius: radius,
-              child: BackdropFilter(
-                // The single most expensive thing on this desktop, and the one
-                // that makes it read as Aqua. Same warning as the GNOME dock: if
-                // it janks on a budget phone, measure here first.
-                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                child: Container(
-                  key: _panelKey,
-                  width: available + _padding * 2,
-                  padding: const EdgeInsets.all(_padding),
-                  decoration: BoxDecoration(
-                    color: palette.dock.withValues(
-                      alpha: palette.dock.a * widget.opacity,
-                    ),
-                    border: Border.all(color: onDark.withValues(alpha: 0.14)),
-                    borderRadius: radius,
-                  ),
-                  child: SizedBox(
-                    height: tallest,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        for (var i = 0; i < slots.length; i++)
-                          _positioned(
-                            slot: slots[i],
-                            tallest: tallest,
-                            child: i < widget.entries.length
-                                ? DockSlotMotion(
-                                    // ─── MAGNIFY IS ALREADY DONE HERE ────
-                                    //
-                                    // `AquaDockMetrics.layout` resizes the SLOT
-                                    // and conserves the run's total width,
-                                    // which is a better magnify than a scale
-                                    // transform and is covered by its own
-                                    // tests. Passing `none` for that mode
-                                    // leaves it alone; the other six have no
-                                    // layout equivalent and come from here.
-                                    mode: _swells ? 'none' : widget.hover,
-                                    focus: _focus == null
-                                        ? null
-                                        : DockFocus(
-                                            position: _focus!,
-                                            spread: AquaDockMetrics.spreadSlots *
-                                                slots[i].size,
-                                          ),
-                                    centre: slots[i].center,
-                                    slotSize: slots[i].size,
-                                    vertical: false,
-                                    child: DockPressMotion(
-                                      mode: widget.press,
-                                      focus: _focus == null
-                                          ? null
-                                          : DockFocus(
-                                              position: _focus!,
-                                              spread:
-                                                  AquaDockMetrics.spreadSlots *
+            vertical: false,
+            child: Center(
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                // Silent unless this dock swells. A flat plank that still tracked
+                // the pointer would resize its slots invisibly and fight every
+                // drag that started on it.
+                onPointerDown:
+                    _swells ? (e) => _setFocusFrom(e.position) : null,
+                onPointerMove:
+                    _swells ? (e) => _setFocusFrom(e.position) : null,
+                onPointerUp: _swells ? (_) => _clearFocus() : null,
+                onPointerCancel: _swells ? (_) => _clearFocus() : null,
+                child: ClipRRect(
+                  borderRadius: radius,
+                  child: BackdropFilter(
+                    // The single most expensive thing on this desktop, and the one
+                    // that makes it read as Aqua. Same warning as the GNOME dock: if
+                    // it janks on a budget phone, measure here first.
+                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                    child: Container(
+                      key: _panelKey,
+                      width: available + _padding * 2,
+                      padding: const EdgeInsets.all(_padding),
+                      decoration: BoxDecoration(
+                        color: palette.dock.withValues(
+                          alpha: palette.dock.a * widget.opacity,
+                        ),
+                        border:
+                            Border.all(color: onDark.withValues(alpha: 0.14)),
+                        borderRadius: radius,
+                      ),
+                      child: SizedBox(
+                        height: tallest,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            for (var i = 0; i < slots.length; i++)
+                              _positioned(
+                                slot: slots[i],
+                                tallest: tallest,
+                                child: i < widget.entries.length
+                                    ? DockSlotMotion(
+                                        // ─── MAGNIFY IS ALREADY DONE HERE ────
+                                        //
+                                        // `AquaDockMetrics.layout` resizes the SLOT
+                                        // and conserves the run's total width,
+                                        // which is a better magnify than a scale
+                                        // transform and is covered by its own
+                                        // tests. Passing `none` for that mode
+                                        // leaves it alone; the other six have no
+                                        // layout equivalent and come from here.
+                                        mode: _swells ? 'none' : widget.hover,
+                                        focus: _focus == null
+                                            ? null
+                                            : DockFocus(
+                                                position: _focus!,
+                                                spread: AquaDockMetrics
+                                                        .spreadSlots *
+                                                    slots[i].size,
+                                              ),
+                                        centre: slots[i].center,
+                                        slotSize: slots[i].size,
+                                        vertical: false,
+                                        child: DockPressMotion(
+                                          mode: widget.press,
+                                          focus: _focus == null
+                                              ? null
+                                              : DockFocus(
+                                                  position: _focus!,
+                                                  spread: AquaDockMetrics
+                                                          .spreadSlots *
                                                       slots[i].size,
-                                              // This dock tracks its own
-                                              // pointer, and it only sets
-                                              // `_focus` while one is down.
-                                              pressed: true,
-                                            ),
-                                      centre: slots[i].center,
-                                      vertical: false,
-                                      child: _AquaSlotView(
-                                        entry: widget.entries[i],
+                                                  // This dock tracks its own
+                                                  // pointer, and it only sets
+                                                  // `_focus` while one is down.
+                                                  pressed: true,
+                                                ),
+                                          centre: slots[i].center,
+                                          vertical: false,
+                                          child: _AquaSlotView(
+                                            entry: widget.entries[i],
+                                            size: slots[i].size,
+                                            accent: palette.accent,
+                                          ),
+                                        ),
+                                      )
+                                    : _LaunchpadSlot(
                                         size: slots[i].size,
-                                        accent: palette.accent,
+                                        onDark: onDark,
+                                        onTap: widget.onLaunchpad,
                                       ),
-                                    ),
-                                  )
-                                : _LaunchpadSlot(
-                                    size: slots[i].size,
-                                    onDark: onDark,
-                                    onTap: widget.onLaunchpad,
-                                  ),
-                          ),
-                      ],
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          ),
           ),
         );
       },
@@ -391,40 +393,40 @@ class _AquaSlotView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final core = Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Expanded(
-              child: FittedBox(
-                // The icon widget was built at the dock's resting glyph size;
-                // FittedBox scales it to whatever the magnification asked for
-                // this frame. Rebuilding an AppIcon at a new pixel size on every
-                // pointer move would re-cross the platform channel sixty times a
-                // second, which is the whole reason the icon cache exists.
-                fit: BoxFit.contain,
-                child: entry.icon,
-              ),
-            ),
-            // A Mac marks a running app with a dot beneath it. Same honesty rule
-            // as the GNOME running bar: Android has no public "is this running"
-            // API, so this lights only for what we actually know, and a dot on
-            // an app that is not running is a small lie.
-            SizedBox(
-              height: 5,
-              child: entry.isRunning
-                  ? Center(
-                      child: Container(
-                        width: 3.5,
-                        height: 3.5,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-          ],
-        );
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Expanded(
+          child: FittedBox(
+            // The icon widget was built at the dock's resting glyph size;
+            // FittedBox scales it to whatever the magnification asked for
+            // this frame. Rebuilding an AppIcon at a new pixel size on every
+            // pointer move would re-cross the platform channel sixty times a
+            // second, which is the whole reason the icon cache exists.
+            fit: BoxFit.contain,
+            child: entry.icon,
+          ),
+        ),
+        // A Mac marks a running app with a dot beneath it. Same honesty rule
+        // as the GNOME running bar: Android has no public "is this running"
+        // API, so this lights only for what we actually know, and a dot on
+        // an app that is not running is a small lie.
+        SizedBox(
+          height: 5,
+          child: entry.isRunning
+              ? Center(
+                  child: Container(
+                    width: 3.5,
+                    height: 3.5,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      ],
+    );
 
     // ─── A SOURCE, LIKE EVERY OTHER DOCK ────────────────────────────────
     //
@@ -447,8 +449,7 @@ class _AquaSlotView extends ConsumerWidget {
           HapticFeedback.mediumImpact();
           ref.read(dockDragActiveProvider.notifier).set(true);
         },
-        onDragEnd: (_) =>
-            ref.read(dockDragActiveProvider.notifier).set(false),
+        onDragEnd: (_) => ref.read(dockDragActiveProvider.notifier).set(false),
         onDraggableCanceled: (_, __) =>
             ref.read(dockDragActiveProvider.notifier).set(false),
         dragAnchorStrategy: pointerDragAnchorStrategy,

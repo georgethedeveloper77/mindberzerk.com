@@ -148,8 +148,7 @@ List<Widget> desktopSection(
               // No `following` pair. No distro authors this: see
               // `LauncherPrefs.dockLayout` for why it stops at the user.
               options: const {'bar': 'Bar', 'list': 'List'},
-              onChanged: (v) =>
-                  notifier.edit((p) => p.copyWith(dockLayout: v)),
+              onChanged: (v) => notifier.edit((p) => p.copyWith(dockLayout: v)),
             ),
           ),
         ),

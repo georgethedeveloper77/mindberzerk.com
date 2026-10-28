@@ -28,6 +28,7 @@ import com.mindhunter.g_launcher.icons.BrandIconResolver
 import com.mindhunter.g_launcher.icons.BrandTreatment
 import com.mindhunter.g_launcher.icons.IconCache
 import com.mindhunter.g_launcher.system.MediaSessions
+import com.mindhunter.g_launcher.system.UserAuth
 import com.mindhunter.g_launcher.icons.HeroIconResolver
 import com.mindhunter.g_launcher.icons.IconExtractor
 import com.mindhunter.g_launcher.icons.IconRenderer
@@ -266,6 +267,17 @@ class LauncherHostApiImpl(
     override fun sendMediaCommand(packageName: String, command: String): Boolean =
         runCatching { MediaSessions.send(appContext, packageName, command) }
             .getOrDefault(false)
+
+    override fun userAuthAvailability(): String = UserAuth.availability(appContext)
+
+    /** Hidden apps lock. Posted to main, where the prompt has to be built. */
+    override fun confirmUser(
+        title: String,
+        subtitle: String?,
+        callback: (Result<String>) -> Unit,
+    ) {
+        main.post { UserAuth.confirm(activityRef?.get(), title, subtitle, callback) }
+    }
 
     override fun shortcutsFor(
         componentKey: String,

@@ -156,8 +156,7 @@ class CinnamonDrawer extends ConsumerWidget {
             active: active,
             apps: listed,
             height: _colsHeight(context),
-            onCategory: (n) =>
-                ref.read(_categoryProvider.notifier).state = n,
+            onCategory: (n) => ref.read(_categoryProvider.notifier).state = n,
           ),
         ),
       ],

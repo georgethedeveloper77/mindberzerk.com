@@ -1923,6 +1923,27 @@ interface LauncherHostApi {
    * people describe as the launcher freezing.
    */
   fun sendMediaCommand(packageName: String, command: String): Boolean
+  /**
+   * Can this phone confirm it is the owner? One of 'ready', 'no_lock'
+   * (no screen lock set), 'unsupported' (below Android 9).
+   *
+   * Strings rather than an enum, for the codec reason [NowPlaying] gives.
+   * Mirrored in `system/UserAuth.kt` and `data/prefs/hidden_lock.dart`.
+   */
+  fun userAuthAvailability(): String
+  /**
+   * Ask the owner to confirm it is them: fingerprint, face, or the screen
+   * lock PIN as a fallback. For the hidden apps lock.
+   *
+   * Answers 'ok', 'cancelled', 'lockout' (too many tries), 'no_lock',
+   * 'unsupported' or 'no_window'. Platform `BiometricPrompt`, NOT androidx,
+   * because androidx needs a FragmentActivity and the home activity is a
+   * FlutterActivity. Same call the SSH keystore makes.
+   *
+   * APPENDED LAST: methods do not shift codec ids, but keeping additions at
+   * the end keeps the generated diff readable.
+   */
+  fun confirmUser(title: String, subtitle: String?, callback: (Result<String>) -> Unit)
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -2904,6 +2925,42 @@ interface LauncherHostApi {
               LauncherApiPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.userAuthAvailability$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.userAuthAvailability())
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.confirmUser$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val titleArg = args[0] as String
+            val subtitleArg = args[1] as String?
+            api.confirmUser(titleArg, subtitleArg) { result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

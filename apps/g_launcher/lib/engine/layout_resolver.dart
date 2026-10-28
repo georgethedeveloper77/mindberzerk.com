@@ -121,7 +121,8 @@ class ResolvedLayout {
   ///
   /// NON-NULL, unlike [panelHeight], because there is no such thing as a panel
   /// with no edge: something has to be decided, and bottom is what Plasma does.
-  final TopBarSide panelSide;  final int rows;
+  final TopBarSide panelSide;
+  final int rows;
   final int cols;
   final int drawerCols;
 
@@ -657,68 +658,68 @@ abstract final class LayoutResolver {
       panels: !(prefs.topBar ?? base.topBar)
           ? const <PanelSpec>[]
           : prefs.panelModules != null
-          ? [
-              PanelSpec(
-                // ── THE THEME'S EDGE, EVEN HERE ─────────────────────────
-          //
-          // This branch fires when the user has rearranged the panel in edit
-          // mode, and it rebuilds the panel from THEIR modules. The edge is
-          // still a separate decision: reordering the clock should not also
-          // move the bar to the bottom, which is what passing prefs alone did
-          // once `_panelSide` learned to read the theme.
-          side: _panelSide(prefs, base),
-                // `PanelItem.parseAll`, not `PanelModule.parse`: the stored
-                // strings can read `app:com.example.files`, and parsing to the
-                // kind alone would drop the package and render a button that
-                // launches nothing. Unrecognised entries are still dropped
-                // rather than fatal.
-                //
-                // ── AND IT EXPANDS `tray` FOR THE SAME REASON THE THEME DOES
-                //
-                // Edit mode writes the panel it rendered, so a list saved after
-                // the expansion landed holds the three modules already and this
-                // is a no-op on it. A list saved BEFORE it still says `tray`,
-                // and running it through the same function is what stops an
-                // early adopter's saved panel being the one panel in the app
-                // whose tray cannot be tapped. The side is the resolved one, so
-                // a saved panel moved to the top edge collapses back to the
-                // Quick Settings button rather than duplicating the status bar.
-                items: PanelItem.parseAll(
-                  prefs.panelModules!,
-                  side: _panelSide(prefs, base),
-                ),
-              ),
-            ]
-          // ─── THE FLAG, NOT THE SHAPE ────────────────────────────────
-          //
-          // This asked `panels.length == 1 && panels.first.height == null`,
-          // which was a guess at "was this panel synthesised" made from the
-          // only evidence available at the time, and it is wrong in the one
-          // direction that matters. Those are exactly the properties of the
-          // synthesised panel, and ALSO the properties of a real authored
-          // panel that happens to be alone and to take the shell default
-          // height. Such a distro had its authored edge silently rebound to
-          // the user's `topBarSide` pref, which is the control for the
-          // SYNTHESISED bar and means nothing on an authored one.
-          //
-          // `panelsAuthored` answers the question directly, at the only point
-          // where it is still answerable. The `length == 1` test stays as a
-          // guard on `.first`, not as evidence: synthesis returns either one
-          // panel or `const []`, and the empty case must not reach `.first`.
-          : !base.panelsAuthored && base.panels.length == 1
               ? [
                   PanelSpec(
-                    side: switch (prefs.topBarSide) {
-                      'top' => TopBarSide.top,
-                      'bottom' => TopBarSide.bottom,
-                      'left' => TopBarSide.left,
-                      'right' => TopBarSide.right,
-                      _ => base.panels.first.side,
-                    },
-                    items: base.panels.first.items,
+                    // ── THE THEME'S EDGE, EVEN HERE ─────────────────────────
+                    //
+                    // This branch fires when the user has rearranged the panel in edit
+                    // mode, and it rebuilds the panel from THEIR modules. The edge is
+                    // still a separate decision: reordering the clock should not also
+                    // move the bar to the bottom, which is what passing prefs alone did
+                    // once `_panelSide` learned to read the theme.
+                    side: _panelSide(prefs, base),
+                    // `PanelItem.parseAll`, not `PanelModule.parse`: the stored
+                    // strings can read `app:com.example.files`, and parsing to the
+                    // kind alone would drop the package and render a button that
+                    // launches nothing. Unrecognised entries are still dropped
+                    // rather than fatal.
+                    //
+                    // ── AND IT EXPANDS `tray` FOR THE SAME REASON THE THEME DOES
+                    //
+                    // Edit mode writes the panel it rendered, so a list saved after
+                    // the expansion landed holds the three modules already and this
+                    // is a no-op on it. A list saved BEFORE it still says `tray`,
+                    // and running it through the same function is what stops an
+                    // early adopter's saved panel being the one panel in the app
+                    // whose tray cannot be tapped. The side is the resolved one, so
+                    // a saved panel moved to the top edge collapses back to the
+                    // Quick Settings button rather than duplicating the status bar.
+                    items: PanelItem.parseAll(
+                      prefs.panelModules!,
+                      side: _panelSide(prefs, base),
+                    ),
                   ),
                 ]
-              : base.panels,
+              // ─── THE FLAG, NOT THE SHAPE ────────────────────────────────
+              //
+              // This asked `panels.length == 1 && panels.first.height == null`,
+              // which was a guess at "was this panel synthesised" made from the
+              // only evidence available at the time, and it is wrong in the one
+              // direction that matters. Those are exactly the properties of the
+              // synthesised panel, and ALSO the properties of a real authored
+              // panel that happens to be alone and to take the shell default
+              // height. Such a distro had its authored edge silently rebound to
+              // the user's `topBarSide` pref, which is the control for the
+              // SYNTHESISED bar and means nothing on an authored one.
+              //
+              // `panelsAuthored` answers the question directly, at the only point
+              // where it is still answerable. The `length == 1` test stays as a
+              // guard on `.first`, not as evidence: synthesis returns either one
+              // panel or `const []`, and the empty case must not reach `.first`.
+              : !base.panelsAuthored && base.panels.length == 1
+                  ? [
+                      PanelSpec(
+                        side: switch (prefs.topBarSide) {
+                          'top' => TopBarSide.top,
+                          'bottom' => TopBarSide.bottom,
+                          'left' => TopBarSide.left,
+                          'right' => TopBarSide.right,
+                          _ => base.panels.first.side,
+                        },
+                        items: base.panels.first.items,
+                      ),
+                    ]
+                  : base.panels,
       panelsAuthored: base.panelsAuthored,
       workspaceAxis: base.workspaceAxis,
       appsSurface: _appsSurface(spec, base),

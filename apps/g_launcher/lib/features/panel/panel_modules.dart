@@ -19,8 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
-import '../../engine/theme_spec.dart'
-    show PanelItem, PanelModule, TopBarSide;
+import '../../engine/theme_spec.dart' show PanelItem, PanelModule, TopBarSide;
 import '../home/workspaces/workspace_controller.dart';
 import 'applets/panel_battery.dart';
 import 'applets/panel_network.dart';
@@ -80,7 +79,6 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
         theme: theme,
         package: item.package ?? '',
       ),
-
     PanelModule.kickoff => PanelKickoffButton(
         theme: theme,
         onTap: () => openApps(ref),
@@ -93,7 +91,6 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
         theme: theme,
         vertical: host.vertical,
       ),
-
     PanelModule.pager => PanelPager(theme: theme),
 
     // ─── ONLY A TOP PANEL STILL HAS ONE ────────────────────────────────────
@@ -107,12 +104,10 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
         // so it keeps all three. Only a top bar sits under the system's own.
         compact: theme.statusBar && theme.panelSide == TopBarSide.top,
       ),
-
     PanelModule.clock => PanelClockModule(
         onDark: theme.palette.onDark,
         narrow: host.vertical,
       ),
-
     PanelModule.spacer => const Spacer(),
 
     // ─── ONE WIDGET, ONE SUBSCRIPTION, DRAWN AT THE FIRST OF THE THREE ─────

@@ -2,11 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../data/prefs/hidden_apps.dart';
+import '../../data/prefs/query_learning.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../command/command_router.dart';
 import 'fuzzy.dart';
 
 /// What's typed at the prompt.
@@ -30,6 +32,9 @@ final paletteResultsProvider =
   final frequent = ref.watch(frequentAppsProvider);
 
   if (query.isEmpty) return const [];
+
+  // An explicit command mode (`=`, `:`, `!`) is not an app search.
+  if (!CommandRouter.route(query).searchApps) return const [];
 
   // ── HIDDEN APPS ────────────────────────────────────────────────────────────
   //
@@ -66,7 +71,11 @@ final paletteResultsProvider =
       return a.label.toLowerCase().compareTo(b.label.toLowerCase());
     });
 
-  return Fuzzy.rank(sorted, query, label: (a) => a.label);
+  final ranked = Fuzzy.rank(sorted, query, label: (a) => a.label);
+  final learning = ref.watch(queryLearningProvider).asData?.value;
+  return learning == null
+      ? ranked
+      : learning.boost(ranked, query, (r) => r.item.componentKey);
 });
 
 /// Enter launches the top match. The entire promise of the screen, so it lives
@@ -79,6 +88,9 @@ bool launchTopMatch(WidgetRef ref, EffectiveTheme theme) {
   if (results.isEmpty) return false;
 
   final app = results.first.item;
+  ref
+      .read(queryLearningProvider.notifier)
+      .record(ref.read(paletteQueryProvider), app.componentKey);
   ref.read(appListProvider.notifier).launch(app);
   ref.read(usageProvider.notifier).record(app.componentKey);
   ref.read(paletteQueryProvider.notifier).state = '';

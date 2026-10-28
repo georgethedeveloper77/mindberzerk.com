@@ -162,7 +162,8 @@ class _DockExtentProbeState extends ConsumerState<DockExtentProbe> {
 /// A `LayoutBuilder` cannot do this: it reports the constraints going IN, and
 /// the dock's size is decided by its contents, not by what it was offered.
 class _Measure extends SingleChildRenderObjectWidget {
-  const _Measure({required this.onSize, required this.onRect, required super.child});
+  const _Measure(
+      {required this.onSize, required this.onRect, required super.child});
 
   final ValueChanged<Size> onSize;
   final ValueChanged<Rect> onRect;

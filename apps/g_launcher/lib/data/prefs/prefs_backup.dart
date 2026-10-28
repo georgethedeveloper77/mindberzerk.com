@@ -300,7 +300,8 @@ class PrefsBackup {
       themeCount: ((j['themes'] as Map?) ?? const {}).length,
       collectionCount: ((j['collections'] as List?) ?? const []).length,
       photoCount: entries.length,
-      themeIds: ((j['themes'] as Map?) ?? const {}).keys.cast<String>().toList(),
+      themeIds:
+          ((j['themes'] as Map?) ?? const {}).keys.cast<String>().toList(),
       themeNames: ((j['themeNames'] as Map?) ?? const {})
           .cast<String, dynamic>()
           .map((k, v) => MapEntry(k, v as String)),
@@ -346,12 +347,33 @@ class PrefsBackup {
       } catch (_) {}
     }
 
+    // Hidden sets the restored distro files carry. A backup written before
+    // the hidden set went global (schema 3) has them only there, and the
+    // per-theme copy is ignored on load now, so they are lifted into the
+    // global bucket rather than silently unhidden by the restore.
+    final restoredHidden = <String>{
+      for (final id in restored) ...(await repo.load(id)).hiddenApps,
+    };
+
+    var globalWritten = false;
     if (includeGlobal) {
       if (j['global'] case final Map<String, dynamic> g) {
         try {
-          await repo.saveGlobal(GlobalPrefs.fromJson(g));
+          await repo.saveGlobal(
+            GlobalPrefs.fromJson(g).withV3HiddenApps(restoredHidden),
+          );
+          globalWritten = true;
         } catch (_) {}
       }
+    }
+
+    // Global left alone (or absent from the file): merge, never replace, so a
+    // restore can only ever hide more, not reveal what is hidden here now.
+    if (!globalWritten && restoredHidden.isNotEmpty) {
+      final current = await repo.loadGlobal() ?? const GlobalPrefs();
+      await repo.saveGlobal(
+        current.withHiddenApps({...?current.hiddenApps, ...restoredHidden}),
+      );
     }
 
     // Only when that distro was actually restored. See the class note.
@@ -512,7 +534,6 @@ class BackupSummary {
   DateTime? get takenAt => DateTime.tryParse(createdAt ?? '')?.toLocal();
 
   /// The date as a plain day, for a one-line description.
-  String get day => takenAt == null
-      ? 'an unknown date'
-      : createdAt!.substring(0, 10);
+  String get day =>
+      takenAt == null ? 'an unknown date' : createdAt!.substring(0, 10);
 }

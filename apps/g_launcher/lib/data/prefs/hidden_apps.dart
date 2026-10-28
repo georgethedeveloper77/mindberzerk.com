@@ -1,4 +1,5 @@
 import '../../platform/launcher_api.g.dart';
+import '../search/search_text.dart';
 import 'launcher_prefs.dart';
 
 /// Hiding apps, and the one rule for whether a hidden app may still be found.
@@ -76,10 +77,12 @@ abstract final class HiddenApps {
     if (!p.hiddenApps.contains(app.componentKey)) return true;
     if (!searchable(p)) return false;
 
-    final q = _norm(query);
-    if (q.isEmpty) return false;
+    if (query.trim().isEmpty) return false;
 
-    return q == _norm(app.label) || q == app.packageName.toLowerCase().trim();
+    // Whole name on the same folded form every search box uses, so a hidden
+    // "G VPN" opens on "gvpn" as well as "G VPN". Still whole name only.
+    return SearchText.sameName(app.label, query) ||
+        query.trim().toLowerCase() == app.packageName.toLowerCase();
   }
 
   /// The list a search surface should actually match against.
@@ -97,11 +100,4 @@ abstract final class HiddenApps {
         if (admits(p, a, query)) a,
     ];
   }
-
-  /// Case, surrounding space and INTERNAL runs of space folded away, so
-  /// "WA  Business" and "wa business" are the same thing typed twice. Nothing
-  /// else is stripped: removing punctuation would let `x` match "X", which is
-  /// a whole-name match by accident and precisely what the rule forbids.
-  static String _norm(String s) =>
-      s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 }

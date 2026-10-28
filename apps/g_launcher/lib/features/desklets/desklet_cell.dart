@@ -62,6 +62,7 @@ class DeskletDockCellsNotifier extends Notifier<Set<int>> {
   }
 }
 
-final deskletDockCellsProvider = NotifierProvider<DeskletDockCellsNotifier, Set<int>>(
+final deskletDockCellsProvider =
+    NotifierProvider<DeskletDockCellsNotifier, Set<int>>(
   DeskletDockCellsNotifier.new,
 );

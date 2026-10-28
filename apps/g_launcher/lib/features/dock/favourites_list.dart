@@ -126,7 +126,8 @@ class FavouritesList extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (final e in entries) _FavouriteRow(entry: e, palette: palette),
+                  for (final e in entries)
+                    _FavouriteRow(entry: e, palette: palette),
                 ],
               ),
             );

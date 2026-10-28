@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/prefs/new_apps.dart';
+import '../../data/prefs/query_learning.dart';
 import '../../data/prefs/recent_searches.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
@@ -10,9 +12,12 @@ import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../command/command_rows.dart';
+import '../command/command_router.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
+import '../settings/hide_apps_screen.dart';
 
 /// The drawer search page — the One UI layout, dressed in the active theme.
 ///
@@ -147,6 +152,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final usage = ref.read(usageProvider.notifier);
     if (term.isNotEmpty) {
       ref.read(recentSearchesProvider.notifier).record(term);
+      ref.read(queryLearningProvider.notifier).record(term, e.componentKey);
     }
     _dismiss();
     apps.launch(e);
@@ -214,8 +220,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _submit() {
     final q = _query.trim();
     if (q.isEmpty) return;
-    final results =
-        ref.read(visibleAppsProvider((query: q, theme: widget.theme)));
+
+    // An explicit mode, or a command with no app to beat it: Enter acts on
+    // the command (copies the sum, opens the bang) instead of launching.
+    final route = CommandRouter.route(q);
+    final results = route.searchApps
+        ? ref.read(visibleAppsProvider((query: q, theme: widget.theme)))
+        : const <AppEntry>[];
+    if (route.hits.isNotEmpty && results.isEmpty) {
+      _activate(route.hits.first);
+      return;
+    }
     if (results.isEmpty) {
       // The term still counts as a search even when it found nothing, and the
       // page stays put so the user can correct it.
@@ -290,24 +305,45 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     // want it again now, even though it will never out-rank WhatsApp on
     // frequency. The dock is the surface that wants frecency (it must hold
     // still); this one wants recency.
+    //
+    // NEW APPS LEAD. An app installed in the last few days and not opened
+    // since goes first, with a dot, because "I just installed it, where is
+    // it?" is the most common reason anyone opens search on a launcher. It
+    // drops back into the ordinary recency order the first time it is
+    // launched. Hidden apps never qualify: `byKey` is the shell list.
+    final newKeys = ref.watch(newAppsProvider);
+    final newSet = <String>{
+      for (final k in newKeys)
+        if (byKey[k] != null) k,
+    };
     final recentKeys = ref.watch(recentAppsProvider);
     final suggested = <AppEntry>[
+      for (final k in newSet) byKey[k]!,
       for (final k in recentKeys)
-        if (byKey[k] != null) byKey[k]!,
+        if (byKey[k] != null && !newSet.contains(k)) byKey[k]!,
     ].take(8).toList();
 
     // Nothing launched yet (fresh install, or usage cleared). Fall back to
     // frecency, then to the alphabetical head, so the block fills in as soon as
     // there is anything real to show and never renders as an empty card.
+    // New apps alone do not count as "something launched": a fresh install
+    // with one new app still pads out the row rather than showing one icon.
     var suggestedFilled = suggested;
-    if (suggestedFilled.isEmpty) {
+    if (suggestedFilled.length <= newSet.length) {
+      final taken = {for (final a in suggestedFilled) a.componentKey};
       suggestedFilled = <AppEntry>[
+        ...suggestedFilled,
         for (final k in ref.watch(frequentAppsProvider))
-          if (byKey[k] != null) byKey[k]!,
-      ].take(8).toList();
-    }
-    if (suggestedFilled.isEmpty) {
-      suggestedFilled = apps.take(8).toList();
+          if (byKey[k] != null && taken.add(k)) byKey[k]!,
+      ];
+      if (suggestedFilled.length <= newSet.length) {
+        suggestedFilled = <AppEntry>[
+          ...suggestedFilled,
+          for (final a in apps)
+            if (taken.add(a.componentKey)) a,
+        ];
+      }
+      suggestedFilled = suggestedFilled.take(8).toList();
     }
 
     final recent =
@@ -321,6 +357,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           title: context.t('search.suggestedApps'),
           child: _SuggestedGrid(
             apps: suggestedFilled,
+            newKeys: newSet,
             iconSize: widget.theme.iconSizeDp,
             onTap: (e) => _launch(e),
             onHold: _hold,
@@ -422,10 +459,32 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
+  Future<void> _activate(CommandHit hit) async {
+    final close = await activateCommandHit(
+      context,
+      ref,
+      hit,
+      query: _query,
+      fillQuery: _searchFor,
+    );
+    if (close && mounted) _dismiss();
+  }
+
   // ── While typing: live app results ──────────────────────────────────────────
   Widget _results(BuildContext context, ChromeData d) {
-    final results =
-        ref.watch(visibleAppsProvider((query: _query, theme: widget.theme)));
+    // The mode router first: `=`, `:` and `!` answer instead of apps, and a
+    // bare sum or "5 km in mi" answers above them.
+    final route = CommandRouter.route(_query);
+    final rowStyle = CommandRowStyle(
+      text: d.colors.text,
+      muted: d.colors.textMuted,
+      accent: d.colors.accent,
+      fontFamily: d.text.body.fontFamily,
+      monoFamily: widget.theme.typography.mono,
+    );
+    final results = route.searchApps
+        ? ref.watch(visibleAppsProvider((query: _query, theme: widget.theme)))
+        : const <AppEntry>[];
 
     // The launcher's OWN entries, which [visibleAppsProvider] cannot return
     // because it ranks AppEntry and a launcher entry is not one.
@@ -437,17 +496,71 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     // in drawer_items, shared so the three surfaces cannot drift.
     // The label is passed rather than defaulted, so searching on Kali finds
     // "Kali Terminal" and the result row says what the drawer says.
-    final launcherHits = launcherItemsMatching(
-      _query,
-      terminalLabel: terminalLabelFor(widget.theme),
-    );
+    final launcherHits = route.searchApps
+        ? launcherItemsMatching(
+            _query,
+            terminalLabel: terminalLabelFor(widget.theme),
+          )
+        : const <DrawerItem>[];
+
+    // A card in the same treatment as the Apps and Launcher cards.
+    Widget card(Widget child) => SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: d.colors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: child,
+          ),
+        );
+
+    final commandCard = route.hits.isEmpty
+        ? null
+        : card(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final hit in route.hits)
+                  CommandHitRow(
+                    hit: hit,
+                    style: rowStyle,
+                    onTap: () => _activate(hit),
+                    onBang: (b) => _searchFor('!${b.key} '),
+                  ),
+              ],
+            ),
+          );
+
+    // The web and Play rows close every plain-text search, so no query ends
+    // on "nothing matches" with nowhere to go.
+    final fallbackCard = route.searchApps
+        ? card(
+            CommandFallbackRows(
+              query: _query,
+              style: rowStyle,
+              onOpened: _dismiss,
+            ),
+          )
+        : null;
 
     if (results.isEmpty && launcherHits.isEmpty) {
-      return Center(
-        child: Text(
-          context.t('search.nothingMatches', {'query': _query}),
-          style: d.text.body.copyWith(color: d.colors.textMuted),
-        ),
+      return CustomScrollView(
+        slivers: [
+          if (commandCard != null) commandCard,
+          if (commandCard == null && route.searchApps)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                child: Text(
+                  context.t('search.nothingMatches', {'query': _query}),
+                  style: d.text.body.copyWith(color: d.colors.textMuted),
+                ),
+              ),
+            ),
+          if (fallbackCard != null) fallbackCard,
+        ],
       );
     }
 
@@ -471,6 +584,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     // here. DecoratedSliver paints the card behind a grid that stays lazy.
     return CustomScrollView(
       slivers: [
+        if (commandCard != null) commandCard,
         if (results.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
@@ -531,6 +645,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           ),
+        if (fallbackCard != null) fallbackCard,
       ],
     );
   }
@@ -648,6 +763,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ThemedListRow(
+            icon: Icons.visibility_off_outlined,
+            title: context.t('hidden.title'),
+            onTap: () {
+              Navigator.pop(sheet);
+              if (host.mounted) openHideApps(host, ref, widget.theme);
+            },
+          ),
+          ThemedListRow(
             icon: Icons.delete_outline,
             title: context.t('search.clearRecentSearches'),
             onTap: () {
@@ -739,6 +862,7 @@ class _SuggestedGrid extends StatelessWidget {
   const _SuggestedGrid({
     required this.apps,
     required this.iconSize,
+    this.newKeys = const {},
     required this.onTap,
     this.onHold,
   });
@@ -746,6 +870,9 @@ class _SuggestedGrid extends StatelessWidget {
   final List<AppEntry> apps;
   final double iconSize;
   final void Function(AppEntry) onTap;
+
+  /// ComponentKeys drawn with the new-app dot.
+  final Set<String> newKeys;
 
   /// Threaded through rather than built here: the grid has no ref and no theme,
   /// and giving it either would make a dumb layout widget a consumer.
@@ -769,6 +896,7 @@ class _SuggestedGrid extends StatelessWidget {
         entry: apps[i],
         iconSize: iconSize,
         labelColor: ChromeScope.of(context).colors.text,
+        isNew: newKeys.contains(apps[i].componentKey),
         onTap: () => onTap(apps[i]),
         onHold: onHold == null ? null : (cell) => onHold!(cell, apps[i]),
       ),
@@ -783,12 +911,16 @@ class _AppCell extends StatelessWidget {
     required this.labelColor,
     required this.onTap,
     this.onHold,
+    this.isNew = false,
   });
 
   final AppEntry entry;
   final double iconSize;
   final Color labelColor;
   final VoidCallback onTap;
+
+  /// Draws the accent dot before the label, the One UI / Pixel new-app mark.
+  final bool isNew;
 
   /// Receives THIS cell's context, so the menu can anchor to the cell rather
   /// than to the page. Null leaves the cell tap-only.
@@ -808,8 +940,27 @@ class _AppCell extends StatelessWidget {
         children: [
           AppIcon(entry: entry, size: iconSize),
           const SizedBox(height: 6),
-          Text(
-            entry.label,
+          Text.rich(
+            TextSpan(
+              children: [
+                if (isNew)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: ChromeScope.of(context).colors.accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                TextSpan(text: entry.label),
+              ],
+            ),
             // TWO LINES, so the whole app name reads.
             //
             // At one line this truncated names the drawer shows in full, which

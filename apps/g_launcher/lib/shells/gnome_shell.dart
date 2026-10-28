@@ -368,415 +368,410 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
         ];
 
     final workspace = <Widget>[
-            // ── WHY THIS IS AN OPACITY AND NOT AN `if` ──────────────────
-            //
-            // The drawer paints a 0.92 wash, so anything still mounted BELOW
-            // it bleeds through at 8%. On a real device that put the word
-            // "Activities" across the first row of app labels and ghosted the
-            // dock's icons down the left edge: not translucency, just dirt.
-            //
-            // The wash itself is correct and stays. GNOME's overview is
-            // meant to show the wallpaper through it, and the wallpaper is
-            // drawn by WindowManager BENEATH Flutter, so it comes through
-            // whatever we do here. The bug was never the alpha; it was that
-            // the shell's own chrome was sitting between the two.
-            //
-            // Opacity rather than a conditional because this is a Column
-            // child: dropping it would let the workspace canvas grow into the
-            // freed height for one frame, and that reflow is visible through
-            // the very wash we are fixing. The dock and the dots below are
-            // Positioned, so they can simply not be built.
-            // ─── THE BAR CAN SIT AT EITHER END ────────────────────────
-            //
-            // It was always the first child of this Column, which is GNOME's
-            // answer and a fine default. It is not everyone's: a waybar or a
-            // polybar is as often along the bottom, and a distro that puts it
-            // there is a distro this shell could not express.
-            //
-            // Built once and placed by position rather than duplicated, so the
-            // Opacity trick below keeps working identically at both ends. See
-            // the note there for why it is opacity and not a conditional.
-            // No Expanded here any more: this list is the children of a Stack
-            // that an outer Expanded already sizes, and an Expanded inside a
-            // Stack is an error. The old code put the bar and the workspace in
-            // one Column, so the workspace had to claim the leftover height
-            // itself; panels take their space in the enclosing Column now.
-            Positioned.fill(
-              child: GestureLayer(
-                theme: theme,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final insets = MediaQuery.viewPaddingOf(context);
+      // ── WHY THIS IS AN OPACITY AND NOT AN `if` ──────────────────
+      //
+      // The drawer paints a 0.92 wash, so anything still mounted BELOW
+      // it bleeds through at 8%. On a real device that put the word
+      // "Activities" across the first row of app labels and ghosted the
+      // dock's icons down the left edge: not translucency, just dirt.
+      //
+      // The wash itself is correct and stays. GNOME's overview is
+      // meant to show the wallpaper through it, and the wallpaper is
+      // drawn by WindowManager BENEATH Flutter, so it comes through
+      // whatever we do here. The bug was never the alpha; it was that
+      // the shell's own chrome was sitting between the two.
+      //
+      // Opacity rather than a conditional because this is a Column
+      // child: dropping it would let the workspace canvas grow into the
+      // freed height for one frame, and that reflow is visible through
+      // the very wash we are fixing. The dock and the dots below are
+      // Positioned, so they can simply not be built.
+      // ─── THE BAR CAN SIT AT EITHER END ────────────────────────
+      //
+      // It was always the first child of this Column, which is GNOME's
+      // answer and a fine default. It is not everyone's: a waybar or a
+      // polybar is as often along the bottom, and a distro that puts it
+      // there is a distro this shell could not express.
+      //
+      // Built once and placed by position rather than duplicated, so the
+      // Opacity trick below keeps working identically at both ends. See
+      // the note there for why it is opacity and not a conditional.
+      // No Expanded here any more: this list is the children of a Stack
+      // that an outer Expanded already sizes, and an Expanded inside a
+      // Stack is an error. The old code put the bar and the workspace in
+      // one Column, so the workspace had to claim the leftover height
+      // itself; panels take their space in the enclosing Column now.
+      Positioned.fill(
+        child: GestureLayer(
+          theme: theme,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final insets = MediaQuery.viewPaddingOf(context);
 
-                    // Which way the workspaces run. Read here rather than at
-                    // the indicator, because the dock's own placement rules
-                    // below have to know about it too.
-                    final horizontalWorkspaces =
-                        theme.workspaceAxis == WorkspaceAxis.horizontal;
+              // Which way the workspaces run. Read here rather than at
+              // the indicator, because the dock's own placement rules
+              // below have to know about it too.
+              final horizontalWorkspaces =
+                  theme.workspaceAxis == WorkspaceAxis.horizontal;
 
-                    // 'off' renders where Ubuntu keeps it — the left — so it is
-                    // vertical for sizing too, even though the pref isn't 'left'.
-                    // Sizing against the wrong axis makes a revealed off-dock
-                    // shrink as if it were the short bottom run.
-                    final renderVertical =
-                        side.isVertical || side == DockSide.off;
+              // 'off' renders where Ubuntu keeps it — the left — so it is
+              // vertical for sizing too, even though the pref isn't 'left'.
+              // Sizing against the wrong axis makes a revealed off-dock
+              // shrink as if it were the short bottom run.
+              final renderVertical = side.isVertical || side == DockSide.off;
 
-                    // Capacity from the dock's REAL run, insets subtracted — a
-                    // left dock that runs under the gesture pill silently loses
-                    // its last app. Bottom docks are additionally hard-capped.
-                    final available = renderVertical
-                        ? constraints.maxHeight - insets.bottom
-                        : constraints.maxWidth - 18; // 9px margin each side
+              // Capacity from the dock's REAL run, insets subtracted — a
+              // left dock that runs under the gesture pill silently loses
+              // its last app. Bottom docks are additionally hard-capped.
+              final available = renderVertical
+                  ? constraints.maxHeight - insets.bottom
+                  : constraints.maxWidth - 18; // 9px margin each side
 
-                    // Declared before `asList` can be, because `asList` reads
-                    // the theme and this reads the constraints. Kept adjacent
-                    // so the pair is read together.
-                    final verticalRun = constraints.maxHeight - insets.bottom;
+              // Declared before `asList` can be, because `asList` reads
+              // the theme and this reads the constraints. Kept adjacent
+              // so the pair is read together.
+              final verticalRun = constraints.maxHeight - insets.bottom;
 
-                    // ─── PHASE L5: TWO PRESENTATIONS, TWO CAPACITIES ─────
-                    //
-                    // A bar holds slots along an edge; a list holds rows down
-                    // one. Both numbers go into the SAME `HomeLayout.dockKeys`
-                    // call, which takes capacity as an argument and has never
-                    // known what a dock looks like. That is why L5 changes no
-                    // pinning, ordering or exclusion code at all.
-                    //
-                    // Capped at `DockMetrics.maxCapacity` rather than at what
-                    // fits, because `pinToDock` already refuses past that
-                    // number. A list that rendered a fourteenth pin nobody
-                    // could create would be a row reserved for nothing.
-                    final asList = theme.dockLayout == 'list' &&
-                        theme.canListDock.available;
+              // ─── PHASE L5: TWO PRESENTATIONS, TWO CAPACITIES ─────
+              //
+              // A bar holds slots along an edge; a list holds rows down
+              // one. Both numbers go into the SAME `HomeLayout.dockKeys`
+              // call, which takes capacity as an argument and has never
+              // known what a dock looks like. That is why L5 changes no
+              // pinning, ordering or exclusion code at all.
+              //
+              // Capped at `DockMetrics.maxCapacity` rather than at what
+              // fits, because `pinToDock` already refuses past that
+              // number. A list that rendered a fourteenth pin nobody
+              // could create would be a row reserved for nothing.
+              final asList =
+                  theme.dockLayout == 'list' && theme.canListDock.available;
 
-                    final capacity = asList
-                        ? favouritesCapacityFor(
-                            available: verticalRun,
-                            max: DockMetrics.maxCapacity,
-                          )
-                        : DockMetrics.capacityFor(
-                            available: available,
-                            hasGridButton: gridButton != GridButtonPosition.off,
-                            isBottom: !renderVertical,
-                          );
-
-                    final apps = ref.watch(shellAppsProvider(theme));
-                    final frequent = ref.watch(frequentAppsProvider);
-
-                    // Pins (up to capacity) → most-used (capped at four) →
-                    // (first run, no usage yet) alphabetical head, also four.
-                    // The dock must never be empty: it is the only app surface
-                    // on the home screen. "Four bigger apps" is the out-of-box
-                    // look; pinning grows it up to `capacity`.
-                    var keys = HomeLayout.dockKeys(
-                      theme.prefs,
-                      frequent: frequent,
-                      capacity: capacity,
-                      defaultLimit: DockMetrics.defaultCount,
-                    );
-                    if (keys.isEmpty) {
-                      keys = [
-                        for (final a in apps.take(DockMetrics.defaultCount))
-                          a.componentKey,
-                      ];
-                    }
-
-                    final byKey = {for (final a in apps) a.componentKey: a};
-                    final pinned = theme.prefs.favourites.toSet();
-
-                    // Resolve to keys that actually have an installed app, so the
-                    // slot size is computed from what really renders — not from
-                    // dead keys that would size the dock for icons never drawn.
-                    final dockKeys = [
-                      for (final key in keys)
-                        if (byKey[key] != null) key,
-                    ];
-
-                    // Fit-to-run sizing: large for a few apps, shrinking as the
-                    // dock fills (and never overflowing). The glyph tracks the
-                    // slot; both feed the dock below.
-                    final slot = DockMetrics.slotFor(
-                      count: dockKeys.length,
+              final capacity = asList
+                  ? favouritesCapacityFor(
+                      available: verticalRun,
+                      max: DockMetrics.maxCapacity,
+                    )
+                  : DockMetrics.capacityFor(
                       available: available,
                       hasGridButton: gridButton != GridButtonPosition.off,
+                      isBottom: !renderVertical,
                     );
-                    final glyph = DockMetrics.appGlyphFor(slot);
 
-                    final entries = <DockEntry>[
-                      for (final key in dockKeys)
-                        DockEntry(
-                          id: key,
-                          label: byKey[key]!.label,
-                          isPinned: pinned.contains(key),
-                          icon: AppIcon(entry: byKey[key]!, size: glyph),
-                          onTap: () => _launch(byKey[key]!),
-                          onLongPress: (anchor) => _dockLongPress(
-                            byKey[key]!,
-                            pinned.contains(key),
-                            capacity,
-                            anchor,
+              final apps = ref.watch(shellAppsProvider(theme));
+              final frequent = ref.watch(frequentAppsProvider);
+
+              // Pins (up to capacity) → most-used (capped at four) →
+              // (first run, no usage yet) alphabetical head, also four.
+              // The dock must never be empty: it is the only app surface
+              // on the home screen. "Four bigger apps" is the out-of-box
+              // look; pinning grows it up to `capacity`.
+              var keys = HomeLayout.dockKeys(
+                theme.prefs,
+                frequent: frequent,
+                capacity: capacity,
+                defaultLimit: DockMetrics.defaultCount,
+              );
+              if (keys.isEmpty) {
+                keys = [
+                  for (final a in apps.take(DockMetrics.defaultCount))
+                    a.componentKey,
+                ];
+              }
+
+              final byKey = {for (final a in apps) a.componentKey: a};
+              final pinned = theme.prefs.favourites.toSet();
+
+              // Resolve to keys that actually have an installed app, so the
+              // slot size is computed from what really renders — not from
+              // dead keys that would size the dock for icons never drawn.
+              final dockKeys = [
+                for (final key in keys)
+                  if (byKey[key] != null) key,
+              ];
+
+              // Fit-to-run sizing: large for a few apps, shrinking as the
+              // dock fills (and never overflowing). The glyph tracks the
+              // slot; both feed the dock below.
+              final slot = DockMetrics.slotFor(
+                count: dockKeys.length,
+                available: available,
+                hasGridButton: gridButton != GridButtonPosition.off,
+              );
+              final glyph = DockMetrics.appGlyphFor(slot);
+
+              final entries = <DockEntry>[
+                for (final key in dockKeys)
+                  DockEntry(
+                    id: key,
+                    label: byKey[key]!.label,
+                    isPinned: pinned.contains(key),
+                    icon: AppIcon(entry: byKey[key]!, size: glyph),
+                    onTap: () => _launch(byKey[key]!),
+                    onLongPress: (anchor) => _dockLongPress(
+                      byKey[key]!,
+                      pinned.contains(key),
+                      capacity,
+                      anchor,
+                    ),
+                  ),
+              ];
+
+              // ─── WHEN THE DOCK EXISTS AT ALL ──────────────────
+              //
+              // `always` is the arrangement this shell has drawn since it
+              // shipped: the dock is part of the desktop and hides while
+              // Activities is open, because it was the loudest thing
+              // ghosting through the drawer.
+              //
+              // `apps` is the exact INVERSE, and that is the point.
+              // Upstream GNOME has no dock on the desktop at all; a dash
+              // appears inside the overview and leaves with it. So the
+              // condition is not relaxed, it is flipped, and the
+              // ghosting the original was avoiding is on this distro the
+              // thing you came to see.
+              //
+              // The edge-reveal gesture is dropped on `apps` too. It
+              // exists so a `dock: off` distro can summon one, and a
+              // distro whose dock has exactly one home should not have a
+              // second way in.
+              //
+              // Positioned either way, so not building it reflows
+              // nothing.
+              // ─── A LIST IS ALWAYS VERTICAL ────────────────────────
+              //
+              // A row of names along the bottom is four truncated words
+              // and no more apps than the bar fitted, so `list` overrides
+              // a bottom dock into the side branch rather than offering a
+              // horizontal variant nobody would choose twice. The dock
+              // POSITION pref is untouched: switch back to the bar and the
+              // dock returns to the bottom where it was left.
+              final renderAsSide = renderVertical || asList;
+
+              final showDock = theme.dockReveal == 'apps'
+                  ? (side != DockSide.off && activitiesOpen)
+                  : ((side != DockSide.off || dockRevealed) && !activitiesOpen);
+
+              return Stack(
+                children: [
+                  // ── Workspaces: VERTICAL, and empty on purpose ──────
+                  // Their content is the wallpaper, which WindowManager
+                  // draws behind Flutter. Vertical drags fall through the
+                  // gesture layer straight to this PageView — it owns
+                  // them exclusively.
+                  //
+                  // The long-press wrapper claims NO axis: it is
+                  // translucent and handles long-press only. A held press
+                  // with no movement resolves to the desktop menu; any
+                  // drag resolves to a workspace change. No arena fight —
+                  // the thing the handoff warns about is claiming an axis
+                  // a scrollable owns, which this does not do.
+                  //
+                  // The edit-mode gate, the haptic and the reason the
+                  // callback is nulled rather than the child returned all
+                  // moved into DesktopHold when it was extracted for the
+                  // other three shells. This shell's behaviour is
+                  // unchanged; it is simply no longer the only shell that
+                  // has it.
+                  DesktopHold(
+                    theme: theme,
+                    child: PageView.builder(
+                      controller: _pages,
+                      // The DISTRO's axis, not this shell's. GNOME
+                      // pages vertically and always did; macOS Spaces run
+                      // horizontally, and a phone imitating macOS that
+                      // swipes down to change space is wrong in a way
+                      // anyone who has used one notices at once.
+                      scrollDirection:
+                          theme.workspaceAxis == WorkspaceAxis.horizontal
+                              ? Axis.horizontal
+                              : Axis.vertical,
+                      // Frozen while editing. A tile being dragged up the
+                      // screen and a vertical pager are the same gesture,
+                      // and the arena would hand it to whichever claimed
+                      // first — which is to say, to whichever one you were
+                      // not testing that day. Ceding the axis outright is
+                      // why DeskletEditBar has a visible Done: a mode that
+                      // silently disables the desktop's main gesture needs
+                      // to say so and offer the way out.
+                      physics:
+                          editing ? const NeverScrollableScrollPhysics() : null,
+                      itemCount: count,
+                      onPageChanged: (page) =>
+                          ref.read(activeWorkspaceProvider.notifier).goTo(page),
+                      // ── THE ONE LINE PHASE D TURNED ON ──────────
+                      //
+                      // These pages returned SizedBox.expand() because
+                      // the desktop was empty BY DESIGN. That is still
+                      // the authentic default; it is just no longer the
+                      // only option. DeskletSurfaceView renders an empty
+                      // page as nothing at all unless edit mode is on, so
+                      // a desktop with no desklets looks exactly as it
+                      // did before this line changed.
+                      // ─── ICONS UNDER, DESKLETS OVER ──────────
+                      //
+                      // This built DeskletSurfaceView alone, which is
+                      // why `desktopIcons` was inert on every gnome
+                      // distro: `WorkspaceCanvas` is the only thing that
+                      // mounted `HomeGrid`, and this shell inlines its
+                      // own pager instead of using it. So the settings
+                      // row, the resolver's one-way rule and the
+                      // theme.json field were all correct and nothing
+                      // downstream drew anything.
+                      //
+                      // Same order the shared canvas uses and for the
+                      // same reasons: a widget floats above the icon
+                      // grid, never beneath it, and an empty
+                      // DeskletSurfaceView does not absorb a hit test so
+                      // the grid stays reachable between tiles.
+                      //
+                      // Gated on the DISTRO. GNOME 40 shows a bare
+                      // desktop and its theme says false, so Ubuntu,
+                      // Fedora, Pop and Zorin are untouched. Kali says
+                      // true, because Xfce's desktop is a file manager.
+                      itemBuilder: (_, page) => Stack(
+                        children: [
+                          if (theme.desktopIcons)
+                            Positioned.fill(
+                              child: HomeGrid(theme: theme, page: page),
+                            ),
+                          Positioned.fill(
+                            child: DeskletSurfaceView(
+                              theme: theme,
+                              page: page,
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Vertical parallax — without it, swiping between
+                  // identical empty pages produces no visual change and
+                  // the gesture feels broken.
+                  Positioned.fill(
+                    child: _WallpaperParallax(
+                      controller: _pages,
+                      pageCount: count,
+                      base: theme.palette.bgBottom,
+                    ),
+                  ),
+
+                  // Dots ghost through the drawer too, and a column of
+                  // faint pips down the right edge of an app grid reads
+                  // as a rendering fault rather than as chrome.
+                  if (!activitiesOpen)
+                    Positioned(
+                      // ── THE STRIP LIES ALONG THE AXIS IT INDICATES ──
+                      //
+                      // This was a column pinned to a side edge, full stop,
+                      // which is GNOME 3's switcher and was right while
+                      // every distro paged vertically. `workspaceAxis` says
+                      // which way they actually run, and a vertical column
+                      // of pips beside a desktop that slides SIDEWAYS is
+                      // pointing across the movement it describes.
+                      //
+                      // Horizontal: along the foot, centred, clear of the
+                      // gesture inset and of a bottom dock. Vertical: the
+                      // side edge it has always used.
+                      //
+                      // ── AND STILL OUT OF THE DOCK'S WAY ─────────────
+                      //
+                      // The old rule was OPPOSITE THE DOCK rather than
+                      // "always right": a right dock lands the dots and the
+                      // dock on the same 9px strip, overlapping, and the
+                      // dots lose because they are drawn first. That rule
+                      // is kept for the vertical case and has a counterpart
+                      // here: a horizontal strip clears a BOTTOM dock the
+                      // same way, by the band that dock reserves.
+                      left: horizontalWorkspaces
+                          ? 0
+                          : (side == DockSide.right ? 9 : null),
+                      right: horizontalWorkspaces
+                          ? 0
+                          : (side == DockSide.right ? null : 9),
+                      top: horizontalWorkspaces ? null : 0,
+                      bottom: horizontalWorkspaces
+                          ? (side == DockSide.bottom
+                              ? DockMetrics.reserve + 9
+                              : insets.bottom + 9)
+                          : 0,
+                      child: Center(
+                        child: WorkspaceDots(
+                          axis: horizontalWorkspaces
+                              ? Axis.horizontal
+                              : Axis.vertical,
+                          count: count,
+                          active: active,
+                          // RESOLVED HERE, because the strip cannot. It is
+                          // deliberately provider-free so its goldens run
+                          // without any, which also means it has no way to
+                          // look a key up. See [WorkspaceDots.stripLabel].
+                          stripLabel: context.t('settings.workspaces'),
+                          stripValue: context.t(
+                            'home.workspaceNOfTotal',
+                            {'n': '${active + 1}', 'total': '$count'},
+                          ),
+                          dotLabel: (i) => context.t(
+                            'home.workspaceN',
+                            {'n': '${i + 1}'},
+                          ),
+                          accent: theme.palette.accent,
+                          // Was Ubuntu.dotIdle. An inactive workspace dot
+                          // has to read against THIS distro's wallpaper.
+                          idle: theme.palette.onDark.withValues(alpha: 0.35),
+                          onSelect: (i) => ref
+                              .read(activeWorkspaceProvider.notifier)
+                              .goTo(i),
                         ),
-                    ];
+                      ),
+                    ),
 
-                    // ─── WHEN THE DOCK EXISTS AT ALL ──────────────────
-                    //
-                    // `always` is the arrangement this shell has drawn since it
-                    // shipped: the dock is part of the desktop and hides while
-                    // Activities is open, because it was the loudest thing
-                    // ghosting through the drawer.
-                    //
-                    // `apps` is the exact INVERSE, and that is the point.
-                    // Upstream GNOME has no dock on the desktop at all; a dash
-                    // appears inside the overview and leaves with it. So the
-                    // condition is not relaxed, it is flipped, and the
-                    // ghosting the original was avoiding is on this distro the
-                    // thing you came to see.
-                    //
-                    // The edge-reveal gesture is dropped on `apps` too. It
-                    // exists so a `dock: off` distro can summon one, and a
-                    // distro whose dock has exactly one home should not have a
-                    // second way in.
-                    //
-                    // Positioned either way, so not building it reflows
-                    // nothing.
-                    // ─── A LIST IS ALWAYS VERTICAL ────────────────────────
-                    //
-                    // A row of names along the bottom is four truncated words
-                    // and no more apps than the bar fitted, so `list` overrides
-                    // a bottom dock into the side branch rather than offering a
-                    // horizontal variant nobody would choose twice. The dock
-                    // POSITION pref is untouched: switch back to the bar and the
-                    // dock returns to the bottom where it was left.
-                    final renderAsSide = renderVertical || asList;
-
-                    final showDock = theme.dockReveal == 'apps'
-                        ? (side != DockSide.off && activitiesOpen)
-                        : ((side != DockSide.off || dockRevealed) &&
-                            !activitiesOpen);
-
-                    return Stack(
-                      children: [
-                        // ── Workspaces: VERTICAL, and empty on purpose ──────
-                        // Their content is the wallpaper, which WindowManager
-                        // draws behind Flutter. Vertical drags fall through the
-                        // gesture layer straight to this PageView — it owns
-                        // them exclusively.
-                        //
-                        // The long-press wrapper claims NO axis: it is
-                        // translucent and handles long-press only. A held press
-                        // with no movement resolves to the desktop menu; any
-                        // drag resolves to a workspace change. No arena fight —
-                        // the thing the handoff warns about is claiming an axis
-                        // a scrollable owns, which this does not do.
-                        //
-                        // The edit-mode gate, the haptic and the reason the
-                        // callback is nulled rather than the child returned all
-                        // moved into DesktopHold when it was extracted for the
-                        // other three shells. This shell's behaviour is
-                        // unchanged; it is simply no longer the only shell that
-                        // has it.
-                        DesktopHold(
-                          theme: theme,
-                          child: PageView.builder(
-                            controller: _pages,
-                            // The DISTRO's axis, not this shell's. GNOME
-                            // pages vertically and always did; macOS Spaces run
-                            // horizontally, and a phone imitating macOS that
-                            // swipes down to change space is wrong in a way
-                            // anyone who has used one notices at once.
-                            scrollDirection:
-                                theme.workspaceAxis == WorkspaceAxis.horizontal
-                                    ? Axis.horizontal
-                                    : Axis.vertical,
-                            // Frozen while editing. A tile being dragged up the
-                            // screen and a vertical pager are the same gesture,
-                            // and the arena would hand it to whichever claimed
-                            // first — which is to say, to whichever one you were
-                            // not testing that day. Ceding the axis outright is
-                            // why DeskletEditBar has a visible Done: a mode that
-                            // silently disables the desktop's main gesture needs
-                            // to say so and offer the way out.
-                            physics: editing
-                                ? const NeverScrollableScrollPhysics()
+                  if (showDock)
+                    // `renderAsSide`, not the side test this was: a list
+                    // is vertical whatever the dock pref says, and the
+                    // sizing above already agreed to that. Two different
+                    // answers to "is this dock vertical" in one build
+                    // method is how a list gets sized for a column and
+                    // drawn as a row.
+                    renderAsSide
+                        // Off + revealed by gesture shows it where Ubuntu
+                        // keeps it: the left.
+                        ? Positioned(
+                            // A LIST MEETS THE EDGE, a bar hovers 9dp
+                            // off it. The gap is what makes a floating
+                            // dock read as an object sitting on the
+                            // desktop; a column of names is a region of
+                            // the screen, and a strip of wallpaper down
+                            // its outer side would read as a mistake.
+                            left: side == DockSide.right
+                                ? null
+                                : (asList ? 0 : 9),
+                            right: side == DockSide.right
+                                ? (asList ? 0 : 9)
                                 : null,
-                            itemCount: count,
-                            onPageChanged: (page) => ref
-                                .read(activeWorkspaceProvider.notifier)
-                                .goTo(page),
-                            // ── THE ONE LINE PHASE D TURNED ON ──────────
-                            //
-                            // These pages returned SizedBox.expand() because
-                            // the desktop was empty BY DESIGN. That is still
-                            // the authentic default; it is just no longer the
-                            // only option. DeskletSurfaceView renders an empty
-                            // page as nothing at all unless edit mode is on, so
-                            // a desktop with no desklets looks exactly as it
-                            // did before this line changed.
-                            // ─── ICONS UNDER, DESKLETS OVER ──────────
-                            //
-                            // This built DeskletSurfaceView alone, which is
-                            // why `desktopIcons` was inert on every gnome
-                            // distro: `WorkspaceCanvas` is the only thing that
-                            // mounted `HomeGrid`, and this shell inlines its
-                            // own pager instead of using it. So the settings
-                            // row, the resolver's one-way rule and the
-                            // theme.json field were all correct and nothing
-                            // downstream drew anything.
-                            //
-                            // Same order the shared canvas uses and for the
-                            // same reasons: a widget floats above the icon
-                            // grid, never beneath it, and an empty
-                            // DeskletSurfaceView does not absorb a hit test so
-                            // the grid stays reachable between tiles.
-                            //
-                            // Gated on the DISTRO. GNOME 40 shows a bare
-                            // desktop and its theme says false, so Ubuntu,
-                            // Fedora, Pop and Zorin are untouched. Kali says
-                            // true, because Xfce's desktop is a file manager.
-                            itemBuilder: (_, page) => Stack(
-                              children: [
-                                if (theme.desktopIcons)
-                                  Positioned.fill(
-                                    child: HomeGrid(theme: theme, page: page),
-                                  ),
-                                Positioned.fill(
-                                  child: DeskletSurfaceView(
-                                    theme: theme,
-                                    page: page,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Vertical parallax — without it, swiping between
-                        // identical empty pages produces no visual change and
-                        // the gesture feels broken.
-                        Positioned.fill(
-                          child: _WallpaperParallax(
-                            controller: _pages,
-                            pageCount: count,
-                            base: theme.palette.bgBottom,
-                          ),
-                        ),
-
-                        // Dots ghost through the drawer too, and a column of
-                        // faint pips down the right edge of an app grid reads
-                        // as a rendering fault rather than as chrome.
-                        if (!activitiesOpen)
-                        Positioned(
-                          // ── THE STRIP LIES ALONG THE AXIS IT INDICATES ──
-                          //
-                          // This was a column pinned to a side edge, full stop,
-                          // which is GNOME 3's switcher and was right while
-                          // every distro paged vertically. `workspaceAxis` says
-                          // which way they actually run, and a vertical column
-                          // of pips beside a desktop that slides SIDEWAYS is
-                          // pointing across the movement it describes.
-                          //
-                          // Horizontal: along the foot, centred, clear of the
-                          // gesture inset and of a bottom dock. Vertical: the
-                          // side edge it has always used.
-                          //
-                          // ── AND STILL OUT OF THE DOCK'S WAY ─────────────
-                          //
-                          // The old rule was OPPOSITE THE DOCK rather than
-                          // "always right": a right dock lands the dots and the
-                          // dock on the same 9px strip, overlapping, and the
-                          // dots lose because they are drawn first. That rule
-                          // is kept for the vertical case and has a counterpart
-                          // here: a horizontal strip clears a BOTTOM dock the
-                          // same way, by the band that dock reserves.
-                          left: horizontalWorkspaces
-                              ? 0
-                              : (side == DockSide.right ? 9 : null),
-                          right: horizontalWorkspaces
-                              ? 0
-                              : (side == DockSide.right ? null : 9),
-                          top: horizontalWorkspaces ? null : 0,
-                          bottom: horizontalWorkspaces
-                              ? (side == DockSide.bottom
-                                  ? DockMetrics.reserve + 9
-                                  : insets.bottom + 9)
-                              : 0,
-                          child: Center(
-                            child: WorkspaceDots(
-                              axis: horizontalWorkspaces
-                                  ? Axis.horizontal
-                                  : Axis.vertical,
-                              count: count,
-                              active: active,
-                              // RESOLVED HERE, because the strip cannot. It is
-                              // deliberately provider-free so its goldens run
-                              // without any, which also means it has no way to
-                              // look a key up. See [WorkspaceDots.stripLabel].
-                              stripLabel: context.t('settings.workspaces'),
-                              stripValue: context.t(
-                                'home.workspaceNOfTotal',
-                                {'n': '${active + 1}', 'total': '$count'},
-                              ),
-                              dotLabel: (i) => context.t(
-                                'home.workspaceN',
-                                {'n': '${i + 1}'},
-                              ),
-                              accent: theme.palette.accent,
-                              // Was Ubuntu.dotIdle. An inactive workspace dot
-                              // has to read against THIS distro's wallpaper.
-                              idle:
-                                  theme.palette.onDark.withValues(alpha: 0.35),
-                              onSelect: (i) => ref
-                                  .read(activeWorkspaceProvider.notifier)
-                                  .goTo(i),
-                            ),
-                          ),
-                        ),
-
-                        if (showDock)
-                          // `renderAsSide`, not the side test this was: a list
-                          // is vertical whatever the dock pref says, and the
-                          // sizing above already agreed to that. Two different
-                          // answers to "is this dock vertical" in one build
-                          // method is how a list gets sized for a column and
-                          // drawn as a row.
-                          renderAsSide
-                              // Off + revealed by gesture shows it where Ubuntu
-                              // keeps it: the left.
-                              ? Positioned(
-                                  // A LIST MEETS THE EDGE, a bar hovers 9dp
-                                  // off it. The gap is what makes a floating
-                                  // dock read as an object sitting on the
-                                  // desktop; a column of names is a region of
-                                  // the screen, and a strip of wallpaper down
-                                  // its outer side would read as a mistake.
-                                  left: side == DockSide.right
-                                      ? null
-                                      : (asList ? 0 : 9),
-                                  right: side == DockSide.right
-                                      ? (asList ? 0 : 9)
-                                      : null,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: asList
-                                      ? Center(
-                                          child: FavouritesList(
-                                            entries: entries,
-                                            palette: theme.palette,
-                                            opacity: theme.dockOpacity,
-                                            // Armed unconditionally, matching
-                                            // the bar: on a list with no pins
-                                            // this is the gesture that creates
-                                            // an arrangement, so refusing it
-                                            // would refuse the only thing that
-                                            // makes reordering reachable.
-                                            onDropApp: (key) =>
-                                                _dockPin(key, capacity),
-                                          ),
-                                        )
-                                      : Center(
+                            top: 0,
+                            bottom: 0,
+                            child: asList
+                                ? Center(
+                                    child: FavouritesList(
+                                      entries: entries,
+                                      palette: theme.palette,
+                                      opacity: theme.dockOpacity,
+                                      // Armed unconditionally, matching
+                                      // the bar: on a list with no pins
+                                      // this is the gesture that creates
+                                      // an arrangement, so refusing it
+                                      // would refuse the only thing that
+                                      // makes reordering reachable.
+                                      onDropApp: (key) =>
+                                          _dockPin(key, capacity),
+                                    ),
+                                  )
+                                : Center(
                                     child: GnomeDock(
-                                      style: GnomeDockStyle.parse(
-                                          theme.dockStyle),
+                                      style:
+                                          GnomeDockStyle.parse(theme.dockStyle),
                                       entries: entries,
                                       // Passed through rather than pinned to
                                       // left: the dock draws its running bars
@@ -800,9 +795,8 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       // that can only ever be refused, and the
                                       // slot's own fallback branch keeps the
                                       // plain long-press when this is null.
-                                      onReorder: pinned.isEmpty
-                                          ? null
-                                          : _dockReorder,
+                                      onReorder:
+                                          pinned.isEmpty ? null : _dockReorder,
                                       // ─── ALWAYS ARMED, UNLIKE onReorder ──
                                       //
                                       // Reordering needs an arrangement to
@@ -819,68 +813,64 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                                       press: theme.dockPress,
                                     ),
                                   ),
-                                )
-                              : Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  // FLAT MEETS THE EDGE. The 9dp gap was the
-                                  // only arrangement this shell knew, so every
-                                  // gnome-family distro hovered its dock. See
-                                  // [GnomeDockStyle].
-                                  //
-                                  // `insets.bottom` stays in both: on a
-                                  // gesture-navigation phone that is the home
-                                  // indicator, and a dock underneath it cannot
-                                  // be tapped.
-                                  bottom: theme.dockStyle == 'flat'
-                                      ? insets.bottom
-                                      : insets.bottom + 9,
-                                  child: Center(
-                                    child: GnomeDock(
-                                      style: GnomeDockStyle.parse(
-                                          theme.dockStyle),
-                                      entries: entries,
-                                      side: DockSide.bottom,
-                                      gridButton: gridButton,
-                                      slotSize: slot,
-                                      palette: theme.palette,
-                                      opacity: theme.dockOpacity,
-                                      onActivities: _openActivities,
-                                      // NULL UNLESS THERE ARE PINS.
-                                      //
-                                      // A dock in frequent-apps mode has no
-                                      // arrangement to change: it is whatever
-                                      // the user opens most, recomputed. Arming
-                                      // the drag there would offer a gesture
-                                      // that can only ever be refused, and the
-                                      // slot's own fallback branch keeps the
-                                      // plain long-press when this is null.
-                                      onReorder: pinned.isEmpty
-                                          ? null
-                                          : _dockReorder,
-                                      // ─── ALWAYS ARMED, UNLIKE onReorder ──
-                                      //
-                                      // Reordering needs an arrangement to
-                                      // change, which a frequent-apps dock has
-                                      // not got. Pinning CREATES one: dropping
-                                      // an app here on a dock with no pins is
-                                      // exactly how a user stops it being
-                                      // automatic, so refusing the drop there
-                                      // would refuse the only gesture that
-                                      // makes the other one available.
-                                      onDropApp: (key) =>
-                                          _dockPin(key, capacity),
-                                      hover: theme.dockHover,
-                                      press: theme.dockPress,
-                                    ),
-                                  ),
-                                ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
+                          )
+                        : Positioned(
+                            left: 0,
+                            right: 0,
+                            // FLAT MEETS THE EDGE. The 9dp gap was the
+                            // only arrangement this shell knew, so every
+                            // gnome-family distro hovered its dock. See
+                            // [GnomeDockStyle].
+                            //
+                            // `insets.bottom` stays in both: on a
+                            // gesture-navigation phone that is the home
+                            // indicator, and a dock underneath it cannot
+                            // be tapped.
+                            bottom: theme.dockStyle == 'flat'
+                                ? insets.bottom
+                                : insets.bottom + 9,
+                            child: Center(
+                              child: GnomeDock(
+                                style: GnomeDockStyle.parse(theme.dockStyle),
+                                entries: entries,
+                                side: DockSide.bottom,
+                                gridButton: gridButton,
+                                slotSize: slot,
+                                palette: theme.palette,
+                                opacity: theme.dockOpacity,
+                                onActivities: _openActivities,
+                                // NULL UNLESS THERE ARE PINS.
+                                //
+                                // A dock in frequent-apps mode has no
+                                // arrangement to change: it is whatever
+                                // the user opens most, recomputed. Arming
+                                // the drag there would offer a gesture
+                                // that can only ever be refused, and the
+                                // slot's own fallback branch keeps the
+                                // plain long-press when this is null.
+                                onReorder: pinned.isEmpty ? null : _dockReorder,
+                                // ─── ALWAYS ARMED, UNLIKE onReorder ──
+                                //
+                                // Reordering needs an arrangement to
+                                // change, which a frequent-apps dock has
+                                // not got. Pinning CREATES one: dropping
+                                // an app here on a dock with no pins is
+                                // exactly how a user stops it being
+                                // automatic, so refusing the drop there
+                                // would refuse the only gesture that
+                                // makes the other one available.
+                                onDropApp: (key) => _dockPin(key, capacity),
+                                hover: theme.dockHover,
+                                press: theme.dockPress,
+                              ),
+                            ),
+                          ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     ];
 
     final body = Stack(
@@ -938,7 +928,8 @@ class _Activities extends ConsumerWidget {
   /// widget that wraps all five shells, and any second scope in the same route
   /// fires on the same press.
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ShellDrawer(theme: theme);
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ShellDrawer(theme: theme);
 }
 
 /// Vertical parallax. The wallpaper is drawn by WindowManager underneath

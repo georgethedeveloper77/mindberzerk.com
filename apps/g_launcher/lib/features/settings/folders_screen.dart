@@ -6,7 +6,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/folder_suggestions.dart';
-import '../../data/prefs/hidden_apps.dart';
+import '../../data/prefs/hidden_lock.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/prefs_reset.dart';
 import '../../data/repositories/app_repository.dart';
@@ -16,10 +16,10 @@ import '../../design/components/components.dart';
 import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
-import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
 import '../drawer/folder_glyph.dart';
+import 'hide_apps_screen.dart';
 
 /// Folder settings — its own page, because folders grew past a row.
 ///
@@ -239,19 +239,8 @@ class FoldersScreen extends ConsumerWidget {
           // worst possible shape for a setting that removes things.
           ThemedSectionHeader(context.t('settings.hiddenApps')),
 
+          // Find-by-name and the lock moved into Hide apps' own options.
           _HiddenAppsRow(theme: theme),
-
-          ThemedListRow(
-            icon: Icons.manage_search,
-            title: context.t('settings.findHiddenAppsBy'),
-            subtitle: context.t('settings.onlyWhenYouType'),
-            trailing: ThemedToggle(
-              value: HiddenApps.searchable(theme.prefs),
-              onChanged: (v) => notifier.edit(
-                (p) => p.copyWith(hiddenAppsSearchable: v),
-              ),
-            ),
-          ),
 
           // ── Suggestions ────────────────────────────────────────────────
           if (suggestions.isNotEmpty) ...[
@@ -617,12 +606,16 @@ class _Btn extends StatelessWidget {
   }
 }
 
-/// The hidden set, and the only way back out of it.
+/// The hidden apps entry: a count, and the way into Hide apps.
 ///
 /// Reads [appListProvider] rather than [shellAppsProvider], and it has to:
 /// shellApps is where hidden apps are FILTERED OUT, so asking it for the hidden
 /// ones returns nothing and the row would honestly report "0 hidden" on a phone
-/// with twenty. That is the sort of bug that reads as the feature not saving.
+/// with twenty. Resolved against the live list, so an app hidden and then
+/// uninstalled is not counted.
+///
+/// Always enabled now: Hide apps is where hiding happens as well as undoing
+/// it, so an empty set is a reason to open the page, not to grey the row.
 class _HiddenAppsRow extends ConsumerWidget {
   const _HiddenAppsRow({required this.theme});
 
@@ -632,125 +625,17 @@ class _HiddenAppsRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
     final keys = theme.prefs.hiddenApps;
-
-    // Resolved against the live app list, so an app hidden and then uninstalled
-    // does not sit in this list as a name with nothing behind it.
-    final hidden = [
-      for (final a in all)
-        if (keys.contains(a.componentKey)) a,
-    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    final count = all.where((a) => keys.contains(a.componentKey)).length;
+    final locked = ref.watch(hiddenLockProvider).asData?.value ?? false;
 
     return ThemedListRow(
-      icon: Icons.visibility_off_outlined,
-      title: context.t('settings.hiddenApps'),
-      subtitle: hidden.isEmpty
-          ? 'Hold an app in the drawer to hide it'
-          : '${hidden.length} hidden',
-      enabled: hidden.isNotEmpty,
-      trailing:
-          hidden.isEmpty ? null : const Icon(Icons.chevron_right, size: 18),
-      onTap: hidden.isEmpty ? null : () => _show(context, ref, hidden),
-    );
-  }
-
-  void _show(BuildContext context, WidgetRef ref, List<AppEntry> hidden) {
-    final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
-
-    ThemedSheet.show<void>(
-      context,
-      title: context.t('settings.hiddenApps'),
-      isScrollControlled: true,
-      builder: (sheet) => Consumer(
-        builder: (ctx, r, __) {
-          // Live inside the sheet: unhiding must remove the row under your
-          // finger, or the only feedback is the count on the page behind.
-          // hasValue, not asData: unhiding an app is itself a prefs write, so
-          // with asData this sheet fell back to the stale snapshot on the very
-          // action it exists to reflect.
-          final liveAsync = r.watch(effectiveThemeProvider);
-          final live = liveAsync.hasValue ? liveAsync.requireValue : theme;
-          final keys = live.prefs.hiddenApps;
-          final rows = [
-            for (final a in hidden)
-              if (keys.contains(a.componentKey)) a,
-          ];
-
-          if (rows.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Text(
-                context.t('settings.nothingIsHidden'),
-                style: ChromeScope.of(ctx).text.caption,
-              ),
-            );
-          }
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.5,
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: rows.length,
-                  itemBuilder: (_, i) {
-                    final a = rows[i];
-                    final c = ChromeScope.of(ctx).colors;
-
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => notifier.edit(
-                        (p) => HiddenApps.unhide(p, a.componentKey),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        child: Row(
-                          children: [
-                            AppIcon(entry: a, size: 32),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                a.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: ChromeScope.of(ctx).text.body,
-                              ),
-                            ),
-                            // "Unhide", spelled out. An eye glyph alone is
-                            // ambiguous about which state it is describing —
-                            // the current one or the one you get by tapping.
-                            Text(
-                              context.t('settings.unhide'),
-                              style: ChromeScope.of(ctx)
-                                  .text
-                                  .caption
-                                  .copyWith(color: c.accent),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                child: ThemedButton(
-                  label: context.t('settings.unhideAll'),
-                  kind: ThemedButtonKind.text,
-                  expand: true,
-                  onPressed: () {
-                    Navigator.pop(sheet);
-                    notifier.edit(HiddenApps.unhideAll);
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+      icon: locked ? Icons.lock_outline : Icons.visibility_off_outlined,
+      title: context.t('hidden.title'),
+      subtitle: count == 0
+          ? context.t('hidden.rowEmpty')
+          : context.t('hidden.rowCount', {'count': '$count'}),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => openHideApps(context, ref, theme),
     );
   }
 }

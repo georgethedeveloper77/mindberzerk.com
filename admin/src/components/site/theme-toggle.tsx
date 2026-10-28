@@ -23,7 +23,11 @@ function effectiveMode(): Mode {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function ThemeToggle() {
+/** Studio look by default; an app landing passes its own classes. */
+const STUDIO_CLASS =
+  'grid size-10 place-items-center rounded-full border-[1.5px] border-site-line bg-site-card text-site-ink-3 transition hover:text-site-ink';
+
+export function ThemeToggle({ className = STUDIO_CLASS }: { className?: string }) {
   // Null until mounted: the server cannot know the mode, so it renders a
   // neutral button and the icon appears on hydration.
   const [mode, setMode] = useState<Mode | null>(null);
@@ -48,7 +52,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="grid size-10 place-items-center rounded-full border-[1.5px] border-site-line bg-site-card text-site-ink-3 transition hover:text-site-ink"
+      className={className}
     >
       {mode === 'dark' ? (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>

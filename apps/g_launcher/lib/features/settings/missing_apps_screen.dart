@@ -98,7 +98,9 @@ class MissingAppsScreen extends ConsumerWidget {
 
           if (unavailable.isNotEmpty) ...[
             ThemedSectionHeader(
-              plural(context, unavailable.length,
+              plural(
+                  context,
+                  unavailable.length,
                   'settings.backup.appUnavailableOne',
                   'settings.backup.appUnavailableOther'),
             ),

@@ -122,6 +122,20 @@ class PrefsRepository {
   Future<void> saveGlobal(GlobalPrefs prefs) =>
       _store.write(globalKey, jsonEncode(prefs.toJson()));
 
+  /// Every app any distro's OWN file has hidden, unioned.
+  ///
+  /// The schema 3 top-up and old-backup restores read this: before the hidden
+  /// set went global, each distro kept its own, and taking only the active one
+  /// would unhide everything hidden elsewhere.
+  Future<Set<String>> hiddenAcrossThemes() async {
+    final out = <String>{};
+    for (final key in await _store.keys()) {
+      if (!key.startsWith('prefs.v1.')) continue;
+      out.addAll((await load(key.substring('prefs.v1.'.length))).hiddenApps);
+    }
+    return out;
+  }
+
   /// The schema version of the STORED bucket, which [loadGlobal] cannot report
   /// because [GlobalPrefs] does not carry it as a field.
   ///
@@ -305,10 +319,19 @@ class GlobalPrefsNotifier extends AsyncNotifier<GlobalPrefs> {
         return stored;
       }
 
-      final upgradeFrom = await ref.watch(selectedThemeIdProvider.future);
-      final upgraded = upgradeFrom == null
-          ? stored
-          : stored.withV2PromotionsFrom(await repo.load(upgradeFrom));
+      // Walked in order, each step owning its own promotion.
+      final from = await repo.globalSchemaVersion();
+      var upgraded = stored;
+      if (from < 2) {
+        final upgradeFrom = await ref.watch(selectedThemeIdProvider.future);
+        if (upgradeFrom != null) {
+          upgraded =
+              upgraded.withV2PromotionsFrom(await repo.load(upgradeFrom));
+        }
+      }
+      if (from < 3) {
+        upgraded = upgraded.withV3HiddenApps(await repo.hiddenAcrossThemes());
+      }
 
       // Saved even when nothing was topped up, because the write is what
       // stamps the new version and stops this running on every launch.
@@ -327,9 +350,12 @@ class GlobalPrefsNotifier extends AsyncNotifier<GlobalPrefs> {
     // A fresh install reads an absent file, gets all-null, and writes an empty
     // bucket. Harmless, and it means the migration runs exactly once either way.
     final themeId = await ref.watch(selectedThemeIdProvider.future);
-    final seed = themeId == null
-        ? const GlobalPrefs()
-        : GlobalPrefs.from(await repo.load(themeId));
+    // The hidden set is the exception: every distro held its own, so the
+    // seed takes the union rather than only the active theme's.
+    final seed = (themeId == null
+            ? const GlobalPrefs()
+            : GlobalPrefs.from(await repo.load(themeId)))
+        .withHiddenApps(await repo.hiddenAcrossThemes());
 
     await repo.saveGlobal(seed);
     return seed;

@@ -65,7 +65,7 @@ const CONSOLE = '/dashboard';
  * Exact matches only. A prefix rule here would be one careless entry away from
  * exposing a console route that merely starts with the same characters.
  */
-const PUBLIC = new Set<string>(['/']);
+const PUBLIC = new Set<string>(['/', '/g-vpn']);
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -133,5 +133,11 @@ export const config = {
   // That exclusion is also what keeps /api/contact reachable for a public
   // visitor: it is a public endpoint by design and enforces its own limits
   // (honeypot, rate limit, validation) rather than a session.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  //
+  // FILES FROM public/ ARE EXCLUDED TOO, by extension. They are public by
+  // definition, and running them through the cookie branch redirected
+  // /g-vpn/mark.png to the sign-in page: the image optimizer fetches the source
+  // without the visitor's cookie, got HTML back, and the logo rendered broken.
+  // Console routes never end in an image extension, so nothing private moves.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|txt)$).*)'],
 };

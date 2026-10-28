@@ -200,8 +200,7 @@ class _AquaShellState extends ConsumerState<AquaShell> {
   /// lost between two surfaces.
   void _dockPin(String componentKey, int capacity) {
     ref.read(prefsProvider(widget.theme.spec.id).notifier).edit((p) {
-      final pinned =
-          HomeLayout.pinToDock(p, componentKey, capacity: capacity);
+      final pinned = HomeLayout.pinToDock(p, componentKey, capacity: capacity);
       final at = HomeLayout.slotOf(pinned, componentKey);
       return at == null
           ? pinned
@@ -454,20 +453,20 @@ class _AquaShellState extends ConsumerState<AquaShell> {
               // its dock everywhere, and then the slide never runs at all.
               hideAtPage: theme.dockReveal == 'desktop' ? appsPage : null,
               child: AquaDock(
-              entries: entries,
-              palette: theme.palette,
-              style: AquaDockStyle.parse(theme.dockStyle),
-              hover: theme.dockHover,
-              press: theme.dockPress,
-              opacity: theme.dockOpacity,
-              onLaunchpad: _openLaunchpad,
-              // ─── ALWAYS ARMED ────────────────────────────────────────
-              //
-              // Unlike a reorder, a drop here has something to do on any dock:
-              // pinning is how an auto-filled dock stops being automatic, so
-              // refusing it on the docks with no pins would refuse the gesture
-              // that makes pinning possible.
-              onDropApp: (key) => _dockPin(key, capacity),
+                entries: entries,
+                palette: theme.palette,
+                style: AquaDockStyle.parse(theme.dockStyle),
+                hover: theme.dockHover,
+                press: theme.dockPress,
+                opacity: theme.dockOpacity,
+                onLaunchpad: _openLaunchpad,
+                // ─── ALWAYS ARMED ────────────────────────────────────────
+                //
+                // Unlike a reorder, a drop here has something to do on any dock:
+                // pinning is how an auto-filled dock stops being automatic, so
+                // refusing it on the docks with no pins would refuse the gesture
+                // that makes pinning possible.
+                onDropApp: (key) => _dockPin(key, capacity),
               ),
             ),
           ),

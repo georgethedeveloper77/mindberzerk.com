@@ -111,7 +111,8 @@ class BackupRecord {
     return BackupRecord(
       id: id,
       savedAt: saved.toLocal(),
-      createdAt: DateTime.tryParse((j['createdAt'] as String?) ?? '')?.toLocal(),
+      createdAt:
+          DateTime.tryParse((j['createdAt'] as String?) ?? '')?.toLocal(),
       themeCount: (j['themeCount'] as num?)?.toInt() ?? 0,
       collectionCount: (j['collectionCount'] as num?)?.toInt() ?? 0,
       photoCount: (j['photoCount'] as num?)?.toInt() ?? 0,

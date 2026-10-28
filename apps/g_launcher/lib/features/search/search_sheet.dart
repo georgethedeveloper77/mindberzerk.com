@@ -3,12 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../data/prefs/query_learning.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
+import '../command/command_rows.dart';
+import '../command/command_router.dart';
 import '../palette/palette_controller.dart';
 
 /// Search, as a sheet from the top edge.
@@ -109,6 +112,9 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
 
   void _run(AppEntry entry) {
     HapticFeedback.lightImpact();
+    ref
+        .read(queryLearningProvider.notifier)
+        .record(ref.read(paletteQueryProvider), entry.componentKey);
     // POP FIRST. Launching leaves the app, and a sheet still mounted behind a
     // departing activity is what you come back to. `drawer_actions` and the
     // desktop menu both pop before they act, for the same reason.
@@ -125,6 +131,35 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
     final results = [
       for (final r in ref.watch(paletteResultsProvider(theme))) r.item,
     ].take(_limit).toList();
+
+    final route = CommandRouter.route(query);
+    final rowStyle = CommandRowStyle(
+      text: palette.onDark,
+      muted: palette.onDark.withValues(alpha: 0.5),
+      accent: palette.accent,
+      fontFamily: theme.typography.display,
+      monoFamily: theme.typography.mono,
+      scale: theme.textScale,
+    );
+
+    void fill(String v) {
+      _controller.value = TextEditingValue(
+        text: v,
+        selection: TextSelection.collapsed(offset: v.length),
+      );
+      ref.read(paletteQueryProvider.notifier).state = v;
+    }
+
+    Future<void> activate(CommandHit hit) async {
+      final close = await activateCommandHit(
+        context,
+        ref,
+        hit,
+        query: query,
+        fillQuery: fill,
+      );
+      if (close && mounted) Navigator.of(context).pop();
+    }
 
     final cats = CategorySet.forTheme(theme);
     final top = MediaQuery.viewPaddingOf(context).top;
@@ -167,8 +202,14 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                         focus: _focus,
                         onChanged: (v) =>
                             ref.read(paletteQueryProvider.notifier).state = v,
+                        // Enter: the top app, unless there is none or the query
+                        // is an explicit mode, in which case the top command.
                         onSubmit: () {
-                          if (results.isNotEmpty) _run(results.first);
+                          if (results.isNotEmpty && route.searchApps) {
+                            _run(results.first);
+                          } else if (route.hits.isNotEmpty) {
+                            activate(route.hits.first);
+                          }
                         },
                       ),
                       if (query.trim().isNotEmpty) ...[
@@ -177,9 +218,23 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                           thickness: 1,
                           color: palette.onDark.withValues(alpha: 0.10),
                         ),
-                        if (results.isEmpty)
-                          _Empty(theme: theme)
-                        else
+                        for (final hit in route.hits)
+                          CommandHitRow(
+                            hit: hit,
+                            style: rowStyle,
+                            onTap: () => activate(hit),
+                            onBang: (b) => fill('!${b.key} '),
+                          ),
+                        if (results.isEmpty && route.searchApps) ...[
+                          if (route.hits.isEmpty) _Empty(theme: theme),
+                          CommandFallbackRows(
+                            query: query,
+                            style: rowStyle,
+                            onOpened: () {
+                              if (mounted) Navigator.of(context).pop();
+                            },
+                          ),
+                        ] else
                           for (var i = 0; i < results.length; i++)
                             _Hit(
                               theme: theme,

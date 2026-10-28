@@ -247,7 +247,8 @@ List<Widget> applicationsSection(
                 // alphabetical and so would have looked correct while quietly
                 // putting a value in prefs that no reader matches on.
                 notifier.edit(
-                  (p) => v == 'vertical' && (p.drawerSortMode ?? 'custom') == 'custom'
+                  (p) => v == 'vertical' &&
+                          (p.drawerSortMode ?? 'custom') == 'custom'
                       ? p
                           .copyWith(drawerScrollStyle: v)
                           .clearing(drawerSortMode: true)

@@ -156,5 +156,8 @@ List<DeskletKind> offeredDesklets(EffectiveTheme theme) {
   ];
   // G VPN belongs to the phone, not the distro: every theme offers it, so a
   // CDN theme with its own list never hides it.
-  return [...offered, if (!offered.contains(DeskletKinds.vpn)) DeskletKinds.vpn];
+  return [
+    ...offered,
+    if (!offered.contains(DeskletKinds.vpn)) DeskletKinds.vpn
+  ];
 }

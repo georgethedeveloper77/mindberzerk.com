@@ -8,6 +8,7 @@ interface ManagedKey {
   value: string | null;
   readBy: string;
   app: string;
+  note: string | null;
 }
 
 /**
@@ -42,7 +43,31 @@ interface ManagedKey {
  * server copy is the gate, and the comment on each is what keeps them together.
  */
 
+/** Mirrors storeLink() in lib/core/remote-config.ts. Empty hides the store. */
+function storeLink(host?: string): (v: string) => string | null {
+  return (v) => {
+    if (v === '') return null;
+    let url: URL;
+    try {
+      url = new URL(v);
+    } catch {
+      return 'Must be a full URL, or empty to hide it.';
+    }
+    if (url.protocol !== 'https:') return 'Must start with https://.';
+    if (host && url.hostname !== host) return `Must be a ${host} link.`;
+    return null;
+  };
+}
+
 const LOCAL_RULES: Record<string, (v: string) => string | null> = {
+  // Mirror the G VPN landing keys in KNOWN_KEYS.
+  gvpn_play_url: storeLink('play.google.com'),
+  gvpn_app_store_url: storeLink('apps.apple.com'),
+  gvpn_windows_url: storeLink(),
+  gvpn_macos_url: storeLink(),
+  gvpn_min_android: (v) =>
+    v === '' || /^\d{1,2}(\.\d{1,2})?$/.test(v) ? null : 'A version like 7.0, or empty for the default.',
+
   // Mirrors KNOWN_KEYS['cdn_base_url'].validate in lib/remote-config.ts, which
   // in turn mirrors CdnConfig.baseUrl on device: anything not plainly https in
   // 12 to 200 characters is ignored by the launcher, which silently falls back
@@ -161,9 +186,9 @@ function KeyRow({
       </div>
 
       <p className="mt-1.5 text-[11px] leading-relaxed text-site-ink-3">
-        Read by {item.readBy}. Devices fetch on their own schedule, typically
-        within twelve hours or on a cold start, so a change here is not
-        immediate anywhere.
+        Read by {item.readBy}.{' '}
+        {item.note ??
+          'Devices fetch on their own schedule, typically within twelve hours or on a cold start, so a change here is not immediate anywhere.'}
       </p>
 
       {msg && <p className={`mt-2 text-micro leading-relaxed ${tone[msg.tone]}`}>{msg.text}</p>}

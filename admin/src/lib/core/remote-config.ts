@@ -58,7 +58,35 @@ export interface RcKey {
   app: string;
   /** Validation for the value, run before a write is allowed. */
   validate: (value: string) => string | null;
+  /**
+   * When a change takes effect, shown under the field. Absent means a device
+   * reader, which fetches on its own schedule.
+   */
+  note?: string;
 }
+
+/**
+ * Store and download links for a public landing. Empty is valid and means
+ * "not offered", which hides that store on the page instead of showing a
+ * placeholder. When `host` is given the link must be on it, so a Play key can
+ * never be pointed at a lookalike domain.
+ */
+function storeLink(host?: string): (v: string) => string | null {
+  return (v) => {
+    if (v === '') return null;
+    let url: URL;
+    try {
+      url = new URL(v);
+    } catch {
+      return 'Must be a full URL, or empty to hide it.';
+    }
+    if (url.protocol !== 'https:') return 'Must start with https://.';
+    if (host && url.hostname !== host) return `Must be a ${host} link.`;
+    return null;
+  };
+}
+
+const GVPN_SITE_NOTE = 'mindberzerk.com/g-vpn picks this up within five minutes. Empty hides it.';
 
 /**
  * THE ALLOWLIST. A key not here cannot be edited by this panel. Grows only when
@@ -77,6 +105,47 @@ export const KNOWN_KEYS: RcKey[] = [
       if (v.length < 12 || v.length > 200) return 'Must be 12 to 200 characters.';
       return null;
     },
+  },
+
+  // ── G VPN landing ────────────────────────────────────────────────────────
+  // Read by the public page, not by the app. A store appears on the page when
+  // its link is set and disappears when it is emptied, so a new platform goes
+  // live from here without a deploy.
+  {
+    key: 'gvpn_play_url',
+    readBy: 'the G VPN landing: Google Play badge and download card',
+    app: 'g-vpn',
+    validate: storeLink('play.google.com'),
+    note: GVPN_SITE_NOTE,
+  },
+  {
+    key: 'gvpn_app_store_url',
+    readBy: 'the G VPN landing: App Store badge and download card',
+    app: 'g-vpn',
+    validate: storeLink('apps.apple.com'),
+    note: GVPN_SITE_NOTE,
+  },
+  {
+    key: 'gvpn_windows_url',
+    readBy: 'the G VPN landing: Windows download card',
+    app: 'g-vpn',
+    validate: storeLink(),
+    note: GVPN_SITE_NOTE,
+  },
+  {
+    key: 'gvpn_macos_url',
+    readBy: 'the G VPN landing: macOS download card',
+    app: 'g-vpn',
+    validate: storeLink(),
+    note: GVPN_SITE_NOTE,
+  },
+  {
+    key: 'gvpn_min_android',
+    readBy: 'the G VPN landing: "Android X or later" on the card and in Questions',
+    app: 'g-vpn',
+    validate: (v) =>
+      v === '' || /^\d{1,2}(\.\d{1,2})?$/.test(v) ? null : 'A version like 7.0, or empty for the default.',
+    note: 'mindberzerk.com/g-vpn picks this up within five minutes.',
   },
 ];
 
@@ -103,6 +172,7 @@ export interface RcState {
     value: string | null;
     readBy: string;
     app: string;
+    note: string | null;
   }[];
   /** Keys present in the template that this panel does NOT manage. Shown, not editable. */
   foreign: { key: string; value: string | null }[];
@@ -186,6 +256,7 @@ export async function readRemoteConfig(): Promise<RcState> {
     value: params[k.key]?.defaultValue?.value ?? null,
     readBy: k.readBy,
     app: k.app,
+    note: k.note ?? null,
   }));
 
   const managedKeys = new Set(KNOWN_KEYS.map((k) => k.key));
@@ -273,4 +344,40 @@ export async function writeRemoteConfigKey(
 
   const written = (await res.json()) as RcTemplate;
   return { ok: true, versionNumber: written.version?.versionNumber ?? null };
+}
+
+/** How long a public page may serve a cached Remote Config value. */
+const PUBLIC_REVALIDATE_SECONDS = 300;
+
+/**
+ * Read managed keys for a PUBLIC page, cached for five minutes.
+ *
+ * Separate from `readRemoteConfig` because the needs are opposite: the editor
+ * must see the live template and its ETag, while a landing page must never
+ * mint a token per visitor and must never fail. So this caches through the
+ * fetch layer and, on any error (no credentials at build time, a refused role,
+ * a network blip), returns an empty record and lets the caller's defaults
+ * render. Only allowlisted keys are returned, so a key added in the console
+ * cannot leak onto a public page.
+ */
+export async function readPublicConfigValues(keys: readonly string[]): Promise<Record<string, string>> {
+  const allowed = keys.filter((k) => knownKey(k));
+  if (allowed.length === 0) return {};
+  try {
+    const token = await accessToken();
+    const res = await fetch(`${RC_HOST}/v1/projects/${projectId()}/remoteConfig`, {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: PUBLIC_REVALIDATE_SECONDS, tags: ['remote-config'] },
+    });
+    if (!res.ok) return {};
+    const params = ((await res.json()) as RcTemplate).parameters ?? {};
+    const out: Record<string, string> = {};
+    for (const key of allowed) {
+      const value = params[key]?.defaultValue?.value;
+      if (typeof value === 'string') out[key] = value.trim();
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }

@@ -38,8 +38,10 @@ Set<int> dockCells(
 }
 
 /// The cells a footprint covers, or null when it does not fit the grid.
-Set<int>? footprint(int col, int row, int spanX, int spanY, int cols, int rows) {
-  if (col < 0 || row < 0 || col + spanX > cols || row + spanY > rows) return null;
+Set<int>? footprint(
+    int col, int row, int spanX, int spanY, int cols, int rows) {
+  if (col < 0 || row < 0 || col + spanX > cols || row + spanY > rows)
+    return null;
   return {
     for (var r = row; r < row + spanY; r++)
       for (var c = col; c < col + spanX; c++) r * cols + c,
@@ -103,7 +105,8 @@ Map<String, CellPos> placeAroundDock(
       taken.addAll(cells);
     }
   }
-  displaced.sort((a, b) => a.row != b.row ? a.row.compareTo(b.row) : a.col.compareTo(b.col));
+  displaced.sort((a, b) =>
+      a.row != b.row ? a.row.compareTo(b.row) : a.col.compareTo(b.col));
   for (final d in displaced) {
     final spot = nearestClear(
       col: d.col,
@@ -117,7 +120,8 @@ Map<String, CellPos> placeAroundDock(
     );
     final at = spot ?? (col: d.col, row: d.row);
     shown[d.id] = at;
-    taken.addAll(footprint(at.col, at.row, d.spanX, d.spanY, cols, rows) ?? const {});
+    taken.addAll(
+        footprint(at.col, at.row, d.spanX, d.spanY, cols, rows) ?? const {});
   }
   return shown;
 }

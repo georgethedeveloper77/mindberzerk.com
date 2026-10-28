@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../data/search/search_text.dart';
+
 /// The fuzzy matcher behind the terminal's command palette.
 ///
 /// This is the flagship feature's actual engine, so it is pure Dart with tests
@@ -84,12 +86,18 @@ abstract final class Fuzzy {
   static FuzzyMatch match(String label, String query) {
     if (query.isEmpty) return const FuzzyMatch(score: 0, indices: []);
 
-    final n = label.length;
-    final m = query.length;
-    if (m > n) return FuzzyMatch.none;
+    // The label is FOLDED (same length, so indices still point into the
+    // original for the amber highlight) and the query is COMPACTED: spaces
+    // and punctuation in what was typed are dropped, so "g vpn", "gvpn" and
+    // "G-VPN" are one query. The label keeps its separators because the
+    // subsequence walk already steps over them.
+    final l = SearchText.fold(label);
+    final q = SearchText.compact(query);
+    if (q.isEmpty) return FuzzyMatch.none;
 
-    final l = label.toLowerCase();
-    final q = query.toLowerCase();
+    final n = l.length;
+    final m = q.length;
+    if (m > n) return FuzzyMatch.none;
 
     final best = List.generate(m, (_) => List.filled(n, _neg));
     final from = List.generate(m, (_) => List.filled(n, -1));
@@ -163,7 +171,7 @@ abstract final class Fuzzy {
       li = from[qi][li];
     }
 
-    if (l.startsWith(q)) score += _bonusPrefix;
+    if (SearchText.compact(label).startsWith(q)) score += _bonusPrefix;
 
     // Shorter labels win ties: "cal" should give Calendar before Calculator, and
     // neither before "Calendar Sync Pro Deluxe". Small — it breaks ties, it does

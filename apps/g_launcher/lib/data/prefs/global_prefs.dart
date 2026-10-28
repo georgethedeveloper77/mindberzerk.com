@@ -78,6 +78,7 @@ class GlobalPrefs {
     this.badgeStyle,
     this.displayFont,
     this.monoFont,
+    this.hiddenApps,
   });
 
   // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -139,10 +140,21 @@ class GlobalPrefs {
   final bool? verboseBoot;
 
   // ── PRIVACY ───────────────────────────────────────────────────────────────
-  // Whether a hidden app can be reached by typing its whole name. The hidden
-  // SET stays per theme (hiding an app in Ubuntu must not hide it in KDE); this
-  // is the rule applied to whichever set is live.
+  // Whether a hidden app can be reached by typing its whole name.
   final bool? hiddenAppsSearchable;
+
+  /// The hidden set itself. PROMOTED IN SCHEMA 3.
+  ///
+  /// It used to be per theme, on the reasoning that hiding an app in Ubuntu
+  /// need not hide it in KDE. In practice nobody hides TikTok "only on
+  /// Ubuntu": switching distro, which is the whole product, brought every
+  /// hidden app back in front of whoever it was hidden from. Hiding is a fact
+  /// about the person, like the rest of this bucket.
+  ///
+  /// Null only on a bucket written before schema 3, which the notifier tops
+  /// up with the UNION of every distro's old set (see [withV3HiddenApps]), so
+  /// nothing anyone ever hid on any distro reappears after the update.
+  final Set<String>? hiddenApps;
 
   // ── APPEARANCE ────────────────────────────────────────────────────────────
   // 'system' | 'light' | 'dark'. The most obviously global setting in the list:
@@ -241,6 +253,7 @@ class GlobalPrefs {
         badgeStyle: p.badgeStyle,
         displayFont: p.displayFont,
         monoFont: p.monoFont,
+        hiddenApps: p.hiddenApps,
       );
 
   /// Overlay these values onto [p], replacing whatever the per-theme store held
@@ -313,6 +326,9 @@ class GlobalPrefs {
       badgeStyle: badgeStyle,
       displayFont: displayFont,
       monoFont: monoFont,
+      // A Set has no null to clear to: absent means empty, which is also what
+      // a reset to defaults (`const GlobalPrefs()`) should produce.
+      hiddenApps: hiddenApps ?? const <String>{},
     );
   }
 
@@ -349,6 +365,8 @@ class GlobalPrefs {
         if (badgeStyle != null) 'badgeStyle': badgeStyle,
         if (displayFont != null) 'displayFont': displayFont,
         if (monoFont != null) 'monoFont': monoFont,
+        // Sorted, so value equality (which compares toJson) is order free.
+        if (hiddenApps != null) 'hiddenApps': hiddenApps!.toList()..sort(),
       };
 
   factory GlobalPrefs.fromJson(Map<String, dynamic> j) => GlobalPrefs(
@@ -381,6 +399,7 @@ class GlobalPrefs {
         badgeStyle: j['badgeStyle'] as String?,
         displayFont: j['displayFont'] as String?,
         monoFont: j['monoFont'] as String?,
+        hiddenApps: (j['hiddenApps'] as List?)?.whereType<String>().toSet(),
       );
 
   /// Its own version, independent of [LauncherPrefs.schemaVersion]: this bucket
@@ -398,7 +417,12 @@ class GlobalPrefs {
   /// So each bump owns a top-up: see [withV2PromotionsFrom]. A future 3 adds
   /// its own method and the notifier walks the versions in order. The rule is
   /// that promoting a field is never a one-line change to this class alone.
-  static const int schemaVersion = 2;
+  ///
+  /// ─── 3: THE HIDDEN SET ────────────────────────────────────────────────────
+  ///
+  /// Promoted from per theme. Its top-up is a union over every stored distro,
+  /// not a read of the active one, because each distro held its own set.
+  static const int schemaVersion = 3;
 
   /// Fill the fields promoted in schema 2 from the active theme's own file.
   ///
@@ -440,6 +464,19 @@ class GlobalPrefs {
         monoFont: monoFont,
       );
 
+  /// Fill [hiddenApps] from the union of every distro's old per-theme set.
+  ///
+  /// Only when this bucket has none. Round-tripped through JSON rather than a
+  /// hand-written copy, so the thirty other fields cannot be dropped by a
+  /// copy that forgot one.
+  GlobalPrefs withV3HiddenApps(Set<String> union) =>
+      hiddenApps != null ? this : withHiddenApps(union);
+
+  /// This bucket with [hiddenApps] replaced. Round-tripped through JSON for
+  /// the same reason as [withV3HiddenApps].
+  GlobalPrefs withHiddenApps(Set<String> keys) =>
+      GlobalPrefs.fromJson({...toJson(), 'hiddenApps': keys.toList()});
+
   /// Value equality, and it is load-bearing for the same reason it is on
   /// [LauncherPrefs]: `prefsProvider` rebuilds when this changes, and identity
   /// equality would mean every read looked like a change.
@@ -479,6 +516,7 @@ class GlobalPrefs {
         badgeStyle,
         displayFont,
         monoFont,
+        const SetEquality<String>().hash(hiddenApps),
       ]);
 }
 

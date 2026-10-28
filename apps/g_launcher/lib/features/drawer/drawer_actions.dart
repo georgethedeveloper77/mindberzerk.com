@@ -986,8 +986,9 @@ Future<void> showMoveToSheet(
                     // only honest source for it is the resolved drawer items
                     // rather than prefs. Reading that here would make a modal
                     // sheet depend on the whole app list to draw a label.
-                    trailing:
-                        on ? Icon(Icons.check, size: 20, color: c.accent) : null,
+                    trailing: on
+                        ? Icon(Icons.check, size: 20, color: c.accent)
+                        : null,
                     // The current shelf is shown and NOT tappable. Moving an app
                     // to where it already is would be a write that changes
                     // nothing, and a row that accepts a tap and does nothing is

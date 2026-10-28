@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'prefs_repository.dart';
+import 'query_learning.dart';
 
 /// Recent search terms from the app drawer's search page, most-recent-first.
 ///
@@ -68,7 +69,10 @@ class RecentSearchesNotifier extends AsyncNotifier<List<String>> {
 
   /// Clear the lot — the trash icon. Deletes the key so a cleared history is
   /// indistinguishable from a fresh install (both read back as empty).
+  /// Clears what the search box learned from those terms too: "clear my
+  /// search history" that left Equity pinned to "bank" would not be a clear.
   Future<void> clear() async {
+    await ref.read(queryLearningProvider.notifier).clear();
     if ((state.asData?.value ?? const <String>[]).isEmpty) return;
     state = const AsyncData(<String>[]);
     await ref.read(prefsStoreProvider).delete(_recentSearchesKey);

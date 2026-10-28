@@ -1358,6 +1358,26 @@ abstract class LauncherHostApi {
   /// to work, and a media button that silently does nothing is the failure
   /// people describe as the launcher freezing.
   bool sendMediaCommand(String packageName, String command);
+
+  /// Can this phone confirm it is the owner? One of 'ready', 'no_lock'
+  /// (no screen lock set), 'unsupported' (below Android 9).
+  ///
+  /// Strings rather than an enum, for the codec reason [NowPlaying] gives.
+  /// Mirrored in `system/UserAuth.kt` and `data/prefs/hidden_lock.dart`.
+  String userAuthAvailability();
+
+  /// Ask the owner to confirm it is them: fingerprint, face, or the screen
+  /// lock PIN as a fallback. For the hidden apps lock.
+  ///
+  /// Answers 'ok', 'cancelled', 'lockout' (too many tries), 'no_lock',
+  /// 'unsupported' or 'no_window'. Platform `BiometricPrompt`, NOT androidx,
+  /// because androidx needs a FragmentActivity and the home activity is a
+  /// FlutterActivity. Same call the SSH keystore makes.
+  ///
+  /// APPENDED LAST: methods do not shift codec ids, but keeping additions at
+  /// the end keeps the generated diff readable.
+  @async
+  String confirmUser(String title, String? subtitle);
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

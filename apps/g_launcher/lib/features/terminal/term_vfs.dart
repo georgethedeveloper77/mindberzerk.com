@@ -7,6 +7,7 @@
 /// that was never a permission question teaches the user nothing.
 library;
 
+import '../../data/search/search_text.dart';
 import 'term_host.dart';
 import 'term_path.dart';
 
@@ -128,7 +129,7 @@ class TermVfs {
       if (app.slug.toLowerCase() == needle) return app;
     }
     for (final TermApp app in apps) {
-      if (app.label.toLowerCase() == needle) return app;
+      if (SearchText.sameName(app.label, query)) return app;
     }
     for (final TermApp app in apps) {
       if (app.slug.toLowerCase().startsWith(needle)) return app;
@@ -137,7 +138,7 @@ class TermVfs {
       if (app.label.toLowerCase().startsWith(needle)) return app;
     }
     for (final TermApp app in apps) {
-      if (app.label.toLowerCase().contains(needle) ||
+      if (SearchText.contains(app.label, query) ||
           app.packageName.toLowerCase().contains(needle)) {
         return app;
       }

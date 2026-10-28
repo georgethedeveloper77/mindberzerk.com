@@ -280,7 +280,8 @@ class DeskletSurfaceView extends ConsumerWidget {
               );
               // Shown, never saved: a desklet under the dock appears at the
               // nearest free spot and returns by itself when the dock shrinks.
-              final shown = placeAroundDock(items, cols: cols, rows: rows, blocked: blocked);
+              final shown = placeAroundDock(items,
+                  cols: cols, rows: rows, blocked: blocked);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!context.mounted) return;
                 ref.read(deskletDockCellsProvider.notifier).set(blocked);
@@ -290,64 +291,66 @@ class DeskletSurfaceView extends ConsumerWidget {
               // becomes the user's chosen place.
               Desklet seen(Desklet d) {
                 final at = shown[d.id];
-                return at == null || (at.col == d.col && at.row == d.row) ? d : d.copyWith(col: at.col, row: at.row);
+                return at == null || (at.col == d.col && at.row == d.row)
+                    ? d
+                    : d.copyWith(col: at.col, row: at.row);
               }
 
               return Stack(
-            children: [
-              // The empty-cell grid sits UNDERNEATH the tiles, so a tap that
-              // lands on a desklet reaches the desklet and only a tap on real
-              // empty space opens the picker. Ordering, not hit-test tricks.
-              if (editing)
-                Positioned.fill(
-                  child: _EmptyCells(
-                    theme: theme,
-                    page: page,
-                    cols: cols,
-                    rows: rows,
-                    cellW: cellW,
-                    cellH: cellH,
-                    blocked: blocked,
-                  ),
-                ),
-              // ─── ONE WIDGET IN BOTH STATES ────────────────────────
-              //
-              // This used to pick between `_ResizableTile` at rest and
-              // `EditableDesklet` while editing. That conditional is what made
-              // hold-to-move impossible: a hold entered edit mode, edit mode
-              // rebuilt this list, the swap unmounted the widget the finger was
-              // on, and the drag died at the moment it should have begun. No
-              // amount of gesture tuning inside either widget could have fixed
-              // it, because the widget doing the listening ceased to exist.
-              //
-              // The KEY matters as much as the merge. Without it these are
-              // positional children, so removing a desklet would shift every
-              // later tile's state onto its neighbour: the tile you were
-              // dragging keeps its drag offset and the wrong desklet inherits
-              // it. Keyed by id, state follows the desklet it belongs to.
-              for (final d in items)
-                Positioned(
-                  key: ValueKey(d.id),
-                  left: seen(d).col * cellW,
-                  top: seen(d).row * cellH,
-                  // The tile sizes ITSELF in both states now, because it grows
-                  // live under a resize drag and the Positioned must not fight
-                  // that. At rest it computes exactly the span this used to
-                  // pass down, so nothing about the resting layout changed.
-                  child: EditableDesklet(
-                    theme: theme,
-                    desklet: seen(d),
-                    cellW: cellW,
-                    cellH: cellH,
-                    editing: editing,
-                    child: Padding(
-                      padding: const EdgeInsets.all(gutter / 2),
-                      child: _Tile(theme: theme, desklet: d),
+                children: [
+                  // The empty-cell grid sits UNDERNEATH the tiles, so a tap that
+                  // lands on a desklet reaches the desklet and only a tap on real
+                  // empty space opens the picker. Ordering, not hit-test tricks.
+                  if (editing)
+                    Positioned.fill(
+                      child: _EmptyCells(
+                        theme: theme,
+                        page: page,
+                        cols: cols,
+                        rows: rows,
+                        cellW: cellW,
+                        cellH: cellH,
+                        blocked: blocked,
+                      ),
                     ),
-                  ),
-                ),
-            ],
-          );
+                  // ─── ONE WIDGET IN BOTH STATES ────────────────────────
+                  //
+                  // This used to pick between `_ResizableTile` at rest and
+                  // `EditableDesklet` while editing. That conditional is what made
+                  // hold-to-move impossible: a hold entered edit mode, edit mode
+                  // rebuilt this list, the swap unmounted the widget the finger was
+                  // on, and the drag died at the moment it should have begun. No
+                  // amount of gesture tuning inside either widget could have fixed
+                  // it, because the widget doing the listening ceased to exist.
+                  //
+                  // The KEY matters as much as the merge. Without it these are
+                  // positional children, so removing a desklet would shift every
+                  // later tile's state onto its neighbour: the tile you were
+                  // dragging keeps its drag offset and the wrong desklet inherits
+                  // it. Keyed by id, state follows the desklet it belongs to.
+                  for (final d in items)
+                    Positioned(
+                      key: ValueKey(d.id),
+                      left: seen(d).col * cellW,
+                      top: seen(d).row * cellH,
+                      // The tile sizes ITSELF in both states now, because it grows
+                      // live under a resize drag and the Positioned must not fight
+                      // that. At rest it computes exactly the span this used to
+                      // pass down, so nothing about the resting layout changed.
+                      child: EditableDesklet(
+                        theme: theme,
+                        desklet: seen(d),
+                        cellW: cellW,
+                        cellH: cellH,
+                        editing: editing,
+                        child: Padding(
+                          padding: const EdgeInsets.all(gutter / 2),
+                          child: _Tile(theme: theme, desklet: d),
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
         );
@@ -635,12 +638,17 @@ class _GridPainter extends CustomPainter {
         ..color = hatchColour
         ..strokeWidth = 3;
       for (final i in blocked) {
-        final rect = Rect.fromLTWH((i % cols) * cellW, (i ~/ cols) * cellH, cellW, cellH);
+        final rect = Rect.fromLTWH(
+            (i % cols) * cellW, (i ~/ cols) * cellH, cellW, cellH);
         canvas.save();
         canvas.clipRect(rect);
-        canvas.drawRect(rect, Paint()..color = hatchColour.withValues(alpha: hatchColour.a * 0.35));
+        canvas.drawRect(
+            rect,
+            Paint()
+              ..color = hatchColour.withValues(alpha: hatchColour.a * 0.35));
         for (var x = rect.left - rect.height; x < rect.right; x += 9) {
-          canvas.drawLine(Offset(x, rect.bottom), Offset(x + rect.height, rect.top), stripe);
+          canvas.drawLine(Offset(x, rect.bottom),
+              Offset(x + rect.height, rect.top), stripe);
         }
         canvas.restore();
       }
@@ -666,7 +674,6 @@ class _GridPainter extends CustomPainter {
       old.blocked != blocked ||
       old.hatch != hatch;
 }
-
 
 /// Gives [builder] the dock's box in this widget's own coordinates (the
 /// desklet grid's), or null before the dock has measured itself. The global
@@ -698,6 +705,7 @@ class _DockMaskState extends ConsumerState<_DockMask> {
     WidgetsBinding.instance.addPostFrameCallback(_measure);
     final dock = widget.enabled ? ref.watch(dockRectProvider) : null;
     final origin = _origin;
-    return widget.builder(context, dock == null || origin == null ? null : dock.shift(-origin));
+    return widget.builder(
+        context, dock == null || origin == null ? null : dock.shift(-origin));
   }
 }

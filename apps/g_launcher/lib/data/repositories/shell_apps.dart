@@ -30,9 +30,9 @@ final shellAppsProvider =
   final apps = ref.watch(appListProvider).asData?.value ?? const <AppEntry>[];
 
   // ── HIDDEN APPS ────────────────────────────────────────────────────────────
-  // Per-theme: `prefs.hiddenApps` is a Set<String> of componentKeys, scoped to
-  // the active theme (plan §5.3 — hiding an app in Ubuntu must not hide it in
-  // KDE). Because `prefs` is now part of EffectiveTheme's `==`, editing this set
+  // `prefs.hiddenApps` is a Set<String> of componentKeys. GLOBAL since
+  // GlobalPrefs schema 3: the merged prefs carry the one launcher-wide set, so
+  // an app hidden on Ubuntu stays hidden on Kali. Because `prefs` is now part of EffectiveTheme's `==`, editing this set
   // yields a different key and this provider re-resolves; the filter can't go
   // stale behind the family cache.
   //

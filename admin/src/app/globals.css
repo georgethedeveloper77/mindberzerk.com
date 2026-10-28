@@ -142,6 +142,35 @@
   --shadow-site-deep: 0 22px 48px rgba(28, 21, 38, 0.22);
 
   --radius-site: 24px;
+
+  /* ── G VPN, the Meridian tokens from apps/g_vpn/lib/design/meridian.dart ──
+     PREFIXED `gv-` for the same reason the site tokens are prefixed `site-`:
+     the landing at /g-vpn must never repaint the console or the studio site.
+     Light values here are the app's "Soft" mode; the "Bento" dark pair lives
+     in the two dark override blocks below. `brand-solid` is the fill behind
+     white text, held at 4.5:1 or better in both modes. */
+  --color-gv-bg: #f3f5fa;
+  --color-gv-surface: #ffffff;
+  --color-gv-surface-2: #eef1f7;
+  --color-gv-text: #0f172a;
+  --color-gv-muted: #5b6478;
+  --color-gv-line: #e3e7ef;
+  --color-gv-brand: #2457f5;
+  --color-gv-brand-solid: #2457f5;
+  --color-gv-brand-hover: #1a43c4;
+  --color-gv-brand-soft: #e8edfe;
+  --color-gv-good: #0e7c3f;
+  --color-gv-good-soft: #e3f5ea;
+  --color-gv-bad: #c8232f;
+  --color-gv-bad-soft: #fdecee;
+  --color-gv-warn: #b76e00;
+  --color-gv-warn-soft: #fff4e0;
+  --color-gv-violet: #7a3fd1;
+  --color-gv-knob: #ffffff;
+  --color-gv-on-ink: #ffffff;
+  --color-gv-shadow: rgba(15, 23, 42, 0.1);
+
+  --shadow-gv-card: 0 24px 60px var(--color-gv-shadow);
 }
 
 @layer base {
@@ -181,6 +210,26 @@
       --color-site-ok-soft: #12291f;
       --color-site-plan: #ffb27a;
       --color-site-plan-soft: #2e1f14;
+      --color-gv-bg: #0a0b0f;
+      --color-gv-surface: #10131b;
+      --color-gv-surface-2: #151925;
+      --color-gv-text: #f2f4f8;
+      --color-gv-muted: #9aa1b2;
+      --color-gv-line: #1f2230;
+      --color-gv-brand: #3d7bff;
+      --color-gv-brand-solid: #2b63e8;
+      --color-gv-brand-hover: #2457f5;
+      --color-gv-brand-soft: rgba(61, 123, 255, 0.14);
+      --color-gv-good: #34d399;
+      --color-gv-good-soft: rgba(52, 211, 153, 0.12);
+      --color-gv-bad: #f87171;
+      --color-gv-bad-soft: rgba(248, 113, 113, 0.12);
+      --color-gv-warn: #fbbf24;
+      --color-gv-warn-soft: rgba(251, 191, 36, 0.12);
+      --color-gv-violet: #b794f6;
+      --color-gv-knob: #151925;
+      --color-gv-on-ink: #04140d;
+      --color-gv-shadow: rgba(0, 0, 0, 0.6);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -213,6 +262,26 @@
       --color-site-ok-soft: #12291f;
       --color-site-plan: #ffb27a;
       --color-site-plan-soft: #2e1f14;
+      --color-gv-bg: #0a0b0f;
+      --color-gv-surface: #10131b;
+      --color-gv-surface-2: #151925;
+      --color-gv-text: #f2f4f8;
+      --color-gv-muted: #9aa1b2;
+      --color-gv-line: #1f2230;
+      --color-gv-brand: #3d7bff;
+      --color-gv-brand-solid: #2b63e8;
+      --color-gv-brand-hover: #2457f5;
+      --color-gv-brand-soft: rgba(61, 123, 255, 0.14);
+      --color-gv-good: #34d399;
+      --color-gv-good-soft: rgba(52, 211, 153, 0.12);
+      --color-gv-bad: #f87171;
+      --color-gv-bad-soft: rgba(248, 113, 113, 0.12);
+      --color-gv-warn: #fbbf24;
+      --color-gv-warn-soft: rgba(251, 191, 36, 0.12);
+      --color-gv-violet: #b794f6;
+      --color-gv-knob: #151925;
+      --color-gv-on-ink: #04140d;
+      --color-gv-shadow: rgba(0, 0, 0, 0.6);
     }
   }
 
@@ -280,6 +349,14 @@
     html:not([data-theme='light']):has([data-surface='soft']) {
       color-scheme: dark;
     }
+  }
+
+  /* G VPN's landing sits inside the public layout's soft wrapper, so both
+     markers match. Same specificity as the soft rules and declared after them,
+     so the Meridian canvas wins on /g-vpn and nowhere else. */
+  html:has([data-surface='gvpn']),
+  html:has([data-surface='gvpn']) body {
+    background: var(--color-gv-bg);
   }
 
 

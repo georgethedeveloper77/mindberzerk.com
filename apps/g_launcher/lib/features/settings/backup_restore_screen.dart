@@ -134,7 +134,8 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       // keep.
       final apps = ref.read(appListProvider);
       if (apps.hasValue) {
-        final r = reconcileApps(summary, apps.requireValue, themeIds: _selected);
+        final r =
+            reconcileApps(summary, apps.requireValue, themeIds: _selected);
         if (r.installable.isNotEmpty) {
           await ref.read(pendingAppsProvider.notifier).record(r.installable);
         }
@@ -162,8 +163,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     // are coming.
     if (widget.completesSetup) return context.t('setup.restore.andFinish');
     if (_selected.isEmpty) return context.t('settings.backup.restoreSettings');
-    return plural(context, _selected.length,
-        'settings.backup.restoreDistroOne',
+    return plural(context, _selected.length, 'settings.backup.restoreDistroOne',
         'settings.backup.restoreDistroOther');
   }
 
@@ -173,7 +173,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   String _confirmMessage(BackupSummary summary) {
     final distros = plural(context, _selected.length,
         'settings.backup.distroOne', 'settings.backup.distroOther');
-    if (_collections && summary.collectionCount > 0 && summary.photoCount == 0) {
+    if (_collections &&
+        summary.collectionCount > 0 &&
+        summary.photoCount == 0) {
       return context.t('settings.backup.replacesNoPictures', {'what': distros});
     }
     return context.t('settings.backup.replaces', {'what': distros});
@@ -202,9 +204,10 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       padding: EdgeInsets.only(bottom: context.bottomInset),
       children: [
         _SourceCard(record: r, summary: summary),
-
         ThemedSectionHeader(
-          plural(context, summary.themeIds.length,
+          plural(
+              context,
+              summary.themeIds.length,
               'settings.backup.distroInFileOne',
               'settings.backup.distroInFileOther'),
         ),
@@ -231,9 +234,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
               ),
             ),
         ]),
-
         _Apps(summary: summary, themeIds: _selected),
-
         ThemedSectionHeader(context.t('settings.backup.alsoInFile')),
         ThemedListCard(children: [
           ThemedListRow(
@@ -251,13 +252,17 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           if (summary.collectionCount > 0)
             ThemedListRow(
               icon: Icons.photo_outlined,
-              title: plural(context, summary.collectionCount,
+              title: plural(
+                  context,
+                  summary.collectionCount,
                   'settings.backup.collectionOne',
                   'settings.backup.collectionOther'),
               // The one place the photo distinction has to be stated, because
               // it changes what the person gets.
               subtitle: summary.photoCount > 0
-                  ? plural(context, summary.photoCount,
+                  ? plural(
+                      context,
+                      summary.photoCount,
                       'settings.backup.pictureIncludedOne',
                       'settings.backup.pictureIncludedOther')
                   : context.t('settings.backup.namesOnlyNoPictures'),
@@ -269,7 +274,6 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
               ),
             ),
         ]),
-
         if (widget.completesSetup)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -285,15 +289,13 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
               onPressed: _busy ? null : () => Navigator.of(context).pop(false),
             ),
           ),
-
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
           child: ThemedButton(
             label: _actionLabel,
             kind: ThemedButtonKind.danger,
             expand: true,
-            onPressed: _busy ||
-                    (_selected.isEmpty && !_global && !_collections)
+            onPressed: _busy || (_selected.isEmpty && !_global && !_collections)
                 ? null
                 : () => _restore(summary),
           ),

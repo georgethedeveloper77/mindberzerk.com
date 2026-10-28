@@ -37,6 +37,9 @@ class LauncherActivity : FlutterActivity() {
     /// for a new one over the home task, which One UI does not honour.
     private val hostApi get() = (application as LauncherApplication).hostApi
 
+    /// The keystore bridge, lent this Activity for the SSH key prompt.
+    private val keysApi get() = (application as LauncherApplication).keysApi
+
     override fun getCachedEngineId(): String = LauncherApplication.ENGINE_ID
 
     /**
@@ -88,6 +91,7 @@ class LauncherActivity : FlutterActivity() {
         // confirmation. Attached in onCreate rather than onResume so it is
         // already in place for a menu opened during the first frame.
         hostApi.attachActivity(this)
+        keysApi.attachActivity(this)
 
         // Every hosted third-party widget lives in a plain Android ViewGroup
         // BEHIND FlutterView, not in a PlatformView. See WidgetStage for why:
@@ -130,6 +134,7 @@ class LauncherActivity : FlutterActivity() {
         // BEFORE this, so an unconditional clear here would throw away the
         // reference we were just handed.
         hostApi.detachActivity(this)
+        keysApi.detachActivity(this)
         super.onDestroy()
     }
 

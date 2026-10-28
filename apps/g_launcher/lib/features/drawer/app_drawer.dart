@@ -9,6 +9,7 @@ import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/search/search_text.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
@@ -142,11 +143,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   /// Input order is preserved for the same reason. Whatever the distro's
   /// grouping put on screen stays in that order while it empties out.
   List<DrawerItem> _matches(List<DrawerItem> items, String query) {
-    final q = query.trim().toLowerCase();
+    final q = query.trim();
     if (q.isEmpty) return items;
     return [
       for (final i in items)
-        if (i.label.toLowerCase().contains(q)) i,
+        if (SearchText.contains(i.label, q)) i,
     ];
   }
 
@@ -545,8 +546,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           // half a grid row either way, and matching it to the row extent
           // instead would make the gap shrink exactly where the rows are
           // already densest.
-          final asRows =
-              style == 'vertical' && theme.drawerListStyle == 'rows';
+          final asRows = style == 'vertical' && theme.drawerListStyle == 'rows';
           final rowExtent = _rowExtentFor(theme);
           final shape = asRows ? _TileShape.row : _TileShape.cell;
 
@@ -1480,6 +1480,7 @@ class _AppTileState extends ConsumerState<_AppTile> {
   /// that reopened with a row still hanging open would read as a bug rather
   /// than as state being preserved.
   bool _open = false;
+
   /// Where the tile was when the drag began, so release can measure travel.
   /// Where the finger went down, for the hold-versus-drag test. Captured from
   /// a Listener rather than onDragStarted, because the draggable reports no
@@ -1833,16 +1834,15 @@ class _AppTileState extends ConsumerState<_AppTile> {
                 ? RowExpansion(
                     componentKey: entry.componentKey,
                     theme: theme,
-                    onLaunch: (id, rect) => ref
-                        .read(launcherHostApiProvider)
-                        .launchShortcut(
-                          entry.componentKey,
-                          id,
-                          rect.left,
-                          rect.top,
-                          rect.right,
-                          rect.bottom,
-                        ),
+                    onLaunch: (id, rect) =>
+                        ref.read(launcherHostApiProvider).launchShortcut(
+                              entry.componentKey,
+                              id,
+                              rect.left,
+                              rect.top,
+                              rect.right,
+                              rect.bottom,
+                            ),
                   )
                 : const SizedBox(width: double.infinity),
           ),

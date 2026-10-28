@@ -244,6 +244,8 @@ function sectionsFor(app: string): { label: string; items: Section[] }[] {
         label: 'Manage',
         items: [
           { label: 'Analytics', href: `/apps/${app}/analytics`, icon: 'analytics' },
+          // Landing page links (stores, minimum Android) in Remote Config.
+          { label: 'Config', href: `/apps/${app}/config`, icon: 'config' },
           { label: 'Legal', href: `/apps/${app}/legal`, icon: 'legal' },
         ],
       },

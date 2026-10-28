@@ -7,6 +7,7 @@ import '../../data/prefs/drawer_slots.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/search/search_text.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../engine/terminal_spec.dart';
@@ -836,8 +837,8 @@ final drawerSearchProvider =
     Provider.family<List<DrawerItem>, ({EffectiveTheme theme, String query})>(
         (ref, arg) {
   final items = ref.watch(drawerItemsProvider(arg.theme));
-  final q = arg.query.trim().toLowerCase();
-  if (q.isEmpty) return items;
+  final q = arg.query.trim();
+  if (SearchText.compact(q).isEmpty) return q.isEmpty ? items : const [];
 
   return [
     for (final i in items)
@@ -858,8 +859,8 @@ List<DrawerItem> launcherItemsMatching(
   String query, {
   String terminalLabel = TerminalDrawerItem.defaultTitle,
 }) {
-  final q = query.trim().toLowerCase();
-  if (q.isEmpty) return const [];
+  final q = query.trim();
+  if (SearchText.compact(q).isEmpty) return const [];
 
   final all = <DrawerItem>[
     const LauncherSettingsItem(),
@@ -878,8 +879,9 @@ List<DrawerItem> launcherItemsMatching(
 /// third-party apps is how a search box starts surfacing things nobody asked
 /// for. The launcher's own entries are the exception because their labels are
 /// the one thing the user cannot guess — nobody types "G Launcher Settings".
-bool _matches(DrawerItem item, String q) {
-  if (item.label.toLowerCase().contains(q)) return true;
+bool _matches(DrawerItem item, String query) {
+  if (SearchText.contains(item.label, query)) return true;
+  final q = SearchText.compact(query);
 
   final aliases = switch (item) {
     LauncherSettingsItem() => launcherSettingsAliases,

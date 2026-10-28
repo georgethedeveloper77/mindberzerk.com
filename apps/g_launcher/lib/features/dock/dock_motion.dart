@@ -260,7 +260,6 @@ class DockSlotMotion extends StatelessWidget {
       ),
     );
   }
-
 }
 
 /// Tracks a finger along a dock and reports it as a [DockFocus].
@@ -587,8 +586,7 @@ class _DockPressMotionState extends State<DockPressMotion>
             break;
         }
 
-        final offset =
-            widget.vertical ? Offset(across, 0) : Offset(0, across);
+        final offset = widget.vertical ? Offset(across, 0) : Offset(0, across);
 
         return Opacity(
           opacity: opacity.clamp(0.0, 1.0),
@@ -615,5 +613,4 @@ class _DockPressMotionState extends State<DockPressMotion>
   /// changing during a gesture. Only `swing` wants anything but the centre.
   Alignment get _alignment =>
       widget.mode == 'swing' ? Alignment.bottomCenter : Alignment.center;
-
 }

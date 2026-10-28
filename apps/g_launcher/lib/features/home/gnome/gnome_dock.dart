@@ -420,50 +420,56 @@ class GnomeDock extends StatelessWidget {
         onDropApp!((d.data as AppDrag).componentKey);
       },
       builder: (context, candidate, __) => DockExtentProbe(
-      vertical: vertical,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          // The only thing saying a drop will land. Drawn OUTSIDE the dock's
-          // own clip so it reads as a halo around the dock rather than as a
-          // change to the dock's own surface.
-          borderRadius: radius,
-          boxShadow: candidate.isEmpty
-              ? null
-              : [BoxShadow(color: palette.accent.withValues(alpha: 0.55),
-                  blurRadius: 14, spreadRadius: 1)],
-        ),
-        child: ClipRRect(
-      borderRadius: radius,
-      child: _maybeBlur(
-        blurSigma,
-        Container(
-          padding: vertical
-              ? const EdgeInsets.symmetric(horizontal: 7, vertical: 9)
-              : const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        vertical: vertical,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
-            // ─── THE USER'S DOCK SETTING, PASSED IN ─────────────────────
-            //
-            // See [opacity]: this was a ChromeScope read while there was only
-            // one opacity to read. The dock has its own now, so the scope
-            // would give the wrong number.
-            //
-            // MULTIPLIED, not replaced. `palette.dock` already carries the
-            // distro's own alpha, and Ubuntu's is 0xBD on purpose; overwriting
-            // it would make every distro's dock equally solid and throw away an
-            // authored value to honour a preference.
-            color: palette.dock.withValues(alpha: palette.dock.a * opacity),
-            // Was Ubuntu.dockBorder, a fixed white-10% hairline. Derived from
-            // the palette now, so a light-chrome distro gets a hairline that is
-            // actually visible against it instead of Ubuntu's.
-            border: Border.all(color: palette.onDark.withValues(alpha: 0.10)),
+            // The only thing saying a drop will land. Drawn OUTSIDE the dock's
+            // own clip so it reads as a halo around the dock rather than as a
+            // change to the dock's own surface.
             borderRadius: radius,
+            boxShadow: candidate.isEmpty
+                ? null
+                : [
+                    BoxShadow(
+                        color: palette.accent.withValues(alpha: 0.55),
+                        blurRadius: 14,
+                        spreadRadius: 1)
+                  ],
           ),
-          child: flow,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: _maybeBlur(
+              blurSigma,
+              Container(
+                padding: vertical
+                    ? const EdgeInsets.symmetric(horizontal: 7, vertical: 9)
+                    : const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                decoration: BoxDecoration(
+                  // ─── THE USER'S DOCK SETTING, PASSED IN ─────────────────────
+                  //
+                  // See [opacity]: this was a ChromeScope read while there was only
+                  // one opacity to read. The dock has its own now, so the scope
+                  // would give the wrong number.
+                  //
+                  // MULTIPLIED, not replaced. `palette.dock` already carries the
+                  // distro's own alpha, and Ubuntu's is 0xBD on purpose; overwriting
+                  // it would make every distro's dock equally solid and throw away an
+                  // authored value to honour a preference.
+                  color:
+                      palette.dock.withValues(alpha: palette.dock.a * opacity),
+                  // Was Ubuntu.dockBorder, a fixed white-10% hairline. Derived from
+                  // the palette now, so a light-chrome distro gets a hairline that is
+                  // actually visible against it instead of Ubuntu's.
+                  border:
+                      Border.all(color: palette.onDark.withValues(alpha: 0.10)),
+                  borderRadius: radius,
+                ),
+                child: flow,
+              ),
+            ),
+          ),
         ),
-      ),
-      ),
-      ),
       ),
     );
   }

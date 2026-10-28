@@ -144,29 +144,29 @@ class RowExpansion extends ConsumerWidget {
 
   Widget _chips(List<AppShortcut>? shortcuts) {
     return shortcuts == null
-          ? _Skeleton(theme: theme)
-          : shortcuts.isEmpty
-              ? const SizedBox(height: 4)
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final s in shortcuts)
-                      _Chip(
-                        label: s.label,
-                        theme: theme,
-                        // ─── DISABLED IS SHOWN, NOT HIDDEN ──────────────
-                        //
-                        // The publisher has switched it off without removing
-                        // it, which is where a chat shortcut lands when you
-                        // leave the conversation. Dropping it would make the
-                        // row's contents shuffle every time someone archives
-                        // something; greying it says what happened.
-                        disabled: s.disabled,
-                        onTap: s.disabled ? null : (rect) => onLaunch(s.id, rect),
-                      ),
-                  ],
-                );
+        ? _Skeleton(theme: theme)
+        : shortcuts.isEmpty
+            ? const SizedBox(height: 4)
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final s in shortcuts)
+                    _Chip(
+                      label: s.label,
+                      theme: theme,
+                      // ─── DISABLED IS SHOWN, NOT HIDDEN ──────────────
+                      //
+                      // The publisher has switched it off without removing
+                      // it, which is where a chat shortcut lands when you
+                      // leave the conversation. Dropping it would make the
+                      // row's contents shuffle every time someone archives
+                      // something; greying it says what happened.
+                      disabled: s.disabled,
+                      onTap: s.disabled ? null : (rect) => onLaunch(s.id, rect),
+                    ),
+                ],
+              );
   }
 }
 
