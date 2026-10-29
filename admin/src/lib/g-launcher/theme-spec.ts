@@ -1148,12 +1148,12 @@ function pruneIcons(icons: IconStyleJson): Record<string, unknown> {
 
 /** Shells whose implementation actually mounts a panel editor.
  *
- *  A ONE-ENTRY LIST, deliberately, and not a boolean on the shell. It reads as
- *  a list because it is going to become one: `plasma_shell` holds the edit bar
- *  and the remove badges as private widgets, and lifting them into a shared
- *  component is what lets gnome join. Naming the set here means that change is
- *  one push to this array rather than a hunt for an inverted condition. */
-const PANEL_EDIT_SHELLS: readonly ShellName[] = ['plasma'];
+ *  A list, not a boolean on the shell, so a shell joining is one push here.
+ *  Plasma's `PanelBar` and the gnome shell's panels both open
+ *  `showPanelEditor` on a long press (gnome since app build 28). An older
+ *  gnome build only entered edit mode, which is why the device version that
+ *  carries this matters as much as the flag. */
+const PANEL_EDIT_SHELLS: readonly ShellName[] = ['plasma', 'gnome'];
 
 export function validateDraft(draft: ThemeDraft): string[] {
   const p: string[] = [];
@@ -1262,15 +1262,12 @@ export function validateDraft(draft: ThemeDraft): string[] {
   // ─── panelEdit ONLY WHERE A SHELL CAN HONOUR IT ────────────────────────────
   //
   // `panelEdit` reaches the device as a promise that holding the panel opens an
-  // editor. Exactly one shell keeps that promise: `plasma_shell` mounts the
-  // panel edit bar and draws remove badges on its modules.
+  // editor. Plasma and gnome keep it, both through `showPanelEditor`.
   //
-  // `gnome_shell` registers the long press and has neither. It mounts
-  // `DeskletEditBar` instead, which renders on any active edit mode, so a
-  // gnome-family distro publishing this today would put the user in a mode
-  // labelled "editing workspace" whose Add button drops a WIDGET on the
-  // desktop, over a panel showing no way to remove anything. The three
-  // remaining shells register no long press at all, so there the flag is inert.
+  // `gnome_shell` opens the same editor sheet since app build 28. Before
+  // that it entered edit mode with no sheet, so a gnome distro using this
+  // should also set `minAppVersion` to 28 or later. The three remaining shells
+  // register no long press at all, so there the flag is inert.
   //
   // ─── AND WHY THIS IS CAUGHT HERE RATHER THAN ON THE DEVICE ────────────────
   //

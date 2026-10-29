@@ -313,20 +313,21 @@ export function PaletteEditor(props: {
  *
  * Every entry here was read off the widget that consumes the field, because the
  * names are misleading in both directions. `desktopIcons` sounds universal and
- * is not: `WorkspaceCanvas` is the only thing that mounts `HomeGrid`, and GNOME
- * inlines its own pager rather than mounting the canvas, so a GNOME distro with
- * `desktopIcons: true` shows nothing. `panelEdit` sounds like it belongs to any
- * distro with a panel and is read only by `plasma_shell`.
+ * is not read by the terminal shell. `panelEdit` sounds like it belongs to any
+ * distro with a panel and is read only by the shells that open the panel
+ * editor. Re-check this table against the device whenever a shell changes.
  *
  * A control that changes nothing is how a builder teaches its own user that
  * settings are unreliable, which is the argument the `topBar` gate below
  * already makes. Same rule, applied to the fields that needed it more.
  */
 const SHELL_READS: Record<string, readonly ShellName[]> = {
-  // WorkspaceCanvas mounts HomeGrid. Plasma, tiling and Aqua mount the canvas.
-  desktopIcons: ['plasma', 'tiling', 'aqua'],
-  // plasma_shell's panel long-press, and nothing else.
-  panelEdit: ['plasma'],
+  // WorkspaceCanvas mounts HomeGrid for Plasma, tiling and Aqua; gnome_shell
+  // mounts HomeGrid itself on its inline pager when this is on.
+  desktopIcons: ['gnome', 'plasma', 'tiling', 'aqua'],
+  // The panel long-press that opens `showPanelEditor`: Plasma's PanelBar, and
+  // gnome_shell's panels since app build 28.
+  panelEdit: ['gnome', 'plasma'],
   // WorkspaceCanvas again, and the device clamps gnome and tui to overlay.
   appsSurface: ['plasma', 'tiling', 'aqua'],
   // KickoffDrawer, which shell_drawer sends only plasma to.
