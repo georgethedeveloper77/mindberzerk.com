@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { Flag } from '@/components/flag';
 import type { AdminServer, Overrides } from '@/lib/g-vpn/servers';
 
 import { saveAndRefresh } from './save';
@@ -160,9 +161,12 @@ export function ServersAdmin({ servers, initial }: { servers: AdminServer[]; ini
               return (
                 <tr key={s.id} className={`border-b border-site-line last:border-b-0 ${s.isHidden ? 'opacity-55' : ''}`}>
                   <td className="px-4 py-2.5">
-                    <div className="font-semibold text-site-ink">
-                      {s.isPinned && <span className="mr-1.5 text-site-accent">●</span>}
-                      {s.country} <span className="font-mono text-[11px] text-site-ink-3">{s.countryCode}</span>
+                    <div className="flex items-center gap-2 font-semibold text-site-ink">
+                      {s.isPinned && <span className="text-site-accent">●</span>}
+                      <Flag code={s.countryCode} />
+                      <span>
+                        {s.country} <span className="font-mono text-[11px] text-site-ink-3">{s.countryCode}</span>
+                      </span>
                     </div>
                     <div className="font-mono text-[11px] text-site-ink-3">
                       {s.sstpHost ? `SSTP ${s.sstpHost}:${s.sstpPort ?? 443}` : `OpenVPN ${s.ip}:${s.port} ${s.proto.toUpperCase()}`}

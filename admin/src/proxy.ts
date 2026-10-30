@@ -65,7 +65,14 @@ const CONSOLE = '/dashboard';
  * Exact matches only. A prefix rule here would be one careless entry away from
  * exposing a console route that merely starts with the same characters.
  */
-const PUBLIC = new Set<string>(['/', '/g-vpn']);
+const PUBLIC = new Set<string>(['/', '/gvpn']);
+
+/**
+ * Public addresses that moved. Permanent (308) so search engines carry the
+ * old page's standing over, and checked before the allowlist so an old link
+ * never lands on the sign-in page.
+ */
+const MOVED = new Map<string, string>([['/g-vpn', '/gvpn']]);
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -103,6 +110,13 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const moved = MOVED.get(pathname);
+  if (moved) {
+    const url = request.nextUrl.clone();
+    url.pathname = moved;
+    return NextResponse.redirect(url, 308);
+  }
+
   // The public site is served to anyone, cookie or not. Checked before the
   // cookie branches so a signed-in admin can still read their own homepage
   // instead of being bounced into the console by their session.
@@ -136,7 +150,7 @@ export const config = {
   //
   // FILES FROM public/ ARE EXCLUDED TOO, by extension. They are public by
   // definition, and running them through the cookie branch redirected
-  // /g-vpn/mark.png to the sign-in page: the image optimizer fetches the source
+  // /gvpn/mark.png to the sign-in page: the image optimizer fetches the source
   // without the visitor's cookie, got HTML back, and the logo rendered broken.
   // Console routes never end in an image extension, so nothing private moves.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|txt)$).*)'],

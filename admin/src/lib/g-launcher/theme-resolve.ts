@@ -86,7 +86,16 @@ export const BOOT_KINDS = [
 ] as const;
 export type BootKind = (typeof BOOT_KINDS)[number];
 
-export const SPLASH_STYLES = ['dots', 'bar', 'spinner', 'text', 'none'] as const;
+/** `hello` (app build 42): logo and bar, then the distro's words written out
+ *  by hand the first time it is applied. Pocket. */
+export const SPLASH_STYLES = [
+  'dots',
+  'bar',
+  'spinner',
+  'text',
+  'hello',
+  'none',
+] as const;
 export type SplashStyleName = (typeof SPLASH_STYLES)[number];
 
 export interface ResolvedPalette {

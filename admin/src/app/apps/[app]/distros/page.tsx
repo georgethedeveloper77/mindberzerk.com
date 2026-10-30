@@ -5,6 +5,9 @@ import { adminGate } from '@/app/components/admin-gate';
 import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SlabButton, SoftButton } from '@/components/studio/ui';
 import { CopyThemeJson } from '@/components/distro-builder/CopyThemeJson';
+import { ExportDistros } from '@/components/distro-builder/ExportDistros';
+import { ImportDistros } from '@/components/distro-builder/ImportDistros';
+import { readPlayBuild } from '@/lib/g-launcher/distro-io';
 import { ThemeJsonEditor } from '@/components/distro-builder/ThemeJsonEditor';
 import { DeleteDistro } from '@/components/theme-list/DeleteDistro';
 import { DuplicateDistro } from '@/components/theme-list/DuplicateDistro';
@@ -71,7 +74,12 @@ export const dynamic = 'force-dynamic';
 // `drafts` sits second because it is the one filter that answers "what am I
 // part-way through", which is the question you open this screen with far more
 // often than "what is unlisted".
-const FILTERS = ['all', 'drafts', 'live', 'bundled', 'paid', 'unlisted'] as const;
+const FILTERS = ['all', 'drafts', 'changed', 'waiting', 'live', 'bundled', 'paid', 'unlisted'] as const;
+
+/** What a filter is called on screen, where the key is too terse to read. */
+const FILTER_LABEL: Partial<Record<(typeof FILTERS)[number], string>> = {
+  waiting: 'waiting on a build',
+};
 type FilterName = (typeof FILTERS)[number];
 
 function isFilter(v: string | undefined): v is FilterName {
@@ -88,7 +96,7 @@ export default async function DistrosPage({
   searchParams,
 }: {
   params: Promise<{ app: string }>;
-  searchParams: Promise<{ sel?: string; filter?: string }>;
+  searchParams: Promise<{ sel?: string; filter?: string; q?: string }>;
 }) {
   const gate = await adminGate();
   if (gate) return gate;
@@ -97,7 +105,8 @@ export default async function DistrosPage({
   if (!APPS.includes(app as AppId)) notFound();
   const appId = app as AppId;
 
-  const { sel, filter } = await searchParams;
+  const { sel, filter, q } = await searchParams;
+  const query = (q ?? '').trim().toLowerCase();
   const active: FilterName = isFilter(filter) ? filter : 'all';
 
   // `ensureSeededSafe`, not `ensureSeeded`. The plain one reads and then WRITES
@@ -110,10 +119,11 @@ export default async function DistrosPage({
   // listed", so a refused credential rendered as a screen full of confident
   // green toggles. The result form carries the difference and the banner says
   // which it is.
-  const [seeded, live, listingResult] = await Promise.all([
+  const [seeded, live, listingResult, playBuild] = await Promise.all([
     ensureSeededSafe(appId),
     readLiveIndex(appId),
     readListingResult(appId),
+    readPlayBuild(appId),
   ]);
   const listing = listingResult.listing;
   const { drafts, unreachable: draftsUnreachable } = seeded;
@@ -144,8 +154,15 @@ export default async function DistrosPage({
     return (a.title || a.id).localeCompare(b.title || b.id);
   });
 
+  const minOf = (id: string) => specs.get(id)?.minAppVersion ?? 0;
+  const waiting = (id: string) => playBuild != null && minOf(id) > playBuild;
+
   const matches = (r: (typeof sorted)[number], f: FilterName) => {
     switch (f) {
+      case 'changed':
+        return r.publishedVersion != null && r.needsPublish;
+      case 'waiting':
+        return !r.bundled && waiting(r.id);
       // A DRAFT IS UNPUBLISHED AND NOT BUNDLED. Bundled distros also carry
       // `draft v1` because they ship inside the APK and were never published to
       // the CDN, but they are finished work rather than work in progress, and
@@ -166,7 +183,11 @@ export default async function DistrosPage({
     }
   };
 
-  const shown = sorted.filter((r) => matches(r, active));
+  const shown = sorted.filter(
+    (r) =>
+      matches(r, active) &&
+      (!query || r.id.toLowerCase().includes(query) || (r.title || '').toLowerCase().includes(query)),
+  );
 
   // The fallback is load-bearing: after a delete, `sel` names a row that no
   // longer exists, and without this the inspector would render empty beside a
@@ -205,15 +226,31 @@ export default async function DistrosPage({
         crumb={appName(appId)}
         title="Distros"
         actions={
-          <SlabButton href={`/apps/${appId}/distros/builder`} primary>
-            New distro
-          </SlabButton>
+          <div className="flex items-center gap-2">
+            <ImportDistros app={appId} />
+            <ExportDistros app={appId} />
+            <SlabButton href={`/apps/${appId}/distros/builder`} primary>
+              New distro
+            </SlabButton>
+          </div>
         }
       />
 
       {/* Filters carry counts, because knowing there is exactly one unlisted
           distro is most of the reason to click unlisted. */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* A plain GET form, so search stays a URL like the filter and the
+            selection, and the page needs no JavaScript to use it. */}
+        <form action={`/apps/${appId}/distros`} className="mr-1">
+          {active !== 'all' && <input type="hidden" name="filter" value={active} />}
+          <input
+            name="q"
+            defaultValue={q ?? ''}
+            placeholder="Search distros"
+            aria-label="Search distros"
+            className="w-[200px] rounded-full border border-site-line bg-site-card px-3.5 py-1.5 text-[12.5px] text-site-ink placeholder:text-site-ink-3"
+          />
+        </form>
         {FILTERS.map((f) => {
           const n = sorted.filter((r) => matches(r, f)).length;
           const on = active === f;
@@ -227,7 +264,7 @@ export default async function DistrosPage({
                   : 'border-site-line bg-site-card text-site-ink-3 hover:text-site-ink'
               }`}
             >
-              {f}
+              {FILTER_LABEL[f] ?? f}
               <span className="font-mono text-[11px] opacity-70">{n}</span>
             </Link>
           );
@@ -242,6 +279,7 @@ export default async function DistrosPage({
         action={bulkDeleteDistrosAction}
         runVerb="Republish"
         runEach={republishDistroAction}
+        exportHref={`/apps/${appId}/distros/export`}
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_306px]">
@@ -309,6 +347,8 @@ export default async function DistrosPage({
                       {shell ? ` \u00b7 ${shell}` : ''} {'\u00b7'} {version}
                     </span>
                   </span>
+
+                  <BuildChip bundled={r.bundled} min={minOf(r.id)} play={playBuild} />
 
                   <StateChip row={r} listed={isListed(listing, r.id)} />
 
@@ -393,6 +433,19 @@ export default async function DistrosPage({
                 />
                 <KVRow k="product" v={<span className="font-mono">{selected.sku ?? 'free'}</span>} />
                 <KVRow
+                  k="needs build"
+                  v={
+                    <span className="font-mono">
+                      {minOf(selected.id) || '-'}
+                      {playBuild != null && !selected.bundled
+                        ? waiting(selected.id)
+                          ? ` · Play has ${playBuild}`
+                          : ' · ready'
+                        : ''}
+                    </span>
+                  }
+                />
+                <KVRow
                   k="icon packs"
                   v={
                     <span className="font-mono">
@@ -457,6 +510,55 @@ export default async function DistrosPage({
 }
 
 /**
+ * A pack version in words.
+ *
+ * Versions published by the panel are the publish time in epoch seconds, so
+ * `v1787590324` is a date nobody can read. Those become "2 h ago"; an old
+ * hand-numbered version stays as it is.
+ */
+function ago(version: number): string {
+  if (version < 1_000_000_000) return `v${version}`;
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - version);
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
+/**
+ * The build a pack needs, against the one Play is serving.
+ *
+ * Amber is "do not publish yet", green is ready. With no Play build recorded
+ * (Config screen) it shows the number alone, rather than a colour it cannot
+ * back up.
+ */
+function BuildChip({ bundled, min, play }: { bundled: boolean; min: number; play: number | null }) {
+  if (bundled || !min) {
+    return <span className="w-[92px] shrink-0" aria-hidden />;
+  }
+  const waits = play != null && min > play;
+  const skin =
+    play == null
+      ? 'bg-site-sunk text-site-ink-3'
+      : waits
+        ? 'bg-site-plan-soft text-site-plan'
+        : 'bg-site-ok-soft text-site-ok';
+  return (
+    <span
+      title={
+        play == null
+          ? 'Set the Play build on the Config screen'
+          : waits
+            ? `Play is serving ${play}`
+            : 'Play has it'
+      }
+      className={`w-[92px] shrink-0 rounded-full px-2 py-[2.5px] text-center font-mono text-[10px] font-bold ${skin}`}
+    >
+      {waits ? `needs ${min}` : `build ${min}`}
+    </span>
+  );
+}
+
+/**
  * ONE chip, not three.
  *
  * Rows carried Free, Bundled and Not published as separate chips, which is
@@ -478,7 +580,7 @@ function StateChip({
         ? ['unlisted', 'bg-site-plan-soft text-site-plan']
         : row.needsPublish
           ? ['draft ahead', 'bg-site-plan-soft text-site-plan']
-          : [`live v${row.publishedVersion}`, 'bg-site-ok-soft text-site-ok'];
+          : [`live ${ago(row.publishedVersion)}`, 'bg-site-ok-soft text-site-ok'];
 
   return (
     <span

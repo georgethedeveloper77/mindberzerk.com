@@ -63,6 +63,11 @@ export interface RcKey {
    * reader, which fetches on its own schedule.
    */
   note?: string;
+  /**
+   * The value the Config screen pre-fills while the key is unset, so a fresh
+   * template needs one click rather than typing. Never written on its own.
+   */
+  suggest?: string;
 }
 
 /**
@@ -86,7 +91,7 @@ function storeLink(host?: string): (v: string) => string | null {
   };
 }
 
-const GVPN_SITE_NOTE = 'mindberzerk.com/g-vpn picks this up within five minutes. Empty hides it.';
+const GVPN_SITE_NOTE = 'mindberzerk.com/gvpn picks this up within five minutes. Empty hides it.';
 
 /**
  * THE ALLOWLIST. A key not here cannot be edited by this panel. Grows only when
@@ -117,6 +122,8 @@ export const KNOWN_KEYS: RcKey[] = [
     app: 'g-vpn',
     validate: storeLink('play.google.com'),
     note: GVPN_SITE_NOTE,
+    // The live listing, from the registry's package name.
+    suggest: 'https://play.google.com/store/apps/details?id=com.mindberzerk.gvpn',
   },
   {
     key: 'gvpn_app_store_url',
@@ -145,7 +152,9 @@ export const KNOWN_KEYS: RcKey[] = [
     app: 'g-vpn',
     validate: (v) =>
       v === '' || /^\d{1,2}(\.\d{1,2})?$/.test(v) ? null : 'A version like 7.0, or empty for the default.',
-    note: 'mindberzerk.com/g-vpn picks this up within five minutes.',
+    note: 'mindberzerk.com/gvpn picks this up within five minutes.',
+    // apps/g_vpn/android/app/build.gradle sets minSdk = 24, which is Android 7.0.
+    suggest: '7.0',
   },
 ];
 
@@ -173,6 +182,7 @@ export interface RcState {
     readBy: string;
     app: string;
     note: string | null;
+    suggest: string | null;
   }[];
   /** Keys present in the template that this panel does NOT manage. Shown, not editable. */
   foreign: { key: string; value: string | null }[];
@@ -257,6 +267,7 @@ export async function readRemoteConfig(): Promise<RcState> {
     readBy: k.readBy,
     app: k.app,
     note: k.note ?? null,
+    suggest: k.suggest ?? null,
   }));
 
   const managedKeys = new Set(KNOWN_KEYS.map((k) => k.key));
@@ -288,11 +299,29 @@ export async function writeRemoteConfigKey(
   value: string,
   etag: string,
 ): Promise<{ ok: true; versionNumber: string | null } | { ok: false; error: string; stale?: boolean }> {
-  const meta = knownKey(key);
-  if (!meta) return { ok: false, error: `${key} is not a managed key.` };
+  return writeRemoteConfigKeys({ [key]: value }, etag);
+}
 
-  const invalid = meta.validate(value);
-  if (invalid) return { ok: false, error: invalid };
+/**
+ * Write several managed keys in ONE publish, preserving everything else.
+ *
+ * One publish, not one per key, because each publish moves the ETag: a loop
+ * of single writes would refuse its own second write as stale. Every value is
+ * validated before anything is sent, so a bad one fails the whole batch rather
+ * than leaving the template half-applied.
+ */
+export async function writeRemoteConfigKeys(
+  values: Record<string, string>,
+  etag: string,
+): Promise<{ ok: true; versionNumber: string | null } | { ok: false; error: string; stale?: boolean }> {
+  const entries = Object.entries(values);
+  if (entries.length === 0) return { ok: false, error: 'Nothing to publish.' };
+  for (const [key, value] of entries) {
+    const meta = knownKey(key);
+    if (!meta) return { ok: false, error: `${key} is not a managed key.` };
+    const invalid = meta.validate(value);
+    if (invalid) return { ok: false, error: `${key}: ${invalid}` };
+  }
 
   const token = await accessToken();
 
@@ -317,11 +346,13 @@ export async function writeRemoteConfigKey(
   }
 
   template.parameters = template.parameters ?? {};
-  template.parameters[key] = {
-    defaultValue: { value },
-    valueType: 'STRING',
-    description: meta.readBy,
-  };
+  for (const [key, value] of entries) {
+    template.parameters[key] = {
+      defaultValue: { value },
+      valueType: 'STRING',
+      description: knownKey(key)?.readBy,
+    };
+  }
 
   const res = await fetch(`${RC_HOST}/v1/projects/${projectId()}/remoteConfig`, {
     method: 'PUT',

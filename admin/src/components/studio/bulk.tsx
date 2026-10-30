@@ -144,7 +144,12 @@ export function BulkBar({
   action,
   runVerb,
   runEach,
+  exportHref,
 }: {
+  /** Where "Export selected" downloads from; the ids go on as `?ids=`. Omit
+   *  to hide it. */
+  exportHref?: string;
+
   /** Singular noun for the count, e.g. "icon pack". */
   noun: string;
   /** The destructive word on the button, e.g. "Delete". */
@@ -260,6 +265,15 @@ export function BulkBar({
             {ids.length} {noun}
             {ids.length === 1 ? '' : 's'} selected
           </span>
+
+          {exportHref && (
+            <a
+              href={`${exportHref}?ids=${encodeURIComponent(ids.join(','))}`}
+              className="text-[12.5px] font-semibold text-site-ink-2 hover:underline"
+            >
+              Export selected
+            </a>
+          )}
 
           {!armed ? (
             <button

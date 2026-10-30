@@ -1,0 +1,280 @@
+/* Effects for the G VPN landing that Tailwind utilities would only obscure:
+   the dotted map and its pulses, the horizon arc, card glows and phone frames.
+   Every colour is a gv- token, so both themes follow. */
+
+/* ── World map ───────────────────────────────────────────────────────────── */
+
+.map {
+  position: absolute;
+  left: 50%;
+  width: min(1400px, 140%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Only the land fades out at the edges; markers stay crisp and reachable. */
+.mapDots {
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 45%, #000 40%, transparent 80%);
+  mask-image: radial-gradient(ellipse 60% 60% at 50% 45%, #000 40%, transparent 80%);
+}
+
+/* The live layer sits exactly over the land; only markers take the pointer. */
+.mapLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.hit {
+  pointer-events: auto;
+  cursor: pointer;
+  outline: none;
+}
+
+.hit:focus-visible .node,
+.hit:focus-visible .ours {
+  stroke: var(--color-gv-text);
+  stroke-width: 2;
+}
+
+.hitArea {
+  fill: transparent;
+}
+
+.dots {
+  stroke: var(--color-gv-dot);
+  stroke-width: 4.2;
+  stroke-linecap: round;
+}
+
+.node {
+  fill: var(--color-gv-dot-hi);
+}
+
+.ring {
+  fill: none;
+  stroke: var(--color-gv-dot-hi);
+  stroke-width: 1.2;
+  opacity: 0.6;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 3s ease-out infinite;
+}
+
+.you {
+  fill: var(--color-gv-bad);
+}
+
+.youRing {
+  fill: none;
+  stroke: var(--color-gv-bad);
+  stroke-width: 1.4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 2.2s ease-out infinite;
+}
+
+.route {
+  fill: none;
+  stroke: var(--color-gv-brand);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 6;
+  opacity: 0.55;
+  animation: flow 6s linear infinite;
+}
+
+@keyframes ping {
+  0% { transform: scale(0.4); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes flow {
+  to { stroke-dashoffset: -100; }
+}
+
+/* ── Live dot ────────────────────────────────────────────────────────────── */
+
+.live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-gv-good);
+  animation: live 2s infinite;
+}
+
+@keyframes live {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-gv-good) 60%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+
+/* ── Horizon arc under the key cards ─────────────────────────────────────── */
+
+.arc {
+  position: absolute;
+  left: 50%;
+  top: 70px;
+  width: min(1500px, 170%);
+  aspect-ratio: 2.6 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 2px solid var(--color-gv-glow-2);
+  background: radial-gradient(ellipse 50% 40% at 50% 0%, var(--color-gv-glow), transparent 70%);
+  box-shadow: 0 -24px 90px -10px var(--color-gv-glow);
+  -webkit-mask-image: linear-gradient(#000 0, #000 18%, transparent 42%);
+  mask-image: linear-gradient(#000 0, #000 18%, transparent 42%);
+  pointer-events: none;
+}
+
+.arc::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: -30px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--color-gv-glow-2);
+  filter: blur(48px);
+  opacity: 0.55;
+}
+
+/* The same arc rising from the bottom of the closing banner. */
+.arcLow {
+  position: absolute;
+  left: 50%;
+  bottom: -55%;
+  width: 110%;
+  aspect-ratio: 2.4 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 2px solid var(--color-gv-glow-2);
+  background: radial-gradient(ellipse 50% 40% at 50% 0%, var(--color-gv-glow), transparent 70%);
+  box-shadow: 0 -20px 80px -10px var(--color-gv-glow);
+  pointer-events: none;
+}
+
+.keyCard {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-gv-surface) 70%, transparent), var(--color-gv-surface));
+  backdrop-filter: blur(10px);
+}
+
+/* ── Glows ───────────────────────────────────────────────────────────────── */
+
+/* A light source just above the card's top edge. */
+.glowTop::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: -50px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-gv-glow);
+  filter: blur(30px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* A pool of light behind a phone, from above or below. */
+.poolTop::before,
+.poolBottom::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 120%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.poolTop::before {
+  top: -30%;
+  background: radial-gradient(circle at 50% 70%, var(--color-gv-glow), transparent 60%);
+}
+
+.poolBottom::before {
+  bottom: -70%;
+  background: radial-gradient(circle at 50% 30%, var(--color-gv-glow), transparent 60%);
+}
+
+/* ── Phone frame around a screenshot ─────────────────────────────────────── */
+
+.phone {
+  position: relative;
+  padding: 7px;
+  border-radius: 30px;
+  background: #0b0c10;
+  border: 1px solid #2a2f3c;
+  box-shadow: 0 30px 70px var(--color-gv-shadow);
+}
+
+.phone img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 23px;
+}
+
+/* ── FAQ disclosure ──────────────────────────────────────────────────────── */
+
+.faq[open] {
+  background: linear-gradient(180deg, var(--color-gv-surface-2), var(--color-gv-surface));
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq[open] .chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .youRing,
+  .route,
+  .live {
+    animation: none;
+  }
+}
+
+/* ── Our own servers on the map ──────────────────────────────────────────── */
+
+.ours {
+  fill: var(--color-gv-good);
+}
+
+.oursOff {
+  fill: var(--color-gv-faint);
+}
+
+.ourRing {
+  fill: none;
+  stroke: var(--color-gv-good);
+  stroke-width: 1.4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 2.6s ease-out infinite;
+}
+
+.ourLabel {
+  fill: var(--color-gv-text);
+  font-size: 13px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--color-gv-bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ourRing {
+    animation: none;
+  }
+}

@@ -27,6 +27,14 @@ import { suggestFeatures } from '@/lib/g-launcher/suggest-features';
 import { fixPanels, topModules } from '@/lib/g-launcher/panel-audit';
 import { mergeThemeJson, patchPaths } from '@/lib/g-launcher/theme-json-merge';
 import { BUNDLED_PACK_IDS, unpublishPacks } from '@/lib/core/unpublish-core';
+import {
+  applyImport,
+  previewImport,
+  readPlayBuild,
+  writePlayBuild,
+  type ImportFile,
+  type ImportRow,
+} from '@/lib/g-launcher/distro-io';
 
 interface DistroMeta {
   app: string;
@@ -73,6 +81,9 @@ export async function publishDistroAction(formData: FormData): Promise<DistroPub
     return { ok: false, error: 'Distro metadata was not valid JSON' };
   }
   if (!APPS.includes(meta.app as AppId)) return { ok: false, error: `Unknown app '${meta.app}'` };
+
+  const waits = await waitsForBuild(meta.app as AppId, meta.theme.minAppVersion ?? 0);
+  if (waits) return { ok: false, error: waits };
 
   const themeAssets: { file: string; bytes: Buffer }[] = [];
   for (const a of meta.theme.assets ?? []) {
@@ -503,6 +514,9 @@ export async function republishDistroAction(
 
   const draft = await readDraft(appId, id);
   if (!draft) return { id, ok: false, detail: 'No draft on disk; nothing to republish from' };
+
+  const waits = await waitsForBuild(appId, draft.spec.minAppVersion ?? 0);
+  if (waits) return { id, ok: false, detail: waits };
 
   const { assets, missing } = await readDraftAssetBytes(appId, id);
   if (missing.length) {
@@ -972,4 +986,84 @@ export async function duplicateDistroAction(
 
   revalidatePath(`/apps/${appId}/distros`);
   return { ok: true, id, assets };
+}
+
+// ── the build gate ──────────────────────────────────────────────────────────
+
+/**
+ * Why a pack needing [min] may not publish yet, or null when it may.
+ *
+ * A pack asking for a build Play is not serving downloads to phones that will
+ * refuse it, which looks to a buyer like a broken purchase. The rule has been
+ * kept by hand; this keeps it in code. Unset means nobody has told the panel
+ * which build is live, and then nothing is blocked, because refusing every
+ * publish over a missing number would be worse than the rule it enforces.
+ */
+async function waitsForBuild(app: AppId, min: number): Promise<string | null> {
+  const play = await readPlayBuild(app);
+  if (play == null || min <= play) return null;
+  return `needs build ${min}, and Play is serving ${play}. Publish once ${min} is live, or update the build on the Config screen.`;
+}
+
+// ── import, many at once ────────────────────────────────────────────────────
+
+/**
+ * What an import of these files would do, row by row. Writes nothing.
+ *
+ * Files arrive as text: the browser unzips a zip before calling, so the server
+ * never handles an archive and a bad zip fails on the device that dropped it.
+ */
+export async function previewImportAction(
+  app: string,
+  files: ImportFile[],
+): Promise<{ ok: true; rows: ImportRow[] } | { ok: false; detail: string }> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { ok: false, detail: 'Not authorised' };
+    throw e;
+  }
+  if (!APPS.includes(app as AppId)) return { ok: false, detail: `Unknown app '${app}'` };
+  if (!files.length) return { ok: false, detail: 'No files.' };
+  try {
+    return { ok: true, rows: await previewImport(app as AppId, files) };
+  } catch (e) {
+    return { ok: false, detail: (e as Error).message };
+  }
+}
+
+/** Write the chosen rows as drafts. Never publishes. */
+export async function applyImportAction(
+  app: string,
+  files: ImportFile[],
+  ids: string[],
+): Promise<
+  { ok: true; results: { id: string; ok: boolean; detail: string }[] } | { ok: false; detail: string }
+> {
+  try {
+    await requireAdmin();
+  } catch (e) {
+    if (e instanceof NotAuthorised) return { ok: false, detail: 'Not authorised' };
+    throw e;
+  }
+  if (!APPS.includes(app as AppId)) return { ok: false, detail: `Unknown app '${app}'` };
+  try {
+    const results = await applyImport(app as AppId, files, ids);
+    revalidatePath(`/apps/${app}/distros`);
+    return { ok: true, results };
+  } catch (e) {
+    return { ok: false, detail: (e as Error).message };
+  }
+}
+
+/** Record the build Play is serving, from the Config screen. */
+export async function setPlayBuildAction(form: FormData): Promise<void> {
+  await requireAdmin();
+  const app = String(form.get('app') ?? '');
+  if (!APPS.includes(app as AppId)) return;
+  const build = Number(form.get('build'));
+  if (!Number.isInteger(build) || build < 1 || build > 100000) return;
+  await writePlayBuild(app as AppId, build);
+  revalidatePath(`/apps/${app}/config`);
+  revalidatePath(`/apps/${app}/distros`);
 }

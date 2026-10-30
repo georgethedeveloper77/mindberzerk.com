@@ -9,6 +9,8 @@ interface ManagedKey {
   readBy: string;
   app: string;
   note: string | null;
+  /** Pre-filled while the key is unset; published only on a click. */
+  suggest: string | null;
 }
 
 /**
@@ -89,12 +91,80 @@ export function ConfigForm({
   keys: ManagedKey[];
 }) {
   const router = useRouter();
+  // Unset keys that have a suggested value: publishable together in one go.
+  const pending = keys.filter((k) => k.value === null && k.suggest !== null);
   return (
     <div className="space-y-3">
+      {pending.length > 0 && (
+        <PublishSuggested etag={etag} keys={pending} onSaved={() => router.refresh()} />
+      )}
       {keys.map((k) => (
         <KeyRow key={k.key} app={app} etag={etag} item={k} onSaved={() => router.refresh()} />
       ))}
     </div>
+  );
+}
+
+/**
+ * AUTO-FILL FOR A FRESH TEMPLATE.
+ *
+ * Each unset key already shows its suggestion in its field; this publishes
+ * all of them in one compare-and-swap, so a new app's Config screen is one
+ * click from done. Keys someone has set are never included.
+ */
+function PublishSuggested({
+  etag,
+  keys,
+  onSaved,
+}: {
+  etag: string;
+  keys: ManagedKey[];
+  onSaved: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
+
+  async function publish() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const values = Object.fromEntries(keys.map((k) => [k.key, k.suggest ?? '']));
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values, etag }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setMsg({ tone: 'ok', text: `Published as template v${json.versionNumber}` });
+        onSaved();
+      } else {
+        setMsg({ tone: 'bad', text: json.error ?? 'Publish failed' });
+      }
+    } catch (e) {
+      setMsg({ tone: 'bad', text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-site-accent/40 bg-site-accent-soft px-4 py-3">
+      <p className="text-[12.5px] leading-relaxed text-site-ink-2">
+        {keys.length === 1 ? '1 key is' : `${keys.length} keys are`} not set yet. The suggested values are
+        filled in below.
+      </p>
+      <button
+        onClick={publish}
+        disabled={busy}
+        className="rounded-lg bg-site-accent px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-site-accent-deep disabled:opacity-40"
+      >
+        {busy ? 'Publishing' : 'Publish suggested'}
+      </button>
+      {msg && (
+        <p className={`w-full text-micro ${msg.tone === 'ok' ? 'text-site-ok' : 'text-site-plan'}`}>{msg.text}</p>
+      )}
+    </section>
   );
 }
 
@@ -109,7 +179,8 @@ function KeyRow({
   item: ManagedKey;
   onSaved: () => void;
 }) {
-  const [value, setValue] = useState(item.value ?? '');
+  // An unset key opens on its suggestion, so publishing it is one click.
+  const [value, setValue] = useState(item.value ?? item.suggest ?? '');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'bad' | 'warn'; text: string } | null>(null);
 
@@ -147,7 +218,9 @@ function KeyRow({
     <section className="rounded-[18px] border border-site-line bg-site-card p-4 shadow-site-soft">
       <div className="flex items-baseline justify-between gap-2">
         <label className="font-mono text-[13px] font-semibold text-site-ink">{item.key}</label>
-        {dirty ? (
+        {item.value === null && item.suggest !== null && value === item.suggest ? (
+          <span className="text-[11.5px] font-semibold text-site-accent">suggested, not published</span>
+        ) : dirty ? (
           <span className="text-[11.5px] font-semibold text-site-plan">unsaved</span>
         ) : (
           <span className="font-mono text-[11px] text-site-ink-3">{app}</span>

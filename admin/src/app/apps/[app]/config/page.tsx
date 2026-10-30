@@ -6,6 +6,8 @@ import { StudioShell } from '@/components/studio/shell';
 import { AppSlab, KVRow, SoftPanel } from '@/components/studio/ui';
 import { KNOWN_KEYS, readRemoteConfig, type RcState } from '@/lib/core/remote-config';
 import { appMeta, appName, isAppId } from '@/lib/core/registry';
+import { readPlayBuild } from '@/lib/g-launcher/distro-io';
+import { setPlayBuildAction } from '../distros/actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +63,8 @@ export default async function ConfigPage({ params }: { params: Promise<{ app: st
   );
 
   const meta = appMeta(app);
+  // Only the launcher ships packs that wait on a build.
+  const playBuild = app === 'g-launcher' ? await readPlayBuild(app) : null;
 
   return (
     <StudioShell app={app}>
@@ -79,6 +83,38 @@ export default async function ConfigPage({ params }: { params: Promise<{ app: st
         title="Config"
         meta={state?.versionNumber ? `template v${state.versionNumber}` : 'template not read'}
       />
+
+      {app === 'g-launcher' && (
+        <form
+          action={setPlayBuildAction}
+          className="flex flex-wrap items-center gap-3 rounded-[18px] border border-site-line bg-site-card px-[18px] py-4 shadow-site-soft"
+        >
+          <input type="hidden" name="app" value={app} />
+          <div className="min-w-0 flex-1">
+            <div className="font-site-display text-[15px] font-bold text-site-ink">Play build</div>
+            <p className="text-[12px] leading-relaxed text-site-ink-3">
+              The build number Play is serving now. Distros that need a newer one show amber on the
+              Distros screen and refuse to publish until this catches up. Set it when a release goes
+              live. Kept in the bucket, not in Remote Config: no app reads it.
+            </p>
+          </div>
+          <input
+            name="build"
+            type="number"
+            min={1}
+            defaultValue={playBuild ?? ''}
+            placeholder="not set"
+            aria-label="Play build"
+            className="w-[110px] rounded-[10px] border border-site-line bg-site-sunk px-3 py-2 font-mono text-[13px] text-site-ink"
+          />
+          <button
+            type="submit"
+            className="rounded-[10px] bg-site-accent px-3.5 py-2 text-[13px] font-semibold text-white"
+          >
+            Save
+          </button>
+        </form>
+      )}
 
       {state && (
         <>

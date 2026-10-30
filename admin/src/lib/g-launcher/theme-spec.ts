@@ -158,6 +158,10 @@ export const PANEL_MODULES = [
   'battery',
   'wifi',
   'volume',
+  'title',
+  'workspacesButton',
+  'appsButton',
+  'tiling',
 ] as const;
 export type PanelModuleName = (typeof PANEL_MODULES)[number];
 
@@ -294,6 +298,9 @@ export type TilingLauncherName = (typeof TILING_LAUNCHERS)[number];
  *    category strip along its foot. Read by any shell; it anchors itself.
  *  - `cinnamon`: Mint's menu. Three columns side by side, favourites,
  *    categories and apps, with search across the foot.
+ *  - `kicker`: Plasma's Application Menu, as Manjaro ships it. Cinnamon's
+ *    favourites and categories, with the apps opening as a flyout beside the
+ *    category you tap rather than as a fixed third column.
  *  - `zorin`: the Start menu's shape. A pinned grid above a rule, everything
  *    else as a list below it, search over both. The only stacked one.
  *  - `query`: Pop's launcher. A line at the top with ranked results under it
@@ -308,6 +315,7 @@ export const APP_DRAWERS = [
   'card',
   'whisker',
   'cinnamon',
+  'kicker',
   'zorin',
   'query',
   'library',
@@ -446,6 +454,41 @@ export interface ThemeLayoutJson {
   dockStyle?: DockStyleName;
   /** When the dock exists. Absent means `always`. See [DOCK_REVEALS]. */
   dockReveal?: DockRevealName;
+  /** The dock ends with its own tray: a divider and the quick-settings button,
+   *  plus battery and time under the status rule. For desktops with no top
+   *  bar (Deepin's fashion dock). Absent means false. */
+  dockTray?: boolean;
+  /** How quick settings opens. `side` slides in from the right edge as a tall
+   *  panel (Deepin's Control Center); absent means the bottom sheet. */
+  quickSettings?: 'side';
+  /** `edge` draws the tiling bar edge to edge and square, as i3bar does;
+   *  `clear` draws the aqua top bar with no fill, white over the wallpaper, as
+   *  elementary's wingpanel is. Absent keeps each shell's default. */
+  barStyle?: 'edge' | 'clear';
+  /** Tiled apps carry a title bar with their name (i3's default border). */
+  windowTitles?: boolean;
+  /** `pill` draws Activities as GNOME 45's workspace pill and dots instead of
+   *  the word. */
+  activitiesStyle?: 'pill';
+  /** `gnome` makes Activities open GNOME's overview (search, workspace cards,
+   *  the dash) instead of the app grid. */
+  overviewStyle?: 'gnome';
+  /** `glass` draws dock, folders, card widgets and library tiles as Liquid
+   *  Glass (iOS 26). */
+  material?: 'glass';
+  /** `pill` puts a Search button above the dock. */
+  homeSearch?: 'pill';
+  /** `glass` draws home folders as glass squares previewing nine apps. */
+  folderStyle?: 'glass';
+  /** `false` leaves the all-apps button off the dock (a phone-style dock of
+   *  apps only). Absent means the button is there. */
+  dockLauncher?: boolean;
+  /** Dock slot ceiling, 2 to 8. Absent means width-based. */
+  dockCapacity?: number;
+  /** Roles that pin the first dock, in order. Absent keeps most-used. */
+  dockSeed?: Array<'dialer' | 'sms' | 'browser' | 'camera'>;
+  /** `true` lets folders live in the dock. */
+  dockFolders?: boolean;
   /**
    * How many workspaces a fresh install of this distro starts with, 1 to 5.
    *
@@ -498,6 +541,11 @@ export interface ThemeSpecJson {
   /** The accent colours this distro offers. Absent means it offers one: the
    *  palette's own. See [ThemeAccentJson]. */
   accents?: ThemeAccentJson[];
+  /** The distro's signature gradient, two or three hex stops. Used on the
+   *  device only by the active page marker and the fastfetch logo ring; the
+   *  single `palette.accent` still drives everything else. Any other length,
+   *  or a stop that is not a colour, and the device ignores the whole list. */
+  accentGradient?: string[];
   /** Named layout presets, shallow-merged over `layout` on the device. Absent
    *  means this distro has one layout. See [ThemeLayoutPresetJson]. */
   layouts?: ThemeLayoutPresetJson[];
@@ -508,6 +556,10 @@ export interface ThemeSpecJson {
    *  'Other'. Kali names it 'Usual Applications'. */
   categoryFallback?: string;
   icons?: IconStyleJson | null;
+  /** Named icon looks the user picks in Customize, each an `icons` block
+   *  merged over the base one (Pocket: Default, Dark, Clear, Tinted). Absent
+   *  means this distro has one look. */
+  iconLooks?: IconLookJson[];
   logo?: unknown;
   wallpapers: string[];
   /** How each wallpaper meets the screen, keyed by its entry in `wallpapers`.
@@ -680,9 +732,16 @@ export const THEME_SPEC_KEYS: ReadonlySet<string> = new Set([
   'palette', 'paletteLight', 'typography', 'layout', 'icons', 'logo',
   'wallpapers', 'wallpaper', 'wallpaperMeta', 'fonts', 'minAppVersion',
   'boot', 'splash', 'desklets', 'gestures', 'features', 'seededFromPreview',
-  'categories', 'categoryFallback', 'accents', 'layouts',
-  'wallpapersLight', 'terminal', 'home', 'surfaces',
+  'categories', 'categoryFallback', 'accents', 'accentGradient', 'layouts',
+  'wallpapersLight', 'terminal', 'home', 'surfaces', 'iconLooks',
 ]);
+
+/** One icon look: an id, its label, and the `icons` fields it overrides. */
+export interface IconLookJson {
+  id: string;
+  name: string;
+  icons: IconStyleJson;
+}
 
 /**
  * One bucket in a distro's own category vocabulary.
@@ -969,6 +1028,27 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
     ...(spec.layout.dockReveal && spec.layout.dockReveal !== 'always'
       ? { dockReveal: spec.layout.dockReveal }
       : {}),
+    ...(spec.layout.dockTray === true ? { dockTray: true } : {}),
+    ...(spec.layout.quickSettings === 'side' ? { quickSettings: 'side' } : {}),
+    ...(spec.layout.barStyle === 'edge' || spec.layout.barStyle === 'clear'
+      ? { barStyle: spec.layout.barStyle }
+      : {}),
+    ...(spec.layout.windowTitles === true ? { windowTitles: true } : {}),
+    ...(spec.layout.activitiesStyle === 'pill'
+      ? { activitiesStyle: 'pill' }
+      : {}),
+    ...(spec.layout.overviewStyle === 'gnome' ? { overviewStyle: 'gnome' } : {}),
+    ...(spec.layout.material === 'glass' ? { material: 'glass' } : {}),
+    ...(spec.layout.homeSearch === 'pill' ? { homeSearch: 'pill' } : {}),
+    ...(spec.layout.folderStyle === 'glass' ? { folderStyle: 'glass' } : {}),
+    ...(spec.layout.dockLauncher === false ? { dockLauncher: false } : {}),
+    ...(typeof spec.layout.dockCapacity === 'number'
+      ? { dockCapacity: spec.layout.dockCapacity }
+      : {}),
+    ...(spec.layout.dockSeed && spec.layout.dockSeed.length > 0
+      ? { dockSeed: [...spec.layout.dockSeed] }
+      : {}),
+    ...(spec.layout.dockFolders === true ? { dockFolders: true } : {}),
     // Three is the engine default and emits nothing, the same rule every other
     // inherit-shaped value here follows.
     ...(spec.layout.workspaces && spec.layout.workspaces !== 3
@@ -1026,6 +1106,16 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
     if (rows.length) out.accents = rows;
   }
 
+  // Written only when the device would use it: two or three real colours.
+  // Anything else is dropped here so the panel never publishes a list the
+  // phone silently ignores.
+  if (spec.accentGradient?.length) {
+    const stops = spec.accentGradient.map((c) => c.trim());
+    if (stops.length >= 2 && stops.length <= 3 && stops.every(isHexColor)) {
+      out.accentGradient = stops;
+    }
+  }
+
   // Deduped by id for the same reason accents are: the device stops at the
   // first match, so a repeated id is a card that can never appear chosen.
   if (spec.layouts?.length) {
@@ -1055,6 +1145,16 @@ export function canonicalThemeJson(spec: ThemeSpecJson): string {
 
   if (spec.icons && Object.keys(pruneIcons(spec.icons)).length) {
     out.icons = pruneIcons(spec.icons);
+  }
+  if (spec.iconLooks?.length) {
+    const looks = spec.iconLooks
+      .filter((l) => l.id.trim() && l.name.trim())
+      .map((l) => ({
+        id: l.id.trim(),
+        name: l.name.trim(),
+        icons: pruneIcons(l.icons ?? {}),
+      }));
+    if (looks.length) out.iconLooks = looks;
   }
   if (spec.fonts?.length) {
     out.fonts = spec.fonts
@@ -1161,6 +1261,12 @@ export function validateDraft(draft: ThemeDraft): string[] {
 
   if (!isSafePackId(draft.id)) p.push(`Pack id '${draft.id}' must be lowercase letters, digits, . _ or -`);
   if (draft.id !== s.id) p.push('Pack id and spec id must match');
+  if (s.accentGradient?.length) {
+    const g = s.accentGradient;
+    if (g.length < 2 || g.length > 3 || !g.every((c) => isHexColor(c.trim()))) {
+      p.push('accentGradient needs two or three hex colours');
+    }
+  }
   if (!draft.title.trim()) p.push('Title is required');
   if (draft.sku != null && draft.sku !== '' && !isSafeSku(draft.sku)) {
     p.push(`SKU '${draft.sku}' must match a Play product id`);
@@ -1717,6 +1823,52 @@ export function importTheme(
       )
         ? { dockReveal: str(layoutRaw.dockReveal) as DockRevealName }
         : {}),
+      ...(layoutRaw.dockTray === true ? { dockTray: true } : {}),
+      ...(str(layoutRaw.quickSettings) === 'side'
+        ? { quickSettings: 'side' as const }
+        : {}),
+      ...(str(layoutRaw.barStyle) === 'edge'
+        ? { barStyle: 'edge' as const }
+        : str(layoutRaw.barStyle) === 'clear'
+          ? { barStyle: 'clear' as const }
+          : {}),
+      ...(layoutRaw.windowTitles === true ? { windowTitles: true } : {}),
+      ...(str(layoutRaw.activitiesStyle) === 'pill'
+        ? { activitiesStyle: 'pill' as const }
+        : {}),
+      ...(str(layoutRaw.overviewStyle) === 'gnome'
+        ? { overviewStyle: 'gnome' as const }
+        : {}),
+      ...(str(layoutRaw.material) === 'glass'
+        ? { material: 'glass' as const }
+        : {}),
+      ...(str(layoutRaw.homeSearch) === 'pill'
+        ? { homeSearch: 'pill' as const }
+        : {}),
+      ...(str(layoutRaw.folderStyle) === 'glass'
+        ? { folderStyle: 'glass' as const }
+        : {}),
+      ...(layoutRaw.dockLauncher === false ? { dockLauncher: false } : {}),
+      // Clamped like the device, so the admin never shows a value the phone
+      // would not use.
+      ...(typeof layoutRaw.dockCapacity === 'number'
+        ? {
+            dockCapacity: Math.min(
+              8,
+              Math.max(2, Math.round(layoutRaw.dockCapacity)),
+            ),
+          }
+        : {}),
+      ...(Array.isArray(layoutRaw.dockSeed)
+        ? (() => {
+            const roles = (layoutRaw.dockSeed as unknown[]).filter(
+              (r): r is 'dialer' | 'sms' | 'browser' | 'camera' =>
+                r === 'dialer' || r === 'sms' || r === 'browser' || r === 'camera',
+            );
+            return roles.length > 0 ? { dockSeed: roles } : {};
+          })()
+        : {}),
+      ...(layoutRaw.dockFolders === true ? { dockFolders: true } : {}),
       // CLAMPED on the way in, matching the device and the stepper. A theme
       // asking for eight gets five rather than a row of dots nobody can count.
       ...(typeof layoutRaw.workspaces === 'number'
@@ -1744,6 +1896,19 @@ export function importTheme(
 
   const icons = obj(j.icons);
   if (icons) spec.icons = icons as IconStyleJson;
+
+  if (Array.isArray(j.iconLooks)) {
+    const looks: IconLookJson[] = [];
+    for (const raw of j.iconLooks) {
+      const l = obj(raw);
+      if (!l) continue;
+      const id = str(l.id);
+      const name = str(l.name);
+      if (!id || !name) continue;
+      looks.push({ id, name, icons: (obj(l.icons) ?? {}) as IconStyleJson });
+    }
+    if (looks.length) spec.iconLooks = looks;
+  }
 
   // Straight through. These are `unknown` on ThemeSpecJson precisely so a block
   // this build does not model survives an edit to something else.
@@ -1812,6 +1977,12 @@ export function importTheme(
       rows.push({ id, value, ...(name ? { name } : {}) });
     }
     if (rows.length) spec.accents = rows;
+  }
+  if (Array.isArray(j.accentGradient)) {
+    const stops = j.accentGradient
+      .map((c) => str(c)?.trim())
+      .filter((c): c is string => !!c);
+    if (stops.length) spec.accentGradient = stops;
   }
 
   const presetRaw = j.layouts;
