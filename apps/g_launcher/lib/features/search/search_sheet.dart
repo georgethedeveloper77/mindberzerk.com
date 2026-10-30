@@ -12,6 +12,7 @@ import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
 import '../command/command_rows.dart';
 import '../command/command_router.dart';
+import '../command/search_settings.dart';
 import '../palette/palette_controller.dart';
 
 /// Search, as a sheet from the top edge.
@@ -41,7 +42,11 @@ import '../palette/palette_controller.dart';
 /// already excluded, ties already broken by frecency. A second ranker here
 /// would mean typing `wha` gives one answer in the palette and another in
 /// search, and neither wrong enough to notice.
-Future<void> showSearchSheet(BuildContext context, EffectiveTheme theme) {
+Future<void> showSearchSheet(
+  BuildContext context,
+  EffectiveTheme theme, {
+  String? initialQuery,
+}) {
   return Navigator.of(context).push(
     PageRouteBuilder<void>(
       // TRANSPARENT and not opaque, which is the whole difference from the
@@ -53,7 +58,8 @@ Future<void> showSearchSheet(BuildContext context, EffectiveTheme theme) {
       barrierLabel: 'Dismiss',
       transitionDuration: const Duration(milliseconds: 190),
       reverseTransitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (_, __, ___) => _SearchSheet(theme: theme),
+      pageBuilder: (_, __, ___) =>
+          _SearchSheet(theme: theme, initialQuery: initialQuery),
       transitionsBuilder: (_, anim, __, child) {
         final curve = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
         return FadeTransition(
@@ -74,9 +80,12 @@ Future<void> showSearchSheet(BuildContext context, EffectiveTheme theme) {
 }
 
 class _SearchSheet extends ConsumerStatefulWidget {
-  const _SearchSheet({required this.theme});
+  const _SearchSheet({required this.theme, this.initialQuery});
 
   final EffectiveTheme theme;
+
+  /// What a keyboard typed on the bare desktop before this opened.
+  final String? initialQuery;
 
   @override
   ConsumerState<_SearchSheet> createState() => _SearchSheetState();
@@ -84,7 +93,39 @@ class _SearchSheet extends ConsumerStatefulWidget {
 
 class _SearchSheetState extends ConsumerState<_SearchSheet> {
   final _controller = TextEditingController();
-  final _focus = FocusNode();
+  late final _focus = FocusNode(onKeyEvent: _onKey);
+
+  /// The row the arrow keys picked, or null for the default (the top app,
+  /// else the top command). Cleared whenever the query changes, so Enter
+  /// always means the best answer to what was just typed.
+  int? _picked;
+  int _default = 0;
+
+  int get _selected => _picked ?? _default;
+
+  /// Rows on screen in order, rebuilt each frame by build, for the keys.
+  List<VoidCallback> _rowActions = const [];
+
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final n = _rowActions.length;
+    if (n == 0) return KeyEventResult.ignored;
+    if (e.logicalKey == LogicalKeyboardKey.arrowDown) {
+      setState(() => _picked = (_selected + 1) % n);
+      return KeyEventResult.handled;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.arrowUp) {
+      setState(() => _picked = (_selected - 1 + n) % n);
+      return KeyEventResult.handled;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).pop();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   /// Enough to fill the space above a keyboard and no more. Past this the sheet
   /// is taller than the gap and the last hits are behind the keys.
@@ -98,7 +139,12 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
     // would be a search you did not start.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(paletteQueryProvider.notifier).state = '';
+      final seed = widget.initialQuery ?? '';
+      _controller.value = TextEditingValue(
+        text: seed,
+        selection: TextSelection.collapsed(offset: seed.length),
+      );
+      ref.read(paletteQueryProvider.notifier).state = seed;
       _focus.requestFocus();
     });
   }
@@ -132,7 +178,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
       for (final r in ref.watch(paletteResultsProvider(theme))) r.item,
     ].take(_limit).toList();
 
-    final route = CommandRouter.route(query);
+    final route = ref.watchRoute(query);
     final rowStyle = CommandRowStyle(
       text: palette.onDark,
       muted: palette.onDark.withValues(alpha: 0.5),
@@ -151,6 +197,9 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
     }
 
     Future<void> activate(CommandHit hit) async {
+      // Captured before the await, so the pop never reads a context that may
+      // have gone away while the URL opened.
+      final nav = Navigator.of(context);
       final close = await activateCommandHit(
         context,
         ref,
@@ -158,8 +207,19 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
         query: query,
         fillQuery: fill,
       );
-      if (close && mounted) Navigator.of(context).pop();
+      if (close && mounted) nav.pop();
     }
+
+    // Every selectable row in screen order: command answers, then apps.
+    final showApps = !(results.isEmpty && route.searchApps);
+    _rowActions = [
+      for (final hit in route.hits) () => activate(hit),
+      if (showApps)
+        for (final e in results) () => _run(e),
+    ];
+    _default = results.isNotEmpty && route.searchApps ? route.hits.length : 0;
+    final sel =
+        _rowActions.isEmpty ? -1 : _selected.clamp(0, _rowActions.length - 1);
 
     final cats = CategorySet.forTheme(theme);
     final top = MediaQuery.viewPaddingOf(context).top;
@@ -200,16 +260,15 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                         theme: theme,
                         controller: _controller,
                         focus: _focus,
-                        onChanged: (v) =>
-                            ref.read(paletteQueryProvider.notifier).state = v,
-                        // Enter: the top app, unless there is none or the query
-                        // is an explicit mode, in which case the top command.
+                        onChanged: (v) {
+                          _picked = null;
+                          ref.read(paletteQueryProvider.notifier).state = v;
+                        },
+                        // Enter: the highlighted row. By default that is the
+                        // top app, unless there is none or the query is an
+                        // explicit mode, in which case the top command.
                         onSubmit: () {
-                          if (results.isNotEmpty && route.searchApps) {
-                            _run(results.first);
-                          } else if (route.hits.isNotEmpty) {
-                            activate(route.hits.first);
-                          }
+                          if (sel >= 0) _rowActions[sel]();
                         },
                       ),
                       if (query.trim().isNotEmpty) ...[
@@ -218,12 +277,17 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                           thickness: 1,
                           color: palette.onDark.withValues(alpha: 0.10),
                         ),
-                        for (final hit in route.hits)
-                          CommandHitRow(
-                            hit: hit,
-                            style: rowStyle,
-                            onTap: () => activate(hit),
-                            onBang: (b) => fill('!${b.key} '),
+                        for (var h = 0; h < route.hits.length; h++)
+                          ColoredBox(
+                            color: h == sel
+                                ? palette.accent.withValues(alpha: 0.18)
+                                : Colors.transparent,
+                            child: CommandHitRow(
+                              hit: route.hits[h],
+                              style: rowStyle,
+                              onTap: () => activate(route.hits[h]),
+                              onBang: (b) => fill('!${b.key} '),
+                            ),
                           ),
                         if (results.isEmpty && route.searchApps) ...[
                           if (route.hits.isEmpty) _Empty(theme: theme),
@@ -249,7 +313,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                               // the Library files by, so the label cannot
                               // disagree with the bubble.
                               category: cats.nameFor(results[i]),
-                              first: i == 0,
+                              first: route.hits.length + i == sel,
                               onTap: () => _run(results[i]),
                             ),
                       ],

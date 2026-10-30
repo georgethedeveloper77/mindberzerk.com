@@ -12,6 +12,7 @@ import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/home_layout.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
+import '../../design/liquid_glass.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/components/press_pop.dart';
@@ -400,7 +401,9 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     }
 
     final palette = theme.palette;
-    final cols = theme.prefs.folderCols ?? 4;
+    // Three by three on a glass folder, which is the iOS page; the user's own
+    // setting still wins.
+    final cols = theme.prefs.folderCols ?? (theme.folderGlass ? 3 : 4);
 
     // FOUR, not three. Three rows against four columns is a landscape block in
     // a portrait panel, and at 16 per page a folder holding a dozen apps stops
@@ -410,7 +413,7 @@ class _FolderOverlayState extends ConsumerState<_FolderOverlay> {
     // The panel grows to `rows * tileH`, about 416dp at the default icon size
     // and two label lines, which clears the 890dp screen with the header and
     // the search field still on it.
-    final rows = theme.prefs.folderRows ?? 4;
+    final rows = theme.prefs.folderRows ?? (theme.folderGlass ? 3 : 4);
     final perPage = math.max(1, cols * rows);
     final pageCount = math.max(1, (live.members.length / perPage).ceil());
 
@@ -813,6 +816,8 @@ class _Actions extends StatelessWidget {
             semantic: context.t('drawer.ungroupThisFolder'),
             onTap: onUngroup,
           ),
+          // No symbol to choose on a glass folder: it is drawn as its apps.
+          if (!theme.folderGlass) ...[
           const SizedBox(width: 18),
           Builder(
             // The context this needs is one below [ChromeScope], and the
@@ -826,6 +831,7 @@ class _Actions extends StatelessWidget {
               onTap: () => onIcon(inner),
             ),
           ),
+          ],
           const SizedBox(width: 18),
           _GlyphButton(
             theme: theme,
@@ -1190,14 +1196,30 @@ class _PanelState extends State<_Panel> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        decoration: BoxDecoration(
-          // Lifted off the blurred backdrop rather than transparent, or the
-          // grid reads as floating loose on the wallpaper and the label text
-          // fights whatever photo is behind it.
-          color: palette.bgBottom.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(34),
-          border: Border.all(color: palette.onDark.withValues(alpha: 0.08)),
-        ),
+        decoration: theme.folderGlass
+            // Liquid Glass. The backdrop behind is already blurred, so the
+            // pane needs only its tint; the edge and rim go on the foreground
+            // below, where they take no layout.
+            ? BoxDecoration(
+                gradient: LiquidGlass.fill(dark: theme.glassDark),
+                borderRadius: BorderRadius.circular(34),
+              )
+            : BoxDecoration(
+                // Lifted off the blurred backdrop rather than transparent, or
+                // the grid reads as floating loose on the wallpaper and the
+                // label text fights whatever photo is behind it.
+                color: palette.bgBottom.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(34),
+                border:
+                    Border.all(color: palette.onDark.withValues(alpha: 0.08)),
+              ),
+        foregroundDecoration: theme.folderGlass
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(color: LiquidGlass.edge),
+                gradient: LiquidGlass.rim(BorderRadius.zero).gradient,
+              )
+            : null,
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
         child: SizedBox(
           height: rows * tileH,

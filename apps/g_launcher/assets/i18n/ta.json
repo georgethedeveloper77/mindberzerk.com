@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "அது உங்கள் போனில் இருக்கும். இது இங்கே பட்டியலிலிருந்து வெளியே எடுக்கிறது.",
   "wallpaper.removeTitle": "இந்த வால்பேப்பரை அகற்றவும்",
   "wallpaper.removed": "அகற்றப்பட்டது",
-  "wallpaper.yours": "உங்களுடையது"
+  "wallpaper.yours": "உங்களுடையது",
+  "shell.dockFull": "டாக் நிரம்பிவிட்டது",
+  "shell.moveToHomeScreen": "முகப்புத் திரைக்கு நகர்த்து",
+  "home.edit": "திருத்து"
 }

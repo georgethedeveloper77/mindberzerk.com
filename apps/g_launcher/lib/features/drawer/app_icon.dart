@@ -1,14 +1,17 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/cdn/pack_repository.dart';
+import '../../data/prefs/new_apps.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../design/theme_mark.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../../system/notification_badges.dart';
+import 'new_app_dot.dart';
 
 /// Dart-side icon access.
 ///
@@ -92,6 +95,75 @@ class IconRequest {
 ///
 /// Call this on theme switch. Bump [themeId] whenever the style changes — it is
 /// part of every cache key, and a stale id means stale icons.
+/// How far to enlarge an icon so its ARTWORK fills its box, for a phone home.
+///
+/// ─── WHY THE ART, NOT THE BOX ───────────────────────────────────────────────
+///
+/// An icon bitmap often carries a transparent margin: an icon pack's round
+/// plate drawn at two thirds of the canvas, a legacy icon inset for its mask.
+/// On a desktop that margin is the gap between icons. On a phone home (Pocket)
+/// the icons ARE the layout: a phone's dock, grid and App Library show each
+/// icon edge to edge in its square, and a box made bigger to compensate only
+/// makes the dock and the tiles bigger while the icons stay small.
+///
+/// So the margin is measured, once per icon, from the alpha of the bitmap the
+/// platform returned, and the icon is drawn enlarged by exactly enough to bring
+/// its artwork to the edge of its box. Clamped: never shrinks, and never more
+/// than 1.6x, so an icon that is genuinely small artwork on a large canvas does
+/// not turn into a blur.
+final iconFillProvider =
+    FutureProvider.family<double, IconRequest>((ref, request) async {
+  final bytes = await ref.watch(iconProvider(request).future);
+  if (bytes == null) return 1.0;
+  final codec = await ui.instantiateImageCodec(bytes);
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  try {
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (data == null) return 1.0;
+    return fillScaleFor(
+      data.buffer.asUint8List(),
+      width: image.width,
+      height: image.height,
+    );
+  } finally {
+    image.dispose();
+    codec.dispose();
+  }
+});
+
+/// The enlargement that brings visible pixels in [rgba] to the canvas edge,
+/// measured from the centre so the icon stays centred. Pure, for tests.
+double fillScaleFor(Uint8List rgba, {required int width, required int height}) {
+  if (width <= 0 || height <= 0) return 1.0;
+  // A faint shadow or anti-aliased rim is not artwork.
+  const threshold = 24;
+  var minX = width, minY = height, maxX = -1, maxY = -1;
+  for (var y = 0; y < height; y++) {
+    final row = y * width * 4;
+    for (var x = 0; x < width; x++) {
+      if (rgba[row + x * 4 + 3] > threshold) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return 1.0;
+  final cx = width / 2, cy = height / 2;
+  // The furthest visible pixel from the centre, on either axis, as a share of
+  // the half-canvas: 1.0 means the art already touches the edge.
+  final reach = [
+    (cx - minX) / cx,
+    (maxX + 1 - cx) / cx,
+    (cy - minY) / cy,
+    (maxY + 1 - cy) / cy,
+  ].reduce((a, b) => a > b ? a : b);
+  if (reach <= 0) return 1.0;
+  return (1 / reach).clamp(1.0, 1.6);
+}
+
 final setIconThemeProvider =
     Provider<Future<void> Function(String, IconStyle)>((ref) {
   return (themeId, style) =>
@@ -133,7 +205,15 @@ class AppIcon extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final sizePx = (size * dpr).round();
+
+    // A phone home draws each icon's artwork edge to edge (see
+    // [iconFillProvider]), so it asks for a bitmap big enough to enlarge
+    // without blurring.
+    final fill = ref.watch(
+      effectiveThemeProvider
+          .select((t) => t.hasValue && t.requireValue.phoneHome),
+    );
+    final sizePx = (size * dpr * (fill ? 1.5 : 1.0)).round();
 
     // ── WHAT THESE BYTES WERE DRAWN WITH ──────────────────────────────────
     //
@@ -199,20 +279,19 @@ class AppIcon extends ConsumerWidget {
       ),
     );
 
-    final icon = ref.watch(
-      iconProvider(
-        IconRequest(
-          entry.componentKey,
-          sizePx,
-          // updateToken is the app changing its OWN icon, which native keys on
-          // and Dart did not. Update WhatsApp, get WhatsApp's old icon until
-          // something else happened to move the key.
-          '$styleId|$systemPack|$packGeneration|${entry.updateToken}',
-        ),
-      ),
+    final request = IconRequest(
+      entry.componentKey,
+      sizePx,
+      // updateToken is the app changing its OWN icon, which native keys on
+      // and Dart did not. Update WhatsApp, get WhatsApp's old icon until
+      // something else happened to move the key.
+      '$styleId|$systemPack|$packGeneration|${entry.updateToken}',
     );
+    final icon = ref.watch(iconProvider(request));
+    final scale =
+        fill ? (ref.watch(iconFillProvider(request)).value ?? 1.0) : 1.0;
 
-    final art = SizedBox(
+    final drawn = SizedBox(
       width: size,
       height: size,
       child: icon.when(
@@ -222,12 +301,17 @@ class AppIcon extends ConsumerWidget {
             // Suspended apps grey out rather than disappear — hiding them makes
             // people think the app was uninstalled.
             opacity: entry.isSuspended ? 0.4 : 1.0,
-            child: Image.memory(
-              bytes,
-              width: size,
-              height: size,
-              gaplessPlayback: true,
-              filterQuality: FilterQuality.medium,
+            // Enlarged in paint only: the box, and every badge anchored to
+            // it, stay exactly [size].
+            child: Transform.scale(
+              scale: scale,
+              child: Image.memory(
+                bytes,
+                width: size,
+                height: size,
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.medium,
+              ),
             ),
           );
         },
@@ -235,6 +319,19 @@ class AppIcon extends ConsumerWidget {
         error: (_, __) => const SizedBox.shrink(),
       ),
     );
+
+    // ── THE NEW-APP DOT ──────────────────────────────────────────────────
+    //
+    // Only inside a drawer (see NewAppDotScope), and watched down to a bool for
+    // THIS app, so an install rebuilds the one icon it concerns. Top LEFT, the
+    // opposite corner to the notification badge, so both can show at once
+    // without one reading as the other.
+    final isNew = NewAppDotScope.enabledOf(context) &&
+        ref.watch(
+          newAppsProvider.select((keys) => keys.contains(entry.componentKey)),
+        );
+    final art =
+        isNew && size >= _badgeFloor ? _NewDot(art: drawn, size: size) : drawn;
 
     // ── THE BADGE ────────────────────────────────────────────────────────
     //
@@ -274,6 +371,54 @@ class AppIcon extends ConsumerWidget {
 
   /// Below this, a badge is a speck rather than a mark. See the note above.
   static const double _badgeFloor = 28;
+}
+
+/// An icon with the new-app dot in its top-left corner.
+class _NewDot extends ConsumerWidget {
+  const _NewDot({required this.art, required this.size});
+
+  final Widget art;
+  final double size;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accent = ref.watch(
+      effectiveThemeProvider.select(
+        (t) => t.hasValue ? t.requireValue.palette.accent : null,
+      ),
+    );
+    if (accent == null) return art;
+    final d = size * 0.2;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: art),
+          Positioned(
+            left: -d * 0.2,
+            top: -d * 0.2,
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+                // A thin ring in the icon's own shadow colour keeps the dot
+                // legible on an accent-coloured icon.
+                border: Border.all(
+                  color: const Color(
+                      0x66000000), // theme-exempt: neutral separation ring on any accent
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// An icon with its notification badge.

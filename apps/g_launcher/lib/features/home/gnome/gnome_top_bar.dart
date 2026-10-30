@@ -5,11 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/ubuntu_tokens.dart';
+import '../../../engine/effective_theme.dart';
 import '../../../engine/theme_spec.dart'
-    show PanelModule, PanelSpec, ThemePalette, TopBarSide;
+    show
+        ChromeFamily,
+        PanelItem,
+        PanelModule,
+        PanelSpec,
+        ThemePalette,
+        TopBarSide;
 import '../../panel/applets/panel_tray_button.dart';
+import '../../panel/panel_modules.dart';
+import '../../panel/panel_skin.dart';
 import '../../panel/modules/panel_readouts.dart';
 import '../quick_settings.dart';
+import '../workspaces/workspace_controller.dart';
 
 /// The GNOME top bar, phone-adapted.
 ///
@@ -47,7 +57,35 @@ class GnomeTopBar extends ConsumerWidget {
     this.displayFontFamily,
     required this.panel,
     this.systemStatusBar = true,
+    this.theme,
   });
+
+  /// The resolved theme, for the desktop modules an Xfce panel carries.
+  ///
+  /// ─── GNOME DECLINES THEM, XFCE DOES NOT ─────────────────────────────────
+  ///
+  /// This bar refuses `kickoff`, `pager`, `tasks` and `app:` because a start
+  /// menu, a pager and a taskbar are not GNOME. Kali runs this shell with the
+  /// Xfce chrome, and a real Xfce panel is exactly those things: the menu, the
+  /// launchers, the workspace switcher. So on an Xfce-family theme the bar
+  /// hands them to [panelModuleWidget], the same widgets Plasma's panel
+  /// draws, and every GNOME-family distro is unchanged.
+  ///
+  /// Nullable so a caller with no theme in hand (a preview) keeps the GNOME
+  /// behaviour rather than failing.
+  final EffectiveTheme? theme;
+
+  bool get _xfce => theme?.chromeFamily == ChromeFamily.xfce;
+
+  /// ─── A GNOME BAR BELOW THE TOP IS A TASKBAR ─────────────────────────────
+  ///
+  /// GNOME's own bar is a top bar, and the refusals in [_gnomeModule] are
+  /// right for it. Zorin puts the same shell's panel along the bottom, where
+  /// it is a Windows-style taskbar: the menu, the apps, the tray. So a panel on
+  /// any other edge takes the Xfce path, the authored height and the solid
+  /// fill, and every GNOME top bar is unchanged.
+  bool get _taskbar =>
+      theme != null && (_xfce || panel.side != TopBarSide.top);
 
   /// Is ANDROID's status bar on screen above this one?
   ///
@@ -94,7 +132,11 @@ class GnomeTopBar extends ConsumerWidget {
   /// the list and skipped at the others, so a theme still controls where in the
   /// run they appear.
 
-  List<Widget> _modules({required bool stacked}) {
+  List<Widget> _modules(
+    WidgetRef ref, {
+    required bool stacked,
+    required bool narrow,
+  }) {
     final stats = panel.modules
         .where((m) =>
             m == PanelModule.network ||
@@ -102,146 +144,235 @@ class GnomeTopBar extends ConsumerWidget {
             m == PanelModule.storage)
         .toList();
 
+    // The status modules only while the panel owns the status row. See
+    // [panelItemsShown].
+    final items = panelItemsShown(
+      panel.items,
+      systemStatusBar: systemStatusBar,
+      narrow: narrow,
+    );
+
     return [
-      for (final m in panel.modules)
-        switch (m) {
-          PanelModule.activities => _Activities(
-              onTap: onActivities,
-              color: palette.onDark,
-              fontFamily: displayFontFamily,
-              // Glyph only on a vertical panel: the word does not fit in 40dp
-              // and setting it sideways would be the one thing on screen a
-              // person has to tilt their head for.
-              compact: stacked,
-            ),
-          PanelModule.spacer => const Spacer(),
+      for (final item in items)
+        // The [_shared] modules draw on any GNOME-family bar through the
+        // shared widget whenever a theme is in hand; a preview without one
+        // leaves the slot empty.
+        if ((_taskbar && _xfceModules.contains(item.kind)) ||
+            (_shared.contains(item.kind) && theme != null))
+          _xfceModule(ref, item, stacked: stacked, narrow: narrow)
+        else
+          _gnomeModule(item.kind, stats, stacked: stacked),
+    ];
+  }
 
-          // The three readouts share one widget and one stats subscription, so
-          // it is drawn at the FIRST of them in the theme's order and skipped
-          // at the others. `stats.first` cannot throw here: reaching this arm
-          // means `m` is one of the three, so `stats` contains at least `m`.
-          PanelModule.network ||
-          PanelModule.memory ||
-          PanelModule.storage =>
-            m == stats.first
-                ? PanelReadouts(
-                    palette: palette,
-                    fontFamily: displayFontFamily,
-                    stacked: stacked,
-                    show: stats,
-                  )
-                : const SizedBox.shrink(),
+  /// Drawn on every GNOME-family bar through the shared widget whenever a
+  /// theme is in hand: the title slot, and COSMIC's two words and toggle,
+  /// since COSMIC is what Pop ships on this shell.
+  static const _shared = {
+    PanelModule.title,
+    PanelModule.workspacesButton,
+    PanelModule.appsButton,
+    PanelModule.tiling,
+  };
 
-          // ─── EXPLICIT, WHERE A `_` USED TO BE ────────────────────────────
-          //
-          // This arm was `_ =>`, and that catch-all is why growing the enum for
-          // the Plasma panel was safe in the worst sense: five new modules
-          // compiled cleanly and rendered NOTHING here, silently, which is
-          // indistinguishable from the modules being broken.
-          //
-          // `DockSide` states the rule this file was quietly opted out of: an
-          // enum grows, the compiler lists every site that decides, and each
-          // one answers on purpose. Now it does. A sixth module added tomorrow
-          // will not compile until this bar says what it does with it.
-          //
-          // And what it does is nothing, deliberately. This is GNOME's bar. A
-          // task strip on it would be a Windows taskbar, and a kickoff button
-          // would be a start menu. A theme listing them here has authored
-          // something GNOME is not, so the bar declines rather than obliging.
-          // ─── STILL DECLINED, AND FOR THE ORIGINAL REASON ────────────────
-          //
-          // Kickoff is Plasma's start menu and a pager is Plasma's desktop
-          // switcher. Neither belongs on any GNOME-family panel, top edge or
-          // bottom, so these two decline everywhere rather than on an edge
-          // test.
-          PanelModule.kickoff || PanelModule.pager => const SizedBox.shrink(),
+  /// What an Xfce panel draws that a GNOME bar does not.
+  static const _xfceModules = {
+    PanelModule.kickoff,
+    PanelModule.pager,
+    PanelModule.tasks,
+    PanelModule.app,
+    PanelModule.battery,
+    PanelModule.wifi,
+    PanelModule.volume,
+  };
 
-          // ─── DECLINED FOR A DIFFERENT REASON: THERE IS NO SOURCE ────────
-          //
-          // A task strip lists what is RUNNING, and nothing in the Pigeon
-          // surface reports that. `AppEntry` is an installed app,
-          // `frequentAppsProvider` is a frecency ranking, and neither answers
-          // the question. Drawing the most-used apps here and calling it Tasks
-          // would be a dock wearing a taskbar's label, and the running
-          // indicator under each tile would be decoration that means nothing.
-          //
-          // So this stays empty until there is something true to draw, which
-          // needs a `UsageStatsManager` reader on the native side. A distro
-          // authoring `tasks` gets a gap rather than a lie.
-          PanelModule.tasks => const SizedBox.shrink(),
+  /// One Xfce module, through the shared switch.
+  ///
+  /// `tasks` is the dock in panel form (`PanelTaskStrip` reads
+  /// `HomeLayout.dockKeys`), which is what Xfce's launchers are on a phone:
+  /// your apps, no dock. It is a scrolling strip, so it is bounded to four
+  /// icons here rather than given the whole bar, or it would push the pager
+  /// and the tray off the far end.
+  Widget _xfceModule(
+    WidgetRef ref,
+    PanelItem item, {
+    required bool stacked,
+    required bool narrow,
+  }) {
+    final host = PanelHost(
+      theme: theme!,
+      vertical: stacked,
+      items: panelItemsShown(
+        panel.items,
+        systemStatusBar: systemStatusBar,
+        narrow: narrow,
+      ),
+    );
+    final widget = panelModuleWidget(ref, item, host);
+    if (item.kind != PanelModule.tasks) return widget;
+    final run = _launcherRun(stacked);
+    return Flexible(
+      child: ConstrainedBox(
+        constraints: stacked
+            ? BoxConstraints(maxHeight: run)
+            : BoxConstraints(maxWidth: run),
+        child: widget,
+      ),
+    );
+  }
 
-          // ─── ON ANY EDGE, AND THE MODULE LIST IS THE OPT-IN ─────────────
-          //
-          // These two were refused outright, then refused on the TOP edge
-          // only, and both rules were wrong for the same reason.
-          //
-          // The original argument was duplication: Android's clock sits four
-          // pixels above a top bar. True, and it was decisive while the tray
-          // was decoration. It stopped being decisive when the tray became the
-          // way into Quick Settings, which is a control Android's own status
-          // bar cannot reach.
-          //
-          // The edge rule that replaced it broke Pop!_OS, whose top bar
-          // authors a centred clock and a tray on the right, which is what
-          // GNOME's top bar actually IS. It drew an Activities button, a gap,
-          // a network readout and a second gap, while the pack's feature row
-          // described the bar it was not getting.
-          //
-          // The rule was in the theme all along: a distro that does not want a
-          // clock on its bar DOES NOT AUTHOR ONE. Refusing it for the distros
-          // that do was this file overriding the author. Ubuntu, KDE and every
-          // other pack that never listed these are untouched, because they
-          // never asked.
-          // The widget moved to `features/panel/applets`, unchanged. There
-          // were two trays in the app and the other one was decoration; this
-          // is the one that works, so it is the one both bars now draw.
-          PanelModule.tray => PanelTrayButton(
-              palette: palette,
-              stacked: stacked,
-              compact: systemStatusBar,
-            ),
-          // ─── FOR THE REASON THE CLOCK IS ARGUED ABOUT BELOW ──────────
-          //
-          // A GNOME top bar sits directly under Android's status bar, which
-          // already shows charge and signal. That is this file's own argument
-          // about the clock and it applies here unchanged.
-          //
-          // Plasma's panel is a different case: it is usually at the BOTTOM,
-          // nowhere near the status bar. So the modules exist and this shell
-          // simply does not draw them, which is the difference between a
-          // vocabulary and a mandate.
-          //
-          // App buttons likewise: GNOME puts launchers in the dash, not the
-          // bar.
-          // Volume joins them: it is the third of the readouts `tray` expands
-          // into on a bottom panel, and a GNOME bar that declines the other two
-          // has no reason to keep this one.
-          //
-          // ── AND ALL THREE ARE THE NEXT THING TO CHANGE ──────────────────
-          //
-          // The argument above is about duplication, and this file has already
-          // met its own counter-argument once: the clock and the tray were
-          // refused on an edge test until Pop!_OS proved the module list was
-          // the opt-in all along. The same is true here, and the reason these
-          // still decline is mechanical rather than principled: the chips that
-          // draw them are private to `plasma_shell`, and lifting them out is
-          // the extraction this comment is a marker for, not a line to add
-          // beside a parse change.
-          PanelModule.battery ||
-          PanelModule.wifi ||
-          PanelModule.volume ||
-          PanelModule.app =>
-            const SizedBox.shrink(),
-          PanelModule.clock => _OpensQuickSettings(
-              labelKey: 'gestures.quickSettings',
-              child: _Clock(
+  /// Room for four task icons at the size the strip will draw them, which
+  /// follows the bar's thickness (see `panelIconSize`). A fixed run sized for
+  /// 30dp icons would show two and a half once the icons grew.
+  double _launcherRun(bool stacked) {
+    final thickness = stacked
+        ? _verticalWidth
+        : _horizontalHeight(panel.side == TopBarSide.bottom);
+    return 4 * (panelIconSize(thickness) + panelIconGap);
+  }
+
+  Widget _gnomeModule(
+    PanelModule m,
+    List<PanelModule> stats, {
+    required bool stacked,
+  }) {
+    return switch (m) {
+      PanelModule.activities => (theme?.activitiesPill ?? false) && !stacked
+          ? _WorkspacePill(onTap: onActivities, color: palette.onDark)
+          : _Activities(
+          onTap: onActivities,
+          color: palette.onDark,
+          fontFamily: displayFontFamily,
+          // Glyph only on a vertical panel: the word does not fit in 40dp
+          // and setting it sideways would be the one thing on screen a
+          // person has to tilt their head for.
+          compact: stacked,
+        ),
+      PanelModule.spacer => const Spacer(),
+
+      // The three readouts share one widget and one stats subscription, so
+      // it is drawn at the FIRST of them in the theme's order and skipped
+      // at the others. `stats.first` cannot throw here: reaching this arm
+      // means `m` is one of the three, so `stats` contains at least `m`.
+      PanelModule.network ||
+      PanelModule.memory ||
+      PanelModule.storage =>
+        m == stats.first
+            ? PanelReadouts(
                 palette: palette,
                 fontFamily: displayFontFamily,
                 stacked: stacked,
-              ),
-            ),
-        },
-    ];
+                show: stats,
+              )
+            : const SizedBox.shrink(),
+
+      // ─── EXPLICIT, WHERE A `_` USED TO BE ────────────────────────────
+      //
+      // This arm was `_ =>`, and that catch-all is why growing the enum for
+      // the Plasma panel was safe in the worst sense: five new modules
+      // compiled cleanly and rendered NOTHING here, silently, which is
+      // indistinguishable from the modules being broken.
+      //
+      // `DockSide` states the rule this file was quietly opted out of: an
+      // enum grows, the compiler lists every site that decides, and each
+      // one answers on purpose. Now it does. A sixth module added tomorrow
+      // will not compile until this bar says what it does with it.
+      //
+      // And what it does is nothing, deliberately. This is GNOME's bar. A
+      // task strip on it would be a Windows taskbar, and a kickoff button
+      // would be a start menu. A theme listing them here has authored
+      // something GNOME is not, so the bar declines rather than obliging.
+      // ─── STILL DECLINED, AND FOR THE ORIGINAL REASON ────────────────
+      //
+      // Kickoff is Plasma's start menu and a pager is Plasma's desktop
+      // switcher. Neither belongs on any GNOME-family panel, top edge or
+      // bottom, so these two decline everywhere rather than on an edge
+      // test.
+      PanelModule.kickoff || PanelModule.pager => const SizedBox.shrink(),
+
+      // ─── DECLINED HERE, DRAWN ON XFCE ───────────────────────────────
+      //
+      // `tasks` is the dock in panel form (the dock's own pins and
+      // frecency), which is a taskbar, and a taskbar is not GNOME. An
+      // Xfce-family theme never reaches this arm: [_modules] routes it to
+      // the shared panel widget first. See [theme].
+      PanelModule.tasks => const SizedBox.shrink(),
+
+      // ─── ON ANY EDGE, AND THE MODULE LIST IS THE OPT-IN ─────────────
+      //
+      // These two were refused outright, then refused on the TOP edge
+      // only, and both rules were wrong for the same reason.
+      //
+      // The original argument was duplication: Android's clock sits four
+      // pixels above a top bar. True, and it was decisive while the tray
+      // was decoration. It stopped being decisive when the tray became the
+      // way into Quick Settings, which is a control Android's own status
+      // bar cannot reach.
+      //
+      // The edge rule that replaced it broke Pop!_OS, whose top bar
+      // authors a centred clock and a tray on the right, which is what
+      // GNOME's top bar actually IS. It drew an Activities button, a gap,
+      // a network readout and a second gap, while the pack's feature row
+      // described the bar it was not getting.
+      //
+      // The rule was in the theme all along: a distro that does not want a
+      // clock on its bar DOES NOT AUTHOR ONE. Refusing it for the distros
+      // that do was this file overriding the author. Ubuntu, KDE and every
+      // other pack that never listed these are untouched, because they
+      // never asked.
+      // The widget moved to `features/panel/applets`, unchanged. There
+      // were two trays in the app and the other one was decoration; this
+      // is the one that works, so it is the one both bars now draw.
+      PanelModule.tray => PanelTrayButton(
+          palette: palette,
+          stacked: stacked,
+          compact: systemStatusBar,
+        ),
+      // ─── FOR THE REASON THE CLOCK IS ARGUED ABOUT BELOW ──────────
+      //
+      // A GNOME top bar sits directly under Android's status bar, which
+      // already shows charge and signal. That is this file's own argument
+      // about the clock and it applies here unchanged.
+      //
+      // Plasma's panel is a different case: it is usually at the BOTTOM,
+      // nowhere near the status bar. So the modules exist and this shell
+      // simply does not draw them, which is the difference between a
+      // vocabulary and a mandate.
+      //
+      // App buttons likewise: GNOME puts launchers in the dash, not the
+      // bar.
+      // Volume joins them: it is the third of the readouts `tray` expands
+      // into on a bottom panel, and a GNOME bar that declines the other two
+      // has no reason to keep this one.
+      //
+      // ── AND ALL THREE ARE THE NEXT THING TO CHANGE ──────────────────
+      //
+      // The argument above is about duplication, and this file has already
+      // met its own counter-argument once: the clock and the tray were
+      // refused on an edge test until Pop!_OS proved the module list was
+      // the opt-in all along. The same is true here, and the reason these
+      // still decline is mechanical rather than principled: the chips that
+      // draw them are private to `plasma_shell`, and lifting them out is
+      // the extraction this comment is a marker for, not a line to add
+      // beside a parse change.
+      PanelModule.battery ||
+      PanelModule.wifi ||
+      PanelModule.volume ||
+      PanelModule.title ||
+      PanelModule.workspacesButton ||
+      PanelModule.appsButton ||
+      PanelModule.tiling ||
+      PanelModule.app =>
+        const SizedBox.shrink(),
+      PanelModule.clock => _OpensQuickSettings(
+          labelKey: 'gestures.quickSettings',
+          child: _Clock(
+            palette: palette,
+            fontFamily: displayFontFamily,
+            stacked: stacked,
+          ),
+        ),
+    };
   }
 
   @override
@@ -274,7 +405,7 @@ class GnomeTopBar extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              ..._modules(stacked: true),
+              ..._modules(ref, stacked: true, narrow: false),
             ],
           ),
         ),
@@ -284,8 +415,8 @@ class GnomeTopBar extends ConsumerWidget {
     final atBottom = panel.side == TopBarSide.bottom;
     final inset = atBottom ? insets.bottom : insets.top;
 
-    return SizedBox(
-      height: Ubuntu.topBarHeight + inset,
+    final bar = SizedBox(
+      height: _horizontalHeight(atBottom) + inset,
       // theme-exempt: GNOME shell geometry, shared across the family, not a palette value
       child: Padding(
         padding: EdgeInsets.only(
@@ -296,11 +427,37 @@ class GnomeTopBar extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            ..._modules(stacked: false),
+            ..._modules(ref, stacked: false, narrow: panelIsNarrow(context)),
           ],
         ),
       ),
     );
+
+    // ─── A TASKBAR IS A SOLID STRIP ───────────────────────────────────────
+    //
+    // GNOME's bar is transparent over the wallpaper, and that stays. An Xfce
+    // panel is an opaque strip in the theme's bar colour, the same fill
+    // `PanelBar` gives Plasma, and without it Kali's bottom panel read as icons
+    // floating on the wallpaper.
+    if (!_taskbar) return bar;
+    return ColoredBox(
+      color:
+          palette.bar.withValues(alpha: panelBaseOpacity * theme!.barOpacity),
+      child: bar,
+    );
+  }
+
+  /// The thickness of a horizontal bar, before the system inset.
+  ///
+  /// GNOME's is fixed: its top bar is one height on every GNOME distro. An
+  /// Xfce panel is authored, and the bottom one carries the user's resize from
+  /// the panel editor, which `EffectiveTheme.panelHeight` already merged.
+  double _horizontalHeight(bool atBottom) {
+    if (!_taskbar) return Ubuntu.topBarHeight; // theme-exempt: GNOME geometry
+    final resolved = atBottom ? theme!.panelHeight : null;
+    return resolved ??
+        panel.height ??
+        Ubuntu.topBarHeight; // theme-exempt: floor
   }
 }
 
@@ -349,6 +506,62 @@ class _Activities extends StatelessWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// GNOME 45's Activities button: the workspaces themselves, with no word.
+///
+/// The current workspace is a short pill and every other one a dot, so the
+/// button doubles as a pager readout, which is why GNOME dropped the label.
+/// Reads the same two providers the overview does, so the pill moves the
+/// moment a swipe lands on another workspace.
+///
+/// 44dp tall and padded to at least 48dp wide, because on a phone this is the
+/// one way into Activities that a thumb can see.
+class _WorkspacePill extends ConsumerWidget {
+  const _WorkspacePill({required this.onTap, required this.color});
+
+  final VoidCallback onTap;
+
+  /// On-dark foreground colour, from the theme palette.
+  final Color color;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(workspaceCountProvider);
+    final active = ref.watch(activeWorkspaceProvider);
+
+    return Semantics(
+      button: true,
+      label: context.t('home.activities'),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < count; i++) ...[
+                if (i > 0) const SizedBox(width: 5),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  width: i == active ? 22 : 7,
+                  height: i == active ? 8 : 7,
+                  decoration: BoxDecoration(
+                    color: i == active ? color : color.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

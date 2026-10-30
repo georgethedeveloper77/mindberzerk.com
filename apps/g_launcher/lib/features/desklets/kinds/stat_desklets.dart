@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/prefs/launcher_prefs.dart';
 import '../../../data/repositories/shell_apps.dart';
+import '../../../design/gradient_ring.dart';
 import '../../../design/terminal_tokens.dart' show deviceInfoProvider;
 import '../../../engine/desklet_skin.dart';
 import '../../../engine/effective_theme.dart';
@@ -294,17 +295,20 @@ class FastfetchDesklet extends ConsumerWidget {
     final apps = ref.watch(shellAppsProvider(theme));
     final s = ref.watch(systemStatsProvider).asData?.value;
 
-    return DeskletFrame(
+    final frame = DeskletFrame(
       theme: theme,
       skin: skin,
       body: DeskletBody(
         command: 'fastfetch',
         rows: [
-          const DeskletRow('os', value: 'G Launcher'),
-          // The THEME's name, not a hardcoded string: the terminal shell will
-          // eventually back more than one theme (Kali is a terminal too), and
-          // hardcoding here is how a data-driven layer stops being one.
-          DeskletRow('theme', value: theme.spec.name, accent: true),
+          // ─── THE DISTRO IS THE OS ON THIS DESKTOP ─────────────────────
+          //
+          // Real fastfetch leads with the OS, and on an Arch rice that line
+          // says Arch. The launcher is the window manager here, which is what
+          // it actually is: the thing drawing the desktop. The THEME's name,
+          // never a literal, so every distro prints its own.
+          DeskletRow('os', value: theme.spec.name, accent: true),
+          const DeskletRow('wm', value: 'G Launcher'),
           if (device?.deviceModel != null)
             DeskletRow('device', value: device!.deviceModel!),
           DeskletRow('apps', value: '${apps.length} installed'),
@@ -315,5 +319,73 @@ class FastfetchDesklet extends ConsumerWidget {
         ],
       ),
     );
+
+    // ─── THE LOGO, WHERE THE DISTRO HAS A GRADIENT ──────────────────────
+    //
+    // Real fastfetch puts the logo left of the readout. Only on the terminal
+    // surface, which draws no plate: beside a card the ring would sit outside
+    // the card's edge. And only from half the grid's width, so a
+    // narrow desklet keeps its readout rather than giving half of it to a
+    // picture.
+    //
+    // ─── NO LAYOUTBUILDER, NO EXPANDED ──────────────────────────────────
+    //
+    // The terminal surface is measured UNBOUNDED inside a scale-down
+    // FittedBox (`desklet_surface.dart`), so this row is laid out at its
+    // natural width and then shrunk to the cell. An Expanded there has no
+    // width to fill and the FittedBox was never laid out, which is the
+    // "RenderBox was not laid out" paint crash. The gate is the desklet's
+    // own span instead of a measured width.
+    //
+    // ─── AN ASCII LOGO, WHEN THE PACK SHIPS ONE ─────────────────────────
+    //
+    // fastfetch's own logo is text, and `logo` in the skin carries it: the
+    // pack draws its mark in characters, in the accent, so the desklet prints
+    // what fastfetch prints on that distro without an image or a line of
+    // per-distro Dart. It wins over the gradient ring, which is the fallback
+    // for a distro with a gradient and no drawing.
+    final ascii = skin.text('logo', '');
+    final gradient = theme.spec.accentGradient;
+    if ((ascii.isEmpty && gradient.isEmpty) ||
+        skin.surface != DeskletSurface.terminal ||
+        desklet.spanX < (theme.deskletCols * _logoMinShare).ceil()) {
+      return frame;
+    }
+    final Widget logo = ascii.isNotEmpty
+        ? Text(
+            ascii,
+            softWrap: false,
+            style: TextStyle(
+              fontFamily: theme.typography.mono,
+              fontSize: skin.num_('rowSize', 12.5),
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+              color: theme.palette.accent,
+            ),
+          )
+        : GradientRing(size: _ring, colors: gradient);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          // Below the prompt line, level with the first row, as fastfetch
+          // prints the logo beside the output rather than the command.
+          padding: const EdgeInsets.only(top: 24),
+          child: logo,
+        ),
+        const SizedBox(width: 14),
+        frame,
+      ],
+    );
   }
+
+  /// The share of the desklet grid's width the desklet must span before the
+  /// logo is drawn: half, so a fastfetch window beside another window still
+  /// prints its logo, as fastfetch does in a half-width i3 split. Narrower and
+  /// the logo takes room the rows need; the cell scales the pair down anyway.
+  static const double _logoMinShare = 0.5;
+
+  /// The ring's natural size; the cell's FittedBox scales it with the rows.
+  static const double _ring = 76;
 }

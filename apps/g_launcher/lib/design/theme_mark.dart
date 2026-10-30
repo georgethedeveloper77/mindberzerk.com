@@ -46,6 +46,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -121,8 +122,15 @@ class ThemeMark extends StatelessWidget {
         width: size,
         height: size,
         child: a.isFile
-            ? SvgPicture.file(
-                File(a.path),
+            // ─── BYTES, NOT SvgPicture.file ─────────────────────────────
+            //
+            // `SvgPicture.file` takes flutter_svg's own `File`, picked by a
+            // conditional import, and on some toolchains that resolves to its
+            // no-io stub: dart:io's File then fails to compile against it. A
+            // pack logo is a few KB read once per build of a splash or a bar,
+            // so the bytes go in directly and no File crosses the API.
+            ? SvgPicture.memory(
+                _bytesOf(a.path) ?? Uint8List(0),
                 width: size,
                 height: size,
                 colorFilter: filter,
@@ -158,5 +166,15 @@ class ThemeMark extends StatelessWidget {
       // surface rather than an empty one.
       errorBuilder: (_, __, ___) => fallbackWidget,
     );
+  }
+}
+
+/// A pack file's bytes, or null when it cannot be read. An empty buffer then
+/// fails to decode and lands on the caller's fallback, like a bad file does.
+Uint8List? _bytesOf(String path) {
+  try {
+    return File(path).readAsBytesSync();
+  } on FileSystemException {
+    return null;
   }
 }

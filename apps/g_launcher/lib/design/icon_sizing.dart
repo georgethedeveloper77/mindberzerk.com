@@ -64,6 +64,30 @@ abstract final class IconSizing {
   static double inCell(double cellDp, {double scale = 1.0}) =>
       scaled(baseInCell(cellDp), scale);
 
+  /// A phone home's icon (Pocket), as a share of its grid cell, up to
+  /// [phoneMaxDp].
+  ///
+  /// ─── THE ART FILLS THIS, SO IT IS THE ICON ─────────────────────────────
+  ///
+  /// On a phone home `AppIcon` draws each icon's artwork edge to edge in its
+  /// box (see `iconFillProvider`), so this number is the icon you see, not a
+  /// canvas with margins. An iPhone's icon is about three quarters of its
+  /// column: 60pt in a 393pt screen's 4 columns. The dock asks for the same
+  /// number, so home and dock icons match.
+  static const phoneCellRatio = 0.74;
+  static const phoneMaxDp = 62.0;
+
+  /// The phone icon for a cell [cellDp] wide.
+  static double phoneInCell(double cellDp) {
+    final icon = cellDp * phoneCellRatio;
+    return icon < phoneMaxDp ? icon : phoneMaxDp;
+  }
+
+  /// [phoneInCell] for a home grid [width] wide with [cols] columns, measured
+  /// the way `HomeGrid` lays its cells out (12dp padding, 8dp gaps).
+  static double phoneBoxFor(double width, int cols) =>
+      phoneInCell((width - 24 - (cols - 1) * 8) / cols);
+
   /// Parses and BOUNDS a theme's `layout.iconScale`.
   ///
   /// Clamped on the way in rather than trusted, for the same reason

@@ -1,5 +1,6 @@
 import 'bangs.dart';
 import 'calc.dart';
+import 'search_engines.dart';
 import 'units.dart';
 
 /// One answer the command bar can give besides apps.
@@ -100,9 +101,12 @@ abstract final class CommandRouter {
     return CommandRoute(hits: hits, searchApps: trailing == null);
   }
 
-  /// The web fallback, for the "Search the web" row.
-  static String webSearchUrl(String q) =>
-      'https://www.google.com/search?q=${Uri.encodeQueryComponent(q.trim())}';
+  /// The web fallback, for the "Search the web" row, on the chosen engine.
+  static String webSearchUrl(
+    String q, {
+    SearchEngine engine = SearchEngine.google,
+  }) =>
+      engine.urlFor(q);
 
   /// The Play fallback, for the "Search Play Store" row.
   static String playSearchUrl(String q) =>

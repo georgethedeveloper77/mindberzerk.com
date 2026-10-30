@@ -53,7 +53,8 @@ void main() {
   group('packageOfComponentKey', () {
     test('takes the package half of a component key', () {
       expect(
-        packageOfComponentKey('org.mozilla.firefox/org.mozilla.fenix.HomeActivity'),
+        packageOfComponentKey(
+            'org.mozilla.firefox/org.mozilla.fenix.HomeActivity'),
         'org.mozilla.firefox',
       );
     });

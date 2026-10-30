@@ -24,6 +24,7 @@ import '../features/dock/dock_metrics.dart';
 import '../features/drawer/app_icon.dart';
 import '../features/desklets/desklet_edit.dart';
 import '../features/desklets/desklet_edit_bar.dart';
+import '../features/panel/panel_editor_sheet.dart';
 import '../features/desklets/desklet_surface.dart';
 import '../features/drawer/drawer_state.dart';
 import '../features/drawer/shell_drawer.dart';
@@ -34,8 +35,10 @@ import '../features/dock/favourites_list.dart';
 import '../features/home/gnome/gnome_dock.dart';
 import '../features/home/gnome/gnome_top_bar.dart';
 import '../features/home/workspaces/workspace_controller.dart';
+import '../features/home/workspaces/workspace_overview.dart';
 import '../features/home/workspaces/workspace_dots.dart';
 import '../platform/launcher_api.g.dart';
+import 'safe_page.dart';
 
 /// The Ubuntu 24.04 / any-GNOME desktop. Authentic reading: no app icons on the
 /// desktop — wallpaper, conky, workspace dots, dock. That's the screen.
@@ -66,6 +69,10 @@ class GnomeShell extends ConsumerStatefulWidget {
 }
 
 class _GnomeShellState extends ConsumerState<GnomeShell> {
+  /// Keeps the workspace one subtree across panel and layout changes. See
+  /// the note where it is used.
+  final _workspaceKey = GlobalKey();
+
   late final PageController _pages =
       PageController(initialPage: ref.read(activeWorkspaceProvider));
 
@@ -75,12 +82,28 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     super.dispose();
   }
 
-  void _openActivities() =>
-      // Through [openApps] rather than the flag, so every entry point to the
-      // app list goes through one decision. GNOME is clamped to the overlay in
-      // `LayoutResolver` because it inlines its own pager, so this resolves to
-      // the same write it always made.
-      openApps(ref);
+  /// Activities: GNOME's overview on a distro that authors one, otherwise the
+  /// app list.
+  ///
+  /// The app list goes through [openApps] rather than the flag, so every entry
+  /// point to it shares one decision. GNOME is clamped to the overlay in
+  /// `LayoutResolver` because it inlines its own pager, so that resolves to the
+  /// same write it always made.
+  void _openActivities() {
+    if (widget.theme.overviewGnome) {
+      ref.read(workspaceOverviewProvider.notifier).open();
+      return;
+    }
+    openApps(ref);
+  }
+
+  /// GNOME's touch gesture: a swipe up from the desktop opens Activities.
+  ///
+  /// Only on a horizontal GNOME overview distro. A vertical distro's pager
+  /// owns every vertical drag, and the gesture layer's header explains what a
+  /// second recognizer competing for them does to it.
+  bool _swipeUpOpensOverview(EffectiveTheme theme) =>
+      theme.overviewGnome && theme.workspaceAxis == WorkspaceAxis.horizontal;
 
   Future<void> _launch(AppEntry app) async {
     await ref.read(appListProvider.notifier).launch(app);
@@ -286,8 +309,9 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
     // press, a dot tap, or a gesture can change the workspace — not just a
     // swipe — and the PageView has to track all of them.
     ref.listen<int>(activeWorkspaceProvider, (_, next) {
-      if (!_pages.hasClients) return;
-      if ((_pages.page ?? 0).round() == next) return;
+      // `pageOrNull`, not `hasClients` plus `page`: see `safe_page.dart`.
+      final at = _pages.pageOrNull;
+      if (at == null || at.round() == next) return;
       _pages.animateToPage(
         next,
         duration: const Duration(milliseconds: 280),
@@ -352,9 +376,22 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                   // laid out against.
                   onLongPress: (!theme.panelEdit || editing)
                       ? null
-                      : () {
+                      : () async {
                           HapticFeedback.mediumImpact();
-                          ref.read(deskletEditProvider.notifier).enterPanel();
+                          // The same flow as Plasma's `PanelBar`: the editor
+                          // sheet is the panel editor, and edit mode only marks
+                          // which panel it is about. Entering the mode with no
+                          // sheet left the user in "editing workspace" with an
+                          // Add button that dropped a widget, and no way to
+                          // remove a module.
+                          //
+                          // The notifier is captured before the await: the
+                          // sheet can change the panel's edge, which rebuilds
+                          // this bar into another slot and unmounts `ref`.
+                          final edit = ref.read(deskletEditProvider.notifier);
+                          edit.enterPanel();
+                          await showPanelEditor(context, theme);
+                          edit.exit();
                         },
                   child: GnomeTopBar(
                     palette: theme.palette,
@@ -362,6 +399,8 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                     displayFontFamily: theme.typography.display,
                     panel: p,
                     systemStatusBar: theme.statusBar,
+                    // For the Xfce modules. See [GnomeTopBar.theme].
+                    theme: theme,
                   ),
                 ),
               ),
@@ -402,7 +441,14 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
       // one Column, so the workspace had to claim the leftover height
       // itself; panels take their space in the enclosing Column now.
       Positioned.fill(
-        child: GestureLayer(
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragEnd: _swipeUpOpensOverview(theme)
+              ? (d) {
+                  if ((d.primaryVelocity ?? 0) < -400) _openActivities();
+                }
+              : null,
+          child: GestureLayer(
           theme: theme,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -717,6 +763,7 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
                             {'n': '${i + 1}'},
                           ),
                           accent: theme.palette.accent,
+                          gradient: theme.spec.accentGradient,
                           // Was Ubuntu.dotIdle. An inactive workspace dot
                           // has to read against THIS distro's wallpaper.
                           idle: theme.palette.onDark.withValues(alpha: 0.35),
@@ -870,6 +917,7 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
             },
           ),
         ),
+        ),
       ),
     ];
 
@@ -882,7 +930,19 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
               child: Row(
                 children: [
                   ...panelsOn(TopBarSide.left),
-                  Expanded(child: Stack(children: workspace)),
+                  // ─── KEYED, SO A PANEL MOVING DOES NOT REMOUNT IT ──────
+                  //
+                  // Moving a panel between edges, or a layout preset adding
+                  // or removing one, changes this Column's and this Row's
+                  // child lists. Unkeyed, the workspace was matched by index,
+                  // missed, and REBUILT: the new PageView attached to `_pages`
+                  // before the old one detached, and for that frame the
+                  // controller had two positions. That is the overlap
+                  // `safe_page.dart` was waiting to name. A GlobalKey moves the
+                  // same subtree to its new slot instead.
+                  Expanded(
+                    child: Stack(key: _workspaceKey, children: workspace),
+                  ),
                   ...panelsOn(TopBarSide.right),
                 ],
               ),
@@ -893,7 +953,10 @@ class _GnomeShellState extends ConsumerState<GnomeShell> {
         if (activitiesOpen) Positioned.fill(child: _Activities(theme: theme)),
 
         // Positioned internally, and renders nothing unless edit mode is on.
-        DeskletEditBar(theme: theme),
+        // Not while the PANEL is being edited: its sheet is the editor, and a
+        // workspace bar behind it would offer to add a widget to the desktop.
+        if (!ref.watch(deskletEditProvider).editingPanel)
+          DeskletEditBar(theme: theme),
       ],
     );
 
@@ -960,9 +1023,8 @@ class _WallpaperParallax extends StatelessWidget {
       child: AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
-          final page = controller.hasClients && controller.page != null
-              ? controller.page!
-              : controller.initialPage.toDouble();
+          final page =
+              controller.pageOrNull ?? controller.initialPage.toDouble();
           final t = page / (pageCount - 1);
 
           return DecoratedBox(

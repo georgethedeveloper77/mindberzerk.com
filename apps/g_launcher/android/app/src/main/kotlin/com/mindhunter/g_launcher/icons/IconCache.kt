@@ -268,6 +268,40 @@ class IconCache(
     }
 
     /**
+     * The applied brand pack's drawing for [packageName], bare: no plate, no
+     * mask, white on transparency. Null when the pack has no drawing for it,
+     * no pack is loaded, or its paths will not parse.
+     *
+     * NOT CACHED here. It is one small bitmap per bar, asked for once per
+     * theme, and Dart memoises it under the same style id that keys the grid,
+     * so a pack change re-asks exactly when this answer could change.
+     */
+    fun glyph(
+        packageName: String,
+        sizePx: Int,
+        callback: (ByteArray?) -> Unit,
+    ) {
+        io.execute {
+            val bytes = runCatching {
+                val glyph = brands.resolvePackage(packageName) ?: return@runCatching null
+                val paths = brands.parsePaths(glyph)
+                if (paths.isEmpty()) return@runCatching null
+                val bitmap = renderer.renderGlyph(
+                    paths,
+                    brands.viewBox,
+                    sizePx,
+                    stroked = brands.stroked,
+                    strokeWidth = brands.strokeWidth,
+                )
+                val out = bitmap.toPngBytes()
+                bitmap.recycle()
+                out
+            }.getOrNull()
+            callback(bytes)
+        }
+    }
+
+    /**
      * The GENERATOR TIER ON ITS OWN: each app's own artwork, remasked into the
      * current style's shape, with no pack consulted at any level.
      *

@@ -593,6 +593,33 @@ Future<void> confirmReset(
   if (ok == true) notifier.resetEverything();
 }
 
+/// Put the distro's own desktop back: its desklets, laid out as the pack
+/// authors them today.
+///
+/// What a buyer asks for after an update changes the starter and their
+/// desktop, having been arranged, kept the old one. Icons, folders, dock and
+/// every setting are untouched; only the desklets are replaced.
+Future<void> confirmRestoreDesktop(
+  BuildContext context,
+  PrefsNotifier notifier,
+  EffectiveTheme theme,
+) async {
+  final ok = await ThemedDialog.confirm(
+    context,
+    title: context.t('settings.restoreDesktop', {'name': theme.spec.name}),
+    message: context.t('settings.restoreDesktopBody', {
+      'name': theme.spec.name,
+    }),
+    confirmLabel: context.t('settings.restore'),
+    cancelLabel: context.t('common.cancel'),
+  );
+  if (ok == true) {
+    notifier.edit(
+      (p) => p.copyWith(desklets: const [], deskletsInitialized: false),
+    );
+  }
+}
+
 /// Asked before an update restart, never after.
 ///
 /// ─── WHY IT LIVES HERE AND NOT AT EITHER CALL SITE ──────────────────────────

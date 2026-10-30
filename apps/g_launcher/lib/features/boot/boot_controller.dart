@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/boot_spec.dart';
+import '../../engine/effective_theme.dart';
 import '../../engine/splash_spec.dart';
 
 /// Whether the fake-boot overlay is currently on screen, and what it is playing.
@@ -82,6 +83,21 @@ class BootController extends Notifier<BootState> {
       // straight on the prompt rather than flashing an empty overlay.
       queued: splash.style == SplashStyle.none ? null : splash,
     );
+  }
+
+  /// The ordinary boot for [t]: its log when Verbose boot is on (or
+  /// [verbose] forces it, from GRUB's Advanced options), else its splash.
+  ///
+  /// The theme's own block wins over the shell-family default in both cases.
+  /// A `none` splash (the terminal theme) plays nothing, so it comes up
+  /// straight into its prompt.
+  void playFor(EffectiveTheme t, {bool? verbose}) {
+    final useLog = verbose ?? (t.prefs.verboseBoot == true);
+    if (useLog) {
+      play(t.spec.boot ?? BootSpec.defaultForShell(t.shell));
+    } else {
+      playSplash(t.spec.splash ?? SplashSpec.defaultForShell(t.shell));
+    }
   }
 
   /// The renderer calls this on completion or on tap-to-skip.

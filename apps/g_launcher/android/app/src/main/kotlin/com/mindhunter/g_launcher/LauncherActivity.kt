@@ -48,7 +48,28 @@ class LauncherActivity : FlutterActivity() {
      */
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
+    /** See [LauncherApplication.installComplete]. */
+    private val installComplete
+        get() = (application as LauncherApplication).installComplete
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ─── AN INCOMPLETE INSTALL GOES SOMEWHERE USEFUL ────────────────────
+        //
+        // With no Flutter library the Application built no engine, and
+        // FlutterActivity's own onCreate throws looking for it. That throw comes
+        // AFTER Activity.onCreate has run inside super, so catching it here is
+        // safe, and the user gets a screen that explains the fix instead of
+        // "G Launcher keeps stopping" on every press of home.
+        if (!installComplete) {
+            try {
+                super.onCreate(savedInstanceState)
+            } catch (_: IllegalStateException) {
+                // No cached engine: expected on this path.
+            }
+            startActivity(Intent(this, BrokenInstallActivity::class.java))
+            finish()
+            return
+        }
         super.onCreate(savedInstanceState)
 
         // Draw behind the status and nav bars. A desktop shell paints its own
@@ -104,6 +125,9 @@ class LauncherActivity : FlutterActivity() {
         // puts Flutter on a FlutterTextureView, which composites in the view
         // hierarchy. Same mechanism that lets the wallpaper through.
         WidgetStage.attach(this, widgetHost)
+
+        // Back belongs to Dart from the first frame. See [setFrameworkHandlesBack].
+        setFrameworkHandlesBack(true)
     }
 
     /**
@@ -112,16 +136,34 @@ class LauncherActivity : FlutterActivity() {
      * widgets, which is the whole reason AppWidgetHost has this pair.
      */
     override fun onStart() {
+        if (!installComplete) {
+            super.onStart()
+            return
+        }
         super.onStart()
         widgetHost.startListening()
     }
 
     override fun onStop() {
+        if (!installComplete) {
+            super.onStop()
+            return
+        }
         widgetHost.stopListening()
         super.onStop()
     }
 
     override fun onDestroy() {
+        if (!installComplete) {
+            // FlutterActivity calls Activity.onDestroy first and only then
+            // detaches a delegate that never attached; the detach is what can
+            // throw, and by then the framework has seen its super call.
+            try {
+                super.onDestroy()
+            } catch (_: RuntimeException) {
+            }
+            return
+        }
         // `this`, not a bare call. On a configuration change the replacement
         // Activity's onCreate has ALREADY run, so an unconditional detach here
         // tore down the stage it had just built and every hosted widget
@@ -266,6 +308,40 @@ class LauncherActivity : FlutterActivity() {
     // embedding. Overriding here only intercepted the first of the two, which
     // is worse than not overriding: it would have looked like the single place
     // back is handled while being dead code on every modern device.
+
+    /**
+     * ALWAYS true. Back on a launcher is never the system's to handle.
+     *
+     * ─── THE BUG THIS CLOSES ────────────────────────────────────────────────
+     *
+     * With `enableOnBackInvokedCallback`, FlutterActivity only registers its
+     * back callback while the framework says it wants back, and it learns that
+     * from route changes. This activity attaches to a CACHED engine that has
+     * been running since the process started, so a new or recreated activity
+     * can come up having missed that message, with no callback registered. The
+     * system then handles back itself, and for an activity its handling is
+     * `finish()`: the launcher closed, Android restarted it, and the log said
+     * `onStop called after detach` on the way out. It looked like back being
+     * broken "throughout the app" because any screen could be the one where the
+     * registration had lapsed.
+     *
+     * Forcing true keeps the callback registered for the life of the activity,
+     * so every back reaches Dart's navigator: a pushed screen pops, and on the
+     * home the one PopScope in `home_screen.dart` decides. The comment on BACK
+     * above still holds: nothing here swallows back, it only stops the system
+     * from taking it.
+     */
+    override fun setFrameworkHandlesBack(frameworkHandlesBack: Boolean) {
+        super.setFrameworkHandlesBack(true)
+    }
+
+    /**
+     * Dart asked to leave the root. A home screen has nothing under it, so the
+     * answer is to stay. Returning true says "handled", which stops the
+     * embedding from calling `finish()`; returning false is what used to close
+     * the launcher on a back press that reached an empty navigator.
+     */
+    override fun popSystemNavigator(): Boolean = true
 
     /**
      * THE line that lets the system wallpaper show through.

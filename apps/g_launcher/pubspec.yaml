@@ -4,7 +4,7 @@ publish_to: "none"
 
 # versionCode MUST exceed whatever is live on Play right now. Check the console.
 # Live is 1; 2 is burned on a rejected release. Hence +6.
-version: 6.0.1+27
+version: 6.0.15+42
 
 # Pub workspace member. Without this the root `workspace:` list rejects it and
 # melos bootstrap fails with a message about resolution mode.
@@ -65,6 +65,8 @@ dependencies:
     sdk: flutter
   fl_chart: ^1.2.0
   path_provider: ^2.1.6
+  # The rice QR. Pure Dart, draws with CustomPaint, no platform code.
+  qr_flutter: ^4.1.0
   # ─── PINNED TO A PRERELEASE, DELIBERATELY, AND HERE IS WHY ────────────────
   #
   # EVERY `*_plus` package pins `win32 ^6`, and this app depends on three of

@@ -6,6 +6,7 @@ import '../data/repositories/app_repository.dart';
 import '../data/repositories/shell_apps.dart';
 import '../design/terminal_tokens.dart';
 import '../engine/effective_theme.dart';
+import '../features/command/command_rows.dart';
 import '../features/desklets/desklet_surface.dart';
 import '../features/desklets/terminal_commands.dart';
 import '../features/desklets/terminal_matches.dart';
@@ -100,11 +101,28 @@ class _TuiShellState extends ConsumerState<TuiShell> {
       return;
     }
 
-    if (launchTopMatch(ref, widget.theme)) {
-      _controller.clear();
-    }
+    // Then a sum, a conversion or a bang, when it should win (an explicit
+    // mode, or no app matched); otherwise the top app.
+    submitPaletteQuery(
+      context,
+      ref,
+      query: query,
+      hasApps: ref.read(paletteResultsProvider(widget.theme)).isNotEmpty,
+      fillQuery: _fill,
+      launchTopApp: () => launchTopMatch(ref, widget.theme),
+    ).then((ran) {
+      if (ran && mounted) _controller.clear();
+    });
     // No toast on an empty match list. Someone mid-typo does not need to be told
     // they are mid-typo.
+  }
+
+  void _fill(String v) {
+    _controller.value = TextEditingValue(
+      text: v,
+      selection: TextSelection.collapsed(offset: v.length),
+    );
+    ref.read(paletteQueryProvider.notifier).state = v;
   }
 
   void _clear() {
@@ -176,6 +194,23 @@ class _TuiShellState extends ConsumerState<TuiShell> {
 
                       // Builtins first, the way a shell resolves them.
                       TerminalMatches(theme: widget.theme, query: query),
+                      // `=`, `:` and `!` answers, in the terminal's green.
+                      // Not when a builtin owns the line: `ls` is a command,
+                      // not a web search for "ls".
+                      if (!commandWins)
+                        PaletteCommandBlock(
+                          query: query,
+                          hasApps: results.isNotEmpty,
+                          style: const CommandRowStyle(
+                            text: Term.green,
+                            muted: Term.muted,
+                            accent: Term.amber,
+                            fontFamily: Term.mono,
+                            monoFamily: Term.mono,
+                          ),
+                          onClose: () {},
+                          fillQuery: _fill,
+                        ),
                       _Matches(results: results, demoted: commandWins),
 
                       const SizedBox(height: 16),

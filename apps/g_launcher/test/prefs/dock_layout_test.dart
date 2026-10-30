@@ -17,7 +17,8 @@ void main() {
       expect(identical(p, after), isTrue);
     });
 
-    test('pin over capacity is refused, identically — caller can detect and say "full"',
+    test(
+        'pin over capacity is refused, identically — caller can detect and say "full"',
         () {
       const p = LauncherPrefs(favourites: ['a', 'b', 'c']);
       final after = HomeLayout.pinToDock(p, 'd', capacity: 3);
@@ -74,7 +75,8 @@ void main() {
       );
     });
 
-    test('unpinning the last app returns to frequent, so the dock is never empty',
+    test(
+        'unpinning the last app returns to frequent, so the dock is never empty',
         () {
       var p = const LauncherPrefs(favourites: ['mine']);
       p = HomeLayout.unpinFromDock(p, 'mine');
@@ -112,7 +114,8 @@ void main() {
       expect(p.clearing(dockGridButton: true).dockGridButton, isNull);
     });
 
-    test('prune cleans favourites of uninstalled apps (pre-existing behaviour, still true)',
+    test(
+        'prune cleans favourites of uninstalled apps (pre-existing behaviour, still true)',
         () {
       const p = LauncherPrefs(favourites: ['live', 'dead']);
       final pruned = HomeLayout.prune(p, {'live'});

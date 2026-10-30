@@ -7,7 +7,10 @@ import 'package:g_launcher/features/terminal/term_path.dart';
 /// and fails on device, the bug is in the adapter, which is exactly the split
 /// the seam exists to give.
 class FakeNode {
-  FakeNode.dir() : isDirectory = true, size = 0, lines = null;
+  FakeNode.dir()
+      : isDirectory = true,
+        size = 0,
+        lines = null;
   FakeNode.file(this.size, {this.lines}) : isDirectory = false;
 
   final bool isDirectory;
@@ -72,26 +75,26 @@ class FakeHost extends TermHost {
   Future<List<TermApp>> apps() async => manyApps ?? _apps;
 
   static const List<TermApp> _apps = <TermApp>[
-        TermApp(
-          slug: 'firefox',
-          label: 'Firefox',
-          packageName: 'org.mozilla.firefox',
-          sizeBytes: 62400000,
-          targetSdk: 34,
-        ),
-        TermApp(
-          slug: 'signal',
-          label: 'Signal',
-          packageName: 'org.thoughtcrime.securesms',
-          sizeBytes: 118200000,
-        ),
-        TermApp(
-          slug: 'settings',
-          label: 'Settings',
-          packageName: 'com.android.settings',
-          system: true,
-        ),
-      ];
+    TermApp(
+      slug: 'firefox',
+      label: 'Firefox',
+      packageName: 'org.mozilla.firefox',
+      sizeBytes: 62400000,
+      targetSdk: 34,
+    ),
+    TermApp(
+      slug: 'signal',
+      label: 'Signal',
+      packageName: 'org.thoughtcrime.securesms',
+      sizeBytes: 118200000,
+    ),
+    TermApp(
+      slug: 'settings',
+      label: 'Settings',
+      packageName: 'com.android.settings',
+      system: true,
+    ),
+  ];
 
   @override
   Future<void> launchApp(TermApp app) async => launched.add(app.packageName);
@@ -186,8 +189,7 @@ class FakeHost extends TermHost {
       const TermOutcome.ok();
 
   @override
-  Future<TermOutcome> openFile(TermPath path) async =>
-      const TermOutcome.ok();
+  Future<TermOutcome> openFile(TermPath path) async => const TermOutcome.ok();
 
   @override
   Future<TermStorage?> storage() async =>
@@ -232,7 +234,8 @@ class FakeHost extends TermHost {
   @override
   Future<TermOutcome> setTorch({required bool on}) async {
     if (unwiredNames.contains('torch')) {
-      return const TermOutcome.failed('the torch is not available in this build');
+      return const TermOutcome.failed(
+          'the torch is not available in this build');
     }
     torchOn = on;
     return const TermOutcome.ok();
@@ -257,7 +260,8 @@ class FakeHost extends TermHost {
   @override
   Future<TermOutcome> openLauncherPage(TermLauncherPage page) async {
     if (!hasNavigator) {
-      return const TermOutcome.failed('this terminal has no navigator attached');
+      return const TermOutcome.failed(
+          'this terminal has no navigator attached');
     }
     final String? refusal = pageRefusal;
     if (refusal != null) return TermOutcome.failed(refusal);

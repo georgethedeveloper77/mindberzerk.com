@@ -1,25 +1,17 @@
 {
-  "id": "linux-mint-22",
+  "id": "linux-mint-22-theme",
   "name": "Linux Mint",
-  "version": "22",
-  "shell": "gnome",
-  "tier": "free",
-  "chromeFamily": "generic",
+  "version": "1",
+  "shell": "plasma",
+  "tier": "pro",
+  "chromeFamily": "adwaita",
   "palette": {
-    "bgTop": "#2F3436",
-    "bgBottom": "#1E2224",
-    "bar": "#191C1D",
-    "dock": "#CC191C1D",
-    "accent": "#8FB33B",
+    "bgTop": "#2C3B30",
+    "bgBottom": "#1A241D",
+    "bar": "#1E1E1E",
+    "dock": "#CC1E1E1E",
+    "accent": "#87CF3E",
     "onDark": "#FFFFFF"
-  },
-  "paletteLight": {
-    "bgTop": "#F4F4F2",
-    "bgBottom": "#FFFFFF",
-    "bar": "#E8E8E6",
-    "dock": "#CCE8E8E6",
-    "accent": "#5E8C1E",
-    "onDark": "#1E2224"
   },
   "typography": {
     "display": "Ubuntu",
@@ -28,17 +20,395 @@
   "layout": {
     "dock": "off",
     "topBar": true,
-    "topBarSide": "bottom",
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "kickoff",
+          "tasks",
+          "spacer",
+          "tray",
+          "clock"
+        ],
+        "height": 48
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
-    }
+    },
+    "iconScale": 1,
+    "appDrawer": "cinnamon",
+    "workspaces": 2
   },
+  "categories": [
+    {
+      "name": "Accessories",
+      "feeds": [
+        "Utilities"
+      ],
+      "glyph": "tools"
+    },
+    {
+      "name": "Games",
+      "feeds": [
+        "Games"
+      ],
+      "glyph": "game"
+    },
+    {
+      "name": "Internet",
+      "feeds": [
+        "Social",
+        "News",
+        "Travel"
+      ],
+      "glyph": "globe"
+    },
+    {
+      "name": "Office",
+      "feeds": [
+        "Productivity"
+      ],
+      "glyph": "document"
+    },
+    {
+      "name": "Sound and Video",
+      "feeds": [
+        "Media"
+      ],
+      "glyph": "music"
+    }
+  ],
+  "accents": [
+    {
+      "id": "green",
+      "name": "Green",
+      "value": "#87CF3E"
+    },
+    {
+      "id": "teal",
+      "name": "Teal",
+      "value": "#4DBBA6"
+    },
+    {
+      "id": "blue",
+      "name": "Blue",
+      "value": "#5294E2"
+    },
+    {
+      "id": "purple",
+      "name": "Purple",
+      "value": "#8E77C4"
+    },
+    {
+      "id": "pink",
+      "name": "Pink",
+      "value": "#D2649A"
+    },
+    {
+      "id": "red",
+      "name": "Red",
+      "value": "#D65B5B"
+    },
+    {
+      "id": "orange",
+      "name": "Orange",
+      "value": "#E68C3F"
+    },
+    {
+      "id": "sand",
+      "name": "Sand",
+      "value": "#C7B26B"
+    },
+    {
+      "id": "brown",
+      "name": "Brown",
+      "value": "#9C7B5A"
+    },
+    {
+      "id": "grey",
+      "name": "Grey",
+      "value": "#8A9AA0"
+    }
+  ],
+  "layouts": [
+    {
+      "id": "cinnamon",
+      "name": "Cinnamon",
+      "summary": "Mint's own, one bottom panel",
+      "default": true
+    },
+    {
+      "id": "mate",
+      "name": "MATE",
+      "summary": "Two panels, top and bottom",
+      "layout": {
+        "panels": [
+          {
+            "side": "top",
+            "modules": [
+              "kickoff",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 40
+          },
+          {
+            "side": "bottom",
+            "modules": [
+              "tasks"
+            ],
+            "height": 48
+          }
+        ]
+      }
+    },
+    {
+      "id": "xfce",
+      "name": "Xfce",
+      "summary": "One panel across the top",
+      "layout": {
+        "panels": [
+          {
+            "side": "top",
+            "modules": [
+              "kickoff",
+              "tasks",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 48
+          }
+        ]
+      }
+    }
+  ],
+  "categoryFallback": "Other",
   "icons": {
     "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+    "cornerRadius": 0.14,
+    "foregroundScale": 1,
+    "brandPack": "linux-mint-22-line"
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "4.webp",
+    "1.webp",
+    "2.webp",
+    "3.webp"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "Linux Mint 22 Cinnamon"
+      },
+      {
+        "kind": "dim",
+        "text": "Advanced options for Linux Mint 22"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Show Plymouth Boot Screen."
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Disk Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Network Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started Update Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Started LightDM Display Manager."
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface."
+      },
+      {
+        "kind": "dim",
+        "text": "Starting Cinnamon session"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1400
+  },
+  "terminal": {
+    "appLabel": "Terminal",
+    "palette": {
+      "bg": "#2B2B2B",
+      "fg": "#DADADA",
+      "cursor": "#87CF3E",
+      "selection": "#5587CF3E",
+      "ansi": [
+        "#2E3436",
+        "#CC0000",
+        "#4E9A06",
+        "#C4A000",
+        "#3465A4",
+        "#75507B",
+        "#06989A",
+        "#D3D7CF",
+        "#555753",
+        "#EF2929",
+        "#8AE234",
+        "#FCE94F",
+        "#729FCF",
+        "#AD7FA8",
+        "#34E2E2",
+        "#EEEEEC"
+      ]
+    },
+    "prompt": "\u001b[01;32m{user}@mint\u001b[00m:\u001b[01;34m{cwd}\u001b[00m$ "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "notes",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "clock",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 3
+      },
+      {
+        "kind": "notes",
+        "page": 0,
+        "col": 0,
+        "row": 3,
+        "spanX": 4,
+        "spanY": 4
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 4,
+        "row": 3,
+        "spanX": 4,
+        "spanY": 4
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": false,
+        "timeSize": 56,
+        "timeWeight": 500,
+        "dateSize": 14,
+        "showDate": true
+      },
+      "notes": {
+        "surface": "card",
+        "font": "display",
+        "accent": false
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  },
+  "surfaces": {
+    "opacity": 0.9,
+    "blur": 12,
+    "tint": 0.55,
+    "radius": 6
+  },
+  "minAppVersion": 29,
+  "features": [
+    {
+      "title": "The Cinnamon menu",
+      "body": "Favourites, categories and apps in three columns at once, with search at the foot beside the session buttons.",
+      "exclusive": true
+    },
+    {
+      "title": "Ten accents",
+      "body": "The Mint-Y set, from green through teal to sand. Tap the one you are on to go back to green.",
+      "exclusive": false
+    },
+    {
+      "title": "A note on the desktop",
+      "body": "Mint ships Sticky Notes, so this ships a note beside the system card, under the clock. Tap it and write.",
+      "exclusive": false
+    },
+    {
+      "title": "Three editions",
+      "body": "Cinnamon, MATE and Xfce, the three Mint actually ships. Switch from Appearance or from quick settings.",
+      "exclusive": true
+    },
+    {
+      "title": "Panel edit mode",
+      "body": "Hold the panel and the editor opens on the opposite edge. Add or remove any module, drag to reorder, set the thickness, move it to any side.",
+      "exclusive": true
+    },
+    {
+      "title": "Plymouth to Cinnamon",
+      "body": "Thirteen lines from GRUB through Update Manager and into the session.",
+      "exclusive": true
+    },
+    {
+      "title": "A clock you can read across the room",
+      "body": "A full-width clock across the top of the desktop, with the rest on quiet cards.",
+      "exclusive": false
+    }
+  ]
 }

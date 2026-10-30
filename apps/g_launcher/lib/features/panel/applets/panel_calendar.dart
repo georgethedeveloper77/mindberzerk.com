@@ -37,6 +37,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 import '../../../data/repositories/app_repository.dart';
 import '../../../design/components/components.dart';
 import '../../../system/system_stats.dart';
+import 'clock_panel_sections.dart';
 import 'panel_applet_menu.dart';
 
 const _dateSettings = 'android.settings.DATE_SETTINGS';
@@ -50,6 +51,23 @@ void showCalendarMenu(BuildContext context, WidgetRef ref) {
     // popover that is always read, so it carries the thing being looked at.
     title: MaterialLocalizations.of(context).formatMonthYear(now),
     rows: (menu) => [
+      // Media, G VPN and notification counts above the month, the order GNOME
+      // and Plasma use: what is happening now, then the date.
+      Builder(
+        builder: (inner) {
+          final c = ChromeScope.of(inner).colors;
+          return ClockPanelSections(
+            style: ClockPanelStyle(
+              text: c.text,
+              muted: c.textMuted,
+              accent: c.accent,
+              surface: c.surfaceAlt,
+              fontFamily: ChromeScope.of(inner).text.body.fontFamily,
+            ),
+            onLeave: () => Navigator.pop(menu),
+          );
+        },
+      ),
       _MonthGrid(month: now),
       // Android's own, because there is no date page in this app and no reason
       // to build one: the launcher does not set the clock.

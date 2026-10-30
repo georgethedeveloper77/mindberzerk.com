@@ -115,6 +115,18 @@ class IconRenderer {
          * are the same optical size in the same grid.
          */
         const val BRAND_GLYPH_RATIO = 0.58f
+
+        /**
+         * Thinnest line [renderGlyph] draws, as a share of the canvas. 1/12 is
+         * a Material icon's 2-unit stroke on its 24-unit grid.
+         */
+        const val GLYPH_MIN_STROKE = 1f / 12f
+
+        /** A Clear plate when the theme names no colour: white at ~20%. */
+        const val GLASS_PLATE = 0x33FFFFFF
+
+        /** The glass rim's width, as a share of the icon. */
+        const val GLASS_RIM = 0.022f
     }
 
     // NO MUTABLE FIELDS ON THIS CLASS. One IconRenderer instance is shared by
@@ -199,6 +211,19 @@ class IconRenderer {
         // express something the pack already states about itself.
         val brandColour = glyph.color
         val glyphColor = when {
+            // ─── GLASS COMES FIRST AND KEEPS ITS ALPHA ──────────────────────
+            //
+            // Every other branch either paints an opaque plate or blends one
+            // toward black for contrast, and both would turn a pane into a
+            // tile. Glass paints the theme's colour exactly as authored, alpha
+            // and all, onto the transparent bitmap, so the wallpaper shows
+            // through the icon the way it does on iOS. The rim is drawn after
+            // the glyph, below, so it sits on top like an edge.
+            style.brandTreatment == BrandTreatment.GLASS -> {
+                canvas.drawColor(style.backgroundColor ?: GLASS_PLATE)
+                style.monochromeTint ?: Color.WHITE
+            }
+
             stroked || brandColour == null || style.brandTreatment == BrandTreatment.THEME_PLATE -> {
                 // Theme's own plate, themed glyph. When the theme sets no
                 // background there is nothing to sit on, so fall back to the
@@ -318,6 +343,88 @@ class IconRenderer {
         }
 
         canvas.restore()
+        if (style.brandTreatment == BrandTreatment.GLASS &&
+            style.treatment != IconTreatment.ORIGINAL
+        ) {
+            drawGlassRim(canvas, style, sizePx)
+        }
+        return bitmap
+    }
+
+    /**
+     * The edge of a glass icon: a hairline round the shape, brighter along the
+     * top where light would catch it. Inset by half its width so the mask does
+     * not shave the outer half off.
+     */
+    private fun drawGlassRim(canvas: Canvas, style: IconStyle, sizePx: Int) {
+        val s = sizePx.toFloat()
+        val width = maxOf(1f, s * GLASS_RIM)
+        val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.style = Paint.Style.STROKE
+            strokeWidth = width
+            shader = LinearGradient(
+                0f, 0f, 0f, s,
+                intArrayOf(0x99FFFFFF.toInt(), 0x33FFFFFF, 0x55FFFFFF),
+                floatArrayOf(0f, 0.55f, 1f),
+                Shader.TileMode.CLAMP,
+            )
+        }
+        val path = maskPath(style, sizePx)
+        val inset = Matrix().apply {
+            val k = (s - width) / s
+            setScale(k, k, s / 2f, s / 2f)
+        }
+        canvas.drawPath(Path(path).apply { transform(inset) }, rim)
+    }
+
+    /**
+     * A brand glyph with NO TILE: just the drawing, in white, on transparency.
+     *
+     * For chrome rather than the grid. A panel's quick-settings button wears the
+     * distro pack's own Settings drawing, and drawn through [renderBrand] it
+     * would arrive on its plate and read as a small app icon sitting in the bar.
+     * Here there is no mask, no plate and no keyline inset, so the drawing
+     * fills the canvas the way a bar glyph does.
+     *
+     * WHITE, because the caller tints. Dart colours the bitmap with `srcIn`, so
+     * the button can swap ink when Quick Settings opens without a second round
+     * trip, and one bitmap serves every palette.
+     *
+     * ─── THE LINE IS THICKENED, ON PURPOSE ──────────────────────────────────
+     *
+     * A line pack's stroke is sized for a 48-unit drawing shown at app-icon
+     * size. Shrunk to a 20dp bar glyph through the same scale it becomes a
+     * hairline under half a dp, which on a phone is no line at all. So the
+     * stroke is floored at [GLYPH_MIN_STROKE] of the canvas, the weight of a
+     * Material icon at the same size, which is what it sits beside in the bar.
+     */
+    fun renderGlyph(
+        paths: List<Path>,
+        viewBox: Float,
+        sizePx: Int,
+        stroked: Boolean,
+        strokeWidth: Float,
+    ): Bitmap {
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val s = sizePx.toFloat()
+        val scale = s / viewBox
+        val matrix = Matrix().apply { setScale(scale, scale) }
+        // Read out before `apply`, where the bare name would mean Paint's own.
+        val line = maxOf(strokeWidth * scale, s * GLYPH_MIN_STROKE)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = if (stroked) Paint.Style.STROKE else Paint.Style.FILL
+            if (stroked) {
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+                this.strokeWidth = line
+            }
+        }
+        for (p in paths) {
+            canvas.drawPath(Path(p).apply { transform(matrix) }, paint)
+        }
         return bitmap
     }
 

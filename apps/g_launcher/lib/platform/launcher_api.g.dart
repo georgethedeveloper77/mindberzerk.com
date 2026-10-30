@@ -1527,6 +1527,36 @@ class LauncherHostApi {
     return (pigeonVar_replyValue! as List<Object?>).cast<Uint8List?>();
   }
 
+  /// PNG bytes for the applied brand pack's drawing of [packageName] with no
+  /// tile: white on transparency, for the caller to tint. Null when the pack
+  /// has no drawing for that package.
+  ///
+  /// For chrome, not the grid. The panel's quick-settings button wears the
+  /// distro pack's own Settings drawing, and through [getIcon] it would arrive
+  /// on its plate and read as a small app icon sitting in the bar.
+  ///
+  /// A package name rather than a component key, because chrome has no
+  /// launcher entry in hand, and a brand glyph names the package anyway.
+  Future<Uint8List?> getBareGlyph(String packageName, int sizePx) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.getBareGlyph$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[packageName, sizePx]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as Uint8List?;
+  }
+
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   Future<void> clearIconCache() async {
     final pigeonVar_channelName =
@@ -2454,6 +2484,27 @@ class LauncherHostApi {
     return pigeonVar_replyValue! as int;
   }
 
+  /// The package that handles one of the dock's seed roles, or null.
+  Future<String?> defaultAppFor(String role) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.defaultAppFor$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[role]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as String?;
+  }
+
   /// Open Android's folder picker and remember what the user chose.
   ///
   /// Returns the folder's display name, or null when they backed out or no
@@ -2846,6 +2897,28 @@ class LauncherHostApi {
       isNullValid: false,
     );
     return pigeonVar_replyValue! as String;
+  }
+
+  /// Hand [text] to Android's share sheet (a rice code, for now). False when
+  /// there is no window to open it from or nothing can receive text.
+  Future<bool> shareText(String text) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.g_launcher.LauncherHostApi.shareText$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[text]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as bool;
   }
 }
 

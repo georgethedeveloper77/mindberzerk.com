@@ -27,8 +27,7 @@ void main() {
 
     test('same type, same fingerprint is trusted', () {
       expect(
-        verdictFor(_pin(),
-            keyType: 'ssh-ed25519', fingerprint: 'SHA256:AAAA'),
+        verdictFor(_pin(), keyType: 'ssh-ed25519', fingerprint: 'SHA256:AAAA'),
         HostKeyVerdict.trusted,
       );
     });
@@ -37,8 +36,7 @@ void main() {
       // The dangerous one. Rebuilt server or impersonation, and from the
       // client's position those are indistinguishable.
       expect(
-        verdictFor(_pin(),
-            keyType: 'ssh-ed25519', fingerprint: 'SHA256:BBBB'),
+        verdictFor(_pin(), keyType: 'ssh-ed25519', fingerprint: 'SHA256:BBBB'),
         HostKeyVerdict.mismatch,
       );
     });

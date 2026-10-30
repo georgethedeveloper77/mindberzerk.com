@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../engine/desklet_skin.dart';
 import 'desklet_layout.dart';
 import 'launcher_prefs.dart';
@@ -96,5 +98,60 @@ class StarterDesktop {
             );
     }
     return out;
+  }
+
+  // ─── SIGNATURES FOR A PACK UPDATE ─────────────────────────────────────────
+  //
+  // Two short, stable strings stored in `LauncherPrefs.deskletSeedMark`: what
+  // the distro's starter was, and what it laid down. FNV-1a over a canonical
+  // text form rather than `hashCode`, which Dart does not promise to keep
+  // between runs or versions; a mark that changed on its own would re-seed a
+  // desktop the user had arranged.
+
+  /// The starter as authored, against the grid it is placed on.
+  static String starterSignature(
+    DeskletThemeBlock block, {
+    required int cols,
+    required int rows,
+  }) =>
+      _fnv([
+        '$cols x $rows',
+        for (final s in block.starter)
+          '${s.kind},${s.page},${s.col},${s.row},${s.spanX},${s.spanY},'
+              '${jsonEncode(s.config)}',
+      ].join(';'));
+
+  /// Where the desklets on this phone are. Order-free, so a re-save that
+  /// reorders the list is not mistaken for the user moving something.
+  static String placementSignature(List<Desklet> desklets) {
+    final rows = [
+      for (final d in desklets)
+        '${d.kind},${d.page},${d.col},${d.row},${d.spanX},${d.spanY},'
+            '${jsonEncode(d.config)}',
+    ]..sort();
+    return _fnv(rows.join(';'));
+  }
+
+  /// The mark stored after seeding: both signatures, one string.
+  static String seedMark(String starter, List<Desklet> placed) =>
+      '$starter|${placementSignature(placed)}';
+
+  /// Whether a new starter should replace this desktop: the pack's starter
+  /// changed since it was seeded, and the user has not touched what it placed.
+  static bool shouldReseed(String? mark, String starter, List<Desklet> now) {
+    if (mark == null) return false;
+    final at = mark.indexOf('|');
+    if (at < 0) return false;
+    return mark.substring(0, at) != starter &&
+        mark.substring(at + 1) == placementSignature(now);
+  }
+
+  static String _fnv(String text) {
+    var h = 0x811c9dc5;
+    for (final unit in utf8.encode(text)) {
+      h ^= unit;
+      h = (h * 0x01000193) & 0xffffffff;
+    }
+    return h.toRadixString(16).padLeft(8, '0');
   }
 }

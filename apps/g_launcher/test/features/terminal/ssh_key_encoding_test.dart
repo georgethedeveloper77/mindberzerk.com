@@ -115,7 +115,8 @@ void main() {
       );
     });
 
-    test('an empty comment is omitted rather than leaving a trailing space', () {
+    test('an empty comment is omitted rather than leaving a trailing space',
+        () {
       expect(openSshPublicKeyLine(x: x, y: y).endsWith('='), isTrue);
       expect(openSshPublicKeyLine(x: x, y: y, comment: '   ').split(' ').length,
           2);
@@ -182,7 +183,8 @@ void main() {
 
       // Then a string wrapping BOTH mpints. The inner wrapper is the part
       // that is easy to miss, and omitting it is rejected with no explanation.
-      final innerLen = (sig[23] << 24) | (sig[24] << 16) | (sig[25] << 8) | sig[26];
+      final innerLen =
+          (sig[23] << 24) | (sig[24] << 16) | (sig[25] << 8) | sig[26];
       expect(innerLen, sig.length - 27);
     });
 
@@ -192,7 +194,8 @@ void main() {
           4 + encodeMpint(parsed.r).length + 4 + encodeMpint(parsed.s).length;
 
       final sig = ecdsaDerToSshSignature(der([0x80, 0x11], [0x22]));
-      final innerLen = (sig[23] << 24) | (sig[24] << 16) | (sig[25] << 8) | sig[26];
+      final innerLen =
+          (sig[23] << 24) | (sig[24] << 16) | (sig[25] << 8) | sig[26];
       expect(innerLen, expected);
     });
 
@@ -205,7 +208,8 @@ void main() {
       expect(sig.length, 4 + 19 + 4 + (4 + 33) * 2);
     });
 
-    test('malformed DER throws rather than producing a plausible signature', () {
+    test('malformed DER throws rather than producing a plausible signature',
+        () {
       // A signature that looks well formed and is wrong would be rejected by
       // the server with no diagnosis available on either side.
       expect(() => ecdsaDerToSshSignature([0x00, 0x01]),

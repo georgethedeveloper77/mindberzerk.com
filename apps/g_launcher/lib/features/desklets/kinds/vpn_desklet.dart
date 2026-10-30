@@ -456,8 +456,9 @@ class _ShieldPainter extends CustomPainter {
       ..cubicTo(7.7 * s, 20.1 * s, 4.5 * s, 16.2 * s, 4.5 * s, 11.5 * s)
       ..lineTo(4.5 * s, 5.5 * s)
       ..close();
-    if (shadow)
+    if (shadow) {
       canvas.drawShadow(shield, colour.withValues(alpha: 0.5), 3, false);
+    }
 
     // Filled (protected): the mark is cut out of the shield, so it shows the
     // wallpaper or card through it. Outlined (every other state): the mark is

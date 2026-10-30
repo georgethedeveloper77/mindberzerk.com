@@ -98,7 +98,8 @@ abstract final class Units {
     add(_Dim.length, 'mm', 0.001, ['millimeter', 'millimetre', 'millimeters']);
     add(_Dim.length, 'cm', 0.01, ['centimeter', 'centimetre', 'centimeters']);
     add(_Dim.length, 'm', 1, ['meter', 'metre', 'meters', 'metres']);
-    add(_Dim.length, 'km', 1000, ['kilometer', 'kilometre', 'kilometers', 'kms']);
+    add(_Dim.length, 'km', 1000,
+        ['kilometer', 'kilometre', 'kilometers', 'kms']);
     add(_Dim.length, 'in', 0.0254, ['inch', 'inches', '"']);
     add(_Dim.length, 'ft', 0.3048, ['foot', 'feet']);
     add(_Dim.length, 'yd', 0.9144, ['yard', 'yards']);

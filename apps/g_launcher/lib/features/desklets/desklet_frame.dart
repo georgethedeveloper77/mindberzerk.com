@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
 // parseColor, for a per-widget accent override. See _accentOf.
-import '../../engine/theme_spec.dart' show parseColor;
+import '../../design/liquid_glass.dart';
+import '../../engine/theme_spec.dart' show ThemePalette, parseColor;
 
 /// The shape almost every desklet actually is. PHASE D5.
 ///
@@ -302,6 +303,17 @@ class _Card extends StatelessWidget {
     final p = theme.palette;
     final size = skin.num_('rowSize', 12);
 
+    // Liquid Glass distros draw every card on the shared pane, so a widget sits
+    // in the same material as the dock and the folders beside it.
+    if (theme.glass) {
+      return LiquidGlass(
+        radius: BorderRadius.circular(skin.num_('radius', 22)),
+        dark: theme.glassDark,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: _content(p, size),
+      );
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: p.bar.withValues(alpha: skin.num_('opacity', 0.72)),
@@ -310,36 +322,40 @@ class _Card extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (body.title != null) ...[
-              Text(
-                body.title!,
-                style: TextStyle(
-                  fontFamily: _family(theme, skin),
-                  fontSize: size,
-                  fontWeight: FontWeight.w600,
-                  color: p.onDark.withValues(alpha: 0.9),
-                ),
-              ),
-              const SizedBox(height: 6),
-            ],
-            for (final row in body.rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: _CardRow(
-                  theme: theme,
-                  accent: _accentOf(theme, skin),
-                  row: row,
-                  size: size,
-                ),
-              ),
-            if (body.custom != null) body.custom!,
-          ],
-        ),
+        child: _content(p, size),
       ),
+    );
+  }
+
+  Widget _content(ThemePalette p, double size) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (body.title != null) ...[
+          Text(
+            body.title!,
+            style: TextStyle(
+              fontFamily: _family(theme, skin),
+              fontSize: size,
+              fontWeight: FontWeight.w600,
+              color: p.onDark.withValues(alpha: 0.9),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        for (final row in body.rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: _CardRow(
+              theme: theme,
+              accent: _accentOf(theme, skin),
+              row: row,
+              size: size,
+            ),
+          ),
+        if (body.custom != null) body.custom!,
+      ],
     );
   }
 }

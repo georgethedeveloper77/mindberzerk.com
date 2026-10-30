@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "Dit bly op jou foon. Dit haal dit net uit die lys hier.",
   "wallpaper.removeTitle": "Verwyder hierdie muurpapier",
   "wallpaper.removed": "Verwyder",
-  "wallpaper.yours": "Die uwe"
+  "wallpaper.yours": "Die uwe",
+  "shell.dockFull": "Dok is vol",
+  "shell.moveToHomeScreen": "Skuif na tuisskerm",
+  "home.edit": "Wysig"
 }

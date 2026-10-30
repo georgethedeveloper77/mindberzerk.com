@@ -9,6 +9,7 @@ import '../../design/branded_message.dart';
 import 'bangs.dart';
 import 'calc.dart';
 import 'command_router.dart';
+import 'search_settings.dart';
 
 /// Colours and type for a command row, so the same row can sit in the GNOME
 /// search page (ChromeScope) and in the drop-down sheet (raw palette)
@@ -202,6 +203,8 @@ class CommandFallbackRows extends ConsumerWidget {
       color: s.text,
     );
 
+    final engine = ref.watch(searchEngineProvider);
+
     Future<void> open(String url) async {
       ref.read(recentSearchesProvider.notifier).record(query);
       if (await openCommandUrl(context, ref, url)) onOpened();
@@ -211,10 +214,15 @@ class CommandFallbackRows extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _Row(
-          onTap: () => open(CommandRouter.webSearchUrl(query)),
+          onTap: () => open(
+            CommandRouter.webSearchUrl(query, engine: engine),
+          ),
           leading: Icon(Icons.public, color: s.muted),
           title: Text(
-            context.t('command.searchWeb', {'query': query.trim()}),
+            context.t(
+              'command.searchWith',
+              {'engine': engine.label, 'query': query.trim()},
+            ),
             style: title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -274,4 +282,99 @@ class _Row extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The command answers for every surface ranked by the shared palette:
+/// rofi, Kickoff, the query drawer, Cinnamon and the TUI prompt.
+///
+/// Watches the palette query itself, so a surface drops this in above its own
+/// result list and nothing else changes. Explicit modes (`=`, `:`, `!`) show
+/// only this, because the palette already returns no apps for them; plain text
+/// that also reads as a sum or a conversion shows it above the apps; a plain
+/// query with no apps at all gets the web and Play rows instead of a dead end.
+class PaletteCommandBlock extends ConsumerWidget {
+  const PaletteCommandBlock({
+    super.key,
+    required this.query,
+    required this.hasApps,
+    required this.style,
+    required this.onClose,
+    required this.fillQuery,
+  });
+
+  final String query;
+
+  /// Whether the surface has app results to show under this.
+  final bool hasApps;
+  final CommandRowStyle style;
+
+  /// Close the surface after something left the launcher.
+  final VoidCallback onClose;
+  final void Function(String) fillQuery;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (query.trim().isEmpty) return const SizedBox.shrink();
+    final route = ref.watchRoute(query);
+    final showFallback = route.searchApps && !hasApps;
+    if (route.hits.isEmpty && !showFallback) return const SizedBox.shrink();
+
+    Future<void> run(CommandHit hit) async {
+      final close = await activateCommandHit(
+        context,
+        ref,
+        hit,
+        query: query,
+        fillQuery: fillQuery,
+      );
+      if (close) onClose();
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final hit in route.hits)
+          CommandHitRow(
+            hit: hit,
+            style: style,
+            onTap: () => run(hit),
+            onBang: (b) => fillQuery('!${b.key} '),
+          ),
+        if (showFallback)
+          CommandFallbackRows(query: query, style: style, onOpened: onClose),
+      ],
+    );
+  }
+}
+
+/// Enter on a palette surface: the top command when it should win (an
+/// explicit mode, or no app matched), otherwise the top app.
+///
+/// Returns true when something ran, so the caller clears its field. A copied
+/// sum counts: the answer is on the clipboard and the prompt is done.
+Future<bool> submitPaletteQuery(
+  BuildContext context,
+  WidgetRef ref, {
+  required String query,
+  required bool hasApps,
+  required bool Function() launchTopApp,
+  required void Function(String) fillQuery,
+  VoidCallback? onClose,
+}) async {
+  final route = ref.readRoute(query);
+  if (route.hits.isNotEmpty && (!route.searchApps || !hasApps)) {
+    final hit = route.hits.first;
+    final close = await activateCommandHit(
+      context,
+      ref,
+      hit,
+      query: query,
+      fillQuery: fillQuery,
+    );
+    if (close) onClose?.call();
+    // A bang hint only filled the field; that is not "done".
+    return hit is! BangHintHit;
+  }
+  return launchTopApp();
 }

@@ -11,6 +11,7 @@ import '../../../engine/theme_spec.dart';
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_picker.dart';
 import '../../icons/icon_theme_screen.dart';
+import '../pocket/customize_sheet.dart';
 import '../../settings/settings_screen.dart';
 import '../../settings/wallpaper_screen.dart';
 import '../../themes/themes_screen.dart';
@@ -55,6 +56,16 @@ Future<void> showDesktopMenu(
   // followed by nothing reads as a dropped input rather than as a refusal. This
   // is the floor beneath that, for the shells that do not.
   if (ref.read(deskletEditProvider).active) return;
+
+  // ─── A PHONE HOME HAS NO DESKTOP MENU ─────────────────────────────────
+  //
+  // Holding a phone's home makes the icons jiggle; Edit and Done appear at
+  // the top (`PocketEditBar`), and nothing is dimmed. The menu's 38% scrim
+  // over a glass home read as the whole screen clouding over.
+  if (theme.phoneHome && theme.desktopIcons) {
+    ref.read(deskletEditProvider.notifier).enterApps();
+    return;
+  }
 
   final navigator = Navigator.of(context);
   // ChromeScope does not cross a route boundary on its own — capture it here
@@ -149,6 +160,16 @@ List<DesktopAction> desktopActions({
       label: context.t('settings.wallpaper'),
       onTap: () => open(WallpaperScreen(theme: theme)),
     ),
+    // iOS 26's Customize, on a theme that authors icon looks.
+    if (theme.spec.iconLooks.isNotEmpty)
+      DesktopAction(
+        icon: Icons.auto_awesome_outlined,
+        label: context.t('home.customize'),
+        onTap: () {
+          dismiss();
+          showCustomizeSheet(context, theme);
+        },
+      ),
     DesktopAction(
       icon: Icons.format_paint_outlined,
       label: context.t('home.themes'),

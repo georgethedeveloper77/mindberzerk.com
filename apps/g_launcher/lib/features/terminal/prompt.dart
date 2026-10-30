@@ -80,3 +80,40 @@ String _collapseEmptyHost(String s, bool hostWasEmpty) {
   if (!hostWasEmpty) return s;
   return s.replaceAll('@:', ':').replaceAll('@ ', ' ').replaceAll('@]', ']');
 }
+
+/// The root template for a distro that authors no `rootPrompt`.
+///
+/// The trailing `$` becomes `#` and the line is wrapped in ANSI red, which is
+/// what an unthemed root shell looks like on every distro. A template that
+/// resets its own colours partway through loses the red after that reset; a
+/// distro that styles its prompt that carefully authors `rootPrompt` instead.
+String derivedRootPrompt(String template) {
+  final swapped = template.replaceFirstMapped(
+    RegExp(r'\$(\s*)$'),
+    (m) => '#${m[1]}',
+  );
+  return '\x1b[31m$swapped\x1b[0m';
+}
+
+/// A rendered prompt split at its last newline.
+///
+/// [above] is everything before it, drawn over the input row; [inline] is the
+/// part the caret follows. A one-line prompt has an empty [above].
+({String above, String inline}) splitPrompt(String rendered) {
+  final at = rendered.lastIndexOf('\n');
+  if (at < 0) return (above: '', inline: rendered);
+  return (
+    above: rendered.substring(0, at),
+    inline: rendered.substring(at + 1),
+  );
+}
+
+/// SGR state carried across [splitPrompt]'s cut.
+///
+/// A colour opened above the newline is still open on the inline part, so the
+/// inline part is drawn with the escapes that preceded it re-applied. Only SGR
+/// sequences are kept; nothing else in a prompt template has meaning here.
+String carriedSgr(String above) {
+  final sgr = RegExp('\x1b\\[[0-9;]*m');
+  return sgr.allMatches(above).map((m) => m[0]!).join();
+}

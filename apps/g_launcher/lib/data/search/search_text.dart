@@ -130,6 +130,66 @@ abstract final class SearchText {
     return 2;
   }
 
+  /// How many typos separate [query] from the closest stretch of [label], or
+  /// null when it is further than the query's length allows.
+  ///
+  /// Edits are insertions, deletions, substitutions and swapped neighbours
+  /// (`telgram`, `whatsap`, `spotfiy`), counted against ANY substring of the
+  /// label (Sellers' variant of Damerau-Levenshtein), so "spotfiy" finds
+  /// "Spotify Lite" as readily as "Spotify".
+  ///
+  /// The allowance grows with the query, because two letters wrong in a
+  /// four-letter word is a different word: 0 below 4 characters, 1 up to 7,
+  /// 2 from 8. A caller ranks these BELOW every exact tier; this is the
+  /// "did you mean", never the answer to a correctly typed name.
+  static int? typoDistance(String label, String query) {
+    final q = compact(query);
+    final allowed = q.length < 4 ? 0 : (q.length < 8 ? 1 : 2);
+    if (allowed == 0) return null;
+    final l = compact(label);
+    if (l.isEmpty) return null;
+
+    final n = l.length;
+    // Row 0 is all zeros: a match may start anywhere in the label.
+    var prev2 = List<int>.filled(n + 1, 0);
+    var prev = List<int>.filled(n + 1, 0);
+    var cur = List<int>.filled(n + 1, 0);
+
+    for (var i = 1; i <= q.length; i++) {
+      cur[0] = i;
+      final qi = q.codeUnitAt(i - 1);
+      var rowMin = i;
+      for (var j = 1; j <= n; j++) {
+        final lj = l.codeUnitAt(j - 1);
+        var v = prev[j - 1] + (qi == lj ? 0 : 1);
+        if (prev[j] + 1 < v) v = prev[j] + 1;
+        if (cur[j - 1] + 1 < v) v = cur[j - 1] + 1;
+        if (i > 1 &&
+            j > 1 &&
+            qi == l.codeUnitAt(j - 2) &&
+            q.codeUnitAt(i - 2) == lj &&
+            prev2[j - 2] + 1 < v) {
+          v = prev2[j - 2] + 1;
+        }
+        cur[j] = v;
+        if (v < rowMin) rowMin = v;
+      }
+      // Every later row is at least this row's minimum, so a row already
+      // past the allowance can only get worse.
+      if (rowMin > allowed) return null;
+      final t = prev2;
+      prev2 = prev;
+      prev = cur;
+      cur = t;
+    }
+
+    var best = prev[0];
+    for (var j = 1; j <= n; j++) {
+      if (prev[j] < best) best = prev[j];
+    }
+    return best <= allowed ? best : null;
+  }
+
   /// Latin letters with marks, folded to their base. Covers the launcher's
   /// purchasing markets first (es, pt-BR, fr, de, tr, pl).
   static final Map<int, int> _diacritics = _buildDiacritics();

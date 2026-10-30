@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/prefs/desklet_layout.dart';
 import '../../data/prefs/launcher_prefs.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../design/window_chrome.dart';
 import '../../engine/desklet_skin.dart';
 import '../../engine/effective_theme.dart';
 // `DockSide` is declared in BOTH `theme_spec.dart` and `dock_metrics.dart`, a
@@ -29,6 +30,7 @@ import 'desklet_settings.dart';
 import 'dock_avoid.dart';
 import 'kinds/appwidget_desklet.dart';
 import 'kinds/clock_desklet.dart';
+import 'kinds/conky_desklet.dart';
 import 'kinds/control_desklets.dart';
 import 'kinds/vpn_desklet.dart';
 import 'kinds/glance_desklet.dart';
@@ -67,6 +69,7 @@ Widget? buildDesklet(
     'appwidget' => AppWidgetDesklet(theme: theme, desklet: desklet, skin: skin),
     'clock' => ClockDesklet(theme: theme, desklet: desklet, skin: skin),
     'monitor' => MonitorDesklet(theme: theme, desklet: desklet, skin: skin),
+    'conky' => ConkyDesklet(theme: theme, desklet: desklet, skin: skin),
     'fastfetch' => FastfetchDesklet(theme: theme, desklet: desklet, skin: skin),
     'network' => NetworkDesklet(theme: theme, desklet: desklet, skin: skin),
     'storage' => StorageDesklet(theme: theme, desklet: desklet, skin: skin),
@@ -291,9 +294,32 @@ class DeskletSurfaceView extends ConsumerWidget {
               // becomes the user's chosen place.
               Desklet seen(Desklet d) {
                 final at = shown[d.id];
-                return at == null || (at.col == d.col && at.row == d.row)
-                    ? d
-                    : d.copyWith(col: at.col, row: at.row);
+                final placed =
+                    at == null || (at.col == d.col && at.row == d.row)
+                        ? d
+                        : d.copyWith(col: at.col, row: at.row);
+                // ─── NEVER PAST THE GRID'S EDGE ──────────────────────────
+                //
+                // A distro whose grid narrowed in an update (EndeavourOS went
+                // from 8 desklet columns to 6) left desklets placed for the old
+                // width hanging off the right of the screen, clipped. Drawn
+                // inside the grid instead: narrowed to fit, then pulled left.
+                // The stored placement is untouched, so nothing is lost.
+                final spanX = placed.spanX.clamp(1, cols);
+                final col = placed.col.clamp(0, cols - spanX);
+                final spanY = placed.spanY.clamp(1, rows);
+                final row = placed.row.clamp(0, rows - spanY);
+                return spanX == placed.spanX &&
+                        col == placed.col &&
+                        spanY == placed.spanY &&
+                        row == placed.row
+                    ? placed
+                    : placed.copyWith(
+                        col: col,
+                        row: row,
+                        spanX: spanX,
+                        spanY: spanY,
+                      );
               }
 
               return Stack(
@@ -433,24 +459,93 @@ class _Tile extends StatelessWidget {
     // is still measured honestly and still scales down. Bare and terminal keep
     // the old unbounded measurement, so a conky that outgrows its cell shrinks
     // rather than wrapping.
-    final bounded = switch (skin.surface) {
-      DeskletSurface.card || DeskletSurface.panel => true,
-      DeskletSurface.bare || DeskletSurface.terminal => false,
-    };
+    //
+    // ─── EXCEPT THE CONKY, ON EVERY SURFACE ──────────────────────────────
+    //
+    // A conkyrc's `${alignr}` pushes a run to the RIGHT EDGE and its bars run
+    // to it, so a conky line is defined by a width: its rows are Expanded and
+    // its column stretches. Measured unbounded, the Expanded had nothing to
+    // fill, the line never laid out, and the FittedBox painted a child with no
+    // size ("RenderBox was not laid out"). So it takes the cell's width like a
+    // card, and still scales down when its height outgrows the cell.
+    // A desklet framed as a WINDOW is bounded for the same reason: the
+    // window has a width, and a row inside it (Welcome's links) expands to it.
+    final bounded = desklet.kind == 'conky' ||
+        desklet.kind == 'welcome' ||
+        skin.flag('window', false) ||
+        switch (skin.surface) {
+          DeskletSurface.card || DeskletSurface.panel => true,
+          DeskletSurface.bare || DeskletSurface.terminal => false,
+        };
 
-    return LayoutBuilder(
+    final window = skin.flag('window', false);
+    final fitted = LayoutBuilder(
       builder: (context, constraints) => Align(
         alignment: _alignFor(skin),
         child: FittedBox(
-          fit: BoxFit.scaleDown,
+          // ─── A WINDOW'S OUTPUT GROWS A LITTLE, NOT TO FILL ──────────────
+          //
+          // On the desktop a desklet only ever shrinks. Inside a window that
+          // left three lines of `date` small in the corner, and scaling it to
+          // fill the window (the first fix) blew `date` and `htop` up to
+          // poster size. So a window's output may grow, but by at most
+          // [_windowGrowth]: the content is given a floor of the window's size
+          // divided by that, so `contain` can never scale past it. A terminal
+          // with a larger font, not a different picture.
+          fit: window ? BoxFit.contain : BoxFit.scaleDown,
           alignment: _alignFor(skin),
-          child: bounded
-              ? ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                  child: child,
-                )
-              : child,
+          child: _floorForWindow(
+            window: window,
+            box: constraints,
+            child: bounded
+                ? ConstrainedBox(
+                    constraints:
+                        BoxConstraints(maxWidth: constraints.maxWidth),
+                    child: child,
+                  )
+                : child,
+          ),
         ),
+      ),
+    );
+
+    // ─── A TERMINAL IN A WINDOW ─────────────────────────────────────────
+    //
+    // `window: true` in the skin frames the desklet as a tiled window: the
+    // same gap, border and focus colour the tiled apps get, plus the title
+    // strip a terminal emulator draws ("kitty", "btop"). The content still
+    // scales inside it, so the frame always fills the cell exactly.
+    if (!window) return fitted;
+    return WindowChrome(
+      theme: theme,
+      focused: skin.flag('focus', false),
+      title: skin.text('title', '').isEmpty ? null : skin.text('title', ''),
+      child: Padding(padding: const EdgeInsets.all(8), child: fitted),
+    );
+  }
+
+  /// How far a window's output may scale up. See the fit note above.
+  static const double _windowGrowth = 1.15;
+
+  /// Outside a window, the child as it is. Inside one, the child pinned to the
+  /// top left of a box at least the window's size over [_windowGrowth], which
+  /// caps how far `BoxFit.contain` can enlarge it.
+  static Widget _floorForWindow({
+    required bool window,
+    required BoxConstraints box,
+    required Widget child,
+  }) {
+    if (!window || !box.hasBoundedWidth || !box.hasBoundedHeight) return child;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: box.maxWidth / _windowGrowth,
+        minHeight: box.maxHeight / _windowGrowth,
+      ),
+      child: Align(
+        alignment: Alignment.topLeft,
+        widthFactor: 1,
+        heightFactor: 1,
+        child: child,
       ),
     );
   }

@@ -8,13 +8,16 @@ import 'package:g_launcher/engine/theme_spec.dart';
 void main() {
   group('ChromeFamily.defaultForShell — the bundled-theme map', () {
     test('gnome -> adwaita (Ubuntu, Fedora)', () {
-      expect(ChromeFamily.defaultForShell(ShellKind.gnome), ChromeFamily.adwaita);
+      expect(
+          ChromeFamily.defaultForShell(ShellKind.gnome), ChromeFamily.adwaita);
     });
     test('plasma -> breeze (KDE)', () {
-      expect(ChromeFamily.defaultForShell(ShellKind.plasma), ChromeFamily.breeze);
+      expect(
+          ChromeFamily.defaultForShell(ShellKind.plasma), ChromeFamily.breeze);
     });
     test('tiling -> generic (Arch)', () {
-      expect(ChromeFamily.defaultForShell(ShellKind.tiling), ChromeFamily.generic);
+      expect(
+          ChromeFamily.defaultForShell(ShellKind.tiling), ChromeFamily.generic);
     });
     test('tui -> generic (terminal)', () {
       expect(ChromeFamily.defaultForShell(ShellKind.tui), ChromeFamily.generic);
@@ -29,7 +32,9 @@ void main() {
       expect(ChromeFamily.parse('generic'), ChromeFamily.generic);
     });
 
-    test('unknown / absent yields null so the caller falls back to the shell default', () {
+    test(
+        'unknown / absent yields null so the caller falls back to the shell default',
+        () {
       expect(ChromeFamily.parse(null), isNull);
       expect(ChromeFamily.parse(''), isNull);
       expect(ChromeFamily.parse('gnome'), isNull); // shell name is not a family

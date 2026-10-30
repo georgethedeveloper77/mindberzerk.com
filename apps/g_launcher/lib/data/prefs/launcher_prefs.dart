@@ -60,6 +60,7 @@ class LauncherPrefs {
     this.dockEntrance,
     this.topBar,
     this.statusBar,
+    this.homeLayout,
     this.desktopIcons,
     this.panelModules,
     this.panelHeight,
@@ -133,7 +134,11 @@ class LauncherPrefs {
     this.wallpaperOrder = const [],
     this.wallpaperInitialized = false,
     this.deskletsInitialized = false,
+    this.deskletSeedMark,
+    this.iconLook,
     this.homeInitialized = false,
+    this.dockInitialized = false,
+    this.helloShown = false,
   });
 
   /// Bumped when the JSON shape changes incompatibly. Read it before parsing;
@@ -207,6 +212,12 @@ class LauncherPrefs {
   /// conky strip wants the system bar gone; the next one the user tries does
   /// not, and a global answer would carry the wrong one across the switch.
   final bool? statusBar;
+
+  /// 'grid' | 'tiled', this user's choice for THIS distro, or null for the
+  /// theme's own. Set by the panel's tiling toggle and the Desktop settings
+  /// row: COSMIC's auto-tile switch, applied to the home screen. Per distro for
+  /// the reason [statusBar] is: Pop's tiled desktop is not Ubuntu's grid.
+  final String? homeLayout;
 
   /// The user's answer to "icons on my desktop", and ONLY as a way to say no.
   ///
@@ -1058,6 +1069,20 @@ class LauncherPrefs {
   /// stand in for this flag.
   final bool deskletsInitialized;
 
+  /// What the starter desktop was, and what it laid down, when it was seeded:
+  /// `<starter signature>|<placement signature>`.
+  ///
+  /// It lets a pack update reach people who never touched their desktop. When
+  /// the distro ships a new starter and the desklets on this phone are still
+  /// exactly what the old one placed, the desktop is re-seeded; the moment the
+  /// user moves, adds or removes one, the signatures differ and their desktop
+  /// is theirs. Null on installs seeded before it existed.
+  final String? deskletSeedMark;
+
+  /// Which of the theme's icon looks Customize last chose, by id, or null for
+  /// the theme's base look. See `ThemeSpec.iconLooks`.
+  final String? iconLook;
+
   /// Has this theme's authored HOME grid been laid out yet?
   ///
   /// [deskletsInitialized]'s sibling and separate from it on purpose. The two
@@ -1069,6 +1094,18 @@ class LauncherPrefs {
   /// arrangement, so "there are no home items" cannot stand in for this.
   final bool homeInitialized;
 
+  /// Has this theme's authored DOCK seed (`layout.dockSeed`) been applied?
+  ///
+  /// [homeInitialized]'s sibling, for the same reason: an empty dock is an
+  /// arrangement the user can choose, so "nothing is pinned" cannot mean
+  /// "never seeded". Without the flag, emptying the dock would re-pin the
+  /// four seed apps on the next cold start.
+  final bool dockInitialized;
+
+  /// Has this theme's hello (`SplashStyle.hello`) been written out yet? Once
+  /// per theme, like a new phone's: every boot after it is logo and bar only.
+  final bool helloShown;
+
   LauncherPrefs copyWith({
     String? dockSide,
     String? dockGridButton,
@@ -1077,6 +1114,7 @@ class LauncherPrefs {
     String? dockEntrance,
     bool? topBar,
     bool? statusBar,
+    String? homeLayout,
     bool? desktopIcons,
     List<String>? panelModules,
     double? panelHeight,
@@ -1150,7 +1188,11 @@ class LauncherPrefs {
     List<String>? wallpaperOrder,
     bool? wallpaperInitialized,
     bool? deskletsInitialized,
+    String? deskletSeedMark,
+    String? iconLook,
     bool? homeInitialized,
+    bool? dockInitialized,
+    bool? helloShown,
   }) {
     return LauncherPrefs(
       dockSide: dockSide ?? this.dockSide,
@@ -1160,6 +1202,7 @@ class LauncherPrefs {
       dockEntrance: dockEntrance ?? this.dockEntrance,
       topBar: topBar ?? this.topBar,
       statusBar: statusBar ?? this.statusBar,
+      homeLayout: homeLayout ?? this.homeLayout,
       desktopIcons: desktopIcons ?? this.desktopIcons,
       panelModules: panelModules ?? this.panelModules,
       panelHeight: panelHeight ?? this.panelHeight,
@@ -1235,7 +1278,11 @@ class LauncherPrefs {
       desklets: desklets ?? this.desklets,
       wallpaperInitialized: wallpaperInitialized ?? this.wallpaperInitialized,
       deskletsInitialized: deskletsInitialized ?? this.deskletsInitialized,
+      deskletSeedMark: deskletSeedMark ?? this.deskletSeedMark,
+      iconLook: iconLook ?? this.iconLook,
       homeInitialized: homeInitialized ?? this.homeInitialized,
+      dockInitialized: dockInitialized ?? this.dockInitialized,
+      helloShown: helloShown ?? this.helloShown,
     );
   }
 
@@ -1249,6 +1296,7 @@ class LauncherPrefs {
     bool dockEntrance = false,
     bool topBar = false,
     bool statusBar = false,
+    bool homeLayout = false,
     bool desktopIcons = false,
     bool panelModules = false,
     bool panelHeight = false,
@@ -1324,6 +1372,7 @@ class LauncherPrefs {
       // could never hand it back to the distro's own answer.
       topBar: topBar ? null : this.topBar,
       statusBar: statusBar ? null : this.statusBar,
+      homeLayout: homeLayout ? null : this.homeLayout,
       desktopIcons: desktopIcons ? null : this.desktopIcons,
       panelModules: panelModules ? null : this.panelModules,
       panelHeight: panelHeight ? null : this.panelHeight,
@@ -1434,7 +1483,11 @@ class LauncherPrefs {
       wallpaperOrder: wallpaperOrder ? const [] : this.wallpaperOrder,
       wallpaperInitialized: wallpaperInitialized,
       deskletsInitialized: deskletsInitialized,
+      deskletSeedMark: deskletSeedMark,
+      iconLook: iconLook,
       homeInitialized: homeInitialized,
+      dockInitialized: dockInitialized,
+      helloShown: helloShown,
     );
   }
 
@@ -1447,6 +1500,7 @@ class LauncherPrefs {
         if (dockEntrance != null) 'dockEntrance': dockEntrance,
         if (topBar != null) 'topBar': topBar,
         if (statusBar != null) 'statusBar': statusBar,
+        if (homeLayout != null) 'homeLayout': homeLayout,
         if (desktopIcons != null) 'desktopIcons': desktopIcons,
         if (panelModules != null) 'panelModules': panelModules,
         if (panelHeight != null) 'panelHeight': panelHeight,
@@ -1533,7 +1587,11 @@ class LauncherPrefs {
           },
         'wallpaperInitialized': wallpaperInitialized,
         'deskletsInitialized': deskletsInitialized,
+        if (deskletSeedMark != null) 'deskletSeedMark': deskletSeedMark,
+        if (iconLook != null) 'iconLook': iconLook,
         'homeInitialized': homeInitialized,
+        'dockInitialized': dockInitialized,
+        'helloShown': helloShown,
       };
 
   static LauncherPrefs fromJson(Map<String, dynamic> j) {
@@ -1551,6 +1609,7 @@ class LauncherPrefs {
       dockEntrance: j['dockEntrance'] as String?,
       topBar: j['topBar'] as bool?,
       statusBar: j['statusBar'] as bool?,
+      homeLayout: j['homeLayout'] as String?,
       desktopIcons: j['desktopIcons'] as bool?,
       panelModules:
           (j['panelModules'] as List?)?.map((e) => e.toString()).toList(),
@@ -1660,7 +1719,11 @@ class LauncherPrefs {
       },
       wallpaperInitialized: j['wallpaperInitialized'] as bool? ?? false,
       deskletsInitialized: j['deskletsInitialized'] as bool? ?? false,
+      deskletSeedMark: j['deskletSeedMark'] as String?,
+      iconLook: j['iconLook'] as String?,
       homeInitialized: j['homeInitialized'] as bool? ?? false,
+      dockInitialized: j['dockInitialized'] as bool? ?? false,
+      helloShown: j['helloShown'] as bool? ?? false,
     );
   }
 
@@ -1693,6 +1756,7 @@ class LauncherPrefs {
         other.dockEntrance == dockEntrance &&
         other.topBar == topBar &&
         other.statusBar == statusBar &&
+        other.homeLayout == homeLayout &&
         other.desktopIcons == desktopIcons &&
         const ListEquality<String>().equals(other.panelModules, panelModules) &&
         other.panelHeight == panelHeight &&
@@ -1788,7 +1852,11 @@ class LauncherPrefs {
             .equals(other.wallpaperOrder, wallpaperOrder) &&
         other.wallpaperInitialized == wallpaperInitialized &&
         other.deskletsInitialized == deskletsInitialized &&
-        other.homeInitialized == homeInitialized;
+        other.deskletSeedMark == deskletSeedMark &&
+        other.iconLook == iconLook &&
+        other.homeInitialized == homeInitialized &&
+        other.dockInitialized == dockInitialized &&
+        other.helloShown == helloShown;
   }
 
   @override
@@ -1800,6 +1868,7 @@ class LauncherPrefs {
         dockEntrance,
         topBar,
         statusBar,
+        homeLayout,
         desktopIcons,
         const ListEquality<String>().hash(panelModules),
         panelHeight,
@@ -1879,7 +1948,11 @@ class LauncherPrefs {
         const ListEquality<String>().hash(wallpaperOrder),
         wallpaperInitialized,
         deskletsInitialized,
+        deskletSeedMark,
+        iconLook,
         homeInitialized,
+        dockInitialized,
+        helloShown,
       ]);
 }
 

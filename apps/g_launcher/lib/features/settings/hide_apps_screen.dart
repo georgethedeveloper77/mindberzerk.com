@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/hidden_apps.dart';
+import '../../data/prefs/hidden_folder.dart';
 import '../../data/prefs/hidden_lock.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
@@ -254,6 +255,8 @@ class _HideAppsScreenState extends ConsumerState<HideAppsScreen> {
           final availability =
               r.watch(userAuthAvailabilityProvider).asData?.value;
           final canLock = availability == UserAuthStatus.ready;
+          final folder = r.watch(hiddenFolderProvider).asData?.value ??
+              const HiddenFolderSettings();
 
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -283,6 +286,27 @@ class _HideAppsScreenState extends ConsumerState<HideAppsScreen> {
                   ),
                 ),
               ),
+              ThemedListRow(
+                icon: Icons.folder_special_outlined,
+                title: ctx.t('hidden.folder'),
+                // Without the lock the folder opens for anyone, so say so
+                // rather than let it look like protection.
+                subtitle: locked
+                    ? ctx.t('hidden.folderSub')
+                    : ctx.t('hidden.folderSubNoLock'),
+                trailing: ThemedToggle(
+                  value: folder.enabled,
+                  onChanged: (v) =>
+                      r.read(hiddenFolderProvider.notifier).setEnabled(v),
+                ),
+              ),
+              if (folder.enabled)
+                ThemedListRow(
+                  icon: Icons.drive_file_rename_outline,
+                  title: ctx.t('hidden.folderRename'),
+                  subtitle: folder.name ?? ctx.t('hidden.folderName'),
+                  onTap: () => _renameFolder(ctx, r, folder),
+                ),
               if (t.prefs.hiddenApps.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
@@ -303,6 +327,47 @@ class _HideAppsScreenState extends ConsumerState<HideAppsScreen> {
         },
       ),
     );
+  }
+
+  /// Rename the Hidden folder tile. An empty name goes back to the default.
+  Future<void> _renameFolder(
+    BuildContext context,
+    WidgetRef r,
+    HiddenFolderSettings folder,
+  ) async {
+    final controller = TextEditingController(text: folder.name ?? '');
+    final d = ChromeScope.of(context);
+    final name = await ThemedDialog.show<String>(
+      context,
+      title: context.t('hidden.folderRename'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: HiddenFolderSettings.maxNameLength,
+        style: d.text.body,
+        cursorColor: d.colors.accent,
+        decoration: InputDecoration(
+          hintText: context.t('hidden.folderName'),
+          hintStyle: d.text.body.copyWith(color: d.colors.textFaint),
+          counterStyle: d.text.caption,
+        ),
+        onSubmitted: (v) => Navigator.of(context).pop(v),
+      ),
+      actionsBuilder: (dialog) => [
+        ThemedButton(
+          label: dialog.t('common.cancel'),
+          kind: ThemedButtonKind.text,
+          onPressed: () => Navigator.of(dialog).pop(),
+        ),
+        ThemedButton(
+          label: dialog.t('common.save'),
+          onPressed: () => Navigator.of(dialog).pop(controller.text),
+        ),
+      ],
+    );
+    controller.dispose();
+    if (name == null) return;
+    await r.read(hiddenFolderProvider.notifier).setName(name);
   }
 
   /// Turning the lock ON proves the prompt works first, so nobody switches on

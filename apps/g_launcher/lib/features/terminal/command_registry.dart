@@ -93,7 +93,27 @@ enum CommandAction {
   openTerminal('terminal.open'),
 
   /// Generate, list, show or remove an SSH key.
-  sshKey('remote.key');
+  sshKey('remote.key'),
+
+  /// `apt`, `pacman`, `dnf` and friends, through Play. See
+  /// package_commands.dart.
+  packages('apps.packages'),
+
+  /// Run the rest of the line as the owner. Resolved by the screen BEFORE
+  /// lookup, so this entry exists for completion, `help` and `which`.
+  sudo('shell.sudo'),
+
+  /// cowsay, sl, fortune, cmatrix, yes, make, rm. See fun_commands.dart.
+  fun('fun.egg'),
+
+  /// Home screen snapshots: commit, log, checkout, undo, diff.
+  layout('launcher.layout'),
+
+  /// `alias` / `unalias`: the user's own names, persisted.
+  alias('shell.alias'),
+
+  /// `open telegram`: launch an app by name from the Terminal app.
+  openApp('apps.open');
 
   const CommandAction(this.id);
 
@@ -136,6 +156,8 @@ enum CommandCategory {
   launcher('Launcher'),
   system('System'),
   remote('Remote'),
+  packages('Packages'),
+  fun('Fun'),
   session('Session');
 
   const CommandCategory(this.label);
@@ -413,6 +435,114 @@ abstract final class TerminalRegistry {
       tier: CommandTier.pro,
     ),
 
+    // ── Terminal app only ────────────────────────────────────────────────────
+    //
+    // EVERYTHING BELOW IS `surfaces: {terminal}`, and that is a rule, not a
+    // default. The TUI shell launches apps from two letters and a unique
+    // command prefix beats the app matcher, so `sl` would take Slack, `snap`
+    // Snapchat and `make` MakeMyTrip. On the TUI these are reached only with
+    // arguments, through [handsOver], which opens the Terminal app with the
+    // line.
+    TerminalCommand(
+      name: 'apt',
+      aliases: [
+        'apt-get',
+        'pacman',
+        'yay',
+        'paru',
+        'dnf',
+        'zypper',
+        'pkg',
+        'flatpak',
+        'snap',
+      ],
+      action: CommandAction.packages,
+      category: CommandCategory.packages,
+      description: 'Install, search, remove, via Play',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'sudo',
+      action: CommandAction.sudo,
+      category: CommandCategory.packages,
+      description: 'Run as the phone owner',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'layout',
+      aliases: ['git'],
+      action: CommandAction.layout,
+      category: CommandCategory.launcher,
+      description: 'Home screen snapshots: commit, log, checkout',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'open',
+      aliases: ['launch', 'xdg-open'],
+      action: CommandAction.openApp,
+      category: CommandCategory.launcher,
+      description: 'Open an app by name',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'alias',
+      aliases: ['unalias'],
+      action: CommandAction.alias,
+      category: CommandCategory.session,
+      description: 'Your own names for commands',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'cowsay',
+      aliases: ['cowthink'],
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'A cow says it',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'fortune',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'A fortune',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'sl',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'For when you meant ls',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'cmatrix',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'Digital rain',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'yes',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'Say it again',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'make',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'Build a target',
+      surfaces: {CommandSurface.terminal},
+    ),
+    TerminalCommand(
+      name: 'rm',
+      action: CommandAction.fun,
+      category: CommandCategory.fun,
+      description: 'Remove files',
+      surfaces: {CommandSurface.terminal},
+    ),
+
     // ── Manage ───────────────────────────────────────────────────────────────
     TerminalCommand(
       name: 'clear',
@@ -533,9 +663,28 @@ abstract final class TerminalRegistry {
     final c = _byName[q];
     if (c != null && c.appearsOn(surface)) return q;
 
-    final hits = matching(q, surface: surface);
+    // ─── REMOTE COMMANDS RUN BY EXACT NAME ON THE TUI SHELL ───────────────
+    //
+    // `ssh`, `hosts` and `host` reached the TUI surface so a typed line can be
+    // handed over, and that made `s` ambiguous with `settings`, the most used
+    // two-keystroke path on the flagship screen. They are still listed as
+    // matches; they just never win a bare prefix there, since each one is
+    // either typed in full or followed by arguments.
+    final hits = [
+      for (final n in matching(q, surface: surface))
+        if (surface != CommandSurface.tui || !_handedOver(_byName[n]!)) n,
+    ];
     return hits.length == 1 ? hits.first : null;
   }
+
+  /// A remote command the TUI shell hands over to the Terminal app.
+  ///
+  /// Remote and on BOTH surfaces: `ssh`, `hosts`, `host`. Not `terminal`,
+  /// which is remote too but lives on the TUI surface alone and keeps its
+  /// prefix, so `te` still opens it.
+  static bool _handedOver(TerminalCommand c) =>
+      c.category == CommandCategory.remote &&
+      c.appearsOn(CommandSurface.terminal);
 
   /// Is [raw] something this surface handles?
   ///
@@ -547,6 +696,19 @@ abstract final class TerminalRegistry {
     CommandSurface surface = CommandSurface.tui,
   }) =>
       resolve(raw, surface: surface) != null;
+
+  /// A Terminal-app command typed at the TUI prompt WITH arguments, which the
+  /// TUI hands over rather than refuses: `apt install telegram`, `cowsay hi`,
+  /// `layout log`. An exact name only, never a prefix, and never bare, so two
+  /// letters and enter still launch an app.
+  static bool handsOver(String raw) {
+    final t = raw.trim();
+    if (!t.contains(RegExp(r'\s'))) return false;
+    final c = _byName[canonical(t)];
+    return c != null &&
+        !c.appearsOn(CommandSurface.tui) &&
+        c.appearsOn(CommandSurface.terminal);
+  }
 
   /// The vocabulary line, built from the table rather than typed out beside it.
   ///

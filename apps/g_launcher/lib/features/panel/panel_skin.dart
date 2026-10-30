@@ -42,3 +42,22 @@ const double panelTrailingGutter = 12;
 /// multiplying keeps that relationship at every slider position rather than
 /// flattening every distro to the same value at the top of the range.
 const double panelBaseOpacity = 0.96;
+
+/// ─── PANEL ICONS SCALE WITH THE PANEL ──────────────────────────────────────
+///
+/// Task icons were a fixed 30dp and pinned apps 18dp, on a 48dp panel. That is
+/// a desktop's proportion, sized for a mouse pointer, and on a phone it was a
+/// row of targets nobody could hit. The icon now takes the panel's thickness
+/// less a margin, so the tap target is the full thickness of the panel and the
+/// icon grows when the user makes the panel taller.
+const double panelIconMargin = 12;
+const double minPanelIcon = 28;
+const double maxPanelIcon = 44;
+
+/// The gap between two panel icons, split either side of each.
+const double panelIconGap = 10;
+
+/// The icon for a panel [thickness] across, in dp.
+double panelIconSize(double thickness) => thickness.isFinite
+    ? (thickness - panelIconMargin).clamp(minPanelIcon, maxPanelIcon)
+    : defaultPanelHeight - panelIconMargin;

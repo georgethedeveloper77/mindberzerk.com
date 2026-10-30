@@ -15,12 +15,15 @@ import '../../../design/device_preview.dart';
 import '../../../design/setting_previews.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
-import '../../../engine/theme_spec.dart' show DockSide, PanelModule;
+import '../../../engine/theme_spec.dart'
+    show DockSide, PanelModule, TopBarSide;
 import '../../dock/dock_animations.dart';
 import '../../home/workspaces/workspace_controller.dart';
+import '../../panel/modules/panel_cosmic_modules.dart' show setTiledHome;
 import '../../panel/panel_edit.dart';
 import '../../panel/panel_module_names.dart';
 import '../../panel/panel_editor_sheet.dart';
+import '../../panel/panel_modules.dart' show statusModules;
 import '../settings_rows.dart';
 
 /// `FilterRow` keywords and their order are byte-identical to what shipped;
@@ -36,6 +39,11 @@ List<Widget> desktopSection(
   // Pigeon host API type, which this file does not import.
   final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
   ref.read(launcherHostApiProvider);
+
+  // "Top bar" on the top edge, "Panel" on any other. See the Top bar group.
+  final panelWord = theme.panelSide == TopBarSide.top
+      ? 'settings.topBar'
+      : 'settings.panel';
 
   return [
     SettingPreview(
@@ -304,6 +312,22 @@ List<Widget> desktopSection(
             onChanged: (v) => notifier.edit((p) => p.copyWith(desktopIcons: v)),
           ),
         ),
+        // ─── TILED OR A GRID, THE PANEL TOGGLE'S OTHER HALF ──────────
+        //
+        // The same write as COSMIC's tiling toggle on the panel, so a distro
+        // without that module still offers the choice. Only while there are
+        // icons on the desktop: with none, there is nothing to tile.
+        if (theme.desktopIcons)
+          FilterRow(
+            const ['tiled', 'tiling', 'tiles', 'auto tile', 'grid'],
+            SettingsToggleRow(
+              icon: Icons.space_dashboard_outlined,
+              title: context.t('settings.tiledHome'),
+              subtitle: context.t('settings.tiledHomeSub'),
+              value: theme.homeLayout == 'tiled',
+              onChanged: (v) => setTiledHome(ref, theme, tiled: v),
+            ),
+          ),
         FilterRow(
           // Relabeled from "Home grid". The authentic-desktop decision
           // removed home-screen app icons everywhere, so "Home grid"
@@ -381,8 +405,13 @@ List<Widget> desktopSection(
     // makes a desktop recognisable, and both carry an opacity that follows
     // the main surfaces slider until split. Having one on this page and the
     // other two pages away was the clearest single fault in the old layout.
+    // ─── "TOP BAR" ONLY WHEN IT IS ON TOP ───────────────────────────────
+    //
+    // Mint, Zorin and Kali put their panel along the bottom, and a switch
+    // called "Top bar" that turns off a bottom panel reads as broken. The
+    // word follows the resolved edge.
     SettingsGroup(
-      label: context.t('settings.topBar'),
+      label: context.t(panelWord),
       scope: 'This distro',
       query: q,
       rows: [
@@ -391,7 +420,7 @@ List<Widget> desktopSection(
           SettingsToggleRow(
             icon: Icons.web_asset_outlined,
             accent: true,
-            title: context.t('settings.topBar'),
+            title: context.t(panelWord),
             // NOT gated on hasTopBar: this switch is what CREATES one, so
             // greying it where there is none would be the row disabling
             // itself. The rows that consume a bar are the ones that follow it.
@@ -419,18 +448,43 @@ List<Widget> desktopSection(
             'clock',
             'battery icon',
           ],
-          SettingsToggleRow(
-            icon: Icons.smartphone_outlined,
-            accent: true,
-            title: context.t('settings.statusBar'),
-            subtitle: theme.spec.layout.statusBar
-                ? context.t('settings.statusBarShownSub')
-                : context.t('settings.statusBarHiddenSub', {
-                    'name': theme.spec.name,
-                  }),
-            value: theme.statusBar,
-            onChanged: (v) => notifier.edit((p) => p.copyWith(statusBar: v)),
-          ),
+          // ─── ON A DISTRO WITH A PANEL, THE QUESTION IS WHO OWNS THE ROW ───
+          //
+          // Asked the panel's way round: "status icons on the panel". On puts
+          // Wi-Fi, sound, battery and the clock on the panel and hides
+          // Android's status bar in the same write, because both at once is
+          // the same row twice. Off, the default, leaves the row to Android and
+          // the panel keeps one quick-settings button. It is the same stored
+          // `statusBar` pref, inverted, so nothing migrates.
+          //
+          // A distro with no panel keeps the plain status bar switch: there is
+          // nothing to hand the row to, and its own top row is the theme's.
+          // A dock with its own tray (Deepin) owns the row like a panel.
+          theme.panels.isEmpty && !theme.dockTray
+              ? SettingsToggleRow(
+                  icon: Icons.smartphone_outlined,
+                  accent: true,
+                  title: context.t('settings.statusBar'),
+                  subtitle: theme.spec.layout.statusBar
+                      ? context.t('settings.statusBarShownSub')
+                      : context.t('settings.statusBarHiddenSub', {
+                          'name': theme.spec.name,
+                        }),
+                  value: theme.statusBar,
+                  onChanged: (v) =>
+                      notifier.edit((p) => p.copyWith(statusBar: v)),
+                )
+              : SettingsToggleRow(
+                  icon: Icons.signal_wifi_4_bar,
+                  accent: true,
+                  title: context.t(theme.panels.isEmpty
+                      ? 'settings.dockStatusIcons'
+                      : 'settings.panelStatusIcons'),
+                  subtitle: context.t('settings.panelStatusIconsSub'),
+                  value: !theme.statusBar,
+                  onChanged: (v) =>
+                      notifier.edit((p) => p.copyWith(statusBar: !v)),
+                ),
         ),
         // ─── ONE ROW PER DUPLICATE THE DISTRO AUTHORED ───────────────
         //
@@ -446,8 +500,17 @@ List<Widget> desktopSection(
         //
         // The subtitle names the duplication while the system bar is on,
         // because that is the whole reason the switch is worth finding.
+        // The status four only while the panel owns the status row: with
+        // Android's bar up they are not drawn at all, and a switch for
+        // something that cannot appear is a switch that lies.
+        //
+        // AND ONLY WITH A PANEL ON SCREEN. With the panel switched off these
+        // rows read the fallback module list, showed every module on, and a
+        // tap wrote a list nothing draws: switches that would not switch.
         for (final m in silenceableModules)
-          if (_authoredOnPanel(theme, m))
+          if (theme.panels.isNotEmpty &&
+              _authoredOnPanel(theme, m) &&
+              (!theme.statusBar || !statusModules.contains(m)))
             FilterRow(
               ['top bar', panelModuleLabel(context, m).toLowerCase()],
               SettingsToggleRow(

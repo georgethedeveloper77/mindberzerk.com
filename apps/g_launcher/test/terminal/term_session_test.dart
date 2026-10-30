@@ -76,8 +76,7 @@ void main() {
     Future<void> settle() => Future<void>.delayed(Duration.zero);
 
     test('an ordinary command writes no aliases', () async {
-      final TermSession session =
-          container.read(termSessionProvider.notifier);
+      final TermSession session = container.read(termSessionProvider.notifier);
       await settle();
       await session.run('ls');
       await session.run('df');
@@ -86,8 +85,7 @@ void main() {
     });
 
     test('setting an alias writes once, and only then', () async {
-      final TermSession session =
-          container.read(termSessionProvider.notifier);
+      final TermSession session = container.read(termSessionProvider.notifier);
       await settle();
       await session.run('ls');
       expect(host.aliasWrites, 0);
@@ -98,8 +96,7 @@ void main() {
     });
 
     test('the run count stops being written once nothing reads it', () async {
-      final TermSession session =
-          container.read(termSessionProvider.notifier);
+      final TermSession session = container.read(termSessionProvider.notifier);
       await settle();
       for (var i = 0; i < kTeachingRuns + 5; i++) {
         await session.run('date');
@@ -174,7 +171,8 @@ void main() {
     expect(state.history, <String>['apps', 'clear']);
   });
 
-  test('unwired commands reach the session so the view can hide them', () async {
+  test('unwired commands reach the session so the view can hide them',
+      () async {
     final FakeHost host = FakeHost();
     host.unwiredNames = <String>{'torch', 'vol'};
     final ProviderContainer container = ProviderContainer(

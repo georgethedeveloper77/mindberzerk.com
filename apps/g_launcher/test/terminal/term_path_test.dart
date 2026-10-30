@@ -7,8 +7,10 @@ void main() {
       expect(TermPath.slash.display, '/');
       expect(TermPath.appsRoot.display, '/apps');
       expect(TermPath.filesRoot.display, '~');
-      expect(const TermPath(<String>['sdcard', 'Download']).display, '~/Download');
-      expect(const TermPath(<String>['apps', 'firefox']).display, '/apps/firefox');
+      expect(
+          const TermPath(<String>['sdcard', 'Download']).display, '~/Download');
+      expect(
+          const TermPath(<String>['apps', 'firefox']).display, '/apps/firefox');
     });
   });
 
@@ -26,8 +28,7 @@ void main() {
 
   group('resolve', () {
     test('relative appends to the current folder', () {
-      final TermPath result =
-          TermPath.resolve('Download', TermPath.filesRoot);
+      final TermPath result = TermPath.resolve('Download', TermPath.filesRoot);
       expect(result, const TermPath(<String>['sdcard', 'Download']));
     });
 

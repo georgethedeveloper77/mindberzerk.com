@@ -4,6 +4,8 @@ import android.app.Notification
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.os.UserManager
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
@@ -69,9 +71,47 @@ class NotificationBadgeService : NotificationListenerService() {
         super.onListenerDisconnected()
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification?) = publish()
+    // ─── WHY POSTS ARE FILTERED AND COALESCED ──────────────────────────────
+    //
+    // Measured on the S22 (batterystats, 50 min): most of the launcher's CPU
+    // was spent while another app was on screen, with the process held in the
+    // foreground-service state by this very listener. A playing video or song
+    // re-posts its ongoing notification every second or so, and each post ran
+    // a full `getActiveNotifications`, which parcels every live notification
+    // across the binder (large icons and pictures included), just to arrive
+    // at the same counts.
+    //
+    // Ongoing notifications never count (see [countable]), so a post or
+    // removal of one cannot change a badge: skipped outright. Everything else
+    // is coalesced into one recount after a short quiet period, so a burst of
+    // twelve group-chat messages costs one recount, not twelve. A badge
+    // appearing 750 ms late is invisible; a recount per second is not.
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if (sbn?.isOngoing == true) return
+        scheduleRecount()
+    }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) = publish()
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        if (sbn?.isOngoing == true) return
+        scheduleRecount()
+    }
+
+    private val main = Handler(Looper.getMainLooper())
+    private val recount = Runnable { publish() }
+
+    private fun scheduleRecount() {
+        main.removeCallbacks(recount)
+        main.postDelayed(recount, RECOUNT_DELAY_MS)
+    }
+
+    override fun onDestroy() {
+        main.removeCallbacks(recount)
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val RECOUNT_DELAY_MS = 750L
+    }
 
     /**
      * Recount from scratch on every change rather than incrementing.

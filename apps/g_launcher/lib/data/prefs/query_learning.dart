@@ -102,8 +102,7 @@ class QueryLearningNotifier extends AsyncNotifier<QueryLearning> {
   }
 
   Future<void> record(String query, String componentKey) async {
-    final current =
-        state.hasValue ? state.requireValue : await future;
+    final current = state.hasValue ? state.requireValue : await future;
     final next = current.record(query, componentKey);
     state = AsyncData(next);
     await ref

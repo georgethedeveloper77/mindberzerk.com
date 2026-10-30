@@ -39,7 +39,15 @@ class PanelBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final items = currentPanelItems(theme);
+    // Drawn, not stored: the editor still reads `currentPanelItems`, so the
+    // arrangement survives the status switch going either way.
+    final items = panelItemsShown(
+      currentPanelItems(theme),
+      systemStatusBar: theme.statusBar,
+      // A vertical panel runs along the long edge, so only a horizontal one
+      // is squeezed by an upright phone.
+      narrow: !theme.panelSide.isVertical && panelIsNarrow(context),
+    );
 
     // ─── HEIGHT AND SIDE COME FROM THE RESOLVER ──────────────────────────
     //

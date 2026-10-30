@@ -15,6 +15,15 @@ import 'wallpaper_framing.dart';
 /// because it is only data, a new distro ships over the CDN without a Play
 /// release. Anything that would require new *code* to render is a sign the spec
 /// is missing a field.
+/// One named icon look, as Customize offers it.
+class IconLook {
+  const IconLook({required this.id, required this.name, required this.icons});
+
+  final String id;
+  final String name;
+  final api.IconStyle icons;
+}
+
 class ThemeSpec {
   const ThemeSpec({
     required this.id,
@@ -27,6 +36,7 @@ class ThemeSpec {
     required this.typography,
     required this.layout,
     required this.icons,
+    this.iconLooks = const [],
     required this.wallpapers,
     this.wallpapersLight = const [],
     this.wallpaperMeta = const {},
@@ -43,6 +53,7 @@ class ThemeSpec {
     this.categories = const [],
     this.categoryFallback,
     this.accents = const [],
+    this.accentGradient = const [],
     this.layouts = const [],
     this.surfaces,
     ThemeSource? source,
@@ -112,6 +123,10 @@ class ThemeSpec {
 
   /// Passed straight to native. The launcher never renders icons in Dart.
   final api.IconStyle icons;
+
+  /// Icon looks the user picks in Customize, each a full style already merged
+  /// over [icons]. Empty means this theme has one look. See [iconsFor].
+  final List<IconLook> iconLooks;
 
   /// The theme's preset wallpapers. The user adds their own on top; both live
   /// in prefs.wallpapers and rotate together.
@@ -331,6 +346,18 @@ class ThemeSpec {
   /// picker simply has no selection until one is made, which is honest.
   final List<ThemeAccent> accents;
 
+  /// The distro's signature gradient, two or three stops, or empty.
+  ///
+  /// Dr460nized is pink to violet to cyan, and pink alone reads as any pink
+  /// theme. Used SPARINGLY, only where the real desktop uses it: the active
+  /// page marker and the fastfetch logo ring. Everything else stays on the
+  /// single [ThemePalette.accent], so a user's accent choice still moves the
+  /// whole desktop.
+  ///
+  /// A list of one, or one with an unparseable colour, is dropped whole: a
+  /// gradient with a stop nobody chose looks like a rendering bug.
+  final List<Color> accentGradient;
+
   /// This distro's named layout presets, in the order the picker shows them.
   ///
   /// ─── WHY A PRESET IS A WHOLE LAYOUT AND NOT A DIFF AT RUNTIME ───────────
@@ -394,6 +421,9 @@ class ThemeSpec {
         typography: typography,
         layout: layout,
         icons: icons,
+        // CARRIED, for the reason every field below is: a field missing here
+        // is dropped from every CDN pack and kept on every bundled one.
+        iconLooks: iconLooks,
         wallpapers: wallpapers,
         wallpapersLight: wallpapersLight,
         wallpaperMeta: wallpaperMeta,
@@ -433,6 +463,8 @@ class ThemeSpec {
         // one with a working one, which is the exact asymmetry that hid the
         // `terminal` omission for the whole life of this method.
         accents: accents,
+        // CARRIED, for the reason every field in this call is.
+        accentGradient: accentGradient,
         layouts: layouts,
         surfaces: surfaces,
         source: source,
@@ -498,6 +530,35 @@ class ThemeSpec {
     return source.asset(path);
   }
 
+  /// An `icons` block as the native style it describes.
+  static api.IconStyle _iconStyle(Map<String, dynamic> icons) => api.IconStyle(
+        treatment: _treatment(icons['treatment'] as String?),
+        cornerRadius: (icons['cornerRadius'] as num?)?.toDouble() ?? 0.22,
+        foregroundScale:
+            (icons['foregroundScale'] as num?)?.toDouble() ?? 1.0,
+        backgroundColor:
+            parseColor(icons['backgroundColor'] as String?)?.toARGB32(),
+        monochromeTint:
+            parseColor(icons['monochromeTint'] as String?)?.toARGB32(),
+        heroPack: icons['heroPack'] as String?,
+        backgroundGradientEnd:
+            parseColor(icons['backgroundGradientEnd'] as String?)?.toARGB32(),
+        gradientAngle: (icons['gradientAngle'] as num?)?.toDouble(),
+        brandPack: icons['brandPack'] as String?,
+        brandTreatment: icons['brandTreatment'] as String?,
+      );
+
+  /// The icon style for [lookId], or the base [icons] when the id names no
+  /// look this theme has. See [iconLooks].
+  api.IconStyle iconsFor(String? lookId) {
+    final id = lookId?.trim();
+    if (id == null || id.isEmpty) return icons;
+    for (final l in iconLooks) {
+      if (l.id == id) return l.icons;
+    }
+    return icons;
+  }
+
   static ThemeSpec fromJson(Map<String, dynamic> json) {
     final icons = (json['icons'] as Map?)?.cast<String, dynamic>() ?? const {};
 
@@ -519,21 +580,24 @@ class ThemeSpec {
         (json['typography'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
       layout: ThemeLayout.fromJson(_rawLayout(json)),
-      icons: api.IconStyle(
-        treatment: _treatment(icons['treatment'] as String?),
-        cornerRadius: (icons['cornerRadius'] as num?)?.toDouble() ?? 0.22,
-        foregroundScale: (icons['foregroundScale'] as num?)?.toDouble() ?? 1.0,
-        backgroundColor:
-            parseColor(icons['backgroundColor'] as String?)?.toARGB32(),
-        monochromeTint:
-            parseColor(icons['monochromeTint'] as String?)?.toARGB32(),
-        heroPack: icons['heroPack'] as String?,
-        backgroundGradientEnd:
-            parseColor(icons['backgroundGradientEnd'] as String?)?.toARGB32(),
-        gradientAngle: (icons['gradientAngle'] as num?)?.toDouble(),
-        brandPack: icons['brandPack'] as String?,
-        brandTreatment: icons['brandTreatment'] as String?,
-      ),
+      icons: _iconStyle(icons),
+      iconLooks: [
+        for (final raw in (json['iconLooks'] as List?) ?? const [])
+          if (raw is Map &&
+              (raw['id'] as String?)?.trim().isNotEmpty == true &&
+              (raw['name'] as String?)?.trim().isNotEmpty == true)
+            IconLook(
+              id: (raw['id'] as String).trim(),
+              name: (raw['name'] as String).trim(),
+              // MERGED over the base block at the JSON level, the way layout
+              // presets are, so a look names only what it changes.
+              icons: _iconStyle({
+                ...icons,
+                ...((raw['icons'] as Map?)?.cast<String, dynamic>() ??
+                    const {}),
+              }),
+            ),
+      ],
       wallpapers: _wallpapers(json),
       wallpapersLight: ((json['wallpapersLight'] as List?) ?? const [])
           .map((e) => e.toString())
@@ -589,6 +653,7 @@ class ThemeSpec {
           .map((e) => ThemeAccent.fromJson(e.cast<String, dynamic>()))
           .whereType<ThemeAccent>()
           .toList(),
+      accentGradient: _gradient(json['accentGradient']),
       surfaces: ThemeSurfaces.fromJson(
         (json['surfaces'] as Map?)?.cast<String, dynamic>(),
       ),
@@ -617,6 +682,18 @@ class ThemeSpec {
   /// Accepts a "wallpapers" list, and still reads the old single
   /// wallpaper.asset — a theme already on someone's phone must not stop working
   /// because we changed the manifest shape.
+  /// Two or three colours, or nothing. See [accentGradient].
+  static List<Color> _gradient(Object? raw) {
+    if (raw is! List || raw.length < 2 || raw.length > 3) return const [];
+    final out = <Color>[];
+    for (final e in raw) {
+      final c = parseColor(e is String ? e : null);
+      if (c == null) return const [];
+      out.add(c);
+    }
+    return List.unmodifiable(out);
+  }
+
   static List<String> _wallpapers(Map<String, dynamic> json) {
     final list = json['wallpapers'] as List?;
     if (list != null) return list.map((e) => e as String).toList();
@@ -1472,6 +1549,19 @@ class ThemeLayout {
     this.dockEntrance,
     this.dockReveal,
     this.workspaces,
+    this.dockTray = false,
+    this.quickSettings,
+    this.barStyle,
+    this.windowTitles = false,
+    this.activitiesStyle,
+    this.overviewStyle,
+    this.material,
+    this.homeSearch,
+    this.folderStyle,
+    this.dockLauncher = true,
+    this.dockCapacity,
+    this.dockSeed = const [],
+    this.dockFolders = false,
   });
 
   final DockSide dock;
@@ -1917,6 +2007,78 @@ class ThemeLayout {
   /// opacity grey out on a distro with no permanent dock to position or fade.
   final String? dockReveal;
 
+  /// The dock ends with its own tray: a divider and the quick-settings
+  /// button, plus battery and time under the status rule. Deepin's fashion
+  /// dock does this because Deepin has no top bar. A capability, not a
+  /// setting: where the status lives is what the desktop is.
+  final bool dockTray;
+
+  /// 'side' opens quick settings as a tall panel from the right edge, as
+  /// Deepin's Control Center does; null keeps the bottom sheet.
+  final String? quickSettings;
+
+  /// 'edge' draws a tiling bar edge to edge with square ends, as i3bar does;
+  /// 'clear' draws an aqua top bar with no fill at all, white over the
+  /// wallpaper, as elementary's wingpanel is. Null keeps each shell's default.
+  final String? barStyle;
+
+  /// Every tiled app carries a title bar with its name: i3's default window
+  /// border. Off for Hyprland-style desktops, which draw none.
+  final bool windowTitles;
+
+  /// 'pill' draws the Activities module as GNOME 45's workspace indicator: a
+  /// pill for the current workspace and a dot for each other one, with no
+  /// word. Null keeps the glyph and "Activities".
+  final String? activitiesStyle;
+
+  /// 'gnome' makes Activities open the workspace overview rather than the app
+  /// grid, with a search field on top and the dash at the foot, as GNOME's
+  /// Activities overview does. Null keeps the Spatial Desktop overview and
+  /// Activities opening the apps.
+  final String? overviewStyle;
+
+  /// 'glass' draws the dock, folders, card widgets and the library's tiles on
+  /// one Liquid Glass surface: a strong blur, a pale tint and a bright rim, as
+  /// iOS 26 does. Null keeps each surface's own fill.
+  final String? material;
+
+  /// 'pill' puts a small Search button above the dock, which opens search.
+  /// Null keeps nothing there.
+  final String? homeSearch;
+
+  /// 'glass' draws a home folder as a glass square previewing nine apps, with
+  /// no chosen glyph, and opens it as a glass panel. Null keeps the folder
+  /// glyph and the full-screen folder.
+  final String? folderStyle;
+
+  /// Whether the dock carries an all-apps button. True everywhere but a
+  /// phone-style dock: an iPhone's dock holds apps and nothing else, and the
+  /// App Library is a swipe away.
+  final bool dockLauncher;
+
+  /// How many slots the dock holds, or null for the width-based answer the
+  /// dock has always given. Pocket authors 4: an iPhone's dock is four.
+  ///
+  /// A CEILING on a horizontal Aqua dock only. Clamped 2 to 8 on the way in,
+  /// so a typo cannot ask for a dock of one or of forty.
+  final int? dockCapacity;
+
+  /// The roles that pin this distro's first dock, in order: `dialer`, `sms`,
+  /// `browser`, `camera`. Empty keeps the most-used auto-fill.
+  ///
+  /// Applied ONCE, while `favourites` has never been written, so an iPhone
+  /// style dock starts with the four apps a phone's dock starts with and then
+  /// never moves on its own. A role with no app is skipped.
+  final List<String> dockSeed;
+
+  /// Every role [dockSeed] understands. A stranger is dropped, the same
+  /// drop-not-fatal rule every other parse here keeps.
+  static const dockSeedRoles = {'dialer', 'sms', 'browser', 'camera'};
+
+  /// Whether a folder can live in the dock, and an app dropped on a dock
+  /// icon's centre makes one. Pocket only; other docks hold apps.
+  final bool dockFolders;
+
   /// How many workspaces this distro STARTS with, or null for the engine's
   /// three.
   ///
@@ -2081,6 +2243,7 @@ class ThemeLayout {
         'card' => 'card',
         'whisker' => 'whisker',
         'cinnamon' => 'cinnamon',
+        'kicker' => 'kicker',
         'zorin' => 'zorin',
         'library' => 'library',
         'query' => 'query',
@@ -2092,6 +2255,30 @@ class ThemeLayout {
         _ => null,
       },
       workspaces: (j['workspaces'] as num?)?.toInt(),
+      dockTray: j['dockTray'] == true,
+      quickSettings: j['quickSettings'] == 'side' ? 'side' : null,
+      barStyle: switch (j['barStyle'] as String?) {
+        'edge' => 'edge',
+        'clear' => 'clear',
+        _ => null,
+      },
+      windowTitles: j['windowTitles'] == true,
+      activitiesStyle: j['activitiesStyle'] == 'pill' ? 'pill' : null,
+      overviewStyle: j['overviewStyle'] == 'gnome' ? 'gnome' : null,
+      material: j['material'] == 'glass' ? 'glass' : null,
+      homeSearch: j['homeSearch'] == 'pill' ? 'pill' : null,
+      folderStyle: j['folderStyle'] == 'glass' ? 'glass' : null,
+      dockLauncher: j['dockLauncher'] != false,
+      dockCapacity: switch (j['dockCapacity']) {
+        final num n => n.toInt().clamp(2, 8),
+        _ => null,
+      },
+      dockSeed: [
+        if (j['dockSeed'] case final List<Object?> roles)
+          for (final r in roles)
+            if (r is String && ThemeLayout.dockSeedRoles.contains(r)) r,
+      ],
+      dockFolders: j['dockFolders'] == true,
       dockReveal: switch (j['dockReveal'] as String?) {
         'always' => 'always',
         'apps' => 'apps',
@@ -2274,6 +2461,20 @@ enum PanelModule {
   /// does not have one is the arrangement this exists to allow.
   app,
 
+  /// Where you are, in the slot a Plasma panel uses for the window title: the
+  /// workspace name. Text only. See `panel_title_module.dart`.
+  title,
+
+  /// COSMIC's "Workspaces" text button: opens the overview.
+  workspacesButton,
+
+  /// COSMIC's "Applications" text button: opens the app list.
+  appsButton,
+
+  /// COSMIC's tiling toggle: tiled home screen or icon grid, per distro.
+  /// See `panel_cosmic_modules.dart`.
+  tiling,
+
   /// Time, with the date beneath it where the panel is tall enough.
   ///
   /// ─── AND WHY GNOME STILL WILL NOT HAVE ONE ──────────────────────────────
@@ -2300,6 +2501,10 @@ enum PanelModule {
         'battery' => PanelModule.battery,
         'wifi' => PanelModule.wifi,
         'volume' => PanelModule.volume,
+        'title' => PanelModule.title,
+        'workspacesButton' => PanelModule.workspacesButton,
+        'appsButton' => PanelModule.appsButton,
+        'tiling' => PanelModule.tiling,
         // The one prefixed form. Anything after the colon is the package and
         // is read by [PanelItem]; this only answers what KIND it is.
         _ when raw.startsWith('app:') => PanelModule.app,

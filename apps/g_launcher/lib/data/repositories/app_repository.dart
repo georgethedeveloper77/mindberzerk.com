@@ -163,6 +163,9 @@ final visibleAppsProvider =
   final prefix = <AppEntry>[];
   final wordStart = <AppEntry>[];
   final anywhere = <AppEntry>[];
+  // Fourth tier: one or two typos ("telgram"), closest first, after every
+  // correctly spelled hit so a typo never outranks what was really typed.
+  final typos = <(AppEntry, int)>[];
   for (final a in apps) {
     switch (SearchText.rank(a.label, query)) {
       case 0:
@@ -171,12 +174,21 @@ final visibleAppsProvider =
         wordStart.add(a);
       case 2:
         anywhere.add(a);
+      default:
+        final d = SearchText.typoDistance(a.label, query);
+        if (d != null) typos.add((a, d));
     }
   }
+  typos.sort((x, y) => x.$2.compareTo(y.$2));
   // Learned answers first: if "bank" has opened Equity before, Equity leads
   // "bank". Reorders only; admission above is untouched.
   final learning = ref.watch(queryLearningProvider).asData?.value;
-  final ranked = [...prefix, ...wordStart, ...anywhere];
+  final ranked = [
+    ...prefix,
+    ...wordStart,
+    ...anywhere,
+    for (final t in typos) t.$1,
+  ];
   return learning == null
       ? ranked
       : learning.boost(ranked, query, (a) => a.componentKey);

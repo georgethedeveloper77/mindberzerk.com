@@ -1,44 +1,219 @@
 {
-  "id": "deepin-23",
+  "id": "deepin-23-theme",
   "name": "Deepin",
   "version": "23",
   "shell": "aqua",
   "tier": "pro",
-  "chromeFamily": "generic",
   "palette": {
-    "bgTop": "#2B3138",
-    "bgBottom": "#171B1F",
-    "bar": "#12161A",
-    "dock": "#CC12161A",
+    "bgTop": "#0E4E9E",
+    "bgBottom": "#08213F",
+    "bar": "#0B2E5C",
+    "dock": "#26FFFFFF",
     "accent": "#0081FF",
     "onDark": "#FFFFFF"
   },
-  "paletteLight": {
-    "bgTop": "#F4F6F8",
-    "bgBottom": "#FFFFFF",
-    "bar": "#E8ECEF",
-    "dock": "#CCE8ECEF",
-    "accent": "#0081FF",
-    "onDark": "#171B1F"
-  },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Noto Sans",
+    "mono": "JetBrains Mono"
   },
   "layout": {
     "dock": "bottom",
+    "dockStyle": "floating",
+    "dockTray": true,
+    "quickSettings": "side",
     "topBar": false,
+    "workspaceAxis": "horizontal",
+    "appsSurface": "workspace",
+    "desktopIcons": true,
     "grid": {
       "rows": 5,
       "cols": 4
     },
-    "workspaceAxis": "horizontal"
+    "drawerScrollStyle": "pages",
+    "drawerGrouping": "none"
   },
   "icons": {
     "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+    "cornerRadius": 0.26,
+    "foregroundScale": 1,
+    "backgroundColor": "#0F3A66",
+    "brandPack": "deepin-23-line"
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "3508449.webp",
+    "3508450.webp",
+    "3508451.webp",
+    "3508801.webp",
+    "3508804.webp",
+    "3508809.webp"
+  ],
+  "minAppVersion": 35,
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.6 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Deepin Session Manager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Deepin Display Manager ...",
+        "delayMs": 450
+      },
+      {
+        "kind": "ok",
+        "text": "Started Deepin Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1100
+  },
+  "terminal": {
+    "appLabel": "Deepin Terminal",
+    "palette": {
+      "bg": "#08213F",
+      "fg": "#E6F0FF",
+      "cursor": "#0081FF",
+      "selection": "#550081FF",
+      "ansi": [
+        "#0B2E5C",
+        "#E74C3C",
+        "#2ECC71",
+        "#F1C40F",
+        "#0081FF",
+        "#9B59B6",
+        "#00D4C8",
+        "#D8E2F0",
+        "#4A6A90",
+        "#FF6B5B",
+        "#5BE08F",
+        "#FFD94A",
+        "#5AA9FF",
+        "#B57FD0",
+        "#40E8DC",
+        "#FFFFFF"
+      ]
+    },
+    "prompt": "\u001b[01;32m{user}@deepin-PC\u001b[00m:\u001b[01;34m{cwd}\u001b[00m$ "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  },
+  "features": [
+    {
+      "title": "The fashion dock",
+      "body": "A floating glass dock with the launcher as its first icon, your apps, and the dock's own tray at the right end. No zoom: icons stay put, the way Deepin's do.",
+      "exclusive": true
+    },
+    {
+      "title": "Control Center from the right",
+      "body": "Tap the dock's tray and quick settings slides in from the right edge as one tall glass panel, Deepin's Control Center on a phone.",
+      "exclusive": true
+    },
+    {
+      "title": "Your apps are a page",
+      "body": "Swipe past your last workspace and they are simply there. Nothing opens, nothing closes, the dock stays put.",
+      "exclusive": true
+    },
+    {
+      "title": "Nothing across the top",
+      "body": "No bar and no clock of its own. Turn on status icons and the time and battery move into the dock, the way Deepin keeps them.",
+      "exclusive": true
+    },
+    {
+      "title": "Deepin session boot",
+      "body": "Twelve lines through the session and display managers before the desktop.",
+      "exclusive": true
+    },
+    {
+      "title": "Deep blue and glass",
+      "body": "Rounded square icons on a navy backing, one bright accent, and a glass system card on the desktop.",
+      "exclusive": false
+    }
+  ]
 }

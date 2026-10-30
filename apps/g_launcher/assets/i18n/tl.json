@@ -934,6 +934,8 @@
   "shell.currentEdge": "Kasalukuyan",
   "shell.dateAndTimeSettings": "Petsa at mga set ng oras",
   "shell.discharging": "Pagliligawan",
+  "shell.dockFull": "Puno na ang dock",
+  "shell.moveToHomeScreen": "Ilipat sa Home Screen",
   "shell.done": "Tapos",
   "shell.edgeBottom": "Ibaba",
   "shell.edgeLeft": "Kaliwa",
@@ -1105,5 +1107,6 @@
   "why.theTerminalPaintsItsOwn": "Inilalarawan ng terminal ang sarili nitong pinagmulan",
   "why.thisDistroDrawsItsOwnMenu": "Ang distro na ito ay kumukuha ng sarili nitong menu",
   "why.thisDistroStaysDark": "Nananatiling madilim ang {name}",
-  "why.toolMenuIsCategories": "Ang mga talaksang menu ng kagamitan ayon sa kategorya"
+  "why.toolMenuIsCategories": "Ang mga talaksang menu ng kagamitan ayon sa kategorya",
+  "home.edit": "I-edit"
 }

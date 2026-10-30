@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../design/theme_mark.dart';
 import '../../engine/splash_spec.dart';
 import '../../engine/theme_source.dart';
+import 'hello_lettering.dart';
 
 /// Everything the splash renderer needs that is not in the [SplashSpec].
 ///
@@ -18,7 +19,16 @@ class SplashChrome {
     this.logoAsset,
     this.displayFontFamily,
     this.monoFontFamily = 'UbuntuMono',
+    this.hello = false,
+    this.onHelloShown,
   });
+
+  /// Write the distro's words out after the bar, this once. Only meaningful
+  /// for [SplashStyle.hello]; the caller decides "this once" from prefs.
+  final bool hello;
+
+  /// The words have been written: record it so the next boot skips them.
+  final VoidCallback? onHelloShown;
 
   /// The distro's dark base, so the splash reads as THIS distro starting.
   final Color background;
@@ -76,9 +86,17 @@ class SplashSequence extends StatefulWidget {
     this.logoAsset,
     this.monoFontFamily = 'UbuntuMono',
     this.displayFontFamily,
+    this.hello = false,
+    this.onHelloShown,
   });
 
   final SplashSpec spec;
+
+  /// See [SplashChrome.hello].
+  final bool hello;
+
+  /// See [SplashChrome.onHelloShown].
+  final VoidCallback? onHelloShown;
 
   /// The distro's dark base, so the splash reads as THIS distro starting rather
   /// than as a generic black screen, the same rule the boot canvas follows.
@@ -105,11 +123,27 @@ class SplashSequence extends StatefulWidget {
 }
 
 class _SplashSequenceState extends State<SplashSequence>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: Duration(milliseconds: widget.spec.durationMs),
   );
+
+  /// The writing: a hand's pace for two short words, eased in and out.
+  static const _writeMs = 2600;
+
+  /// The finished words stay on screen this long before the desktop.
+  static const _holdMs = 700;
+
+  late final AnimationController _write = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: _writeMs),
+  );
+
+  /// The bar has finished and the words are being written.
+  bool _writing = false;
+
+  bool get _hello => widget.spec.style == SplashStyle.hello && widget.hello;
 
   bool _fading = false;
 
@@ -132,13 +166,40 @@ class _SplashSequenceState extends State<SplashSequence>
     });
 
     _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) _finish();
+      if (status == AnimationStatus.completed) _afterBar();
     });
 
     // The reduce-motion path never runs the controller to completion, so it
     // needs its own timer to land.
     Future<void>.delayed(
       Duration(milliseconds: widget.spec.durationMs + 60),
+      _afterBar,
+    );
+  }
+
+  /// The bar is full: the desktop, or first the words.
+  void _afterBar() {
+    if (!_hello) {
+      _finish();
+      return;
+    }
+    if (_writing || _fading || !mounted) return;
+    setState(() => _writing = true);
+
+    // Recorded as soon as the words START, not when they end: a launcher
+    // killed mid-hello must not greet the user again on the next boot.
+    widget.onHelloShown?.call();
+
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      // The words appear whole and hold; nothing is drawn moving.
+      _write.value = 1.0;
+    } else {
+      _write.forward();
+    }
+    Future<void>.delayed(
+      Duration(milliseconds: (reduceMotion ? 0 : _writeMs) + _holdMs),
       _finish,
     );
   }
@@ -156,6 +217,7 @@ class _SplashSequenceState extends State<SplashSequence>
   @override
   void dispose() {
     _controller.dispose();
+    _write.dispose();
     super.dispose();
   }
 
@@ -167,14 +229,33 @@ class _SplashSequenceState extends State<SplashSequence>
       child: ColoredBox(
         color: widget.background,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.spec.style != SplashStyle.text) _logo(),
-              if (widget.spec.style != SplashStyle.text)
-                const SizedBox(height: 34),
-              _indicator(),
-            ],
+          // ─── THE LOGO HANDS OVER TO THE WORDS ───────────────────────────
+          //
+          // A cross-fade in place, so the mark and bar dissolve and the
+          // writing begins where they were, the way a phone's boot gives way
+          // to its hello rather than cutting to it.
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            child: _writing
+                ? HelloLettering(
+                    key: const ValueKey('hello'),
+                    progress: CurvedAnimation(
+                      parent: _write,
+                      curve: Curves.easeInOutCubic,
+                    ),
+                    color: widget.onDark,
+                    width: MediaQuery.sizeOf(context).width * 0.72,
+                  )
+                : Column(
+                    key: const ValueKey('boot'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.spec.style != SplashStyle.text) _logo(),
+                      if (widget.spec.style != SplashStyle.text)
+                        const SizedBox(height: 34),
+                      _indicator(),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -250,6 +331,13 @@ class _SplashSequenceState extends State<SplashSequence>
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation<Color>(widget.accent),
             ),
+          ),
+        // A phone's boot: the same determinate bar in the logo's own white,
+        // not the accent. Phones do not colour their boot bar.
+        SplashStyle.hello => _Bar(
+            controller: _controller,
+            accent: widget.onDark,
+            track: widget.onDark.withValues(alpha: 0.22),
           ),
         SplashStyle.text => Text(
             widget.title ?? '',

@@ -60,6 +60,10 @@ const List<PanelModule> editableModules = [
   PanelModule.memory,
   PanelModule.storage,
   PanelModule.clock,
+  PanelModule.title,
+  PanelModule.workspacesButton,
+  PanelModule.appsButton,
+  PanelModule.tiling,
   PanelModule.spacer,
 ];
 

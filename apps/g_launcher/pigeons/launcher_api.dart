@@ -772,6 +772,19 @@ abstract class LauncherHostApi {
     int sizePx,
   );
 
+  /// PNG bytes for the applied brand pack's drawing of [packageName] with no
+  /// tile: white on transparency, for the caller to tint. Null when the pack
+  /// has no drawing for that package.
+  ///
+  /// For chrome, not the grid. The panel's quick-settings button wears the
+  /// distro pack's own Settings drawing, and through [getIcon] it would arrive
+  /// on its plate and read as a small app icon sitting in the bar.
+  ///
+  /// A package name rather than a component key, because chrome has no
+  /// launcher entry in hand, and a brand glyph names the package anyway.
+  @async
+  Uint8List? getBareGlyph(String packageName, int sizePx);
+
   /// Nukes memory + disk. For a "rebuild icon cache" button in Settings.
   @async
   void clearIconCache();
@@ -1208,6 +1221,14 @@ abstract class LauncherHostApi {
   /// that it is NOT a version code. This one is.
   int getVersionCode();
 
+  /// The package that handles one of the dock's seed roles, or null.
+  ///
+  /// [role] is `dialer`, `sms`, `browser` or `camera`. The answer is the
+  /// user's DEFAULT for that role when one is set, otherwise the first app
+  /// that can handle it, otherwise null. Read once, when a distro with
+  /// `layout.dockSeed` first pins its dock.
+  String? defaultAppFor(String role);
+
   // ─── BACKUP FOLDER ─────────────────────────────────────────────────────────
   //
   // METHODS ONLY, NO NEW CLASS, NO NEW ENUM. Codec ids 129-136 stay exactly
@@ -1378,6 +1399,10 @@ abstract class LauncherHostApi {
   /// the end keeps the generated diff readable.
   @async
   String confirmUser(String title, String? subtitle);
+
+  /// Hand [text] to Android's share sheet (a rice code, for now). False when
+  /// there is no window to open it from or nothing can receive text.
+  bool shareText(String text);
 }
 
 // ─── FLUTTER API (Kotlin calls, Dart implements) ─────────────────────────────

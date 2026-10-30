@@ -19,17 +19,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../engine/effective_theme.dart';
-import '../../engine/theme_spec.dart' show PanelItem, PanelModule, TopBarSide;
+import '../../engine/theme_spec.dart' show PanelItem, PanelModule;
 import '../home/workspaces/workspace_controller.dart';
 import 'applets/panel_battery.dart';
 import 'applets/panel_network.dart';
 import 'applets/panel_tray_button.dart';
 import 'applets/panel_volume.dart';
 import 'modules/panel_clock_module.dart';
+import 'modules/panel_cosmic_modules.dart';
 import 'modules/panel_launchers.dart';
 import 'modules/panel_pager.dart';
 import 'modules/panel_readouts.dart';
 import 'modules/panel_tasks.dart';
+import 'modules/panel_title_module.dart';
 
 /// Everything the switch needs that is not on the item itself.
 ///
@@ -58,6 +60,83 @@ class PanelHost {
         for (final i in items)
           if (isStatModule(i.kind)) i.kind,
       ];
+}
+
+/// Below this width the panel is on an upright phone. See [panelItemsShown].
+const double narrowPanelWidth = 600;
+
+/// Whether the panel in [context] has a phone's upright width.
+bool panelIsNarrow(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < narrowPanelWidth;
+
+/// What leaves an upright phone's panel for quick settings: the three
+/// readouts and the pager. Each is useful and none is a thing you tap ten
+/// times a day, which is what a 360dp bar has room for.
+const Set<PanelModule> wideOnlyModules = {
+  PanelModule.network,
+  PanelModule.memory,
+  PanelModule.storage,
+  PanelModule.pager,
+};
+
+/// The status modules: what Android's own status bar already prints.
+const Set<PanelModule> statusModules = {
+  PanelModule.wifi,
+  PanelModule.volume,
+  PanelModule.battery,
+  PanelModule.clock,
+};
+
+/// The panel as drawn, given whether Android's status bar is on screen.
+///
+/// ─── ONE SWITCH DECIDES WHO OWNS THE STATUS ROW ─────────────────────────────
+///
+/// Wi-Fi, sound, battery and the clock belong in exactly one place. While
+/// Android's status bar is showing, that place is Android's, and a panel that
+/// draws them as well is a second status bar a few dp away. So they are left
+/// out, and whatever stood for the tray (`tray` itself, or the three it expands
+/// into off the top edge) collapses back to ONE quick-settings button, which is
+/// the part Android cannot offer.
+///
+/// The user turns them on with "Status icons on the panel", which hides
+/// Android's bar in the same write: the panel takes the row over rather than
+/// repeating it. The stored module list is never touched, so turning the
+/// switch back on restores the panel exactly as it was authored or arranged.
+///
+/// ─── AND A PHONE HELD UPRIGHT IS NOT A DESKTOP ─────────────────────────────
+///
+/// A distro authors its panel for a desktop, and a 1920px bar has room for
+/// everything. A 360dp one has room for about eight 44dp targets. So when
+/// [narrow], the [wideOnlyModules] are left out too (the readouts reappear in
+/// quick settings), and the panel draws the menu, the apps and the quick
+/// settings button. Turn the phone sideways, or open it on a tablet, and the
+/// same stored panel draws in full.
+List<PanelItem> panelItemsShown(
+  List<PanelItem> items, {
+  required bool systemStatusBar,
+  bool narrow = false,
+}) {
+  final fitting = narrow
+      ? [
+          for (final item in items)
+            if (!wideOnlyModules.contains(item.kind)) item,
+        ]
+      : items;
+  if (!systemStatusBar) return fitting;
+  final out = <PanelItem>[];
+  var tray = false;
+  for (final item in fitting) {
+    final standsForTray =
+        item.kind == PanelModule.tray || PanelItem.trayExpansion.contains(item);
+    if (standsForTray) {
+      if (!tray) out.add(const PanelItem(PanelModule.tray));
+      tray = true;
+      continue;
+    }
+    if (statusModules.contains(item.kind)) continue;
+    out.add(item);
+  }
+  return out;
 }
 
 Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
@@ -92,6 +171,15 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
         vertical: host.vertical,
       ),
     PanelModule.pager => PanelPager(theme: theme),
+    PanelModule.title =>
+      PanelTitleModule(theme: theme, vertical: host.vertical),
+    // Words do not fit a 40dp vertical strip; the toggle is a glyph and does.
+    PanelModule.workspacesButton => host.vertical
+        ? const SizedBox.shrink()
+        : PanelWorkspacesButton(theme: theme),
+    PanelModule.appsButton =>
+      host.vertical ? const SizedBox.shrink() : PanelAppsButton(theme: theme),
+    PanelModule.tiling => PanelTilingToggle(theme: theme),
 
     // ─── ONLY A TOP PANEL STILL HAS ONE ────────────────────────────────────
     //
@@ -100,9 +188,10 @@ Widget panelModuleWidget(WidgetRef ref, PanelItem item, PanelHost host) {
     PanelModule.tray => PanelTrayButton(
         palette: theme.palette,
         stacked: host.vertical,
-        // A BOTTOM panel is 700dp from the status bar and duplicates nothing,
-        // so it keeps all three. Only a top bar sits under the system's own.
-        compact: theme.statusBar && theme.panelSide == TopBarSide.top,
+        // One button while Android's bar is up, on every edge: the three
+        // glyphs are the status row, and the status row is Android's until the
+        // user hands it to the panel. See [panelItemsShown].
+        compact: theme.statusBar,
       ),
     PanelModule.clock => PanelClockModule(
         onDark: theme.palette.onDark,

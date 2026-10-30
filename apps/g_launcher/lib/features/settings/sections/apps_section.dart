@@ -21,7 +21,9 @@ import '../../drawer/az_rail.dart';
 import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../system/notification_badges.dart';
+import '../../command/search_settings.dart';
 import '../folders_screen.dart';
+import '../search_settings_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
 
@@ -644,6 +646,42 @@ List<Widget> applicationsSection(
                 (p) => p.copyWith(drawerSearchPosition: v),
               ),
             ),
+          ),
+        ),
+        // The web engine and the person's own bangs, launcher-wide. Its own
+        // page, because the bang list is a list someone edits.
+        FilterRow(
+          const [
+            'search engine',
+            'search settings',
+            'web search',
+            'bang',
+            'bangs',
+            'google',
+            'duckduckgo',
+            'brave',
+            'bing',
+            'startpage',
+            'ecosia',
+          ],
+          Builder(
+            builder: (context) {
+              final search = ref.watch(searchSettingsProvider).asData?.value ??
+                  const SearchSettings();
+              return SettingsRow(
+                icon: Icons.travel_explore,
+                accent: true,
+                title: context.t('searchSettings.title'),
+                subtitle: search.bangs.isEmpty
+                    ? search.engine.label
+                    : context.t('settings.searchEngineAndBangs', {
+                        'engine': search.engine.label,
+                        'count': '${search.bangs.length}',
+                      }),
+                trailing: const Chevron(),
+                onTap: () => openSearchSettings(context),
+              );
+            },
           ),
         ),
         FilterRow(

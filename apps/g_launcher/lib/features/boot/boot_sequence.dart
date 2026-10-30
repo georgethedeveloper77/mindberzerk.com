@@ -341,6 +341,8 @@ class BootGate extends ConsumerWidget {
               logoAsset: splashChrome!.logoAsset,
               displayFontFamily: splashChrome!.displayFontFamily,
               monoFontFamily: splashChrome!.monoFontFamily,
+              hello: splashChrome!.hello,
+              onHelloShown: splashChrome!.onHelloShown,
               onComplete: () =>
                   ref.read(bootControllerProvider.notifier).finish(),
             ),

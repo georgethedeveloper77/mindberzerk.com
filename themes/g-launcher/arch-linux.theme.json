@@ -1,48 +1,250 @@
 {
-  "id": "arch-linux",
+  "id": "arch-linux-theme",
   "name": "Arch Linux",
-  "version": "rolling",
+  "version": "1",
   "shell": "tiling",
   "tier": "pro",
-  "chromeFamily": "generic",
+  "chromeFamily": "wm",
   "palette": {
-    "bgTop": "#1F2B38",
-    "bgBottom": "#0F1720",
-    "bar": "#0B1219",
-    "dock": "#CC0B1219",
+    "bgTop": "#1E1E2E",
+    "bgBottom": "#11111B",
+    "bar": "#1E1E2E",
+    "dock": "#CC1E1E2E",
     "accent": "#1793D1",
-    "onDark": "#FFFFFF"
+    "onDark": "#CDD6F4"
   },
+  "accentGradient": [
+    "#33CCFF",
+    "#00FF99"
+  ],
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Fira Sans",
+    "mono": "Fira Mono"
   },
   "layout": {
     "dock": "off",
     "topBar": true,
-    "grid": {
-      "rows": 5,
-      "cols": 4
-    },
     "panels": [
       {
         "side": "top",
         "modules": [
           "activities",
+          "pager",
+          "title",
           "spacer",
-          "network",
           "memory",
-          "storage"
+          "battery",
+          "clock",
+          "tray"
         ],
-        "height": 28
+        "height": 34
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "grid": {
+      "rows": 3,
+      "cols": 3
+    },
+    "iconScale": 1,
+    "tilingLauncher": "rofi",
+    "homeLayout": "tiled",
+    "workspaces": 4
+  },
+  "icons": {
+    "treatment": "square",
+    "cornerRadius": 0,
+    "foregroundScale": 1,
+    "brandPack": "arch-linux-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "image_2026-08-23_182552829.png",
+    "image_2026-08-23_182606270.png",
+    "image_2026-08-23_182621851.png",
+    "image_2026-08-23_182636219.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": ":: Synchronizing package databases..."
+      },
+      {
+        "kind": "dim",
+        "text": " core            132.4 KiB   1042 KiB/s 00:00"
+      },
+      {
+        "kind": "dim",
+        "text": " extra             8.3 MiB   6.11 MiB/s 00:01"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started systemd-networkd"
+      },
+      {
+        "kind": "dim",
+        "text": "Arch Linux 6.9.1-arch1-1 (tty1)"
+      },
+      {
+        "kind": "plain",
+        "text": "archiso login: _"
       }
     ]
   },
-  "icons": {
-    "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+  "splash": {
+    "style": "text",
+    "durationMs": 900
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "terminal": {
+    "appLabel": "kitty",
+    "palette": {
+      "bg": "#1E1E2E",
+      "fg": "#CDD6F4",
+      "cursor": "#F5E0DC",
+      "selection": "#55585B70",
+      "ansi": [
+        "#45475A",
+        "#F38BA8",
+        "#A6E3A1",
+        "#F9E2AF",
+        "#89B4FA",
+        "#F5C2E7",
+        "#94E2D5",
+        "#BAC2DE",
+        "#585B70",
+        "#F38BA8",
+        "#A6E3A1",
+        "#F9E2AF",
+        "#89B4FA",
+        "#F5C2E7",
+        "#94E2D5",
+        "#A6ADC8"
+      ]
+    },
+    "prompt": "[{user}@archlinux {cwd}]$ "
+  },
+  "desklets": {
+    "offers": [
+      "fastfetch",
+      "monitor",
+      "clock",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "fastfetch",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 6,
+        "spanY": 5
+      },
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 0,
+        "row": 5,
+        "spanX": 3,
+        "spanY": 4
+      }
+    ],
+    "skins": {
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "focus": true,
+        "title": "kitty",
+        "logo": "      /\\\n     /  \\\n    /\\   \\\n   /  __  \\\n  /  (  )  \\\n /__/    \\__\\"
+      },
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "btop"
+      },
+      "clock": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "kitty"
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "kitty"
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "kitty"
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "kitty"
+      }
+    }
+  },
+  "minAppVersion": 34,
+  "features": [
+    {
+      "title": "Your rice, on the phone",
+      "body": "kitty running fastfetch with the Arch logo, btop beside it and your apps tiled into the rest of workspace one. Gaps between every window, Hyprland's cyan to green border on the focused one.",
+      "exclusive": true
+    },
+    {
+      "title": "A waybar that floats",
+      "body": "Numbered workspaces with the active one as a pill, the workspace name, memory and quick settings, inset from the edges like the windows below it.",
+      "exclusive": true
+    },
+    {
+      "title": "pacman, yay and paru",
+      "body": "Type pacman -Syu in a kitty terminal in Catppuccin Mocha, at Arch's own [user@archlinux ~]$ prompt.",
+      "exclusive": true
+    },
+    {
+      "title": "rofi",
+      "body": "Swipe up for a search box, not a grid. Type a few letters and run it.",
+      "exclusive": true
+    },
+    {
+      "title": "archiso boot",
+      "body": "A pacman sync and a tty login prompt before anything appears.",
+      "exclusive": true
+    },
+    {
+      "title": "Catppuccin and Arch blue",
+      "body": "Mocha's near-black base under Arch's own blue, with square icons and no rounded icon plates.",
+      "exclusive": false
+    }
+  ]
 }

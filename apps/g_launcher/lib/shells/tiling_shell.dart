@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../design/window_chrome.dart';
 import '../engine/effective_theme.dart';
 // PanelSpec, PanelModule and TopBarSide: the bar is built from the distro's
 // authored panel now, not from a list in this file.
@@ -11,6 +12,10 @@ import '../features/gestures/gesture_layer.dart';
 import '../features/home/desktop_hold.dart';
 import '../features/home/workspaces/workspace_canvas.dart';
 import '../features/home/workspaces/workspace_controller.dart';
+import '../features/panel/applets/panel_tray_button.dart';
+import '../features/panel/modules/panel_title_module.dart';
+import '../features/panel/panel_modules.dart'
+    show panelIsNarrow, wideOnlyModules;
 import '../system/system_stats.dart';
 import 'safe_page.dart';
 
@@ -76,7 +81,12 @@ class _TilingShellState extends ConsumerState<TilingShell> {
         // the waybar, placed and saved and unreadable.
         Column(
           children: [
-            SafeArea(bottom: false, child: _Waybar(theme: theme)),
+            if (!_barAtBottom(theme))
+              SafeArea(bottom: false, child: _Waybar(theme: theme))
+            else
+              // The status bar's inset still has to be cleared at the top
+              // when the bar has moved to the bottom.
+              SizedBox(height: MediaQuery.viewPaddingOf(context).top),
             Expanded(
               // removeTop, because the SafeArea above has already consumed the
               // status-bar inset for the bar. The desklet surface reads the
@@ -86,6 +96,8 @@ class _TilingShellState extends ConsumerState<TilingShell> {
               child: MediaQuery.removePadding(
                 context: context,
                 removeTop: true,
+                // The bottom bar has cleared the gesture inset already.
+                removeBottom: _barAtBottom(theme),
                 child: GestureLayer(
                   theme: theme,
                   // Same gap as Plasma had: no long press at all, so the
@@ -103,6 +115,12 @@ class _TilingShellState extends ConsumerState<TilingShell> {
                 ),
               ),
             ),
+            // ─── i3bar SITS AT THE BOTTOM ───────────────────────────────
+            //
+            // i3's default, and where a thumb is. An authored bottom panel
+            // puts the bar here; the gesture inset is painted in the bar's
+            // colour by the bar itself, so it reads as one strip.
+            if (_barAtBottom(theme)) _Waybar(theme: theme, atBottom: true),
           ],
         ),
         // ShellDrawer directly; `_Launcher` was a back contract and nothing
@@ -114,10 +132,18 @@ class _TilingShellState extends ConsumerState<TilingShell> {
   }
 }
 
+/// Whether this distro authored its tiling bar on the bottom edge.
+bool _barAtBottom(EffectiveTheme theme) =>
+    !theme.panels.any((p) => p.side == TopBarSide.top) &&
+    theme.panels.any((p) => p.side == TopBarSide.bottom);
+
 class _Waybar extends ConsumerWidget {
-  const _Waybar({required this.theme});
+  const _Waybar({required this.theme, this.atBottom = false});
 
   final EffectiveTheme theme;
+
+  /// Drawn along the bottom edge, i3bar's default.
+  final bool atBottom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -145,8 +171,9 @@ class _Waybar extends ConsumerWidget {
     // authors none keeps exactly the bar it had, which is what the fallback
     // below is and why no tiling distro shipping today moves.
     PanelSpec? authored;
+    final edge = atBottom ? TopBarSide.bottom : TopBarSide.top;
     for (final p in theme.panels) {
-      if (p.side == TopBarSide.top) {
+      if (p.side == edge) {
         authored = p;
         break;
       }
@@ -159,9 +186,13 @@ class _Waybar extends ConsumerWidget {
           PanelModule.activities => GestureDetector(
               onTap: () => openApps(ref),
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(Icons.terminal, size: 15, color: accent),
+              // A thumb's target, not a mouse's: the glyph at 20dp inside the
+              // bar's full height and 44dp of width.
+              child: SizedBox(
+                width: 44,
+                child: Center(
+                  child: Icon(Icons.terminal, size: 20, color: accent),
+                ),
               ),
             ),
           PanelModule.pager => Row(
@@ -171,6 +202,7 @@ class _Waybar extends ConsumerWidget {
                   _Workspace(
                     index: i,
                     active: active,
+                    square: theme.barEdge,
                     accent: accent,
                     onDark: onDark,
                     mono: mono,
@@ -232,19 +264,36 @@ class _Waybar extends ConsumerWidget {
               ? null
               : _Module('bat', '${stats!.batteryPercent}%', onDark, mono),
           PanelModule.clock => _Module(null, formatTime(now), onDark, mono),
+          // The one door into quick settings on a desktop with no tray. A
+          // waybar's right end is where its own tray and notifications sit.
+          PanelModule.tray => PanelTrayButton(
+              palette: theme.palette,
+              stacked: false,
+              compact: true,
+            ),
+          // The focused window's title is the middle of every waybar; on a
+          // phone it names where you are.
+          // Flexible, so a long name shortens instead of pushing the bar's
+          // right end off the screen.
+          PanelModule.title => Flexible(
+              child: PanelTitleModule(theme: theme, vertical: false),
+            ),
           // A waybar has no application menu, no window-button strip and no
           // system tray, and inventing one would put a Plasma affordance on a
           // desktop that has never had it. Authored, they are dropped rather
           // than fatal, the same contract PanelModule.parse keeps.
           PanelModule.kickoff ||
           PanelModule.tasks ||
-          PanelModule.tray ||
           // `battery` draws now, as text in the readout run, which is what a
           // waybar does with it. `wifi` and `volume` stay dropped: those are
           // tappable Plasma chips, and an app button on a tiling bar is one
           // too, because this desktop launches from a keybind.
           PanelModule.wifi ||
           PanelModule.volume ||
+          PanelModule.workspacesButton ||
+          PanelModule.appsButton ||
+          // A tiling WM is always tiled; a toggle here would offer to stop.
+          PanelModule.tiling ||
           PanelModule.app =>
             null,
         };
@@ -252,8 +301,49 @@ class _Waybar extends ConsumerWidget {
     // `whereType<Widget>()`, not a null-aware element: a module that has no
     // reading to show returns null and is dropped, and this is the spelling the
     // rest of the tree uses for exactly that.
-    List<Widget> emit(List<PanelModule> modules) =>
-        modules.map(build).whereType<Widget>().toList();
+    //
+    // ─── THE STATUS RULE, HERE TOO ────────────────────────────────────────
+    //
+    // The clock and the battery leave the bar while Android's status bar is
+    // showing, as on every other shell: the same row twice is not a rice.
+    // "Status icons on the panel" brings them back and hides Android's.
+    //
+    // ─── AND THE UPRIGHT RULE ─────────────────────────────────────────────
+    //
+    // The same rule every other panel follows (`panelItemsShown`): on a phone
+    // held upright the readouts and the workspace pills leave the bar, and
+    // quick settings carries them instead. Sideways or on a tablet the bar
+    // draws everything the distro authored.
+    final narrow = panelIsNarrow(context);
+    bool shown(PanelModule m) =>
+        !(narrow && wideOnlyModules.contains(m)) &&
+        (!theme.statusBar ||
+            (m != PanelModule.clock && m != PanelModule.battery));
+    //
+    // ─── ONE TRAY, WHATEVER THE EDGE ─────────────────────────────────────
+    //
+    // Off the top edge `PanelItem.parseAll` expands `tray` into wifi, volume
+    // and battery, which a waybar declines as chips. On a bottom i3bar that
+    // left no way into quick settings at all. The first of wifi or volume is
+    // therefore the tray button and the other is dropped; battery stays a
+    // readout under the status rule.
+    List<Widget> emit(List<PanelModule> modules) {
+      var trayDone = false;
+      final out = <Widget>[];
+      for (final m in modules.where(shown)) {
+        if (m == PanelModule.wifi || m == PanelModule.volume) {
+          if (trayDone) continue;
+          trayDone = true;
+          final w = build(PanelModule.tray);
+          if (w != null) out.add(w);
+          continue;
+        }
+        if (m == PanelModule.tray) trayDone = true;
+        final w = build(m);
+        if (w != null) out.add(w);
+      }
+      return out;
+    }
 
     final children = <Widget>[
       const SizedBox(width: 6),
@@ -285,13 +375,54 @@ class _Waybar extends ConsumerWidget {
       const SizedBox(width: 10),
     ];
 
-    return Material(
-      color: theme.palette.bar.withValues(alpha: 0.92 * theme.barOpacity),
-      child: SizedBox(
-        // The distro's height when it authored one, else the 30 this bar has
-        // always been. Same resolution `panelHeight` gets on Plasma.
-        height: authored?.height ?? 30,
-        child: Row(children: children),
+    // ─── A WAYBAR FLOATS ──────────────────────────────────────────────────
+    //
+    // Today's waybar sits inset from the screen's edges with rounded ends,
+    // the same gap the tiled windows below it keep, so the bar reads as one
+    // more window rather than as a strip glued to the status bar. Every tiling
+    // distro gets it: an edge-to-edge bar is how these desktops looked years
+    // ago, and the people who buy them screenshot what they run now.
+    final color =
+        theme.palette.bar.withValues(alpha: 0.92 * theme.barOpacity);
+    final height = authored?.height ?? 34;
+
+    // ─── OR RUNS EDGE TO EDGE, AS i3bar DOES ──────────────────────────────
+    //
+    // `barStyle: "edge"`: square, full width, no inset. At the bottom it
+    // also fills the gesture inset beneath it in its own colour, so the bar
+    // and the strip under it read as one, the way a real i3bar meets the
+    // bottom of the screen.
+    if (theme.barEdge) {
+      return ColoredBox(
+        color: color,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: atBottom ? MediaQuery.viewPaddingOf(context).bottom : 0,
+          ),
+          child: SizedBox(height: height, child: Row(children: children)),
+        ),
+      );
+    }
+
+    final radius = theme.spec.surfaces?.radius ?? 10;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        windowGap,
+        windowGap / 2,
+        windowGap,
+        windowGap / 2 +
+            (atBottom ? MediaQuery.viewPaddingOf(context).bottom : 0),
+      ),
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          // The distro's height when it authored one, else 34: tall enough
+          // for a workspace pill a thumb can hit.
+          height: height,
+          child: Row(children: children),
+        ),
       ),
     );
   }
@@ -310,7 +441,11 @@ class _Workspace extends StatelessWidget {
     required this.onDark,
     required this.mono,
     required this.onTap,
+    this.square = false,
   });
+
+  /// i3's square, bordered workspace button instead of Hyprland's pill.
+  final bool square;
 
   final int index;
   final int active;
@@ -323,15 +458,25 @@ class _Workspace extends StatelessWidget {
   Widget build(BuildContext context) {
     final on = index == active;
 
+    // A Hyprland-style pill: the active workspace is wider and filled, the
+    // rest are bare numbers. The tap target is the bar's full height.
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
+        width: square ? 30 : (on ? 34 : 24),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: on ? accent.withValues(alpha: 0.9) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
+          color: on ? accent.withValues(alpha: 0.95) : Colors.transparent,
+          borderRadius: BorderRadius.circular(square ? 0 : 8),
+          border: square
+              ? Border.all(
+                  color: on ? accent : onDark.withValues(alpha: 0.25),
+                )
+              : null,
         ),
         child: Text(
           '${index + 1}',

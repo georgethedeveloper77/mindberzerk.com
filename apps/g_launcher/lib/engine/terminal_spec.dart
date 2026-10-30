@@ -231,6 +231,7 @@ class TerminalSpec {
     required this.appLabel,
     required this.palette,
     this.prompt = defaultPrompt,
+    this.rootPrompt,
     this.aliases = const [],
     int scrollbackLines = defaultScrollback,
   }) : scrollbackLines = scrollbackLines < minScrollback
@@ -263,6 +264,17 @@ class TerminalSpec {
   /// reading `{colour}` is an authoring mistake someone can see and fix; a
   /// prompt silently missing a segment is one they cannot.
   final String prompt;
+
+  /// The prompt after `sudo -i` or `su`. Same tokens as [prompt].
+  ///
+  /// Null derives one from [prompt]: the trailing `$` becomes `#` and the whole
+  /// line is drawn in ANSI red, which is what every distro's root shell does
+  /// when nobody themed it. A distro whose root prompt is a different SHAPE,
+  /// like Kali's blue rule with a red name, authors it here.
+  ///
+  /// Both templates may carry SGR escapes, and a `\n` splits a two-line prompt:
+  /// everything before the last newline is drawn above the input row.
+  final String? rootPrompt;
 
   final List<TerminalAlias> aliases;
 
@@ -300,10 +312,12 @@ class TerminalSpec {
     }
 
     final prompt = (j['prompt'] as String?);
+    final rootPrompt = (j['rootPrompt'] as String?);
     return TerminalSpec(
       appLabel: label,
       palette: palette,
       prompt: prompt == null || prompt.isEmpty ? defaultPrompt : prompt,
+      rootPrompt: rootPrompt == null || rootPrompt.isEmpty ? null : rootPrompt,
       aliases: aliases,
       scrollbackLines:
           (j['scrollbackLines'] as num?)?.toInt() ?? defaultScrollback,
@@ -472,6 +486,7 @@ class TerminalSpec {
       other is TerminalSpec &&
           other.appLabel == appLabel &&
           other.prompt == prompt &&
+          other.rootPrompt == rootPrompt &&
           other.scrollbackLines == scrollbackLines &&
           other.palette == palette &&
           const ListEquality<TerminalAlias>().equals(other.aliases, aliases);
@@ -480,6 +495,7 @@ class TerminalSpec {
   int get hashCode => Object.hash(
         appLabel,
         prompt,
+        rootPrompt,
         scrollbackLines,
         palette,
         const ListEquality<TerminalAlias>().hash(aliases),

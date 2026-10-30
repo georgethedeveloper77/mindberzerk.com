@@ -32,6 +32,7 @@ class WorkspaceDots extends StatelessWidget {
     required this.active,
     required this.accent,
     required this.idle,
+    this.gradient = const [],
     this.onSelect,
     this.stripLabel,
     this.stripValue,
@@ -51,6 +52,10 @@ class WorkspaceDots extends StatelessWidget {
   /// Inactive dots. White at 32% — not grey. On a photograph, a solid grey dot
   /// looks like a dead pixel.
   final Color idle;
+
+  /// The distro's signature gradient for the ACTIVE marker, or empty for the
+  /// flat [accent]. See `ThemeSpec.accentGradient`.
+  final List<Color> gradient;
 
   /// Tap a dot to jump. Null makes the strip decorative.
   final ValueChanged<int>? onSelect;
@@ -123,6 +128,7 @@ class WorkspaceDots extends StatelessWidget {
                 isActive: i == active,
                 accent: accent,
                 idle: idle,
+                gradient: gradient,
                 axis: axis,
                 dotSize: dotSize,
                 activeLength: activeLength,
@@ -141,6 +147,7 @@ class _Dot extends StatelessWidget {
     required this.isActive,
     required this.accent,
     required this.idle,
+    this.gradient = const [],
     required this.axis,
     required this.label,
     required this.dotSize,
@@ -151,6 +158,10 @@ class _Dot extends StatelessWidget {
   final bool isActive;
   final Color accent;
   final Color idle;
+
+  /// The distro's signature gradient for the ACTIVE marker, or empty for the
+  /// flat [accent]. See `ThemeSpec.accentGradient`.
+  final List<Color> gradient;
   final Axis axis;
 
   /// This dot's own name, or null to leave it unnamed. See
@@ -176,7 +187,16 @@ class _Dot extends StatelessWidget {
       width: vertical ? dotSize : long,
       height: vertical ? long : dotSize,
       decoration: BoxDecoration(
-        color: isActive ? accent : idle,
+        // A gradient replaces the colour; a BoxDecoration with both paints
+        // only the gradient, but leaving the colour null says so.
+        color: !isActive ? idle : (gradient.length >= 2 ? null : accent),
+        gradient: isActive && gradient.length >= 2
+            ? LinearGradient(
+                colors: gradient,
+                begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
+                end: vertical ? Alignment.bottomCenter : Alignment.centerRight,
+              )
+            : null,
         // Circle when idle (radius = half of 6), 3px bar when active. Animating
         // between the two radii is what gives the dot its little stretch.
         borderRadius: BorderRadius.circular(isActive ? 3 : dotSize / 2),

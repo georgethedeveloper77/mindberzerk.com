@@ -282,7 +282,9 @@ void main() {
         _empty(),
         kindId: 'clock',
         page: 0,
-        col: 4,
+        // The last column, so a two-wide desklet's second column is off the
+        // grid whatever `colFactor` makes the grid's width.
+        col: cols - 1,
         row: 0,
         cols: cols,
         rows: rows,
@@ -524,7 +526,8 @@ void main() {
           reason: 'storage must be untouched: the pack may install later');
     });
 
-    test('pane-only kinds are hidden on a grid surface and shown on a pane', () {
+    test('pane-only kinds are hidden on a grid surface and shown on a pane',
+        () {
       final p = _with([_d('a', 'clock'), _d('b', 'free')]);
       expect(DeskletLayout.renderable(p, 0).map((d) => d.id), ['a']);
       expect(
@@ -636,7 +639,9 @@ void main() {
     test('an unknown kind survives a full prefs round trip', () {
       // The forward-compatibility promise, end to end: an APK that has never
       // heard of this kind must hand it back unchanged after an update.
-      final p = _with([_d('a', 'kind-from-2027', config: const {'x': 1})]);
+      final p = _with([
+        _d('a', 'kind-from-2027', config: const {'x': 1})
+      ]);
       final back = LauncherPrefs.fromJson(p.toJson());
       expect(back.desklets.single.kind, 'kind-from-2027');
       expect(back.desklets.single.config['x'], 1);

@@ -54,12 +54,21 @@ enum class BrandTreatment {
      * Plate in the theme's own background (flat or graded), glyph in the brand
      * hex. The whole grid reads as one set, at some cost to recognisability.
      */
-    THEME_PLATE;
+    THEME_PLATE,
+
+    /**
+     * iOS 26's Clear look: a see-through plate in the theme's background
+     * colour (alpha included), a light rim round the shape, and the glyph in
+     * the theme's monochrome tint, white by default. Parsed from a string, so
+     * adding it renumbers no Pigeon codec.
+     */
+    GLASS;
 
     companion object {
         /** Unknown or absent degrades to BRAND_PLATE rather than throwing. */
         fun parse(raw: String?): BrandTreatment = when (raw) {
             "themePlate" -> THEME_PLATE
+            "glass" -> GLASS
             else -> BRAND_PLATE
         }
     }
@@ -254,6 +263,14 @@ class BrandIconResolver(context: Context) {
      */
     @Synchronized
     fun resolveCategory(bucketKey: String): BrandGlyph? = pack?.categories?.get(bucketKey)
+
+    /**
+     * The drawing for a PACKAGE, with no activity to name. For chrome that wears
+     * a system app's drawing, such as the panel's Settings glyph, where there is
+     * no launcher entry in hand to build a component key from.
+     */
+    @Synchronized
+    fun resolvePackage(packageName: String): BrandGlyph? = pack?.glyphs?.get(packageName)
 
     @Synchronized
     fun coveredPackages(): Set<String> = pack?.glyphs?.keys?.toSet() ?: emptySet()

@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "Ihlala ocingweni lwakho. Lokhu kuyikhipha ohlwini lapha kuphela.",
   "wallpaper.removeTitle": "Susa lesi sangemuva",
   "wallpaper.removed": "Kususiwe",
-  "wallpaper.yours": "Eyakho"
+  "wallpaper.yours": "Eyakho",
+  "shell.dockFull": "I-Dock igcwele",
+  "shell.moveToHomeScreen": "Hambisa esikrinini sasekhaya",
+  "home.edit": "Hlela"
 }

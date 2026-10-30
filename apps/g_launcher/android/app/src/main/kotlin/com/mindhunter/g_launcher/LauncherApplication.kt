@@ -69,6 +69,15 @@ class LauncherApplication : Application() {
     lateinit var engine: FlutterEngine
         private set
 
+    /**
+     * False when this install has no Flutter library to load: a base APK
+     * installed without Play's native split. Nothing below can run then, and
+     * [LauncherActivity] sends the user to [BrokenInstallActivity] instead of
+     * crashing on every press of home.
+     */
+    var installComplete: Boolean = true
+        private set
+
     /// The AppWidget host, exposed so LauncherActivity can attach itself for the
     /// bind/config Activity results and drive startListening/stopListening.
     lateinit var widgetHost: WidgetHostController
@@ -123,6 +132,26 @@ class LauncherApplication : Application() {
         // First, before any widget can be hosted: an OEM widget's own code runs
         // on our main thread and must not be able to crash the launcher.
         ForeignWidgetGuard.install(classLoader)
+
+        // ─── CAN FLUTTER RUN AT ALL ─────────────────────────────────────────
+        //
+        // Loading the library here is what the engine does first anyway (a
+        // second load is a no-op), and it is the one check that answers the
+        // question for every way the library could be missing. Without it the
+        // FlutterEngine below throws `Could not find 'libflutter.so'` out of
+        // Application.onCreate, which on a home app is a crash on every home
+        // press. See BrokenInstallActivity.
+        installComplete = try {
+            System.loadLibrary("flutter")
+            true
+        } catch (e: UnsatisfiedLinkError) {
+            // Logged, not reported: the Crashlytics SDK is the Flutter plugin's
+            // dependency rather than this module's, and the screen the user
+            // lands on is the fix either way.
+            android.util.Log.w("GLauncher", "install is missing libflutter.so", e)
+            false
+        }
+        if (!installComplete) return
 
         engine = FlutterEngine(this).apply {
             dartExecutor.executeDartEntrypoint(

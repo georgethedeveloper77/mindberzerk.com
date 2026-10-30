@@ -1,11 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/drawer_layout.dart';
 import '../../data/prefs/drawer_slots.dart';
+import '../../data/prefs/hidden_folder.dart';
 import '../../data/prefs/launcher_prefs.dart';
+import '../../data/prefs/new_apps.dart';
 import '../../data/prefs/prefs_repository.dart';
+import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
 import '../../data/search/search_text.dart';
 import '../../data/usage/usage_repository.dart';
@@ -124,6 +128,52 @@ class TerminalDrawerItem extends DrawerItem {
 
   @override
   int get hashCode => title.hashCode;
+}
+
+/// The locked Hidden folder: the hidden apps, behind the fingerprint.
+///
+/// ─── IT CARRIES NO MEMBERS, AND THAT IS THE SECURITY OF IT ──────────────────
+///
+/// A [FolderDrawerItem] holds resolved apps so its tile can paint a 2x2
+/// preview. This one holds only its name, so no drawer can draw what is
+/// hidden or how many: there is nothing in the item to draw. The overlay
+/// resolves the apps itself, after the lock has opened.
+///
+/// It never appears in search either (see [_matches]), so typing "hidden"
+/// does not point anyone at it.
+class HiddenFolderItem extends DrawerItem {
+  const HiddenFolderItem(this.title);
+
+  final String title;
+
+  @override
+  String get label => title;
+
+  @override
+  bool operator ==(Object other) =>
+      other is HiddenFolderItem && other.title == title;
+
+  @override
+  int get hashCode => title.hashCode;
+}
+
+/// The Hidden folder tile, or null when it should not be drawn: switched
+/// off, or nothing installed is hidden (an empty secret folder is a tile that
+/// only announces itself).
+///
+/// Reads the RAW app list, because `shellAppsProvider` has already removed
+/// exactly the apps this asks about.
+HiddenFolderItem? hiddenFolderTile(Ref ref) {
+  final settings = ref.watch(hiddenFolderProvider).asData?.value;
+  if (settings == null || !settings.enabled) return null;
+  final hidden = ref.watch(globalPrefsProvider).asData?.value.hiddenApps ??
+      const <String>{};
+  if (hidden.isEmpty) return null;
+  final installed = ref.watch(appListProvider).asData?.value ?? const [];
+  if (!installed.any((a) => hidden.contains(a.componentKey))) return null;
+  return HiddenFolderItem(
+    settings.name ?? ref.watch(translationsProvider).t('hidden.folderName'),
+  );
 }
 
 /// This theme's terminal label, with the shell family default behind it.
@@ -584,6 +634,29 @@ final drawerItemsProvider =
       for (final k in freq.take(_kSuggestions))
         if (byKey[k] != null) byKey[k]!,
     ];
+    final hiddenTile = hiddenFolderTile(ref);
+
+    // ─── RECENTLY ADDED, BESIDE SUGGESTIONS ON A GLASS LIBRARY ────────────
+    //
+    // The second shelf a phone's App Library opens on. Fed by the first-seen
+    // record the new-app dot already keeps, newest first, and unlike the dot it
+    // keeps an app after it has been opened: it is a list of arrivals, not of
+    // unread ones. Zero means "here before the record began", so the first run
+    // shows nothing rather than claiming every app just arrived.
+    //
+    // Only on a Liquid Glass distro, which is to say the one modelled on that
+    // phone. Every other library keeps the shelves it has.
+    final seen = theme.glass
+        ? (ref.watch(newAppsFirstSeenProvider).asData?.value ??
+            const <String, int>{})
+        : const <String, int>{};
+    final recentKeys = [
+      for (final e in seen.entries)
+        if (e.value > 0 && byKey[e.key] != null) e,
+    ]..sort((a, b) => b.value.compareTo(a.value));
+    final recent = [
+      for (final e in recentKeys.take(_kSuggestions)) byKey[e.key]!,
+    ];
 
     return [
       // ─── SUGGESTIONS LEADS, AHEAD OF THE USER'S OWN ───────────────────
@@ -608,12 +681,22 @@ final drawerItemsProvider =
           ),
           suggestions,
         ),
+      if (recent.isNotEmpty)
+        FolderDrawerItem(
+          AppFolder(
+            id: '${kCategoryFolderPrefix}Recently Added',
+            name: 'Recently Added',
+            members: [for (final a in recent) a.componentKey],
+          ),
+          recent,
+        ),
       // Then the user's own, which still outrank the derived categories below.
       ...folders,
       ...categoryFolders,
       ...launcherEntries,
       for (final item in loose)
         if (!filed.contains((item as AppDrawerItem).entry.componentKey)) item,
+      if (hiddenTile != null) hiddenTile,
     ];
   }
 
@@ -665,7 +748,14 @@ final drawerItemsProvider =
     appItems = [for (final e in rankedItems) e.$2, ...unranked];
   }
 
-  return [...folders, ...launcherEntries, ...appItems];
+  // Last, after every app: discreet by position as well as by look.
+  final hiddenTile = hiddenFolderTile(ref);
+  return [
+    ...folders,
+    ...launcherEntries,
+    ...appItems,
+    if (hiddenTile != null) hiddenTile,
+  ];
 });
 
 /// What the CUSTOM drawer renders: the sparse slot grid, resolved.
@@ -784,6 +874,9 @@ final drawerCustomGridProvider =
     if (placedApps.contains(a.componentKey)) continue;
     append(AppDrawerItem(a));
   }
+  // Never stored as a slot: it always follows the last thing placed.
+  final hiddenTile = hiddenFolderTile(ref);
+  if (hiddenTile != null) append(hiddenTile);
 
   final maxFlat =
       placed.isEmpty ? DrawerSlots.reservedSlots : placed.keys.reduce(math.max);
@@ -880,6 +973,8 @@ List<DrawerItem> launcherItemsMatching(
 /// for. The launcher's own entries are the exception because their labels are
 /// the one thing the user cannot guess — nobody types "G Launcher Settings".
 bool _matches(DrawerItem item, String query) {
+  // Never found by search. See [HiddenFolderItem].
+  if (item is HiddenFolderItem) return false;
   if (SearchText.contains(item.label, query)) return true;
   final q = SearchText.compact(query);
 
@@ -888,7 +983,10 @@ bool _matches(DrawerItem item, String query) {
     DeviceSettingsItem() => deviceSettingsAliases,
     TerminalDrawerItem() => terminalAliases,
     // Folders match on the name the user gave them, which is already the label.
-    AppDrawerItem() || FolderDrawerItem() => const <String>[],
+    AppDrawerItem() ||
+    FolderDrawerItem() ||
+    HiddenFolderItem() =>
+      const <String>[],
   };
 
   for (final a in aliases) {

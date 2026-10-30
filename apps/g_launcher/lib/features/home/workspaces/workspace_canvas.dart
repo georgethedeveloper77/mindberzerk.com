@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../engine/effective_theme.dart';
 import '../../../engine/theme_spec.dart';
+import '../../../shells/safe_page.dart';
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_surface.dart';
 import '../../drawer/shell_drawer.dart';
 import '../home_grid.dart';
+import 'edge_paging.dart';
 import 'workspace_controller.dart';
 
 /// The vertical-workspace surface shared by the non-GNOME shells.
@@ -147,6 +149,31 @@ class WorkspaceCanvas extends ConsumerWidget {
           // in.
           child: _Parallax(controller: controller, pageCount: pages),
         ),
+        // ─── PAGE WHILE DRAGGING ────────────────────────────────────────
+        //
+        // Horizontal homes only: a vertical pager's edges are the panel and
+        // the dock, both of which are drop targets of their own. HOME pages
+        // only, too: the apps page is not somewhere an icon can be put down.
+        if (theme.workspaceAxis == WorkspaceAxis.horizontal && count > 1)
+          Positioned.fill(
+            child: EdgePageSensor(
+              onTurn: (direction) {
+                // `pageOrNull`, not `hasClients` plus `page`: see
+                // `safe_page.dart`.
+                final at = controller.pageOrNull;
+                if (at == null) return false;
+                final now = at.round();
+                final next = now + direction;
+                if (next < 0 || next >= count) return false;
+                controller.animateToPage(
+                  next,
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                );
+                return true;
+              },
+            ),
+          ),
       ],
     );
   }

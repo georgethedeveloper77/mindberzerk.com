@@ -120,10 +120,19 @@ abstract final class AquaDockMetrics {
 
   /// The resting slot size for [count] apps in a dock of usable length
   /// [available]. Shrinks below [baseSlot] only when the dock is genuinely full.
-  static double baseSlotFor({required int count, required double available}) {
-    if (count <= 0) return baseSlot;
-    final fit = (available - (count - 1) * gap) / count;
-    return fit.clamp(minSlot, baseSlot);
+  ///
+  /// [restSize] and [spacing] default to the Mac's numbers. A phone-style dock
+  /// passes its home-icon size and an even spread instead; see
+  /// `AquaDock.restSlot`.
+  static double baseSlotFor({
+    required int count,
+    required double available,
+    double restSize = baseSlot,
+    double spacing = gap,
+  }) {
+    if (count <= 0) return restSize;
+    final fit = (available - (count - 1) * spacing) / count;
+    return fit.clamp(minSlot, restSize);
   }
 
   /// The magnification curve: 1.0 at the focus, 0.0 at the edge of the spread.
@@ -158,18 +167,25 @@ abstract final class AquaDockMetrics {
     required int count,
     required double available,
     double? focus,
+    double restSize = baseSlot,
+    double spacing = gap,
   }) {
     if (count <= 0) return const [];
 
-    final base = baseSlotFor(count: count, available: available);
+    final base = baseSlotFor(
+      count: count,
+      available: available,
+      restSize: restSize,
+      spacing: spacing,
+    );
 
     // Resting centres, already CENTRED in `available`, because that is the
     // space `focus` arrives in. Measuring distance against an un-centred run is
     // the coordinate-space bug this comment exists to prevent.
-    final restRun = count * base + (count - 1) * gap;
+    final restRun = count * base + (count - 1) * spacing;
     final restShift = (available - restRun) / 2;
     final rest = <double>[
-      for (var i = 0; i < count; i++) restShift + base / 2 + i * (base + gap),
+      for (var i = 0; i < count; i++) restShift + base / 2 + i * (base + spacing),
     ];
 
     var sizes = <double>[];
@@ -179,7 +195,7 @@ abstract final class AquaDockMetrics {
       // The peak scales with the resting size, so a packed dock magnifies
       // proportionally rather than jumping to a fixed 78 that no longer fits.
       final peak = peakSlot * (base / baseSlot);
-      final spread = spreadSlots * (base + gap);
+      final spread = spreadSlots * (base + spacing);
       sizes = [
         for (final r in rest)
           base + (peak - base) * falloff((r - focus).abs() / spread),
@@ -187,20 +203,20 @@ abstract final class AquaDockMetrics {
     }
 
     final sum = sizes.fold<double>(0, (a, b) => a + b);
-    final run = sum + (count - 1) * gap;
+    final run = sum + (count - 1) * spacing;
     if (run > available) {
-      final k = (available - (count - 1) * gap) / sum;
+      final k = (available - (count - 1) * spacing) / sum;
       sizes = [for (final s in sizes) s * k];
     }
 
-    final total = sizes.fold<double>(0, (a, b) => a + b) + (count - 1) * gap;
+    final total = sizes.fold<double>(0, (a, b) => a + b) + (count - 1) * spacing;
     final shift = (available - total) / 2;
 
     final out = <AquaSlot>[];
     var x = shift;
     for (final s in sizes) {
       out.add(AquaSlot(center: x + s / 2, size: s));
-      x += s + gap;
+      x += s + spacing;
     }
     return out;
   }

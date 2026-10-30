@@ -934,6 +934,8 @@
   "shell.currentEdge": "Τρέχων",
   "shell.dateAndTimeSettings": "settings ημερομηνίας και ώρας",
   "shell.discharging": "Αποφόρτιση",
+  "shell.dockFull": "Το Dock είναι γεμάτο",
+  "shell.moveToHomeScreen": "Μετακίνηση στην αρχική οθόνη",
   "shell.done": "Έγινε",
   "shell.edgeBottom": "Κάτω",
   "shell.edgeLeft": "Αριστερά",
@@ -1105,5 +1107,6 @@
   "why.theTerminalPaintsItsOwn": "Το τερματικό ζωγραφίζει το δικό του φόντο",
   "why.thisDistroDrawsItsOwnMenu": "Αυτό το distro σχεδιάζει το δικό του μενού",
   "why.thisDistroStaysDark": "Το {name} παραμένει σκοτεινό",
-  "why.toolMenuIsCategories": "Τα αρχεία μενού εργαλείων ανά κατηγορία"
+  "why.toolMenuIsCategories": "Τα αρχεία μενού εργαλείων ανά κατηγορία",
+  "home.edit": "Επεξεργασία"
 }

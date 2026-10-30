@@ -9,6 +9,7 @@ import 'cinnamon_drawer.dart';
 import 'drawer_items.dart';
 import 'kickoff_drawer.dart';
 import 'library_view.dart';
+import 'new_app_dot.dart';
 import 'query_drawer.dart';
 import 'tiling_launcher.dart';
 import 'tool_drawer.dart';
@@ -39,8 +40,11 @@ class ShellDrawer extends StatelessWidget {
 
   final EffectiveTheme theme;
 
+  /// Every drawer, wrapped once so its icons can mark newly installed apps.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => NewAppDotScope(child: _drawer(context));
+
+  Widget _drawer(BuildContext context) {
     // ─── THE DISTRO GETS THE FIRST WORD ──────────────────────────────────
     //
     // Checked BEFORE the shell switch, and that ordering is the whole point of
@@ -58,6 +62,12 @@ class ShellDrawer extends StatelessWidget {
     if (theme.appDrawer == 'card') return CardDrawer(theme: theme);
     if (theme.appDrawer == 'whisker') return WhiskerDrawer(theme: theme);
     if (theme.appDrawer == 'cinnamon') return CinnamonDrawer(theme: theme);
+    // Plasma's Application Menu: Cinnamon's columns with the apps cascading
+    // out of the selected category instead of always showing. One widget, two
+    // presentations, so the two menus cannot drift apart in behaviour.
+    if (theme.appDrawer == 'kicker') {
+      return CinnamonDrawer(theme: theme, cascade: true);
+    }
     if (theme.appDrawer == 'zorin') return ZorinDrawer(theme: theme);
     if (theme.appDrawer == 'query') return QueryDrawer(theme: theme);
     // ─── THE SAME WIDGET `drawerGrouping: "library"` REACHES ──────────────

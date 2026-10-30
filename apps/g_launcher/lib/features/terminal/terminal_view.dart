@@ -247,23 +247,7 @@ class _Line extends StatelessWidget {
     return Text.rich(TextSpan(children: spans), style: base);
   }
 
-  TextSpan _span(AnsiSpan s) {
-    final r = palette.resolveStyle(s.style);
-    return TextSpan(
-      text: s.text,
-      style: TextStyle(
-        color: r.fg,
-        backgroundColor: r.bg,
-        fontWeight: r.bold ? FontWeight.w700 : FontWeight.w400,
-        fontStyle: r.italic ? FontStyle.italic : FontStyle.normal,
-        decoration: TextDecoration.combine([
-          if (r.underline) TextDecoration.underline,
-          if (r.strike) TextDecoration.lineThrough,
-        ]),
-        decorationColor: r.fg,
-      ),
-    );
-  }
+  TextSpan _span(AnsiSpan s) => ansiTextSpan(s, palette);
 }
 
 /// A block cursor for LINE MODE.
@@ -351,4 +335,26 @@ class _TruncationNotice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One parsed run as a [TextSpan], resolved through [palette].
+///
+/// Public so the prompt row draws a themed prompt with exactly the styling the
+/// scrollback gives the same characters once they are echoed.
+TextSpan ansiTextSpan(AnsiSpan s, TerminalPalette palette) {
+  final r = palette.resolveStyle(s.style);
+  return TextSpan(
+    text: s.text,
+    style: TextStyle(
+      color: r.fg,
+      backgroundColor: r.bg,
+      fontWeight: r.bold ? FontWeight.w700 : FontWeight.w400,
+      fontStyle: r.italic ? FontStyle.italic : FontStyle.normal,
+      decoration: TextDecoration.combine([
+        if (r.underline) TextDecoration.underline,
+        if (r.strike) TextDecoration.lineThrough,
+      ]),
+      decorationColor: r.fg,
+    ),
+  );
 }

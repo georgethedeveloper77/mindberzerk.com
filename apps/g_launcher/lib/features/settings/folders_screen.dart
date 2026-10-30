@@ -17,20 +17,21 @@ import '../../design/device_preview.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../drawer/drawer_actions.dart';
-import '../drawer/drawer_items.dart';
-import '../drawer/folder_glyph.dart';
+import 'folder_grid_section.dart';
 import 'hide_apps_screen.dart';
 
-/// Folder settings — its own page, because folders grew past a row.
+/// Folder settings, on their own page because folders grew past a row.
 ///
-/// Four things live here, in the order you actually need them:
-///  1. **Suggestions** — the auto-grouping proposals, accepted or dismissed one
-///     at a time. Top of the page because they are the only part that expires:
-///     the list shrinks as you act on it and is usually empty after a while.
-///  2. **Folder grid** — columns and visible rows INSIDE an open folder.
-///  3. **Folder shape** — how the folder tile itself is drawn.
-///  4. **Your folders** — every folder you have, renameable and dissolvable
-///     without hunting for it in the drawer.
+/// In the order you need them:
+///  1. **Folder grid and shape**: columns and rows inside an open folder, and
+///     how the tile itself is drawn, with a live preview above.
+///  2. **Your folders**: [FolderGridSection], the real tiles, the suggested
+///     groups and New folder in one grid.
+///  3. **Hidden apps**: the way into Hide apps.
+///
+/// Bulk actions (create every suggestion, reset appearance, ungroup all) are
+/// in the title bar's menu, so they never sit between a person and their
+/// folders.
 ///
 /// Chrome, not Material: everything reads [ChromeScope] through the primitives,
 /// so this page wears the active distro exactly like Settings and Wallpaper.
@@ -50,13 +51,7 @@ class FoldersScreen extends ConsumerWidget {
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
 
     final apps = ref.watch(shellAppsProvider(theme));
-    // Members are stored as component keys; the rows draw icons.
-    final byKey = {for (final a in apps) a.componentKey: a};
     final suggestions = FolderSuggestions.propose(apps, theme.prefs);
-    final folders = ref
-        .watch(drawerItemsProvider(theme))
-        .whereType<FolderDrawerItem>()
-        .toList();
 
     final cols = theme.prefs.folderCols ?? 4;
     final rows = theme.prefs.folderRows ?? 3;
@@ -66,6 +61,19 @@ class FoldersScreen extends ConsumerWidget {
       // stopped being only about folders. Naming it after half its contents is
       // how a setting becomes unfindable.
       title: context.t('settings.appsAndFolders'),
+      actions: [
+        // ChromeScope is provided BY ThemedScaffold, so read it from below.
+        Builder(
+          builder: (ctx) => IconButton(
+            icon: Icon(
+              Icons.more_vert,
+              color: ChromeScope.of(ctx).colors.textMuted,
+            ),
+            tooltip: ctx.t('folders.moreOptions'),
+            onPressed: () => _bulkMenu(ctx, notifier, theme, suggestions),
+          ),
+        ),
+      ],
       body: ListView(
         // Clears the navigation bar. Trailing padding rather than a SafeArea,
         // so the list still scrolls behind a transparent bar.
@@ -133,102 +141,10 @@ class FoldersScreen extends ConsumerWidget {
             onTap: () => _showShapeSheet(context, notifier, theme),
           ),
 
-          // ── Existing folders ───────────────────────────────────────────
-          ThemedSectionHeader(context.t('settings.yourFolders')),
-
-          if (folders.isEmpty)
-            const _Empty()
-          else ...[
-            // Drag to arrange. Alphabetical until you do, then your order is
-            // the order of record — see DrawerLayout.orderedFolders.
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: folders.length,
-              onReorder: (from, to) {
-                // ReorderableListView reports `to` BEFORE the removal for
-                // downward drags; normalise once here so the engine only ever
-                // sees the post-removal index it documents.
-                final target = to > from ? to - 1 : to;
-                notifier.edit(
-                  (p) => DrawerLayout.reorderFolders(p, from, target),
-                );
-              },
-              itemBuilder: (context, i) {
-                final f = folders[i];
-                return _FolderRow(
-                  key: ValueKey(f.folder.id),
-                  theme: theme,
-                  name: f.folder.name,
-                  count: f.folder.members.length,
-                  members: f.folder.members
-                      .map((k) => byKey[k])
-                      .whereType<AppEntry>()
-                      .toList(),
-                  index: i,
-                  onTap: () => drawerFolderSettings(context, ref, theme, f),
-                );
-              },
-            ),
-            if (theme.prefs.folderOrderCustom == true)
-              ThemedListRow(
-                icon: Icons.sort_by_alpha,
-                title: context.t('settings.sortFoldersATo'),
-                subtitle: context.t('settings.discardsYourManualOrder'),
-                onTap: () => notifier.edit(DrawerLayout.resetFolderOrder),
-              ),
-            // The bulk form of the Ungroup row every folder already carries in
-            // its own sheet. Confirmed first: one tap here undoes every
-            // grouping on the phone, and unlike a rename there is no single
-            // obvious inverse to reach for afterwards. The wording leads with
-            // what SURVIVES, because "remove" next to folders reads as
-            // uninstall to someone skimming.
-            if (PrefsReset.canReset(theme.prefs, PrefsSection.folders))
-              ThemedListRow(
-                icon: Icons.settings_backup_restore,
-                title: context.t('settings.resetFolderAppearance'),
-                subtitle: context.t('settings.sizeAndShapeOnly'),
-                onTap: () async {
-                  final ok = await ThemedDialog.confirm(
-                    context,
-                    title: context.t('settings.resetFolderAppearanceConfirm'),
-                    message: context.t('settings.folderSizeShapeAnd'),
-                    confirmLabel: context.t('settings.reset'),
-                  );
-                  if (ok != true) return;
-                  await notifier
-                      .edit((p) => PrefsReset.section(p, PrefsSection.folders));
-                  if (context.mounted) {
-                    context.showMessage(
-                        context.t('settings.folderAppearanceReset'));
-                  }
-                },
-              ),
-            // Below the appearance reset deliberately: one restores a look and
-            // the other dissolves what the user built, and the destructive one
-            // should not be the first thing under the thumb.
-            ThemedListRow(
-              icon: Icons.folder_off_outlined,
-              title: context.t('settings.ungroupAllFolders'),
-              subtitle: context.t('settings.everyAppReturnsTo'),
-              onTap: () async {
-                final ok = await ThemedDialog.confirm(
-                  context,
-                  title: context.t('settings.ungroupAllFoldersConfirm'),
-                  message: context.t('settings.theAppsAreNot'),
-                  confirmLabel: context.t('drawer.ungroup'),
-                  danger: true,
-                );
-                if (ok != true) return;
-                await notifier.edit(DrawerLayout.dissolveAll);
-                if (context.mounted) {
-                  context
-                      .showMessage(context.t('settings.allFoldersUngrouped'));
-                }
-              },
-            ),
-          ],
+          // ── Your folders ───────────────────────────────────────────────
+          // Folders, suggestions and New folder in one grid. The bulk actions
+          // that used to sit under it are in the title bar's menu.
+          FolderGridSection(theme: theme),
 
           // ── Hidden apps ────────────────────────────────────────────────
           //
@@ -242,64 +158,103 @@ class FoldersScreen extends ConsumerWidget {
           // Find-by-name and the lock moved into Hide apps' own options.
           _HiddenAppsRow(theme: theme),
 
-          // ── Suggestions ────────────────────────────────────────────────
-          if (suggestions.isNotEmpty) ...[
-            ThemedSectionHeader(context.t('settings.suggestedGroups')),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-            // One tap for all of them. Most people who want any of these want
-            // all of them, and making them accept four cards one at a time is
-            // the kind of friction that gets a good feature ignored.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              child: ThemedButton(
-                label: context.t('settings.createAllFolders',
-                    {'count': suggestions.length.toString()}),
-                icon: Icons.auto_awesome_outlined,
-                expand: true,
-                onPressed: () {
-                  notifier.edit(
-                    (p) => FolderSuggestions.acceptAll(
-                      p,
-                      suggestions,
-                      newFolderId: newDrawerFolderId,
-                    ),
-                  );
-                  context.showMessage(context.t('settings.foldersCreated'));
-                },
-              ),
+  /// The actions that act on every folder at once, in one sheet. Each is
+  /// listed only when it would do something.
+  void _bulkMenu(
+    BuildContext context,
+    PrefsNotifier notifier,
+    EffectiveTheme theme,
+    List<FolderSuggestion> suggestions,
+  ) {
+    final host = context;
+    final prefs = theme.prefs;
+    ThemedSheet.show<void>(
+      context,
+      title: context.t('settings.yourFolders'),
+      builder: (sheet) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (suggestions.length > 1)
+            ThemedListRow(
+              icon: Icons.auto_awesome_outlined,
+              title: host.t('settings.createAllFolders', {
+                'count': '${suggestions.length}',
+              }),
+              onTap: () {
+                Navigator.pop(sheet);
+                notifier.edit(
+                  (p) => FolderSuggestions.acceptAll(
+                    p,
+                    suggestions,
+                    newFolderId: newDrawerFolderId,
+                  ),
+                );
+                host.showMessage(host.t('settings.foldersCreated'));
+              },
             ),
-
-            for (final s in suggestions)
-              _SuggestionRow(
-                suggestion: s,
-                onAccept: () {
-                  notifier.edit(
-                    (p) => FolderSuggestions.accept(
-                      p,
-                      s,
-                      newFolderId: newDrawerFolderId,
-                    ),
-                  );
-                  context.showMessage(
-                      context.t('settings.folderCreated', {'name': s.name}));
-                },
-                onDismiss: () => notifier.edit(
-                  (p) => FolderSuggestions.dismiss(p, s),
-                ),
-              ),
-          ],
-
-          if (theme.prefs.dismissedSuggestions.isNotEmpty)
+          if (prefs.dismissedSuggestions.isNotEmpty)
             ThemedListRow(
               icon: Icons.refresh,
-              title: context.t('settings.showDismissedSuggestions'),
-              subtitle: context.t('settings.hiddenGroups', {
-                'count': theme.prefs.dismissedSuggestions.length.toString()
+              title: host.t('settings.showDismissedSuggestions'),
+              subtitle: host.t('settings.hiddenGroups', {
+                'count': '${prefs.dismissedSuggestions.length}',
               }),
-              onTap: () => notifier.edit(FolderSuggestions.clearDismissals),
+              onTap: () {
+                Navigator.pop(sheet);
+                notifier.edit(FolderSuggestions.clearDismissals);
+              },
             ),
-
-          const SizedBox(height: 24),
+          if (PrefsReset.canReset(prefs, PrefsSection.folders))
+            ThemedListRow(
+              icon: Icons.settings_backup_restore,
+              title: host.t('settings.resetFolderAppearance'),
+              subtitle: host.t('settings.sizeAndShapeOnly'),
+              onTap: () async {
+                Navigator.pop(sheet);
+                final ok = await ThemedDialog.confirm(
+                  host,
+                  title: host.t('settings.resetFolderAppearanceConfirm'),
+                  message: host.t('settings.folderSizeShapeAnd'),
+                  confirmLabel: host.t('settings.reset'),
+                );
+                if (ok != true) return;
+                await notifier
+                    .edit((p) => PrefsReset.section(p, PrefsSection.folders));
+                if (host.mounted) {
+                  host.showMessage(host.t('settings.folderAppearanceReset'));
+                }
+              },
+            ),
+          // Last, and confirmed: it undoes every grouping on the phone.
+          if (prefs.drawerFolders.isNotEmpty)
+            ThemedListRow(
+              icon: Icons.folder_off_outlined,
+              title: host.t('settings.ungroupAllFolders'),
+              subtitle: host.t('settings.everyAppReturnsTo'),
+              danger: true,
+              onTap: () async {
+                Navigator.pop(sheet);
+                final ok = await ThemedDialog.confirm(
+                  host,
+                  title: host.t('settings.ungroupAllFoldersConfirm'),
+                  message: host.t('settings.theAppsAreNot'),
+                  confirmLabel: host.t('drawer.ungroup'),
+                  danger: true,
+                );
+                if (ok != true) return;
+                await notifier.edit(DrawerLayout.dissolveAll);
+                if (host.mounted) {
+                  host.showMessage(host.t('settings.allFoldersUngrouped'));
+                }
+              },
+            ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -307,7 +262,7 @@ class FoldersScreen extends ConsumerWidget {
 
   /// The shape setting as a radius fraction, so the preview draws it. Mirrors
   /// `folderCornerRadius` in drawer_actions, which does the same job for the
-  /// real tile — null still means "match my icon shape".
+  /// real tile; null still means "match my icon shape".
   static double _radiusFraction(EffectiveTheme theme) =>
       switch (theme.prefs.folderShape) {
         'circle' => 0.5,
@@ -356,7 +311,7 @@ class FoldersScreen extends ConsumerWidget {
                     : null,
                 onTap: () {
                   Navigator.pop(sheet);
-                  // copyWith cannot clear to null — the classic Dart trap — so
+                  // copyWith cannot clear to null (the classic Dart trap), so
                   // "match my icons" goes through clearing().
                   notifier.edit(
                     (p) => o == null
@@ -369,157 +324,6 @@ class FoldersScreen extends ConsumerWidget {
           ],
         );
       },
-    );
-  }
-}
-
-/// One proposal: what it would make, and the two things you can do about it.
-///
-/// Accept and Dismiss are both plainly visible — no swipe, no long-press. A
-/// suggestion the user cannot obviously refuse reads as the launcher having
-/// already decided.
-/// One folder in the list, drawn as a FOLDER.
-///
-/// ─── WHY NOT ThemedListRow ──────────────────────────────────────────────────
-///
-/// It takes `icon: IconData`, so the leading slot can only ever be a glyph from
-/// the icon font, and `Icons.folder_outlined` is exactly the generic outline
-/// this screen was asked to stop using. Widening that primitive to accept an
-/// arbitrary leading widget would touch every settings row in the app to serve
-/// one screen.
-///
-/// So this builds its own row from the same chrome tokens, which is the idiom
-/// [_SuggestionRow] directly below already uses for the same reason.
-class _FolderRow extends StatelessWidget {
-  const _FolderRow({
-    super.key,
-    required this.theme,
-    required this.name,
-    required this.count,
-    required this.members,
-    required this.index,
-    required this.onTap,
-  });
-
-  final EffectiveTheme theme;
-  final String name;
-  final int count;
-  final List<AppEntry> members;
-
-  /// The reorderable list's index, for the drag listener.
-  final int index;
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = ChromeScope.of(context);
-    final c = d.colors;
-
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-        child: Row(
-          children: [
-            FolderGlyph(theme: theme, size: 42, members: members),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(name, style: d.text.body),
-                  Text(
-                    count == 1 ? '1 app' : '$count apps',
-                    style: d.text.caption.copyWith(color: c.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            ReorderableDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Icon(Icons.drag_handle, size: 20, color: c.textFaint),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SuggestionRow extends StatelessWidget {
-  const _SuggestionRow({
-    required this.suggestion,
-    required this.onAccept,
-    required this.onDismiss,
-  });
-
-  final FolderSuggestion suggestion;
-  final VoidCallback onAccept;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = ChromeScope.of(context);
-    final c = d.colors;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Exhaustive switch, not a ternary: a ternary silently gave the
-              // new Social kind the publisher icon, which is the failure mode
-              // where adding a case looks like it worked.
-              Icon(
-                switch (suggestion.kind) {
-                  SuggestionKind.games => Icons.sports_esports_outlined,
-                  SuggestionKind.social => Icons.forum_outlined,
-                  SuggestionKind.publisher => Icons.business_outlined,
-                },
-                size: 20,
-                color: c.accent,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(suggestion.name, style: d.text.title),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            context.t('settings.groupAppsIntoFolder',
-                {'count': suggestion.size.toString()}),
-            style: d.text.caption,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ThemedButton(
-                label: context.t('settings.notNow'),
-                kind: ThemedButtonKind.text,
-                onPressed: onDismiss,
-              ),
-              const SizedBox(width: 8),
-              ThemedButton(
-                  label: context.t('settings.create'), onPressed: onAccept),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -636,22 +440,6 @@ class _HiddenAppsRow extends ConsumerWidget {
           : context.t('hidden.rowCount', {'count': '$count'}),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: () => openHideApps(context, ref, theme),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  const _Empty();
-
-  @override
-  Widget build(BuildContext context) {
-    final d = ChromeScope.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      child: Text(
-        context.t('settings.dragOneAppOnto'),
-        style: d.text.caption,
-      ),
     );
   }
 }

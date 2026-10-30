@@ -29,6 +29,7 @@ class DockEntry {
     this.isPinned = false,
     this.onTap,
     this.onLongPress,
+    this.folderId,
   });
 
   final String id;
@@ -63,6 +64,11 @@ class DockEntry {
   /// Null when the slot is not laid out, which `AnchoredMenu` treats the same
   /// way it treats any missing anchor: centred.
   final void Function(Rect? anchor)? onLongPress;
+
+  /// The folder this entry is, when it is one, with [id] its dock key
+  /// (`folder:<folderId>`). Null for an app. Only the Aqua dock draws folders;
+  /// see `ThemeLayout.dockFolders`.
+  final String? folderId;
 }
 
 /// The dock. Mockup geometry throughout, scaled by [slotSize]:

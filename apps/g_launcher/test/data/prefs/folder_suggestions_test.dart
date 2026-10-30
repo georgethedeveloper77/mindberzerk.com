@@ -69,7 +69,8 @@ void main() {
         app('com.b.two', isGame: true),
         app('com.c.three', isGame: true),
       ];
-      expect(FolderSuggestions.propose(apps, const LauncherPrefs()), hasLength(1));
+      expect(
+          FolderSuggestions.propose(apps, const LauncherPrefs()), hasLength(1));
     });
   });
 
@@ -218,7 +219,8 @@ void main() {
 
     test('clearDismissals lets them come back', () {
       const p = LauncherPrefs(dismissedSuggestions: {'games'});
-      expect(FolderSuggestions.clearDismissals(p).dismissedSuggestions, isEmpty);
+      expect(
+          FolderSuggestions.clearDismissals(p).dismissedSuggestions, isEmpty);
     });
   });
 

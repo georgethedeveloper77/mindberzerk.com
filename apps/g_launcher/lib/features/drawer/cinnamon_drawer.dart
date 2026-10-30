@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../command/command_rows.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../palette/palette_controller.dart';
 import 'app_icon.dart';
@@ -48,10 +49,42 @@ final _categoryProvider = StateProvider<String?>((ref) => null);
 /// stays open must not leave a word in the provider rofi and the TUI share.
 final _queryProvider = StateProvider.autoDispose<String>((ref) => '');
 
+/// Which category's flyout is open in cascade mode, by row key: [_allKey] for
+/// All applications, null for none.
+///
+/// Separate from [_categoryProvider] and `autoDispose`, because the two menus
+/// remember differently. Cinnamon reopens on the category you left; Plasma's
+/// Application Menu reopens closed, with no flyout, every time.
+final _flyoutProvider = StateProvider.autoDispose<String?>((ref) => null);
+
+/// Row key for All applications. Category names are never empty, so the empty
+/// string cannot collide with one.
+const _allKey = '';
+
+/// A row key no category can carry, for "no row selected". Category names are
+/// labels from a theme, and a NUL is not something a label contains.
+const _noneKey = '\u0000';
+
 class CinnamonDrawer extends ConsumerWidget {
-  const CinnamonDrawer({super.key, required this.theme});
+  const CinnamonDrawer({super.key, required this.theme, this.cascade = false});
 
   final EffectiveTheme theme;
+
+  /// Plasma's Application Menu (`appDrawer: "kicker"`) rather than Cinnamon.
+  ///
+  /// The same favourites and categories, with two differences that are the
+  /// whole look of the thing. The apps are not a third column: they open as a
+  /// flyout beside the menu when a category is tapped, the way the desktop
+  /// menu cascades. And the settings buttons sit at the foot of the favourites
+  /// strip, where Plasma puts leave and power, so search has the foot alone.
+  final bool cascade;
+
+  /// Width of the category column in cascade mode. Wider than Cinnamon's,
+  /// because each row also carries a chevron.
+  static const _cascadeCategoryWidth = 168.0;
+
+  /// The foot strip's fixed height, so the flyout can stand exactly on it.
+  static const footHeight = 48.0;
 
   /// The gap left around the menu.
   ///
@@ -103,6 +136,10 @@ class CinnamonDrawer extends ConsumerWidget {
       for (final n in cats.order)
         if (buckets[n] != null) n,
     ];
+
+    if (cascade) {
+      return _cascadeMenu(context, ref, apps, buckets, named);
+    }
 
     final open = ref.watch(_categoryProvider);
     // Null is ALL, which is Cinnamon's first entry and its default. Not the
@@ -162,6 +199,130 @@ class CinnamonDrawer extends ConsumerWidget {
       ],
     );
   }
+
+  /// The Application Menu: a narrow menu on the corner, and a flyout beside it.
+  Widget _cascadeMenu(
+    BuildContext context,
+    WidgetRef ref,
+    List<AppEntry> apps,
+    Map<String, List<AppEntry>> buckets,
+    List<String> named,
+  ) {
+    final rawOpen = ref.watch(_flyoutProvider);
+    final open =
+        (rawOpen == null || rawOpen == _allKey || named.contains(rawOpen))
+            ? rawOpen
+            : null;
+
+    // Typing opens the flyout on the results, whatever is selected, and
+    // searches everything, for the reason Cinnamon mode does.
+    final query = ref.watch(_queryProvider).trim();
+    final List<AppEntry>? flyApps = query.isNotEmpty
+        ? [for (final r in ref.watch(paletteResultsProvider(theme))) r.item]
+        : open == null
+            ? null
+            : open == _allKey
+                ? apps
+                : (buckets[open] ?? const <AppEntry>[]);
+
+    final byKey = {for (final a in apps) a.componentKey: a};
+    final favourites = <AppEntry>[
+      for (final k in theme.prefs.favourites)
+        if (byKey[k] != null) byKey[k]!,
+    ];
+
+    final size = MediaQuery.sizeOf(context);
+    final colsHeight = _colsHeight(context);
+    const menuWidth = _Favourites._width + _cascadeCategoryWidth;
+
+    // ─── THE FLYOUT OVERLAPS THE MENU ON A PHONE, ON PURPOSE ─────────────
+    //
+    // On a desktop the flyout sits wholly to the right of the menu. A 360dp
+    // phone has about 170dp left over, which cuts every app name. So the
+    // flyout takes a readable width and slides left over the category column
+    // when it must, leaving the favourites strip and the start of each
+    // category in view: still a cascade, and still a list you can read.
+    final flyWidth = (size.width * 0.58).clamp(200.0, 320.0);
+    final maxLeft = size.width - _inset - flyWidth;
+    const wantLeft = _inset + menuWidth - 6;
+    final flyLeft = maxLeft < _inset
+        ? _inset
+        : (wantLeft < maxLeft ? wantLeft : maxLeft);
+
+    void toggle(String key) {
+      HapticFeedback.selectionClick();
+      final n = ref.read(_flyoutProvider.notifier);
+      n.state = n.state == key ? null : key;
+    }
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => closeApps(ref),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Positioned(
+          left: _inset,
+          bottom: _inset,
+          width: menuWidth,
+          child: _Menu(
+            theme: theme,
+            favourites: favourites,
+            categories: named,
+            active: open,
+            apps: const [],
+            height: colsHeight,
+            cascade: true,
+            onCategory: (key) => toggle(key ?? _allKey),
+          ),
+        ),
+        if (flyApps != null)
+          Positioned(
+            left: flyLeft,
+            width: flyWidth,
+            bottom: _inset + footHeight + 1,
+            height: colsHeight,
+            child: _Flyout(theme: theme, apps: flyApps),
+          ),
+      ],
+    );
+  }
+}
+
+/// The apps of one category, standing beside the Application Menu.
+class _Flyout extends StatelessWidget {
+  const _Flyout({required this.theme, required this.apps});
+
+  final EffectiveTheme theme;
+  final List<AppEntry> apps;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color:
+              palette.bgBottom.withValues(alpha: 0.985 * theme.drawerOpacity),
+          borderRadius: BorderRadius.circular(theme.icons.cornerRadius * 8),
+          border: Border.all(color: palette.onDark.withValues(alpha: 0.16)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: _Apps(theme: theme, apps: apps),
+      ),
+    );
+  }
 }
 
 class _Menu extends ConsumerWidget {
@@ -173,15 +334,22 @@ class _Menu extends ConsumerWidget {
     required this.apps,
     required this.height,
     required this.onCategory,
+    this.cascade = false,
   });
 
   final EffectiveTheme theme;
   final List<AppEntry> favourites;
   final List<String> categories;
+
+  /// The selected row. In Cinnamon mode null is All applications; in cascade
+  /// mode null is no row and [_allKey] is All applications.
   final String? active;
   final List<AppEntry> apps;
   final double height;
   final ValueChanged<String?> onCategory;
+
+  /// Application Menu presentation. See [CinnamonDrawer.cascade].
+  final bool cascade;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -214,20 +382,44 @@ class _Menu extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Favourites(theme: theme, apps: favourites, line: line),
-                  _Categories(
+                  _Favourites(
                     theme: theme,
-                    categories: categories,
-                    active: active,
+                    apps: favourites,
                     line: line,
-                    onCategory: onCategory,
+                    sessionButtons: cascade,
                   ),
-                  Expanded(child: _Apps(theme: theme, apps: apps)),
+                  if (cascade)
+                    Expanded(
+                      child: _Categories(
+                        theme: theme,
+                        categories: categories,
+                        // Back to Cinnamon's convention, where null is All.
+                        // Nothing open maps to a key no row carries.
+                        active:
+                            active == _allKey ? null : (active ?? _noneKey),
+                        line: null,
+                        chevrons: true,
+                        onCategory: onCategory,
+                      ),
+                    )
+                  else ...[
+                    _Categories(
+                      theme: theme,
+                      categories: categories,
+                      active: active,
+                      line: line,
+                      onCategory: onCategory,
+                    ),
+                    Expanded(child: _Apps(theme: theme, apps: apps)),
+                  ],
                 ],
               ),
             ),
             Divider(height: 1, thickness: 1, color: line),
-            _Foot(theme: theme),
+            SizedBox(
+              height: CinnamonDrawer.footHeight,
+              child: _Foot(theme: theme, buttons: !cascade),
+            ),
           ],
         ),
       ),
@@ -241,11 +433,17 @@ class _Favourites extends ConsumerWidget {
     required this.theme,
     required this.apps,
     required this.line,
+    this.sessionButtons = false,
   });
 
   final EffectiveTheme theme;
   final List<AppEntry> apps;
   final Color line;
+
+  /// The settings buttons at the foot of the strip, where Plasma's menu keeps
+  /// leave, restart and power. Cascade mode only; Cinnamon keeps them beside
+  /// its search field.
+  final bool sessionButtons;
 
   /// 36 held a 22dp icon with 7dp either side, which is a 36dp target on a
   /// surface where everything else is now 48. The icon grows with it: these are
@@ -259,7 +457,45 @@ class _Favourites extends ConsumerWidget {
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: line)),
       ),
-      child: ListView(
+      child: sessionButtons
+          ? Column(
+              children: [
+                Expanded(child: _list()),
+                _sessionButtons(context, ref),
+              ],
+            )
+          : _list(),
+    );
+  }
+
+  Widget _sessionButtons(BuildContext context, WidgetRef ref) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _FootButton(
+          theme: theme,
+          icon: Icons.tune,
+          label: context.t('drawer.gLauncher'),
+          onTap: () => openLauncherSettings(context, theme),
+        ),
+        _FootButton(
+          theme: theme,
+          icon: Icons.settings,
+          label: context.t('drawer.deviceSettings'),
+          onTap: () => activateDrawerItem(
+            context,
+            ref,
+            theme,
+            const DeviceSettingsItem(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _list() {
+    return Consumer(
+      builder: (context, ref, _) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 5),
         children: [
           for (final a in apps)
@@ -300,13 +536,21 @@ class _Categories extends StatelessWidget {
     required this.active,
     required this.line,
     required this.onCategory,
+    this.chevrons = false,
   });
 
   final EffectiveTheme theme;
   final List<String> categories;
   final String? active;
-  final Color line;
+
+  /// The column's right rule. Null in cascade mode, where the column is the
+  /// menu's last and the menu's own border closes it.
+  final Color? line;
   final ValueChanged<String?> onCategory;
+
+  /// A chevron on every row, saying the row opens something rather than
+  /// filtering in place. Cascade mode only.
+  final bool chevrons;
 
   /// Sized to hold the longest category WHOLE.
   ///
@@ -319,6 +563,20 @@ class _Categories extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = theme.palette;
+
+    Widget withChevron(bool on, Widget text) {
+      if (!chevrons) return text;
+      return Row(
+        children: [
+          Expanded(child: text),
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: on ? palette.bar : palette.onDark.withValues(alpha: 0.45),
+          ),
+        ],
+      );
+    }
 
     Widget row(String? name, String label) {
       final on = name == active;
@@ -339,31 +597,35 @@ class _Categories extends StatelessWidget {
           // them apart is most of what stops the two menus reading alike in a
           // thumbnail.
           color: on ? palette.accent : Colors.transparent,
-          child: Text(
-            label,
-            // TWO lines before anything is cut. A category name that does not
-            // fit is a category you cannot identify, and German and Portuguese
-            // both have one that will not fit on one line at any width this
-            // column can afford.
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: theme.typography.display,
-              fontSize: 13 * theme.textScale,
-              fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-              // The BAR colour on the accent. Mint's green is bright enough
-              // that white on it is unreadable.
-              color: on ? palette.bar : palette.onDark.withValues(alpha: 0.66),
+          child: withChevron(
+            on,
+            Text(
+              label,
+              // TWO lines before anything is cut. A category name that does not
+              // fit is a category you cannot identify, and German and Portuguese
+              // both have one that will not fit on one line at any width this
+              // column can afford.
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: theme.typography.display,
+                fontSize: 13 * theme.textScale,
+                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                // The BAR colour on the accent. Mint's green is bright enough
+                // that white on it is unreadable.
+                color: on ? palette.bar : palette.onDark.withValues(alpha: 0.66),
+              ),
             ),
           ),
         ),
       );
     }
 
+    final rule = line;
     return Container(
-      width: _width,
+      width: chevrons ? null : _width,
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: line)),
+        border: rule == null ? null : Border(right: BorderSide(color: rule)),
       ),
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 3),
@@ -385,6 +647,36 @@ class _Apps extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(_queryProvider).trim();
+    final palette = theme.palette;
+
+    // While searching, the column leads with the command answers (sums,
+    // units, bangs) and, with no app matching, the web and Play rows.
+    if (query.isNotEmpty) {
+      final block = PaletteCommandBlock(
+        query: query,
+        hasApps: apps.isNotEmpty,
+        style: CommandRowStyle(
+          text: palette.onDark,
+          muted: palette.onDark.withValues(alpha: 0.55),
+          accent: palette.accent,
+          fontFamily: theme.typography.display,
+          monoFamily: theme.typography.mono,
+          scale: theme.textScale,
+        ),
+        onClose: () => closeApps(ref),
+        fillQuery: (v) {
+          ref.read(_queryProvider.notifier).state = v;
+          ref.read(paletteQueryProvider.notifier).state = v;
+        },
+      );
+      if (apps.isEmpty) return SingleChildScrollView(child: block);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [block, Expanded(child: _list(context, ref))],
+      );
+    }
+
     if (apps.isEmpty) {
       return Center(
         child: Text(
@@ -398,6 +690,10 @@ class _Apps extends ConsumerWidget {
       );
     }
 
+    return _list(context, ref);
+  }
+
+  Widget _list(BuildContext context, WidgetRef ref) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 3),
       itemCount: apps.length,
@@ -467,9 +763,13 @@ class _Apps extends ConsumerWidget {
 /// other drawer here already puts at its bottom edge: its own settings and the
 /// device's. The shape is Cinnamon's; the contents are honest.
 class _Foot extends ConsumerWidget {
-  const _Foot({required this.theme});
+  const _Foot({required this.theme, this.buttons = true});
 
   final EffectiveTheme theme;
+
+  /// The settings buttons beside the field. Off in cascade mode, where they
+  /// stand at the foot of the favourites strip instead.
+  final bool buttons;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -506,6 +806,19 @@ class _Foot extends ConsumerWidget {
                       // this menu forgets on close.
                       ref.read(paletteQueryProvider.notifier).state = v;
                     },
+                    onSubmitted: (v) => submitPaletteQuery(
+                      context,
+                      ref,
+                      query: v,
+                      hasApps:
+                          ref.read(paletteResultsProvider(theme)).isNotEmpty,
+                      fillQuery: (q) {
+                        ref.read(_queryProvider.notifier).state = q;
+                        ref.read(paletteQueryProvider.notifier).state = q;
+                      },
+                      onClose: () => closeApps(ref),
+                      launchTopApp: () => launchTopMatch(ref, theme),
+                    ),
                     style: TextStyle(
                       fontFamily: theme.typography.display,
                       fontSize: 14 * theme.textScale,
@@ -529,23 +842,25 @@ class _Foot extends ConsumerWidget {
             ),
           ),
         ),
-        _FootButton(
-          theme: theme,
-          icon: Icons.tune,
-          label: context.t('drawer.gLauncher'),
-          onTap: () => openLauncherSettings(context, theme),
-        ),
-        _FootButton(
-          theme: theme,
-          icon: Icons.settings,
-          label: context.t('drawer.deviceSettings'),
-          onTap: () => activateDrawerItem(
-            context,
-            ref,
-            theme,
-            const DeviceSettingsItem(),
+        if (buttons) ...[
+          _FootButton(
+            theme: theme,
+            icon: Icons.tune,
+            label: context.t('drawer.gLauncher'),
+            onTap: () => openLauncherSettings(context, theme),
           ),
-        ),
+          _FootButton(
+            theme: theme,
+            icon: Icons.settings,
+            label: context.t('drawer.deviceSettings'),
+            onTap: () => activateDrawerItem(
+              context,
+              ref,
+              theme,
+              const DeviceSettingsItem(),
+            ),
+          ),
+        ],
       ],
     );
   }

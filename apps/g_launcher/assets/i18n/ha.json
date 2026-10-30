@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "Yana tsayawa akan wayarka. Wannan kawai yana fitar da shi daga lissafin nan.",
   "wallpaper.removeTitle": "Cire wannan fuskar bangon waya",
   "wallpaper.removed": "An cire",
-  "wallpaper.yours": "Naku"
+  "wallpaper.yours": "Naku",
+  "shell.dockFull": "Dock ya cika",
+  "shell.moveToHomeScreen": "Matsa zuwa allon gida",
+  "home.edit": "Gyara"
 }

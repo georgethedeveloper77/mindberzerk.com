@@ -1,43 +1,268 @@
 {
-  "id": "manjaro-kde",
+  "id": "manjaro-kde-theme",
   "name": "Manjaro",
-  "version": "24",
+  "version": "3",
   "shell": "plasma",
   "tier": "pro",
   "chromeFamily": "breeze",
   "palette": {
-    "bgTop": "#2D3A35",
-    "bgBottom": "#1A211E",
-    "bar": "#141A18",
-    "dock": "#CC141A18",
-    "accent": "#35BF5C",
-    "onDark": "#FFFFFF"
-  },
-  "paletteLight": {
-    "bgTop": "#F3F6F4",
-    "bgBottom": "#FFFFFF",
-    "bar": "#E7ECE9",
-    "dock": "#CCE7ECE9",
-    "accent": "#2A9648",
-    "onDark": "#1A211E"
+    "bgTop": "#343C42",
+    "bgBottom": "#2B3237",
+    "bar": "#2B3237",
+    "dock": "#CC2B3237",
+    "accent": "#3FAE96",
+    "onDark": "#E4EBE9"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
   },
   "layout": {
-    "dock": "bottom",
-    "topBar": false,
+    "dock": "off",
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "kickoff",
+          "tasks",
+          "spacer",
+          "pager",
+          "tray",
+          "clock"
+        ],
+        "height": 44
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
-    }
+    },
+    "iconScale": 1,
+    "appDrawer": "kicker",
+    "workspaces": 2
   },
   "icons": {
     "treatment": "roundedSquare",
     "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+    "foregroundScale": 1,
+    "backgroundColor": "#2B3237",
+    "brandPack": "manjaro-kde-line"
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_185335645.png",
+    "image_2026-08-23_185345348.png",
+    "image_2026-08-23_185404979.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.6.30-2-MANJARO ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Manjaro Settings Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SDDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "terminal": {
+    "appLabel": "Konsole",
+    "palette": {
+      "bg": "#232627",
+      "fg": "#FCFCFC",
+      "cursor": "#3FAE96",
+      "selection": "#553FAE96",
+      "ansi": [
+        "#232627",
+        "#ED1515",
+        "#3FAE96",
+        "#F67400",
+        "#1D99F3",
+        "#9B59B6",
+        "#1ABC9C",
+        "#FCFCFC",
+        "#7F8C8D",
+        "#C0392B",
+        "#6FD3BC",
+        "#FDBC4B",
+        "#3DAEE9",
+        "#8E44AD",
+        "#16A085",
+        "#FFFFFF"
+      ]
+    },
+    "prompt": "\u001b[1;36m{user}@manjaro\u001b[0m \u001b[46;30m {cwd} \u001b[0m\u001b[36m ❯\u001b[0m ",
+    "rootPrompt": "\u001b[1;31mroot@manjaro\u001b[0m \u001b[41;97m {cwd} \u001b[0m\u001b[31m #\u001b[0m "
+  },
+  "desklets": {
+    "offers": [
+      "welcome",
+      "fastfetch",
+      "monitor",
+      "clock",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "welcome",
+        "page": 1,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 5,
+        "config": {
+          "title": "Welcome to Manjaro!",
+          "rows": [
+            {
+              "label": "Read the wiki",
+              "url": "https://wiki.manjaro.org/"
+            },
+            {
+              "label": "Ask the forum",
+              "url": "https://forum.manjaro.org/"
+            },
+            {
+              "label": "Release info",
+              "url": "https://forum.manjaro.org/c/announcements/stable-updates/12"
+            },
+            {
+              "label": "Support Manjaro",
+              "url": "https://manjaro.org/donate/"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "fastfetch",
+        "page": 1,
+        "col": 0,
+        "row": 5,
+        "spanX": 8,
+        "spanY": 4
+      }
+    ],
+    "skins": {
+      "welcome": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true,
+        "window": true,
+        "focus": false,
+        "title": "Manjaro Hello"
+      },
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "Konsole",
+        "logo": "████████  ███\n████████  ███\n███       ███\n███  ███  ███\n███  ███  ███"
+      },
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "htop"
+      },
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  },
+  "surfaces": {
+    "radius": 8
+  },
+  "minAppVersion": 38,
+  "features": [
+    {
+      "title": "The Application Menu",
+      "body": "Manjaro's own launcher, not Kickoff: favourites down the side, categories that open their apps beside them, search at the foot.",
+      "exclusive": true
+    },
+    {
+      "title": "A slate panel, as on the desktop",
+      "body": "Manjaro's mark at the left, your pinned apps beside it, and quick settings wearing Manjaro's own Settings icon at the end.",
+      "exclusive": true
+    },
+    {
+      "title": "Manjaro teal",
+      "body": "The teal of Manjaro's mark and folders, on slate, with the lighthouse behind it.",
+      "exclusive": true
+    },
+    {
+      "title": "Manjaro Hello and fastfetch",
+      "body": "Swipe to the second desktop: the welcome window and fastfetch with the block logo, in Breeze windows. The first stays bare, as Manjaro ships it.",
+      "exclusive": true
+    },
+    {
+      "title": "Konsole, as Manjaro ships it",
+      "body": "A teal prompt segment for you and a red one for root.",
+      "exclusive": true
+    },
+    {
+      "title": "Manjaro boot",
+      "body": "Nine lines through the Settings Manager and SDDM before the desktop.",
+      "exclusive": true
+    }
+  ]
 }

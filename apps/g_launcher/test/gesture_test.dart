@@ -6,7 +6,8 @@ void main() {
   group('GestureBinding', () {
     test('round-trips an action', () {
       const b = GestureBinding.action(GestureAction.lockScreen);
-      expect(GestureBinding.decode(b.encode()).action, GestureAction.lockScreen);
+      expect(
+          GestureBinding.decode(b.encode()).action, GestureAction.lockScreen);
     });
 
     test('round-trips an app', () {
@@ -51,7 +52,8 @@ void main() {
       );
     });
 
-    test('vertical swipes are unbound by default — the workspaces own them', () {
+    test('vertical swipes are unbound by default — the workspaces own them',
+        () {
       // The vertical-workspaces decision: swipe up/down are the PageView's, so
       // they carry no default action. A user can still bind them (with the
       // one-line override warning in Settings).

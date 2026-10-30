@@ -18,6 +18,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:g_launcher/features/dock/dock_animations.dart';
 import 'package:g_launcher/features/dock/dock_motion.dart';
@@ -34,8 +35,7 @@ void main() {
       );
 
   const focus = DockFocus(position: 60, spread: 140);
-  const pressedFocus =
-      DockFocus(position: 60, spread: 140, pressed: true);
+  const pressedFocus = DockFocus(position: 60, spread: 140, pressed: true);
 
   group('DockSlotMotion', () {
     for (final mode in dockHoverModes) {
@@ -327,7 +327,8 @@ void main() {
       var builds = 0;
 
       await tester.pumpWidget(
-        Directionality(
+        ProviderScope(
+          child: Directionality(
           textDirection: TextDirection.ltr,
           child: Center(
             child: SizedBox(
@@ -345,6 +346,7 @@ void main() {
               ),
             ),
           ),
+        ),
         ),
       );
 
@@ -370,7 +372,8 @@ void main() {
       DockFocus? seen;
 
       await tester.pumpWidget(
-        Directionality(
+        ProviderScope(
+          child: Directionality(
           textDirection: TextDirection.ltr,
           child: Center(
             child: SizedBox(
@@ -388,6 +391,7 @@ void main() {
             ),
           ),
         ),
+        ),
       );
 
       final gesture = await tester.startGesture(const Offset(420, 300));
@@ -401,7 +405,8 @@ void main() {
 
     testWidgets('disabled never wraps a Listener', (tester) async {
       await tester.pumpWidget(
-        Directionality(
+        ProviderScope(
+          child: Directionality(
           textDirection: TextDirection.ltr,
           child: DockFocusTracker(
             enabled: false,
@@ -412,6 +417,7 @@ void main() {
               return const SizedBox.expand();
             },
           ),
+        ),
         ),
       );
 

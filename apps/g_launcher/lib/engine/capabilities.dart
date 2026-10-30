@@ -117,6 +117,9 @@ extension ThemeCapabilities on EffectiveTheme {
     'card': DrawerWidget.card,
     'whisker': DrawerWidget.whisker,
     'cinnamon': DrawerWidget.cinnamon,
+    // The same widget in cascade mode, so it has exactly Cinnamon's
+    // capabilities: favourites, categories and a fixed search at the foot.
+    'kicker': DrawerWidget.cinnamon,
     'zorin': DrawerWidget.zorin,
     'query': DrawerWidget.query,
     'library': DrawerWidget.library,

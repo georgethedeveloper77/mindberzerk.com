@@ -4,11 +4,13 @@ import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/prefs/backup_apps.dart';
 import '../../data/prefs/backup_store.dart';
+import '../../data/prefs/hidden_folder.dart';
 import '../../data/prefs/pending_apps.dart';
 import '../../data/prefs/prefs_backup.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/wallpaper_collections.dart';
 import '../../data/repositories/app_repository.dart';
+import '../command/search_settings.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import 'backup_format.dart';
@@ -121,6 +123,8 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       ref.invalidate(selectedThemeIdProvider);
       ref.invalidate(wallpaperCollectionsProvider);
       ref.invalidate(backupContentsProvider);
+      ref.invalidate(searchSettingsProvider);
+      ref.invalidate(hiddenFolderProvider);
 
       // ─── WRITE DOWN WHAT IS MISSING, BEFORE THE FILE IS GONE ──────────
       //

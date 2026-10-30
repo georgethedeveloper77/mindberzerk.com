@@ -35,7 +35,8 @@ void main() {
     });
 
     test('a negative number is an argument, not five flags', () {
-      final TermStage stage = parser.parse('head -5 notes.txt').chunks.first.first;
+      final TermStage stage =
+          parser.parse('head -5 notes.txt').chunks.first.first;
       expect(stage.flags, isEmpty);
       expect(stage.positionals, <String>['-5', 'notes.txt']);
     });

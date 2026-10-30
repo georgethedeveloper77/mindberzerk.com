@@ -48,7 +48,36 @@ class AquaMenuBar extends StatelessWidget {
     this.displayFontFamily,
     this.opacity = 1.0,
     this.modules,
+    this.clear = false,
+    this.tray,
   });
+
+  /// elementary's wingpanel: no fill, no blur and no rule, white over the
+  /// wallpaper. See [ThemeLayout.barStyle].
+  ///
+  /// A scrim rather than text shadows: one soft gradient behind the whole strip
+  /// keeps white legible on a pale sky without touching every module's text
+  /// style, and it fades to nothing, so the bar still reads as no bar at all.
+  final bool clear;
+
+  /// The quick-settings button, drawn where the theme authors `tray`. Built by
+  /// the shell, which owns the status rule that decides its shape.
+  final Widget? tray;
+
+  /// [palette] as a clear bar draws it: white ink whatever the mode, because
+  /// the bar sits on a photograph rather than on a surface of its own.
+  static ThemePalette clearPalette(ThemePalette p) => ThemePalette(
+        bgTop: p.bgTop,
+        bgBottom: p.bgBottom,
+        bar: p.bar,
+        dock: p.dock,
+        accent: p.accent,
+        onDark: const Color(0xFFFFFFFF),
+      );
+
+  /// A clear bar's height. Taller than the frosted strip, because its two
+  /// buttons are the only targets on it and both have to take a thumb.
+  static const clearHeight = 44.0;
 
   /// The distro's own bar, or null for the arrangement below.
   ///
@@ -101,6 +130,7 @@ class AquaMenuBar extends StatelessWidget {
     // The bar sits BELOW Android's status bar, not under it. Both the mark and
     // Spotlight are real tap targets and must clear the notch.
     final topInset = MediaQuery.viewPaddingOf(context).top;
+    if (clear) return _clearBar(topInset);
     final onDark = palette.onDark;
 
     return ClipRect(
@@ -171,6 +201,35 @@ class AquaMenuBar extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The wingpanel. No Spotlight: Pantheon has none, and its Applications
+  /// button already opens on a search field.
+  Widget _clearBar(double topInset) {
+    final ink = clearPalette(palette);
+    return Container(
+      height: clearHeight + topInset,
+      padding: EdgeInsets.only(top: topInset, left: 8, right: 4),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x47000000), Color(0x00000000)],
+        ),
+      ),
+      child: Row(
+        children: aquaBarModules(
+          modules ?? const [PanelModule.activities],
+          palette: ink,
+          displayFontFamily: displayFontFamily,
+          logo: logo,
+          title: title,
+          onActivities: onLaunchpad,
+          wingpanel: true,
+          tray: tray,
         ),
       ),
     );

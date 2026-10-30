@@ -26,22 +26,32 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/prefs/hidden_apps.dart';
+import '../../data/prefs/launcher_prefs.dart';
+import '../../data/prefs/layout_snapshots.dart';
+import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/usage/usage_repository.dart';
 import '../../design/terminal_tokens.dart' show deviceInfoProvider;
 import '../../engine/effective_theme.dart';
 import '../../engine/terminal_spec.dart';
 import '../../platform/keys_api.g.dart';
+import '../../platform/launcher_api.g.dart';
 import '../../system/system_stats.dart';
+import '../palette/fuzzy.dart';
 import '../settings/settings_screen.dart';
 import '../themes/themes_screen.dart';
 import 'ansi.dart';
 import 'command_registry.dart';
+import 'fun_commands.dart';
+import 'package_commands.dart';
 import 'prompt.dart';
 import 'ssh_connection.dart';
 import 'ssh_host.dart';
@@ -171,6 +181,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   void initState() {
     super.initState();
     _greet();
+    unawaited(_loadAliases());
     // Straight to the prompt. A terminal you have to tap to focus is a
     // screenshot, not a tool.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -195,7 +206,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   Future<void> _runHandedOver(String line) async {
     await _hosts();
     if (!mounted) return;
-    _write('\x1b[1m$_promptText\x1b[0m$line');
+    _echo(line);
     _history.add(line);
     _historyAt = _history.length;
     _run(line);
@@ -263,11 +274,26 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     // drawing ours in front of it would put two prompts on one line and imply
     // the local one still means something.
     if (_remote) return '';
+    final template = _root
+        ? (_spec.rootPrompt ?? derivedRootPrompt(_spec.prompt))
+        : _spec.prompt;
     return renderPrompt(
-      _spec.prompt,
+      template,
+      user: _root ? 'root' : 'user',
       distro: widget.theme.spec.name,
       exitCode: _exitCode,
     );
+  }
+
+  /// The prompt and what followed it, as scrollback.
+  ///
+  /// A plain template is drawn bold, as it always was. A template carrying its
+  /// own SGR escapes is drawn as authored and then reset, so the typed command
+  /// is never painted in the prompt's last colour. A two-line prompt echoes as
+  /// two lines because [_write] hands the newline to the parser unchanged.
+  void _echo(String typed) {
+    final p = _promptText;
+    _write(p.contains('\x1b') ? '$p\x1b[0m$typed' : '\x1b[1m$p\x1b[0m$typed');
   }
 
   // ── running a line ─────────────────────────────────────────────────────────
@@ -349,7 +375,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     // The echo happens whatever the outcome, including for an empty line,
     // because a prompt that swallows a bare enter does not look like a
     // terminal.
-    _write('\x1b[1m$_promptText\x1b[0m$raw');
+    _echo(raw);
     _input.clear();
 
     if (line.isEmpty) {
@@ -373,7 +399,144 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   /// instruction, so it is kept rather than discarded by `canonical`.
   String _args = '';
 
-  void _run(String line) {
+  /// Whether the line being run came through `sudo`. Only changes wording:
+  /// the phone owner already holds every right this shell can exercise.
+  bool _sudo = false;
+
+  /// Whether `sudo -i` or `su` has been run and not yet exited.
+  ///
+  /// Cosmetic, like [_sudo]: it changes the prompt and what `whoami` answers,
+  /// never what a command is allowed to do. Per screen, so a fresh terminal is
+  /// never already root.
+  bool _root = false;
+
+  /// What `sudo` can be followed by to open a root shell.
+  static const _rootShellArgs = {
+    '-i',
+    '-s',
+    'su',
+    'su -',
+    'su root',
+    'bash',
+    'zsh'
+  };
+
+  /// The session commands that change or report who you are.
+  ///
+  /// Answered here rather than in the registry because they act on this
+  /// screen's own state, the way `sudo` is stripped here before lookup. True
+  /// when the line was one of them.
+  bool _identity(String line) {
+    final t = line.trim();
+    switch (TerminalRegistry.canonical(t)) {
+      case 'su':
+        final who = t.substring(2).trim().replaceFirst(RegExp(r'^-\s*'), '');
+        if (who.isEmpty || who == 'root') {
+          _becomeRoot();
+        } else {
+          _fail('su: user $who does not exist or the user entry does not '
+              'contain all the required fields');
+        }
+        return true;
+      case 'exit' || 'logout':
+        if (_root) {
+          _root = false;
+          _exitCode = 0;
+        } else {
+          // Leaving the outermost shell closes the terminal, which is what
+          // Ctrl+D on an empty line already does.
+          Navigator.of(context).maybePop();
+        }
+        return true;
+      case 'whoami':
+        _exitCode = 0;
+        _write(_root ? 'root' : 'user');
+        return true;
+    }
+    return false;
+  }
+
+  void _becomeRoot() {
+    _root = true;
+    _exitCode = 0;
+  }
+
+  /// The user's aliases, `alias gv='open g vpn'`. Global, not per distro:
+  /// muscle memory does not change when the wallpaper does.
+  Map<String, String> _userAliases = const {};
+  static const _aliasesKey = 'terminal.aliases.v1';
+
+  Future<void> _loadAliases() async {
+    final raw = await ref.read(prefsStoreProvider).read(_aliasesKey);
+    if (raw == null) return;
+    try {
+      _userAliases = (jsonDecode(raw) as Map).map(
+        (k, v) => MapEntry(k as String, v as String),
+      );
+    } catch (_) {
+      _userAliases = const {};
+    }
+  }
+
+  Future<void> _saveAliases(Map<String, String> next) async {
+    _userAliases = next;
+    final store = ref.read(prefsStoreProvider);
+    if (next.isEmpty) {
+      await store.delete(_aliasesKey);
+    } else {
+      await store.write(_aliasesKey, jsonEncode(next));
+    }
+  }
+
+  void _run(String line, {bool sudo = false, bool expanded = false}) {
+    _sudo = sudo;
+
+    // ─── USER ALIASES, ONCE ───────────────────────────────────────────────
+    //
+    // Expanded a single time per line, as bash does, so `alias ls='ls -l'`
+    // works and `alias a=b` plus `alias b=a` cannot loop. Builtins can be
+    // shadowed deliberately; that is what an alias is for.
+    final word = TerminalRegistry.canonical(line);
+    final mine = _userAliases[word];
+    if (!expanded && mine != null && word != 'alias' && word != 'unalias') {
+      final t = line.trim();
+      final tail = t.length > word.length ? t.substring(word.length) : '';
+      _run('$mine$tail', sudo: sudo, expanded: true);
+      return;
+    }
+
+    // ─── sudo, BEFORE LOOKUP ──────────────────────────────────────────────
+    //
+    // Stripped and the rest re-run, so `sudo apt install x` is `apt install
+    // x` and every command works under it without knowing it exists.
+    // `sudo !!` reruns the previous line, the one shell idiom everybody
+    // knows. The current line is already in history, hence length - 2.
+    if (_identity(line)) return;
+
+    if (TerminalRegistry.canonical(line) == 'sudo') {
+      final rest = line.trim().substring(4).trim();
+      if (_rootShellArgs.contains(rest.toLowerCase())) {
+        _becomeRoot();
+        return;
+      }
+      if (rest.isEmpty) {
+        _fail('usage: sudo <command>');
+        return;
+      }
+      if (rest == '!!') {
+        if (_history.length < 2) {
+          _fail('sudo: !!: event not found');
+          return;
+        }
+        final previous = _history[_history.length - 2];
+        _write('\x1b[90msudo $previous\x1b[0m');
+        _run(previous, sudo: true);
+        return;
+      }
+      _run(rest, sudo: true);
+      return;
+    }
+
     final space = line.indexOf(RegExp(r'\s'));
     _args = space < 0 ? '' : line.substring(space + 1).trim();
     // Profile aliases resolve FIRST, ahead of the builtins, which is the order
@@ -511,7 +674,296 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         // Unreachable: declared `surfaces: {tui}`, so this surface never
         // resolves it. You are already here.
         _fail('$name: already in the terminal');
+
+      case CommandAction.packages:
+        unawaited(_runPackages(name, _args));
+
+      case CommandAction.layout:
+        unawaited(_runLayout(_args));
+
+      case CommandAction.fun:
+        _writeLines(switch (name) {
+          'cowsay' => FunCommands.cowsay(_args),
+          'cowthink' => FunCommands.cowsay(_args, think: true),
+          'sl' => FunCommands.sl(),
+          'fortune' => FunCommands.fortune(),
+          'cmatrix' => FunCommands.cmatrix(),
+          'yes' => FunCommands.yes(_args),
+          'make' => FunCommands.make(_args, sudo: _sudo),
+          'rm' => FunCommands.rm(_args),
+          _ => ['$name: nothing to print'],
+        });
+
+      case CommandAction.sudo:
+        // Unreachable: `_run` strips sudo before lookup.
+        _fail('usage: sudo <command>');
+
+      case CommandAction.alias:
+        unawaited(_runAlias(name, _args));
+
+      case CommandAction.openApp:
+        _openApp(_args);
     }
+  }
+
+  /// `alias`, `alias gv='open g vpn'`, `unalias gv`.
+  Future<void> _runAlias(String name, String args) async {
+    final a = args.trim();
+    if (name == 'unalias') {
+      if (a.isEmpty) {
+        _fail('unalias: usage: unalias <name>');
+        return;
+      }
+      if (!_userAliases.containsKey(a)) {
+        _fail('unalias: $a: not found');
+        return;
+      }
+      await _saveAliases({..._userAliases}..remove(a));
+      if (mounted) setState(() {});
+      return;
+    }
+    if (a.isEmpty) {
+      if (_userAliases.isEmpty) {
+        _write("\x1b[90mno aliases. try: alias gv='open g vpn'\x1b[0m");
+      }
+      for (final e in _userAliases.entries) {
+        _write("alias ${e.key}='${e.value}'");
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+    final m =
+        RegExp(r'''^([\w.-]+)=(?:'([^']*)'|"([^"]*)"|(.*))$''').firstMatch(a);
+    if (m == null) {
+      final v = _userAliases[a];
+      if (v == null) {
+        _fail('alias: $a: not found');
+      } else {
+        _write("alias $a='$v'");
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+    final key = m.group(1)!;
+    final value = (m.group(2) ?? m.group(3) ?? m.group(4) ?? '').trim();
+    if (value.isEmpty) {
+      _fail('alias: $key: empty value');
+      return;
+    }
+    await _saveAliases({..._userAliases, key: value});
+    if (mounted) setState(() {});
+  }
+
+  /// `open telegram`. The same admission as search: a hidden app opens only
+  /// by its whole name, and still asks for the fingerprint when locked,
+  /// because the launch goes through AppList.launch.
+  void _openApp(String query) {
+    final q = query.trim();
+    if (q.isEmpty) {
+      _fail('open: give an app name');
+      return;
+    }
+    final all = ref.read(appListProvider).asData?.value ?? const <AppEntry>[];
+    final candidates = HiddenApps.forSearch(all, widget.theme.prefs, q);
+    final ranked = Fuzzy.rank(candidates, q, label: (a) => a.label);
+    if (ranked.isEmpty) {
+      _fail('open: no app matches $q');
+      return;
+    }
+    final app = ranked.first.item;
+    _write('\x1b[90mopening\x1b[0m ${app.label}');
+    ref.read(appListProvider.notifier).launch(app);
+    ref.read(usageProvider.notifier).record(app.componentKey);
+  }
+
+  /// `apt`, `pacman` and the rest. Hidden apps are not in the list, so
+  /// `apt list` cannot reveal what was hidden.
+  Future<void> _runPackages(String manager, String args) async {
+    final installed = [
+      for (final a in ref.read(shellAppsProvider(widget.theme)))
+        PackageApp(
+          label: a.label,
+          packageName: a.packageName,
+          componentKey: a.componentKey,
+        ),
+    ];
+    final plan = PackageCommands.run(manager, args, installed, sudo: _sudo);
+    _writeLines(plan.lines);
+    setState(() {});
+
+    final api = ref.read(launcherHostApiProvider);
+    switch (plan.effect) {
+      case PlaySearch(:final url):
+        if (!await api.openIntent('android.intent.action.VIEW', url, null)) {
+          _fail('E: Play Store is not on this phone');
+        }
+      case PlayUpdates():
+        // Play's own "Manage apps" screen, by the action it registers.
+        if (!await api.openIntent(
+          'com.google.android.finsky.VIEW_MY_DOWNLOADS',
+          null,
+          null,
+        )) {
+          _fail('E: Play Store is not on this phone');
+        }
+      case Uninstall(:final componentKey):
+        final apps = ref.read(appListProvider).asData?.value ?? const [];
+        AppEntry? entry;
+        for (final a in apps) {
+          if (a.componentKey == componentKey) entry = a;
+        }
+        if (entry == null) {
+          _fail('E: package went away');
+          break;
+        }
+        final status =
+            await ref.read(appListProvider.notifier).uninstall(entry);
+        if (!UninstallStatus.succeeded(status)) {
+          _fail('E: Android refused to remove ${entry.label} ($status)');
+        }
+      case NoEffect():
+        break;
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// `layout`: git for the home screen of the distro this terminal belongs
+  /// to. See layout_snapshots.dart for what a snapshot holds.
+  Future<void> _runLayout(String args) async {
+    final themeId = widget.theme.spec.id;
+    final store = ref.read(prefsStoreProvider);
+    final notifier = ref.read(prefsProvider(themeId).notifier);
+    final words = args.trim().isEmpty
+        ? <String>['status']
+        : args.trim().split(RegExp(r'\s+'));
+    final sub = words.first;
+    final rest = words.skip(1).join(' ');
+
+    Future<Map<String, dynamic>> current() async =>
+        (await ref.read(prefsProvider(themeId).future)).toJson();
+
+    void done() {
+      if (mounted) setState(() {});
+    }
+
+    String stamp(DateTime t) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${t.year}-${two(t.month)}-${two(t.day)} '
+          '${two(t.hour)}:${two(t.minute)}';
+    }
+
+    Future<void> checkout(LayoutSnapshot target) async {
+      // The CURRENT layout is committed first, so every checkout is
+      // undoable with `layout undo`.
+      await LayoutSnapshots.commit(
+        store,
+        themeId,
+        await current(),
+        message: 'before checkout ${target.id}',
+        auto: true,
+      );
+      await notifier.edit(
+        (p) =>
+            LauncherPrefs.fromJson(LayoutSnapshots.apply(p.toJson(), target)),
+      );
+      _write('\x1b[32mHEAD is now at ${target.id}\x1b[0m ${target.message}');
+    }
+
+    switch (sub) {
+      case 'commit' || 'save':
+        final msg = rest
+            .replaceFirst(RegExp(r'^-m\s*'), '')
+            .replaceAll(RegExp(r'''^["']|["']$'''), '')
+            .trim();
+        final snap = await LayoutSnapshots.commit(
+          store,
+          themeId,
+          await current(),
+          message: msg.isEmpty ? 'snapshot' : msg,
+        );
+        _write(snap == null
+            ? 'nothing to commit, layout clean'
+            : '[\x1b[33m${snap.id}\x1b[0m] ${snap.message}  '
+                '\x1b[90m${LayoutSnapshots.summary(snap.data)}\x1b[0m');
+
+      case 'log':
+        final list = await LayoutSnapshots.load(store, themeId);
+        if (list.isEmpty) {
+          _write(
+              '\x1b[90mno snapshots yet. try: layout commit -m "clean dock"\x1b[0m');
+          break;
+        }
+        for (final s in list) {
+          _write('\x1b[33m${s.id}\x1b[0m  \x1b[90m${stamp(s.at)}\x1b[0m  '
+              '${s.auto ? '\x1b[90m(auto)\x1b[0m ' : ''}${s.message}');
+        }
+
+      case 'checkout' || 'restore' || 'reset':
+        final list = await LayoutSnapshots.load(store, themeId);
+        final target = LayoutSnapshots.find(list, rest.isEmpty ? '0' : rest);
+        if (target == null) {
+          _fail("error: pathspec '$rest' did not match any snapshot");
+          break;
+        }
+        await checkout(target);
+
+      case 'undo':
+        final list = await LayoutSnapshots.load(store, themeId);
+        final now =
+            LayoutSnapshots.idFor(LayoutSnapshots.extract(await current()));
+        final target = list.where((s) => s.id != now).firstOrNull;
+        if (target == null) {
+          _fail('layout: nothing to undo');
+          break;
+        }
+        await checkout(target);
+
+      case 'diff':
+        final list = await LayoutSnapshots.load(store, themeId);
+        final target = LayoutSnapshots.find(list, rest.isEmpty ? '0' : rest);
+        if (target == null) {
+          _fail("error: pathspec '$rest' did not match any snapshot");
+          break;
+        }
+        _write(
+            '\x1b[90m${target.id}\x1b[0m  ${LayoutSnapshots.summary(target.data)}');
+        _write('\x1b[90mnow\x1b[0m      '
+            '${LayoutSnapshots.summary(LayoutSnapshots.extract(await current()))}');
+
+      case 'rm' || 'drop':
+        final list = await LayoutSnapshots.load(store, themeId);
+        final target = LayoutSnapshots.find(list, rest);
+        if (target == null) {
+          _fail("error: pathspec '$rest' did not match any snapshot");
+          break;
+        }
+        await LayoutSnapshots.remove(store, themeId, target.id);
+        _write('dropped ${target.id}');
+
+      case 'status':
+        final list = await LayoutSnapshots.load(store, themeId);
+        final now =
+            LayoutSnapshots.idFor(LayoutSnapshots.extract(await current()));
+        _write('On distro ${widget.theme.spec.name}');
+        _write(list.isNotEmpty && list.first.id == now
+            ? 'nothing to commit, layout clean'
+            : '\x1b[31mlayout changed since the last snapshot\x1b[0m');
+        _write(
+            '\x1b[90m${LayoutSnapshots.summary(LayoutSnapshots.extract(await current()))}\x1b[0m');
+
+      default:
+        _writeLines(const [
+          'usage: layout <command>',
+          '  commit -m <msg>   save the home screen as it is now',
+          '  log               list snapshots, newest first',
+          '  checkout <id|n>   go back to one (undoable)',
+          '  undo              back to the last snapshot',
+          '  diff <id>         compare with now',
+          '  rm <id>           drop one',
+          '  status            changed since the last snapshot?',
+        ]);
+    }
+    done();
   }
 
   void _fail(String message) {
@@ -1013,7 +1465,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     // something on their own are handled and the rest are accepted quietly.
     // Sending 0x03 into a text field would be worse than doing nothing.
     if (chord == '\x03') {
-      _write('\x1b[1m$_promptText\x1b[0m${_input.text}^C');
+      _echo('${_input.text}^C');
       _input.clear();
       _exitCode = 130;
       setState(() {});
@@ -1083,7 +1535,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
     // Ambiguous: print the candidates and leave the line alone, which is what
     // a shell does on a second tab and is far less annoying than cycling.
-    _write('\x1b[1m$_promptText\x1b[0m${_input.text}');
+    _echo(_input.text);
     _write(hits.join('  '));
     setState(() {});
   }
@@ -1339,6 +1791,28 @@ class _PromptRow extends StatelessWidget {
   final VoidCallback onSubmit;
   final ValueChanged<String>? onChanged;
 
+  /// The prompt as drawn: a plain template keeps the bold it always had, a
+  /// template with its own SGR escapes is drawn exactly as authored.
+  String get _styled => prompt.contains('\x1b') ? prompt : '\x1b[1m$prompt';
+
+  /// The lines of a two-line prompt that sit above the input row.
+  List<AnsiLine> get _above {
+    final cut = splitPrompt(_styled);
+    if (cut.above.isEmpty) return const [];
+    return (AnsiParser()..feed('${cut.above}\n')).committed;
+  }
+
+  /// The part the caret follows, with any colour opened above still open.
+  AnsiLine get _inline {
+    final cut = splitPrompt(_styled);
+    return (AnsiParser()..feed('${carriedSgr(cut.above)}${cut.inline}'))
+        .current;
+  }
+
+  TextSpan _rich(AnsiLine line) => TextSpan(
+        children: [for (final s in line.spans) ansiTextSpan(s, palette)],
+      );
+
   @override
   Widget build(BuildContext context) {
     // ─── INVISIBLE WHILE REMOTE, AND STILL THERE ────────────────────────
@@ -1360,53 +1834,60 @@ class _PromptRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(prompt, style: style.copyWith(fontWeight: FontWeight.w700)),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focus,
-              autofocus: true,
-              autocorrect: false,
-              enableSuggestions: false,
+          for (final line in _above) Text.rich(_rich(line), style: style),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(_rich(_inline), style: style),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  focusNode: focus,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
 
-              // ─── ASKING NICELY IS NOT ENOUGH ───────────────────────────
-              //
-              // `textCapitalization: none` is a HINT, and Samsung's keyboard
-              // ignores it: its own auto-capitalise setting wins, so every
-              // command starts with a capital and every one of them fails.
-              //
-              // `visiblePassword` is not about passwords. It maps to Android's
-              // TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, which turns
-              // capitalisation, autocorrect and suggestions off at the IME
-              // rather than requesting it, and the text stays visible. It is
-              // what terminal apps use for exactly this reason.
-              //
-              // The smart dashes and quotes are off for the same class of
-              // reason: an IME that helpfully turns a straight quote into a
-              // curly one produces a command no shell has ever understood.
-              keyboardType: TextInputType.visiblePassword,
-              textCapitalization: TextCapitalization.none,
-              smartDashesType: SmartDashesType.disabled,
-              smartQuotesType: SmartQuotesType.disabled,
-              textInputAction: TextInputAction.go,
-              // The remote draws its own cursor into the grid, so ours would be
-              // a second one in a different place.
-              cursorColor: remote ? Colors.transparent : palette.cursor,
-              cursorWidth: 8,
-              cursorRadius: Radius.zero,
-              maxLines: null,
-              style: style,
-              onChanged: onChanged,
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
+                  // ─── ASKING NICELY IS NOT ENOUGH ───────────────────────────
+                  //
+                  // `textCapitalization: none` is a HINT, and Samsung's keyboard
+                  // ignores it: its own auto-capitalise setting wins, so every
+                  // command starts with a capital and every one of them fails.
+                  //
+                  // `visiblePassword` is not about passwords. It maps to Android's
+                  // TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, which turns
+                  // capitalisation, autocorrect and suggestions off at the IME
+                  // rather than requesting it, and the text stays visible. It is
+                  // what terminal apps use for exactly this reason.
+                  //
+                  // The smart dashes and quotes are off for the same class of
+                  // reason: an IME that helpfully turns a straight quote into a
+                  // curly one produces a command no shell has ever understood.
+                  keyboardType: TextInputType.visiblePassword,
+                  textCapitalization: TextCapitalization.none,
+                  smartDashesType: SmartDashesType.disabled,
+                  smartQuotesType: SmartQuotesType.disabled,
+                  textInputAction: TextInputAction.go,
+                  // The remote draws its own cursor into the grid, so ours would be
+                  // a second one in a different place.
+                  cursorColor: remote ? Colors.transparent : palette.cursor,
+                  cursorWidth: 8,
+                  cursorRadius: Radius.zero,
+                  maxLines: null,
+                  style: style,
+                  onChanged: onChanged,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (_) => onSubmit(),
+                ),
               ),
-              onSubmitted: (_) => onSubmit(),
-            ),
+            ],
           ),
         ],
       ),

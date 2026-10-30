@@ -59,6 +59,25 @@ class HiddenLockNotifier extends AsyncNotifier<bool> {
 final hiddenLockProvider =
     AsyncNotifierProvider<HiddenLockNotifier, bool>(HiddenLockNotifier.new);
 
+/// A confirmation already given, held while the Hidden folder is open.
+///
+/// One fingerprint opens the folder, and launching an app from it or tapping
+/// Manage must not ask again. The folder overlay opens this after a
+/// successful prompt and closes it when it goes away or the launcher stops,
+/// so the window is exactly as long as the unlocked folder is on screen.
+/// Never persisted: a restart is always locked.
+class HiddenSessionNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void open() => state = true;
+
+  void close() => state = false;
+}
+
+final hiddenSessionProvider =
+    NotifierProvider<HiddenSessionNotifier, bool>(HiddenSessionNotifier.new);
+
 /// The one gate every protected action goes through.
 ///
 /// Answers true straight away when the lock is off. When it is on, asks the
@@ -69,7 +88,7 @@ final hiddenLockProvider =
 /// unavailable so the state is never silent.
 Future<bool> confirmHiddenAccess(Ref ref, {required String title}) async {
   final locked = await ref.read(hiddenLockProvider.future);
-  if (!locked) return true;
+  if (!locked || ref.read(hiddenSessionProvider)) return true;
   return _confirm(ref.read(launcherHostApiProvider), title);
 }
 
@@ -79,7 +98,7 @@ Future<bool> confirmHiddenAccessFromWidget(
   required String title,
 }) async {
   final locked = await ref.read(hiddenLockProvider.future);
-  if (!locked) return true;
+  if (!locked || ref.read(hiddenSessionProvider)) return true;
   return _confirm(ref.read(launcherHostApiProvider), title);
 }
 

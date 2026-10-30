@@ -69,8 +69,8 @@ void main() {
       // settings, gsettings, config and prefs all describe themselves as
       // "G Launcher Settings". One row, not four.
       final hits = TerminalRegistry.matching('s');
-      final settingsRows =
-          hits.where((h) => TerminalRegistry.describe(h) == 'G Launcher Settings');
+      final settingsRows = hits
+          .where((h) => TerminalRegistry.describe(h) == 'G Launcher Settings');
       expect(settingsRows.length, 1);
     });
 
@@ -118,9 +118,19 @@ void main() {
       // show and validate_themes.sh would never catch it, because the command
       // table is not a theme.
       const kinds = {
-        'glance', 'clock', 'monitor', 'fastfetch', 'network', 'storage',
-        'battery', 'notes', 'search',
-        'free', 'df', 'ls', 'uptime',
+        'glance',
+        'clock',
+        'monitor',
+        'fastfetch',
+        'network',
+        'storage',
+        'battery',
+        'notes',
+        'search',
+        'free',
+        'df',
+        'ls',
+        'uptime',
       };
       for (final c in TerminalRegistry.all) {
         if (c.spawnKind != null) {
@@ -188,7 +198,15 @@ void main() {
       //
       // `terminal` goes the other way and stays restricted: it opens the
       // Terminal app, which is meaningless once you are in it.
+      //
+      // The Terminal-app-only set is the commands that need scrollback or a
+      // session to mean anything. The TUI hands them over when typed with
+      // arguments (`TerminalRegistry.handsOver`) rather than resolving them.
       const tuiOnly = {'terminal'};
+      const terminalOnly = {
+        'apt', 'sudo', 'layout', 'open', 'alias', 'cowsay', 'fortune', 'sl',
+        'cmatrix', 'yes', 'make', 'rm',
+      };
 
       for (final c in TerminalRegistry.all) {
         expect(
@@ -196,7 +214,11 @@ void main() {
           !tuiOnly.contains(c.name),
           reason: c.name,
         );
-        expect(c.appearsOn(CommandSurface.tui), isTrue, reason: c.name);
+        expect(
+          c.appearsOn(CommandSurface.tui),
+          !terminalOnly.contains(c.name),
+          reason: c.name,
+        );
       }
     });
 

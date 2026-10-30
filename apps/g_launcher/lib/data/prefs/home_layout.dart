@@ -385,6 +385,23 @@ class HomeLayout {
       );
     }
 
+    // A DOCK folder hands its dock slot to the survivor instead. Without this
+    // the survivor would land on page 0 slot 0 over whatever sits there, and
+    // the dock would keep a key pointing at a folder that no longer exists.
+    final dockKey = dockFolderKey(folderId);
+    if (p.favourites.contains(dockKey)) {
+      return p.copyWith(
+        folders: p.folders.where((x) => x.id != folderId).toList(),
+        favourites: [
+          for (final k in p.favourites)
+            if (k != dockKey)
+              k
+            else if (members.isNotEmpty)
+              members.first,
+        ],
+      );
+    }
+
     // Dissolve. The folder's slot is inherited by whatever is left, so the
     // survivor does not vanish off the home screen.
     final slot = p.homeItems.firstWhere(
@@ -600,6 +617,11 @@ class HomeLayout {
     return p.copyWith(
       folders: p.folders.where((x) => x.id != folderId).toList(),
       homeItems: [...kept, ...placed],
+      // Ungrouping a DOCK folder sends its members to the grid: a dock of four
+      // cannot take a folder of nine back as loose apps.
+      favourites: p.favourites
+          .where((k) => k != dockFolderKey(folderId))
+          .toList(),
     );
   }
 
@@ -622,7 +644,10 @@ class HomeLayout {
         if (i.isFolder) return aliveFolderIds.contains(i.folderId);
         return liveKeys.contains(i.componentKey);
       }).toList(),
-      favourites: p.favourites.where(liveKeys.contains).toList(),
+      // A dock folder is kept while it is alive, and a folder left with ONE
+      // app hands its slot to that app, the same rule `removeFromFolder`
+      // applies when the user takes the second-to-last one out.
+      favourites: _pruneDock(p.favourites, folders, aliveFolderIds, liveKeys),
       // An exclusion is a decision about an app. When the app goes, so does the
       // decision: keeping it would mean reinstalling something months later and
       // finding it silently refused a dock slot for a reason nothing can show.
@@ -800,5 +825,222 @@ class HomeLayout {
       for (final k in frequent)
         if (!p.dockExcluded.contains(k)) k,
     ].take(limit).toList();
+  }
+
+  // ─── DOCK FOLDERS AND POSITIONED PINS ──────────────────────────────────────
+  //
+  // A dock folder is an ordinary [AppFolder] in `folders` whose place is a
+  // `favourites` entry instead of a [HomeItem]. The entry is
+  // `folder:<id>`: Android package names are `[A-Za-z0-9_.]` and a component
+  // key is `package/class`, so a colon can never begin a real one. Every
+  // folder operation above (rename, reorder, remove, dissolve) works on it
+  // unchanged, because they all address the folder by id.
+
+  /// What marks a `favourites` entry as a folder.
+  static const dockFolderPrefix = 'folder:';
+
+  /// The `favourites` entry for folder [folderId].
+  static String dockFolderKey(String folderId) => '$dockFolderPrefix$folderId';
+
+  /// The folder id behind a `favourites` entry, or null for an app.
+  static String? dockFolderIdOf(String dockKey) =>
+      dockKey.startsWith(dockFolderPrefix)
+          ? dockKey.substring(dockFolderPrefix.length)
+          : null;
+
+  static String? _soleMember(List<AppFolder> folders, String id) {
+    for (final f in folders) {
+      if (f.id == id) return f.members.length == 1 ? f.members.first : null;
+    }
+    return null;
+  }
+
+  /// `prune`'s dock half: apps must still be installed, folders must still
+  /// be alive, and a folder down to one app becomes that app.
+  static List<String> _pruneDock(
+    List<String> favourites,
+    List<AppFolder> folders,
+    Set<String> aliveFolderIds,
+    Set<String> liveKeys,
+  ) {
+    final out = <String>[];
+    for (final k in favourites) {
+      final id = dockFolderIdOf(k);
+      if (id == null) {
+        if (liveKeys.contains(k)) out.add(k);
+      } else if (aliveFolderIds.contains(id)) {
+        out.add(k);
+      } else {
+        final only = _soleMember(folders, id);
+        if (only != null && !out.contains(only)) out.add(only);
+      }
+    }
+    return out;
+  }
+
+  /// Make the dock's current arrangement explicit, once.
+  ///
+  /// A dock that is still auto-filling has an empty `favourites`, and a drop
+  /// that opened a gap BETWEEN two of its apps has to land between those two
+  /// apps. Pinning only the dropped one would collapse the dock to a single
+  /// icon, which is not what the gap promised. So the visible apps become the
+  /// pins first. Returns [p] unchanged when the dock is already pinned.
+  static LauncherPrefs adoptDock(LauncherPrefs p, List<String> visible) =>
+      p.favourites.isNotEmpty || visible.isEmpty
+          ? p
+          : p.copyWith(favourites: [...visible]);
+
+  /// Put [dockKey] in the dock just before [beforeKey], or just after
+  /// [afterKey], or at the end when both are null.
+  ///
+  /// Keys rather than an index, for the reason [reorderDockKeys] gives: the
+  /// dock draws a filtered, truncated view of `favourites`, so a position
+  /// measured on screen is not an index into the list.
+  ///
+  /// Already pinned means MOVE, and a move never counts against [capacity].
+  /// A new arrival on a full dock is refused by returning [p] unchanged, so
+  /// the caller can compare identity and say the dock is full.
+  static LauncherPrefs pinToDockAt(
+    LauncherPrefs p,
+    String dockKey, {
+    String? beforeKey,
+    String? afterKey,
+    required int capacity,
+  }) {
+    final moving = p.favourites.contains(dockKey);
+    if (!moving && p.favourites.length >= capacity) return p;
+
+    final next = [...p.favourites]..remove(dockKey);
+    var at = next.length;
+    if (beforeKey != null && next.contains(beforeKey)) {
+      at = next.indexOf(beforeKey);
+    } else if (afterKey != null && next.contains(afterKey)) {
+      at = next.indexOf(afterKey) + 1;
+    }
+    next.insert(at, dockKey);
+    return p.copyWith(favourites: next);
+  }
+
+  /// Take whatever [dockKey] names off the home grid: an app's tile, or a
+  /// folder's. The second half of a grid-to-dock move.
+  static LauncherPrefs takeOffHome(LauncherPrefs p, String dockKey) {
+    final folderId = dockFolderIdOf(dockKey);
+    return p.copyWith(
+      homeItems: [
+        for (final i in p.homeItems)
+          if (folderId != null
+              ? i.folderId != folderId
+              : i.componentKey != dockKey)
+            i,
+      ],
+    );
+  }
+
+  /// Drop app [dropKey] onto dock entry [ontoKey]: into it when it is a
+  /// folder, otherwise a new folder takes [ontoKey]'s slot.
+  ///
+  /// The dropped app leaves wherever it was (dock, grid). Refuses, returning
+  /// [p] unchanged, when [ontoKey] is not in the dock, when the two are the
+  /// same, when [dropKey] is a folder (no folders inside folders), or when
+  /// [dropKey] is already filed in some folder.
+  static LauncherPrefs dockFolder(
+    LauncherPrefs p, {
+    required String ontoKey,
+    required String dropKey,
+    required String Function() newFolderId,
+    String newFolderName = 'Folder',
+  }) {
+    if (ontoKey == dropKey) return p;
+    if (!p.favourites.contains(ontoKey)) return p;
+    if (dockFolderIdOf(dropKey) != null) return p;
+    if (folderOf(p, dropKey) != null) return p;
+
+    final cleared = takeOffHome(
+      p.copyWith(favourites: [...p.favourites]..remove(dropKey)),
+      dropKey,
+    );
+
+    final ontoFolder = dockFolderIdOf(ontoKey);
+    if (ontoFolder != null) {
+      if (folder(cleared, ontoFolder) == null) return p;
+      return cleared.copyWith(
+        folders: [
+          for (final x in cleared.folders)
+            if (x.id == ontoFolder)
+              x.copyWith(members: [...x.members, dropKey])
+            else
+              x,
+        ],
+      );
+    }
+
+    final id = newFolderId();
+    return cleared.copyWith(
+      folders: [
+        ...cleared.folders,
+        AppFolder(id: id, name: newFolderName, members: [ontoKey, dropKey]),
+      ],
+      favourites: [
+        for (final k in cleared.favourites)
+          if (k == ontoKey) dockFolderKey(id) else k,
+      ],
+    );
+  }
+
+  /// Put folder [folderId] on the grid at [index] of [page], or the nearest
+  /// free slot when that one is taken, and take it out of the dock.
+  ///
+  /// [placeAt] for a folder. Refuses when the page is full.
+  static LauncherPrefs placeFolderAt(
+    LauncherPrefs p,
+    String folderId, {
+    required int page,
+    required int index,
+    required int capacity,
+    required int cols,
+  }) {
+    if (folder(p, folderId) == null) return p;
+    if (p.homeItems.any((i) => i.folderId == folderId)) return p;
+    final slot = itemAt(p, page, index) == null
+        ? index
+        : lastFreeSlot(p, page, capacity, cols);
+    if (slot == null) return p;
+    return p.copyWith(
+      homeItems: [
+        ...p.homeItems,
+        HomeItem(page: page, index: slot, folderId: folderId),
+      ],
+      favourites: p.favourites
+          .where((k) => k != dockFolderKey(folderId))
+          .toList(),
+    );
+  }
+
+  /// The first seed: pin one app per resolved role, in role order.
+  ///
+  /// [packages] is the platform's answer per role (null where nothing handles
+  /// it). [keyByPackage] maps a package to the component key the dock should
+  /// launch, already filtered to visible, non-hidden apps. Duplicates are
+  /// dropped, so a phone whose dialer also handles SMS pins it once.
+  ///
+  /// Marks the seed done either way. A user who already pinned something
+  /// keeps their dock untouched.
+  static LauncherPrefs seedDock(
+    LauncherPrefs p, {
+    required List<String?> packages,
+    required Map<String, String> keyByPackage,
+    required int capacity,
+  }) {
+    if (p.dockInitialized) return p;
+    if (p.favourites.isNotEmpty) return p.copyWith(dockInitialized: true);
+
+    final keys = <String>[];
+    for (final pkg in packages) {
+      final key = pkg == null ? null : keyByPackage[pkg];
+      if (key == null || keys.contains(key)) continue;
+      if (keys.length >= capacity) break;
+      keys.add(key);
+    }
+    return p.copyWith(favourites: keys, dockInitialized: true);
   }
 }

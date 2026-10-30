@@ -113,6 +113,16 @@ class _Messenger {
   OverlayState? _overlay;
   Timer? _timer;
 
+  /// True from `insert` until the frame that mounts the entry has run.
+  ///
+  /// `OverlayEntry.mounted` stays false until the overlay BUILDS the entry, so
+  /// two messages in one frame used to see the first entry as dead, discard it
+  /// (its removal is a no-op while unmounted) and insert a second. Both then
+  /// mounted and drew the same message twice. An entry inserted this frame is
+  /// live by definition; only one that stayed unmounted after a frame is a
+  /// corpse.
+  bool _awaitingMount = false;
+
   void enqueue(BuildContext context, BrandedMessage message) {
     // rootOverlay: true, so the toast sits above any nested Navigator (drawer,
     // palette, sheets).
@@ -133,13 +143,16 @@ class _Messenger {
     // owns it, and re-inserting that corpse is the "already present in the
     // target Overlay" crash. A freshly built entry cannot be already-present,
     // so when there is no live entry, discard the old one and build a new one.
-    if (_entry == null || !_entry!.mounted) {
+    if (_entry == null || (!_entry!.mounted && !_awaitingMount)) {
       _discardEntry();
       final entry =
           OverlayEntry(builder: (_) => _MessageOverlay(messenger: this));
       _entry = entry;
       _overlay = overlay;
       overlay.insert(entry);
+      _awaitingMount = true;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _awaitingMount = false);
     }
 
     _queue.add(message);
@@ -177,6 +190,7 @@ class _Messenger {
     _queue.clear();
     current.value = null;
     _overlay = null;
+    _awaitingMount = false;
     _discardEntry();
   }
 

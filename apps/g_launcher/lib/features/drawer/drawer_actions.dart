@@ -22,6 +22,7 @@ import 'app_menu_words.dart';
 import 'drawer_items.dart';
 import 'drawer_state.dart';
 import 'folder_overlay.dart';
+import 'hidden_folder_overlay.dart';
 
 /// Everything a drawer DOES, independent of how it looks.
 ///
@@ -112,6 +113,9 @@ void activateDrawerItem(
       // the sheet gets the concrete item, not the sealed supertype.
       HapticFeedback.lightImpact();
       openDrawerFolder(context, ref, theme, folder);
+    case final HiddenFolderItem hidden:
+      HapticFeedback.lightImpact();
+      openHiddenFolder(context, ref, theme, hidden);
     case LauncherSettingsItem():
       HapticFeedback.lightImpact();
       openLauncherSettings(context, theme);

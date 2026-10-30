@@ -2357,6 +2357,30 @@ class _ActionTile extends ConsumerWidget {
   }
 }
 
+/// The Hidden folder's icon: the folder shape at the theme's icon size, a
+/// lock in the middle, and nothing that hints at what is inside.
+class _HiddenFolderGlyph extends StatelessWidget {
+  const _HiddenFolderGlyph({required this.theme});
+
+  final EffectiveTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = theme.iconSizeDp;
+    final onDark = theme.palette.onDark;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: onDark.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(folderCornerRadius(theme, size)),
+        border: Border.all(color: onDark.withValues(alpha: 0.22)),
+      ),
+      child: Icon(Icons.lock_outline, size: size * 0.46, color: onDark),
+    );
+  }
+}
+
 /// One drawer tile.
 ///
 /// Factored out of the grid's itemBuilder so the PAGED and CUBE layouts build
@@ -2433,6 +2457,16 @@ Widget _tileFor(
             ),
           ),
         ),
+      ),
+    // A folder-shaped tile with a lock and nothing else: no preview, no
+    // count. See [HiddenFolderItem].
+    HiddenFolderItem() => _ActionTile(
+        key: const ValueKey('hidden-folder'),
+        item: item,
+        theme: theme,
+        labelLines: labelLines,
+        shape: shape,
+        icon: _HiddenFolderGlyph(theme: theme),
       ),
     DeviceSettingsItem() => _ActionTile(
         key: const ValueKey('device-settings'),

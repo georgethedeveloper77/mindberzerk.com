@@ -10,9 +10,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:g_launcher/data/prefs/launcher_prefs.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../../data/prefs/layout_preset.dart';
 import '../../../data/prefs/prefs_repository.dart';
 import '../../../data/repositories/app_repository.dart';
 import '../../../design/device_preview.dart';
@@ -21,7 +21,10 @@ import '../../../engine/capabilities.dart';
 import '../../../engine/effective_theme.dart';
 import '../../../engine/font_catalogue.dart';
 import '../../../engine/theme_spec.dart';
+import '../../boot/grub_prefs.dart';
+import '../../boot/grub_screen.dart';
 import '../../icons/icon_theme_screen.dart';
+import '../../rice/rice_screen.dart';
 import '../settings_rows.dart';
 import '../settings_sheets.dart';
 import '../wallpaper_screen.dart';
@@ -224,6 +227,11 @@ List<Widget> appearanceSection(
             onChanged: (v) => notifier.edit((p) => p.copyWith(verboseBoot: v)),
           ),
         ),
+        // ── GRUB ──────────────────────────────────────────────────────
+        //
+        // Beside Verbose boot because it is the same kind of choice: more
+        // theatre at startup, for the people who want it. Off by default.
+        ..._grubRows(context, ref, theme),
       ],
     ),
 
@@ -300,7 +308,7 @@ List<Widget> appearanceSection(
             ],
             PreviewChoice<String>(
               value: preset,
-              onSelect: (v) => notifier.edit((p) => _applyPreset(p, v)),
+              onSelect: (v) => notifier.edit((p) => applyLayoutPreset(p, v)),
               options: [
                 for (final l in layouts)
                   PreviewOption(
@@ -664,43 +672,6 @@ List<Widget> appearanceSection(
   ];
 }
 
-/// Switch to a layout preset, clearing the overrides that preset owns.
-///
-/// ─── WHY A SWITCH THROWS WORK AWAY, DELIBERATELY ────────────────────────────
-///
-/// `LayoutResolver` reads `prefs.X ?? layout.X` for the dock, the bar, its
-/// side, its readouts, its modules, its height, the grid and the drawer width.
-/// So a user who has ever moved any one of those would tap macOS-like and watch
-/// the desktop not change, because their old override still beats the new
-/// layout. The control would be visibly broken for exactly the people who use
-/// the launcher most.
-///
-/// Three ways out were on the table. Leaving prefs to win is the least code and
-/// ships that broken control. Scoping every layout pref per preset is correct
-/// and multiplies the stored surface by the number of presets, permanently, for
-/// a feature with no users yet. Clearing is what Zorin Appearance itself does:
-/// a deliberate act with a visible whole-desktop result.
-///
-/// ONLY THE FIELDS A PRESET CAN EXPRESS are cleared. Opacity, fonts, icon pack,
-/// wallpaper, folders, gestures and the accent all survive, because none of
-/// them appears in a `layouts` entry and throwing them away would make this
-/// button a theme reset wearing a layout label.
-LauncherPrefs _applyPreset(LauncherPrefs p, String id) => p
-    .clearing(
-      dockSide: true,
-      topBar: true,
-      topBarSide: true,
-      topBarStats: true,
-      panelModules: true,
-      panelHeight: true,
-      panelSide: true,
-      desktopIcons: true,
-      rows: true,
-      cols: true,
-      drawerCols: true,
-    )
-    .copyWith(layoutPreset: id);
-
 /// The accent swatches, as one settings row.
 ///
 /// ─── A ROW OF SWATCHES, NOT A SHEET ─────────────────────────────────────────
@@ -793,4 +764,81 @@ class _AccentRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The GRUB boot menu switch, its timeout, a way to see it now, and Share
+/// your rice. FilterRows, not Widgets: the group filters them by search terms.
+List<FilterRow> _grubRows(
+  BuildContext context,
+  WidgetRef ref,
+  EffectiveTheme theme,
+) {
+  final grub = ref.watch(grubPrefsProvider).asData?.value ?? const GrubPrefs();
+  final notifier = ref.read(grubPrefsProvider.notifier);
+  const terms = ['grub', 'boot menu', 'dual boot', 'distro picker', 'startup'];
+
+  String label(int s) => s == 0
+      ? context.t('grub.waitForTap')
+      : context.t('grub.seconds', {'n': '$s'});
+
+  return [
+    FilterRow(
+      terms,
+      SettingsToggleRow(
+        icon: Icons.list_alt_outlined,
+        title: context.t('grub.settingTitle'),
+        subtitle: context.t('grub.settingSub'),
+        value: grub.enabled,
+        onChanged: (v) => notifier.set(grub.copyWith(enabled: v)),
+      ),
+    ),
+    if (grub.enabled)
+      FilterRow(
+        terms,
+        SettingsRow(
+          icon: Icons.timer_outlined,
+          title: context.t('grub.timeout'),
+          trailing: Text(
+            label(grub.timeoutSec),
+            style: TextStyle(color: SettingsSkin.of(context).mut),
+          ),
+          // Cycles 3, 5, 10, wait: four values do not earn a sheet.
+          onTap: () {
+            const t = GrubPrefs.timeouts;
+            final next = t[(t.indexOf(grub.timeoutSec) + 1) % t.length];
+            notifier.set(grub.copyWith(timeoutSec: next));
+          },
+        ),
+      ),
+    FilterRow(
+      const ['rice', 'share', 'export', 'import', 'setup', 'unixporn', 'code'],
+      SettingsRow(
+        icon: Icons.ios_share,
+        title: context.t('rice.title'),
+        subtitle: context.t('rice.settingSub'),
+        trailing: const Chevron(),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => RiceScreen(theme: theme)),
+        ),
+      ),
+    ),
+    FilterRow(
+      terms,
+      SettingsRow(
+        icon: Icons.restart_alt,
+        title: context.t('grub.openNow'),
+        trailing: const Chevron(),
+        onTap: () async {
+          final choice = await showGrubMenu(
+            context,
+            currentId: theme.spec.id,
+            currentName: theme.spec.name,
+          );
+          // Nothing chosen from Settings means stay here, not reboot.
+          if (choice == null || !context.mounted) return;
+          await applyGrubChoice(context, ref, theme, choice);
+        },
+      ),
+    ),
+  ];
 }

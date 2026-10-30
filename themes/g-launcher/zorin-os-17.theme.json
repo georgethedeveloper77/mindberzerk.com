@@ -1,43 +1,407 @@
 {
-  "id": "zorin-os-17",
+  "id": "zorin-os-17-theme",
   "name": "Zorin OS",
-  "version": "17",
+  "version": "1",
   "shell": "gnome",
   "tier": "pro",
-  "chromeFamily": "generic",
+  "chromeFamily": "adwaita",
   "palette": {
-    "bgTop": "#2A3138",
-    "bgBottom": "#171C21",
-    "bar": "#12161A",
-    "dock": "#CC12161A",
-    "accent": "#0F7EC8",
+    "bgTop": "#15334D",
+    "bgBottom": "#0A1F30",
+    "bar": "#0E2438",
+    "dock": "#CC0E2438",
+    "accent": "#15A6F0",
     "onDark": "#FFFFFF"
   },
   "paletteLight": {
-    "bgTop": "#F2F5F7",
-    "bgBottom": "#FFFFFF",
-    "bar": "#E6EBEF",
-    "dock": "#CCE6EBEF",
-    "accent": "#0F7EC8",
-    "onDark": "#171C21"
+    "bgTop": "#F4F7FA",
+    "bgBottom": "#E4EAF0",
+    "bar": "#FFFFFF",
+    "dock": "#CCFFFFFF",
+    "accent": "#15A6F0",
+    "onDark": "#16242F"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Inter",
+    "mono": "Roboto Mono"
   },
   "layout": {
-    "dock": "bottom",
-    "topBar": false,
+    "dock": "off",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "kickoff",
+          "tasks",
+          "spacer",
+          "tray",
+          "clock"
+        ],
+        "height": 48
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
+    },
+    "iconScale": 1,
+    "drawerScrollStyle": "vertical",
+    "drawerGrouping": "library",
+    "appDrawer": "zorin",
+    "workspaces": 4
+  },
+  "categories": [
+    {
+      "name": "Accessories",
+      "feeds": [
+        "Utilities"
+      ],
+      "glyph": "tools"
+    },
+    {
+      "name": "Games",
+      "feeds": [
+        "Games"
+      ],
+      "glyph": "game"
+    },
+    {
+      "name": "Internet",
+      "feeds": [
+        "Social",
+        "News",
+        "Travel"
+      ],
+      "glyph": "globe"
+    },
+    {
+      "name": "Office",
+      "feeds": [
+        "Productivity"
+      ],
+      "glyph": "document"
+    },
+    {
+      "name": "Sound and Video",
+      "feeds": [
+        "Media"
+      ],
+      "glyph": "music"
+    }
+  ],
+  "accents": [
+    {
+      "id": "blue",
+      "name": "Blue",
+      "value": "#15A6F0"
+    },
+    {
+      "id": "green",
+      "name": "Green",
+      "value": "#3FA35E"
+    },
+    {
+      "id": "red",
+      "name": "Red",
+      "value": "#C4432B"
+    },
+    {
+      "id": "orange",
+      "name": "Orange",
+      "value": "#B0762A"
+    },
+    {
+      "id": "purple",
+      "name": "Purple",
+      "value": "#7A57C4"
+    },
+    {
+      "id": "grey",
+      "name": "Grey",
+      "value": "#5E7F98"
+    }
+  ],
+  "layouts": [
+    {
+      "id": "zorin",
+      "name": "Zorin",
+      "summary": "One bottom panel, the desktop Zorin ships",
+      "default": true
+    },
+    {
+      "id": "windows",
+      "name": "Windows-like",
+      "summary": "The menu and your apps move to the middle of the bar",
+      "layout": {
+        "panels": [
+          {
+            "side": "bottom",
+            "modules": [
+              "spacer",
+              "kickoff",
+              "tasks",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 48
+          }
+        ]
+      }
+    },
+    {
+      "id": "macos",
+      "name": "macOS-like",
+      "summary": "Bar along the top, dock along the bottom",
+      "layout": {
+        "panels": [
+          {
+            "side": "top",
+            "modules": [
+              "kickoff",
+              "title",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 40
+          }
+        ],
+        "dock": "bottom",
+        "dockStyle": "magnified"
+      }
+    },
+    {
+      "id": "gnome",
+      "name": "GNOME",
+      "summary": "Top bar with a centred clock, dash down the left, bare desktop",
+      "layout": {
+        "panels": [
+          {
+            "side": "top",
+            "modules": [
+              "activities",
+              "spacer",
+              "clock",
+              "spacer",
+              "tray"
+            ],
+            "height": 40
+          }
+        ],
+        "dock": "left",
+        "desktopIcons": false
+      }
+    },
+    {
+      "id": "touch",
+      "name": "Touch",
+      "summary": "Fewer, larger icons, a dock above a taller bar",
+      "layout": {
+        "grid": {
+          "rows": 4,
+          "cols": 3
+        },
+        "iconScale": 1.15,
+        "dock": "bottom",
+        "panels": [
+          {
+            "side": "bottom",
+            "modules": [
+              "kickoff",
+              "tasks",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 56
+          }
+        ]
+      }
+    }
+  ],
+  "categoryFallback": "Other",
+  "icons": {
+    "treatment": "squircle",
+    "cornerRadius": 0.28,
+    "foregroundScale": 1,
+    "brandPack": "zorin-os-17-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_190402725.png",
+    "image_2026-08-23_190429365.png",
+    "image_2026-08-23_190538991.png",
+    "Wallpapers.webp"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.5.0-zorin ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Zorin Appearance Service"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "terminal": {
+    "appLabel": "Terminal",
+    "palette": {
+      "bg": "#0E2438",
+      "fg": "#E4EAF0",
+      "cursor": "#15A6F0",
+      "selection": "#5515A6F0",
+      "ansi": [
+        "#0A1F30",
+        "#CC0000",
+        "#4E9A06",
+        "#C4A000",
+        "#3465A4",
+        "#75507B",
+        "#06989A",
+        "#D3D7CF",
+        "#555753",
+        "#EF2929",
+        "#8AE234",
+        "#FCE94F",
+        "#729FCF",
+        "#AD7FA8",
+        "#34E2E2",
+        "#EEEEEC"
+      ]
+    },
+    "prompt": "\u001b[01;32m{user}@zorin\u001b[00m:\u001b[01;34m{cwd}\u001b[00m$ "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "monitor",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 3
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
     }
   },
-  "icons": {
-    "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+  "surfaces": {
+    "opacity": 0.92,
+    "blur": 14,
+    "tint": 0.65,
+    "radius": 16
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "minAppVersion": 33,
+  "features": [
+    {
+      "title": "Five layouts, one distro",
+      "body": "Zorin, Windows-like, macOS-like, GNOME and Touch. Switch the whole desktop from Appearance or from quick settings.",
+      "exclusive": true
+    },
+    {
+      "title": "The Zorin menu",
+      "body": "Categories down the left, apps on the right, the way Zorin has always opened.",
+      "exclusive": true
+    },
+    {
+      "title": "A real taskbar",
+      "body": "The Zorin menu and your apps along the bottom, 48dp and solid, with quick settings at the end. Turn the phone sideways and the tray fills in.",
+      "exclusive": true
+    },
+    {
+      "title": "Editable categories",
+      "body": "Accessories, Games, Internet, Office and Sound and Video, each with its own icon.",
+      "exclusive": false
+    },
+    {
+      "title": "Panel edit mode",
+      "body": "Hold the panel, add or remove modules, move it to any edge.",
+      "exclusive": true
+    },
+    {
+      "title": "Zorin boot",
+      "body": "Nine lines through the Appearance Service and GDM before the desktop.",
+      "exclusive": true
+    },
+    {
+      "title": "Six accents, light and dark",
+      "body": "Pick the highlight colour, on navy or on paper. Tap it again to go back to Zorin blue.",
+      "exclusive": false
+    }
+  ]
 }

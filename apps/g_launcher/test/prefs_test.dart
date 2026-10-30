@@ -70,7 +70,8 @@ void main() {
       const p = LauncherPrefs(cols: 6, rows: 7);
       expect(p.copyWith().cols, 6);
       expect(p.clearing(cols: true).cols, isNull);
-      expect(p.clearing(cols: true).rows, 7, reason: 'only clears what is asked');
+      expect(p.clearing(cols: true).rows, 7,
+          reason: 'only clears what is asked');
     });
   });
 
@@ -171,7 +172,8 @@ void main() {
 
       // Widening home widens the drawer with it, UNLESS the user set the drawer
       // explicitly — then their choice sticks.
-      final wider = EffectiveTheme.resolve(_ubuntu(), const LauncherPrefs(cols: 6));
+      final wider =
+          EffectiveTheme.resolve(_ubuntu(), const LauncherPrefs(cols: 6));
       expect(wider.drawerCols, 6);
 
       final pinned = EffectiveTheme.resolve(

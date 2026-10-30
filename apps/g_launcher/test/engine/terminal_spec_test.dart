@@ -192,7 +192,8 @@ void main() {
           },
         },
       ]))!;
-      expect(s.aliases.single.args, {'kind': 'monitor', 'page': 0, 'live': true});
+      expect(
+          s.aliases.single.args, {'kind': 'monitor', 'page': 0, 'live': true});
     });
   });
 
@@ -279,9 +280,40 @@ void main() {
         'remote.host',
         'terminal.open',
         'remote.key',
+        'apps.packages',
+        'shell.sudo',
+        'fun.egg',
+        'launcher.layout',
+        'shell.alias',
+        'apps.open',
       };
       final inCode = CommandAction.values.map((a) => a.id).toSet();
       expect(inCode, inSchema);
+    });
+  });
+
+  group('rootPrompt', () {
+    Map<String, dynamic> block(Object? root) => {
+          'appLabel': 'QTerminal',
+          'palette': _palette(),
+          'rootPrompt': root,
+        };
+
+    test('is carried when authored', () {
+      final t = TerminalSpec.fromJson(block('root# '));
+      expect(t!.rootPrompt, 'root# ');
+    });
+
+    test('absent or empty is null, so the screen derives one', () {
+      expect(TerminalSpec.fromJson(block(null))!.rootPrompt, isNull);
+      expect(TerminalSpec.fromJson(block(''))!.rootPrompt, isNull);
+    });
+
+    test('takes part in equality', () {
+      expect(
+        TerminalSpec.fromJson(block('a# ')),
+        isNot(TerminalSpec.fromJson(block('b# '))),
+      );
     });
   });
 }

@@ -10,7 +10,9 @@ import '../../engine/effective_theme.dart';
 import '../desklets/desklet_edit.dart';
 import '../drawer/drawer_state.dart';
 import '../home/workspaces/workspace_overview.dart';
+import '../keyboard/launcher_keys.dart';
 import 'accessibility_disclosure.dart';
+import '../drawer/library_view.dart' show openSearch;
 import 'gesture_actions.dart';
 
 /// Temporarily reveals the dock. Auto-hides — a dock summoned by a gesture that
@@ -66,7 +68,9 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
       onActivities: () =>
           ref.read(activitiesOpenProvider.notifier).state = true,
       onShowDock: _revealDock,
-      onSearch: () => ref.read(activitiesOpenProvider.notifier).state = true,
+      // Through [openSearch], so a library distro opens on its field and a
+      // workspace distro goes to its apps page rather than an overlay.
+      onSearch: () => openSearch(ref),
     );
 
     // ─── THE JUST-IN-TIME DISCLOSURE ────────────────────────────────────
@@ -156,83 +160,88 @@ class _GestureLayerState extends ConsumerState<GestureLayer> {
     // keeps exactly the shape it had.
     final editing = ref.watch(deskletEditProvider).active;
 
-    return Stack(
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          // HORIZONTAL only. Vertical drags fall straight through to the
-          // workspaces PageView underneath — see the class comment.
-          onHorizontalDragEnd: editing
-              ? null
-              : (details) {
-                  final v = details.primaryVelocity ?? 0;
-                  // 300 px/s: below that it is a hesitant touch, not a fling. Too low
-                  // and every wobble fires a gesture.
-                  if (v.abs() < 300) return;
-
-                  if (v > 0) {
-                    _fire(Gesture.swipeRight);
-                  } else {
-                    _fire(Gesture.swipeLeft);
-                  }
-                },
-          onDoubleTap: editing ? null : () => _fire(Gesture.doubleTapHome),
-          child: widget.child,
-        ),
-
-        // ─── PINCH IN FOR THE OVERVIEW, ON ITS OWN DETECTOR ──────────────
-        //
-        // It cannot join the detector above. Flutter asserts when a single
-        // GestureDetector declares both a scale callback and a horizontal or
-        // vertical drag callback, because a one-finger scale IS a pan and the
-        // two recognizers would claim the same pointer.
-        //
-        // ─── AND WHY IT IS SAFE TO ADD HERE AT ALL ───────────────────────
-        //
-        // This layer wraps the workspace PageView, and the file's own header
-        // says at length what happens when a recognizer up here competes with a
-        // scrollable down there: the arena hands it every drag and the thing
-        // underneath stops working. A ScaleGestureRecognizer does not have that
-        // problem for one reason only, which is that it does not accept the
-        // arena until a SECOND pointer arrives. One finger never reaches this;
-        // the pager keeps every swipe it has today.
-        //
-        // The scale is read at END rather than continuously, so a two-finger
-        // rest or a small wobble does nothing. Below 0.75 is a deliberate
-        // squeeze; a pinch out is left alone because there is nothing above the
-        // desktop to zoom into.
-        //
-        // Nulled during edit mode like everything else here, and refused again
-        // inside `open()`, because a drag in progress must not be zoomed away
-        // from. Two guards rather than one: this one keeps the recognizer out
-        // of the arena, and that one is the rule.
-        GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onScaleEnd: editing
-              ? null
-              : (details) {
-                  if (details.pointerCount > 0) return;
-                  if (_lastScale >= 0.75) return;
-                  ref.read(workspaceOverviewProvider.notifier).open();
-                },
-          onScaleUpdate: editing ? null : (d) => _lastScale = d.scale,
-        ),
-
-        // The v1 gesture, preserved. A narrow strip, not the whole left half —
-        // wide enough to hit reliably, narrow enough not to steal drags from
-        // the dock's icons.
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 20,
-          child: GestureDetector(
+    // Keyboard shortcuts ride along with the gestures: same four shells, same
+    // place, and always present so the tree's shape never changes.
+    return LauncherKeys(
+      theme: widget.theme,
+      child: Stack(
+        children: [
+          GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onDoubleTap:
-                editing ? null : () => _fire(Gesture.doubleTapLeftEdge),
+            // HORIZONTAL only. Vertical drags fall straight through to the
+            // workspaces PageView underneath — see the class comment.
+            onHorizontalDragEnd: editing
+                ? null
+                : (details) {
+                    final v = details.primaryVelocity ?? 0;
+                    // 300 px/s: below that it is a hesitant touch, not a fling. Too low
+                    // and every wobble fires a gesture.
+                    if (v.abs() < 300) return;
+
+                    if (v > 0) {
+                      _fire(Gesture.swipeRight);
+                    } else {
+                      _fire(Gesture.swipeLeft);
+                    }
+                  },
+            onDoubleTap: editing ? null : () => _fire(Gesture.doubleTapHome),
+            child: widget.child,
           ),
-        ),
-      ],
+
+          // ─── PINCH IN FOR THE OVERVIEW, ON ITS OWN DETECTOR ──────────────
+          //
+          // It cannot join the detector above. Flutter asserts when a single
+          // GestureDetector declares both a scale callback and a horizontal or
+          // vertical drag callback, because a one-finger scale IS a pan and the
+          // two recognizers would claim the same pointer.
+          //
+          // ─── AND WHY IT IS SAFE TO ADD HERE AT ALL ───────────────────────
+          //
+          // This layer wraps the workspace PageView, and the file's own header
+          // says at length what happens when a recognizer up here competes with a
+          // scrollable down there: the arena hands it every drag and the thing
+          // underneath stops working. A ScaleGestureRecognizer does not have that
+          // problem for one reason only, which is that it does not accept the
+          // arena until a SECOND pointer arrives. One finger never reaches this;
+          // the pager keeps every swipe it has today.
+          //
+          // The scale is read at END rather than continuously, so a two-finger
+          // rest or a small wobble does nothing. Below 0.75 is a deliberate
+          // squeeze; a pinch out is left alone because there is nothing above the
+          // desktop to zoom into.
+          //
+          // Nulled during edit mode like everything else here, and refused again
+          // inside `open()`, because a drag in progress must not be zoomed away
+          // from. Two guards rather than one: this one keeps the recognizer out
+          // of the arena, and that one is the rule.
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onScaleEnd: editing
+                ? null
+                : (details) {
+                    if (details.pointerCount > 0) return;
+                    if (_lastScale >= 0.75) return;
+                    ref.read(workspaceOverviewProvider.notifier).open();
+                  },
+            onScaleUpdate: editing ? null : (d) => _lastScale = d.scale,
+          ),
+
+          // The v1 gesture, preserved. A narrow strip, not the whole left half —
+          // wide enough to hit reliably, narrow enough not to steal drags from
+          // the dock's icons.
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 20,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onDoubleTap:
+                  editing ? null : () => _fire(Gesture.doubleTapLeftEdge),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

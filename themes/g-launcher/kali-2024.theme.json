@@ -1,47 +1,408 @@
 {
-  "id": "kali-2024",
+  "id": "kali-2024-theme",
   "name": "Kali Linux",
   "version": "2024.3",
   "shell": "gnome",
   "tier": "pro",
-  "chromeFamily": "generic",
+  "chromeFamily": "xfce",
   "palette": {
     "bgTop": "#1B2733",
     "bgBottom": "#0D1117",
     "bar": "#0A0E13",
-    "dock": "#CC0A0E13",
+    "dock": "#B30A0E13",
     "accent": "#367BF0",
     "onDark": "#FFFFFF"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Noto Sans",
+    "mono": "JetBrains Mono"
   },
   "layout": {
-    "dock": "bottom",
+    "dock": "off",
     "topBar": true,
+    "panels": [
+      {
+        "side": "bottom",
+        "modules": [
+          "kickoff",
+          "tasks",
+          "pager",
+          "spacer",
+          "tray",
+          "clock"
+        ],
+        "height": 48
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
     },
-    "panels": [
-      {
-        "side": "top",
-        "modules": [
-          "activities",
-          "spacer",
-          "network",
-          "memory",
-          "storage"
+    "appDrawer": "tools",
+    "workspaces": 4
+  },
+  "categories": [
+    {
+      "name": "01 Information Gathering"
+    },
+    {
+      "name": "02 Vulnerability Analysis"
+    },
+    {
+      "name": "03 Web Application Analysis"
+    },
+    {
+      "name": "04 Database Assessment"
+    },
+    {
+      "name": "05 Password Attacks"
+    },
+    {
+      "name": "06 Wireless Attacks"
+    },
+    {
+      "name": "07 Reverse Engineering"
+    },
+    {
+      "name": "08 Exploitation Tools"
+    },
+    {
+      "name": "09 Sniffing & Spoofing"
+    },
+    {
+      "name": "10 Post Exploitation"
+    },
+    {
+      "name": "11 Forensics"
+    },
+    {
+      "name": "12 Reporting Tools"
+    },
+    {
+      "name": "13 Social Engineering Tools"
+    },
+    {
+      "name": "Accessories",
+      "feeds": [
+        "Utilities"
+      ],
+      "glyph": "tools"
+    },
+    {
+      "name": "Games",
+      "feeds": [
+        "Games"
+      ],
+      "glyph": "game"
+    },
+    {
+      "name": "Internet",
+      "feeds": [
+        "Social",
+        "News",
+        "Travel"
+      ],
+      "glyph": "globe"
+    },
+    {
+      "name": "Multimedia",
+      "feeds": [
+        "Media"
+      ],
+      "glyph": "video"
+    },
+    {
+      "name": "Office",
+      "feeds": [
+        "Productivity"
+      ],
+      "glyph": "document"
+    }
+  ],
+  "layouts": [
+    {
+      "id": "xfce",
+      "name": "Xfce",
+      "summary": "Kali's own panel, at the bottom for your thumb. No dock",
+      "default": true
+    },
+    {
+      "id": "gnome",
+      "name": "GNOME",
+      "summary": "Dash on the left, activities",
+      "layout": {
+        "dock": "left",
+        "topBar": true,
+        "panels": [
+          {
+            "side": "top",
+            "modules": [
+              "activities",
+              "spacer",
+              "network",
+              "storage"
+            ],
+            "height": 40
+          }
         ]
+      }
+    },
+    {
+      "id": "kde",
+      "name": "KDE Plasma",
+      "summary": "One bottom panel",
+      "layout": {
+        "dock": "off",
+        "topBar": false,
+        "panels": [
+          {
+            "side": "bottom",
+            "modules": [
+              "kickoff",
+              "tasks",
+              "pager",
+              "spacer",
+              "tray",
+              "clock"
+            ],
+            "height": 56
+          }
+        ]
+      }
+    }
+  ],
+  "categoryFallback": "Usual Applications",
+  "icons": {
+    "treatment": "roundedSquare",
+    "cornerRadius": 0.18,
+    "foregroundScale": 1,
+    "backgroundColor": "#131A22",
+    "brandPack": "kali-2024-line"
+  },
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "6188123.webp",
+    "6468743.webp",
+    "image_2026-08-15_200806847-optimized.webp",
+    "image_2026-08-15_201057040.webp",
+    "6188003.webp",
+    "3266654.webp",
+    "2864646.webp",
+    "kali-ferrofluid.webp"
+  ],
+  "minAppVersion": 29,
+  "boot": {
+    "tailMs": 700,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.19.0-kali1-amd64 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "dim",
+        "text": "[    0.000000] Linux version 6.19.0-kali1-amd64"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting OpenBSD Secure Shell server ...",
+        "delayMs": 400
+      },
+      {
+        "kind": "ok",
+        "text": "Started OpenBSD Secure Shell server"
+      },
+      {
+        "kind": "ok",
+        "text": "Started PostgreSQL RDBMS"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting LightDM Display Manager ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started LightDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
       }
     ]
   },
-  "icons": {
-    "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+  "splash": {
+    "style": "dots",
+    "durationMs": 1100
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "terminal": {
+    "appLabel": "QTerminal",
+    "palette": {
+      "bg": "#23252E",
+      "fg": "#FFFFFF",
+      "cursor": "#FFFFFF",
+      "selection": "#553D8BFF",
+      "ansi": [
+        "#23252E",
+        "#FF4D4D",
+        "#3CD25A",
+        "#E6C547",
+        "#3D8BFF",
+        "#C678DD",
+        "#2ECCE0",
+        "#D7DAE0",
+        "#5C6370",
+        "#FF6B6B",
+        "#5FF57C",
+        "#FFE066",
+        "#5FA8FF",
+        "#DA8EF0",
+        "#56E0F0",
+        "#FFFFFF"
+      ]
+    },
+    "prompt": "\u001b[32m┌──(\u001b[1;34mkali㉿kali\u001b[0;32m)-[\u001b[0;1m{cwd}\u001b[0;32m]\n└─\u001b[1;34m$\u001b[0m ",
+    "rootPrompt": "\u001b[34m┌──(\u001b[1;31mroot㉿kali\u001b[0;34m)-[\u001b[0;1m{cwd}\u001b[0;34m]\n└─\u001b[1;31m#\u001b[0m "
+  },
+  "desklets": {
+    "offers": [
+      "conky",
+      "monitor",
+      "network",
+      "storage",
+      "battery",
+      "free",
+      "df",
+      "uptime",
+      "clock"
+    ],
+    "starter": [
+      {
+        "kind": "conky",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 6,
+        "config": {
+          "conkyrc": "${color1}kali${color}@${nodename}${alignr}${time %H:%M}\n${color2}the quieter you become${color}${alignr}${time %a %d %b}\n${hr}\nuptime${alignr}${uptime_short}\nram ${memperc}%${alignr}${mem} / ${memmax}\n${membar}\ndisk ${fs_used_perc}%${alignr}${fs_used} / ${fs_size}\n${fs_bar}\nwlan0${alignr}${downspeed} down  ${upspeed} up\nbat ${battery_status}${alignr}${battery_percent}%"
+        }
+      }
+    ],
+    "skins": {
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "free": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "df": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "clock": {
+        "surface": "panel",
+        "font": "mono",
+        "accent": true
+      },
+      "conky": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  },
+  "features": [
+    {
+      "title": "The tool menu",
+      "body": "Tap the dragon. Thirteen numbered shelves, the way Kali files its own tools. Empty ones are places to put things, so drag an app onto a shelf and it stays.",
+      "exclusive": true
+    },
+    {
+      "title": "Three desktops, one distro",
+      "body": "Xfce, GNOME and KDE, the three Kali actually ships. Switch the whole desktop from Appearance.",
+      "exclusive": true
+    },
+    {
+      "title": "Boots like a workstation",
+      "body": "Seventeen lines through the SSH server, PostgreSQL and LightDM.",
+      "exclusive": true
+    },
+    {
+      "title": "An Xfce panel, live",
+      "body": "One panel along the bottom the way you reach it with a thumb: the dragon menu, your apps as launchers, a numbered workspace switcher, the tray and the clock. No dock. Desklets are drawn as terminal output, including a conky you write yourself.",
+      "exclusive": true
+    },
+    {
+      "title": "Blue on near-black",
+      "body": "Eight wallpapers, rounded-square icons on a dark plate, and a desktop you can put icons on.",
+      "exclusive": false
+    }
+  ]
 }

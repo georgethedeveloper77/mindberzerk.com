@@ -10,11 +10,13 @@ import '../../data/prefs/pending_apps.dart';
 import '../../data/prefs/prefs_repository.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../design/liquid_glass.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../design/components/press_pop.dart';
 import '../../design/grid_metrics.dart';
 import '../../design/icon_sizing.dart';
+import '../../design/window_chrome.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 // deskletEditProvider and EditMode.apps: the jiggle state lives here rather
@@ -27,6 +29,7 @@ import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_drag.dart';
 import '../drawer/folder_overlay.dart';
+import 'workspaces/edge_paging.dart' show homeDragActiveProvider;
 
 /// The home workspace: apps, folders, drag-and-drop.
 ///
@@ -193,7 +196,10 @@ class _HomeGridState extends ConsumerState<HomeGrid>
         final roomPerRow =
             ((constraints.maxHeight - vertical) / rows).clamp(0.0, 4000.0);
 
-        var iconSize = IconSizing.inCell(cellW, scale: theme.iconScale);
+        // A phone home: see `IconSizing.phoneInCell`.
+        var iconSize = theme.phoneHome
+            ? IconSizing.phoneInCell(cellW)
+            : IconSizing.inCell(cellW, scale: theme.iconScale);
         final natural = GridMetrics.cellHeightFor(
           iconSize: iconSize,
           labelLines: theme.labelLines,
@@ -219,31 +225,66 @@ class _HomeGridState extends ConsumerState<HomeGrid>
         // surface would have needed its own copy of the lot, and the copy
         // would have drifted the way `_FolderView` did.
         if (theme.homeLayout == 'tiled') {
-          final rects = _tile(
-            Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
-            capacity,
-          );
+          // ─── TILED AROUND THE DESKLETS, WITH GAPS ─────────────────────
+          //
+          // Apps tile into the largest stretch of the page no desklet holds,
+          // so a page carrying kitty and btop tiles its apps into the rest,
+          // the way a compositor tiles new windows beside the open ones. A
+          // page with no desklets tiles the whole screen, as before.
+          //
+          // Every tile is then a window: inset by the gap, framed, and the
+          // first one carrying the focused border. Empty tiles stay bare drop
+          // targets, so an unfilled page is not a screen of empty frames.
+          final area = _freeArea(
+            Size(constraints.maxWidth, constraints.maxHeight),
+            MediaQuery.viewPaddingOf(context),
+            prefs,
+            page,
+            theme,
+          ).deflate(windowGap / 2);
+          final rects = _tile(area, capacity);
+          // One focused window per screen. A page with desklets leaves focus
+          // to them (Arch's kitty), so the first app tile does not light up
+          // beside it as a second "focused" window.
+          final pageHasDesklets = prefs.desklets.any((d) => d.page == page);
+          var focusAt = -1;
+          for (var i = 0; i < rects.length && !pageHasDesklets; i++) {
+            if (HomeLayout.itemAt(prefs, page, i) != null) {
+              focusAt = i;
+              break;
+            }
+          }
           return Stack(
             children: [
               for (var i = 0; i < rects.length; i++)
                 Positioned.fromRect(
                   rect: rects[i],
-                  child: _Slot(
+                  child: _framed(
                     theme: theme,
-                    page: page,
-                    index: i,
-                    item: HomeLayout.itemAt(prefs, page, i),
-                    byKey: byKey,
-                    editing: editing,
-                    jiggle: _jiggle,
-                    // Sized from the TILE, not from the grid cell computed
-                    // above: tiles are all different shapes, and an icon
-                    // measured against a 4-wide cell would be identical in
-                    // every one of them, which is the look this mode exists to
-                    // avoid.
-                    iconSize: IconSizing.inCell(
-                      rects[i].shortestSide,
-                      scale: theme.iconScale,
+                    filled: HomeLayout.itemAt(prefs, page, i) != null,
+                    focused: i == focusAt,
+                    title: theme.windowTitles
+                        ? _titleOf(HomeLayout.itemAt(prefs, page, i), byKey,
+                            prefs)
+                        : null,
+                    child: _Slot(
+                      theme: theme,
+                      page: page,
+                      index: i,
+                      item: HomeLayout.itemAt(prefs, page, i),
+                      byKey: byKey,
+                      editing: editing,
+                      jiggle: _jiggle,
+                      // Sized from the TILE, not from the grid cell computed
+                      // above: tiles are all different shapes, and an icon
+                      // measured against a 4-wide cell would be identical in
+                      // every one of them, which is the look this mode exists
+                      // to avoid. Less the frame, so the icon sits inside it.
+                      iconSize: IconSizing.inCell(
+                        (rects[i].shortestSide - windowGap - windowBorder * 2)
+                            .clamp(1.0, double.infinity),
+                        scale: theme.iconScale,
+                      ),
                     ),
                   ),
                 ),
@@ -406,8 +447,9 @@ class _Removable extends StatelessWidget {
                 color: theme.palette.onDark,
                 shape: BoxShape.circle,
               ),
+              // A phone's remove badge is a minus; a desktop's is a cross.
               child: Icon(
-                Icons.close,
+                theme.phoneHome ? Icons.remove : Icons.close,
                 size: badge * 0.62,
                 color: theme.palette.bar,
               ),
@@ -460,6 +502,113 @@ double _labelFontSize(EffectiveTheme theme) => 11 * theme.textScale;
 ///
 /// Returns exactly [count] rects, in slot order, so index 0 is the largest.
 /// A caller asking for zero gets an empty list rather than a division by zero.
+/// The page's free stretch for tiling: the largest rectangle of desklet cells
+/// no desklet covers, in the same grid and margins the desklet surface uses.
+/// The whole box when the page holds no desklets.
+///
+/// Largest by AREA, found by the classic histogram sweep over the 8 by 15
+/// cell grid: small enough to run per build, and it picks the stretch a person
+/// would, the band beside or below the terminals rather than a sliver.
+Rect _freeArea(
+  Size size,
+  EdgeInsets inset,
+  LauncherPrefs prefs,
+  int page,
+  EffectiveTheme theme,
+) {
+  final whole = Offset.zero & size;
+  final here = [
+    for (final d in prefs.desklets)
+      if (d.page == page) d,
+  ];
+  if (here.isEmpty) return whole;
+
+  // The desklet surface's own grid and margins (`DeskletSurfaceView.margin`
+  // plus the view padding), so a tile lines up with the cells the desklets
+  // were placed in.
+  final cols = theme.deskletCols;
+  final rows = theme.deskletRows;
+  const margin = 6.0;
+  final left = margin + inset.left;
+  final top = margin + inset.top;
+  final w = size.width - left - margin - inset.right;
+  final h = size.height - top - margin - inset.bottom;
+  if (w <= 0 || h <= 0 || cols <= 0 || rows <= 0) return whole;
+  final cellW = w / cols;
+  final cellH = h / rows;
+
+  final taken = List.generate(rows, (_) => List.filled(cols, false));
+  for (final d in here) {
+    for (var r = d.row; r < d.row + d.spanY && r < rows; r++) {
+      for (var c = d.col; c < d.col + d.spanX && c < cols; c++) {
+        if (r >= 0 && c >= 0) taken[r][c] = true;
+      }
+    }
+  }
+
+  // Heights of free runs ending at each row, then the widest rectangle under
+  // each row's histogram.
+  final heights = List.filled(cols, 0);
+  var best = 0;
+  Rect? bestRect;
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < cols; c++) {
+      heights[c] = taken[r][c] ? 0 : heights[c] + 1;
+    }
+    for (var c = 0; c < cols; c++) {
+      if (heights[c] == 0) continue;
+      var minH = heights[c];
+      for (var k = c; k < cols && heights[k] > 0; k++) {
+        if (heights[k] < minH) minH = heights[k];
+        final area = minH * (k - c + 1);
+        if (area > best) {
+          best = area;
+          bestRect = Rect.fromLTWH(
+            left + c * cellW,
+            top + (r - minH + 1) * cellH,
+            (k - c + 1) * cellW,
+            minH * cellH,
+          );
+        }
+      }
+    }
+  }
+  // Every cell taken: nowhere to tile, so the apps keep the whole page under
+  // the desklets rather than vanishing.
+  return bestRect ?? whole;
+}
+
+/// A tile's window frame, only around a tile that holds something.
+Widget _framed({
+  required EffectiveTheme theme,
+  required bool filled,
+  required bool focused,
+  required Widget child,
+  String? title,
+}) =>
+    filled
+        ? WindowChrome(
+            theme: theme,
+            focused: focused,
+            title: title,
+            child: child,
+          )
+        : child;
+
+/// What an i3 title bar says over a tile: the app's name, or the folder's.
+String? _titleOf(
+  HomeItem? item,
+  Map<String, AppEntry> byKey,
+  LauncherPrefs prefs,
+) {
+  if (item == null) return null;
+  final key = item.componentKey;
+  if (key != null) return byKey[key]?.label;
+  final folderId = item.folderId;
+  if (folderId != null) return HomeLayout.folder(prefs, folderId)?.name;
+  return null;
+}
+
 List<Rect> _tile(Rect box, int count) {
   if (count <= 0) return const [];
 
@@ -738,6 +887,22 @@ class _Slot extends ConsumerWidget {
     // desktop rather than at that specific app. `placeAt` takes the slot when
     // it is free and the next free one when it is not.
     if (drag.from != DragOrigin.grid) {
+      // A DOCK folder coming home: the folder keeps its id, its name and its
+      // members, and swaps its dock entry for a grid slot.
+      if (drag case FolderDrag(:final folderId)
+          when drag.from == DragOrigin.dock) {
+        notifier.edit(
+          (p) => HomeLayout.placeFolderAt(
+            p,
+            folderId,
+            page: page,
+            index: index,
+            capacity: theme.rows * theme.cols,
+            cols: theme.cols,
+          ),
+        );
+        return;
+      }
       if (drag case AppDrag(:final componentKey)) {
         notifier.edit((p) {
           final placed = HomeLayout.placeAt(
@@ -809,7 +974,7 @@ class _Slot extends ConsumerWidget {
 /// measurable against pointer-down. Neither affects where a drop LANDS, since
 /// [DragTarget] hit-tests the pointer either way and `_Slot` reads only
 /// `d.data`.
-class _Draggable extends StatelessWidget {
+class _Draggable extends ConsumerWidget {
   const _Draggable({
     required this.page,
     required this.index,
@@ -829,7 +994,7 @@ class _Draggable extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return LongPressDraggable<DrawerDrag>(
       data:
           FolderDrag(folderId, from: DragOrigin.grid, page: page, index: index),
@@ -840,7 +1005,11 @@ class _Draggable extends StatelessWidget {
         child: Material(color: Colors.transparent, child: child),
       ),
       childWhenDragging: Opacity(opacity: 0.25, child: child),
-      onDragStarted: HapticFeedback.selectionClick,
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+        ref.read(homeDragActiveProvider.notifier).set(true);
+      },
+      onDragEnd: (_) => ref.read(homeDragActiveProvider.notifier).set(false),
       child: child,
     );
   }
@@ -954,6 +1123,8 @@ class _AppCellState extends ConsumerState<_AppCell> {
       // other. Same reasoning as the drawer tile.
       onDragStarted: () {
         HapticFeedback.selectionClick();
+        // Arms the edge sensors, so a held icon can turn the page.
+        ref.read(homeDragActiveProvider.notifier).set(true);
         if (mounted) setState(() => _held = true);
       },
       onDraggableCanceled: (_, offset) {
@@ -981,6 +1152,8 @@ class _AppCellState extends ConsumerState<_AppCell> {
       // coming and this State can survive at a new index, so something has to
       // clear it.
       onDragEnd: (details) {
+        // Both paths end here, so the sensors stand down here.
+        ref.read(homeDragActiveProvider.notifier).set(false);
         if (details.wasAccepted && mounted) setState(() => _held = false);
       },
       // Centred on the finger. The pointer anchor puts the feedback's top-left
@@ -1079,35 +1252,82 @@ class _FolderCell extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // A 2x2 preview of the first four. The convention everyone already
-          // knows — do not invent a new folder glyph.
+          // knows — do not invent a new folder glyph. A glass distro shows
+          // nine, three by three, on Liquid Glass, as iOS 26 does.
           Container(
             width: iconSize,
             height: iconSize,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: theme.palette.onDark.withValues(alpha: 0.15),
-              // The THEME's corner radius, not a hardcoded 0.22. A distro on
-              // circular icons was getting rounded-square folders sitting
-              // beside them, which is the one place on the desktop where the
-              // icon shape setting visibly did not apply.
-              borderRadius:
-                  BorderRadius.circular(iconSize * theme.icons.cornerRadius),
-            ),
-            child: GridView.count(
-              crossAxisCount: 2,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 2,
-              crossAxisSpacing: 2,
-              children: [
-                for (final m in members.take(4))
-                  AppIcon(entry: m, size: iconSize / 2 - 5),
-              ],
+            padding: EdgeInsets.all(theme.folderGlass ? iconSize * 0.12 : 4),
+            decoration: theme.folderGlass
+                ? BoxDecoration(
+                    gradient: LiquidGlass.fill(dark: theme.glassDark),
+                    borderRadius: BorderRadius.circular(
+                        iconSize * theme.icons.cornerRadius),
+                  )
+                : BoxDecoration(
+                    color: theme.palette.onDark.withValues(alpha: 0.15),
+                    // The THEME's corner radius, not a hardcoded 0.22. A distro
+                    // on circular icons was getting rounded-square folders
+                    // sitting beside them, which is the one place on the
+                    // desktop where the icon shape setting visibly did not
+                    // apply.
+                    borderRadius: BorderRadius.circular(
+                        iconSize * theme.icons.cornerRadius),
+                  ),
+            // Edge and rim over the content, so they take no layout.
+            foregroundDecoration: theme.folderGlass
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                        iconSize * theme.icons.cornerRadius),
+                    border: Border.all(color: LiquidGlass.edge),
+                    gradient: LiquidGlass.rim(BorderRadius.zero).gradient,
+                  )
+                : null,
+            child: _FolderPreview(
+              members: members,
+              columns: theme.folderGlass ? 3 : 2,
+              iconSize: iconSize,
+              padding: theme.folderGlass ? iconSize * 0.12 : 4,
             ),
           ),
           const SizedBox(height: GridMetrics.labelGap),
           _Label(theme: theme, text: folder.name),
         ],
       ),
+    );
+  }
+}
+
+/// The first [columns] squared members, laid out in a square.
+class _FolderPreview extends StatelessWidget {
+  const _FolderPreview({
+    required this.members,
+    required this.columns,
+    required this.iconSize,
+    required this.padding,
+  });
+
+  final List<AppEntry> members;
+  final int columns;
+  final double iconSize;
+  final double padding;
+
+  /// Between two minis, on both axes.
+  static const _gap = 2.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final inner = iconSize - padding * 2;
+    // A hair under the exact share, so floating-point rounding can never
+    // push the last mini of a row onto the next one.
+    final mini = (inner - _gap * (columns - 1)) / columns - 0.01;
+    final shown = members.take(columns * columns).toList();
+    return Wrap(
+      spacing: _gap,
+      runSpacing: _gap,
+      children: [
+        for (final m in shown) AppIcon(entry: m, size: mini),
+      ],
     );
   }
 }

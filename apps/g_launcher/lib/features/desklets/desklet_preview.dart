@@ -136,6 +136,7 @@ List<DeskletKind> offeredDesklets(EffectiveTheme theme) {
     'glance',
     'clock',
     'monitor',
+    'conky',
     'fastfetch',
     'network',
     'storage',
@@ -155,9 +156,12 @@ List<DeskletKind> offeredDesklets(EffectiveTheme theme) {
       if (!k.paneOnly || pane) k,
   ];
   // G VPN belongs to the phone, not the distro: every theme offers it, so a
-  // CDN theme with its own list never hides it.
+  // CDN theme with its own list never hides it. The conky is the same: it is
+  // the Linux desktop's own widget, and no distro should lose it because its
+  // theme.json predates it.
   return [
     ...offered,
-    if (!offered.contains(DeskletKinds.vpn)) DeskletKinds.vpn
+    if (!offered.contains(DeskletKinds.conky)) DeskletKinds.conky,
+    if (!offered.contains(DeskletKinds.vpn)) DeskletKinds.vpn,
   ];
 }

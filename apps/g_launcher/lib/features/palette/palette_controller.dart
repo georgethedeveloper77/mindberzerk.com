@@ -5,10 +5,12 @@ import '../../data/prefs/hidden_apps.dart';
 import '../../data/prefs/query_learning.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/search/search_text.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../command/command_router.dart';
+import '../command/search_settings.dart';
 import 'fuzzy.dart';
 
 /// What's typed at the prompt.
@@ -34,7 +36,10 @@ final paletteResultsProvider =
   if (query.isEmpty) return const [];
 
   // An explicit command mode (`=`, `:`, `!`) is not an app search.
-  if (!CommandRouter.route(query).searchApps) return const [];
+  final extra = ref.watch(extraBangsProvider);
+  if (!CommandRouter.route(query, extraBangs: extra).searchApps) {
+    return const [];
+  }
 
   // ── HIDDEN APPS ────────────────────────────────────────────────────────────
   //
@@ -71,7 +76,23 @@ final paletteResultsProvider =
       return a.label.toLowerCase().compareTo(b.label.toLowerCase());
     });
 
-  final ranked = Fuzzy.rank(sorted, query, label: (a) => a.label);
+  final fuzzy = Fuzzy.rank(sorted, query, label: (a) => a.label);
+
+  // Typo tier, appended. Fuzzy forgives MISSING letters (it is a
+  // subsequence match) but not wrong or swapped ones, so "telgram" found
+  // Telegram and "telgeram" did not. These rank after every fuzzy hit and
+  // carry an empty highlight, because no letter of the label was typed.
+  final matched = {for (final r in fuzzy) r.item.componentKey};
+  final typos = <(AppEntry, int)>[
+    for (final a in sorted)
+      if (!matched.contains(a.componentKey))
+        if (SearchText.typoDistance(a.label, query) case final d?) (a, d),
+  ]..sort((x, y) => x.$2.compareTo(y.$2));
+  final ranked = [
+    ...fuzzy,
+    for (final t in typos)
+      Ranked(item: t.$1, match: const FuzzyMatch(score: 0, indices: [])),
+  ];
   final learning = ref.watch(queryLearningProvider).asData?.value;
   return learning == null
       ? ranked

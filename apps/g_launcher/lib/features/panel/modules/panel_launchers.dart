@@ -9,6 +9,7 @@ import '../../../design/theme_mark.dart';
 import '../../../engine/effective_theme.dart';
 import '../../drawer/app_icon.dart';
 import '../../drawer/drawer_actions.dart';
+import '../panel_skin.dart';
 
 /// The kickoff button: Plasma's start menu, and Mint's Menu.
 ///
@@ -119,13 +120,23 @@ class PanelAppButton extends ConsumerWidget {
     final entry = apps.where((a) => a.packageName == package).firstOrNull;
     if (entry == null) return const SizedBox.shrink();
 
-    return GestureDetector(
-      onTap: () => launchDrawerApp(ref, entry),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: AppIcon(entry: entry, size: 18),
-      ),
+    // Sized from the panel like the task strip, so a pinned app and a task
+    // beside it are the same size and both are a target a thumb can hit.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final vertical = theme.panelSide.isVertical;
+        final icon = panelIconSize(vertical ? box.maxWidth : box.maxHeight);
+        return GestureDetector(
+          onTap: () => launchDrawerApp(ref, entry),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: vertical
+                ? const EdgeInsets.symmetric(vertical: panelIconGap / 2)
+                : const EdgeInsets.symmetric(horizontal: panelIconGap / 2),
+            child: Center(child: AppIcon(entry: entry, size: icon)),
+          ),
+        );
+      },
     );
   }
 }

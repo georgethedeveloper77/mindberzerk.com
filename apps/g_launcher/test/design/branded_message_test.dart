@@ -34,7 +34,8 @@ const _drain = Duration(milliseconds: 3400);
 void main() {
   tearDown(debugResetBrandedMessenger);
 
-  testWidgets('shows a message from a context with no Scaffold', (tester) async {
+  testWidgets('shows a message from a context with no Scaffold',
+      (tester) async {
     await tester.pumpWidget(_host((c) => c.showMessage('Wallpaper set')));
 
     await tester.tap(find.byType(GestureDetector).first);

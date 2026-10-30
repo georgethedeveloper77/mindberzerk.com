@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "તે તમારા ફોન પર રહે છે. આ ફક્ત તેને અહીંની સૂચિમાંથી બહાર લઈ જાય છે.",
   "wallpaper.removeTitle": "આ વોલપેપર દૂર કરો",
   "wallpaper.removed": "દૂર કર્યું",
-  "wallpaper.yours": "તમારું"
+  "wallpaper.yours": "તમારું",
+  "shell.dockFull": "ડોક ભરેલું છે",
+  "shell.moveToHomeScreen": "હોમ સ્ક્રીન પર ખસેડો",
+  "home.edit": "ફેરફાર કરો"
 }

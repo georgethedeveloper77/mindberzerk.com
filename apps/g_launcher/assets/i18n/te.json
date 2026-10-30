@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "ఇది మీ ఫోన్‌లో ఉంటుంది. ఇది ఇక్కడ జాబితా నుండి మాత్రమే తీసివేస్తుంది.",
   "wallpaper.removeTitle": "ఈ వాల్‌పేపర్‌ని తీసివేయండి",
   "wallpaper.removed": "తీసివేయబడింది",
-  "wallpaper.yours": "మీది"
+  "wallpaper.yours": "మీది",
+  "shell.dockFull": "డాక్ నిండింది",
+  "shell.moveToHomeScreen": "హోమ్ స్క్రీన్‌కు తరలించు",
+  "home.edit": "సవరించు"
 }

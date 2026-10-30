@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "በስልክዎ ላይ ይቆያል። ይህ እዚህ ዝርዝር ውስጥ ብቻ ነው የሚያወጣው።",
   "wallpaper.removeTitle": "ይህን የግድግዳ ወረቀት ያስወግዱ",
   "wallpaper.removed": "ተወግዷል",
-  "wallpaper.yours": "ያንተ"
+  "wallpaper.yours": "ያንተ",
+  "shell.dockFull": "ዶኩ ሞልቷል",
+  "shell.moveToHomeScreen": "ወደ መነሻ ማያ ገጽ ውሰድ",
+  "home.edit": "አርትዕ"
 }

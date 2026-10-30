@@ -69,8 +69,8 @@ void main() {
 
     test('the alias defaults to the host and is lowercased', () {
       expect(SshHost.parseTarget('g@Example.COM')!.alias, 'example.com');
-      expect(SshHost.parseTarget('g@x.com', alias: 'MyServer')!.alias,
-          'myserver');
+      expect(
+          SshHost.parseTarget('g@x.com', alias: 'MyServer')!.alias, 'myserver');
     });
   });
 
@@ -110,12 +110,14 @@ void main() {
       expect(SshHost.fromJson(h.toJson()), h);
     });
 
-    test('a row with no host is dropped rather than taking the list with it', () {
+    test('a row with no host is dropped rather than taking the list with it',
+        () {
       expect(SshHost.fromJson({'alias': 'a', 'user': 'g'}), isNull);
       expect(SshHost.fromJson({'user': 'g', 'host': 'x.com'}), isNull);
     });
 
-    test('an out of range port falls back to 22 rather than failing the row', () {
+    test('an out of range port falls back to 22 rather than failing the row',
+        () {
       final h = SshHost.fromJson({'alias': 'a', 'host': 'x.com', 'port': 0})!;
       expect(h.port, 22);
     });

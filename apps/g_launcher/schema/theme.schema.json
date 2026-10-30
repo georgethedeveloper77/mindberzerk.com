@@ -11,6 +11,13 @@
   "additionalProperties": false,
 
   "properties": {
+    "accentGradient": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "type": "string", "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$" },
+      "$comment": "The distro's signature gradient. Used only by the active page marker and the fastfetch logo ring; palette.accent drives everything else. Any other length, or a stop that is not a colour, and the device ignores the whole list."
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*$",
@@ -272,8 +279,13 @@
         },
         "prompt": {
           "type": "string",
-          "maxLength": 64,
-          "$comment": "Tokens: {user} {host} {cwd} {distro} {exit}. An unknown token renders LITERALLY rather than being stripped, so an authoring mistake is visible instead of silently eating a segment."
+          "maxLength": 160,
+          "$comment": "Tokens: {user} {host} {cwd} {distro} {exit}. An unknown token renders LITERALLY rather than being stripped, so an authoring mistake is visible instead of silently eating a segment. May carry SGR escapes (\\u001b[..m); a newline splits a two-line prompt, and everything before the last one is drawn above the input row."
+        },
+        "rootPrompt": {
+          "type": "string",
+          "maxLength": 160,
+          "$comment": "The prompt after sudo -i or su. Same tokens and escapes as prompt. Absent derives one: the trailing $ becomes # and the line is drawn red."
         },
         "scrollbackLines": {
           "type": "integer",
@@ -332,7 +344,13 @@
             "remote.hosts",
             "remote.host",
             "terminal.open",
-            "remote.key"
+            "remote.key",
+            "apps.packages",
+            "shell.sudo",
+            "fun.egg",
+            "launcher.layout",
+            "shell.alias",
+            "apps.open"
           ],
           "$comment": "The wire names of CommandAction. ENUMERATED HERE and asserted against the enum by terminal_spec_test, the same arrangement kindId has: the runtime keeps an unknown id and simply fails to bind it, so without this list a typo would vanish silently. ADDING AN ACTION MEANS UPDATING THIS LIST AND THAT TEST."
         },

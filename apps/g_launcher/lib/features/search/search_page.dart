@@ -7,6 +7,7 @@ import '../../data/prefs/query_learning.dart';
 import '../../data/prefs/recent_searches.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/repositories/shell_apps.dart';
+import '../../data/search/search_text.dart';
 import '../../data/usage/usage_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
@@ -14,7 +15,10 @@ import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
 import '../command/command_rows.dart';
 import '../command/command_router.dart';
+import '../command/search_settings.dart';
+import '../settings/search_settings_screen.dart';
 import '../drawer/app_icon.dart';
+import '../drawer/app_shortcuts.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/drawer_items.dart';
 import '../settings/hide_apps_screen.dart';
@@ -223,7 +227,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     // An explicit mode, or a command with no app to beat it: Enter acts on
     // the command (copies the sum, opens the bang) instead of launching.
-    final route = CommandRouter.route(q);
+    final route = ref.readRoute(q);
     final results = route.searchApps
         ? ref.read(visibleAppsProvider((query: q, theme: widget.theme)))
         : const <AppEntry>[];
@@ -474,7 +478,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _results(BuildContext context, ChromeData d) {
     // The mode router first: `=`, `:` and `!` answer instead of apps, and a
     // bare sum or "5 km in mi" answers above them.
-    final route = CommandRouter.route(_query);
+    final route = ref.watchRoute(_query);
     final rowStyle = CommandRowStyle(
       text: d.colors.text,
       muted: d.colors.textMuted,
@@ -502,6 +506,38 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             terminalLabel: terminalLabelFor(widget.theme),
           )
         : const <DrawerItem>[];
+
+    // ── APP ACTIONS ────────────────────────────────────────────────────
+    //
+    // The shortcuts the top app publishes ("New chat", "Connect"), straight
+    // from search. When the whole query finds nothing but its FIRST word
+    // does ("whatsapp new"), that app's shortcuts are offered filtered by the
+    // rest, which is how a launcher search reads a sentence.
+    //
+    // Never for a hidden app: a shortcut launch does not pass through
+    // AppList.launch, so it would step around the hidden apps lock.
+    AppEntry? actionApp;
+    var actionFilter = '';
+    if (route.searchApps) {
+      if (results.isNotEmpty) {
+        actionApp = results.first;
+      } else {
+        final words = _query.trim().split(RegExp(r'\s+'));
+        if (words.length >= 2) {
+          final head = ref.watch(
+            visibleAppsProvider((query: words.first, theme: widget.theme)),
+          );
+          if (head.isNotEmpty) {
+            actionApp = head.first;
+            actionFilter = words.skip(1).join(' ');
+          }
+        }
+      }
+    }
+    if (actionApp != null &&
+        widget.theme.prefs.hiddenApps.contains(actionApp.componentKey)) {
+      actionApp = null;
+    }
 
     // A card in the same treatment as the Apps and Launcher cards.
     Widget card(Widget child) => SliverToBoxAdapter(
@@ -545,11 +581,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           )
         : null;
 
+    final actionsCard = actionApp == null
+        ? null
+        : SliverToBoxAdapter(
+            child: _ActionsCard(
+              app: actionApp,
+              filter: actionFilter,
+              onLaunch: _launchShortcut,
+            ),
+          );
+
     if (results.isEmpty && launcherHits.isEmpty) {
       return CustomScrollView(
         slivers: [
           if (commandCard != null) commandCard,
-          if (commandCard == null && route.searchApps)
+          if (actionsCard != null) actionsCard,
+          if (commandCard == null && actionsCard == null && route.searchApps)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
@@ -645,9 +692,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           ),
+        if (actionsCard != null) actionsCard,
         if (fallbackCard != null) fallbackCard,
       ],
     );
+  }
+
+  /// Run one of an app's shortcuts. Same pop-first rule as [_launch].
+  void _launchShortcut(AppEntry e, AppShortcut s) {
+    final term = _query.trim();
+    final api = ref.read(launcherHostApiProvider);
+    final usage = ref.read(usageProvider.notifier);
+    if (term.isNotEmpty) {
+      ref.read(recentSearchesProvider.notifier).record(term);
+    }
+    _dismiss();
+    api.launchShortcut(e.componentKey, s.id, null, null, null, null);
+    usage.record(e.componentKey);
   }
 
   /// The result grid as a SLIVER, so it can sit inside the Apps card and stay
@@ -768,6 +829,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             onTap: () {
               Navigator.pop(sheet);
               if (host.mounted) openHideApps(host, ref, widget.theme);
+            },
+          ),
+          ThemedListRow(
+            icon: Icons.travel_explore,
+            title: context.t('searchSettings.title'),
+            onTap: () {
+              Navigator.pop(sheet);
+              if (host.mounted) openSearchSettings(host);
             },
           ),
           ThemedListRow(
@@ -1165,7 +1234,9 @@ class _LauncherHit extends StatelessWidget {
           Icon(Icons.terminal, size: 26, color: c.textMuted),
           'Commands, system info, shell',
         ),
-      AppDrawerItem() || FolderDrawerItem() => (
+      // Never reach this widget: apps and folders have their own rows, and
+      // the Hidden folder is kept out of search.
+      AppDrawerItem() || FolderDrawerItem() || HiddenFolderItem() => (
           const SizedBox.shrink(),
           '',
         ),
@@ -1198,6 +1269,90 @@ class _LauncherHit extends StatelessWidget {
             Icon(Icons.chevron_right, size: 18, color: c.textFaint),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The top app's shortcuts as rows: "WhatsApp › New chat".
+///
+/// Nothing at all while loading, for an app that publishes none, or when the
+/// filter leaves none: an empty "Actions" header is noise. Four at most, the
+/// number Android itself shows on a long press.
+class _ActionsCard extends ConsumerWidget {
+  const _ActionsCard({
+    required this.app,
+    required this.filter,
+    required this.onLaunch,
+  });
+
+  final AppEntry app;
+  final String filter;
+  final void Function(AppEntry, AppShortcut) onLaunch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all =
+        ref.watch(appShortcutsProvider(app.componentKey)).asData?.value ??
+            const <AppShortcut>[];
+    final shown = [
+      for (final s in all)
+        if (!s.disabled && SearchText.contains(s.label, filter)) s,
+    ].take(4).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
+
+    final d = ChromeScope.of(context);
+    final c = d.colors;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: Text(context.t('search.actions'), style: d.text.title),
+          ),
+          for (final s in shown)
+            InkWell(
+              onTap: () => onLaunch(app, s),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      AppIcon(entry: app, size: 28, showBadge: false),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${app.label}  ›  ',
+                                style: d.text.body.copyWith(color: c.textMuted),
+                              ),
+                              TextSpan(
+                                text: s.label,
+                                style: d.text.body.copyWith(color: c.text),
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

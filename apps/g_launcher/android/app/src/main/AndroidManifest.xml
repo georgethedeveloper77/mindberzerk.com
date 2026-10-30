@@ -169,6 +169,28 @@
         </intent>
 
         <!--
+          DOCK SEED. `defaultAppFor` resolves these four to pin a distro's
+          first dock (Pocket: phone, messages, browser, camera). Launchable
+          apps are already visible through MAIN/LAUNCHER; these keep the
+          answer honest for a default handler that is not.
+        -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+
+        <!--
           VOICE. The launcher does no speech of its own; it hands off to
           whatever the phone already has.
 
@@ -363,6 +385,14 @@
           drawing. A confirmation sheet here would be the second dialog asking
           the same question, because Chrome has already shown its own.
         -->
+        <!-- Shown when this install is missing its native libraries. See
+             BrokenInstallActivity. Internal: only LauncherActivity starts it. -->
+        <activity
+            android:name=".BrokenInstallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
         <activity
             android:name=".apps.PinShortcutActivity"
             android:exported="true"

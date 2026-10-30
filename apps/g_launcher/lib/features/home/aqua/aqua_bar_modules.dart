@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../design/theme_mark.dart';
 import '../../../engine/theme_source.dart';
@@ -34,6 +35,8 @@ List<Widget> aquaBarModules(
   required ThemeAsset? logo,
   required String title,
   required VoidCallback onActivities,
+  bool wingpanel = false,
+  Widget? tray,
 }) {
   final stats = modules
       .where((m) =>
@@ -49,13 +52,21 @@ List<Widget> aquaBarModules(
         // this is the word Applications, which is what Pantheon calls it, and
         // it comes from the theme rather than from a constant so a second aqua
         // distro is still a data change.
-        PanelModule.activities => _MarkAndTitle(
-            logo: logo,
-            title: title,
-            onDark: palette.onDark,
-            displayFontFamily: displayFontFamily,
-            onTap: onActivities,
-          ),
+        // A wingpanel's button is the word Applications beside a search
+        // glyph, with no mark: Slingshot opens on its search field.
+        PanelModule.activities => wingpanel
+            ? _Applications(
+                onDark: palette.onDark,
+                displayFontFamily: displayFontFamily,
+                onTap: onActivities,
+              )
+            : _MarkAndTitle(
+                logo: logo,
+                title: title,
+                onDark: palette.onDark,
+                displayFontFamily: displayFontFamily,
+                onTap: onActivities,
+              ),
         PanelModule.spacer => const Spacer(),
         PanelModule.clock => _Clock(
             palette: palette,
@@ -69,6 +80,11 @@ List<Widget> aquaBarModules(
         PanelModule.battery ||
         PanelModule.wifi ||
         PanelModule.volume ||
+        // The menu bar already names where you are, beside the mark.
+        PanelModule.title ||
+        PanelModule.workspacesButton ||
+        PanelModule.appsButton ||
+        PanelModule.tiling ||
         PanelModule.app =>
           const SizedBox.shrink(),
         PanelModule.network ||
@@ -86,9 +102,12 @@ List<Widget> aquaBarModules(
         // and no workspace pager. Authoring one is dropped rather than fatal,
         // the same contract `PanelModule.parse` keeps, and it is explicit here
         // so a new module cannot arrive silently.
+        // The tray is the way into quick settings, so it is drawn when the
+        // caller supplies one, which the wingpanel does. The Mac bar keeps
+        // dropping it: its right end is Spotlight.
+        PanelModule.tray => tray ?? const SizedBox.shrink(),
         PanelModule.kickoff ||
         PanelModule.tasks ||
-        PanelModule.tray ||
         PanelModule.pager =>
           const SizedBox.shrink(),
       },
@@ -189,6 +208,54 @@ class _Readouts extends ConsumerWidget {
 /// eight lines and the alternative is making a private widget public purely to
 /// share it, which would put a widget nobody else should build in the public
 /// surface of that file.
+/// Pantheon's Applications button: a search glyph and the word.
+///
+/// 44dp tall, so on a phone it is a real target rather than a 12pt label.
+class _Applications extends StatelessWidget {
+  const _Applications({
+    required this.onDark,
+    required this.displayFontFamily,
+    required this.onTap,
+  });
+
+  final Color onDark;
+  final String? displayFontFamily;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.t('shell.appsButton');
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.only(right: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search, size: 16, color: onDark),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: displayFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: onDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MarkAndTitle extends StatelessWidget {
   const _MarkAndTitle({
     required this.logo,

@@ -1,47 +1,288 @@
 {
-  "id": "endeavouros",
+  "id": "endeavouros-theme",
   "name": "EndeavourOS",
-  "version": "2024",
+  "version": "1",
   "shell": "tiling",
   "tier": "pro",
-  "chromeFamily": "generic",
+  "chromeFamily": "wm",
   "palette": {
-    "bgTop": "#3A2B4D",
-    "bgBottom": "#1D162A",
-    "bar": "#171122",
-    "dock": "#CC171122",
-    "accent": "#7F3FBF",
+    "bgTop": "#2B1B3D",
+    "bgBottom": "#170D24",
+    "bar": "#1F1230",
+    "dock": "#CC1F1230",
+    "accent": "#8A5FCF",
     "onDark": "#FFFFFF"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Noto Sans",
+    "mono": "Noto Sans Mono"
   },
   "layout": {
     "dock": "off",
     "topBar": true,
-    "grid": {
-      "rows": 5,
-      "cols": 4
-    },
     "panels": [
       {
-        "side": "top",
+        "side": "bottom",
         "modules": [
           "activities",
+          "pager",
           "spacer",
-          "network",
-          "storage"
+          "storage",
+          "clock",
+          "tray"
         ],
-        "height": 28
+        "height": 40
+      }
+    ],
+    "barStyle": "edge",
+    "windowTitles": true,
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "grid": {
+      "rows": 3,
+      "cols": 3
+    },
+    "iconScale": 1,
+    "tilingLauncher": "rofi",
+    "homeLayout": "tiled",
+    "workspaces": 4
+  },
+  "icons": {
+    "treatment": "teardrop",
+    "cornerRadius": 0.3,
+    "foregroundScale": 1,
+    "brandPack": "endeavouros-line"
+  },
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_183511038.png",
+    "image_2026-08-23_183520819.png",
+    "image_2026-08-23_183529227.png",
+    "image_2026-08-23_183548139.png",
+    "image_2026-08-23_183556088.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "EndeavourOS Linux"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started EndeavourOS Welcome"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
       }
     ]
   },
-  "icons": {
-    "treatment": "roundedSquare",
-    "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "terminal": {
+    "appLabel": "Terminal",
+    "palette": {
+      "bg": "#170D24",
+      "fg": "#E8DDF7",
+      "cursor": "#8A5FCF",
+      "selection": "#558A5FCF",
+      "ansi": [
+        "#2B1B3D",
+        "#E5486B",
+        "#7FD48A",
+        "#F2C66D",
+        "#7F9CF5",
+        "#8A5FCF",
+        "#5FD4D4",
+        "#D8CCEB",
+        "#4E3B66",
+        "#FF6F8E",
+        "#9EE8A8",
+        "#FFDB8A",
+        "#A3B8FF",
+        "#B08AF0",
+        "#85EAEA",
+        "#FFFFFF"
+      ]
+    },
+    "prompt": "[{user}@EndeavourOS {cwd}]$ "
+  },
+  "desklets": {
+    "offers": [
+      "welcome",
+      "fastfetch",
+      "monitor",
+      "clock",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [
+      {
+        "kind": "welcome",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 6,
+        "spanY": 4,
+        "config": {
+          "title": "Welcome to EndeavourOS",
+          "rows": [
+            {
+              "label": "Read the wiki",
+              "url": "https://discovery.endeavouros.com/"
+            },
+            {
+              "label": "Join the forum",
+              "url": "https://forum.endeavouros.com/"
+            },
+            {
+              "label": "Latest news",
+              "url": "https://endeavouros.com/news/"
+            },
+            {
+              "label": "Support the project",
+              "url": "https://endeavouros.com/donate/"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "fastfetch",
+        "page": 0,
+        "col": 0,
+        "row": 4,
+        "spanX": 3,
+        "spanY": 5
+      }
+    ],
+    "skins": {
+      "welcome": {
+        "surface": "bare",
+        "font": "display",
+        "accent": true,
+        "window": true,
+        "focus": true,
+        "title": "Welcome"
+      },
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "fastfetch",
+        "logo": "      /\\\n     /  \\\n    /    \\\n   /  /\\  \\\n  /__/  \\__\\"
+      },
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "htop"
+      },
+      "clock": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "date"
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "nmcli"
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "df -h"
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true,
+        "window": true,
+        "title": "acpi"
+      }
+    }
+  },
+  "surfaces": {
+    "radius": 0
+  },
+  "minAppVersion": 37,
+  "features": [
+    {
+      "title": "Welcome, as on every install",
+      "body": "The EndeavourOS Welcome window opens workspace one: the wiki, the forum, the news and donate, focused in purple.",
+      "exclusive": true
+    },
+    {
+      "title": "i3, square and titled",
+      "body": "Every window tiled with a title bar and square corners, one solid purple border on the focused one, the way i3 draws them.",
+      "exclusive": true
+    },
+    {
+      "title": "i3bar along the bottom",
+      "body": "Edge to edge, where i3 puts it and where your thumb is, with square numbered workspaces when the phone is sideways and quick settings at the end.",
+      "exclusive": true
+    },
+    {
+      "title": "fastfetch in a split",
+      "body": "The EndeavourOS logo in characters beside the system readout, in a window next to your apps.",
+      "exclusive": true
+    },
+    {
+      "title": "It boots to a greeter",
+      "body": "GRUB picks EndeavourOS Linux, the Welcome service starts, and the display manager brings up the desktop.",
+      "exclusive": true
+    },
+    {
+      "title": "rofi launcher",
+      "body": "Type a few letters and run it, with no grid to scroll.",
+      "exclusive": true
+    },
+    {
+      "title": "Purple and teardrop",
+      "body": "Teardrop icon shapes on EndeavourOS purple.",
+      "exclusive": false
+    }
+  ]
 }

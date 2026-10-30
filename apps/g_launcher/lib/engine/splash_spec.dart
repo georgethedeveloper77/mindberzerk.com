@@ -34,6 +34,12 @@ enum SplashStyle {
   /// showing nothing pretty.
   text,
 
+  /// The logo over a thin bar, like `bar`, and then, the FIRST time the
+  /// distro is applied, its words written out by hand before the desktop
+  /// arrives (see `HelloLettering`). Every later boot is logo and bar only.
+  /// Pocket.
+  hello,
+
   /// No splash at all. The terminal shell boots INTO a terminal; a graphical
   /// splash in front of it would be a lie about what this theme is.
   none;
@@ -43,6 +49,7 @@ enum SplashStyle {
         'bar' => SplashStyle.bar,
         'spinner' => SplashStyle.spinner,
         'text' => SplashStyle.text,
+        'hello' => SplashStyle.hello,
         'none' => SplashStyle.none,
         // Unknown style from a newer CDN theme degrades to the safe middle
         // rather than throwing. Same contract as BootLineKind.parse.

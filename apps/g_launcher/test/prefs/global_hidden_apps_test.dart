@@ -27,8 +27,9 @@ void main() {
     test('equality ignores set order and survives JSON', () {
       final a = const GlobalPrefs().withHiddenApps({'b', 'a'});
       final b = GlobalPrefs.fromJson(
-        jsonDecode(jsonEncode(const GlobalPrefs().withHiddenApps({'a', 'b'})
-            .toJson())) as Map<String, dynamic>,
+        jsonDecode(jsonEncode(
+                const GlobalPrefs().withHiddenApps({'a', 'b'}).toJson()))
+            as Map<String, dynamic>,
       );
       expect(a, b);
       expect(a.hashCode, b.hashCode);

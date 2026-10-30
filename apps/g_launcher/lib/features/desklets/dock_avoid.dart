@@ -40,8 +40,9 @@ Set<int> dockCells(
 /// The cells a footprint covers, or null when it does not fit the grid.
 Set<int>? footprint(
     int col, int row, int spanX, int spanY, int cols, int rows) {
-  if (col < 0 || row < 0 || col + spanX > cols || row + spanY > rows)
+  if (col < 0 || row < 0 || col + spanX > cols || row + spanY > rows) {
     return null;
+  }
   return {
     for (var r = row; r < row + spanY; r++)
       for (var c = col; c < col + spanX; c++) r * cols + c,

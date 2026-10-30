@@ -2,8 +2,8 @@
 ///
 /// `!yt linux rice` opens YouTube's search for "linux rice". The built-in list
 /// is short on purpose (sites people actually search from a phone, plus the
-/// two a Linux launcher's users will reach for); user-defined bangs arrive
-/// with their own settings page and are merged over these by key.
+/// two a Linux launcher's users will reach for). User-defined bangs come from
+/// the Search settings page and are merged over these by key.
 class Bang {
   const Bang(this.key, this.label, this.template);
 
@@ -18,6 +18,93 @@ class Bang {
 
   String urlFor(String terms) =>
       template.replaceAll('%s', Uri.encodeQueryComponent(terms));
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'template': template,
+      };
+
+  /// Null for an entry that fails [BangRules], so a hand-edited or corrupt
+  /// backup cannot smuggle in a bang the editor would have refused.
+  static Bang? fromJson(Map<String, dynamic> j) {
+    final key = BangRules.normalizeKey('${j['key'] ?? ''}');
+    final label = '${j['label'] ?? ''}'.trim();
+    final template = '${j['template'] ?? ''}'.trim();
+    if (BangRules.keyError(key) != null ||
+        BangRules.labelError(label) != null ||
+        BangRules.templateError(template) != null) {
+      return null;
+    }
+    return Bang(key, label, template);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is Bang &&
+      other.key == key &&
+      other.label == label &&
+      other.template == template;
+
+  @override
+  int get hashCode => Object.hash(key, label, template);
+}
+
+/// What a user-defined bang has to satisfy.
+///
+/// Every check returns an i18n key naming the problem, or null when that
+/// field is fine, so the editor can mark each field on its own.
+///
+/// ─── HTTP AND HTTPS ONLY ──────────────────────────────────────────────────
+///
+/// A bang is opened as an Android VIEW intent. Built-in bangs may use
+/// `market:` and `geo:` because they ship reviewed; a typed one is held to
+/// the web schemes, so a pasted `javascript:`, `intent:` or `file:` template
+/// is refused instead of being handed to whatever app claims it.
+abstract final class BangRules {
+  static const maxCustom = 50;
+  static const maxKeyLength = 16;
+  static const maxLabelLength = 40;
+  static const placeholder = '%s';
+
+  static final _key = RegExp(r'^[a-z0-9._-]+$');
+
+  /// Lowercased, trimmed, and without a leading `!` someone typed by habit.
+  static String normalizeKey(String raw) =>
+      raw.trim().replaceFirst(RegExp(r'^!+'), '').toLowerCase();
+
+  static String? keyError(String key) {
+    if (key.isEmpty || key.length > maxKeyLength || !_key.hasMatch(key)) {
+      return 'searchSettings.errKey';
+    }
+    return null;
+  }
+
+  static String? labelError(String label) {
+    final l = label.trim();
+    if (l.isEmpty || l.length > maxLabelLength) {
+      return 'searchSettings.errName';
+    }
+    return null;
+  }
+
+  static String? templateError(String template) {
+    final t = template.trim();
+    if (!t.contains(placeholder)) return 'searchSettings.errPlaceholder';
+    // Parsed with the placeholder filled, since `%s` alone is not a valid
+    // percent escape and would make an otherwise good URL fail to parse.
+    // The filler must not land in the host: then the typed words would pick
+    // the site, not the search.
+    const filler = 'gbangterms';
+    final uri = Uri.tryParse(t.replaceAll(placeholder, filler));
+    if (uri == null ||
+        (uri.scheme != 'https' && uri.scheme != 'http') ||
+        uri.host.isEmpty ||
+        uri.host.contains(filler)) {
+      return 'searchSettings.errUrl';
+    }
+    return null;
+  }
 }
 
 /// A typed bang, resolved.
@@ -43,7 +130,8 @@ abstract final class Bangs {
     Bang('play', 'Play Store', 'market://search?q=%s&c=apps'),
     Bang('maps', 'Maps', 'geo:0,0?q=%s'),
     Bang('x', 'X', 'https://x.com/search?q=%s'),
-    Bang('tr', 'Google Translate', 'https://translate.google.com/?sl=auto&text=%s'),
+    Bang('tr', 'Google Translate',
+        'https://translate.google.com/?sl=auto&text=%s'),
   ];
 
   /// `!key terms` or `terms !key`, the two orders DuckDuckGo accepts.

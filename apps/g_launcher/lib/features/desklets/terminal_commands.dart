@@ -85,7 +85,8 @@ class TerminalCommands {
   /// Android's app while enter opened the launcher's, which reads as ours being
   /// missing.
   static bool handles(String raw) =>
-      TerminalRegistry.handles(raw, surface: _surface);
+      TerminalRegistry.handles(raw, surface: _surface) ||
+      TerminalRegistry.handsOver(raw);
 
   /// Shown by `help`. Built from the table rather than typed out beside it.
   static String get helpLine => TerminalRegistry.helpLine;
@@ -98,6 +99,13 @@ class TerminalCommands {
     EffectiveTheme theme,
     String raw,
   ) {
+    // Terminal-app commands with arguments: opened there, line and all.
+    if (TerminalRegistry.handsOver(raw)) {
+      HapticFeedback.selectionClick();
+      openTerminal(context, theme, initialCommand: raw.trim());
+      return true;
+    }
+
     final name = resolve(raw);
     if (name == null) return false;
 
@@ -137,6 +145,15 @@ class TerminalCommands {
       case CommandAction.sshHosts:
       case CommandAction.sshHost:
       case CommandAction.sshKey:
+      // Terminal-app only, so `resolve` never returns them on this surface.
+      // Listed so the switch stays exhaustive, and handed over like ssh if a
+      // future table change ever lets one through.
+      case CommandAction.packages:
+      case CommandAction.sudo:
+      case CommandAction.fun:
+      case CommandAction.layout:
+      case CommandAction.alias:
+      case CommandAction.openApp:
         // HANDED OVER, not refused.
         //
         // This shell has no scrollback, so it cannot render a remote session or

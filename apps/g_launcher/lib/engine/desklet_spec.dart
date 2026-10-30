@@ -260,6 +260,20 @@ class DeskletKinds {
     defaults: {'graphs': true},
   );
 
+  /// The conky, written by the person: a conkyrc with real conky variable
+  /// names, kept in `config['conkyrc']`. Absent means the built-in default,
+  /// which lives with the renderer so this catalogue stays free of it.
+  static const conky = DeskletKind(
+    id: 'conky',
+    labelKey: 'desklet_spec.conky',
+    minSpanX: 3,
+    minSpanY: 2,
+    maxSpanX: 10,
+    maxSpanY: 12,
+    defaultSpanX: 5,
+    defaultSpanY: 4,
+  );
+
   /// Logo plus spec table. Mostly static, so it costs nothing to keep on screen.
   static const fastfetch = DeskletKind(
     id: 'fastfetch',
@@ -415,6 +429,7 @@ class DeskletKinds {
     welcome,
     clock,
     monitor,
+    conky,
     fastfetch,
     network,
     storage,

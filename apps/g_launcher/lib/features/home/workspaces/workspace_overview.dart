@@ -33,13 +33,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
+import '../../../data/prefs/home_layout.dart';
+import '../../../data/repositories/app_repository.dart';
+import '../../../data/repositories/shell_apps.dart';
+import '../../../data/usage/usage_repository.dart';
 import '../../../design/branded_message.dart';
 import '../../../design/components/components.dart';
 import '../../../engine/effective_theme.dart';
 // WorkspaceAxis only. The overview asks the same field the canvas does.
 import '../../../engine/theme_spec.dart' show WorkspaceAxis;
+import '../../../platform/launcher_api.g.dart' show AppEntry;
 import '../../desklets/desklet_edit.dart';
 import '../../desklets/desklet_surface.dart';
+import '../../drawer/app_icon.dart';
+import '../../settings/wallpaper_screen.dart'
+    show previewWallpaperFor, wallpaperImageFor;
 import '../gnome/desktop_menu.dart';
 import '../home_grid.dart';
 import 'workspace_controller.dart';
@@ -156,6 +164,19 @@ class _WorkspaceOverviewState extends ConsumerState<WorkspaceOverview> {
 
     final screen = MediaQuery.sizeOf(context);
     final horizontal = theme.workspaceAxis == WorkspaceAxis.horizontal;
+
+    if (theme.overviewGnome) {
+      _pages ??= PageController(
+        initialPage: active.clamp(0, count - 1),
+        viewportFraction: horizontal ? _cardWidth + _cardGap * 2 : 0.86,
+      );
+      return _GnomeOverview(
+        theme: theme,
+        count: count,
+        pages: _pages!,
+        horizontal: horizontal,
+      );
+    }
 
     // ─── THE BAND IS BOUNDED BY THE ROW, AND IT WAS NOT ─────────────────
     //
@@ -352,6 +373,416 @@ class _WorkspaceOverviewState extends ConsumerState<WorkspaceOverview> {
   }
 }
 
+/// Where GNOME's overview puts things, as fractions of the screen.
+///
+/// Search sits where the Spatial Desktop's home mark does; the band below it
+/// stops above the dash, which takes the control row's place.
+const _gnomeSearchTop = 0.075;
+const _gnomeBandTop = 0.14;
+const _gnomeBandBottom = 0.80;
+const _gnomeDashBottom = 0.04;
+
+/// How many favourites the dash carries before the app grid button.
+const _gnomeDashCount = 5;
+
+/// GNOME's Activities overview: search, the workspaces as cards, and the dash.
+///
+/// ─── THE SAME PAGER, A DIFFERENT FRAME ──────────────────────────────────────
+///
+/// The cards, the add card and the retargeting are the Spatial Desktop's, and
+/// they are shared rather than copied: [_Card] and [_AddCard] draw both. What
+/// changes is everything around them. GNOME has no home mark and no action
+/// bar; it has a search field on top and the dash at the foot, and typing
+/// replaces the cards with results, which is how most GNOME users launch apps.
+///
+/// ─── THE CARDS SHOW THE WALLPAPER ───────────────────────────────────────────
+///
+/// The real wallpaper is drawn by Android beneath Flutter, so it cannot be
+/// scaled into a card. The card draws the same picture itself, from the theme
+/// pack or the user's file, through the resolver the wallpaper screen uses. A
+/// remote source has no local copy and falls back to the quiet plate.
+class _GnomeOverview extends ConsumerStatefulWidget {
+  const _GnomeOverview({
+    required this.theme,
+    required this.count,
+    required this.pages,
+    required this.horizontal,
+  });
+
+  final EffectiveTheme theme;
+  final int count;
+  final PageController pages;
+  final bool horizontal;
+
+  @override
+  ConsumerState<_GnomeOverview> createState() => _GnomeOverviewState();
+}
+
+class _GnomeOverviewState extends ConsumerState<_GnomeOverview> {
+  final _search = TextEditingController();
+  final _focus = FocusNode();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _close() => ref.read(workspaceOverviewProvider.notifier).close();
+
+  /// The app grid, from the dash button or a second swipe up.
+  void _openGrid() {
+    _close();
+    openApps(ref);
+  }
+
+  Future<void> _launch(AppEntry app) async {
+    HapticFeedback.lightImpact();
+    _close();
+    await ref.read(appListProvider.notifier).launch(app);
+    await ref.read(usageProvider.notifier).record(app.componentKey);
+  }
+
+  /// Substring, in list order, for the reason the drawer's filter is: results
+  /// that reorder under a thumb between press and release launch the wrong app.
+  List<AppEntry> _results(List<AppEntry> apps) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return [
+      for (final a in apps)
+        if (a.label.toLowerCase().contains(q)) a,
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final palette = theme.palette;
+    final screen = MediaQuery.sizeOf(context);
+    final apps = ref.watch(shellAppsProvider(theme));
+    final results = _results(apps);
+
+    final bandTop = screen.height * _gnomeBandTop;
+    final bandHeight = screen.height * (_gnomeBandBottom - _gnomeBandTop);
+    final cardHeight = bandHeight * 0.94;
+    final wallpaper = wallpaperImageFor(theme, previewWallpaperFor(theme));
+
+    return Material(
+      // theme-exempt: the wash below paints the distro's own colour.
+      color: Colors.transparent,
+      child: GestureDetector(
+        // GNOME's touch gestures: up again is the app grid, down is back to
+        // the desktop. Horizontal drags belong to the pager.
+        onVerticalDragEnd: (d) {
+          final v = d.primaryVelocity ?? 0;
+          if (v < -400) _openGrid();
+          if (v > 400) _close();
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _close,
+                child: ColoredBox(
+                  color: palette.bgBottom.withValues(alpha: 0.98),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+            Positioned(
+              top: screen.height * _gnomeSearchTop,
+              left: 48,
+              right: 48,
+              child: _GnomeSearch(
+                theme: theme,
+                controller: _search,
+                focus: _focus,
+                onChanged: (v) => setState(() => _query = v),
+                onSubmitted: (_) {
+                  if (results.isNotEmpty) _launch(results.first);
+                },
+              ),
+            ),
+            Positioned(
+              top: bandTop,
+              left: 0,
+              right: 0,
+              height: bandHeight,
+              child: _query.trim().isNotEmpty
+                  ? _GnomeResults(
+                      theme: theme,
+                      apps: results,
+                      onLaunch: _launch,
+                    )
+                  : PageView.builder(
+                      controller: widget.pages,
+                      scrollDirection:
+                          widget.horizontal ? Axis.horizontal : Axis.vertical,
+                      itemCount: widget.count < WorkspaceCount.max
+                          ? widget.count + 1
+                          : widget.count,
+                      onPageChanged: (page) {
+                        if (page >= widget.count) return;
+                        ref.read(activeWorkspaceProvider.notifier).goTo(page);
+                      },
+                      itemBuilder: (context, page) => page >= widget.count
+                          ? _AddCard(
+                              theme: theme,
+                              height: cardHeight,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                ref
+                                    .read(workspaceCountProvider.notifier)
+                                    .set(widget.count + 1);
+                              },
+                            )
+                          : _Card(
+                              theme: theme,
+                              page: page,
+                              height: cardHeight,
+                              wallpaper: wallpaper,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                ref
+                                    .read(activeWorkspaceProvider.notifier)
+                                    .goTo(page);
+                                _close();
+                              },
+                            ),
+                    ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: screen.height * _gnomeDashBottom +
+                  MediaQuery.viewPaddingOf(context).bottom,
+              child: Center(
+                child: _GnomeDash(
+                  theme: theme,
+                  apps: apps,
+                  onLaunch: _launch,
+                  onGrid: _openGrid,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The search field: a pill, as GNOME draws it.
+///
+/// Not focused on open. GNOME on a touchscreen leaves the keyboard down until
+/// the field is touched, and a keyboard over the dash on every Activities tap
+/// would hide the thing most people came for.
+class _GnomeSearch extends StatelessWidget {
+  const _GnomeSearch({
+    required this.theme,
+    required this.controller,
+    required this.focus,
+    required this.onChanged,
+    required this.onSubmitted,
+  });
+
+  final EffectiveTheme theme;
+  final TextEditingController controller;
+  final FocusNode focus;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+    final style = TextStyle(
+      fontFamily: theme.typography.display,
+      fontSize: 15 * theme.textScale,
+      color: palette.onDark,
+    );
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: palette.onDark.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search,
+            size: 18,
+            color: palette.onDark.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focus,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.go,
+              onChanged: onChanged,
+              onSubmitted: onSubmitted,
+              style: style,
+              cursorColor: palette.accent,
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: context.t('drawer.searchApps'),
+                hintStyle: style.copyWith(
+                  color: palette.onDark.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What typing shows in place of the cards: matching apps as large icons.
+class _GnomeResults extends StatelessWidget {
+  const _GnomeResults({
+    required this.theme,
+    required this.apps,
+    required this.onLaunch,
+  });
+
+  final EffectiveTheme theme;
+  final List<AppEntry> apps;
+  final ValueChanged<AppEntry> onLaunch;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = theme.palette;
+    if (apps.isEmpty) {
+      return Center(
+        child: Text(
+          context.t('drawer.noApps'),
+          style: TextStyle(
+            fontFamily: theme.typography.display,
+            fontSize: 14 * theme.textScale,
+            color: palette.onDark.withValues(alpha: 0.5),
+          ),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 96,
+        mainAxisExtent: 104,
+      ),
+      itemCount: apps.length,
+      itemBuilder: (context, i) {
+        final a = apps[i];
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onLaunch(a),
+          child: Column(
+            children: [
+              const SizedBox(height: 6),
+              AppIcon(entry: a, size: 56),
+              const SizedBox(height: 8),
+              Text(
+                a.label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: theme.typography.display,
+                  fontSize: 12 * theme.textScale,
+                  height: 1.2,
+                  color: palette.onDark,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The dash: favourites in a floating pill, the app grid button at the end.
+///
+/// Fed from [HomeLayout.dockKeys], the same pins and most-used fallback the
+/// dock reads, so pinning an app on any surface puts it here too.
+class _GnomeDash extends ConsumerWidget {
+  const _GnomeDash({
+    required this.theme,
+    required this.apps,
+    required this.onLaunch,
+    required this.onGrid,
+  });
+
+  final EffectiveTheme theme;
+  final List<AppEntry> apps;
+  final ValueChanged<AppEntry> onLaunch;
+  final VoidCallback onGrid;
+
+  static const _icon = 44.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = theme.palette;
+    final byKey = {for (final a in apps) a.componentKey: a};
+    var keys = HomeLayout.dockKeys(
+      theme.prefs,
+      frequent: ref.watch(frequentAppsProvider),
+      capacity: _gnomeDashCount,
+      defaultLimit: _gnomeDashCount,
+    );
+    if (keys.isEmpty) {
+      keys = [for (final a in apps.take(_gnomeDashCount)) a.componentKey];
+    }
+    final shown = [
+      for (final k in keys)
+        if (byKey[k] != null) byKey[k]!,
+    ];
+
+    Widget slot(Widget child, VoidCallback onTap, String label) => Semantics(
+          button: true,
+          label: label,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: SizedBox(
+              width: _icon + 8,
+              height: _icon + 8,
+              child: Center(child: child),
+            ),
+          ),
+        );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: palette.onDark.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final a in shown)
+            slot(AppIcon(entry: a, size: _icon), () => onLaunch(a), a.label),
+          slot(
+            Icon(Icons.apps, size: 30, color: palette.onDark),
+            onGrid,
+            context.t('drawer.allApps'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// One workspace, at the measured size.
 ///
 /// ─── NO TRANSFORM ANY MORE ──────────────────────────────────────────────────
@@ -371,9 +802,14 @@ class _Card extends StatelessWidget {
     required this.page,
     required this.height,
     required this.onTap,
+    this.wallpaper,
   });
 
   final EffectiveTheme theme;
+
+  /// The desktop's picture, drawn inside the card on GNOME's overview. Null
+  /// keeps the quiet plate the Spatial Desktop uses.
+  final ImageProvider? wallpaper;
   final int page;
 
   /// Resolved by the owner, because on a vertical pager it depends on where the
@@ -403,6 +839,9 @@ class _Card extends StatelessWidget {
               // with a bright edge reads as a panel laid over the desktop
               // rather than as the desktop seen from further away.
               color: palette.bgTop.withValues(alpha: 0.30),
+              image: wallpaper == null
+                  ? null
+                  : DecorationImage(image: wallpaper!, fit: BoxFit.cover),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: palette.onDark.withValues(alpha: 0.10),

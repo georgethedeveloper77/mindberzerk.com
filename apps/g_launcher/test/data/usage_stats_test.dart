@@ -21,7 +21,8 @@ void main() {
     expect(u.ranked(now: now).first, 'whatsapp');
   });
 
-  test('stable within a session — a dock that reshuffles per launch is unusable',
+  test(
+      'stable within a session — a dock that reshuffles per launch is unusable',
       () {
     var u = const UsageStats();
     for (var i = 0; i < 20; i++) {

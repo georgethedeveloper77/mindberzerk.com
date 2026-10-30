@@ -70,8 +70,10 @@ void main() {
       );
 
       expect(_order(out), ['a', 'b', 'c']);
-      expect(DrawerSlots.flatOf(out, out.drawerSlots.first.page,
-          out.drawerSlots.first.index), 3);
+      expect(
+          DrawerSlots.flatOf(
+              out, out.drawerSlots.first.page, out.drawerSlots.first.index),
+          3);
     });
 
     test('is idempotent, so it can run on every layout pass', () {
@@ -115,12 +117,14 @@ void main() {
 
       expect(_order(out), ['a', 'b', 'c']);
       final flats = [
-        for (final s in out.drawerSlots) DrawerSlots.flatOf(out, s.page, s.index),
+        for (final s in out.drawerSlots)
+          DrawerSlots.flatOf(out, s.page, s.index),
       ]..sort();
       expect(flats, [3, 4, 5]);
     });
 
-    test('drops entries whose app is gone rather than carrying them across', () {
+    test('drops entries whose app is gone rather than carrying them across',
+        () {
       final p = _prefs([_app(0, 2, 'a'), _app(0, 3, 'gone'), _app(0, 4, 'b')]);
       final out = DrawerSlots.migrateReserved(
         p,
@@ -181,7 +185,8 @@ void main() {
 
   group('launcherItemsMatching', () {
     test('finds the terminal by its label', () {
-      final hits = launcherItemsMatching('term', terminalLabel: 'Kali Terminal');
+      final hits =
+          launcherItemsMatching('term', terminalLabel: 'Kali Terminal');
       expect(hits.whereType<TerminalDrawerItem>(), isNotEmpty);
     });
 
@@ -201,9 +206,10 @@ void main() {
     });
 
     test('the label passed is the label returned', () {
-      final hits = launcherItemsMatching('term', terminalLabel: 'COSMIC Terminal');
-      expect(hits.whereType<TerminalDrawerItem>().single.label,
-          'COSMIC Terminal');
+      final hits =
+          launcherItemsMatching('term', terminalLabel: 'COSMIC Terminal');
+      expect(
+          hits.whereType<TerminalDrawerItem>().single.label, 'COSMIC Terminal');
     });
   });
 }

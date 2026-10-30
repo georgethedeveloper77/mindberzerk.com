@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/prefs/desklet_layout.dart';
+import '../data/prefs/home_layout.dart';
 import '../data/prefs/launcher_prefs.dart';
 import '../data/prefs/prefs_repository.dart';
 import '../data/prefs/starter_desktop.dart';
@@ -303,6 +304,68 @@ class EffectiveTheme {
   /// than fixed, so a distro that authors a 5-column desktop gets a
   /// proportionally finer desklet grid without authoring a second number.
   int get deskletCols => cols * DeskletLayout.colFactor;
+
+  /// The layout this distro is on right now, preset included. For the two
+  /// capabilities below, which the resolver has no prefs arm for.
+  ThemeLayout get _layoutNow => spec.layoutFor(prefs.layoutPreset);
+
+  /// Whether the dock carries its own tray. See [ThemeLayout.dockTray].
+  bool get dockTray => _layoutNow.dockTray;
+
+  /// Whether quick settings opens from the right edge. See
+  /// [ThemeLayout.quickSettings].
+  bool get quickSettingsSide => _layoutNow.quickSettings == 'side';
+
+  /// Whether the tiling bar runs edge to edge. See [ThemeLayout.barStyle].
+  bool get barEdge => _layoutNow.barStyle == 'edge';
+
+  /// Whether the aqua top bar is see-through. See [ThemeLayout.barStyle].
+  bool get barClear => _layoutNow.barStyle == 'clear';
+
+  /// Whether tiled apps carry title bars. See [ThemeLayout.windowTitles].
+  bool get windowTitles => _layoutNow.windowTitles;
+
+  /// Whether Activities is drawn as GNOME's workspace pill. See
+  /// [ThemeLayout.activitiesStyle].
+  bool get activitiesPill => _layoutNow.activitiesStyle == 'pill';
+
+  /// Whether Activities is GNOME's overview: search, workspace cards and the
+  /// dash. See [ThemeLayout.overviewStyle].
+  bool get overviewGnome => _layoutNow.overviewStyle == 'gnome';
+
+  /// Whether surfaces draw as Liquid Glass. See [ThemeLayout.material].
+  bool get glass => _layoutNow.material == 'glass';
+
+  /// Whether the glass is smoked rather than pale: the Dark and Clear Dark
+  /// icon looks, which iOS draws on darker glass throughout.
+  bool get glassDark =>
+      prefs.iconLook == 'dark' || prefs.iconLook == 'clearDark';
+
+  /// Whether a Search button sits above the dock. See
+  /// [ThemeLayout.homeSearch].
+  bool get homeSearchPill => _layoutNow.homeSearch == 'pill';
+
+  /// Whether home folders are glass squares. See [ThemeLayout.folderStyle].
+  bool get folderGlass => _layoutNow.folderStyle == 'glass';
+
+  /// Whether the dock ends with an all-apps button. See
+  /// [ThemeLayout.dockLauncher].
+  bool get dockLauncher => _layoutNow.dockLauncher;
+
+  /// A PHONE home: a dock of apps only (Pocket). Icons fill their cells, the
+  /// dock icons are the home icons, and holding the home enters edit mode
+  /// rather than opening the desktop menu.
+  bool get phoneHome => !_layoutNow.dockLauncher;
+
+  /// The dock's slot ceiling, or null for width-based. See
+  /// [ThemeLayout.dockCapacity].
+  int? get dockCapacity => _layoutNow.dockCapacity;
+
+  /// Roles that pin the first dock. See [ThemeLayout.dockSeed].
+  List<String> get dockSeed => _layoutNow.dockSeed;
+
+  /// Whether the dock holds folders. See [ThemeLayout.dockFolders].
+  bool get dockFolders => _layoutNow.dockFolders;
   int get deskletRows => rows * DeskletLayout.rowFactor;
 
   /// How solid the launcher's own surfaces are, 0.6 to 1.0.
@@ -589,7 +652,8 @@ class EffectiveTheme {
     // separate concern and stays below, coupled to iconCacheId and the native
     // push.
     final layout = LayoutResolver.resolve(spec, prefs);
-    final themeIcons = spec.icons;
+    // The look Customize chose, merged over the base block at parse time.
+    final themeIcons = spec.iconsFor(prefs.iconLook);
 
     return EffectiveTheme(
       spec: spec,
@@ -719,11 +783,15 @@ class EffectiveTheme {
         // line could not produce null and the brand tier could not be turned
         // off. The setup icon step needs exactly that: each app's own artwork
         // with no pack over it. See [kNoIconPack].
+        // A theme may say "no pack" with the same sentinel the user's setting
+        // uses: Pocket's Default look is each app's own icon, and without this
+        // the chain below would hand it the distro line set anyway.
         brandPack: prefs.iconBrandPackId == kNoIconPack
             ? null
             : prefs.iconBrandPackId ??
-                themeIcons.brandPack ??
-                defaultLinePackFor(spec.id),
+                (themeIcons.brandPack == kNoIconPack
+                    ? null
+                    : themeIcons.brandPack ?? defaultLinePackFor(spec.id)),
         brandTreatment: themeIcons.brandTreatment,
       ),
     );
@@ -1185,6 +1253,32 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
   //
   // Terminates the same way: it writes prefs, prefs is watched, this provider
   // re-runs, and the marker is set so the branch is skipped.
+  // ─── A NEW STARTER REACHES AN UNTOUCHED DESKTOP ───────────────────────
+  //
+  // A pack update that changes the starter (Arch's kitty and btop, a clock
+  // card removed) used to reach new installs only: anyone who already had the
+  // distro kept the old desktop forever, which is the opposite of what a
+  // buyer paying for the update should see. If the desklets here are exactly
+  // what the previous starter placed, the desktop is cleared and the branch
+  // below seeds the new one on the next pass. One move, add or removal by the
+  // user and the placement signature no longer matches, so their desktop is
+  // never replaced.
+  final starterSig = StarterDesktop.starterSignature(
+    spec.desklets,
+    cols: effective.deskletCols,
+    rows: effective.deskletRows,
+  );
+  if (prefs.deskletsInitialized &&
+      StarterDesktop.shouldReseed(
+        prefs.deskletSeedMark,
+        starterSig,
+        prefs.desklets,
+      )) {
+    await ref.read(prefsProvider(spec.id).notifier).edit(
+          (p) => p.copyWith(desklets: const [], deskletsInitialized: false),
+        );
+  }
+
   if ((prefs.deskletGridVersion ?? 0) < DeskletLayout.gridVersion) {
     final reset = DeskletLayout.resetDesklets(prefs);
     await ref.read(prefsProvider(spec.id).notifier).edit((_) => reset);
@@ -1232,7 +1326,58 @@ final effectiveThemeProvider = FutureProvider<EffectiveTheme>((ref) async {
         // state without writing to disk, so the flag would flip in memory and
         // revert on the next cold start, re-laying the starter desktop over the
         // user's arrangement on every launch.
-        .edit((p) => seeded.copyWith(deskletsInitialized: true));
+        .edit(
+          (p) => seeded.copyWith(
+            deskletsInitialized: true,
+            deskletSeedMark: StarterDesktop.seedMark(
+              starterSig,
+              seeded.desklets,
+            ),
+          ),
+        );
+  }
+
+  // ─── THE DOCK SEED, BEFORE THE ICONS ──────────────────────────────────
+  //
+  // Pocket's dock starts as a phone's does: phone, messages, browser,
+  // camera, found by ROLE rather than by package name, so it is whichever
+  // dialer the phone actually uses, Samsung's or Tecno's. Before the home
+  // seed on purpose: that seed excludes whatever the dock holds, and it can
+  // only exclude pins that exist.
+  //
+  // The edit re-resolves this provider (prefs are watched), so the home seed
+  // runs on that pass against the seeded dock rather than on this one
+  // against an empty dock. Returning here is what keeps the four seed apps
+  // from also landing on the grid.
+  if (!prefs.dockInitialized && effective.dockSeed.isNotEmpty) {
+    final apps = await ref.read(appListProvider.future);
+    final keyByPackage = <String, String>{};
+    for (final a in apps) {
+      if (a.isWorkProfile || prefs.hiddenApps.contains(a.componentKey)) {
+        continue;
+      }
+      keyByPackage.putIfAbsent(a.packageName, () => a.componentKey);
+    }
+    final host = api.LauncherHostApi();
+    final packages = <String?>[];
+    for (final role in effective.dockSeed) {
+      try {
+        packages.add(await host.defaultAppFor(role));
+      } catch (_) {
+        // A build whose native side predates the method, or a platform error:
+        // that role is simply not seeded.
+        packages.add(null);
+      }
+    }
+    await ref.read(prefsProvider(spec.id).notifier).edit(
+          (p) => HomeLayout.seedDock(
+            p,
+            packages: packages,
+            keyByPackage: keyByPackage,
+            capacity: effective.dockCapacity ?? 4,
+          ),
+        );
+    return effective;
   }
 
   // ─── AND THE ICON GRID, WHICH HAD NO SEED AT ALL ──────────────────────

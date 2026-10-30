@@ -31,7 +31,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../../engine/theme_spec.dart' show ThemePalette;
+import '../../../system/gvpn_status.dart';
 import '../../home/quick_settings.dart';
+import 'distro_glyph.dart';
 
 class PanelTrayButton extends ConsumerWidget {
   const PanelTrayButton({
@@ -68,18 +70,29 @@ class PanelTrayButton extends ConsumerWidget {
   /// three would have touched.
   final bool stacked;
 
+  /// The Settings glyph stands alone on the button, so it is drawn at the
+  /// weight of the bar's other single glyphs rather than the 16dp a cluster
+  /// of three needed to fit.
+  static const double _settingsSize = 20;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(quickSettingsProvider);
     final ink =
         open ? palette.bgBottom : palette.onDark.withValues(alpha: 0.85);
 
-    // `tune`, not a chevron or an ellipsis: it says settings rather than
-    // "more", and it is the one glyph in the set that Android's status bar
-    // does not also draw.
+    // The compact button wears the distro pack's own Settings drawing, so the
+    // way into Quick Settings looks like this distro's rather than Material's.
+    // `tune` is the fallback for a pack with no Settings drawing: it says
+    // settings rather than "more", and Android's status bar does not draw it.
+    // The key while G VPN is connected, first in the row, where GNOME and
+    // Plasma both put it.
+    final vpnOn =
+        ref.watch(gvpnStatusProvider).asData?.value.protected ?? false;
     final glyphs = compact
-        ? const [Icons.tune]
-        : const [
+        ? [if (vpnOn) Icons.vpn_key, Icons.tune]
+        : [
+            if (vpnOn) Icons.vpn_key,
             Icons.wifi,
             Icons.volume_up_outlined,
             Icons.battery_std_outlined,
@@ -111,7 +124,16 @@ class PanelTrayButton extends ConsumerWidget {
               for (var i = 0; i < glyphs.length; i++) ...[
                 if (i > 0)
                   SizedBox(width: stacked ? 0 : 7, height: stacked ? 6 : 0),
-                Icon(glyphs[i], size: 16, color: ink),
+                if (glyphs[i] == Icons.tune)
+                  DistroGlyph(
+                    packageName: kSettingsPackage,
+                    size: _settingsSize,
+                    color: ink,
+                    fallback:
+                        Icon(Icons.tune, size: _settingsSize, color: ink),
+                  )
+                else
+                  Icon(glyphs[i], size: 16, color: ink),
               ],
             ],
           ),

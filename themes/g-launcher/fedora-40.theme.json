@@ -1,43 +1,213 @@
 {
-  "id": "fedora-40",
+  "id": "fedora-40-theme",
   "name": "Fedora",
-  "version": "40",
+  "version": "2",
   "shell": "gnome",
-  "tier": "free",
+  "tier": "pro",
   "chromeFamily": "adwaita",
   "palette": {
-    "bgTop": "#2E3436",
-    "bgBottom": "#1C2023",
-    "bar": "#16191B",
-    "dock": "#CC16191B",
-    "accent": "#3C6EB4",
+    "bgTop": "#303030",
+    "bgBottom": "#242424",
+    "bar": "#000000",
+    "dock": "#CC303030",
+    "accent": "#3584E4",
     "onDark": "#FFFFFF"
   },
-  "paletteLight": {
-    "bgTop": "#F6F5F4",
-    "bgBottom": "#FFFFFF",
-    "bar": "#EBEBEB",
-    "dock": "#CCEBEBEB",
-    "accent": "#3C6EB4",
-    "onDark": "#241F31"
-  },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Cabin",
+    "mono": "Source Code Pro"
   },
   "layout": {
-    "dock": "left",
+    "dock": "off",
     "topBar": true,
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "clock",
+          "spacer",
+          "tray"
+        ],
+        "height": 32
+      }
+    ],
+    "activitiesStyle": "pill",
+    "overviewStyle": "gnome",
+    "workspaceAxis": "horizontal",
+    "desktopIcons": false,
     "grid": {
       "rows": 5,
       "cols": 4
-    }
+    },
+    "iconScale": 1,
+    "drawerScrollStyle": "vertical",
+    "drawerGrouping": "none",
+    "drawerSearchPosition": "top",
+    "workspaces": 4
   },
   "icons": {
     "treatment": "roundedSquare",
     "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+    "foregroundScale": 1,
+    "brandPack": "fedora-40-line"
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-08-23_184036531.png",
+    "image_2026-08-23_184050658.png"
+  ],
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux 6.11.4-301.fc41.x86_64 ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SELinux Policy Load"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started GNOME Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "terminal": {
+    "appLabel": "Ptyxis",
+    "palette": {
+      "bg": "#1E1E1E",
+      "fg": "#FFFFFF",
+      "cursor": "#FFFFFF",
+      "selection": "#553584E4",
+      "ansi": [
+        "#241F31",
+        "#C01C28",
+        "#2EC27E",
+        "#F5C211",
+        "#1E78E4",
+        "#9841BB",
+        "#0AB9DC",
+        "#C0BFBC",
+        "#5E5C64",
+        "#ED333B",
+        "#57E389",
+        "#F8E45C",
+        "#51A1FF",
+        "#C061CB",
+        "#4FD2FD",
+        "#F6F5F4"
+      ]
+    },
+    "prompt": "[{user}@fedora {cwd}]$ ",
+    "rootPrompt": "[\u001b[1;31mroot\u001b[0m@fedora {cwd}]# "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [],
+    "skins": {
+      "clock": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "network": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "storage": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      },
+      "battery": {
+        "surface": "card",
+        "font": "display",
+        "accent": true
+      }
+    }
+  },
+  "minAppVersion": 39,
+  "features": [
+    {
+      "title": "Activities, the way Fedora shows it",
+      "body": "Tap the workspace pill or swipe up: search on top, your desktops as cards with the next one peeking in, and the dash at the foot.",
+      "exclusive": true
+    },
+    {
+      "title": "The workspace pill",
+      "body": "GNOME's black bar with a pill for the workspace you are on and a dot for each other one, in place of a word.",
+      "exclusive": true
+    },
+    {
+      "title": "Search first",
+      "body": "Type in Activities and your apps appear in place of the cards. Press Enter to launch the first.",
+      "exclusive": true
+    },
+    {
+      "title": "GNOME's touch gestures",
+      "body": "Swipe up for Activities, up again for the app grid, down to go back.",
+      "exclusive": true
+    },
+    {
+      "title": "Nothing on the desktop",
+      "body": "No dock and no icons, as GNOME ships it. Your apps are one swipe away.",
+      "exclusive": true
+    },
+    {
+      "title": "Ptyxis",
+      "body": "Fedora's own terminal, with the prompt you know: [you@fedora ~]$.",
+      "exclusive": true
+    },
+    {
+      "title": "SELinux boot",
+      "body": "Nine lines through the policy load and GDM before the desktop.",
+      "exclusive": true
+    }
+  ]
 }

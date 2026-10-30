@@ -177,6 +177,17 @@ List<Widget> systemSection(
             onTap: () => confirmReset(context, notifier, theme),
           ),
         ),
+        FilterRow(
+          ['restore', 'desktop', 'widgets', 'desklets', 'starter'],
+          SettingsRow(
+            icon: Icons.dashboard_outlined,
+            title:
+                context.t('settings.restoreDesktop', {'name': theme.spec.name}),
+            subtitle: context.t('settings.restoreDesktopSub'),
+            trailing: const Chevron(),
+            onTap: () => confirmRestoreDesktop(context, notifier, theme),
+          ),
+        ),
       ],
     ),
 

@@ -1,35 +1,263 @@
 {
-  "id": "garuda-dr460nized",
+  "id": "garuda-dr460nized-theme",
   "name": "Garuda Dr460nized",
-  "version": "2024",
+  "version": "1",
   "shell": "plasma",
   "tier": "pro",
   "chromeFamily": "breeze",
   "palette": {
-    "bgTop": "#2E3440",
-    "bgBottom": "#1E1E2E",
-    "bar": "#181825",
-    "dock": "#CC181825",
-    "accent": "#C574DD",
+    "bgTop": "#2D0B45",
+    "bgBottom": "#16062A",
+    "bar": "#1E0730",
+    "dock": "#331E0730",
+    "accent": "#FF0F7B",
     "onDark": "#FFFFFF"
   },
+  "accentGradient": [
+    "#FF0F7B",
+    "#A044FF",
+    "#2CD7F5"
+  ],
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Fira Sans",
+    "mono": "Fira Mono"
   },
   "layout": {
     "dock": "bottom",
-    "topBar": false,
+    "dockStyle": "magnified",
+    "topBar": true,
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "kickoff",
+          "title",
+          "spacer",
+          "tray",
+          "clock"
+        ],
+        "height": 40
+      }
+    ],
+    "workspaceAxis": "horizontal",
+    "desktopIcons": true,
+    "panelEdit": true,
     "grid": {
       "rows": 5,
       "cols": 4
-    }
+    },
+    "iconScale": 1,
+    "kickoffRail": "categories",
+    "workspaces": 4
   },
   "icons": {
-    "treatment": "squircle",
-    "cornerRadius": 0.3,
-    "foregroundScale": 1.0
+    "treatment": "circle",
+    "cornerRadius": 0.5,
+    "foregroundScale": 0.94,
+    "brandPack": "garuda-dr460nized-line"
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.png",
+    "dark": "logo_dark.png"
+  },
+  "wallpapers": [
+    "image_2026-09-01_203535407.webp",
+    "image_2026-09-01_203600844.webp",
+    "image_2026-09-01_203418206.webp",
+    "image_2026-09-01_203615775.webp"
+  ],
+  "wallpaperMeta": {
+    "image_2026-09-01_203535407.webp": {
+      "fit": "cover"
+    },
+    "image_2026-09-01_203600844.webp": {
+      "fit": "cover"
+    },
+    "image_2026-09-01_203418206.webp": {
+      "fit": "cover"
+    },
+    "image_2026-09-01_203615775.webp": {
+      "fit": "cover"
+    }
+  },
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "grub",
+        "text": "GNU GRUB  version 2.12"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "grubSelected",
+        "text": "Garuda Linux"
+      },
+      {
+        "kind": "dim",
+        "text": "Advanced options for Garuda Linux"
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Snapper Timeline"
+      },
+      {
+        "kind": "ok",
+        "text": "Started BTRFS Assistant"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting Garuda Performance Tweaks ..."
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started SDDM Display Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1200
+  },
+  "terminal": {
+    "appLabel": "Konsole",
+    "palette": {
+      "bg": "#161925",
+      "fg": "#C3C7D1",
+      "cursor": "#FF0F7B",
+      "selection": "#55C74DED",
+      "ansi": [
+        "#161925",
+        "#ED254E",
+        "#71F79F",
+        "#F9DC5C",
+        "#7CB7FF",
+        "#C74DED",
+        "#00C1E4",
+        "#DCDFE4",
+        "#6B6F80",
+        "#FF5C7A",
+        "#8BFFB4",
+        "#FFE87A",
+        "#9CC9FF",
+        "#D97CF2",
+        "#3BD8F5",
+        "#FFFFFF"
+      ]
+    },
+    "prompt": "\u001b[36m╭─\u001b[1;35m{user}@garuda\u001b[0;36m {cwd}\n╰─λ\u001b[0m "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery",
+      "fastfetch",
+      "uptime"
+    ],
+    "starter": [
+      {
+        "kind": "fastfetch",
+        "page": 0,
+        "col": 0,
+        "row": 0,
+        "spanX": 8,
+        "spanY": 5
+      }
+    ],
+    "skins": {
+      "clock": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "monitor": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "network": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "storage": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "battery": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "fastfetch": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      },
+      "uptime": {
+        "surface": "terminal",
+        "font": "mono",
+        "accent": true
+      }
+    }
+  },
+  "features": [
+    {
+      "title": "Glass, all the way through",
+      "body": "Every panel, menu and sheet is blurred and see-through by default. Turn it down under Surfaces if your phone feels slow.",
+      "exclusive": true
+    },
+    {
+      "title": "A dock that swells",
+      "body": "A floating glass dock along the bottom. Icons grow under your finger the way Plasma's zoom follows the pointer.",
+      "exclusive": true
+    },
+    {
+      "title": "Categories down the side",
+      "body": "The menu opens on a category rail instead of pinned tabs.",
+      "exclusive": true
+    },
+    {
+      "title": "fastfetch, the way Konsole opens",
+      "body": "One big readout on the wallpaper beside a neon ring in pink, violet and cyan, and a Konsole with Sweet colours and the two-line fish prompt.",
+      "exclusive": true
+    },
+    {
+      "title": "Btrfs boot",
+      "body": "Thirteen lines through Snapper, BTRFS Assistant and the performance tweaks.",
+      "exclusive": true
+    },
+    {
+      "title": "Hot pink on deep purple",
+      "body": "Circle icons, four dragon wallpapers, and the bar names the workspace you are on.",
+      "exclusive": false
+    }
+  ],
+  "minAppVersion": 30
 }

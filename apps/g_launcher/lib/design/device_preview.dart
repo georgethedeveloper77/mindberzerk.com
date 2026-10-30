@@ -547,6 +547,10 @@ class DevicePreview extends StatelessWidget {
           _dotModule(unit, s),
         ],
       PanelModule.clock => [block(unit * 1.8)],
+      PanelModule.title => [block(unit * 2.4)],
+      PanelModule.workspacesButton => [block(unit * 2.2)],
+      PanelModule.appsButton => [block(unit * 2.2)],
+      PanelModule.tiling => [block(unit * 0.9, radius: unit * 0.28)],
 
       // The three readouts. Narrow blocks, because a throughput figure and a
       // memory figure occupy the same slot shape on a real panel.

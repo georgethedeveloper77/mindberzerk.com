@@ -210,7 +210,8 @@ void main() {
   });
 
   group('limits', () {
-    test('a line longer than the cap wraps rather than growing without bound', () {
+    test('a line longer than the cap wraps rather than growing without bound',
+        () {
       final p = AnsiParser(maxLineLength: 10)..feed('x' * 25);
       expect(p.committed.length, 2);
       expect(p.committed.first.length, 10);
@@ -226,14 +227,15 @@ void main() {
 
   group('TerminalBuffer', () {
     test('keeps lines in order', () {
-      final b = TerminalBuffer(maxLines: 10)
-        ..addAll(parse('a\nb\nc').take(3));
+      final b = TerminalBuffer(maxLines: 10)..addAll(parse('a\nb\nc').take(3));
       expect(b.text, 'a\nb\nc');
     });
 
     test('evicts the oldest past the cap and counts what it dropped', () {
       final b = TerminalBuffer(maxLines: 2)
-        ..addAll([for (var i = 0; i < 5; i++) AnsiLine([AnsiSpan('$i', AnsiStyle.none)])]);
+        ..addAll([
+          for (var i = 0; i < 5; i++) AnsiLine([AnsiSpan('$i', AnsiStyle.none)])
+        ]);
       expect(b.length, 2);
       expect(b.text, '3\n4');
       expect(b.droppedLines, 3);
@@ -243,7 +245,10 @@ void main() {
       // The setting exists for memory, and a cap that takes effect eventually
       // does not relieve anything now.
       final b = TerminalBuffer(maxLines: 100)
-        ..addAll([for (var i = 0; i < 50; i++) AnsiLine([AnsiSpan('$i', AnsiStyle.none)])]);
+        ..addAll([
+          for (var i = 0; i < 50; i++)
+            AnsiLine([AnsiSpan('$i', AnsiStyle.none)])
+        ]);
       b.setMaxLines(10);
       expect(b.length, 10);
     });
@@ -330,7 +335,8 @@ void main() {
       expect(s.bold, isTrue);
     });
 
-    test('a default background paints nothing rather than filling every cell', () {
+    test('a default background paints nothing rather than filling every cell',
+        () {
       // The terminal runs over the theme's own surface, and an opaque fill
       // behind every character would flatten it.
       expect(palette.resolveStyle(AnsiStyle.none).bg, isNull);

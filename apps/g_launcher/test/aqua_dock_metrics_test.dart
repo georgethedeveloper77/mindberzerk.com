@@ -13,8 +13,10 @@ void main() {
 
   group('capacity', () {
     test('is clamped to a usable range', () {
-      expect(AquaDockMetrics.capacityFor(width), lessThanOrEqualTo(AquaDockMetrics.maxApps));
-      expect(AquaDockMetrics.capacityFor(width), greaterThanOrEqualTo(AquaDockMetrics.minCapacity));
+      expect(AquaDockMetrics.capacityFor(width),
+          lessThanOrEqualTo(AquaDockMetrics.maxApps));
+      expect(AquaDockMetrics.capacityFor(width),
+          greaterThanOrEqualTo(AquaDockMetrics.minCapacity));
     });
 
     test('a tiny dock still reports the minimum rather than zero', () {
@@ -31,8 +33,10 @@ void main() {
 
     test('is flat at both ends, so the swell has no visible corner', () {
       // A linear ramp would give equal deltas; the raised cosine must not.
-      final nearPeak = AquaDockMetrics.falloff(0.0) - AquaDockMetrics.falloff(0.1);
-      final middle = AquaDockMetrics.falloff(0.45) - AquaDockMetrics.falloff(0.55);
+      final nearPeak =
+          AquaDockMetrics.falloff(0.0) - AquaDockMetrics.falloff(0.1);
+      final middle =
+          AquaDockMetrics.falloff(0.45) - AquaDockMetrics.falloff(0.55);
       expect(nearPeak, lessThan(middle));
     });
 

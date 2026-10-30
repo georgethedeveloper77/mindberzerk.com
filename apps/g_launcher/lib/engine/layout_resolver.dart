@@ -843,9 +843,12 @@ abstract final class LayoutResolver {
         const {'rofi', 'dmenu'},
         defaultTilingLauncher,
       ),
-      // No prefs arm. Which menu a distro has is not a setting.
+      // A PREFS ARM since the tiling toggle: COSMIC's auto-tile switch is a
+      // thing the user flips, so tiled versus grid is their answer first and
+      // the theme's second. An unknown stored value falls back to the theme
+      // through the allow-list below, like every other field here.
       homeLayout: _pick(
-        null,
+        prefs.homeLayout,
         base.homeLayout,
         const {'grid', 'tiled'},
         defaultHomeLayout,
@@ -934,6 +937,7 @@ abstract final class LayoutResolver {
           'card',
           'whisker',
           'cinnamon',
+          'kicker',
           'zorin',
           'query',
           'library',

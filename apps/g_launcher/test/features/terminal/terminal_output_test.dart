@@ -236,8 +236,7 @@ void main() {
       expect(out, contains('REMOTE'));
       expect(out, contains('[pro]'));
       // The free row carries no marker.
-      final openLine =
-          out.split('\n').firstWhere((l) => l.contains('open'));
+      final openLine = out.split('\n').firstWhere((l) => l.contains('open'));
       expect(openLine, isNot(contains('pro')));
     });
 

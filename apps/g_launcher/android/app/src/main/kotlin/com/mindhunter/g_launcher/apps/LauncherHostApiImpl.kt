@@ -87,6 +87,9 @@ class LauncherHostApiImpl(
      */
     private val MAX_PREVIEW = 16
 
+    /** Largest bare glyph: a 48dp bar glyph at 4x density. */
+    private val MAX_GLYPH_PX = 192
+
     private val repository = AppRepository(appContext)
     private val roles = RoleRequester(appContext)
     private val wallpaper = WallpaperController(appContext)
@@ -269,6 +272,20 @@ class LauncherHostApiImpl(
             .getOrDefault(false)
 
     override fun userAuthAvailability(): String = UserAuth.availability(appContext)
+
+    /** Plain text to the system share sheet, through a chooser for the same
+     *  reason the backup share uses one: no silent default handler. */
+    override fun shareText(text: String): Boolean {
+        val activity = activityRef?.get() ?: return false
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        return runCatching {
+            activity.startActivity(Intent.createChooser(send, null))
+            true
+        }.getOrDefault(false)
+    }
 
     /** Hidden apps lock. Posted to main, where the prompt has to be built. */
     override fun confirmUser(
@@ -461,6 +478,19 @@ class LauncherHostApiImpl(
         }
     }
 
+    override fun getBareGlyph(
+        packageName: String,
+        sizePx: Long,
+        callback: (Result<ByteArray?>) -> Unit,
+    ) {
+        // Clamped: this is chrome, never larger than a bar glyph, and a bad
+        // value must not allocate a screen-sized bitmap.
+        val px = sizePx.toInt().coerceIn(8, MAX_GLYPH_PX)
+        iconCache.glyph(packageName, px) { bytes ->
+            main.post { callback(Result.success(bytes)) }
+        }
+    }
+
     override fun previewGeneratedIcons(
         componentKeys: List<String>,
         sizePx: Long,
@@ -622,6 +652,39 @@ class LauncherHostApiImpl(
         } else {
             ownPackage.versionCode.toLong()
         }
+
+    // ---- dock seed -------------------------------------------------------
+
+    /**
+     * Who answers one of the dock's seed roles.
+     *
+     * The default handler first: `resolveActivity` with MATCH_DEFAULT_ONLY
+     * returns the user's choice, or Android's chooser (package `android`) when
+     * none is set, and the chooser is not an app. Then the first handler of
+     * any kind. Visibility is not a problem here: every app with a launcher
+     * activity is already visible through the MAIN/LAUNCHER `<queries>` entry,
+     * and an app without one could not sit in a dock anyway.
+     */
+    override fun defaultAppFor(role: String): String? {
+        val intent = when (role) {
+            "dialer" -> Intent(Intent.ACTION_DIAL)
+            "sms" -> Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
+            "browser" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
+            "camera" -> Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+            else -> return null
+        }
+        val pm = appContext.packageManager
+        if (role == "sms") {
+            android.provider.Telephony.Sms.getDefaultSmsPackage(appContext)?.let { return it }
+        }
+        val chosen = pm.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName
+        if (chosen != null && chosen != "android") return chosen
+        return pm.queryIntentActivities(intent, 0)
+            .firstOrNull { it.activityInfo.packageName != "android" }
+            ?.activityInfo?.packageName
+    }
 
     // ---- voice -----------------------------------------------------------
 

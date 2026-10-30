@@ -7,6 +7,8 @@ import '../../data/usage/usage_repository.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../command/command_rows.dart';
+import '../command/search_settings.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../palette/palette_controller.dart';
 import 'app_icon.dart';
@@ -92,6 +94,16 @@ class _QueryDrawerState extends ConsumerState<QueryDrawer> {
     super.dispose();
   }
 
+  /// Put [v] in the field and the shared query, caret at the end. Used when a
+  /// bang hint chip is tapped.
+  void _fill(String v) {
+    _controller.value = TextEditingValue(
+      text: v,
+      selection: TextSelection.collapsed(offset: v.length),
+    );
+    ref.read(paletteQueryProvider.notifier).state = v;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
@@ -166,19 +178,48 @@ class _QueryDrawerState extends ConsumerState<QueryDrawer> {
                     focus: _focus,
                     onChanged: (v) =>
                         ref.read(paletteQueryProvider.notifier).state = v,
-                    onSubmit: () {
-                      if (results.isEmpty) return;
-                      HapticFeedback.lightImpact();
-                      launchDrawerApp(ref, results.first);
-                    },
+                    onSubmit: () => submitPaletteQuery(
+                      context,
+                      ref,
+                      query: query,
+                      hasApps: results.isNotEmpty,
+                      fillQuery: _fill,
+                      onClose: () => closeApps(ref),
+                      launchTopApp: () {
+                        if (results.isEmpty) return false;
+                        HapticFeedback.lightImpact();
+                        launchDrawerApp(ref, results.first);
+                        return true;
+                      },
+                    ),
                   ),
                   Divider(
                     height: 1,
                     thickness: 1,
                     color: palette.onDark.withValues(alpha: 0.10),
                   ),
+                  // Sums, conversions, bangs, and the web and Play rows.
+                  PaletteCommandBlock(
+                    query: query,
+                    hasApps: results.isNotEmpty,
+                    style: CommandRowStyle(
+                      text: palette.onDark,
+                      muted: palette.onDark.withValues(alpha: 0.55),
+                      accent: palette.accent,
+                      fontFamily: theme.typography.display,
+                      monoFamily: theme.typography.mono,
+                      scale: theme.textScale,
+                    ),
+                    onClose: () => closeApps(ref),
+                    fillQuery: _fill,
+                  ),
                   if (results.isEmpty)
-                    _Empty(theme: theme, query: query)
+                    // Only for a plain search: an explicit command mode has
+                    // its answer above and no apps to miss.
+                    if (ref.watchRoute(query).searchApps)
+                      _Empty(theme: theme, query: query)
+                    else
+                      const SizedBox.shrink()
                   else
                     for (var i = 0; i < results.length; i++)
                       _Result(

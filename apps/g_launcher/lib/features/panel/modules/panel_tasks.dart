@@ -35,6 +35,7 @@ import '../../dock/dock_metrics.dart';
 import '../../dock/dock_motion.dart';
 import '../../drawer/app_icon.dart';
 import '../../drawer/drawer_drag.dart';
+import '../panel_skin.dart';
 
 class PanelTaskStrip extends ConsumerWidget {
   const PanelTaskStrip({
@@ -104,7 +105,16 @@ class PanelTaskStrip extends ConsumerWidget {
               : theme.palette.accent.withValues(alpha: 0.20),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: _strip(ref, taskKeys, byKey),
+        // The panel's thickness decides the icon, so it is read here rather
+        // than assumed: a horizontal strip's height and a vertical one's width.
+        child: LayoutBuilder(
+          builder: (context, box) => _strip(
+            ref,
+            taskKeys,
+            byKey,
+            panelIconSize(vertical ? box.maxWidth : box.maxHeight),
+          ),
+        ),
       ),
     );
   }
@@ -116,9 +126,11 @@ class PanelTaskStrip extends ConsumerWidget {
     WidgetRef ref,
     List<String> taskKeys,
     Map<String, AppEntry> byKey,
+    double icon,
   ) {
     Widget button(String k) => _TaskButton(
           vertical: vertical,
+          icon: icon,
           entry: byKey[k]!,
           onTap: () {
             ref.read(appListProvider.notifier).launch(byKey[k]!);
@@ -149,15 +161,15 @@ class PanelTaskStrip extends ConsumerWidget {
       enabled: true,
       vertical: vertical,
       // Measured from this strip's own icon, not the dock's. A panel task icon
-      // is 30dp where a dock slot reaches 64, and borrowing the dock's spread
-      // would make the motion reach half the panel.
-      spread: (_icon + _gap) * 2,
+      // is well under a dock slot, and borrowing the dock's spread would make
+      // the motion reach half the panel.
+      spread: (icon + panelIconGap) * 2,
       builder: (context, focus) => list(
         (i, k) {
           // The strip scrolls, so this is a position in the LIST's space and
           // the tracker sits inside the viewport with it. A tracker outside
           // would report viewport coordinates while the slots had moved.
-          final centre = _icon / 2 + i * (_icon + _gap);
+          final centre = (icon + panelIconGap) / 2 + i * (icon + panelIconGap);
 
           // Hover outside, press inside, the same nesting the docks use: press
           // moves a slot relative to wherever hover has put it.
@@ -165,7 +177,7 @@ class PanelTaskStrip extends ConsumerWidget {
             mode: hover,
             focus: focus,
             centre: centre,
-            slotSize: _icon,
+            slotSize: icon,
             vertical: vertical,
             child: DockPressMotion(
               mode: press,
@@ -179,12 +191,6 @@ class PanelTaskStrip extends ConsumerWidget {
       ),
     );
   }
-
-  /// The task icon, and the padding either side of it. Named because the
-  /// motion's reach is derived from them and a literal in two places is a
-  /// literal that stops agreeing.
-  static const double _icon = 30;
-  static const double _gap = 8;
 }
 
 class _TaskButton extends ConsumerWidget {
@@ -192,7 +198,12 @@ class _TaskButton extends ConsumerWidget {
     required this.entry,
     required this.onTap,
     required this.vertical,
+    required this.icon,
   });
+
+  /// Icon size from [panelIconSize]. The tap target is this plus the gap along
+  /// the panel, and the panel's whole thickness across it.
+  final double icon;
 
   final AppEntry entry;
   final VoidCallback onTap;
@@ -206,9 +217,9 @@ class _TaskButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final core = Padding(
       padding: vertical
-          ? const EdgeInsets.symmetric(vertical: 4)
-          : const EdgeInsets.symmetric(horizontal: 4),
-      child: Center(child: AppIcon(entry: entry, size: 30)),
+          ? const EdgeInsets.symmetric(vertical: panelIconGap / 2)
+          : const EdgeInsets.symmetric(horizontal: panelIconGap / 2),
+      child: Center(child: AppIcon(entry: entry, size: icon)),
     );
 
     // ─── DOCK ORIGIN, NOT A PANEL ONE ────────────────────────────────────
@@ -233,7 +244,7 @@ class _TaskButton extends ConsumerWidget {
         color: Colors.transparent,
         child: Opacity(
           opacity: 0.9,
-          child: AppIcon(entry: entry, size: 38),
+          child: AppIcon(entry: entry, size: icon + 8),
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.25, child: core),

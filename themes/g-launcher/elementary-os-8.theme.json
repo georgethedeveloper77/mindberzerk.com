@@ -1,44 +1,228 @@
 {
-  "id": "elementary-os-8",
+  "id": "elementary-os-8-theme",
   "name": "elementary OS",
-  "version": "8",
+  "version": "9",
   "shell": "aqua",
   "tier": "pro",
-  "chromeFamily": "aqua",
   "palette": {
-    "bgTop": "#3A4048",
-    "bgBottom": "#20252B",
-    "bar": "#1A1E23",
-    "dock": "#CC1A1E23",
-    "accent": "#64BAFF",
-    "onDark": "#FFFFFF"
+    "bgTop": "#3A3A3A",
+    "bgBottom": "#2B2B2B",
+    "bar": "#1F1F1F",
+    "dock": "#99383838",
+    "accent": "#3689E6",
+    "onDark": "#FAFAFA"
   },
   "paletteLight": {
-    "bgTop": "#F5F6F7",
-    "bgBottom": "#FFFFFF",
-    "bar": "#E9ECEF",
-    "dock": "#CCE9ECEF",
+    "bgTop": "#F5F5F5",
+    "bgBottom": "#FAFAFA",
+    "bar": "#FAFAFA",
+    "dock": "#8CFAFAFA",
     "accent": "#3689E6",
-    "onDark": "#20252B"
+    "onDark": "#333333"
   },
   "typography": {
-    "display": "Ubuntu",
-    "mono": "UbuntuMono"
+    "display": "Inter",
+    "mono": "Roboto Mono"
   },
   "layout": {
     "dock": "bottom",
     "topBar": true,
+    "panels": [
+      {
+        "side": "top",
+        "modules": [
+          "activities",
+          "spacer",
+          "clock",
+          "spacer",
+          "tray"
+        ]
+      }
+    ],
+    "barStyle": "clear",
+    "desktopIcons": false,
     "grid": {
       "rows": 5,
       "cols": 4
     },
-    "workspaceAxis": "horizontal"
+    "drawerGrouping": "library",
+    "appDrawer": "card",
+    "dockStyle": "floating",
+    "dockHover": "none"
   },
   "icons": {
-    "treatment": "roundedSquare",
+    "treatment": "original",
     "cornerRadius": 0.22,
-    "foregroundScale": 1.0
+    "foregroundScale": 1
   },
-  "wallpapers": [],
-  "minAppVersion": 6
+  "logo": {
+    "light": "logo_light.webp",
+    "dark": "logo_dark.webp"
+  },
+  "wallpapers": [
+    "wp2030141-elementary-wallpapers.webp",
+    "wp7764699-elementary-os-wallpapers.webp",
+    "wp7764704-elementary-os-wallpapers.webp",
+    "wp7764706-elementary-os-wallpapers.webp",
+    "wp7764716-elementary-os-wallpapers.webp",
+    "wp7764724-elementary-os-wallpapers.webp",
+    "wp7764741-elementary-os-wallpapers.webp"
+  ],
+  "minAppVersion": 40,
+  "boot": {
+    "tailMs": 600,
+    "lines": [
+      {
+        "kind": "plain",
+        "text": "Loading Linux ..."
+      },
+      {
+        "kind": "plain",
+        "text": "Loading initial ramdisk ..."
+      },
+      {
+        "kind": "blank",
+        "text": ""
+      },
+      {
+        "kind": "ok",
+        "text": "Started Load Kernel Modules"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Local File Systems"
+      },
+      {
+        "kind": "ok",
+        "text": "Started udev Kernel Device Manager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started D-Bus System Message Bus"
+      },
+      {
+        "kind": "ok",
+        "text": "Started NetworkManager"
+      },
+      {
+        "kind": "ok",
+        "text": "Started Avahi mDNS/DNS-SD Stack"
+      },
+      {
+        "kind": "warn",
+        "text": "Starting elementary Greeter ...",
+        "delayMs": 500
+      },
+      {
+        "kind": "ok",
+        "text": "Started elementary Greeter"
+      },
+      {
+        "kind": "ok",
+        "text": "Reached target Graphical Interface"
+      }
+    ]
+  },
+  "splash": {
+    "style": "bar",
+    "durationMs": 1000
+  },
+  "terminal": {
+    "appLabel": "Terminal",
+    "palette": {
+      "bg": "#252E32",
+      "fg": "#E3E7E8",
+      "cursor": "#3689E6",
+      "selection": "#553689E6",
+      "ansi": [
+        "#073642",
+        "#DC322F",
+        "#68B723",
+        "#F9C440",
+        "#3689E6",
+        "#A56DE2",
+        "#2AA198",
+        "#EEE8D5",
+        "#485A6C",
+        "#ED5353",
+        "#9BDB4D",
+        "#FFE16B",
+        "#64BAFF",
+        "#CD9EF7",
+        "#37C8B4",
+        "#FAFAFA"
+      ]
+    },
+    "prompt": "\u001b[1;32m{user}@elementary\u001b[0m:\u001b[1;34m{cwd}\u001b[0m$ ",
+    "rootPrompt": "\u001b[1;31mroot@elementary\u001b[0m:\u001b[1;34m{cwd}\u001b[0m# "
+  },
+  "desklets": {
+    "offers": [
+      "clock",
+      "monitor",
+      "network",
+      "storage",
+      "battery"
+    ],
+    "starter": [],
+    "skins": {
+      "clock": {
+        "surface": "bare",
+        "font": "display",
+        "accent": false
+      },
+      "monitor": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "network": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "storage": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      },
+      "battery": {
+        "surface": "bare",
+        "font": "mono",
+        "accent": false
+      }
+    }
+  },
+  "features": [
+    {
+      "title": "A see-through wingpanel",
+      "body": "No bar at all over your wallpaper: Applications at the left, the date in the middle, quick settings at the right, all in white.",
+      "exclusive": true
+    },
+    {
+      "title": "Slingshot, white",
+      "body": "The Applications card drops from the corner with its grid and categories, search and pages, in elementary's light style or its dark one.",
+      "exclusive": true
+    },
+    {
+      "title": "Plank",
+      "body": "A small frosted dock in the middle of the screen that stays still when you touch it.",
+      "exclusive": true
+    },
+    {
+      "title": "Every icon its own shape",
+      "body": "No shared tile: each app keeps the colourful icon it was drawn with, as on elementary.",
+      "exclusive": true
+    },
+    {
+      "title": "Nothing on the desktop",
+      "body": "Just the photograph, as elementary ships it.",
+      "exclusive": true
+    },
+    {
+      "title": "elementary Greeter",
+      "body": "Twelve lines of boot, through Avahi and the greeter, before the desktop.",
+      "exclusive": true
+    }
+  ]
 }

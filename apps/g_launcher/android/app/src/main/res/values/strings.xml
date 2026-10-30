@@ -12,4 +12,12 @@
          list of notification listeners tells them nothing about why it wants
          in. -->
     <string name="notification_listener_label">G Launcher notification badges</string>
+
+    <!-- BrokenInstallActivity: this copy is missing its native code (installed
+         from a shared APK rather than from Play). Native strings, because the
+         Flutter side that owns translations is what cannot start. -->
+    <string name="broken_install_title">G Launcher did not install completely</string>
+    <string name="broken_install_body">This copy is missing part of the app, which happens when it is installed from a shared file instead of Google Play. Reinstall it from Google Play to fix it.</string>
+    <string name="broken_install_reinstall">Reinstall from Google Play</string>
+    <string name="broken_install_other_home">Choose another home app</string>
 </resources>

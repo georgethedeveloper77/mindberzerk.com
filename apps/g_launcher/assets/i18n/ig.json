@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "Ọ na-anọ na ekwentị gị. Nke a na-ewepụ ya naanị na ndepụta ebe a.",
   "wallpaper.removeTitle": "Wepu akwụkwọ ahụaja a",
   "wallpaper.removed": "Ewepụrụ",
-  "wallpaper.yours": "Nke gi"
+  "wallpaper.yours": "Nke gi",
+  "shell.dockFull": "Dock ejupụtala",
+  "shell.moveToHomeScreen": "Bufee na ihuenyo ụlọ",
+  "home.edit": "Dezie"
 }

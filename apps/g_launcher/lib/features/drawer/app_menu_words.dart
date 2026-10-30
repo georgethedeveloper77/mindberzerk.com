@@ -95,7 +95,7 @@ class AppMenuWords {
   static bool _showsFavourites(EffectiveTheme theme) {
     if (theme.dock == DockSide.off) return true;
     return switch (theme.appDrawer) {
-      'tools' || 'whisker' || 'cinnamon' || 'zorin' => true,
+      'tools' || 'whisker' || 'cinnamon' || 'kicker' || 'zorin' => true,
       // The shared grid routes to Kickoff on plasma, which has the tab, and to
       // AppDrawer elsewhere, which does not. Asking the drawer NAME here would
       // get that wrong, so it asks the same question `shell_drawer` answers.

@@ -79,6 +79,15 @@ class PrefsBackup {
   /// a list-themes method it has no other use for.
   static const themePrefix = 'prefs.v1.';
 
+  /// Launcher-wide keys stored outside GlobalPrefs that a backup carries as
+  /// they are, each a JSON object. Their owners validate on load, so the
+  /// backup only checks the shape. An allow-list, so a restore can never
+  /// write a key this build does not know.
+  static const extraKeys = <String>[
+    'search.settings.v1',
+    'hiddenApps.folder.v1',
+  ];
+
   static const manifestName = 'backup.json';
   static const wallpaperDir = 'wallpapers';
 
@@ -159,6 +168,7 @@ class PrefsBackup {
       'themes': themes,
       'apps': apps,
       'collections': [for (final c in collections) c.toJson()],
+      'extras': await _collectExtras(store),
     };
   }
 
@@ -367,6 +377,8 @@ class PrefsBackup {
       }
     }
 
+    if (includeGlobal) await _applyExtras(store, j);
+
     // Global left alone (or absent from the file): merge, never replace, so a
     // restore can only ever hide more, not reveal what is hidden here now.
     if (!globalWritten && restoredHidden.isNotEmpty) {
@@ -383,6 +395,32 @@ class PrefsBackup {
     }
 
     if (includeCollections) await _applyCollections(store, summary);
+  }
+
+  static Future<Map<String, dynamic>> _collectExtras(PrefsStore store) async {
+    final out = <String, dynamic>{};
+    for (final key in extraKeys) {
+      final raw = await store.read(key);
+      if (raw == null) continue;
+      try {
+        final v = jsonDecode(raw);
+        if (v is Map<String, dynamic>) out[key] = v;
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  /// Restored with the launcher-wide settings, since that is what they are.
+  /// A key missing from the file is left as it is here, not cleared.
+  static Future<void> _applyExtras(
+    PrefsStore store,
+    Map<String, dynamic> j,
+  ) async {
+    final extras = (j['extras'] as Map?) ?? const {};
+    for (final key in extraKeys) {
+      final v = extras[key];
+      if (v is Map) await store.write(key, jsonEncode(v));
+    }
   }
 
   /// Collections come back whole when the backup carried their images, and

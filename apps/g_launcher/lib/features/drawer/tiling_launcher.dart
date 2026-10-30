@@ -6,6 +6,7 @@ import 'package:g_launcher/i18n/i18n.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../platform/launcher_api.g.dart';
+import '../command/command_rows.dart';
 import '../home/workspaces/workspace_controller.dart';
 import '../palette/fuzzy.dart';
 import '../palette/palette_controller.dart';
@@ -106,14 +107,33 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
     super.dispose();
   }
 
-  void _submit() {
-    // launchTopMatch owns the "is there a hit?" decision, same as the terminal.
-    if (launchTopMatch(ref, widget.theme)) {
+  Future<void> _submit() async {
+    // The top command when it should win (an explicit mode, or no app),
+    // otherwise launchTopMatch, which owns the "is there a hit?" decision.
+    final query = ref.read(paletteQueryProvider);
+    final ran = await submitPaletteQuery(
+      context,
+      ref,
+      query: query,
+      hasApps: ref.read(paletteResultsProvider(widget.theme)).isNotEmpty,
+      fillQuery: _fill,
+      onClose: () => closeApps(ref),
+      launchTopApp: () => launchTopMatch(ref, widget.theme),
+    );
+    if (ran && mounted) {
       _controller.clear();
       ref.read(paletteQueryProvider.notifier).state = '';
     }
     // No toast on an empty match list. Someone mid-typo does not need to be
     // told they are mid-typo.
+  }
+
+  void _fill(String v) {
+    _controller.value = TextEditingValue(
+      text: v,
+      selection: TextSelection.collapsed(offset: v.length),
+    );
+    ref.read(paletteQueryProvider.notifier).state = v;
   }
 
   @override
@@ -229,14 +249,33 @@ class _TilingLauncherState extends ConsumerState<TilingLauncher> {
                       height: 1,
                       color: palette.onDark.withValues(alpha: 0.12),
                     ),
+                    // rofi's calc and web modes, in the prompt's own mono.
+                    PaletteCommandBlock(
+                      query: query,
+                      hasApps: results.isNotEmpty,
+                      style: CommandRowStyle(
+                        text: palette.onDark,
+                        muted: palette.onDark.withValues(alpha: 0.5),
+                        accent: palette.accent,
+                        fontFamily: mono,
+                        monoFamily: mono,
+                      ),
+                      onClose: () => closeApps(ref),
+                      fillQuery: _fill,
+                    ),
                     Flexible(
+                      // With no apps the block above already answers (a
+                      // command, or the web and Play rows), so the "no
+                      // match" line would contradict it.
                       child: query.isEmpty
                           ? _AllList(theme: theme, items: items, mono: mono)
-                          : _Results(
-                              theme: theme,
-                              results: results,
-                              mono: mono,
-                            ),
+                          : results.isEmpty
+                              ? const SizedBox.shrink()
+                              : _Results(
+                                  theme: theme,
+                                  results: results,
+                                  mono: mono,
+                                ),
                     ),
                     _Hint(
                       theme: theme,
@@ -598,7 +637,8 @@ class _DmenuItemsState extends ConsumerState<_DmenuItems> {
                 ),
             LauncherSettingsItem() ||
             DeviceSettingsItem() ||
-            TerminalDrawerItem() =>
+            TerminalDrawerItem() ||
+            HiddenFolderItem() =>
               null,
           },
         );
@@ -872,6 +912,11 @@ class _AllList extends ConsumerWidget {
                   size: size * 0.85,
                   color: theme.palette.onDark,
                 ),
+              HiddenFolderItem() => Icon(
+                  Icons.lock_outline,
+                  size: size * 0.85,
+                  color: theme.palette.onDark,
+                ),
             },
           ),
           label: Text(
@@ -894,7 +939,8 @@ class _AllList extends ConsumerWidget {
                 anchor: AnchoredMenu.anchorOf(rowContext)),
             LauncherSettingsItem() ||
             DeviceSettingsItem() ||
-            TerminalDrawerItem() =>
+            TerminalDrawerItem() ||
+            HiddenFolderItem() =>
               null,
           },
         );

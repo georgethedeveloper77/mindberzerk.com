@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "ഇത് നിങ്ങളുടെ ഫോണിൽ നിലനിൽക്കും. ഇത് ഇവിടെയുള്ള പട്ടികയിൽ നിന്ന് പുറത്തെടുക്കുക മാത്രമാണ് ചെയ്യുന്നത്.",
   "wallpaper.removeTitle": "ഈ വാൾപേപ്പർ നീക്കം ചെയ്യുക",
   "wallpaper.removed": "നീക്കം ചെയ്തു",
-  "wallpaper.yours": "നിങ്ങളുടെ"
+  "wallpaper.yours": "നിങ്ങളുടെ",
+  "shell.dockFull": "ഡോക്ക് നിറഞ്ഞു",
+  "shell.moveToHomeScreen": "ഹോം സ്ക്രീനിലേക്ക് നീക്കുക",
+  "home.edit": "എഡിറ്റ്"
 }

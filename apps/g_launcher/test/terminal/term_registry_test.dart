@@ -305,7 +305,8 @@ void main() {
     final Set<String> names = <String>{};
     for (final TermCommand command in TermRegistry.instance.all) {
       expect(command.help.trim(), isNotEmpty, reason: command.name);
-      expect(names.add(command.name), isTrue, reason: 'duplicate ${command.name}');
+      expect(names.add(command.name), isTrue,
+          reason: 'duplicate ${command.name}');
     }
   });
 }

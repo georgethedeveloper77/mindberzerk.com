@@ -79,7 +79,8 @@ void main() {
     expect(drag(p, x: 380, ms: 1470), EdgePagerAction.pageRight);
   });
 
-  test('leaving and re-entering the zone re-arms the dwell, not an instant flip',
+  test(
+      'leaving and re-entering the zone re-arms the dwell, not an instant flip',
       () {
     final p = pager();
     drag(p, x: 380, ms: 0);

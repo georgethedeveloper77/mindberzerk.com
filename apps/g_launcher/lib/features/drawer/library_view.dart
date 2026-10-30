@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/app_repository.dart';
 import '../../data/search/search_text.dart';
 import '../../design/branded_message.dart';
+import '../../design/liquid_glass.dart';
 import '../../engine/effective_theme.dart';
 import '../../i18n/i18n.dart';
 import '../../platform/launcher_api.g.dart';
 import '../dock/dock_insets.dart';
+import '../home/workspaces/workspace_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
 import 'drawer_items.dart';
@@ -80,6 +82,64 @@ class LibraryView extends ConsumerStatefulWidget {
   ConsumerState<LibraryView> createState() => _LibraryViewState();
 }
 
+/// A search asked for from outside the library: the home's Search button or
+/// a swipe bound to search.
+///
+/// A PENDING FLAG, consumed by the view, rather than a counter it compares.
+/// The library is a page that mounts and unmounts as the pager moves, so a
+/// counter would either be lost by a view that mounts after the request or
+/// replayed by every view that mounts after it. A flag is read once and
+/// cleared by whoever honours it.
+final librarySearchRequestProvider =
+    NotifierProvider<LibrarySearchRequest, bool>(LibrarySearchRequest.new);
+
+class LibrarySearchRequest extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void request() => state = true;
+
+  void consume() {
+    if (state) state = false;
+  }
+}
+
+/// Is the library's search open? Mirrored by the view, and set false by the
+/// home's back handler to close it.
+///
+/// Back has one owner, the PopScope in `home_screen.dart`, and it closes the
+/// app list when the list is showing. With the library searching, that took
+/// the user straight out of the library instead of out of the search, which is
+/// the step they were trying to undo. Reading this first gives back the order
+/// iOS has: search, then the library, then home.
+final librarySearchingProvider =
+    NotifierProvider<LibrarySearching, bool>(LibrarySearching.new);
+
+class LibrarySearching extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) {
+    if (state != value) state = value;
+  }
+}
+
+/// Show the app list and open its search, however this distro shows one.
+///
+/// On a library distro the field opens with the keyboard up. Every other
+/// drawer ignores the request, so this is [openApps] there and nothing more.
+void openSearch(WidgetRef ref) {
+  ref.read(librarySearchRequestProvider.notifier).request();
+  openApps(ref);
+}
+
+/// A glass surface's hairline and rim, drawn over its content.
+BoxDecoration _glassForeground(BorderRadius radius) => BoxDecoration(
+      borderRadius: radius,
+      border: Border.all(color: LiquidGlass.edge),
+      gradient: LiquidGlass.rim(radius).gradient,
+    );
+
 class _LibraryViewState extends ConsumerState<LibraryView>
     with SingleTickerProviderStateMixin {
   /// ─── EDIT MODE IS LOCAL, AND DELIBERATELY NOT A PROVIDER ────────────────
@@ -126,6 +186,19 @@ class _LibraryViewState extends ConsumerState<LibraryView>
   );
 
   @override
+  void initState() {
+    super.initState();
+    // A view that went away mid-search left the flag up. A fresh view is never
+    // searching, so it puts the flag back, or the next back would be spent
+    // closing a search that is not on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_searching) {
+        ref.read(librarySearchingProvider.notifier).set(false);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _jiggle.dispose();
     _controller.dispose();
@@ -139,6 +212,7 @@ class _LibraryViewState extends ConsumerState<LibraryView>
     // modes claiming the same taps.
     _exitEdit();
     setState(() => _searching = true);
+    ref.read(librarySearchingProvider.notifier).set(true);
     _focus.requestFocus();
   }
 
@@ -149,6 +223,7 @@ class _LibraryViewState extends ConsumerState<LibraryView>
       _searching = false;
       _query = '';
     });
+    ref.read(librarySearchingProvider.notifier).set(false);
   }
 
   /// Every app in the library, once each, A to Z.
@@ -228,6 +303,21 @@ class _LibraryViewState extends ConsumerState<LibraryView>
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final items = widget.items;
+
+    // Back from the home closes the search by clearing the flag; follow it.
+    ref.listen<bool>(librarySearchingProvider, (prev, next) {
+      if (prev == true && !next && _searching) _closeSearch();
+    });
+
+    // Honour a search asked for from the home. After the frame, because opening
+    // search sets state and requests focus, neither of which belongs in build.
+    if (ref.watch(librarySearchRequestProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(librarySearchRequestProvider.notifier).consume();
+        if (!_searching) _openSearch();
+      });
+    }
 
     // ─── SECTIONS ARE CUT FROM ONE LIST ───────────────────────────────────
     //
@@ -504,6 +594,11 @@ class _Cell extends ConsumerWidget {
                 'android.settings.SETTINGS',
               ),
         ),
+      HiddenFolderItem() => (
+          _GlyphTile(theme: theme, icon: Icons.lock_outline, size: size),
+          item.label,
+          () => activateDrawerItem(context, ref, theme, item),
+        ),
     };
 
     final content = GestureDetector(
@@ -606,10 +701,17 @@ class _SearchField extends StatelessWidget {
     final pill = Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: palette.onDark.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(19),
-      ),
+      decoration: theme.glass
+          ? BoxDecoration(
+              gradient: LiquidGlass.fill(dark: theme.glassDark),
+              borderRadius: BorderRadius.circular(19),
+            )
+          : BoxDecoration(
+              color: palette.onDark.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(19),
+            ),
+      foregroundDecoration:
+          theme.glass ? _glassForeground(BorderRadius.circular(19)) : null,
       child: Row(
         children: [
           Icon(
@@ -902,12 +1004,25 @@ class _FolderTile extends StatelessWidget {
       // NO clipBehavior. The badges overhang their icons by design and a clip
       // here would shave the ones on the top and left edges into crescents.
       padding: EdgeInsets.all(pad),
-      decoration: BoxDecoration(
-        // Over the drawer's blurred backdrop, so a light film reads as glass
-        // rather than as a grey box.
-        color: theme.palette.onDark.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(size * 0.22),
-      ),
+      decoration: theme.glass
+          // Liquid Glass without its blur: the library already sits on a
+          // blurred backdrop, and a filter per tile is a filter per tile on a
+          // scrolling list. The pane and the rim are what read as glass.
+          ? BoxDecoration(
+              gradient: LiquidGlass.fill(dark: theme.glassDark),
+              borderRadius: BorderRadius.circular(size * 0.22),
+            )
+          : BoxDecoration(
+              // Over the drawer's blurred backdrop, so a light film reads as
+              // glass rather than as a grey box.
+              color: theme.palette.onDark.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(size * 0.22),
+            ),
+      // The edge and the rim as a FOREGROUND, so the hairline takes no layout
+      // and the tile's measured grid of icons keeps every pixel it was given.
+      foregroundDecoration: theme.glass
+          ? _glassForeground(BorderRadius.circular(size * 0.22))
+          : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

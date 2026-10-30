@@ -1416,6 +1416,12 @@ interface LauncherHostApi {
    * One entry per key, in order, null where nothing could be drawn.
    */
   fun previewGeneratedIcons(componentKeys: List<String>, sizePx: Long, callback: (Result<List<ByteArray?>>) -> Unit)
+  /**
+   * PNG bytes for the applied brand pack's drawing of [packageName] with no
+   * tile: white on transparency, for the caller to tint. Null when the pack
+   * has no drawing for that package.
+   */
+  fun getBareGlyph(packageName: String, sizePx: Long, callback: (Result<ByteArray?>) -> Unit)
   /** Nukes memory + disk. For a "rebuild icon cache" button in Settings. */
   fun clearIconCache(callback: (Result<Unit>) -> Unit)
   /** Are we the home app right now? Drives the "Set as default" banner. */
@@ -1798,6 +1804,8 @@ interface LauncherHostApi {
    * that it is NOT a version code. This one is.
    */
   fun getVersionCode(): Long
+  /** The package that handles one of the dock's seed roles, or null. */
+  fun defaultAppFor(role: String): String?
   /**
    * Open Android's folder picker and remember what the user chose.
    *
@@ -1944,6 +1952,11 @@ interface LauncherHostApi {
    * the end keeps the generated diff readable.
    */
   fun confirmUser(title: String, subtitle: String?, callback: (Result<String>) -> Unit)
+  /**
+   * Hand [text] to Android's share sheet (a rice code, for now). False when
+   * there is no window to open it from or nothing can receive text.
+   */
+  fun shareText(text: String): Boolean
 
   companion object {
     /** The codec used by LauncherHostApi. */
@@ -2078,6 +2091,27 @@ interface LauncherHostApi {
             val tintHexArg = args[1] as String
             val sizePxArg = args[2] as Long
             api.previewIcons(componentKeysArg, tintHexArg, sizePxArg) { result: Result<List<ByteArray?>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LauncherApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LauncherApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.getBareGlyph$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packageNameArg = args[0] as String
+            val sizePxArg = args[1] as Long
+            api.getBareGlyph(packageNameArg, sizePxArg) { result: Result<ByteArray?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LauncherApiPigeonUtils.wrapError(error))
@@ -2700,6 +2734,23 @@ interface LauncherHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.defaultAppFor$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val roleArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.defaultAppFor(roleArg))
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.chooseBackupFolder$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
@@ -2961,6 +3012,23 @@ interface LauncherHostApi {
                 reply.reply(LauncherApiPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.g_launcher.LauncherHostApi.shareText$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val textArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.shareText(textArg))
+            } catch (exception: Throwable) {
+              LauncherApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

@@ -99,8 +99,8 @@ void main() {
 
     test('refuses a blank name', () {
       final before = withFolder();
-      expect(identical(DrawerLayout.rename(before, 'df0', '   '), before),
-          isTrue);
+      expect(
+          identical(DrawerLayout.rename(before, 'df0', '   '), before), isTrue);
     });
   });
 

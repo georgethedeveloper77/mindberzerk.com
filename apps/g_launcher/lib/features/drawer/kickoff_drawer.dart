@@ -12,6 +12,8 @@ import '../../design/branded_message.dart';
 import '../../design/components/anchored_menu.dart';
 import '../../engine/effective_theme.dart';
 import '../../features/dock/dock_metrics.dart';
+import '../command/command_rows.dart';
+import '../home/workspaces/workspace_controller.dart';
 import '../palette/palette_controller.dart';
 import 'app_icon.dart';
 import 'drawer_actions.dart';
@@ -176,6 +178,8 @@ class KickoffDrawer extends ConsumerWidget {
           // you open, which is what the list is for. A third footer button
           // would also put three labels where two already fill the width.
           TerminalDrawerItem() => true,
+          // Something you open, so it belongs in the list as well.
+          HiddenFolderItem() => true,
           LauncherSettingsItem() || DeviceSettingsItem() => false,
         })
           i,
@@ -318,22 +322,42 @@ class KickoffDrawer extends ConsumerWidget {
                         // and it costs no rail width.
                         if (theme.kickoffRail == 'categories')
                           _ListHeading(theme: theme, slot: active),
+                        // KRunner's answers: sums, units, bangs, web.
+                        PaletteCommandBlock(
+                          query: query,
+                          hasApps: shown.isNotEmpty,
+                          style: CommandRowStyle(
+                            text: theme.palette.onDark,
+                            muted: theme.palette.onDark.withValues(alpha: 0.6),
+                            accent: theme.palette.accent,
+                            fontFamily: theme.typography.display,
+                            monoFamily: theme.typography.mono,
+                            scale: theme.textScale,
+                          ),
+                          onClose: () => closeApps(ref),
+                          fillQuery: (v) {
+                            ref.read(_kickoffQueryProvider.notifier).state = v;
+                            ref.read(paletteQueryProvider.notifier).state = v;
+                          },
+                        ),
                         Expanded(
-                          child: shown.isEmpty
-                              ? _Empty(theme: theme, slot: active)
-                              : ListView.builder(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 10),
-                                  itemCount: shown.length,
-                                  itemBuilder: (context, i) => _Row(
-                                    // Stable identity so switching tabs or creating a
-                                    // folder reuses rows instead of re-requesting
-                                    // every icon from native.
-                                    key: ValueKey(_idOf(shown[i])),
-                                    theme: theme,
-                                    item: shown[i],
-                                  ),
-                                ),
+                          child: shown.isEmpty && query.isNotEmpty
+                              ? const SizedBox.shrink()
+                              : shown.isEmpty
+                                  ? _Empty(theme: theme, slot: active)
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10),
+                                      itemCount: shown.length,
+                                      itemBuilder: (context, i) => _Row(
+                                        // Stable identity so switching tabs or creating a
+                                        // folder reuses rows instead of re-requesting
+                                        // every icon from native.
+                                        key: ValueKey(_idOf(shown[i])),
+                                        theme: theme,
+                                        item: shown[i],
+                                      ),
+                                    ),
                         ),
                       ],
                     ),
@@ -356,6 +380,7 @@ class KickoffDrawer extends ConsumerWidget {
         LauncherSettingsItem() => 'launcher-settings',
         DeviceSettingsItem() => 'device-settings',
         TerminalDrawerItem() => 'terminal',
+        HiddenFolderItem() => 'hidden-folder',
       };
 
   /// Category buckets, built the SAME way the library drawer builds them.
@@ -862,7 +887,8 @@ class _RowState extends ConsumerState<_Row> {
         // showing an empty one would be the same mistake.
         LauncherSettingsItem() ||
         DeviceSettingsItem() ||
-        TerminalDrawerItem() =>
+        TerminalDrawerItem() ||
+        HiddenFolderItem() =>
           null,
       },
       child: Padding(
@@ -888,6 +914,11 @@ class _RowState extends ConsumerState<_Row> {
                 // it reads as one next to the app icons it sits among.
                 TerminalDrawerItem() => Icon(
                     Icons.terminal,
+                    size: size * 0.82,
+                    color: onDark,
+                  ),
+                HiddenFolderItem() => Icon(
+                    Icons.lock_outline,
                     size: size * 0.82,
                     color: onDark,
                   ),
@@ -1037,6 +1068,16 @@ class _KickoffSearchState extends ConsumerState<_KickoffSearch> {
     super.dispose();
   }
 
+  /// Both providers, as onChanged sets them, for a tapped bang hint.
+  void _fill(String v) {
+    _controller.value = TextEditingValue(
+      text: v,
+      selection: TextSelection.collapsed(offset: v.length),
+    );
+    ref.read(_kickoffQueryProvider.notifier).state = v;
+    ref.read(paletteQueryProvider.notifier).state = v;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
@@ -1075,6 +1116,18 @@ class _KickoffSearchState extends ConsumerState<_KickoffSearch> {
                   // agrees on.
                   ref.read(paletteQueryProvider.notifier).state = v;
                 },
+                // Enter: a sum, conversion or bang when it should win,
+                // otherwise the top app, the same as every palette surface.
+                onSubmitted: (v) => submitPaletteQuery(
+                  context,
+                  ref,
+                  query: v,
+                  hasApps:
+                      ref.read(paletteResultsProvider(widget.theme)).isNotEmpty,
+                  fillQuery: _fill,
+                  onClose: () => closeApps(ref),
+                  launchTopApp: () => launchTopMatch(ref, widget.theme),
+                ),
                 style: TextStyle(
                   color: onDark,
                   fontFamily: theme.typography.display,

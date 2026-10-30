@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:g_launcher/i18n/i18n.dart';
 
 import '../../data/cdn/pack_repository.dart';
+import '../../data/prefs/prefs_repository.dart';
 import '../../data/prefs/setup_state.dart';
+import '../../data/repositories/app_repository.dart';
 import '../../design/branded_message.dart';
 import '../../design/components/components.dart';
 import '../../engine/boot_spec.dart';
@@ -20,10 +22,13 @@ import '../../system/battery_history.dart';
 import '../../system/status_bar_mode.dart';
 import '../boot/boot_controller.dart';
 import '../boot/boot_sequence.dart';
+import '../boot/grub_prefs.dart';
+import '../boot/grub_screen.dart';
 import '../boot/splash_sequence.dart';
 import '../desklets/desklet_edit.dart';
 import '../desklets/widget_stage.dart';
 import 'quick_settings.dart';
+import '../drawer/library_view.dart' show librarySearchingProvider;
 import 'workspaces/workspace_controller.dart';
 import 'workspaces/workspace_overview.dart';
 
@@ -306,6 +311,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   logoAsset: _splashLogo(t.spec),
                   displayFontFamily: t.typography.display,
                   monoFontFamily: t.typography.mono ?? 'UbuntuMono',
+                  // The hello is written once per theme, the first time it
+                  // boots; every boot after is logo and bar.
+                  hello: !t.prefs.helloShown,
+                  onHelloShown: () => ref
+                      .read(prefsProvider(t.spec.id).notifier)
+                      .edit((p) => p.copyWith(helloShown: true)),
                 ),
                 monoFontFamily: t.spec.typography.mono ?? 'UbuntuMono',
                 // ─── THE ONE BACK OWNER, FOR EVERY SHELL ─────────────────
@@ -370,6 +381,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // both could be.
                         if (ref.read(quickSettingsProvider)) {
                           ref.read(quickSettingsProvider.notifier).close();
+                        } else if (appsShowing(ref) &&
+                            ref.read(librarySearchingProvider)) {
+                          // Out of the search first, then out of the library.
+                          ref
+                              .read(librarySearchingProvider.notifier)
+                              .set(false);
                         } else if (ref.read(workspaceOverviewProvider)) {
                           ref.read(workspaceOverviewProvider.notifier).close();
                         } else if (appsShowing(ref)) {
@@ -406,6 +423,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// switch, not on every home press".
   void _maybeAutoBoot(EffectiveTheme t) {
     if (_bootedFor == t.spec.id) return;
+    // A COLD START is the first call of this State's life: HOME presses resume
+    // without recreating it, and a theme switch arrives with an id already
+    // set. Only a cold start may show GRUB, as only a real reboot shows it.
+    final coldStart = _bootedFor == null;
     _bootedFor = t.spec.id;
 
     final controller = ref.read(bootControllerProvider.notifier);
@@ -429,25 +450,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    final verbose = t.prefs.verboseBoot == true;
+    if (coldStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _grubThenBoot(t));
+      return;
+    }
 
-    // Resolve before the frame callback so the theme's own block wins over the
-    // shell-family default in both cases.
-    final boot =
-        verbose ? (t.spec.boot ?? BootSpec.defaultForShell(t.shell)) : null;
-    final splash =
-        verbose ? null : (t.spec.splash ?? SplashSpec.defaultForShell(t.shell));
+    _playBoot(t);
+  }
 
-    // Cannot mutate a provider during build; defer a frame.
+  /// GRUB first when it is switched on, then whatever was picked.
+  ///
+  /// Picking a different distro is a theme switch, and the switch plays that
+  /// distro's own boot through [_maybeAutoBoot] when the id changes, so this
+  /// only plays a boot for the distro that was already selected.
+  Future<void> _grubThenBoot(EffectiveTheme t) async {
+    final grub = await ref.read(grubPrefsProvider.future);
+    if (!mounted) return;
+    if (!grub.enabled) {
+      _playBoot(t);
+      return;
+    }
+
+    // Once per real reboot of the phone. See GrubPrefs.shownForBootAtMs.
+    int? bootAt;
+    try {
+      final stats = await ref.read(launcherHostApiProvider).readStats();
+      bootAt =
+          DateTime.now().millisecondsSinceEpoch - stats.elapsedRealtimeMillis;
+    } catch (_) {
+      bootAt = null;
+    }
+    if (!mounted) return;
+    if (bootAt == null || grub.alreadyShownFor(bootAt)) {
+      _playBoot(t);
+      return;
+    }
+    await ref
+        .read(grubPrefsProvider.notifier)
+        .set(grub.copyWith(shownForBootAtMs: bootAt));
+    if (!mounted) return;
+
+    final choice = await showGrubMenu(
+      context,
+      currentId: t.spec.id,
+      currentName: t.spec.name,
+    );
+    if (!mounted) return;
+
+    await applyGrubChoice(context, ref, t, choice);
+  }
+
+  /// The ordinary boot or splash for [t].
+  void _playBoot(EffectiveTheme t) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (boot != null) {
-        controller.play(boot);
-      } else if (splash != null) {
-        // playSplash no-ops on SplashStyle.none, so the terminal theme comes up
-        // straight into its prompt with no overlay at all.
-        controller.playSplash(splash);
-      }
+      ref.read(bootControllerProvider.notifier).playFor(t);
     });
   }
 }

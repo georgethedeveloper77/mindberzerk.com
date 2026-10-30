@@ -34,6 +34,7 @@ import '../icons/icon_preview.dart';
 import '../../system/notification_badges.dart';
 import '../../system/wallpaper_source.dart';
 import '../desklets/desklet_preview.dart';
+import '../desklets/desklet_surface.dart' show buildDesklet;
 import '../drawer/app_icon.dart';
 import '../drawer/drawer_actions.dart';
 import '../drawer/folder_glyph.dart';
@@ -504,7 +505,33 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   }
 
   Future<void> _next() async {
-    if (_step == _SetupStep.welcome) {
+    // ─── A PAGE COMMITS EVERY STEP IT SHOWS ────────────────────────────────
+    //
+    // Setup shows five pages, each holding one or more of the old steps. What
+    // each step wrote when it was left is unchanged; it now runs for every
+    // step on the page being left, in the old order. The notification hand-off
+    // goes FIRST because it can stop the page on Android's settings screen,
+    // and a page that had already written its folders would write them twice
+    // when the user comes back and presses Continue again.
+    final inPage = _pageSteps(_page, _shell);
+
+    if (inPage.contains(_SetupStep.notifications) &&
+        _wantBadges &&
+        !_badgeAsked) {
+      final granted =
+          ref.read(notificationAccessProvider).asData?.value ?? false;
+      if (!granted) {
+        _badgeAsked = true;
+        await openNotificationAccessSettings();
+        // STAYS on this page, with nothing on it written yet. The user is now
+        // looking at Android's page; when they come back, the step re-reads
+        // the permission on resume, and Continue commits the page once and
+        // moves on whatever they chose.
+        return;
+      }
+    }
+
+    if (inPage.contains(_SetupStep.welcome)) {
       final mayPass = await _homeGate();
       if (!mayPass) return;
     }
@@ -514,7 +541,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // require finding a button, and unticking the row is the opt-out.
     // Best-effort like the desktop seeding — a grouping failure must never
     // block setup.
-    if (_step == _SetupStep.folders) {
+    if (inPage.contains(_SetupStep.folders)) {
       try {
         final theme = ref.read(effectiveThemeProvider).asData?.value;
         if (theme != null) {
@@ -557,7 +584,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // So each one is tried at its computed row, and if the prefs come back
     // identical the same kind is handed to `place`, which packs it wherever it
     // fits. Position is a preference; being present is not.
-    if (_step == _SetupStep.widgets) {
+    if (inPage.contains(_SetupStep.widgets)) {
       try {
         final theme = ref.read(effectiveThemeProvider).asData?.value;
         if (theme != null) {
@@ -628,55 +655,21 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
               if (picked.contains(k.id) && !alreadyPlaced.contains(k.id)) k,
           ];
 
-          // ── TWO ACROSS WHERE THEY FIT ──────────────────────────────────
-          //
-          // `free`, `ls`, `uptime` and `df` span 2 of a grid that is 8 wide, so
-          // stacking them one per row wastes three quarters of the desktop and
-          // looks like a column of ribbons. Pack left to right, wrap when the
-          // next one will not fit, and advance the row by the TALLEST tile in
-          // the row just finished rather than by the last one placed.
-          var col = 0;
-          var rowTall = 0;
-          final rowsUsed = <int>[];
-          for (final k in chosen) {
-            if (col + k.defaultSpanX > cols && col > 0) {
-              rowsUsed.add(rowTall);
-              col = 0;
-              rowTall = 0;
-            }
-            col += k.defaultSpanX;
-            if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
-          }
-          if (rowTall > 0) rowsUsed.add(rowTall);
-          final tall = rowsUsed.fold<int>(0, (n, h) => n + h);
-
-          // Where the block starts. Bottom subtracts the whole height so the
-          // last row ENDS at the last row rather than starting there and being
-          // refused off the edge.
-          final spare = rows - tall;
-          var cursorRow = switch (_widgetSpot) {
-            'bottom' => spare,
-            'middle' => spare ~/ 2,
-            _ => 0,
-          };
-          if (cursorRow < 0) cursorRow = 0;
-
-          col = 0;
-          rowTall = 0;
-          for (final k in chosen) {
-            if (col + k.defaultSpanX > cols && col > 0) {
-              cursorRow += rowTall;
-              col = 0;
-              rowTall = 0;
-            }
-
+          // Packed by [_packStarter], the same function the stage preview
+          // draws from, so the picture and the desktop agree.
+          for (final slot in _packStarter(
+            chosen,
+            cols: cols,
+            rows: rows,
+            spot: _widgetSpot,
+          )) {
             final before = next;
             next = DeskletLayout.placeAt(
               next,
-              kindId: k.id,
+              kindId: slot.kind.id,
               page: 0,
-              col: col,
-              row: cursorRow,
+              col: slot.col,
+              row: slot.row,
               cols: cols,
               rows: rows,
               newId: _newDeskletId,
@@ -688,16 +681,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
             if (identical(next, before)) {
               next = DeskletLayout.place(
                 next,
-                kindId: k.id,
+                kindId: slot.kind.id,
                 page: 0,
                 cols: cols,
                 rows: rows,
                 newId: _newDeskletId,
               );
             }
-
-            col += k.defaultSpanX;
-            if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
           }
 
           if (!identical(next, theme.prefs)) {
@@ -721,7 +711,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // Best-effort like its neighbours. An icon preference that failed to write
     // is a desktop wearing the distro default, which is recoverable from the
     // icons screen; a setup that cannot be finished is not.
-    if (_step == _SetupStep.icons) {
+    if (inPage.contains(_SetupStep.icons)) {
       try {
         final theme = ref.read(effectiveThemeProvider).asData?.value;
         if (theme != null) await _commitIcons(theme);
@@ -740,31 +730,23 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     // Skipped entirely when the permission is already granted, and skipped
     // after the first time either way. See `_badgeAsked` for why the second
     // press must advance rather than ask again.
-    if (_step == _SetupStep.notifications && _wantBadges && !_badgeAsked) {
-      final granted =
-          ref.read(notificationAccessProvider).asData?.value ?? false;
-      if (!granted) {
-        _badgeAsked = true;
-        await openNotificationAccessSettings();
-        // STAYS on this step. The user is now looking at Android's page; when
-        // they come back, the step re-reads the permission on resume and shows
-        // the result, and Continue takes them onward whatever they chose.
-        return;
-      }
-    }
-
-    final steps = _stepsFor(_shell);
-    final i = steps.indexOf(_step);
-    if (i >= 0 && i < steps.length - 1) {
-      setState(() => _step = steps[i + 1]);
+    final pages = _pagesFor(_shell);
+    final at = pages.indexOf(_page);
+    if (at >= 0 && at < pages.length - 1) {
+      setState(() => _step = _pageSteps(pages[at + 1], _shell).first);
     }
   }
 
   void _back() {
-    final steps = _stepsFor(_shell);
-    final i = steps.indexOf(_step);
-    if (i > 0) setState(() => _step = steps[i - 1]);
+    final pages = _pagesFor(_shell);
+    final at = pages.indexOf(_page);
+    if (at > 0) {
+      setState(() => _step = _pageSteps(pages[at - 1], _shell).first);
+    }
   }
+
+  /// The screen on show: the page [_step] belongs to.
+  _SetupPage get _page => _pageOf(_step);
 
   ShellKind? get _shell => ref.read(effectiveThemeProvider).asData?.value.shell;
 
@@ -907,70 +889,53 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
                 ? const SizedBox.shrink()
                 : Builder(
                     builder: (_) {
-                      final steps = _stepsFor(theme.shell);
-                      // The list can shrink under the user (terminal drops four
-                      // steps), so never trust a stale enum: fall back to the
-                      // first step rather than rendering nothing.
-                      final i =
-                          !steps.contains(_step) ? 0 : steps.indexOf(_step);
-                      final current = steps[i];
+                      final pages = _pagesFor(theme.shell);
+                      // The list can shrink under the user (terminal drops two
+                      // pages), so never trust a stale page: fall back to the
+                      // first rather than rendering nothing.
+                      final i = !pages.contains(_page)
+                          ? 0
+                          : pages.indexOf(_page);
+                      final page = pages[i];
+                      final lead = _pageSteps(page, theme.shell).first;
 
                       return SetupInstallerFrame(
                         skin: skin,
                         steps: [
-                          for (final st in steps) ref.t('setup.step.${st.name}')
+                          for (final pg in pages) ref.t('setup.page.${pg.name}')
                         ],
                         step: i,
                         windowTitle: _windowTitle(theme, skin),
-                        title: _title(current),
-                        subtitle: _subtitle(current),
-                        // ── NULL WHEN THERE IS NOTHING TO SAY ──────────
-                        //
-                        // The frame gives this slot to the status line when it
-                        // is non-null and to the progress dots otherwise, so a
-                        // step counter passed unconditionally here would delete
-                        // the dots from every wizard on every skin that has
-                        // them. It used to fall back to `setup.status` for
-                        // exactly that reason and the ordering in the frame
-                        // made it dead code instead.
-                        //
-                        // The count is not lost: the console skin prints it in
-                        // its title bar, and the dot row IS the count on the
-                        // skins that draw one. What the slot is borrowed for is
-                        // the one thing neither of those can say, which is what
-                        // the machine is currently doing.
+                        title: _pageTitle(page),
+                        subtitle: _pageSubtitle(page, theme),
+                        // NULL WHEN THERE IS NOTHING TO SAY: the frame gives
+                        // this slot to the status line when it is non-null and
+                        // to the progress dots otherwise.
                         status: _packLine(packs, theme),
-                        nextEnabled: _mayAdvance(current, packs, theme),
-                        // ── TWO THINGS WANT THIS SLOT, NEVER AT ONCE ──
-                        //
-                        // The nag only appears on steps AFTER welcome, and the
-                        // restore offer only on welcome itself, so one switch
-                        // covers both without either needing to know about the
-                        // other.
-                        footerNote: current == _SetupStep.welcome
+                        nextEnabled: _mayAdvance(lead, packs, theme),
+                        // The restore offer on Hello, the home nag after it.
+                        footerNote: page == _SetupPage.hello
                             ? _RestoreLine(onRestore: _openRestore)
-                            : !_isDefault &&
-                                    i > steps.indexOf(_SetupStep.welcome)
+                            : !_isDefault && i > 0
                                 ? _NagLine(onFix: _openHomePicker)
                                 : null,
-                        onBack: i == 0 || current == _SetupStep.install
+                        onBack: i == 0 || page == _SetupPage.install
                             ? null
                             : _back,
                         onNext: _next,
-                        nextLabel: switch (current) {
-                          _SetupStep.welcome => ref.t('setup.next.getStarted'),
-                          // The step before install, whichever it is: on the
-                          // terminal that is the distro step, not folders.
-                          final st when st == steps[steps.length - 2] =>
+                        nextLabel: switch (page) {
+                          _SetupPage.hello => ref.t('setup.next.getStarted'),
+                          // The page before install, whichever it is: on the
+                          // terminal that is Desktop.
+                          final pg when pg == pages[pages.length - 2] =>
                             ref.t('setup.next.install'),
                           _ => ref.t('setup.next.continue'),
                         },
-                        body: _body(theme, skin, current),
-                        stage: _stage(theme, skin, current),
-                        // The welcome step is the one built around a LIST, so
-                        // it is the one that should grow into the window. The
-                        // rest are a handful of rows and look wrong stretched.
-                        fills: current == _SetupStep.welcome,
+                        body: _pageBody(theme, skin, page),
+                        stage: _pageStage(theme, skin, page),
+                        // Hello is built around a LIST, so it grows into the
+                        // window. The rest are rows and look wrong stretched.
+                        fills: page == _SetupPage.hello,
                       );
                     },
                   ),
@@ -996,10 +961,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
   String? _packLine(DistroPackState packs, EffectiveTheme? theme) {
     if (theme == null || packs.themeId != theme.spec.id) return null;
     return switch (packs.phase) {
-      DistroPackPhase.refreshing => 'Fetching package lists',
+      DistroPackPhase.refreshing => ref.t('setup.pack.refreshing'),
       DistroPackPhase.installing when packs.total > 1 =>
-        'Installing ${packs.label}, ${packs.done + 1} of ${packs.total}',
-      DistroPackPhase.installing => 'Installing ${packs.label}',
+        ref.t('setup.pack.installingOf', {
+          'label': packs.label ?? '',
+          'n': '${packs.done + 1}',
+          'total': '${packs.total}',
+        }),
+      DistroPackPhase.installing =>
+        ref.t('setup.pack.installing', {'label': packs.label ?? ''}),
       _ => null,
     };
   }
@@ -1135,7 +1105,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
       // `_Preview` read them.
       gridButton: theme.prefs.dockGridButton ?? 'end',
       rows: theme.prefs.folderRows ?? 3,
-      framed: false,
+      // FRAMED: a phone on the page rather than a banner across it, so the
+      // preview reads as the device the choices are about.
+      framed: true,
       background: _stageWallpaper(theme),
       tiles: _stageTiles(mode),
       // Only the widgets step draws these. Everywhere else the desktop canvas
@@ -1144,20 +1116,20 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     );
   }
 
-  /// Blocks where the chosen desklets will land, over the desktop stage.
+  /// The chosen desklets, live, where they will land on the desktop stage.
   ///
-  /// ─── GHOSTS, NOT THE REAL DESKLETS ──────────────────────────────────────
+  /// ─── THE REAL WIDGETS, NOT LABELLED BLOCKS ──────────────────────────────
   ///
-  /// Rendering the actual widgets here would mean running the stats poller and
-  /// the conky skin inside a 240dp preview during setup, and every one of them
-  /// is a ConsumerWidget with its own stream. The question this step asks is
-  /// WHERE and HOW MANY, not what the numbers say, and a labelled block answers
-  /// both. The real thing appears one screen later, on the desktop itself,
-  /// which is the payoff the install step exists for.
+  /// This drew accent rectangles with a name in each, on the reasoning that
+  /// the step asks WHERE and HOW MANY. It also asks what the desktop will look
+  /// like, and a box saying "conky" does not answer that. The tiles under the
+  /// stage already render live through [DeskletPreview], so the cost of real
+  /// widgets is one this step pays anyway.
   ///
-  /// Proportions come from `defaultSpanY` against the theme's row count, so a
-  /// block is the height the desklet will actually occupy rather than a
-  /// decorative bar.
+  /// Drawn on a canvas the size of the real screen, at the real cell size,
+  /// then scaled into the stage as one picture. Each desklet therefore lays
+  /// out exactly as it will on the desktop, instead of being squeezed into a
+  /// small box and laid out for a size it will never have.
   Widget? _widgetGhosts(EffectiveTheme theme) {
     final picked = _chosenWidgets(theme);
     final kinds = [
@@ -1166,65 +1138,56 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
     ];
     if (kinds.isEmpty) return null;
 
-    // The DESKLET grid, matching the packing in `_next` and the starter in
-    // `_seedFirstDesktop`. This read `theme.rows`, the icon grid, so a block
-    // drawn here was a third of the height of the tile it stood for and the
-    // Top / Middle / Bottom strip moved it by the wrong amount.
+    // The DESKLET grid, matching the packing in `_next`.
+    final cols = theme.deskletCols < 1 ? 1 : theme.deskletCols;
     final rows = theme.deskletRows < 1 ? 1 : theme.deskletRows;
-    final tall = kinds.fold<int>(0, (n, k) => n + k.defaultSpanY);
-    // The PALETTE's own colours, not a constructed ChromeData. Building one
-    // here would mean matching the four named arguments the screen's own
-    // bootstrap passes, and `DevicePreview` already draws from exactly these
-    // two for the same reason: the ghosts sit inside the picture, so they
-    // should take the picture's colours rather than the chrome's.
-    final accent = theme.palette.accent;
-    final ink = theme.palette.onDark;
+    final screen = MediaQuery.sizeOf(context);
+    final cellW = screen.width / cols;
+    final cellH = screen.height / rows;
 
-    final stack = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final k in kinds)
-          Expanded(
-            flex: k.defaultSpanY,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.22),
-                  border: Border.all(color: accent, width: 1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  k.id == 'monitor' ? 'conky' : context.t(k.labelKey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9, color: ink),
-                ),
-              ),
-            ),
-          ),
-      ],
+    final slots = _packStarter(
+      kinds,
+      cols: cols,
+      rows: rows,
+      spot: _widgetSpot,
     );
 
-    // The remaining rows, split above and below according to the chosen spot.
-    final spare = rows - tall;
-    final above = switch (_widgetSpot) {
-      'bottom' => spare,
-      'middle' => spare ~/ 2,
-      _ => 0,
-    };
-
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          if (above > 0) Expanded(flex: above, child: const SizedBox()),
-          Expanded(flex: tall, child: stack),
-          if (spare - above > 0)
-            Expanded(flex: spare - above, child: const SizedBox()),
-        ],
+    return IgnorePointer(
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: screen.width,
+          height: screen.height,
+          child: Stack(
+            children: [
+              for (final slot in slots)
+                Positioned(
+                  left: slot.col * cellW,
+                  top: slot.row * cellH,
+                  width: slot.kind.defaultSpanX * cellW,
+                  height: slot.kind.defaultSpanY * cellH,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: buildDesklet(
+                          theme,
+                          Desklet(
+                            id: 'stage_${slot.kind.id}',
+                            kind: slot.kind.id,
+                            page: 0,
+                            col: slot.col,
+                            row: slot.row,
+                            spanX: slot.kind.defaultSpanX,
+                            spanY: slot.kind.defaultSpanY,
+                          ),
+                          theme.spec.desklets
+                              .skinFor(theme.shell, slot.kind.id),
+                        ) ??
+                        const SizedBox.shrink(),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1360,7 +1323,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         // LITERAL, not a key, matching the widgets step below: the i18n
         // migration has not run over this step, and `ref.t` against a missing
         // key renders the key itself, which is worse on screen than English is.
-        _SetupStep.icons => 'Icons',
+        _SetupStep.icons => ref.t('setup.title.icons'),
         _SetupStep.appearance => ref.t('setup.title.appearance'),
         _SetupStep.dock => ref.t('setup.title.dock'),
         _SetupStep.drawer => ref.t('setup.title.drawer'),
@@ -1368,7 +1331,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         // LITERAL, not a key. The i18n migration has not run over this step
         // yet, and a `ref.t` against a key that does not exist renders the key
         // itself, which is worse on screen than English is.
-        _SetupStep.widgets => 'Desktop widgets',
+        _SetupStep.widgets => ref.t('setup.title.widgets'),
         _SetupStep.notifications => ref.t('setup.title.notifications'),
         _SetupStep.install => ref.t('setup.title.install'),
       };
@@ -1377,14 +1340,85 @@ class _SetupScreenState extends ConsumerState<SetupScreen>
         // The reference has no line under "Choose your language:".
         _SetupStep.welcome => null,
         _SetupStep.distro => ref.t('setup.subtitle.distro'),
-        _SetupStep.icons => 'How your apps should look.',
+        _SetupStep.icons => ref.t('setup.subtitle.icons'),
         _SetupStep.appearance => ref.t('setup.subtitle.appearance'),
         _SetupStep.dock => ref.t('setup.subtitle.dock'),
         _SetupStep.drawer => ref.t('setup.subtitle.drawer'),
         _SetupStep.folders => ref.t('setup.subtitle.folders'),
-        _SetupStep.widgets => 'Conky and fastfetch, on your home screen.',
+        _SetupStep.widgets => ref.t('setup.subtitle.widgets'),
         _SetupStep.notifications => ref.t('setup.subtitle.notifications'),
         _SetupStep.install => ref.t('setup.subtitle.install'),
+      };
+
+  String _pageTitle(_SetupPage page) => switch (page) {
+        _SetupPage.hello => ref.t('setup.welcome.chooseLanguage'),
+        _SetupPage.desktop => ref.t('setup.title.distro'),
+        _SetupPage.look => ref.t('setup.page.look.title'),
+        _SetupPage.screens => ref.t('setup.page.screens.title'),
+        _SetupPage.install => ref.t('setup.title.install'),
+      };
+
+  String? _pageSubtitle(_SetupPage page, EffectiveTheme theme) =>
+      switch (page) {
+        _SetupPage.hello => null,
+        _SetupPage.desktop => ref.t('setup.subtitle.distro'),
+        _SetupPage.look =>
+          ref.t('setup.page.look.subtitle', {'name': theme.spec.name}),
+        _SetupPage.screens => ref.t('setup.page.screens.subtitle'),
+        _SetupPage.install => ref.t('setup.subtitle.install'),
+      };
+
+  /// Which of a page's steps this distro shows.
+  ///
+  /// A phone home (Pocket) has no dock side, no app-grid button and no drawer
+  /// columns to choose: its dock is a phone's and its app list is the App
+  /// Library. Asking anyway would be offering controls that do nothing, so
+  /// those sections are left out rather than drawn and ignored. Their
+  /// commits (none for these two) are unaffected.
+  List<_SetupStep> _shownOn(_SetupPage page, EffectiveTheme theme) => [
+        for (final st in _pageSteps(page, theme.shell))
+          if (!(theme.phoneHome &&
+              (st == _SetupStep.dock || st == _SetupStep.drawer)))
+            st,
+      ];
+
+  /// A page: its steps one under another, each under its own heading. The
+  /// first needs none, because the page title already says what it is.
+  Widget _pageBody(EffectiveTheme theme, SetupSkin skin, _SetupPage page) {
+    final steps = _shownOn(page, theme);
+    if (steps.length == 1) return _body(theme, skin, steps.single);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var k = 0; k < steps.length; k++) ...[
+          if (k > 0) ...[
+            const SizedBox(height: 28),
+            _SectionHeading(
+              title: _title(steps[k]),
+              subtitle: _subtitle(steps[k]),
+            ),
+            const SizedBox(height: 12),
+          ],
+          _body(theme, skin, steps[k]),
+        ],
+      ],
+    );
+  }
+
+  /// The live preview over a page.
+  ///
+  /// ─── ONE PHONE, CHANGING ─────────────────────────────────────────────────
+  ///
+  /// Desktop keeps its deck of distros. Look and Your screens show the chosen
+  /// distro's own home, framed as a phone so it reads as THE phone rather than
+  /// a banner, and every choice on the page redraws it: the dock moves, the
+  /// palette flips, the picked widgets appear where they will land.
+  Widget? _pageStage(EffectiveTheme theme, SetupSkin skin, _SetupPage page) =>
+      switch (page) {
+        _SetupPage.desktop => _stage(theme, skin, _SetupStep.distro),
+        _SetupPage.look => _stage(theme, skin, _SetupStep.dock),
+        _SetupPage.screens => _stage(theme, skin, _SetupStep.widgets),
+        _ => null,
       };
 
   Widget _body(EffectiveTheme theme, SetupSkin skin, _SetupStep step) =>
@@ -1534,6 +1568,69 @@ List<_SetupStep> _stepsFor(ShellKind? shell) {
     _SetupStep.notifications,
     _SetupStep.install,
   ];
+}
+
+/// What setup SHOWS: five pages, each holding one or more [_SetupStep]s.
+///
+/// ─── TEN SCREENS WERE FOUR TOO MANY ─────────────────────────────────────────
+///
+/// The steps stay as they were, each with its own body and its own commit, so
+/// nothing a step writes changed. What changed is how many times the user
+/// presses Continue: related questions now share a page (the distro and its
+/// icons; how it looks; what is on your screens), and the frame counts pages.
+enum _SetupPage { hello, desktop, look, screens, install }
+
+_SetupPage _pageOf(_SetupStep step) => switch (step) {
+      _SetupStep.welcome => _SetupPage.hello,
+      _SetupStep.distro || _SetupStep.icons => _SetupPage.desktop,
+      _SetupStep.appearance ||
+      _SetupStep.dock ||
+      _SetupStep.drawer =>
+        _SetupPage.look,
+      _SetupStep.folders ||
+      _SetupStep.widgets ||
+      _SetupStep.notifications =>
+        _SetupPage.screens,
+      _SetupStep.install => _SetupPage.install,
+    };
+
+/// The pages this shell shows, in order. Derived from [_stepsFor], so the
+/// terminal's shorter list stays the one rule about what a shell is asked.
+List<_SetupPage> _pagesFor(ShellKind? shell) => [
+      for (final st in _stepsFor(shell)) _pageOf(st),
+    ].toSet().toList();
+
+/// The steps on [page] for this shell, in order.
+List<_SetupStep> _pageSteps(_SetupPage page, ShellKind? shell) => [
+      for (final st in _stepsFor(shell))
+        if (_pageOf(st) == page) st,
+    ];
+
+/// A heading between two steps on one page.
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ChromeScope.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: d.text.title),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            softWrap: true,
+            style: d.text.caption.copyWith(color: d.colors.textMuted),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 // ── Steps ────────────────────────────────────────────────────────────────────
@@ -2112,9 +2209,9 @@ class _StepIcons extends ConsumerWidget {
           mono: mono,
           selected: distroIcons,
           onTap: () => onChanged(true),
-          title: '${theme.spec.name} icons',
+          title: ref.t('setup.icons.distroTitle', {'name': theme.spec.name}),
           trailing: null,
-          note: 'One set, drawn in this distro colour.',
+          note: ref.t('setup.icons.distroNote'),
           grid: _DistroIconGrid(theme: theme, drawn: drawn),
         ),
         const SizedBox(height: 10),
@@ -2124,7 +2221,7 @@ class _StepIcons extends ConsumerWidget {
           onTap: () => onChanged(false),
           title: context.t('setup.appIcons'),
           trailing: null,
-          note: "Each app's own artwork, in this distro shape.",
+          note: ref.t('setup.icons.appNote'),
           grid: _AppIconGrid(sizePx: sizePx),
         ),
       ],
@@ -2422,10 +2519,10 @@ class _StepAppearance extends ConsumerWidget {
         SetupChoice(
           mono: mono,
           selected: mode,
-          options: const {
-            'system': 'System',
-            'light': 'Light',
-            'dark': 'Dark',
+          options: {
+            'system': ref.t('setup.choice.system'),
+            'light': ref.t('setup.choice.light'),
+            'dark': ref.t('setup.choice.dark'),
           },
           // Written through the ordinary per-theme notifier even though the
           // value is global. `PrefsNotifier.edit` routes it; a call site that
@@ -2450,6 +2547,40 @@ class _StepAppearance extends ConsumerWidget {
             style: d.text.caption.copyWith(color: d.colors.textMuted),
           ),
         ],
+        // On Appearance rather than Dock, so a distro with no dock to ask
+        // about (Pocket) still gets the question.
+        // ─── ANDROID'S STATUS BAR, ASKED ON DAY ONE ──────────────────────
+        //
+        // The same stored `statusBar` pref Settings > Desktop writes. Hiding
+        // it hands the top row to the distro: on a distro with a panel the
+        // panel takes Wi-Fi, sound, battery and the clock (the status rule).
+        // Asked here because it changes the whole look of the first screen
+        // the user lands on, and Settings is not where anyone looks first.
+        const SizedBox(height: 16),
+        _MiniLabel(text: ref.t('settings.statusBar')),
+        const SizedBox(height: 8),
+        SetupChoice(
+          mono: mono,
+          selected: theme.statusBar ? 'show' : 'hide',
+          options: {
+            'show': ref.t('setup.choice.show'),
+            'hide': ref.t('setup.choice.hide'),
+          },
+          onChanged: (v) =>
+              notifier.edit((p) => p.copyWith(statusBar: v == 'show')),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          theme.statusBar
+              ? ref.t('settings.statusBarShownSub')
+              : theme.panels.isEmpty
+                  ? ref.t('settings.statusBarHiddenSub', {
+                      'name': theme.spec.name,
+                    })
+                  : ref.t('settings.panelStatusIconsSub'),
+          softWrap: true,
+          style: d.text.caption.copyWith(color: d.colors.textMuted),
+        ),
       ],
     );
   }
@@ -2477,7 +2608,7 @@ class _StepDock extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _MiniLabel(text: 'Where it sits'),
+        _MiniLabel(text: ref.t('setup.label.whereItSits')),
         const SizedBox(height: 8),
         SetupChoice(
           mono: mono,
@@ -2487,10 +2618,10 @@ class _StepDock extends ConsumerWidget {
           // bundled distro uses would cost a quarter of the strip's width to
           // offer a layout nobody asked for. A theme authoring `right` still
           // resolves and still draws; it simply is not offered here.
-          options: const {
-            'left': 'Left',
-            'bottom': 'Bottom',
-            'off': 'None',
+          options: {
+            'left': ref.t('setup.choice.left'),
+            'bottom': ref.t('setup.choice.bottom'),
+            'off': ref.t('setup.choice.none'),
           },
           onChanged: (v) => notifier.edit((p) => p.copyWith(dockSide: v)),
         ),
@@ -2509,10 +2640,10 @@ class _StepDock extends ConsumerWidget {
           SetupChoice(
             mono: mono,
             selected: grid,
-            options: const {
-              'end': 'End',
-              'start': 'Start',
-              'off': 'Hidden',
+            options: {
+              'end': ref.t('setup.choice.end'),
+              'start': ref.t('setup.choice.start'),
+              'off': ref.t('setup.choice.hidden'),
             },
             onChanged: (v) =>
                 notifier.edit((p) => p.copyWith(dockGridButton: v)),
@@ -2540,7 +2671,7 @@ class _StepDrawer extends ConsumerWidget {
 
     return Column(
       children: [
-        const _MiniLabel(text: 'Columns'),
+        _MiniLabel(text: ref.t('setup.label.columns')),
         Row(
           children: [
             for (final n in const [3, 4, 5, 6])
@@ -2560,7 +2691,7 @@ class _StepDrawer extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        const _MiniLabel(text: 'How it moves'),
+        _MiniLabel(text: ref.t('setup.label.howItMoves')),
 
         // ── THE NAMES COME FROM THE ENUM, NOT FROM HERE ─────────────────
         //
@@ -2765,9 +2896,9 @@ class _StepFolders extends ConsumerWidget {
           // "8 folders" over six ticked ones is the kind of small lie that
           // makes someone stop trusting the rest of the screen.
           switch (ordered.length - skipped.length) {
-            0 => 'No folders will be created.',
-            1 => '1 folder will be created when you continue.',
-            final n => '$n folders will be created when you continue.',
+            0 => ref.t('setup.folders.countNone'),
+            1 => ref.t('setup.folders.countOne'),
+            final n => ref.t('setup.folders.countMany', {'n': '$n'}),
           },
           softWrap: true,
           style: d.text.body.copyWith(color: d.colors.text),
@@ -3199,15 +3330,15 @@ class _StepWidgets extends ConsumerWidget {
         // out, and the answer is already on the screen above it.
         if (willPlace) ...[
           const SizedBox(height: 16),
-          const _MiniLabel(text: 'Where they sit'),
+          _MiniLabel(text: ref.t('setup.label.whereTheySit')),
           const SizedBox(height: 8),
           SetupChoice(
             mono: mono,
             selected: spot,
-            options: const {
-              'top': 'Top',
-              'middle': 'Middle',
-              'bottom': 'Bottom',
+            options: {
+              'top': ref.t('setup.choice.top'),
+              'middle': ref.t('setup.choice.middle'),
+              'bottom': ref.t('setup.choice.bottom'),
             },
             onChanged: onSpot,
           ),
@@ -3215,10 +3346,10 @@ class _StepWidgets extends ConsumerWidget {
         const SizedBox(height: 12),
         Text(
           chosen.isEmpty
-              ? 'No widgets. Long press the desktop to add one any time.'
+              ? ref.t('setup.widgets.countNone')
               : switch (chosen.length) {
-                  1 => '1 widget, on your first workspace.',
-                  final n => '$n widgets, on your first workspace.',
+                  1 => ref.t('setup.widgets.countOne'),
+                  final n => ref.t('setup.widgets.countMany', {'n': '$n'}),
                 },
           softWrap: true,
           style: d.text.body.copyWith(color: c.text),
@@ -3421,4 +3552,62 @@ class _StepNotificationsState extends ConsumerState<_StepNotifications>
       ],
     );
   }
+}
+
+/// Where one chosen desklet goes on the first desktop.
+typedef _StarterSlot = ({DeskletKind kind, int col, int row});
+
+/// Lay [kinds] out two across where they fit, starting at [spot].
+///
+/// Left to right, wrapping when the next one will not fit, and advancing by
+/// the TALLEST tile in the row just finished: `free`, `ls`, `uptime` and `df`
+/// span 2 of an 8-wide grid, and one per row would look like a column of
+/// ribbons. Bottom subtracts the whole height so the last row ends at the
+/// last row instead of being refused off the edge.
+///
+/// Shared by the install step and the stage preview, so what the stage draws
+/// is where the desklets land.
+List<_StarterSlot> _packStarter(
+  List<DeskletKind> kinds, {
+  required int cols,
+  required int rows,
+  required String spot,
+}) {
+  var col = 0;
+  var rowTall = 0;
+  final rowsUsed = <int>[];
+  for (final k in kinds) {
+    if (col + k.defaultSpanX > cols && col > 0) {
+      rowsUsed.add(rowTall);
+      col = 0;
+      rowTall = 0;
+    }
+    col += k.defaultSpanX;
+    if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
+  }
+  if (rowTall > 0) rowsUsed.add(rowTall);
+  final tall = rowsUsed.fold<int>(0, (n, h) => n + h);
+
+  final spare = rows - tall;
+  var cursorRow = switch (spot) {
+    'bottom' => spare,
+    'middle' => spare ~/ 2,
+    _ => 0,
+  };
+  if (cursorRow < 0) cursorRow = 0;
+
+  final out = <_StarterSlot>[];
+  col = 0;
+  rowTall = 0;
+  for (final k in kinds) {
+    if (col + k.defaultSpanX > cols && col > 0) {
+      cursorRow += rowTall;
+      col = 0;
+      rowTall = 0;
+    }
+    out.add((kind: k, col: col, row: cursorRow));
+    col += k.defaultSpanX;
+    if (k.defaultSpanY > rowTall) rowTall = k.defaultSpanY;
+  }
+  return out;
 }

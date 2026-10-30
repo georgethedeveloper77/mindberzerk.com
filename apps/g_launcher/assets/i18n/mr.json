@@ -556,5 +556,8 @@
   "wallpaper.removeBody": "ते तुमच्या फोनवर राहते. हे फक्त येथे सूचीमधून बाहेर काढते.",
   "wallpaper.removeTitle": "हा वॉलपेपर काढा",
   "wallpaper.removed": "काढले",
-  "wallpaper.yours": "तुमचा"
+  "wallpaper.yours": "तुमचा",
+  "shell.dockFull": "डॉक भरले आहे",
+  "shell.moveToHomeScreen": "होम स्क्रीनवर हलवा",
+  "home.edit": "संपादित करा"
 }

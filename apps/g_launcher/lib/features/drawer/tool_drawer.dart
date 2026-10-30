@@ -111,6 +111,8 @@ class ToolDrawer extends ConsumerWidget {
           // a second kind of row.
           FolderDrawerItem() => false,
           LauncherSettingsItem() || DeviceSettingsItem() => false,
+          // Has no category to file under; reached from the footer instead.
+          HiddenFolderItem() => false,
         })
           i,
     ];
@@ -556,7 +558,8 @@ class _RowState extends ConsumerState<_Row> {
                 TerminalDrawerItem() ||
                 FolderDrawerItem() ||
                 LauncherSettingsItem() ||
-                DeviceSettingsItem() =>
+                DeviceSettingsItem() ||
+                HiddenFolderItem() =>
                   const SizedBox.shrink(),
               },
             ),
@@ -742,6 +745,10 @@ class _Footer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = theme.palette;
     final ink = palette.onDark.withValues(alpha: 0.72);
+    final hidden = ref
+        .watch(drawerItemsProvider(theme))
+        .whereType<HiddenFolderItem>()
+        .firstOrNull;
 
     Widget button(IconData icon, String label, VoidCallback onTap) => Expanded(
           child: GestureDetector(
@@ -814,6 +821,13 @@ class _Footer extends ConsumerWidget {
               const DeviceSettingsItem(),
             ),
           ),
+          // A fourth, only while there is something hidden to open.
+          if (hidden != null)
+            button(
+              Icons.lock_outline,
+              hidden.label,
+              () => activateDrawerItem(context, ref, theme, hidden),
+            ),
         ],
       ),
     );
