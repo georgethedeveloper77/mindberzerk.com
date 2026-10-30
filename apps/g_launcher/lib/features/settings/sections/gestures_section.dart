@@ -31,24 +31,53 @@ class _GestureRow extends ConsumerWidget {
     final s = SettingsSkin.of(context);
     final binding = bindingFor(theme, gesture);
     final notifier = ref.read(prefsProvider(theme.spec.id).notifier);
+    final serviceOn = ref.watch(gestureServiceEnabledProvider).value;
 
     final label = binding.isApp ? 'Custom app' : binding.action.label;
 
+    // A gated action with the service known to be off is a binding that does
+    // nothing. Saying so here is the difference between "my gesture is
+    // broken" and "my gesture is waiting for one switch". Unknown (still
+    // loading) says nothing rather than flashing a warning that may be wrong.
+    final dormant =
+        !binding.isApp && binding.action.needsService && serviceOn == false;
+
     // Swipe up/down belong to the workspaces PageView. Binding them is allowed
-    // (their phone, their fight) but must be flagged — the handoff calls for
-    // exactly this one-line warning.
+    // (their phone, their fight) but must be flagged.
     final isVertical =
         gesture == Gesture.swipeUp || gesture == Gesture.swipeDown;
     final bound = binding.isApp || binding.action != GestureAction.none;
     final warn = isVertical && bound;
 
+    // A dormant binding outranks the scrolling warning: a gesture that does
+    // nothing at all is the more urgent of the two facts.
+    final String? subtitle;
+    final Color? tint;
+    if (dormant) {
+      subtitle = context.t('gestures.turnOnToUse');
+      tint = s.acc;
+    } else if (warn) {
+      subtitle = 'Overrides workspace scrolling';
+      tint = s.warn;
+    } else {
+      subtitle = null;
+      tint = null;
+    }
+
     return SettingsRow(
       icon: Icons.gesture,
       title: gesture.label,
-      subtitle: warn ? 'Overrides workspace scrolling' : null,
-      subtitleTint: warn ? s.warn : null,
+      subtitle: subtitle,
+      subtitleTint: tint,
       trailing: ValueLabel(label),
-      onTap: () => _showGestureSheet(context, notifier, gesture),
+      onTap: () => _showGestureSheet(
+        context,
+        ref,
+        notifier,
+        gesture,
+        binding,
+        serviceOn,
+      ),
     );
   }
 }
@@ -57,14 +86,19 @@ class _GestureRow extends ConsumerWidget {
 // Sheets
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Show a themed modal sheet. A modal is pushed OUTSIDE this screen's
-/// ChromeScope, so we capture the chrome here and re-provide it inside; without
-/// that, the sheet would fall back to house chrome over a themed screen.
-
+/// The binding picker.
+///
+/// Choosing a gated action while the service is off is the moment Play's
+/// policy is written around: the user has just asked for the capability, so
+/// the disclosure follows the choice directly. The binding is saved either
+/// way; declining leaves it dormant, and the row says so.
 void _showGestureSheet(
   BuildContext context,
+  WidgetRef ref,
   PrefsNotifier notifier,
   Gesture gesture,
+  GestureBinding current,
+  bool? serviceOn,
 ) {
   settingsSheet<void>(
     context,
@@ -79,15 +113,25 @@ void _showGestureSheet(
             children: [
               for (final a in GestureAction.values)
                 SheetOption(
-                  label:
-                      a.needsService ? '${a.label}  ·  needs access' : a.label,
-                  onTap: () {
+                  label: a.label,
+                  selected: !current.isApp && current.action == a,
+                  description: a.needsService && serviceOn != true
+                      ? context.t('gestures.needsPermission')
+                      : null,
+                  onTap: () async {
                     notifier.edit(
                       (p) => p.copyWith(
                         gestures: {...p.gestures, gesture.id: a.id},
                       ),
                     );
                     Navigator.pop(context);
+
+                    // requestGestureService re-checks the service itself and
+                    // returns early when it is on, so a stale [serviceOn]
+                    // can never show the disclosure to someone already done.
+                    if (a.needsService && context.mounted) {
+                      await requestGestureService(context, ref);
+                    }
                   },
                 ),
             ],
@@ -104,83 +148,77 @@ class _GestureServiceCard extends ConsumerWidget {
 
   /// The full explanation, kept OUT of the card.
   ///
-  /// It is genuinely worth reading — the accessibility prompt says G Launcher
-  /// can "observe your actions", and someone who reads that without context is
-  /// right to refuse. But a five-line disclaimer sitting permanently above the
-  /// gesture list taxes everyone forever to reassure the few who ask. So the
-  /// card states the offer in one line and the reasoning goes one tap away.
+  /// It is genuinely worth reading, since the accessibility prompt says G
+  /// Launcher can "observe your actions", and someone who reads that without
+  /// context is right to refuse. But a five-line disclaimer sitting
+  /// permanently above the gesture list taxes everyone forever to reassure the
+  /// few who ask. So the card states the offer in one line and the reasoning
+  /// goes one tap away.
   static const _explainer =
       'Android only lets a launcher pull down the shade, open quick settings, show recents or lock the screen through an accessibility service.\n\nThe next screen warns that G Launcher can "observe your actions". That is the standard wording for every app that uses this API.\n\nG Launcher does not read your screen and does not watch other apps. It asks only for the ability to perform the gestures you set here.\n\nGestures that do not need it, such as Activities, launching an app or showing the dock, work either way.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final api = ref.read(launcherHostApiProvider);
     final s = SettingsSkin.of(context);
 
-    return FutureBuilder<bool>(
-      future: api.isGestureServiceEnabled(),
-      builder: (context, snap) {
-        if (snap.data == true) return const SizedBox.shrink();
+    // Shown only once the service is KNOWN to be off. While the first check is
+    // in flight it stays hidden, so someone who already granted it never sees
+    // the offer flash up and vanish. The provider re-checks on resume, so the
+    // card disappears by itself when the user comes back from Settings.
+    if (ref.watch(gestureServiceEnabledProvider).value != false) {
+      return const SizedBox.shrink();
+    }
 
-        return Container(
-          margin: EdgeInsets.fromLTRB(
-            s.framing.cardInset,
-            0,
-            s.framing.cardInset,
-            16,
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          decoration: BoxDecoration(
-            color: s.card,
-            borderRadius: BorderRadius.circular(s.framing.cardRadius),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.t('settings.shadeQuickSettingsRecents'),
-                      style: TextStyle(
-                        color: s.tx,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      context.t('settings.needsAnAccessibilityService'),
-                      style: TextStyle(color: s.mut, fontSize: 12.5),
-                    ),
-                    const SizedBox(height: 10),
-                    // ── PROMINENT DISCLOSURE, NOT A DIRECT INTENT ──────
-                    //
-                    // This button used to fire the settings intent straight
-                    // through, with the explanation parked behind the
-                    // (i) beside it. Play rejected that: a disclosure the user
-                    // has to go looking for is not prominent, and the policy
-                    // wants consent taken in the app before the request, not
-                    // an explanation available on request.
-                    //
-                    // `requestGestureService` fires the intent itself, and only
-                    // after an explicit Continue. Do not reintroduce a direct
-                    // call here.
-                    ThemedButton(
-                      label: context.t('settings.turnItOn'),
-                      onPressed: () => requestGestureService(context, ref),
-                    ),
-                  ],
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+        s.framing.cardInset,
+        0,
+        s.framing.cardInset,
+        16,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: s.card,
+        borderRadius: BorderRadius.circular(s.framing.cardRadius),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.t('settings.shadeQuickSettingsRecents'),
+                  style: TextStyle(
+                    color: s.tx,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              _InfoButton(
-                title: context.t('settings.whyAnAccessibilityService'),
-                body: _explainer,
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  context.t('settings.needsAnAccessibilityService'),
+                  style: TextStyle(color: s.mut, fontSize: 12.5),
+                ),
+                const SizedBox(height: 10),
+                // ── PROMINENT DISCLOSURE, NOT A DIRECT INTENT ──────────
+                //
+                // `requestGestureService` fires the intent itself, and only
+                // after an explicit accept on the disclosure screen. Do not
+                // reintroduce a direct call here.
+                ThemedButton(
+                  label: context.t('settings.turnItOn'),
+                  onPressed: () => requestGestureService(context, ref),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+          _InfoButton(
+            title: context.t('settings.whyAnAccessibilityService'),
+            body: _explainer,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -225,20 +263,6 @@ class _InfoButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Label helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// The Icons row's subtitle: which SOURCE is on top right now.
-///
-/// Reads the two prefs and nothing async, because a settings row that waits on
-/// a package-manager call renders blank on first paint and then pops. The
-/// screen behind it does the resolving.
-///
-/// ORDER MATTERS AND MIRRORS THE RENDERER. A third-party pack layers ABOVE the
-/// icon theme, so when both are set the installed pack is what the user is
-/// mostly looking at, and that is what this names.
-
 List<Widget> gesturesSection(
   BuildContext context,
   WidgetRef ref,
@@ -248,13 +272,6 @@ List<Widget> gesturesSection(
 ) {
   // Read and discarded, which instantiates the provider here rather than making
   // this function's signature name the Pigeon host API type.
-  //
-  // The prefs notifier that used to sit beside it is GONE. It was bound for the
-  // group's own Reset action, and that moved to RestoreScreen when
-  // `SettingsGroup.onReset` stopped being passed anywhere, so it has been unused ever
-  // since. The comment claiming it was "BOUND now" outlived the thing it
-  // described by a whole feature, which is the usual way a stale comment
-  // survives: it was true when written.
   ref.read(launcherHostApiProvider);
 
   return [

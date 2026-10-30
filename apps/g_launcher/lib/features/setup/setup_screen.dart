@@ -1596,9 +1596,9 @@ _SetupPage _pageOf(_SetupStep step) => switch (step) {
 
 /// The pages this shell shows, in order. Derived from [_stepsFor], so the
 /// terminal's shorter list stays the one rule about what a shell is asked.
-List<_SetupPage> _pagesFor(ShellKind? shell) => [
+List<_SetupPage> _pagesFor(ShellKind? shell) => <_SetupPage>{
       for (final st in _stepsFor(shell)) _pageOf(st),
-    ].toSet().toList();
+    }.toList();
 
 /// The steps on [page] for this shell, in order.
 List<_SetupStep> _pageSteps(_SetupPage page, ShellKind? shell) => [
